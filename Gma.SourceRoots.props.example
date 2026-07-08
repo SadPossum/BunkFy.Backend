@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <!-- Copy this file to Gma.SourceRoots.props and keep the copy untracked. -->
+    <GmaFrameworkRoot>$(MSBuildThisFileDirectory)gma\framework\src\</GmaFrameworkRoot>
+    <GmaModulesRoot>$(MSBuildThisFileDirectory)gma\modules\</GmaModulesRoot>
+    <GmaModuleAdministrationRoot>$(GmaModulesRoot)administration\src\</GmaModuleAdministrationRoot>
+    <GmaModuleAuthRoot>$(GmaModulesRoot)auth\src\</GmaModuleAuthRoot>
+    <GmaModuleFilesRoot>$(GmaModulesRoot)files\src\</GmaModuleFilesRoot>
+    <GmaModuleNotificationsRoot>$(GmaModulesRoot)notifications\src\</GmaModuleNotificationsRoot>
+    <GmaModuleTaskRuntimeRoot>$(GmaModulesRoot)task-runtime\src\</GmaModuleTaskRuntimeRoot>
+    <GmaModuleTenancyRoot>$(GmaModulesRoot)tenancy\src\</GmaModuleTenancyRoot>
+  </PropertyGroup>
+</Project>

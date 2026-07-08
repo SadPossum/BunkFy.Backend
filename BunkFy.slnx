@@ -1,0 +1,29 @@
+<Solution>
+  <Folder Name="/eng/">
+    <File Path="eng/common.ps1" />
+    <File Path="eng/gma-bootstrap.ps1" />
+    <File Path="eng/gma-status.ps1" />
+    <File Path="eng/gma-update.ps1" />
+    <File Path="eng/gma-validate.ps1" />
+    <File Path="eng/verify.ps1" />
+  </Folder>
+  <Folder Name="/.github/workflows/">
+    <File Path=".github/workflows/validate.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="Gma.SourceRoots.props.example" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/BunkFy.Host.Api/BunkFy.Host.Api.csproj" />
+    <Project Path="src/BunkFy.SharedKernel/BunkFy.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.Api/">
+    <File Path="src/BunkFy.Host.Api/appsettings.json" />
+    <File Path="src/BunkFy.Host.Api/appsettings.Development.json" />
+  </Folder>
+</Solution>

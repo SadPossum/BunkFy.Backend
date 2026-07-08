@@ -1,0 +1,85 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout GMA framework
+        uses: actions/checkout@v4
+        with:
+          repository: SadPossum/GMA-Framework
+          ref: dev
+          path: gma/framework
+
+      - name: Checkout GMA administration module
+        uses: actions/checkout@v4
+        with:
+          repository: SadPossum/GMA-Module-Administration
+          ref: dev
+          path: gma/modules/administration
+
+      - name: Checkout GMA auth module
+        uses: actions/checkout@v4
+        with:
+          repository: SadPossum/GMA-Module-Auth
+          ref: dev
+          path: gma/modules/auth
+
+      - name: Checkout GMA files module
+        uses: actions/checkout@v4
+        with:
+          repository: SadPossum/GMA-Module-Files
+          ref: dev
+          path: gma/modules/files
+
+      - name: Checkout GMA notifications module
+        uses: actions/checkout@v4
+        with:
+          repository: SadPossum/GMA-Module-Notifications
+          ref: dev
+          path: gma/modules/notifications
+
+      - name: Checkout GMA task runtime module
+        uses: actions/checkout@v4
+        with:
+          repository: SadPossum/GMA-Module-Task-Runtime
+          ref: dev
+          path: gma/modules/task-runtime
+
+      - name: Checkout GMA tenancy module
+        uses: actions/checkout@v4
+        with:
+          repository: SadPossum/GMA-Module-Tenancy
+          ref: dev
+          path: gma/modules/tenancy
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Bootstrap source roots
+        shell: pwsh
+        run: ./eng/gma-bootstrap.ps1 -Force
+
+      - name: Restore
+        run: dotnet restore BunkFy.slnx
+
+      - name: Build
+        run: dotnet build BunkFy.slnx --no-restore -m:1
