@@ -31,4 +31,4 @@ tests/
   Integration.Tests/
 ```
 
-Only the initial API host and shared kernel are present for the foundation milestone. Additional hosts and product modules should be added when the product work requires them.
+Only the initial API host and shared kernel are present for the foundation milestone. The API host exposes `/health` and `/api/smoke` for runtime validation; GMA modules remain opt-in through `BunkFy:EnableGmaModules` until the Aspire graph owns the required infrastructure. Additional hosts and product modules should be added when the product work requires them.

@@ -18,7 +18,7 @@ Selected GMA modules for the initial shell:
 - `task-runtime`
 - `tenancy`
 
-Public API modules currently composed by `src/BunkFy.Host.Api`:
+Public API modules available for `src/BunkFy.Host.Api` when `BunkFy:EnableGmaModules` is enabled:
 
 - `auth`
 - `files`
@@ -26,6 +26,8 @@ Public API modules currently composed by `src/BunkFy.Host.Api`:
 - `tenancy`
 
 Admin CLI/API and worker-only surfaces stay explicit app choices and should be added when BunkFy has product behavior that needs them.
+
+The default development shell keeps GMA modules disabled so the root Aspire graph can start without a database while the product has no business logic. `/health` and `/api/smoke` are available for smoke validation.
 
 ## Documentation
 
