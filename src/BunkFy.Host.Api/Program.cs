@@ -31,13 +31,6 @@ app.MapGet("/", () => Results.Ok(new
     Service = "BunkFy.Host.Api"
 }));
 
-app.MapGet("/api/system/version", () => Results.Ok(new
-{
-    Application = "BunkFy",
-    Service = "BunkFy.Host.Api",
-    Version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0"
-}));
-
 app.MapModules();
 
 app.Run();

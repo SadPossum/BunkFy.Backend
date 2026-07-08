@@ -1,8 +1,8 @@
 # BunkFy Backend
 
-Backend app shell for BunkFy, an open-source hostel property management system.
+Backend foundation repository for BunkFy, an open-source hostel property management system.
 
-This repository is a source-first GMA application:
+This repository is a source-first GMA backend foundation:
 
 - App-owned backend code belongs under `src/`.
 - PMS feature modules will live under `src/Modules`.
@@ -26,6 +26,10 @@ Public API modules currently composed by `src/BunkFy.Host.Api`:
 - `tenancy`
 
 Admin CLI/API and worker-only surfaces stay explicit app choices and should be added when BunkFy has product behavior that needs them.
+
+## Documentation
+
+Start with [docs/README.md](docs/README.md).
 
 ## Local Validation
 

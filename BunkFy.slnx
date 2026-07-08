@@ -10,6 +10,16 @@
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/validate.yml" />
   </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/README.md" />
+  </Folder>
+  <Folder Name="/docs/getting-started/">
+    <File Path="docs/getting-started/setup.md" />
+    <File Path="docs/getting-started/local-development.md" />
+  </Folder>
+  <Folder Name="/docs/architecture/">
+    <File Path="docs/architecture/overview.md" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
