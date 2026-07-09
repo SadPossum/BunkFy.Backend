@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Properties.Admin.Contracts\Properties.Admin.Contracts.csproj" />
+    <ProjectReference Include="..\Properties.Application\Properties.Application.csproj" />
+    <ProjectReference Include="..\Properties.Contracts\Properties.Contracts.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Api\Gma.Framework.Administration.Api.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration\Gma.Framework.Administration.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api\Gma.Framework.Api.csproj" />
+    <ProjectReference Include="..\Properties.Persistence\Properties.Persistence.csproj" />
+  </ItemGroup>
+</Project>

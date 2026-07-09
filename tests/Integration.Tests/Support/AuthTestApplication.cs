@@ -40,6 +40,12 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Outbox:LockDurationMilliseconds", "1000");
         builder.UseSetting("Observability:Prometheus:Enabled", enablePrometheus.ToString());
         builder.UseSetting("Caching:Enabled", "false");
+        builder.UseSetting("FileManagement:Minio:Endpoint", "localhost:9000");
+        builder.UseSetting("FileManagement:Minio:AccessKey", "minioadmin");
+        builder.UseSetting("FileManagement:Minio:SecretKey", "minioadmin");
+        builder.UseSetting("FileManagement:Minio:BucketName", "integration-test-files");
+        builder.UseSetting("FileManagement:Minio:UseSsl", "false");
+        builder.UseSetting("FileManagement:Minio:CreateBucketIfMissing", "false");
         builder.UseSetting("Auth:Jwt:Issuer", JwtIssuer);
         builder.UseSetting("Auth:Jwt:Audience", JwtAudience);
         builder.UseSetting("Auth:Jwt:SigningKey", JwtSigningKey);
@@ -64,6 +70,12 @@ internal sealed class AuthTestApplication(
                 ["Outbox:PollIntervalMilliseconds"] = "100",
                 ["Outbox:LockDurationMilliseconds"] = "1000",
                 ["Observability:Prometheus:Enabled"] = enablePrometheus.ToString(),
+                ["FileManagement:Minio:Endpoint"] = "localhost:9000",
+                ["FileManagement:Minio:AccessKey"] = "minioadmin",
+                ["FileManagement:Minio:SecretKey"] = "minioadmin",
+                ["FileManagement:Minio:BucketName"] = "integration-test-files",
+                ["FileManagement:Minio:UseSsl"] = "false",
+                ["FileManagement:Minio:CreateBucketIfMissing"] = "false",
             };
 
             configuration.AddInMemoryCollection(values);

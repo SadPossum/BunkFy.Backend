@@ -14,6 +14,8 @@
     <ProjectReference Include="$(GmaModuleOrderingRoot)Ordering.Api\Ordering.Api.csproj" />
     <ProjectReference Include="$(GmaModuleOrderingRoot)Ordering.Persistence.PostgreSqlMigrations\Ordering.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleOrderingRoot)Ordering.Persistence.SqlServerMigrations\Ordering.Persistence.SqlServerMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Properties\Properties.Api\Properties.Api.csproj" />
+    <ProjectReference Include="..\Modules\Properties\Properties.Persistence.PostgreSqlMigrations\Properties.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTenancyRoot)Gma.Modules.Tenancy.Api\Gma.Modules.Tenancy.Api.csproj" />
     <ProjectReference Include="..\BunkFy.Host.ServiceDefaults\BunkFy.Host.ServiceDefaults.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api\Gma.Framework.Api.csproj" />

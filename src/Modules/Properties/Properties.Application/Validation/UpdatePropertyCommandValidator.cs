@@ -1,0 +1,20 @@
+namespace Properties.Application.Validation;
+
+using Properties.Application.Commands;
+using Gma.Framework.Cqrs;
+
+internal sealed class UpdatePropertyCommandValidator : ICommandValidator<UpdatePropertyCommand>
+{
+    public IEnumerable<string> Validate(UpdatePropertyCommand command)
+    {
+        if (command.PropertyId == Guid.Empty)
+        {
+            yield return "Property id is required.";
+        }
+
+        foreach (string error in PropertiesValidation.ValidatePropertyWrite(command.Name, command.Code, command.TimeZoneId))
+        {
+            yield return error;
+        }
+    }
+}

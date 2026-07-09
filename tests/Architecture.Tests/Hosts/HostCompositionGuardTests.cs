@@ -19,6 +19,7 @@ public sealed class HostCompositionGuardTests
             "builder.AddModule<NotificationsModule>();",
             "builder.AddModule<CatalogModule>();",
             "builder.AddModule<OrderingModule>();",
+            "builder.AddModule<PropertiesModule>();",
             "builder.ValidateModuleComposition();",
             "app.MapModules();"
         ];
@@ -37,8 +38,10 @@ public sealed class HostCompositionGuardTests
         string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
 
         Assert.Contains("builder.AddAdminApiModule<CatalogAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<CatalogAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<PropertiesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<TaskRuntimeAdminCliModule>();", adminCli, StringComparison.Ordinal);
     }
 
@@ -60,14 +63,17 @@ public sealed class HostCompositionGuardTests
     public void Aspire_apphost_wires_infrastructure_and_optional_worker_surfaces()
     {
         string program = RepositoryPaths.Read("src", "BunkFy.Host.AppHost", "Program.cs");
+        string appsettings = RepositoryPaths.Read("src", "BunkFy.Host.AppHost", "appsettings.json");
         string[] expectedTokens =
         [
-            "builder.AddSqlServer(\"sql\")",
             "builder.AddPostgres(\"postgres\")",
+            "builder.Configuration[\"AppHost:SqlServer:Enabled\"]",
+            "builder.AddSqlServer(\"sql\")",
             "builder.AddNats(\"nats\")",
             "builder.AddContainer(\"minio\", \"quay.io/minio/minio\", \"latest\")",
             "FileManagement__Minio__Endpoint",
             "builder.AddProject<Projects.BunkFy_Host_Api>(\"bunkfy-host-api\")",
+            ".WaitFor(postgreSql)",
             "Tasks__Worker__Enabled",
             "Worker__Modules__TaskRuntime",
             "AppHost:AdminApi:Enabled",
@@ -80,5 +86,25 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+        Assert.Contains("\"SqlServer\"", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Enabled\": false", appsettings, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Product_hosts_default_to_postgre_sql()
+    {
+        string[] appsettingsFiles =
+        [
+            "src/BunkFy.Host.Api/appsettings.json",
+            "src/BunkFy.Host.AdminApi/appsettings.json",
+            "src/BunkFy.Host.AdminCli/appsettings.json",
+            "src/BunkFy.Host.Worker/appsettings.json"
+        ];
+
+        string[] offenders = appsettingsFiles
+            .Where(path => !RepositoryPaths.Read(path.Split('/')).Contains("\"Provider\": \"PostgreSql\"", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 }

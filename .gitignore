@@ -2,7 +2,11 @@ bin/
 obj/
 .vs/
 .idea/
+.agents/
+.codex/
 .tmp/
+artifacts/
+[Tt]est[Rr]esult*/
 Gma.SourceRoots.props
 *.user
 *.suo

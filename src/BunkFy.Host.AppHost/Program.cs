@@ -2,11 +2,16 @@ using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sqlServer = builder.AddSqlServer("sql")
-    .AddDatabase("SqlServer");
-
 var postgreSql = builder.AddPostgres("postgres")
     .AddDatabase("PostgreSql");
+
+bool sqlServerEnabled = bool.TryParse(
+    builder.Configuration["AppHost:SqlServer:Enabled"],
+    out bool configuredSqlServerEnabled) && configuredSqlServerEnabled;
+
+var sqlServer = sqlServerEnabled
+    ? builder.AddSqlServer("sql").AddDatabase("SqlServer")
+    : null;
 
 var nats = builder.AddNats("nats")
     .WithJetStream()
@@ -29,9 +34,9 @@ bool workerEnabled = bool.TryParse(
     out bool configuredWorkerEnabled) && configuredWorkerEnabled;
 
 var api = builder.AddProject<Projects.BunkFy_Host_Api>("bunkfy-host-api")
-    .WithReference(sqlServer)
     .WithReference(postgreSql)
     .WithReference(nats)
+    .WaitFor(postgreSql)
     .WaitFor(nats)
     .WaitFor(minio)
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
@@ -44,6 +49,12 @@ var api = builder.AddProject<Projects.BunkFy_Host_Api>("bunkfy-host-api")
     .WithEnvironment("FileManagement__Minio__CreateBucketIfMissing", "true")
     .WithEnvironment("NatsJetStream__Enabled", workerEnabled ? "false" : "true");
 
+if (sqlServer is { } configuredSqlServer)
+{
+    api.WithReference(configuredSqlServer)
+        .WaitFor(configuredSqlServer);
+}
+
 bool adminApiEnabled = bool.TryParse(
     builder.Configuration["AppHost:AdminApi:Enabled"],
     out bool configuredAdminApiEnabled) && configuredAdminApiEnabled;
@@ -52,21 +63,27 @@ IResourceBuilder<ProjectResource>? adminApi = null;
 if (adminApiEnabled)
 {
     adminApi = builder.AddProject<Projects.BunkFy_Host_AdminApi>("bunkfy-host-admin-api")
-        .WithReference(sqlServer)
         .WithReference(postgreSql)
         .WithReference(nats)
+        .WaitFor(postgreSql)
         .WaitFor(nats)
         .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
         .WithEnvironment("NatsJetStream__Enabled", workerEnabled ? "false" : "true");
+
+    if (sqlServer is { } configuredAdminSqlServer)
+    {
+        adminApi.WithReference(configuredAdminSqlServer)
+            .WaitFor(configuredAdminSqlServer);
+    }
 }
 
 IResourceBuilder<ProjectResource>? worker = null;
 if (workerEnabled)
 {
     worker = builder.AddProject<Projects.BunkFy_Host_Worker>("bunkfy-host-worker")
-        .WithReference(sqlServer)
         .WithReference(postgreSql)
         .WithReference(nats)
+        .WaitFor(postgreSql)
         .WaitFor(nats)
         .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
         .WithEnvironment("NatsJetStream__Enabled", "true")
@@ -74,6 +91,12 @@ if (workerEnabled)
         .WithEnvironment("Tasks__Worker__Enabled", "true")
         .WithEnvironment("Worker__Modules__Auth", "true")
         .WithEnvironment("Worker__Modules__TaskRuntime", "true");
+
+    if (sqlServer is { } configuredWorkerSqlServer)
+    {
+        worker.WithReference(configuredWorkerSqlServer)
+            .WaitFor(configuredWorkerSqlServer);
+    }
 }
 
 bool redisEnabled = bool.TryParse(

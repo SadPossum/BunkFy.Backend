@@ -13,6 +13,8 @@
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.AdminApi\Gma.Modules.TaskRuntime.AdminApi.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations\Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations\Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Properties\Properties.AdminApi\Properties.AdminApi.csproj" />
+    <ProjectReference Include="..\Modules\Properties\Properties.Persistence.PostgreSqlMigrations\Properties.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\BunkFy.Host.ServiceDefaults\BunkFy.Host.ServiceDefaults.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Api\Gma.Framework.Administration.Api.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api\Gma.Framework.Api.csproj" />

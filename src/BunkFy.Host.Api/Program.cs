@@ -1,6 +1,7 @@
 using Gma.Modules.Auth.Api;
 using Gma.Modules.Auth.Contracts;
 using Catalog.Api;
+using Properties.Api;
 using BunkFy.Host.ServiceDefaults;
 using Gma.Framework.Api.Modules;
 using Gma.Framework.Api.OpenApi;
@@ -49,6 +50,7 @@ builder.AddModule<FilesModule>();
 builder.AddModule<NotificationsModule>();
 builder.AddModule<CatalogModule>();
 builder.AddModule<OrderingModule>();
+builder.AddModule<PropertiesModule>();
 // module-scaffold:public-api-modules
 
 builder.AddServiceDefaults();

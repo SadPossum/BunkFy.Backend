@@ -21,22 +21,24 @@ public sealed class NotificationStreamingIntegrationTests
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Add("X-Tenant-Id", "tenant-a");
 
-        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
         Task<HttpResponseMessage> responseTask = client.SendAsync(
             request,
             HttpCompletionOption.ResponseHeadersRead,
             timeout.Token);
-        await Task.Delay(150, timeout.Token);
+        using HttpResponseMessage response = await responseTask.WaitAsync(timeout.Token);
+        response.EnsureSuccessStatusCode();
+        await using Stream stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+        using StreamReader reader = new(stream);
+        await ReadDataLineContainingAsync(reader, "\"kind\":\"heartbeat\"", timeout.Token);
+
         await application.PublishAsync(
             "tenant-a",
             "user-a",
             "SSE message",
             NotificationSeverity.Warning,
             timeout.Token);
-
-        using HttpResponseMessage response = await responseTask.WaitAsync(timeout.Token);
-        response.EnsureSuccessStatusCode();
-        string dataLine = await ReadDataLineContainingAsync(response, "SSE message", timeout.Token);
+        string dataLine = await ReadDataLineContainingAsync(reader, "SSE message", timeout.Token);
 
         Assert.Contains("SSE message", dataLine, StringComparison.Ordinal);
         Assert.Contains("streaming.test", dataLine, StringComparison.Ordinal);
@@ -70,21 +72,23 @@ public sealed class NotificationStreamingIntegrationTests
         using HttpRequestMessage request = new(HttpMethod.Get, "/api/notifications/stream");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
         Task<HttpResponseMessage> responseTask = client.SendAsync(
             request,
             HttpCompletionOption.ResponseHeadersRead,
             timeout.Token);
-        await Task.Delay(150, timeout.Token);
+        using HttpResponseMessage response = await responseTask.WaitAsync(timeout.Token);
+        response.EnsureSuccessStatusCode();
+        await using Stream stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+        using StreamReader reader = new(stream);
+        await ReadDataLineContainingAsync(reader, "\"kind\":\"heartbeat\"", timeout.Token);
+
         await application.PublishAsync(
             "default",
             "user-a",
             "Default tenant SSE message",
             cancellationToken: timeout.Token);
-
-        using HttpResponseMessage response = await responseTask.WaitAsync(timeout.Token);
-        response.EnsureSuccessStatusCode();
-        string dataLine = await ReadDataLineContainingAsync(response, "Default tenant SSE message", timeout.Token);
+        string dataLine = await ReadDataLineContainingAsync(reader, "Default tenant SSE message", timeout.Token);
 
         Assert.Contains("Default tenant SSE message", dataLine, StringComparison.Ordinal);
     }
@@ -178,13 +182,10 @@ public sealed class NotificationStreamingIntegrationTests
     }
 
     private static async Task<string> ReadDataLineContainingAsync(
-        HttpResponseMessage response,
+        StreamReader reader,
         string expectedText,
         CancellationToken cancellationToken)
     {
-        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using StreamReader reader = new(stream);
-
         while (!cancellationToken.IsCancellationRequested)
         {
             string? line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);

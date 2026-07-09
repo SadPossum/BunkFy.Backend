@@ -15,6 +15,7 @@
     <GmaModuleFilesRoot Condition="'$(GmaModuleFilesRoot)' == ''">$(GmaModulesRoot)files\src\</GmaModuleFilesRoot>
     <GmaModuleNotificationsRoot Condition="'$(GmaModuleNotificationsRoot)' == ''">$(GmaModulesRoot)notifications\src\</GmaModuleNotificationsRoot>
     <GmaModuleOrderingRoot Condition="'$(GmaModuleOrderingRoot)' == ''">$(GmaRepositoryRoot)src\Modules\Ordering\</GmaModuleOrderingRoot>
+    <GmaModulePropertiesRoot Condition="'$(GmaModulePropertiesRoot)' == ''">$(GmaRepositoryRoot)src\Modules\Properties\</GmaModulePropertiesRoot>
     <GmaModuleTaskRuntimeRoot Condition="'$(GmaModuleTaskRuntimeRoot)' == ''">$(GmaModulesRoot)task-runtime\src\</GmaModuleTaskRuntimeRoot>
     <GmaModuleTaskSamplesRoot Condition="'$(GmaModuleTaskSamplesRoot)' == ''">$(GmaRepositoryRoot)src\Modules\TaskSamples\</GmaModuleTaskSamplesRoot>
     <GmaModuleTenancyRoot Condition="'$(GmaModuleTenancyRoot)' == ''">$(GmaModulesRoot)tenancy\src\</GmaModuleTenancyRoot>

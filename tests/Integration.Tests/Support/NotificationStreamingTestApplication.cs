@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using Gma.Framework.Notifications;
 using Gma.Framework.Security;
@@ -39,6 +40,12 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
         builder.UseSetting("Notifications:Sse:HeartbeatInterval", "00:00:01");
         builder.UseSetting("Notifications:SignalR:Enabled", "true");
         builder.UseSetting("Caching:Enabled", "false");
+        builder.UseSetting("FileManagement:Minio:Endpoint", "localhost:9000");
+        builder.UseSetting("FileManagement:Minio:AccessKey", "minioadmin");
+        builder.UseSetting("FileManagement:Minio:SecretKey", "minioadmin");
+        builder.UseSetting("FileManagement:Minio:BucketName", "integration-test-files");
+        builder.UseSetting("FileManagement:Minio:UseSsl", "false");
+        builder.UseSetting("FileManagement:Minio:CreateBucketIfMissing", "false");
         builder.UseSetting("Auth:RefreshTokens:Pepper", RefreshTokenPepper);
         builder.UseSetting("Auth:Jwt:Issuer", JwtIssuer);
         builder.UseSetting("Auth:Jwt:Audience", JwtAudience);
@@ -60,6 +67,12 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
                 ["Notifications:Sse:HeartbeatInterval"] = "00:00:01",
                 ["Notifications:SignalR:Enabled"] = "true",
                 ["Caching:Enabled"] = "false",
+                ["FileManagement:Minio:Endpoint"] = "localhost:9000",
+                ["FileManagement:Minio:AccessKey"] = "minioadmin",
+                ["FileManagement:Minio:SecretKey"] = "minioadmin",
+                ["FileManagement:Minio:BucketName"] = "integration-test-files",
+                ["FileManagement:Minio:UseSsl"] = "false",
+                ["FileManagement:Minio:CreateBucketIfMissing"] = "false",
                 ["Auth:RefreshTokens:Pepper"] = RefreshTokenPepper,
                 ["Auth:Jwt:Issuer"] = JwtIssuer,
                 ["Auth:Jwt:Audience"] = JwtAudience,
@@ -68,11 +81,15 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
             });
         });
 
-        if (!tenancyEnabled)
+        builder.ConfigureTestServices(services =>
         {
-            builder.ConfigureTestServices(services =>
-                services.PostConfigure<TenantOptions>(options => options.Enabled = false));
-        }
+            services.RemoveAll<IUserNotificationHistoryWriter>();
+
+            if (!tenancyEnabled)
+            {
+                services.PostConfigure<TenantOptions>(options => options.Enabled = false);
+            }
+        });
     }
 
     public static string CreateAccessToken(string? tenantId, string userId)

@@ -70,7 +70,7 @@ public sealed class ModuleBoundaryTests
     [Fact]
     public void Cross_module_references_use_contract_projects()
     {
-        string[] moduleNames = ["Catalog", "Ordering", "TaskSamples"];
+        string[] moduleNames = ["Catalog", "Ordering", "Properties", "TaskSamples"];
         string[] offenders = ProjectFile.All()
             .Where(project => project.RepositoryPath.StartsWith("src/Modules/", StringComparison.Ordinal))
             .SelectMany(project =>
@@ -106,6 +106,7 @@ public sealed class ModuleBoundaryTests
     {
         "Catalog" => "GmaModuleCatalogRoot",
         "Ordering" => "GmaModuleOrderingRoot",
+        "Properties" => "GmaModulePropertiesRoot",
         "TaskSamples" => "GmaModuleTaskSamplesRoot",
         _ => throw new ArgumentOutOfRangeException(nameof(moduleName), moduleName, null)
     };
