@@ -14,12 +14,16 @@ Initial architecture rules:
 
 ```text
 src/
+  BunkFy.Host.AppHost/
   BunkFy.Host.Api/
   BunkFy.Host.AdminApi/
   BunkFy.Host.AdminCli/
   BunkFy.Host.Worker/
-  BunkFy.SharedKernel/
+  BunkFy.Host.ServiceDefaults/
   Modules/
+    Catalog/        # copied GMA skeleton example
+    Ordering/       # copied GMA skeleton example
+    TaskSamples/    # copied GMA skeleton example
     Properties/
     Inventory/
     Reservations/
@@ -29,6 +33,7 @@ src/
 tests/
   Architecture.Tests/
   Integration.Tests/
+  BunkFy.Host.ServiceDefaults.Tests/
 ```
 
-Only the initial API host and shared kernel are present for the foundation milestone. The API host exposes `/health` and `/api/smoke` for runtime validation; GMA modules remain opt-in through `BunkFy:EnableGmaModules` until the Aspire graph owns the required infrastructure. Additional hosts and product modules should be added when the product work requires them.
+The backend now carries the skeleton-style host set plus copied example modules so product work has concrete patterns for public API, admin API, admin CLI, worker, persistence, migrations, contracts, and module tests. BunkFy-specific PMS modules should follow the same layering but replace the example domain language with hostel/property-management concepts.

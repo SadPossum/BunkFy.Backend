@@ -9,5 +9,8 @@
     <GmaModuleNotificationsRoot>$(GmaModulesRoot)notifications\src\</GmaModuleNotificationsRoot>
     <GmaModuleTaskRuntimeRoot>$(GmaModulesRoot)task-runtime\src\</GmaModuleTaskRuntimeRoot>
     <GmaModuleTenancyRoot>$(GmaModulesRoot)tenancy\src\</GmaModuleTenancyRoot>
+    <GmaModuleCatalogRoot>$(MSBuildThisFileDirectory)src\Modules\Catalog\</GmaModuleCatalogRoot>
+    <GmaModuleOrderingRoot>$(MSBuildThisFileDirectory)src\Modules\Ordering\</GmaModuleOrderingRoot>
+    <GmaModuleTaskSamplesRoot>$(MSBuildThisFileDirectory)src\Modules\TaskSamples\</GmaModuleTaskSamplesRoot>
   </PropertyGroup>
 </Project>

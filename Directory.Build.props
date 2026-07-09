@@ -9,6 +9,15 @@
   <PropertyGroup>
     <GmaFrameworkRoot Condition="'$(GmaFrameworkRoot)' == ''">$(GmaRepositoryRoot)gma\framework\src\</GmaFrameworkRoot>
     <GmaModulesRoot Condition="'$(GmaModulesRoot)' == ''">$(GmaRepositoryRoot)gma\modules\</GmaModulesRoot>
+    <GmaModuleAdministrationRoot Condition="'$(GmaModuleAdministrationRoot)' == ''">$(GmaModulesRoot)administration\src\</GmaModuleAdministrationRoot>
+    <GmaModuleAuthRoot Condition="'$(GmaModuleAuthRoot)' == ''">$(GmaModulesRoot)auth\src\</GmaModuleAuthRoot>
+    <GmaModuleCatalogRoot Condition="'$(GmaModuleCatalogRoot)' == ''">$(GmaRepositoryRoot)src\Modules\Catalog\</GmaModuleCatalogRoot>
+    <GmaModuleFilesRoot Condition="'$(GmaModuleFilesRoot)' == ''">$(GmaModulesRoot)files\src\</GmaModuleFilesRoot>
+    <GmaModuleNotificationsRoot Condition="'$(GmaModuleNotificationsRoot)' == ''">$(GmaModulesRoot)notifications\src\</GmaModuleNotificationsRoot>
+    <GmaModuleOrderingRoot Condition="'$(GmaModuleOrderingRoot)' == ''">$(GmaRepositoryRoot)src\Modules\Ordering\</GmaModuleOrderingRoot>
+    <GmaModuleTaskRuntimeRoot Condition="'$(GmaModuleTaskRuntimeRoot)' == ''">$(GmaModulesRoot)task-runtime\src\</GmaModuleTaskRuntimeRoot>
+    <GmaModuleTaskSamplesRoot Condition="'$(GmaModuleTaskSamplesRoot)' == ''">$(GmaRepositoryRoot)src\Modules\TaskSamples\</GmaModuleTaskSamplesRoot>
+    <GmaModuleTenancyRoot Condition="'$(GmaModuleTenancyRoot)' == ''">$(GmaModulesRoot)tenancy\src\</GmaModuleTenancyRoot>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,10 +25,14 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>Recommended</AnalysisMode>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;IDE0005;IDE0008</NoWarn>
+    <NoWarn>$(NoWarn);CA1707;CA1716;CA1873;CS1591;IDE0005;IDE0008;IDE0022;IDE0032;IDE0040;IDE0042;IDE0053;IDE0072;IDE0305;IDE1006</NoWarn>
   </PropertyGroup>
 </Project>

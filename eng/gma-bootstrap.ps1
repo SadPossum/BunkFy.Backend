@@ -53,6 +53,9 @@ foreach ($moduleAlias in $selectedModuleAliases) {
     $propertyName = $moduleRootProperties[$moduleAlias]
     $rootLinesBuilder.Add("    <$propertyName>`$(GmaModulesRoot)$moduleAlias\src\</$propertyName>")
 }
+$rootLinesBuilder.Add('    <GmaModuleCatalogRoot>$(MSBuildThisFileDirectory)src\Modules\Catalog\</GmaModuleCatalogRoot>')
+$rootLinesBuilder.Add('    <GmaModuleOrderingRoot>$(MSBuildThisFileDirectory)src\Modules\Ordering\</GmaModuleOrderingRoot>')
+$rootLinesBuilder.Add('    <GmaModuleTaskSamplesRoot>$(MSBuildThisFileDirectory)src\Modules\TaskSamples\</GmaModuleTaskSamplesRoot>')
 $rootLinesBuilder.Add('  </PropertyGroup>')
 $rootLinesBuilder.Add('</Project>')
 $rootLines = $rootLinesBuilder.ToArray()

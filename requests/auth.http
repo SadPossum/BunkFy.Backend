@@ -1,0 +1,52 @@
+@host = https://localhost:7293
+@tenant = default
+@username = dev@example.com
+@password = Passw0rd!local
+@accessToken =
+@refreshToken =
+
+### Register
+POST {{host}}/api/auth/register
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "username": "{{username}}",
+  "usernameType": "Email",
+  "password": "{{password}}"
+}
+
+### Login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+### Refresh
+POST {{host}}/api/auth/refresh
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "accessToken": "{{accessToken}}",
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Sign out current session
+POST {{host}}/api/auth/sign-out
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Sign out all sessions
+POST {{host}}/api/auth/sign-out-all
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenant}}

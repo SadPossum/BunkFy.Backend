@@ -1,0 +1,100 @@
+@host = https://localhost:50789
+@tenant = default
+@accessToken =
+@actorId =
+@memberId =
+@adminPassword = Manual-password-local-1!
+@newAdminPassword = Manual-password-local-2!
+
+### List roles
+GET {{host}}/api/admin/roles
+Authorization: Bearer {{accessToken}}
+
+### Create role
+POST {{host}}/api/admin/roles
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "support"
+}
+
+### Grant Auth read permission
+POST {{host}}/api/admin/roles/support/permissions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "permission": "auth.members.read"
+}
+
+### Assign role to actor for tenant
+POST {{host}}/api/admin/roles/support/assignments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "actorId": "{{actorId}}",
+  "tenantId": "{{tenant}}"
+}
+
+### List Auth members
+GET {{host}}/api/admin/auth/members?page=1&pageSize=25
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenant}}
+
+### Get Auth member
+GET {{host}}/api/admin/auth/members/{{memberId}}
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenant}}
+
+### Create Auth member with manual password
+POST {{host}}/api/admin/auth/members
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "username": "managed@example.com",
+  "usernameType": "Email",
+  "password": "{{adminPassword}}",
+  "generatePassword": false
+}
+
+### Disable Auth member
+POST {{host}}/api/admin/auth/members/{{memberId}}/disable
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "reason": "local test",
+  "confirmed": true
+}
+
+### Enable Auth member
+POST {{host}}/api/admin/auth/members/{{memberId}}/enable
+Authorization: Bearer {{accessToken}}
+X-Tenant-Id: {{tenant}}
+
+### Reset Auth member password
+POST {{host}}/api/admin/auth/members/{{memberId}}/reset-password
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "newPassword": "{{newAdminPassword}}",
+  "generatePassword": false,
+  "confirmed": true
+}
+
+### Revoke Auth member sessions
+POST {{host}}/api/admin/auth/members/{{memberId}}/revoke-sessions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+X-Tenant-Id: {{tenant}}
+
+{
+  "confirmed": true
+}
