@@ -4,10 +4,10 @@ Backend foundation repository for BunkFy, an open-source hostel property managem
 
 This repository is a source-first GMA backend foundation:
 
-- App-owned backend code belongs under `src/`.
-- PMS feature modules will live under `src/Modules`.
-- Reusable GMA framework and modules are mounted as source under `gma/` during standalone backend work.
-- When this repo is mounted inside the root `BunkFy` superproject, the root bootstrap writes `Gma.SourceRoots.props` so backend project references resolve to the root-owned `gma/` checkout.
+- Host front doors live under `src/BunkFy.Host.*`.
+- App-owned feature modules live under `src/Modules`.
+- Reusable GMA framework and modules are mounted as source submodules under `gma/`.
+- When this repo is mounted inside the root `BunkFy` superproject, the root bootstrap initializes backend submodules recursively and refreshes backend-local source-root files.
 
 Selected GMA modules for the initial shell:
 
@@ -18,16 +18,26 @@ Selected GMA modules for the initial shell:
 - `task-runtime`
 - `tenancy`
 
-Public API modules available for `src/BunkFy.Host.Api` when `BunkFy:EnableGmaModules` is enabled:
+Copied example modules:
+
+- `Catalog`
+- `Ordering`
+- `TaskSamples`
+
+The examples are intentionally still example-domain code. They are here to make framework usage, module layering, persistence, migrations, admin surfaces, worker composition, and tests easy to inspect while BunkFy product modules are still being designed.
+
+Public API modules composed by `src/BunkFy.Host.Api`:
 
 - `auth`
 - `files`
 - `notifications`
 - `tenancy`
+- `Catalog`
+- `Ordering`
 
-Admin CLI/API and worker-only surfaces stay explicit app choices and should be added when BunkFy has product behavior that needs them.
+Admin API/CLI compose the reusable administration/auth modules plus the `Catalog` admin example. The worker host keeps background module groups opt-in and demonstrates Auth, Catalog, Ordering, TaskRuntime, and TaskSamples composition.
 
-The default development shell keeps GMA modules disabled so the root Aspire graph can start without a database while the product has no business logic. `/health` and `/api/smoke` are available for smoke validation.
+The copied Aspire host under `src/BunkFy.Host.AppHost` can run the backend stack standalone. The root BunkFy Aspire host composes the backend and frontend together.
 
 ## Documentation
 
@@ -42,15 +52,16 @@ From the root BunkFy superproject, use:
 .\eng\verify.ps1
 ```
 
-For standalone backend work, mount or clone GMA source repositories under `gma/`, then run:
+For standalone backend work, initialize the nested GMA submodules and run:
 
 ```powershell
+.\eng\gma-update.ps1 -Init
 .\eng\gma-bootstrap.ps1 -Force
 .\eng\verify.ps1
 ```
 
 ## Development Notes
 
-- Default persistence is PostgreSQL for the product shell.
+- The copied skeleton defaults keep SQL Server as the local provider, with PostgreSQL migration projects present as a parallel provider example.
 - Tenant-aware Auth is enabled because BunkFy is expected to support real multi-property/operator deployments.
 - Keep product-specific PMS behavior in this repository, not in GMA modules, unless the behavior is reusable across products.

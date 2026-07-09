@@ -6,7 +6,7 @@ Current backend validation:
 .\eng\verify.ps1
 ```
 
-The initial repository foundation keeps runtime behavior intentionally small. Future backend development should add product modules in focused slices under `src/Modules`.
+The repository includes copied GMA skeleton examples under `src/Modules/Catalog`, `src/Modules/Ordering`, and `src/Modules/TaskSamples`. Use them as working references for module shape, contracts, persistence, migrations, front-door wiring, and tests. Future backend development should add product modules in focused slices under `src/Modules`.
 
 Expected future product modules include:
 
@@ -17,5 +17,11 @@ Expected future product modules include:
 - Billing.
 - Housekeeping.
 
-Keep reusable framework changes in the appropriate GMA repository and update the root superproject submodule pointer deliberately after validation.
+Keep reusable framework changes in the appropriate nested GMA repository and update the backend submodule pointer deliberately after validation.
+
+For backend-only composition, run:
+
+```powershell
+.\eng\run-aspire.ps1
+```
 

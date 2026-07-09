@@ -6,8 +6,6 @@ obj/
 Gma.SourceRoots.props
 *.user
 *.suo
-gma/framework/
-gma/modules/*/
 !gma/.gitkeep
 !gma/modules/
 !gma/modules/.gitkeep

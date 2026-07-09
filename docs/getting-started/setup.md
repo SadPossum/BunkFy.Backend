@@ -5,7 +5,7 @@
 - Windows PowerShell.
 - .NET 10 SDK.
 - Git.
-- GMA source checkouts mounted under `gma/`, or the root BunkFy superproject bootstrap.
+- GMA source submodules initialized under `gma/`, or the root BunkFy superproject bootstrap.
 
 ## First Run Inside Root Superproject
 
@@ -16,18 +16,19 @@ From the root `BunkFy` checkout:
 .\eng\verify.ps1
 ```
 
-The root bootstrap writes `apps/backend/Gma.SourceRoots.props`, pointing this backend repo at the root-owned GMA source submodules.
+The root bootstrap initializes this backend repository recursively, including backend-owned GMA submodules, then refreshes source-root files.
 
 ## Standalone Backend Run
 
-For standalone backend work, mount GMA source repositories under this repository's `gma/` folder, then run:
+For standalone backend work, initialize this repository's GMA submodules, then run:
 
 ```powershell
+.\eng\gma-update.ps1 -Init
 .\eng\gma-bootstrap.ps1 -Force
 .\eng\verify.ps1
 ```
 
 ## Current Scope
 
-This repository currently contains a backend foundation shell. Product PMS modules, migrations, admin hosts, worker hosts, and real API workflows are future implementation work.
+This repository currently contains a skeleton-style backend foundation: public API, admin API, admin CLI, worker, service defaults, architecture/integration tests, and copied example modules. Product PMS modules and real hostel workflows are the next implementation layer.
 
