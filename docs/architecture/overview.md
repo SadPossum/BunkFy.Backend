@@ -27,7 +27,7 @@ src/
     Properties/
     Inventory/
     Reservations/
-    Guests/
+    GuestRecords/
     Billing/
     Housekeeping/
 tests/
@@ -37,3 +37,7 @@ tests/
 ```
 
 The backend now carries the skeleton-style host set plus copied example modules so product work has concrete patterns for public API, admin API, admin CLI, worker, persistence, migrations, contracts, and module tests. BunkFy-specific PMS modules should follow the same layering but replace the example domain language with hostel/property-management concepts.
+
+BunkFy is a staff/operator management system. Guest records may exist as PMS data for reservations, billing, and housekeeping, but guests do not authenticate into this backend or use a guest-facing API surface.
+
+File management starts on MinIO rather than local disk. Local and demo hosts should use the S3-compatible object-storage path from the beginning, with `Gma.Framework.FileManagement` staying as the app-facing storage contract.

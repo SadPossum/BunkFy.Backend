@@ -14,7 +14,7 @@ public sealed class HostCompositionGuardTests
         [
             "builder.AddModule<TenancyModule>();",
             "builder.AddAuthModule(AuthProfile.TenantScoped());",
-            "builder.AddLocalFileStorage();",
+            "builder.AddMinioFileStorage();",
             "builder.AddModule<FilesModule>();",
             "builder.AddModule<NotificationsModule>();",
             "builder.AddModule<CatalogModule>();",
@@ -37,7 +37,9 @@ public sealed class HostCompositionGuardTests
         string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
 
         Assert.Contains("builder.AddAdminApiModule<CatalogAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<CatalogAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<TaskRuntimeAdminCliModule>();", adminCli, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -63,7 +65,11 @@ public sealed class HostCompositionGuardTests
             "builder.AddSqlServer(\"sql\")",
             "builder.AddPostgres(\"postgres\")",
             "builder.AddNats(\"nats\")",
+            "builder.AddContainer(\"minio\", \"quay.io/minio/minio\", \"latest\")",
+            "FileManagement__Minio__Endpoint",
             "builder.AddProject<Projects.BunkFy_Host_Api>(\"bunkfy-host-api\")",
+            "Tasks__Worker__Enabled",
+            "Worker__Modules__TaskRuntime",
             "AppHost:AdminApi:Enabled",
             "AppHost:Worker:Enabled",
             "AppHost:Redis:Enabled"

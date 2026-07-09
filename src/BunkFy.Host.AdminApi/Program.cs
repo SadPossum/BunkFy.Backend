@@ -2,6 +2,7 @@ using Catalog.AdminApi;
 using Gma.Modules.Administration.AdminApi;
 using Gma.Modules.Auth.AdminApi;
 using Gma.Modules.Auth.Contracts;
+using Gma.Modules.TaskRuntime.AdminApi;
 using BunkFy.Host.ServiceDefaults;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.OpenApi;
@@ -35,6 +36,7 @@ builder.Services.AddApiSecurityDefaults();
 
 builder.AddAdminApiModule<AdministrationAdminApiModule>();
 builder.AddAuthAdminApiModule(AuthProfile.TenantScoped());
+builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();
 builder.AddAdminApiModule<CatalogAdminApiModule>();
 
 builder.AddServiceDefaults();
