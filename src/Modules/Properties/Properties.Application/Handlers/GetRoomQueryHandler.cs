@@ -12,7 +12,7 @@ internal sealed class GetRoomQueryHandler(IPropertiesReadRepository repository)
 {
     public async Task<Result<RoomDto>> HandleAsync(GetRoomQuery query, CancellationToken cancellationToken)
     {
-        RoomDto? room = await repository.GetRoomAsync(query.RoomId, cancellationToken).ConfigureAwait(false);
+        RoomDto? room = await repository.GetRoomAsync(query.PropertyId, query.RoomId, cancellationToken).ConfigureAwait(false);
         return room is null
             ? Result.Failure<RoomDto>(PropertiesDomainErrors.RoomNotFound)
             : Result.Success(room);

@@ -7,5 +7,6 @@ public sealed record UpdatePropertyCommand(
     Guid PropertyId,
     string Name,
     string Code,
-    string TimeZoneId)
+    string TimeZoneId,
+    long ExpectedVersion)
     : ITransactionalCommand<PropertyDto>;

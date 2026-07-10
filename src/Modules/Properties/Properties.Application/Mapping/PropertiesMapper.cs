@@ -13,8 +13,10 @@ public static class PropertiesMapper
             property.Code.Value,
             property.TimeZoneId.Value,
             MapStatus(property.Status),
+            property.Version,
             property.CreatedAtUtc,
-            property.UpdatedAtUtc);
+            property.UpdatedAtUtc,
+            property.RetiredAtUtc);
 
     public static RoomDto ToDto(Room room) =>
         new(
@@ -24,17 +26,20 @@ public static class PropertiesMapper
             room.BuildingLabel?.Value,
             room.FloorLabel?.Value,
             MapStatus(room.Status),
+            room.Version,
             room.CreatedAtUtc,
             room.UpdatedAtUtc,
             room.RetiredAtUtc);
 
-    public static BedDto ToDto(Bed bed) =>
+    public static BedDto ToDto(Bed bed, long roomVersion) =>
         new(
             bed.Id,
             bed.RoomId,
             bed.PropertyId,
             bed.Label.Value,
             MapStatus(bed.Status),
+            bed.Version,
+            roomVersion,
             bed.CreatedAtUtc,
             bed.UpdatedAtUtc,
             bed.RetiredAtUtc);
@@ -43,6 +48,7 @@ public static class PropertiesMapper
         status switch
         {
             PropertyState.Active => PropertyStatus.Active,
+            PropertyState.Retired => PropertyStatus.Retired,
             _ => PropertyStatus.Unknown
         };
 

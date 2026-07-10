@@ -13,13 +13,20 @@ public sealed class HostCompositionGuardTests
         string[] expectedTokens =
         [
             "builder.AddModule<TenancyModule>();",
-            "builder.AddAuthModule(AuthProfile.TenantScoped());",
+            "builder.SelectModuleProfile(AccessControlProfiles.Default, \"BunkFy.Host.Api/AccessControl\");",
+            "builder.Services.AddAccessControlApplication(builder.Configuration);",
+            "builder.AddAccessControlPersistence();",
+            "builder.Services.AddGmaTenantAccessControlAspNetCore();",
+            "builder.AddAuthModule(AuthProfile.ScopeAware());",
             "builder.AddMinioFileStorage();",
+            "builder.AddUserNotificationsRealtime();",
             "builder.AddModule<FilesModule>();",
             "builder.AddModule<NotificationsModule>();",
             "builder.AddModule<CatalogModule>();",
             "builder.AddModule<OrderingModule>();",
             "builder.AddModule<PropertiesModule>();",
+            "builder.AddGmaProductionHttp();",
+            "app.UseGmaProductionHttp();",
             "builder.ValidateModuleComposition();",
             "app.MapModules();"
         ];
@@ -32,14 +39,20 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Admin_front_doors_compose_catalog_as_a_working_example()
+    public void Admin_front_doors_compose_access_control_and_product_modules()
     {
         string adminApi = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
         string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
 
+        Assert.Contains("builder.AddAdminApiModule<AccessControlAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.ScopeAware());", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<CatalogAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddGmaProductionHttp();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("app.UseGmaProductionHttp();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<AccessControlAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAuthAdminModule(AuthProfile.ScopeAware());", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<CatalogAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<PropertiesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<TaskRuntimeAdminCliModule>();", adminCli, StringComparison.Ordinal);
@@ -57,6 +70,10 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("\"TaskRuntime\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"TaskSamples\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("defaultValue: false", options, StringComparison.Ordinal);
+        Assert.Contains(
+            "AuthProfile.ScopeAware().Descriptor",
+            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs"),
+            StringComparison.Ordinal);
     }
 
     [Fact]

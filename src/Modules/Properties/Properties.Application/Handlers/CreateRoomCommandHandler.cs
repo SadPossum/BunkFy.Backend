@@ -10,19 +10,19 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
-using Gma.Framework.Tenancy;
+using Gma.Framework.Scoping;
 
 internal sealed class CreateRoomCommandHandler(
     IPropertyRepository propertyRepository,
     IRoomRepository roomRepository,
-    ITenantContext tenantContext,
+    IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<CreateRoomCommand, RoomDto>
 {
     public async Task<Result<RoomDto>> HandleAsync(CreateRoomCommand command, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(tenantContext.TenantId))
+        if (string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
             return Result.Failure<RoomDto>(PropertiesDomainErrors.TenantRequired);
         }
@@ -33,15 +33,16 @@ internal sealed class CreateRoomCommandHandler(
             return Result.Failure<RoomDto>(PropertiesDomainErrors.PropertyNotFound);
         }
 
+        DateTimeOffset nowUtc = clock.UtcNow;
         Result<Room> roomResult = Room.Create(
             idGenerator.NewId(),
-            tenantContext.TenantId,
+            scopeContext.ScopeId,
             command.PropertyId,
             command.Name,
             command.BuildingLabel,
             command.FloorLabel,
             idGenerator.NewId(),
-            clock.UtcNow);
+            nowUtc);
 
         if (roomResult.IsFailure)
         {
@@ -52,6 +53,12 @@ internal sealed class CreateRoomCommandHandler(
         if (await roomRepository.RoomNameExistsAsync(room.PropertyId, room.Name.Value, null, cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure<RoomDto>(PropertiesDomainErrors.RoomAlreadyExists);
+        }
+
+        Result registrationResult = property.RegisterRoom(command.ExpectedPropertyVersion);
+        if (registrationResult.IsFailure)
+        {
+            return Result.Failure<RoomDto>(registrationResult.Error);
         }
 
         await roomRepository.AddAsync(room, cancellationToken).ConfigureAwait(false);

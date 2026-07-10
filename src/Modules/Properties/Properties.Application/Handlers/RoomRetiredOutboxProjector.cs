@@ -12,9 +12,10 @@ internal sealed class RoomRetiredOutboxProjector(IOutboxWriterRegistry outboxWri
         outboxWriters.GetRequired(PropertiesModuleMetadata.Name).EnqueueAsync(
             new RoomRetiredIntegrationEvent(
                 domainEvent.EventId,
-                domainEvent.TenantId,
+                domainEvent.ScopeId,
                 domainEvent.OccurredAtUtc,
                 domainEvent.PropertyId,
-                domainEvent.RoomId),
+                domainEvent.RoomId,
+                domainEvent.RoomVersion),
             cancellationToken);
 }

@@ -6,6 +6,7 @@ public static class PropertiesIntegrationSubjects
 {
     public static string PropertyCreated => CreatePropertyCreated();
     public static string PropertyUpdated => CreatePropertyUpdated();
+    public static string PropertyRetired => CreatePropertyRetired();
     public static string RoomCreated => CreateRoomCreated();
     public static string RoomUpdated => CreateRoomUpdated();
     public static string RoomRetired => CreateRoomRetired();
@@ -18,6 +19,9 @@ public static class PropertiesIntegrationSubjects
 
     public static string CreatePropertyUpdated(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, PropertyUpdatedIntegrationEvent.EventType, PropertyUpdatedIntegrationEvent.EventVersion);
+
+    public static string CreatePropertyRetired(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, PropertyRetiredIntegrationEvent.EventType, PropertyRetiredIntegrationEvent.EventVersion);
 
     public static string CreateRoomCreated(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, RoomCreatedIntegrationEvent.EventType, RoomCreatedIntegrationEvent.EventVersion);

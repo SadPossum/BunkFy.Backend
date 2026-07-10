@@ -1,6 +1,6 @@
 namespace Integration.Tests;
 
-using Gma.Modules.Administration.Application;
+using Gma.Modules.AccessControl.Application;
 using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
@@ -55,10 +55,10 @@ public sealed class AdminCliIntegrationTests
             "--actor", "owner",
             "--name", "support team");
         Assert.Equal(AdminExitCodes.Failed, invalidRole.ExitCode);
-        Assert.Contains("Admin role name is invalid.", invalidRole.Error, StringComparison.Ordinal);
+        Assert.Contains(AccessControlApplicationErrors.RoleNameInvalid.Message, invalidRole.Error, StringComparison.Ordinal);
         Assert.Equal(
             0,
-            await application.CountAuditEntriesContainingAsync(AdministrationApplicationErrors.RoleNameInvalid.Code).ConfigureAwait(false));
+            await application.CountAuditEntriesContainingAsync(AccessControlApplicationErrors.RoleNameInvalid.Code).ConfigureAwait(false));
 
         await AssertSuccess(application.ExecuteAsync("admin", "roles", "create", "--actor", "owner", "--name", "support"));
         AdminCliResult invalidPermission = await application.ExecuteAsync(
@@ -67,10 +67,10 @@ public sealed class AdminCliIntegrationTests
             "--role", "support",
             "--permission", "auth");
         Assert.Equal(AdminExitCodes.Failed, invalidPermission.ExitCode);
-        Assert.Contains("Admin permission code is invalid.", invalidPermission.Error, StringComparison.Ordinal);
+        Assert.Contains(AccessControlApplicationErrors.PermissionCodeInvalid.Message, invalidPermission.Error, StringComparison.Ordinal);
         Assert.Equal(
             0,
-            await application.CountAuditEntriesContainingAsync(AdministrationApplicationErrors.PermissionCodeInvalid.Code).ConfigureAwait(false));
+            await application.CountAuditEntriesContainingAsync(AccessControlApplicationErrors.PermissionCodeInvalid.Code).ConfigureAwait(false));
 
         await GrantAsync(application, AuthAdminPermissionCodes.MembersRead);
         await GrantAsync(application, AuthAdminPermissionCodes.MembersCreate);
@@ -83,7 +83,72 @@ public sealed class AdminCliIntegrationTests
             "--actor", "owner",
             "--target-actor", "support",
             "--role", "support",
-            "--tenant", "tenant-admin"));
+            "--scope", "tenant:tenant-admin"));
+
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "create",
+            "--actor", "owner",
+            "--name", "property-reader"));
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "grant",
+            "--actor", "owner",
+            "--role", "property-reader",
+            "--permission", "properties.read"));
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "assign",
+            "--actor", "owner",
+            "--target-kind", "user",
+            "--target-id", "product-user",
+            "--role", "property-reader",
+            "--scope", "tenant:tenant-admin"));
+
+        AdminCliResult assignments = await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "assignments",
+            "--actor", "owner",
+            "--role", "property-reader",
+            "--output", "json"));
+        Assert.Contains("product-user", assignments.Output, StringComparison.Ordinal);
+        Assert.Contains("user", assignments.Output, StringComparison.Ordinal);
+        Assert.Contains("tenant:tenant-admin", assignments.Output, StringComparison.Ordinal);
+
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "unassign",
+            "--actor", "owner",
+            "--target-kind", "user",
+            "--target-id", "product-user",
+            "--role", "property-reader",
+            "--scope", "tenant:tenant-admin"));
+        AdminCliResult missingAssignment = await application.ExecuteAsync(
+            "admin", "roles", "unassign",
+            "--actor", "owner",
+            "--target-kind", "user",
+            "--target-id", "product-user",
+            "--role", "property-reader",
+            "--scope", "tenant:tenant-admin");
+        Assert.Equal(AdminExitCodes.Failed, missingAssignment.ExitCode);
+        Assert.Contains(AccessControlApplicationErrors.AssignmentNotFound.Message, missingAssignment.Error, StringComparison.Ordinal);
+
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "revoke",
+            "--actor", "owner",
+            "--role", "property-reader",
+            "--permission", "properties.read"));
+        AdminCliResult missingPermission = await application.ExecuteAsync(
+            "admin", "roles", "revoke",
+            "--actor", "owner",
+            "--role", "property-reader",
+            "--permission", "properties.read");
+        Assert.Equal(AdminExitCodes.Failed, missingPermission.ExitCode);
+        Assert.Contains(AccessControlApplicationErrors.PermissionNotGranted.Message, missingPermission.Error, StringComparison.Ordinal);
+
+        AdminCliResult protectedOwner = await application.ExecuteAsync(
+            "admin", "roles", "unassign",
+            "--actor", "owner",
+            "--target-kind", "admin-actor",
+            "--target-id", "owner",
+            "--role", "owner");
+        Assert.Equal(AdminExitCodes.Failed, protectedOwner.ExitCode);
+        Assert.Contains(AccessControlApplicationErrors.LastOwnerProtected.Message, protectedOwner.Error, StringComparison.Ordinal);
 
         AdminCliResult denied = await application.ExecuteAsync(
             "auth", "members", "list",

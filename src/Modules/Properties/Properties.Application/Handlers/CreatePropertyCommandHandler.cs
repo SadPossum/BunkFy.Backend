@@ -10,25 +10,25 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
-using Gma.Framework.Tenancy;
+using Gma.Framework.Scoping;
 
 internal sealed class CreatePropertyCommandHandler(
     IPropertyRepository repository,
-    ITenantContext tenantContext,
+    IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<CreatePropertyCommand, PropertyDto>
 {
     public async Task<Result<PropertyDto>> HandleAsync(CreatePropertyCommand command, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(tenantContext.TenantId))
+        if (string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
             return Result.Failure<PropertyDto>(PropertiesDomainErrors.TenantRequired);
         }
 
         Result<Property> propertyResult = Property.Create(
             idGenerator.NewId(),
-            tenantContext.TenantId,
+            scopeContext.ScopeId,
             command.Name,
             command.Code,
             command.TimeZoneId,

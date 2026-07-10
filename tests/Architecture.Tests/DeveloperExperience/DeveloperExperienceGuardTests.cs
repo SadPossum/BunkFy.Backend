@@ -144,6 +144,7 @@ public sealed partial class DeveloperExperienceGuardTests
         string[] expectedTokens =
         [
             "gma\\framework\\src\\",
+            "<GmaModuleAccessControlRoot>$(GmaModulesRoot)access-control\\src\\</GmaModuleAccessControlRoot>",
             "<GmaModuleAuthRoot>$(GmaModulesRoot)auth\\src\\</GmaModuleAuthRoot>",
             "<GmaModuleAdministrationRoot>$(GmaModulesRoot)administration\\src\\</GmaModuleAdministrationRoot>",
             "<GmaModuleFilesRoot>$(GmaModulesRoot)files\\src\\</GmaModuleFilesRoot>",

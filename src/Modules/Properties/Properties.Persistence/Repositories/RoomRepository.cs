@@ -18,6 +18,13 @@ internal sealed class RoomRepository(PropertiesDbContext dbContext) : IRoomRepos
             .FirstOrDefaultAsync(room => room.Id == roomId, cancellationToken)
             .ConfigureAwait(false);
 
+    public async Task<bool> HasActiveRoomsAsync(Guid propertyId, CancellationToken cancellationToken) =>
+        await dbContext.Rooms
+            .AnyAsync(
+                room => room.PropertyId == propertyId && room.Status == RoomState.Active,
+                cancellationToken)
+            .ConfigureAwait(false);
+
     public async Task<bool> RoomNameExistsAsync(
         Guid propertyId,
         string name,

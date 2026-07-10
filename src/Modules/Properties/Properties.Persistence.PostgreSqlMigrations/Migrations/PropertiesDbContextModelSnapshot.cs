@@ -66,7 +66,7 @@ namespace Properties.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<string>("ScopeId")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
-                        .HasColumnName("TenantId");
+                        .HasColumnName("ScopeId");
 
                     b.Property<string>("Subject")
                         .IsRequired()
@@ -102,13 +102,22 @@ namespace Properties.Persistence.PostgreSqlMigrations.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<long>("ProjectionOrdinal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
 
-                    b.Property<string>("TenantId")
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("ProjectionOrdinal"));
+
+                    b.Property<DateTimeOffset?>("RetiredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<string>("TimeZoneId")
                         .IsRequired()
@@ -118,11 +127,18 @@ namespace Properties.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("TenantId", "Id");
+                    b.HasIndex("ProjectionOrdinal")
+                        .IsUnique();
 
-                    b.HasIndex("TenantId", "Code")
+                    b.HasIndex("ScopeId", "Code")
                         .IsUnique();
 
                     b.ToTable("properties", "properties");
@@ -156,20 +172,26 @@ namespace Properties.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<DateTimeOffset?>("RetiredAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("TenantId")
+                    b.Property<string>("ScopeId")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "PropertyId", "Name")
+                    b.HasIndex("ScopeId", "PropertyId", "Name")
                         .IsUnique();
 
                     b.ToTable("rooms", "properties");
@@ -179,14 +201,11 @@ namespace Properties.Persistence.PostgreSqlMigrations.Migrations
                 {
                     b.HasOne("Properties.Domain.Aggregates.Property", null)
                         .WithMany()
-                        .HasForeignKey("TenantId", "PropertyId")
+                        .HasForeignKey("ScopeId", "PropertyId")
+                        .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasPrincipalKey("TenantId", "Id");
-                });
+                        .IsRequired();
 
-            modelBuilder.Entity("Properties.Domain.Aggregates.Room", b =>
-                {
                     b.OwnsMany("Properties.Domain.Entities.Bed", "Beds", b1 =>
                         {
                             b1.Property<Guid>("Id")
@@ -209,22 +228,28 @@ namespace Properties.Persistence.PostgreSqlMigrations.Migrations
                             b1.Property<Guid>("RoomId")
                                 .HasColumnType("uuid");
 
-                            b1.Property<int>("Status")
-                                .HasColumnType("integer");
-
-                            b1.Property<string>("TenantId")
+                            b1.Property<string>("ScopeId")
                                 .IsRequired()
                                 .HasMaxLength(128)
                                 .HasColumnType("character varying(128)");
 
+                            b1.Property<int>("Status")
+                                .HasColumnType("integer");
+
                             b1.Property<DateTimeOffset?>("UpdatedAtUtc")
                                 .HasColumnType("timestamp with time zone");
+
+                            b1.Property<long>("Version")
+                                .IsConcurrencyToken()
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("bigint")
+                                .HasDefaultValue(1L);
 
                             b1.HasKey("Id");
 
                             b1.HasIndex("RoomId");
 
-                            b1.HasIndex("TenantId", "RoomId", "Label")
+                            b1.HasIndex("ScopeId", "RoomId", "Label")
                                 .IsUnique();
 
                             b1.ToTable("beds", "properties");

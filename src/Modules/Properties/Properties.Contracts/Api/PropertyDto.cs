@@ -6,5 +6,7 @@ public sealed record PropertyDto(
     string Code,
     string TimeZoneId,
     PropertyStatus Status,
+    long Version,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? UpdatedAtUtc);
+    DateTimeOffset? UpdatedAtUtc,
+    DateTimeOffset? RetiredAtUtc);

@@ -34,8 +34,9 @@ function Write-GmaSourceRootsFile {
     }
 }
 
-$selectedModuleAliases = @('administration', 'auth', 'files', 'notifications', 'task-runtime', 'tenancy')
+$selectedModuleAliases = @('access-control', 'administration', 'auth', 'files', 'notifications', 'task-runtime', 'tenancy')
 $moduleRootProperties = @{
+    'access-control' = 'GmaModuleAccessControlRoot'
     'administration' = 'GmaModuleAdministrationRoot'
     'auth' = 'GmaModuleAuthRoot'
     'files' = 'GmaModuleFilesRoot'

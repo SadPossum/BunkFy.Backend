@@ -7,6 +7,7 @@ public sealed record RoomDto(
     string? BuildingLabel,
     string? FloorLabel,
     RoomStatus Status,
+    long Version,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
     DateTimeOffset? RetiredAtUtc);

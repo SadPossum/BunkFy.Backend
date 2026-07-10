@@ -13,5 +13,5 @@ public sealed class PropertiesPostgreSqlDesignTimeDbContextFactory : IDesignTime
                 PropertiesMigrations.PostgreSqlAssembly,
                 PropertiesMigrations.Schema,
                 PropertiesMigrations.HistoryTable),
-            new DesignTimeTenantContext());
+            new DesignTimeScopeContext());
 }

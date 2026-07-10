@@ -128,7 +128,9 @@ Before writing tenant-scoped code, answer:
 
 Tenant-owned models should make ownership visible in code and tests. Do not hide tenancy behind shadow EF properties or host-side reflection.
 
-Use GMA Administration for admin operation authorization. Put product visibility rules in the owning BunkFy module, preferably in the domain or typed access scopes consumed by persistence. Missing scopes should fail deny-by-default.
+Use GMA AccessControl for generic permission/scope decisions and persisted grants. Use GMA Administration for audited admin API/CLI execution through its explicit AccessControl bridge. Put product visibility rules in the owning BunkFy module, preferably in the domain or typed access scopes consumed by persistence. Missing scopes should fail deny-by-default.
+
+Code requires permissions, not hard-coded roles. Do not put permissions in JWTs as the source of truth, and do not call access authorization once per row. Read granted scopes once and translate them into the owning module's SQL query shape.
 
 ## Persistence And Messaging
 

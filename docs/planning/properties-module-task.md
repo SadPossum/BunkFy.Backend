@@ -1,9 +1,11 @@
 # Properties Module Task
 
-Status: active implementation note
+Status: complete
 Date: 2026-07-09
 
 Build `Properties` as the first real BunkFy product module. Keep the slice focused on the physical accommodation model that later modules can project from.
+
+The foundation, policy integration, topology lifecycle, producer contracts, and product-specific Docker authorization verification described here are complete. Later non-blocking product-model follow-ups remain in [Properties Follow-Up Notes](properties-follow-up-notes.md).
 
 ## Goal
 

@@ -1,7 +1,7 @@
 namespace Properties.Tests;
 
 using Properties.Contracts;
-using Gma.Framework.Authorization;
+using Gma.Framework.Permissions;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Tenancy;
@@ -28,7 +28,13 @@ public sealed class PropertiesProfileTests
         ModuleProfileDescriptor profile = Assert.Single(PropertiesModuleMetadata.Descriptor.GetCompositionProfiles());
 
         Assert.Equal(PropertiesProfiles.DefaultName, profile.ProfileName);
-        Assert.Equal(4, PropertiesModuleMetadata.Descriptor.GetPermissions().Count);
-        Assert.Equal(8, PropertiesModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        IReadOnlyCollection<ModulePermissionDescriptor> permissions = PropertiesModuleMetadata.Descriptor.GetPermissions();
+        Assert.Equal(4, permissions.Count);
+        Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
+        Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
+        Assert.Equal(9, PropertiesModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Contains(
+            PropertiesModuleMetadata.Descriptor.GetPublishedEvents(),
+            publishedEvent => publishedEvent.EventType == PropertyRetiredIntegrationEvent.EventType);
     }
 }

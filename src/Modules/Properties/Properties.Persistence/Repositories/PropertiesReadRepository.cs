@@ -20,9 +20,23 @@ internal sealed class PropertiesReadRepository(PropertiesDbContext dbContext) : 
     }
 
     public async Task<PropertyListResponse> ListPropertiesAsync(PageRequest pageRequest, CancellationToken cancellationToken)
+        => await this.ListVisiblePropertiesAsync(
+            pageRequest,
+            PropertiesVisibilityScope.All,
+            cancellationToken).ConfigureAwait(false);
+
+    public async Task<PropertyListResponse> ListVisiblePropertiesAsync(
+        PageRequest pageRequest,
+        PropertiesVisibilityScope visibility,
+        CancellationToken cancellationToken)
     {
-        List<Property> properties = await dbContext.Properties
-            .AsNoTracking()
+        IQueryable<Property> query = dbContext.Properties.AsNoTracking();
+        if (!visibility.IncludesAllProperties)
+        {
+            query = query.Where(property => visibility.PropertyIds.Contains(property.Id));
+        }
+
+        List<Property> properties = await query
             .OrderBy(property => property.Code)
             .Skip(pageRequest.SkipCount)
             .Take(pageRequest.PageSize)
@@ -32,11 +46,11 @@ internal sealed class PropertiesReadRepository(PropertiesDbContext dbContext) : 
         return new PropertyListResponse(properties.Select(PropertiesMapper.ToDto).ToArray(), pageRequest.Page, pageRequest.PageSize);
     }
 
-    public async Task<RoomDto?> GetRoomAsync(Guid roomId, CancellationToken cancellationToken)
+    public async Task<RoomDto?> GetRoomAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken)
     {
         Room? room = await dbContext.Rooms
             .AsNoTracking()
-            .FirstOrDefaultAsync(room => room.Id == roomId, cancellationToken)
+            .FirstOrDefaultAsync(room => room.PropertyId == propertyId && room.Id == roomId, cancellationToken)
             .ConfigureAwait(false);
 
         return room is null ? null : PropertiesMapper.ToDto(room);
@@ -56,24 +70,30 @@ internal sealed class PropertiesReadRepository(PropertiesDbContext dbContext) : 
         return new RoomListResponse(rooms.Select(PropertiesMapper.ToDto).ToArray(), pageRequest.Page, pageRequest.PageSize);
     }
 
-    public async Task<BedListResponse> ListBedsAsync(Guid roomId, PageRequest pageRequest, CancellationToken cancellationToken)
+    public async Task<BedListResponse> ListBedsAsync(
+        Guid propertyId,
+        Guid roomId,
+        PageRequest pageRequest,
+        CancellationToken cancellationToken)
     {
         List<BedDto> beds = await dbContext.Rooms
             .AsNoTracking()
-            .Where(room => room.Id == roomId)
-            .SelectMany(room => room.Beds)
-            .OrderBy(bed => bed.Label.Value)
+            .Where(room => room.PropertyId == propertyId && room.Id == roomId)
+            .SelectMany(room => room.Beds.Select(bed => new { Bed = bed, RoomVersion = room.Version }))
+            .OrderBy(item => item.Bed.Label.Value)
             .Skip(pageRequest.SkipCount)
             .Take(pageRequest.PageSize)
-            .Select(bed => new BedDto(
-                bed.Id,
-                bed.RoomId,
-                bed.PropertyId,
-                bed.Label.Value,
-                PropertiesMapper.MapStatus(bed.Status),
-                bed.CreatedAtUtc,
-                bed.UpdatedAtUtc,
-                bed.RetiredAtUtc))
+            .Select(item => new BedDto(
+                item.Bed.Id,
+                item.Bed.RoomId,
+                item.Bed.PropertyId,
+                item.Bed.Label.Value,
+                PropertiesMapper.MapStatus(item.Bed.Status),
+                item.Bed.Version,
+                item.RoomVersion,
+                item.Bed.CreatedAtUtc,
+                item.Bed.UpdatedAtUtc,
+                item.Bed.RetiredAtUtc))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 

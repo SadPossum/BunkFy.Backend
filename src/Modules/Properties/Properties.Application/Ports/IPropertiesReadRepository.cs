@@ -7,7 +7,11 @@ public interface IPropertiesReadRepository
 {
     Task<PropertyDto?> GetPropertyAsync(Guid propertyId, CancellationToken cancellationToken);
     Task<PropertyListResponse> ListPropertiesAsync(PageRequest pageRequest, CancellationToken cancellationToken);
-    Task<RoomDto?> GetRoomAsync(Guid roomId, CancellationToken cancellationToken);
+    Task<PropertyListResponse> ListVisiblePropertiesAsync(
+        PageRequest pageRequest,
+        PropertiesVisibilityScope visibility,
+        CancellationToken cancellationToken);
+    Task<RoomDto?> GetRoomAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken);
     Task<RoomListResponse> ListRoomsAsync(Guid propertyId, PageRequest pageRequest, CancellationToken cancellationToken);
-    Task<BedListResponse> ListBedsAsync(Guid roomId, PageRequest pageRequest, CancellationToken cancellationToken);
+    Task<BedListResponse> ListBedsAsync(Guid propertyId, Guid roomId, PageRequest pageRequest, CancellationToken cancellationToken);
 }

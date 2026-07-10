@@ -11,6 +11,7 @@ public sealed record RoomTopologyProjectionExport
         string? buildingLabel,
         string? floorLabel,
         RoomStatus status,
+        long version,
         IReadOnlyCollection<BedTopologyProjectionExport>? beds = null)
     {
         this.PropertyId = IntegrationEventContractGuards.RequireId(propertyId, nameof(propertyId));
@@ -19,6 +20,7 @@ public sealed record RoomTopologyProjectionExport
         this.BuildingLabel = PropertiesEventContractGuards.NormalizeOptionalLabel(buildingLabel, nameof(buildingLabel));
         this.FloorLabel = PropertiesEventContractGuards.NormalizeOptionalLabel(floorLabel, nameof(floorLabel));
         this.Status = IntegrationEventContractGuards.NormalizeDefinedOrUnknown(status);
+        this.Version = PropertiesEventContractGuards.RequireVersion(version, nameof(version));
         this.Beds = beds?.ToArray() ?? [];
     }
 
@@ -28,5 +30,6 @@ public sealed record RoomTopologyProjectionExport
     public string? BuildingLabel { get; }
     public string? FloorLabel { get; }
     public RoomStatus Status { get; }
+    public long Version { get; }
     public IReadOnlyCollection<BedTopologyProjectionExport> Beds { get; }
 }

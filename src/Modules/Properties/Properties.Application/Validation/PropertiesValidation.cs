@@ -4,6 +4,14 @@ using Properties.Domain.Aggregates;
 
 internal static class PropertiesValidation
 {
+    public static IEnumerable<string> ValidateExpectedVersion(long expectedVersion, string description)
+    {
+        if (expectedVersion < 1)
+        {
+            yield return $"Expected {description} version must be positive.";
+        }
+    }
+
     public static IEnumerable<string> ValidatePropertyWrite(string? name, string? code, string? timeZoneId)
     {
         if (string.IsNullOrWhiteSpace(name))

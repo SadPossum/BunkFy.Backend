@@ -6,6 +6,9 @@
     <ProjectReference Include="..\Properties.Application\Properties.Application.csproj" />
     <ProjectReference Include="..\Properties.Contracts\Properties.Contracts.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api\Gma.Framework.Api.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.AccessControl.AspNetCore\Gma.Framework.AccessControl.AspNetCore.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Tenancy\Gma.Framework.Tenancy\Gma.Framework.Tenancy.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Tenancy\Gma.Framework.Tenancy.AccessControl.AspNetCore\Gma.Framework.Tenancy.AccessControl.AspNetCore.csproj" />
     <ProjectReference Include="..\Properties.Persistence\Properties.Persistence.csproj" />
   </ItemGroup>
 </Project>

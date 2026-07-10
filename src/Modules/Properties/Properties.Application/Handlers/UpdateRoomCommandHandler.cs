@@ -20,12 +20,18 @@ internal sealed class UpdateRoomCommandHandler(
     public async Task<Result<RoomDto>> HandleAsync(UpdateRoomCommand command, CancellationToken cancellationToken)
     {
         Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
-        if (room is null)
+        if (room is null || room.PropertyId != command.PropertyId)
         {
             return Result.Failure<RoomDto>(PropertiesDomainErrors.RoomNotFound);
         }
 
-        Result result = room.Update(command.Name, command.BuildingLabel, command.FloorLabel, idGenerator.NewId(), clock.UtcNow);
+        Result result = room.Update(
+            command.Name,
+            command.BuildingLabel,
+            command.FloorLabel,
+            command.ExpectedVersion,
+            idGenerator.NewId(),
+            clock.UtcNow);
         if (result.IsFailure)
         {
             return Result.Failure<RoomDto>(result.Error);

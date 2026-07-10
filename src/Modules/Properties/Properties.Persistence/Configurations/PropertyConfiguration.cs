@@ -24,7 +24,15 @@ internal sealed class PropertyConfiguration : IEntityTypeConfiguration<Property>
             .HasMaxLength(Property.TimeZoneIdMaxLength)
             .IsRequired();
         builder.Property(property => property.Status).HasConversion<int>().IsRequired();
-        builder.HasAlternateKey(property => new { property.TenantId, property.Id });
-        builder.HasIndex(property => new { property.TenantId, property.Code }).IsUnique();
+        builder.Property(property => property.Version)
+            .HasDefaultValue(1L)
+            .IsConcurrencyToken()
+            .IsRequired();
+        builder.Property(property => property.ProjectionOrdinal)
+            .ValueGeneratedOnAdd()
+            .IsRequired();
+        builder.HasAlternateKey(property => new { property.ScopeId, property.Id });
+        builder.HasIndex(property => new { property.ScopeId, property.Code }).IsUnique();
+        builder.HasIndex(property => property.ProjectionOrdinal).IsUnique();
     }
 }

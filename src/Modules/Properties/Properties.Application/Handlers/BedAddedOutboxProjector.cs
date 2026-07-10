@@ -13,12 +13,14 @@ internal sealed class BedAddedOutboxProjector(IOutboxWriterRegistry outboxWriter
         outboxWriters.GetRequired(PropertiesModuleMetadata.Name).EnqueueAsync(
             new BedAddedIntegrationEvent(
                 domainEvent.EventId,
-                domainEvent.TenantId,
+                domainEvent.ScopeId,
                 domainEvent.OccurredAtUtc,
                 domainEvent.PropertyId,
                 domainEvent.RoomId,
                 domainEvent.BedId,
                 domainEvent.Label,
-                PropertiesMapper.MapStatus(domainEvent.Status)),
+                PropertiesMapper.MapStatus(domainEvent.Status),
+                domainEvent.RoomVersion,
+                domainEvent.BedVersion),
             cancellationToken);
 }

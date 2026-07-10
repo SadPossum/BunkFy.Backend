@@ -3,6 +3,7 @@ namespace Properties.Persistence.Configurations;
 using Properties.Domain.Aggregates;
 using Properties.Domain.Entities;
 using Properties.Domain.ValueObjects;
+using Gma.Framework.Naming;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,8 +16,8 @@ internal sealed class RoomConfiguration : IEntityTypeConfiguration<Room>
         builder.Property(room => room.PropertyId).IsRequired();
         builder.HasOne<Property>()
             .WithMany()
-            .HasForeignKey(room => new { room.TenantId, room.PropertyId })
-            .HasPrincipalKey(property => new { property.TenantId, property.Id })
+            .HasForeignKey(room => new { room.ScopeId, room.PropertyId })
+            .HasPrincipalKey(property => new { property.ScopeId, property.Id })
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired();
         builder.Property(room => room.Name)
@@ -34,7 +35,11 @@ internal sealed class RoomConfiguration : IEntityTypeConfiguration<Room>
                 value => string.IsNullOrWhiteSpace(value) ? null : PhysicalLabel.Create(value).Value)
             .HasMaxLength(Room.PhysicalLabelMaxLength);
         builder.Property(room => room.Status).HasConversion<int>().IsRequired();
-        builder.HasIndex(room => new { room.TenantId, room.PropertyId, room.Name }).IsUnique();
+        builder.Property(room => room.Version)
+            .HasDefaultValue(1L)
+            .IsConcurrencyToken()
+            .IsRequired();
+        builder.HasIndex(room => new { room.ScopeId, room.PropertyId, room.Name }).IsUnique();
 
         builder.OwnsMany(
             room => room.Beds,
@@ -44,14 +49,18 @@ internal sealed class RoomConfiguration : IEntityTypeConfiguration<Room>
                 beds.WithOwner().HasForeignKey(bed => bed.RoomId);
                 beds.HasKey(bed => bed.Id);
                 beds.Property(bed => bed.Id).ValueGeneratedNever();
-                beds.Property(bed => bed.TenantId).HasMaxLength(128).IsRequired();
+                beds.Property(bed => bed.ScopeId).HasMaxLength(ScopeIds.MaxLength).IsRequired();
                 beds.Property(bed => bed.PropertyId).IsRequired();
                 beds.Property(bed => bed.Label)
                     .HasConversion(label => label.Value, value => BedLabel.Create(value).Value)
                     .HasMaxLength(Room.BedLabelMaxLength)
                     .IsRequired();
                 beds.Property(bed => bed.Status).HasConversion<int>().IsRequired();
-                beds.HasIndex(bed => new { bed.TenantId, bed.RoomId, bed.Label }).IsUnique();
+                beds.Property(bed => bed.Version)
+                    .HasDefaultValue(1L)
+                    .IsConcurrencyToken()
+                    .IsRequired();
+                beds.HasIndex(bed => new { bed.ScopeId, bed.RoomId, bed.Label }).IsUnique();
             });
 
         builder.Navigation(room => room.Beds).UsePropertyAccessMode(PropertyAccessMode.Field);

@@ -7,9 +7,13 @@
     <File Path="docs/getting-started/setup.md" />
     <File Path="docs/getting-started/source-first-apps.md" />
     <File Path="docs/planning/development-guidelines.md" />
+    <File Path="docs/planning/gma-access-control-properties-alignment.md" />
+    <File Path="docs/planning/inventory-module-task.md" />
+    <File Path="docs/planning/reservations-module-task.md" />
     <File Path="docs/planning/pre-module-readiness.md" />
     <File Path="docs/planning/properties-follow-up-notes.md" />
     <File Path="docs/planning/properties-module-task.md" />
+    <File Path="docs/planning/properties-topology-lifecycle-task.md" />
     <File Path="docs/planning/product-domain-map.md" />
     <File Path="docs/README.md" />
   </Folder>
@@ -42,6 +46,20 @@
     <File Path=".github/workflows/validate.yml" />
   </Folder>
   <Folder Name="/gma/modules/" />
+  <Folder Name="/gma/modules/access-control/" />
+  <Folder Name="/gma/modules/access-control/src/">
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Admin.Contracts/Gma.Modules.AccessControl.Admin.Contracts.csproj" />
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.AdminApi/Gma.Modules.AccessControl.AdminApi.csproj" />
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.AdminCli/Gma.Modules.AccessControl.AdminCli.csproj" />
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Application/Gma.Modules.AccessControl.Application.csproj" />
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Contracts/Gma.Modules.AccessControl.Contracts.csproj" />
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations/Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Persistence.SqlServerMigrations/Gma.Modules.AccessControl.Persistence.SqlServerMigrations.csproj" />
+    <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Persistence/Gma.Modules.AccessControl.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/access-control/tests/">
+    <Project Path="gma/modules/access-control/tests/Gma.Modules.AccessControl.Tests/Gma.Modules.AccessControl.Tests.csproj" />
+  </Folder>
   <Folder Name="/gma/modules/administration/" />
   <Folder Name="/gma/modules/administration/src/">
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.AdminApi/Gma.Modules.Administration.AdminApi.csproj" />
@@ -129,29 +147,78 @@
   <Folder Name="/gma/" />
   <Folder Name="/gma/framework/" />
   <Folder Name="/gma/framework/src/">
+    <Project Path="gma/framework/src/Administration/Gma.Framework.Administration.AccessControl/Gma.Framework.Administration.AccessControl.csproj" />
     <Project Path="gma/framework/src/Administration/Gma.Framework.Administration.Api/Gma.Framework.Administration.Api.csproj" />
     <Project Path="gma/framework/src/Administration/Gma.Framework.Administration.Cli/Gma.Framework.Administration.Cli.csproj" />
     <Project Path="gma/framework/src/Administration/Gma.Framework.Administration/Gma.Framework.Administration.csproj" />
+    <Project Path="gma/framework/src/Api/Gma.Framework.Api.OpenApi/Gma.Framework.Api.OpenApi.csproj" />
+    <Project Path="gma/framework/src/Api/Gma.Framework.Api.Production.EntityFrameworkCore/Gma.Framework.Api.Production.EntityFrameworkCore.csproj" />
+    <Project Path="gma/framework/src/Api/Gma.Framework.Api.Production/Gma.Framework.Api.Production.csproj" />
+    <Project Path="gma/framework/src/Api/Gma.Framework.Api.Serilog/Gma.Framework.Api.Serilog.csproj" />
     <Project Path="gma/framework/src/Api/Gma.Framework.Api/Gma.Framework.Api.csproj" />
     <Project Path="gma/framework/src/Application/Gma.Framework.Application.Composition/Gma.Framework.Application.Composition.csproj" />
+    <Project Path="gma/framework/src/Application/Gma.Framework.Application.Events.Infrastructure/Gma.Framework.Application.Events.Infrastructure.csproj" />
     <Project Path="gma/framework/src/Application/Gma.Framework.Application.Events/Gma.Framework.Application.Events.csproj" />
+    <Project Path="gma/framework/src/Caching/Gma.Framework.Caching.Cqrs/Gma.Framework.Caching.Cqrs.csproj" />
+    <Project Path="gma/framework/src/Caching/Gma.Framework.Caching.Infrastructure/Gma.Framework.Caching.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Caching/Gma.Framework.Caching.Redis/Gma.Framework.Caching.Redis.csproj" />
+    <Project Path="gma/framework/src/Caching/Gma.Framework.Caching/Gma.Framework.Caching.csproj" />
+    <Project Path="gma/framework/src/Cqrs/Gma.Framework.Cqrs.Infrastructure/Gma.Framework.Cqrs.Infrastructure.csproj" />
     <Project Path="gma/framework/src/Cqrs/Gma.Framework.Cqrs/Gma.Framework.Cqrs.csproj" />
     <Project Path="gma/framework/src/Domain/Gma.Framework.Domain/Gma.Framework.Domain.csproj" />
+    <Project Path="gma/framework/src/FileManagement/Gma.Framework.FileManagement.LocalStorage/Gma.Framework.FileManagement.LocalStorage.csproj" />
+    <Project Path="gma/framework/src/FileManagement/Gma.Framework.FileManagement.Minio/Gma.Framework.FileManagement.Minio.csproj" />
+    <Project Path="gma/framework/src/FileManagement/Gma.Framework.FileManagement/Gma.Framework.FileManagement.csproj" />
+    <Project Path="gma/framework/src/Infrastructure/Gma.Framework.Infrastructure/Gma.Framework.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Logging/Gma.Framework.Logging.Serilog/Gma.Framework.Logging.Serilog.csproj" />
     <Project Path="gma/framework/src/Messaging/Gma.Framework.Messaging.Infrastructure/Gma.Framework.Messaging.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Messaging/Gma.Framework.Messaging.Nats.Aspire/Gma.Framework.Messaging.Nats.Aspire.csproj" />
+    <Project Path="gma/framework/src/Messaging/Gma.Framework.Messaging.Nats/Gma.Framework.Messaging.Nats.csproj" />
     <Project Path="gma/framework/src/Messaging/Gma.Framework.Messaging/Gma.Framework.Messaging.csproj" />
     <Project Path="gma/framework/src/Modules/Gma.Framework.ModuleComposition/Gma.Framework.ModuleComposition.csproj" />
     <Project Path="gma/framework/src/Modules/Gma.Framework.Modules/Gma.Framework.Modules.csproj" />
     <Project Path="gma/framework/src/Naming/Gma.Framework.Naming/Gma.Framework.Naming.csproj" />
+    <Project Path="gma/framework/src/Notifications/Gma.Framework.Notifications.Api/Gma.Framework.Notifications.Api.csproj" />
+    <Project Path="gma/framework/src/Notifications/Gma.Framework.Notifications.Cqrs/Gma.Framework.Notifications.Cqrs.csproj" />
+    <Project Path="gma/framework/src/Notifications/Gma.Framework.Notifications.Infrastructure/Gma.Framework.Notifications.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Notifications/Gma.Framework.Notifications.SignalR/Gma.Framework.Notifications.SignalR.csproj" />
+    <Project Path="gma/framework/src/Notifications/Gma.Framework.Notifications/Gma.Framework.Notifications.csproj" />
     <Project Path="gma/framework/src/Numerics/Gma.Framework.Numerics/Gma.Framework.Numerics.csproj" />
     <Project Path="gma/framework/src/Observability/Gma.Framework.Observability.Infrastructure/Gma.Framework.Observability.Infrastructure.csproj" />
     <Project Path="gma/framework/src/Observability/Gma.Framework.Observability/Gma.Framework.Observability.csproj" />
+    <Project Path="gma/framework/src/Pagination/Gma.Framework.Pagination/Gma.Framework.Pagination.csproj" />
     <Project Path="gma/framework/src/Persistence/Gma.Framework.Persistence.EntityFrameworkCore/Gma.Framework.Persistence.EntityFrameworkCore.csproj" />
+    <Project Path="gma/framework/src/ProjectionRebuild/Gma.Framework.ProjectionRebuild.EntityFrameworkCore/Gma.Framework.ProjectionRebuild.EntityFrameworkCore.csproj" />
+    <Project Path="gma/framework/src/ProjectionRebuild/Gma.Framework.ProjectionRebuild.Tasks/Gma.Framework.ProjectionRebuild.Tasks.csproj" />
+    <Project Path="gma/framework/src/ProjectionRebuild/Gma.Framework.ProjectionRebuild/Gma.Framework.ProjectionRebuild.csproj" />
+    <Project Path="gma/framework/src/Realtime/Gma.Framework.Realtime.Infrastructure/Gma.Framework.Realtime.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Realtime/Gma.Framework.Realtime.Notifications/Gma.Framework.Realtime.Notifications.csproj" />
+    <Project Path="gma/framework/src/Realtime/Gma.Framework.Realtime/Gma.Framework.Realtime.csproj" />
     <Project Path="gma/framework/src/Results/Gma.Framework.Results/Gma.Framework.Results.csproj" />
     <Project Path="gma/framework/src/Runtime/Gma.Framework.Runtime.Infrastructure/Gma.Framework.Runtime.Infrastructure.csproj" />
     <Project Path="gma/framework/src/Runtime/Gma.Framework.Runtime/Gma.Framework.Runtime.csproj" />
-    <Project Path="gma/framework/src/Security/Gma.Framework.Authorization/Gma.Framework.Authorization.csproj" />
+    <Project Path="gma/framework/src/Scoping/Gma.Framework.Scoping.Infrastructure/Gma.Framework.Scoping.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Scoping/Gma.Framework.Scoping/Gma.Framework.Scoping.csproj" />
+    <Project Path="gma/framework/src/Security/Gma.Framework.AccessControl.AspNetCore/Gma.Framework.AccessControl.AspNetCore.csproj" />
+    <Project Path="gma/framework/src/Security/Gma.Framework.AccessControl/Gma.Framework.AccessControl.csproj" />
+    <Project Path="gma/framework/src/Security/Gma.Framework.Permissions/Gma.Framework.Permissions.csproj" />
     <Project Path="gma/framework/src/Security/Gma.Framework.Security/Gma.Framework.Security.csproj" />
+    <Project Path="gma/framework/src/Tasks/Gma.Framework.Tasks.Cqrs/Gma.Framework.Tasks.Cqrs.csproj" />
+    <Project Path="gma/framework/src/Tasks/Gma.Framework.Tasks.Infrastructure/Gma.Framework.Tasks.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Tasks/Gma.Framework.Tasks/Gma.Framework.Tasks.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.AccessControl.AspNetCore/Gma.Framework.Tenancy.AccessControl.AspNetCore.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Api.Serilog/Gma.Framework.Tenancy.Api.Serilog.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Caching/Gma.Framework.Tenancy.Caching.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Cqrs/Gma.Framework.Tenancy.Cqrs.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Infrastructure/Gma.Framework.Tenancy.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Messaging.Infrastructure/Gma.Framework.Tenancy.Messaging.Infrastructure.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Messaging/Gma.Framework.Tenancy.Messaging.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Scoping/Gma.Framework.Tenancy.Scoping.csproj" />
+    <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy.Tasks/Gma.Framework.Tenancy.Tasks.csproj" />
     <Project Path="gma/framework/src/Tenancy/Gma.Framework.Tenancy/Gma.Framework.Tenancy.csproj" />
+  </Folder>
+  <Folder Name="/gma/framework/tests/">
+    <Project Path="gma/framework/tests/Gma.Framework.Tests/Gma.Framework.Tests.csproj" />
   </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/BunkFy.Host.AppHost/">
@@ -212,6 +279,26 @@
     <Project Path="src/Modules/Ordering/Ordering.Persistence.SqlServerMigrations/Ordering.Persistence.SqlServerMigrations.csproj" />
     <Project Path="src/Modules/Ordering/Ordering.Persistence/Ordering.Persistence.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Inventory/">
+    <Project Path="src/Modules/Inventory/Inventory.Admin.Contracts/Inventory.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.AdminApi/Inventory.AdminApi.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.AdminCli/Inventory.AdminCli.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.Api/Inventory.Api.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.Application/Inventory.Application.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.Contracts/Inventory.Contracts.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.Domain/Inventory.Domain.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.Persistence.PostgreSqlMigrations/Inventory.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Inventory/Inventory.Persistence/Inventory.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/tests/">
+    <Project Path="src/Modules/Inventory/tests/Inventory.Tests/Inventory.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/docs/">
+    <File Path="src/Modules/Inventory/docs/README.md" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/docs/">
+    <File Path="src/Modules/Reservations/docs/README.md" />
+  </Folder>
   <Folder Name="/src/Modules/Ordering/" />
   <Folder Name="/src/Modules/Ordering/docs/">
     <File Path="src/Modules/Ordering/docs/README.md" />
@@ -236,6 +323,20 @@
   </Folder>
   <Folder Name="/src/Modules/Properties/tests/">
     <Project Path="src/Modules/Properties/tests/Properties.Tests/Properties.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/">
+    <Project Path="src/Modules/Reservations/Reservations.Admin.Contracts/Reservations.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.AdminApi/Reservations.AdminApi.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.AdminCli/Reservations.AdminCli.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.Api/Reservations.Api.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.Application/Reservations.Application.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.Contracts/Reservations.Contracts.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.Domain/Reservations.Domain.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.Persistence.PostgreSqlMigrations/Reservations.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Reservations/Reservations.Persistence/Reservations.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/tests/">
+    <Project Path="src/Modules/Reservations/tests/Reservations.Tests/Reservations.Tests.csproj" />
   </Folder>
   <Folder Name="/src/Modules/TaskSamples/" />
   <Folder Name="/src/Modules/TaskSamples/docs/">

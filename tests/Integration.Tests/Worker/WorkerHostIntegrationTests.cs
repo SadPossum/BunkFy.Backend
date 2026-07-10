@@ -11,6 +11,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Ordering.Persistence;
+using Properties.Persistence;
+using Inventory.Contracts;
+using Inventory.Persistence;
 using Gma.Framework.Messaging;
 using Gma.Framework.Messaging.Nats;
 using Gma.Framework.ModuleComposition;
@@ -24,6 +27,36 @@ using Xunit;
 
 public sealed class WorkerHostIntegrationTests
 {
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void Worker_host_composes_properties_and_inventory_projection_services()
+    {
+        HostApplicationBuilder builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
+        builder.Configuration["Persistence:Provider"] = "PostgreSql";
+        builder.Configuration["ConnectionStrings:PostgreSql"] =
+            "Host=localhost;Database=unused;Username=unused;Password=unused";
+        builder.Configuration["NatsJetStream:Enabled"] = "false";
+        builder.Configuration["NatsConsumers:Enabled"] = "false";
+        builder.Configuration["Tasks:Worker:Enabled"] = "false";
+        builder.Configuration["Worker:Modules:Properties"] = "true";
+        builder.Configuration["Worker:Modules:Inventory"] = "true";
+        builder.Logging.ClearProviders();
+
+        builder.AddWorkerHost();
+        ModuleCompositionValidationResult result = builder.ValidateModuleComposition();
+        using IHost worker = builder.Build();
+        using IServiceScope scope = worker.Services.CreateScope();
+
+        Assert.True(result.IsValid, result.Report);
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<PropertiesDbContext>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<InventoryDbContext>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IInventoryAvailabilityProjectionExportSource>());
+        Assert.Contains(
+            worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>().Subscriptions,
+            subscription => subscription.ConsumerModule == InventoryModuleMetadata.Name);
+    }
+
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
@@ -63,7 +96,7 @@ public sealed class WorkerHostIntegrationTests
 
             Assert.Single(reports);
             Assert.Equal(runId, reports[0].RunId);
-            Assert.Equal("tenant-worker", reports[0].TenantId);
+            Assert.Equal("tenant-worker", reports[0].ScopeId);
             Assert.Equal(TaskRunStatus.Succeeded, snapshot.Status);
             Assert.Equal(1, snapshot.Attempts);
             Assert.Null(snapshot.LockedBy);
@@ -167,7 +200,7 @@ public sealed class WorkerHostIntegrationTests
                     createdAtUtc,
                     createdAtUtc,
                     TaskSamplesModuleMetadata.WorkerGroup,
-                    tenantId: "tenant-worker",
+                    scopeId: "tenant-worker",
                     requestedBy: "integration-test",
                     maxAttempts: 3,
                     payloadVersion: GenerateReportTaskPayload.PayloadVersion,

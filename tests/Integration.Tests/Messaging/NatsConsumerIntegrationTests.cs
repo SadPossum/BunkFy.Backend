@@ -22,11 +22,14 @@ using Gma.Framework.Runtime;
 using Gma.Framework.Tenancy;
 using Gma.Framework.Tenancy.Infrastructure;
 using Gma.Framework.Tenancy.Messaging.Infrastructure;
+using Gma.Framework.Tenancy.Scoping;
 using Testcontainers.PostgreSql;
 using Xunit;
 
 public sealed class NatsConsumerIntegrationTests
 {
+    private const string ApplicationNamespace = "bunkfy";
+
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
@@ -39,7 +42,7 @@ public sealed class NatsConsumerIntegrationTests
         await nats.StartAsync();
         await postgreSql.StartAsync();
 
-        string tenantId = "tenant-consumer";
+        string scopeId = "tenant-consumer";
         string streamName = $"GMA_CONSUMER_{Guid.NewGuid():N}".ToUpperInvariant();
         ConcurrentQueue<string> logs = new();
         using IHost host = BuildHost(
@@ -60,14 +63,17 @@ public sealed class NatsConsumerIntegrationTests
             Guid itemId = Guid.NewGuid();
             CatalogItemCreatedIntegrationEvent integrationEvent = new(
                 Guid.NewGuid(),
-                tenantId,
+                scopeId,
                 new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero),
                 itemId,
                 "SKU-42",
                 "Projection item",
                 42.50m,
                 "USD");
-            IntegrationEventEnvelope envelope = IntegrationEventEnvelopeFactory.Create("catalog", integrationEvent);
+            IntegrationEventEnvelope envelope = IntegrationEventEnvelopeFactory.Create(
+                "catalog",
+                integrationEvent,
+                ApplicationNamespace);
             IEventBus eventBus = host.Services.GetRequiredService<IEventBus>();
 
             await eventBus.PublishAsync(
@@ -82,10 +88,10 @@ public sealed class NatsConsumerIntegrationTests
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-            await WaitForProjectionAsync(host, tenantId, itemId, logs, TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+            await WaitForProjectionAsync(host, scopeId, itemId, logs, TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
             using IServiceScope scope = host.Services.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(tenantId);
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(scopeId);
             OrderingDbContext dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
             CatalogItemProjection projection = await dbContext.CatalogItemProjections.SingleAsync(
@@ -204,6 +210,7 @@ public sealed class NatsConsumerIntegrationTests
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder();
         builder.Environment.EnvironmentName = "Integration";
+        builder.Configuration["ApplicationIdentity:Namespace"] = ApplicationNamespace;
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = postgreSqlConnectionString;
         builder.Configuration["Tenancy:Enabled"] = "true";
@@ -223,6 +230,7 @@ public sealed class NatsConsumerIntegrationTests
         }));
 
         builder.AddTenancyInfrastructure();
+        builder.AddTenantScoping();
         builder.AddTenantAwareMessaging();
         builder.Services.AddOrderingApplication();
         builder.AddOrderingPersistence();
@@ -251,7 +259,7 @@ public sealed class NatsConsumerIntegrationTests
 
     private static async Task WaitForProjectionAsync(
         IHost host,
-        string tenantId,
+        string scopeId,
         Guid itemId,
         ConcurrentQueue<string> logs,
         TimeSpan timeout)
@@ -261,7 +269,7 @@ public sealed class NatsConsumerIntegrationTests
         while (DateTimeOffset.UtcNow < deadline)
         {
             using IServiceScope scope = host.Services.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(tenantId);
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(scopeId);
             OrderingDbContext dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
             bool exists = await dbContext.CatalogItemProjections
@@ -276,18 +284,18 @@ public sealed class NatsConsumerIntegrationTests
             await Task.Delay(100).ConfigureAwait(false);
         }
 
-        string diagnostics = await CreateDiagnosticsAsync(host, tenantId, itemId, logs).ConfigureAwait(false);
+        string diagnostics = await CreateDiagnosticsAsync(host, scopeId, itemId, logs).ConfigureAwait(false);
         throw new TimeoutException($"Ordering projection for catalog item '{itemId}' was not created. {diagnostics}");
     }
 
     private static async Task<string> CreateDiagnosticsAsync(
         IHost host,
-        string tenantId,
+        string scopeId,
         Guid itemId,
         ConcurrentQueue<string> logs)
     {
         using IServiceScope scope = host.Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(tenantId);
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(scopeId);
         OrderingDbContext dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
 
         int projectionCount = await dbContext.CatalogItemProjections

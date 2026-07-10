@@ -16,10 +16,12 @@ public sealed class PropertyAggregateTests
         Result<Property> result = CreateProperty(" tenant-a ", code: " HOSTEL-ONE ");
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("tenant-a", result.Value.TenantId);
+        Assert.Equal("tenant-a", result.Value.ScopeId);
         Assert.Equal("hostel-one", result.Value.Code.Value);
+        Assert.Equal(1, result.Value.Version);
         PropertyCreatedDomainEvent domainEvent = Assert.IsType<PropertyCreatedDomainEvent>(Assert.Single(result.Value.DomainEvents));
         Assert.Equal("hostel-one", domainEvent.Code);
+        Assert.Equal(1, domainEvent.PropertyVersion);
     }
 
     [Fact]
@@ -40,12 +42,49 @@ public sealed class PropertyAggregateTests
         Property property = CreateProperty("tenant-a").Value;
         property.ClearDomainEvents();
 
-        Result result = property.Update("Updated", "updated", "UTC", Guid.NewGuid(), DateTimeOffset.UtcNow);
+        Result result = property.Update("Updated", "updated", "UTC", property.Version, Guid.NewGuid(), DateTimeOffset.UtcNow);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Updated", property.Name.Value);
         Assert.Equal("updated", property.Code.Value);
-        Assert.IsType<PropertyUpdatedDomainEvent>(Assert.Single(property.DomainEvents));
+        Assert.Equal(2, property.Version);
+        PropertyUpdatedDomainEvent domainEvent = Assert.IsType<PropertyUpdatedDomainEvent>(Assert.Single(property.DomainEvents));
+        Assert.Equal(2, domainEvent.PropertyVersion);
+    }
+
+    [Fact]
+    public void Stale_version_is_rejected_without_mutation()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+
+        Result result = property.Update("Updated", "updated", "UTC", expectedVersion: 99, Guid.NewGuid(), DateTimeOffset.UtcNow);
+
+        Assert.Equal(PropertiesDomainErrors.VersionConflict, result.Error);
+        Assert.Equal(1, property.Version);
+        Assert.Equal("Hostel One", property.Name.Value);
+    }
+
+    [Fact]
+    public void Retire_is_terminal_and_versioned()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+        property.ClearDomainEvents();
+
+        Result result = property.Retire(property.Version, Guid.NewGuid(), DateTimeOffset.UtcNow);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PropertyState.Retired, property.Status);
+        Assert.Equal(2, property.Version);
+        Assert.NotNull(property.RetiredAtUtc);
+        PropertyRetiredDomainEvent domainEvent = Assert.IsType<PropertyRetiredDomainEvent>(Assert.Single(property.DomainEvents));
+        Assert.Equal(2, domainEvent.PropertyVersion);
+        Assert.Equal(PropertiesDomainErrors.PropertyRetired, property.RegisterRoom(property.Version).Error);
+        Assert.Equal(
+            PropertiesDomainErrors.PropertyRetired,
+            property.Update("Nope", "nope", "UTC", property.Version, Guid.NewGuid(), DateTimeOffset.UtcNow).Error);
+        Assert.Equal(
+            PropertiesDomainErrors.PropertyAlreadyRetired,
+            property.Retire(property.Version, Guid.NewGuid(), DateTimeOffset.UtcNow).Error);
     }
 
     private static Result<Property> CreateProperty(

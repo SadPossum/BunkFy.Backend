@@ -25,7 +25,13 @@ internal sealed class UpdatePropertyCommandHandler(
             return Result.Failure<PropertyDto>(PropertiesDomainErrors.PropertyNotFound);
         }
 
-        Result result = property.Update(command.Name, command.Code, command.TimeZoneId, idGenerator.NewId(), clock.UtcNow);
+        Result result = property.Update(
+            command.Name,
+            command.Code,
+            command.TimeZoneId,
+            command.ExpectedVersion,
+            idGenerator.NewId(),
+            clock.UtcNow);
         if (result.IsFailure)
         {
             return Result.Failure<PropertyDto>(result.Error);

@@ -1,5 +1,7 @@
 namespace Integration.Tests.Support;
 
+using Gma.Modules.AccessControl.AdminCli;
+using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Administration.AdminCli;
 using Gma.Modules.Administration.Persistence;
 using Gma.Modules.Auth.AdminCli;
@@ -39,7 +41,7 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
             ["ConnectionStrings:SqlServer"] = provider == "SqlServer" ? connectionString : string.Empty,
             ["ConnectionStrings:PostgreSql"] = provider == "PostgreSql" ? connectionString : string.Empty,
             ["Tenancy:Enabled"] = "true",
-            ["Administration:Bootstrap:AllowWhenAssignmentsExist"] = "false",
+            ["AccessControl:Bootstrap:AllowWhenAssignmentsExist"] = "false",
             ["Auth:RefreshTokenLifetimeDays"] = "30",
             ["Auth:RefreshTokens:Pepper"] = "integration-test-refresh-token-pepper-change-me-000000000000000000",
             ["Auth:Jwt:Issuer"] = "BunkFy",
@@ -56,6 +58,7 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         builder.AddMessagingInfrastructure();
         builder.AddTenantAwareMessaging();
         builder.AddAdminModule<AdministrationAdminCliModule>();
+        builder.AddAdminModule<AccessControlAdminCliModule>();
         builder.AddAdminModule<AuthAdminCliModule>();
 
         this.host = builder.Build();
@@ -67,6 +70,7 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
     {
         using IServiceScope scope = this.host.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<AdminDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<AccessControlDbContext>().Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     }
 

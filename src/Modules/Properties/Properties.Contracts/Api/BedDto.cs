@@ -6,6 +6,8 @@ public sealed record BedDto(
     Guid PropertyId,
     string Label,
     BedStatus Status,
+    long Version,
+    long RoomVersion,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
     DateTimeOffset? RetiredAtUtc);

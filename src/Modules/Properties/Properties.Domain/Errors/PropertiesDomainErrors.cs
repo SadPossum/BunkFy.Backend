@@ -18,6 +18,10 @@ public static class PropertiesDomainErrors
     public static readonly Error PropertyCodeAlreadyExists = new("Properties.PropertyCodeAlreadyExists", "A property with the same code already exists.");
     public static readonly Error PropertyNotFound = new("Properties.PropertyNotFound", "The property was not found.");
     public static readonly Error PropertyStatusUnknown = new("Properties.PropertyStatusUnknown", "The property status is unknown.");
+    public static readonly Error PropertyAlreadyRetired = new("Properties.PropertyAlreadyRetired", "The property is already retired.");
+    public static readonly Error PropertyRetired = new("Properties.PropertyRetired", "The property is retired.");
+    public static readonly Error PropertyHasActiveRooms = new("Properties.PropertyHasActiveRooms", "Retire all rooms before retiring the property.");
+    public static readonly Error VersionConflict = new("Properties.VersionConflict", "The topology changed. Reload it and retry with the current version.");
     public static readonly Error TimeZoneRequired = new("Properties.TimeZoneRequired", "A property time zone is required.");
     public static readonly Error TimeZoneTooLong = new("Properties.TimeZoneTooLong", "The property time zone is too long.");
     public static readonly Error TimeZoneInvalid = new("Properties.TimeZoneInvalid", "The property time zone is not valid.");
@@ -29,6 +33,7 @@ public static class PropertiesDomainErrors
     public static readonly Error RoomStatusUnknown = new("Properties.RoomStatusUnknown", "The room status is unknown.");
     public static readonly Error RoomAlreadyRetired = new("Properties.RoomAlreadyRetired", "The room is already retired.");
     public static readonly Error RoomRetired = new("Properties.RoomRetired", "The room is retired.");
+    public static readonly Error RoomHasActiveBeds = new("Properties.RoomHasActiveBeds", "The room has active beds; an explicit cascade is required.");
     public static readonly Error BedLabelRequired = new("Properties.BedLabelRequired", "A bed label is required.");
     public static readonly Error BedLabelTooLong = new("Properties.BedLabelTooLong", "The bed label is too long.");
     public static readonly Error BedAlreadyExists = new("Properties.BedAlreadyExists", "A bed with the same label already exists in this room.");

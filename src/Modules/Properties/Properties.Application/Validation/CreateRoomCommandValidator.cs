@@ -12,6 +12,11 @@ internal sealed class CreateRoomCommandValidator : ICommandValidator<CreateRoomC
             yield return "Property id is required.";
         }
 
+        foreach (string error in PropertiesValidation.ValidateExpectedVersion(command.ExpectedPropertyVersion, "property"))
+        {
+            yield return error;
+        }
+
         foreach (string error in PropertiesValidation.ValidateRoomWrite(command.Name, command.BuildingLabel, command.FloorLabel))
         {
             yield return error;

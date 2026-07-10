@@ -10,7 +10,7 @@ internal static class PropertiesEventContractGuards
             : IntegrationEventContractGuards.NormalizeRequiredText(value, PropertiesContractLimits.PhysicalLabelMaxLength, parameterName);
 
     public static PropertyStatus RequireKnown(PropertyStatus status, string parameterName) =>
-        status is PropertyStatus.Active
+        status is PropertyStatus.Active or PropertyStatus.Retired
             ? status
             : throw new ArgumentOutOfRangeException(parameterName, status, "Property status is not supported.");
 
@@ -23,4 +23,9 @@ internal static class PropertiesEventContractGuards
         status is BedStatus.Active or BedStatus.Retired
             ? status
             : throw new ArgumentOutOfRangeException(parameterName, status, "Bed status is not supported.");
+
+    public static long RequireVersion(long version, string parameterName) =>
+        version > 0
+            ? version
+            : throw new ArgumentOutOfRangeException(parameterName, version, "Entity version must be positive.");
 }

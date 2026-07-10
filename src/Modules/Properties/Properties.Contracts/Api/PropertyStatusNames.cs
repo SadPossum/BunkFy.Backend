@@ -6,6 +6,7 @@ public static class PropertyStatusNames
         status switch
         {
             PropertyStatus.Active => "active",
+            PropertyStatus.Retired => "retired",
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Property status is invalid.")
         };
 
@@ -22,6 +23,7 @@ public static class PropertyStatusNames
         status = normalized switch
         {
             "active" => PropertyStatus.Active,
+            "retired" => PropertyStatus.Retired,
             _ => PropertyStatus.Unknown
         };
 

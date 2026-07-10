@@ -6,6 +6,7 @@ public static class PropertiesAdminOperationNames
     public const string PropertiesGet = "properties.properties.get";
     public const string PropertiesCreate = "properties.properties.create";
     public const string PropertiesUpdate = "properties.properties.update";
+    public const string PropertiesRetire = "properties.properties.retire";
     public const string RoomsList = "properties.rooms.list";
     public const string RoomsGet = "properties.rooms.get";
     public const string RoomsCreate = "properties.rooms.create";

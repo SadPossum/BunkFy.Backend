@@ -22,6 +22,7 @@ public sealed class PropertiesApplicationRegistrationTests
 
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreatePropertyCommand, PropertyDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdatePropertyCommand, PropertyDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetirePropertyCommand, Unit>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreateRoomCommand, RoomDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateRoomCommand, RoomDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetireRoomCommand, Unit>));
@@ -30,10 +31,11 @@ public sealed class PropertiesApplicationRegistrationTests
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetireBedCommand, Unit>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<GetPropertyQuery, PropertyDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListPropertiesQuery, PropertyListResponse>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListVisiblePropertiesQuery, PropertyListResponse>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<GetRoomQuery, RoomDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListRoomsQuery, RoomListResponse>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListBedsQuery, BedListResponse>));
-        Assert.Equal(8, services.Count(descriptor => IsDomainEventHandler(descriptor.ServiceType)));
+        Assert.Equal(9, services.Count(descriptor => IsDomainEventHandler(descriptor.ServiceType)));
     }
 
     [Fact]

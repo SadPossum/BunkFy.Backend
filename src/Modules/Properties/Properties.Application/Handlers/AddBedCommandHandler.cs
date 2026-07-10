@@ -21,17 +21,22 @@ internal sealed class AddBedCommandHandler(
     public async Task<Result<BedDto>> HandleAsync(AddBedCommand command, CancellationToken cancellationToken)
     {
         Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
-        if (room is null)
+        if (room is null || room.PropertyId != command.PropertyId)
         {
             return Result.Failure<BedDto>(PropertiesDomainErrors.RoomNotFound);
         }
 
-        Result<Bed> bedResult = room.AddBed(idGenerator.NewId(), command.Label, idGenerator.NewId(), clock.UtcNow);
+        Result<Bed> bedResult = room.AddBed(
+            idGenerator.NewId(),
+            command.Label,
+            command.ExpectedRoomVersion,
+            idGenerator.NewId(),
+            clock.UtcNow);
         if (bedResult.IsFailure)
         {
             return Result.Failure<BedDto>(bedResult.Error);
         }
 
-        return Result.Success(PropertiesMapper.ToDto(bedResult.Value));
+        return Result.Success(PropertiesMapper.ToDto(bedResult.Value, room.Version));
     }
 }

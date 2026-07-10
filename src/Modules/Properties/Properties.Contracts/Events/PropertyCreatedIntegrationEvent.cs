@@ -10,7 +10,7 @@ using Gma.Framework.Tenancy.Messaging;
 public sealed record PropertyCreatedIntegrationEvent : TenantIntegrationEvent
 {
     public const string EventType = "property-created";
-    public const int EventVersion = 1;
+    public const int EventVersion = 2;
 
     public PropertyCreatedIntegrationEvent(
         Guid eventId,
@@ -20,7 +20,8 @@ public sealed record PropertyCreatedIntegrationEvent : TenantIntegrationEvent
         string name,
         string code,
         string timeZoneId,
-        PropertyStatus status)
+        PropertyStatus status,
+        long propertyVersion)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.PropertyId = IntegrationEventContractGuards.RequireId(propertyId, nameof(propertyId));
@@ -28,6 +29,7 @@ public sealed record PropertyCreatedIntegrationEvent : TenantIntegrationEvent
         this.Code = IntegrationEventContractGuards.NormalizeRequiredText(code, PropertiesContractLimits.PropertyCodeMaxLength, nameof(code));
         this.TimeZoneId = IntegrationEventContractGuards.NormalizeRequiredText(timeZoneId, PropertiesContractLimits.TimeZoneIdMaxLength, nameof(timeZoneId));
         this.Status = PropertiesEventContractGuards.RequireKnown(status, nameof(status));
+        this.PropertyVersion = PropertiesEventContractGuards.RequireVersion(propertyVersion, nameof(propertyVersion));
     }
 
     public Guid PropertyId { get; }
@@ -35,4 +37,5 @@ public sealed record PropertyCreatedIntegrationEvent : TenantIntegrationEvent
     public string Code { get; }
     public string TimeZoneId { get; }
     public PropertyStatus Status { get; }
+    public long PropertyVersion { get; }
 }

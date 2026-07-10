@@ -12,6 +12,7 @@ public sealed record PropertyTopologyProjectionExport
         string code,
         string timeZoneId,
         PropertyStatus status,
+        long version,
         IReadOnlyCollection<RoomTopologyProjectionExport>? rooms = null)
     {
         this.TenantId = TenantIds.Normalize(tenantId);
@@ -20,6 +21,7 @@ public sealed record PropertyTopologyProjectionExport
         this.Code = IntegrationEventContractGuards.NormalizeRequiredText(code, PropertiesContractLimits.PropertyCodeMaxLength, nameof(code));
         this.TimeZoneId = IntegrationEventContractGuards.NormalizeRequiredText(timeZoneId, PropertiesContractLimits.TimeZoneIdMaxLength, nameof(timeZoneId));
         this.Status = IntegrationEventContractGuards.NormalizeDefinedOrUnknown(status);
+        this.Version = PropertiesEventContractGuards.RequireVersion(version, nameof(version));
         this.Rooms = rooms?.ToArray() ?? [];
     }
 
@@ -29,5 +31,6 @@ public sealed record PropertyTopologyProjectionExport
     public string Code { get; }
     public string TimeZoneId { get; }
     public PropertyStatus Status { get; }
+    public long Version { get; }
     public IReadOnlyCollection<RoomTopologyProjectionExport> Rooms { get; }
 }

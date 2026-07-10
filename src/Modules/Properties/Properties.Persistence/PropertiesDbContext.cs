@@ -4,10 +4,10 @@ using Properties.Domain.Aggregates;
 using Microsoft.EntityFrameworkCore;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Persistence.EntityFrameworkCore;
-using Gma.Framework.Tenancy;
+using Gma.Framework.Scoping;
 
-public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> options, ITenantContext tenantContext)
-    : TenantAwareDbContext<PropertiesDbContext>(options, tenantContext)
+public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> options, IScopeContext scopeContext)
+    : ScopeAwareDbContext<PropertiesDbContext>(options, scopeContext)
 {
     public DbSet<Property> Properties => this.Set<Property>();
     public DbSet<Room> Rooms => this.Set<Room>();
@@ -17,6 +17,6 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
     {
         modelBuilder.HasDefaultSchema(PropertiesMigrations.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PropertiesDbContext).Assembly);
-        this.ApplyTenantConventions(modelBuilder);
+        this.ApplyScopeConventions(modelBuilder);
     }
 }

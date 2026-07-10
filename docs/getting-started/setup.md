@@ -30,5 +30,5 @@ For standalone backend work, initialize this repository's GMA submodules, then r
 
 ## Current Scope
 
-This repository currently contains a skeleton-style backend foundation: public API, admin API, admin CLI, worker, service defaults, architecture/integration tests, and copied example modules. Product PMS modules and real hostel workflows are the next implementation layer.
+This repository contains the backend foundation plus the Properties and Inventory product modules. Public API, admin API/CLI, worker, service defaults, persisted access control, PostgreSQL migrations, architecture/integration tests, and copied examples are composed; Reservations is the next product module to plan.
 

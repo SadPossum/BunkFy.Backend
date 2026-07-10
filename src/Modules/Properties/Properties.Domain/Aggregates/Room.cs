@@ -8,7 +8,7 @@ using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
-public sealed class Room : TenantAggregateRoot<Guid>
+public sealed class Room : ScopedAggregateRoot<Guid>
 {
     public const int RoomNameMaxLength = 128;
     public const int PhysicalLabelMaxLength = 128;
@@ -18,8 +18,8 @@ public sealed class Room : TenantAggregateRoot<Guid>
 
     private Room() { }
 
-    private Room(Guid id, string tenantId)
-        : base(id, tenantId)
+    private Room(Guid id, string scopeId)
+        : base(id, scopeId)
     {
     }
 
@@ -28,6 +28,7 @@ public sealed class Room : TenantAggregateRoot<Guid>
     public PhysicalLabel? BuildingLabel { get; private set; }
     public PhysicalLabel? FloorLabel { get; private set; }
     public RoomState Status { get; private set; } = RoomState.Active;
+    public long Version { get; private set; } = 1;
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
     public DateTimeOffset? RetiredAtUtc { get; private set; }
@@ -64,7 +65,7 @@ public sealed class Room : TenantAggregateRoot<Guid>
             return Result.Failure<Room>(values.Error);
         }
 
-        Room room = new(id, values.Value.TenantId)
+        Room room = new(id, values.Value.ScopeId)
         {
             PropertyId = propertyId,
             Name = values.Value.Name,
@@ -78,11 +79,12 @@ public sealed class Room : TenantAggregateRoot<Guid>
             nowUtc,
             room.PropertyId,
             room.Id,
-            room.TenantId,
+            room.ScopeId,
             room.Name.Value,
             room.BuildingLabel?.Value,
             room.FloorLabel?.Value,
-            room.Status));
+            room.Status,
+            room.Version));
 
         return Result.Success(room);
     }
@@ -91,6 +93,7 @@ public sealed class Room : TenantAggregateRoot<Guid>
         string name,
         string? buildingLabel,
         string? floorLabel,
+        long expectedVersion,
         Guid eventId,
         DateTimeOffset nowUtc)
     {
@@ -100,12 +103,18 @@ public sealed class Room : TenantAggregateRoot<Guid>
             return statusResult;
         }
 
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return versionResult;
+        }
+
         if (eventId == Guid.Empty)
         {
             return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
         }
 
-        Result<RoomValues> values = RoomValues.Create(this.TenantId, name, buildingLabel, floorLabel);
+        Result<RoomValues> values = RoomValues.Create(this.ScopeId, name, buildingLabel, floorLabel);
         if (values.IsFailure)
         {
             return Result.Failure(values.Error);
@@ -115,22 +124,29 @@ public sealed class Room : TenantAggregateRoot<Guid>
         this.BuildingLabel = values.Value.BuildingLabel;
         this.FloorLabel = values.Value.FloorLabel;
         this.UpdatedAtUtc = nowUtc;
+        this.Version++;
 
         this.RaiseDomainEvent(new RoomUpdatedDomainEvent(
             eventId,
             nowUtc,
             this.PropertyId,
             this.Id,
-            this.TenantId,
+            this.ScopeId,
             this.Name.Value,
             this.BuildingLabel?.Value,
             this.FloorLabel?.Value,
-            this.Status));
+            this.Status,
+            this.Version));
 
         return Result.Success();
     }
 
-    public Result Retire(Guid eventId, DateTimeOffset nowUtc)
+    public Result Retire(
+        long expectedVersion,
+        bool cascadeBeds,
+        IReadOnlyCollection<Guid> bedRetiredEventIds,
+        Guid eventId,
+        DateTimeOffset nowUtc)
     {
         Result statusResult = this.EnsureActive();
         if (statusResult.IsFailure)
@@ -138,7 +154,28 @@ public sealed class Room : TenantAggregateRoot<Guid>
             return statusResult;
         }
 
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return versionResult;
+        }
+
         if (eventId == Guid.Empty)
+        {
+            return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
+        }
+
+        List<Bed> activeBeds = [.. this.beds.Where(bed => bed.Status == BedState.Active)];
+        if (activeBeds.Count > 0 && !cascadeBeds)
+        {
+            return Result.Failure(PropertiesDomainErrors.RoomHasActiveBeds);
+        }
+
+        ArgumentNullException.ThrowIfNull(bedRetiredEventIds);
+        Guid[] cascadeEventIds = [.. bedRetiredEventIds];
+        if (cascadeEventIds.Length != activeBeds.Count ||
+            cascadeEventIds.Any(id => id == Guid.Empty) ||
+            cascadeEventIds.Distinct().Count() != cascadeEventIds.Length)
         {
             return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
         }
@@ -146,23 +183,51 @@ public sealed class Room : TenantAggregateRoot<Guid>
         this.Status = RoomState.Retired;
         this.RetiredAtUtc = nowUtc;
         this.UpdatedAtUtc = nowUtc;
+        this.Version++;
+
+        for (int index = 0; index < activeBeds.Count; index++)
+        {
+            Bed bed = activeBeds[index];
+            bed.Retire(nowUtc);
+            this.RaiseDomainEvent(new BedRetiredDomainEvent(
+                cascadeEventIds[index],
+                nowUtc,
+                this.PropertyId,
+                this.Id,
+                bed.Id,
+                this.ScopeId,
+                this.Version,
+                bed.Version));
+        }
 
         this.RaiseDomainEvent(new RoomRetiredDomainEvent(
             eventId,
             nowUtc,
             this.PropertyId,
             this.Id,
-            this.TenantId));
+            this.ScopeId,
+            this.Version));
 
         return Result.Success();
     }
 
-    public Result<Bed> AddBed(Guid bedId, string label, Guid eventId, DateTimeOffset nowUtc)
+    public Result<Bed> AddBed(
+        Guid bedId,
+        string label,
+        long expectedVersion,
+        Guid eventId,
+        DateTimeOffset nowUtc)
     {
         Result statusResult = this.EnsureActive();
         if (statusResult.IsFailure)
         {
             return Result.Failure<Bed>(statusResult.Error);
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return Result.Failure<Bed>(versionResult.Error);
         }
 
         if (bedId == Guid.Empty)
@@ -186,8 +251,10 @@ public sealed class Room : TenantAggregateRoot<Guid>
             return Result.Failure<Bed>(PropertiesDomainErrors.BedAlreadyExists);
         }
 
-        Bed bed = Bed.Create(bedId, this.TenantId, this.PropertyId, this.Id, labelResult.Value, nowUtc);
+        Bed bed = Bed.Create(bedId, this.ScopeId, this.PropertyId, this.Id, labelResult.Value, nowUtc);
         this.beds.Add(bed);
+        this.UpdatedAtUtc = nowUtc;
+        this.Version++;
 
         this.RaiseDomainEvent(new BedAddedDomainEvent(
             eventId,
@@ -195,19 +262,32 @@ public sealed class Room : TenantAggregateRoot<Guid>
             this.PropertyId,
             this.Id,
             bed.Id,
-            this.TenantId,
+            this.ScopeId,
             bed.Label.Value,
-            bed.Status));
+            bed.Status,
+            this.Version,
+            bed.Version));
 
         return Result.Success(bed);
     }
 
-    public Result<Bed> UpdateBed(Guid bedId, string label, Guid eventId, DateTimeOffset nowUtc)
+    public Result<Bed> UpdateBed(
+        Guid bedId,
+        string label,
+        long expectedVersion,
+        Guid eventId,
+        DateTimeOffset nowUtc)
     {
         Result statusResult = this.EnsureActive();
         if (statusResult.IsFailure)
         {
             return Result.Failure<Bed>(statusResult.Error);
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return Result.Failure<Bed>(versionResult.Error);
         }
 
         if (eventId == Guid.Empty)
@@ -240,6 +320,7 @@ public sealed class Room : TenantAggregateRoot<Guid>
 
         bed.Update(labelResult.Value, nowUtc);
         this.UpdatedAtUtc = nowUtc;
+        this.Version++;
 
         this.RaiseDomainEvent(new BedUpdatedDomainEvent(
             eventId,
@@ -247,19 +328,27 @@ public sealed class Room : TenantAggregateRoot<Guid>
             this.PropertyId,
             this.Id,
             bed.Id,
-            this.TenantId,
+            this.ScopeId,
             bed.Label.Value,
-            bed.Status));
+            bed.Status,
+            this.Version,
+            bed.Version));
 
         return Result.Success(bed);
     }
 
-    public Result RetireBed(Guid bedId, Guid eventId, DateTimeOffset nowUtc)
+    public Result RetireBed(Guid bedId, long expectedVersion, Guid eventId, DateTimeOffset nowUtc)
     {
         Result statusResult = this.EnsureActive();
         if (statusResult.IsFailure)
         {
             return statusResult;
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return versionResult;
         }
 
         if (eventId == Guid.Empty)
@@ -281,6 +370,7 @@ public sealed class Room : TenantAggregateRoot<Guid>
 
         bed.Retire(nowUtc);
         this.UpdatedAtUtc = nowUtc;
+        this.Version++;
 
         this.RaiseDomainEvent(new BedRetiredDomainEvent(
             eventId,
@@ -288,7 +378,9 @@ public sealed class Room : TenantAggregateRoot<Guid>
             this.PropertyId,
             this.Id,
             bed.Id,
-            this.TenantId));
+            this.ScopeId,
+            this.Version,
+            bed.Version));
 
         return Result.Success();
     }
@@ -314,8 +406,13 @@ public sealed class Room : TenantAggregateRoot<Guid>
             _ => Result.Failure(PropertiesDomainErrors.BedStatusUnknown)
         };
 
+    private Result EnsureExpectedVersion(long expectedVersion) =>
+        expectedVersion == this.Version
+            ? Result.Success()
+            : Result.Failure(PropertiesDomainErrors.VersionConflict);
+
     private sealed record RoomValues(
-        string TenantId,
+        string ScopeId,
         RoomName Name,
         PhysicalLabel? BuildingLabel,
         PhysicalLabel? FloorLabel)

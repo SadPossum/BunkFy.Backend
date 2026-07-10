@@ -20,6 +20,17 @@
     <ProjectReference Include="$(GmaModuleOrderingRoot)Ordering.Persistence\Ordering.Persistence.csproj" />
     <ProjectReference Include="$(GmaModuleOrderingRoot)Ordering.Persistence.PostgreSqlMigrations\Ordering.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleOrderingRoot)Ordering.Persistence.SqlServerMigrations\Ordering.Persistence.SqlServerMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Properties\Properties.Contracts\Properties.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\Properties\Properties.Persistence\Properties.Persistence.csproj" />
+    <ProjectReference Include="..\Modules\Properties\Properties.Persistence.PostgreSqlMigrations\Properties.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\Inventory.Application\Inventory.Application.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\Inventory.Contracts\Inventory.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\Inventory.Persistence\Inventory.Persistence.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\Inventory.Persistence.PostgreSqlMigrations\Inventory.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Reservations\Reservations.Application\Reservations.Application.csproj" />
+    <ProjectReference Include="..\Modules\Reservations\Reservations.Contracts\Reservations.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\Reservations\Reservations.Persistence\Reservations.Persistence.csproj" />
+    <ProjectReference Include="..\Modules\Reservations\Reservations.Persistence.PostgreSqlMigrations\Reservations.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Application\Gma.Modules.TaskRuntime.Application.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Contracts\Gma.Modules.TaskRuntime.Contracts.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence\Gma.Modules.TaskRuntime.Persistence.csproj" />

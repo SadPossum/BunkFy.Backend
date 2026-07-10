@@ -53,7 +53,7 @@ Owns the physical and organizational setup:
 - property-level settings;
 - operational areas or zones when needed.
 
-This should be the first real module, or part of the first module slice.
+This is the first real product module and its core topology, policy, lifecycle, event, and rebuild contracts are complete.
 
 ### Inventory
 
@@ -68,6 +68,8 @@ Owns availability primitives and operational inventory state:
 
 Inventory should not own pricing, payments, or external channel behavior.
 
+Inventory's first operational slice and direct reservation allocation authority are implemented after Properties.
+
 ### Reservations
 
 Owns booking lifecycle:
@@ -79,6 +81,8 @@ Owns booking lifecycle:
 - reservation notes and lifecycle events.
 
 Reservations should depend on Properties/Inventory concepts, but should not absorb inventory locking/allocation, accounting, rates, or provider-adapter logic.
+
+The first Reservations slice is implemented with direct multi-unit allocation, cancellation release, scoped management surfaces, and a rebuildable local Inventory projection. Stay operations, amendments, guest profiles, rates, and accounting remain later slices.
 
 ### Guest Records
 
@@ -304,17 +308,6 @@ Potential later domain for managed third-party integrations:
 
 This overlaps with Data Providers/Ingestion but may become a separate management surface.
 
-## Suggested First Slice
+## Suggested Next Slice
 
-Start with a narrow Properties/Inventory foundation:
-
-- tenant-scoped property;
-- rooms and beds;
-- basic operational statuses;
-- admin API and admin CLI setup commands;
-- architecture tests for boundaries and permissions;
-- optional local seed task.
-
-Leave Reservations, Billing, Rates, and Ingestion as follow-up slices, but design the first slice with stable IDs, property boundaries, permission names, events, export contracts, and projection rebuild hooks so those future modules can attach cleanly.
-
-Likely early sequence: Properties/Inventory, then Reservations, then either Data Providers/Ingestion or Staff/Access depending on the first real product pressure.
+Properties, Inventory, and the first Reservations lifecycle are complete. Choose the next active module from the first real product pressure: Guest Records for durable guest identity/history, Data Providers/Ingestion for importing external reservations, or Staff Profiles if operational assignments become the immediate need. Keep Rates, Billing, stay operations, and temporary holds separate until their workflows are concrete.

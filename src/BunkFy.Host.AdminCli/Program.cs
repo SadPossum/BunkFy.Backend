@@ -1,9 +1,12 @@
 using Catalog.AdminCli;
+using Gma.Modules.AccessControl.AdminCli;
 using Gma.Modules.Administration.AdminCli;
 using Gma.Modules.Auth.AdminCli;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.TaskRuntime.AdminCli;
 using Properties.AdminCli;
+using Inventory.AdminCli;
+using Reservations.AdminCli;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -35,10 +38,13 @@ try
     builder.AddMessagingInfrastructure();
     builder.AddTenantAwareMessaging();
     builder.AddAdminModule<AdministrationAdminCliModule>();
-    builder.AddAuthAdminModule(AuthProfile.TenantScoped());
+    builder.AddAdminModule<AccessControlAdminCliModule>();
+    builder.AddAuthAdminModule(AuthProfile.ScopeAware());
     builder.AddAdminModule<TaskRuntimeAdminCliModule>();
     builder.AddAdminModule<CatalogAdminCliModule>();
     builder.AddAdminModule<PropertiesAdminCliModule>();
+    builder.AddAdminModule<InventoryAdminCliModule>();
+    builder.AddAdminModule<ReservationsAdminCliModule>();
     builder.ValidateModuleComposition();
 
     using IHost host = builder.Build();

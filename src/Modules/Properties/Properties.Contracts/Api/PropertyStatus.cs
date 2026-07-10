@@ -6,5 +6,6 @@ using System.Text.Json.Serialization;
 public enum PropertyStatus
 {
     Unknown = 0,
-    Active = 1
+    Active = 1,
+    Retired = 2
 }

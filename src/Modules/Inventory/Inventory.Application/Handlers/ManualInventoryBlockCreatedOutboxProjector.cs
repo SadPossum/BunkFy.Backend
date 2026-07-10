@@ -1,0 +1,25 @@
+namespace Inventory.Application.Handlers;
+
+using Gma.Framework.Application.Events;
+using Gma.Framework.Messaging;
+using Inventory.Contracts;
+using Inventory.Domain.Events;
+
+internal sealed class ManualInventoryBlockCreatedOutboxProjector(IOutboxWriterRegistry outboxWriters)
+    : IDomainEventHandler<ManualInventoryBlockCreatedDomainEvent>
+{
+    public Task HandleAsync(ManualInventoryBlockCreatedDomainEvent domainEvent, CancellationToken cancellationToken) =>
+        outboxWriters.GetRequired(InventoryModuleMetadata.Name).EnqueueAsync(
+            new ManualInventoryBlockCreatedIntegrationEvent(
+                domainEvent.EventId,
+                domainEvent.ScopeId,
+                domainEvent.OccurredAtUtc,
+                domainEvent.BlockId,
+                domainEvent.PropertyId,
+                domainEvent.InventoryUnitId,
+                domainEvent.Arrival,
+                domainEvent.Departure,
+                domainEvent.Reason,
+                domainEvent.BlockVersion),
+            cancellationToken);
+}

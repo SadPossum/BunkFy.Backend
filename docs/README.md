@@ -17,3 +17,7 @@ Useful entry points:
 - [Pre-Module Readiness](planning/pre-module-readiness.md)
 - [Properties Module Task](planning/properties-module-task.md)
 - [Properties Follow-Up Notes](planning/properties-follow-up-notes.md)
+- [GMA Access Control and Properties Alignment](planning/gma-access-control-properties-alignment.md)
+- [Properties Topology Lifecycle Task](planning/properties-topology-lifecycle-task.md)
+- [Inventory Module Task](planning/inventory-module-task.md)
+- [Reservations Module Task](planning/reservations-module-task.md)

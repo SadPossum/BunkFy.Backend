@@ -1,12 +1,11 @@
 namespace Properties.Persistence.Repositories;
 
+using System.Globalization;
 using Properties.Contracts;
 using Properties.Domain.Aggregates;
 using Properties.Domain.Entities;
-using Properties.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
-using Gma.Framework.Results;
 
 internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbContext dbContext) : IPropertiesTopologyProjectionExportSource
 {
@@ -17,15 +16,15 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        string? normalizedCursor = NormalizeCursor(cursor);
+        long? normalizedCursor = NormalizeCursor(cursor);
         IQueryable<Property> query = dbContext.Properties.AsNoTracking();
-        if (normalizedCursor is not null)
+        if (normalizedCursor.HasValue)
         {
-            query = this.ApplyCursor(query, normalizedCursor);
+            query = query.Where(property => property.ProjectionOrdinal > normalizedCursor.Value);
         }
 
         List<Property> rows = await query
-            .OrderBy(property => property.Code)
+            .OrderBy(property => property.ProjectionOrdinal)
             .Take(request.BatchSize + 1)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -48,7 +47,9 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
             .GroupBy(room => room.PropertyId)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<Room>)group.ToArray());
 
-        string? nextCursor = page.Length == 0 ? null : page[^1].Code.Value;
+        string? nextCursor = page.Length == 0
+            ? null
+            : page[^1].ProjectionOrdinal.ToString(CultureInfo.InvariantCulture);
 
         return new ProjectionReadBatch<PropertyTopologyProjectionExport>(
             page.Select(property => Map(property, roomsByProperty)).ToArray(),
@@ -63,12 +64,13 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
         roomsByProperty.TryGetValue(property.Id, out IReadOnlyList<Room>? rooms);
 
         return new PropertyTopologyProjectionExport(
-            property.TenantId,
+            property.ScopeId,
             property.Id,
             property.Name.Value,
             property.Code.Value,
             property.TimeZoneId.Value,
             MapStatus(property.Status),
+            property.Version,
             (rooms ?? []).Select(MapRoom).ToArray());
     }
 
@@ -80,6 +82,7 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
             room.BuildingLabel?.Value,
             room.FloorLabel?.Value,
             MapStatus(room.Status),
+            room.Version,
             room.Beds
                 .OrderBy(bed => bed.Label.Value, StringComparer.Ordinal)
                 .Select(MapBed)
@@ -91,12 +94,14 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
             bed.RoomId,
             bed.Id,
             bed.Label.Value,
-            MapStatus(bed.Status));
+            MapStatus(bed.Status),
+            bed.Version);
 
     private static PropertyStatus MapStatus(PropertyState status) =>
         status switch
         {
             PropertyState.Active => PropertyStatus.Active,
+            PropertyState.Retired => PropertyStatus.Retired,
             _ => PropertyStatus.Unknown
         };
 
@@ -116,34 +121,15 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
             _ => BedStatus.Unknown
         };
 
-    private IQueryable<Property> ApplyCursor(IQueryable<Property> query, string normalizedCursor)
-    {
-        if (dbContext.Database.IsNpgsql())
-        {
-            return dbContext.Properties
-                .FromSqlInterpolated($"""
-                    SELECT *
-                    FROM "properties"."properties"
-                    WHERE "Code" > {normalizedCursor}
-                    """)
-                .AsNoTracking();
-        }
-
-#pragma warning disable CA1309
-        return query.Where(property => string.Compare(property.Code.Value, normalizedCursor) > 0);
-#pragma warning restore CA1309
-    }
-
-    private static string? NormalizeCursor(string? cursor)
+    private static long? NormalizeCursor(string? cursor)
     {
         if (string.IsNullOrWhiteSpace(cursor))
         {
             return null;
         }
 
-        Result<PropertyCode> result = PropertyCode.Create(cursor);
-        return result.IsSuccess
-            ? result.Value.Value
-            : throw new ArgumentException("Projection export cursor must be a valid property code.", nameof(cursor));
+        return long.TryParse(cursor, NumberStyles.None, CultureInfo.InvariantCulture, out long ordinal) && ordinal > 0
+            ? ordinal
+            : throw new ArgumentException("Projection export cursor must be a positive property ordinal.", nameof(cursor));
     }
 }

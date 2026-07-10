@@ -32,7 +32,9 @@ public sealed class PropertiesListQueryHandlerTests
         FakePropertiesReadRepository repository = new();
         IQueryHandler<ListBedsQuery, BedListResponse> handler = CreateHandler<ListBedsQuery, BedListResponse>(repository);
 
-        Result<BedListResponse> result = await handler.HandleAsync(new ListBedsQuery(Guid.NewGuid()), CancellationToken.None);
+        Result<BedListResponse> result = await handler.HandleAsync(
+            new ListBedsQuery(Guid.NewGuid(), Guid.NewGuid()),
+            CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal(PropertiesApplicationErrors.RoomNotFound, result.Error);
@@ -61,7 +63,13 @@ public sealed class PropertiesListQueryHandlerTests
         public Task<PropertyListResponse> ListPropertiesAsync(PageRequest pageRequest, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<RoomDto?> GetRoomAsync(Guid roomId, CancellationToken cancellationToken) =>
+        public Task<PropertyListResponse> ListVisiblePropertiesAsync(
+            PageRequest pageRequest,
+            PropertiesVisibilityScope visibility,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<RoomDto?> GetRoomAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken) =>
             Task.FromResult<RoomDto?>(null);
 
         public Task<RoomListResponse> ListRoomsAsync(
@@ -74,6 +82,7 @@ public sealed class PropertiesListQueryHandlerTests
         }
 
         public Task<BedListResponse> ListBedsAsync(
+            Guid propertyId,
             Guid roomId,
             PageRequest pageRequest,
             CancellationToken cancellationToken)

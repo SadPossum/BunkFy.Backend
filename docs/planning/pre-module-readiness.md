@@ -1,9 +1,9 @@
 # Pre-Module Readiness
 
-Status: working planning note
+Status: completed historical checkpoint
 Date: 2026-07-09
 
-This note records the last preparation pass before starting the first BunkFy product module.
+This note records the preparation checkpoint that preceded Properties, the first BunkFy product module. Properties, Inventory, and the first Reservations slice are now complete.
 
 ## Ready Now
 
@@ -15,11 +15,11 @@ This note records the last preparation pass before starting the first BunkFy pro
 - A manual Docker-backed CI lane exists for integration tests that need containers.
 - Product planning has a glossary, module boundary map, development guidelines, and one-new-module-at-a-time rule.
 
-## Still Deferred
+## Deferred At The Checkpoint
 
-Do not do these before the first product module:
+These items were intentionally deferred before the first product module:
 
-- build the Properties/Inventory module;
+- build Inventory before the Properties topology and policy contracts are stable;
 - remove SQL Server packages or copied example SQL Server migrations;
 - decide permanent PostgreSQL-only versus dual-provider product migrations;
 - add heavy reflection/catalog guardrails for BunkFy product module metadata;
@@ -28,9 +28,9 @@ Do not do these before the first product module:
 - create demo milestones or demo-specific workflows;
 - design production deployment, backup/restore, or self-hosting packaging in detail.
 
-## First Module Entry Criteria
+## First Module Entry Criteria (Met)
 
-Start Properties/Inventory when:
+Properties started after:
 
 - PostgreSQL-first runtime defaults are green in focused tests;
 - the product-domain glossary is treated as the naming source;

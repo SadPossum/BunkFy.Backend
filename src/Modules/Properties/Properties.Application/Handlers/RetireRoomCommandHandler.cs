@@ -3,6 +3,7 @@ namespace Properties.Application.Handlers;
 using Properties.Application.Commands;
 using Properties.Application.Ports;
 using Properties.Domain.Aggregates;
+using Properties.Domain.Entities;
 using Properties.Domain.Errors;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -18,12 +19,21 @@ internal sealed class RetireRoomCommandHandler(
     public async Task<Result<Unit>> HandleAsync(RetireRoomCommand command, CancellationToken cancellationToken)
     {
         Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
-        if (room is null)
+        if (room is null || room.PropertyId != command.PropertyId)
         {
             return Result.Failure<Unit>(PropertiesDomainErrors.RoomNotFound);
         }
 
-        Result result = room.Retire(idGenerator.NewId(), clock.UtcNow);
+        Guid[] bedEventIds = room.Beds
+            .Where(bed => bed.Status == BedState.Active)
+            .Select(_ => idGenerator.NewId())
+            .ToArray();
+        Result result = room.Retire(
+            command.ExpectedVersion,
+            command.CascadeBeds,
+            bedEventIds,
+            idGenerator.NewId(),
+            clock.UtcNow);
         if (result.IsFailure)
         {
             return Result.Failure<Unit>(result.Error);

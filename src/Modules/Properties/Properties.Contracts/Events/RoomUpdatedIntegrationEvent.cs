@@ -10,7 +10,7 @@ using Gma.Framework.Tenancy.Messaging;
 public sealed record RoomUpdatedIntegrationEvent : TenantIntegrationEvent
 {
     public const string EventType = "room-updated";
-    public const int EventVersion = 1;
+    public const int EventVersion = 2;
 
     public RoomUpdatedIntegrationEvent(
         Guid eventId,
@@ -21,7 +21,8 @@ public sealed record RoomUpdatedIntegrationEvent : TenantIntegrationEvent
         string name,
         string? buildingLabel,
         string? floorLabel,
-        RoomStatus status)
+        RoomStatus status,
+        long roomVersion)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.PropertyId = IntegrationEventContractGuards.RequireId(propertyId, nameof(propertyId));
@@ -30,6 +31,7 @@ public sealed record RoomUpdatedIntegrationEvent : TenantIntegrationEvent
         this.BuildingLabel = PropertiesEventContractGuards.NormalizeOptionalLabel(buildingLabel, nameof(buildingLabel));
         this.FloorLabel = PropertiesEventContractGuards.NormalizeOptionalLabel(floorLabel, nameof(floorLabel));
         this.Status = PropertiesEventContractGuards.RequireKnown(status, nameof(status));
+        this.RoomVersion = PropertiesEventContractGuards.RequireVersion(roomVersion, nameof(roomVersion));
     }
 
     public Guid PropertyId { get; }
@@ -38,4 +40,5 @@ public sealed record RoomUpdatedIntegrationEvent : TenantIntegrationEvent
     public string? BuildingLabel { get; }
     public string? FloorLabel { get; }
     public RoomStatus Status { get; }
+    public long RoomVersion { get; }
 }

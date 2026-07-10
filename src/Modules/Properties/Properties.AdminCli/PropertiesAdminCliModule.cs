@@ -1,5 +1,6 @@
 namespace Properties.AdminCli;
 
+using System.Globalization;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using Properties.Admin.Contracts;
@@ -37,6 +38,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
             CreateGetPropertyCommand(commands.Services, globalOptions),
             CreateCreatePropertyCommand(commands.Services, globalOptions),
             CreateUpdatePropertyCommand(commands.Services, globalOptions),
+            CreateRetirePropertyCommand(commands.Services, globalOptions),
             new Command("rooms", "Manage property rooms.")
             {
                 CreateListRoomsCommand(commands.Services, globalOptions),
@@ -87,7 +89,8 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                                 ("Code", property => property.Code),
                                 ("Name", property => property.Name),
                                 ("TimeZone", property => property.TimeZoneId),
-                                ("Status", property => property.Status.ToString())
+                                ("Status", property => property.Status.ToString()),
+                                ("Version", property => property.Version.ToString(CultureInfo.InvariantCulture))
                             ]);
                     }
 
@@ -128,7 +131,8 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                                 ("Code", property => property.Code),
                                 ("Name", property => property.Name),
                                 ("TimeZone", property => property.TimeZoneId),
-                                ("Status", property => property.Status.ToString())
+                                ("Status", property => property.Status.ToString()),
+                                ("Version", property => property.Version.ToString(CultureInfo.InvariantCulture))
                             ]);
                     }
 
@@ -183,7 +187,15 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         Option<string> nameOption = new("--name") { Required = true };
         Option<string> codeOption = new("--code") { Required = true };
         Option<string> timeZoneOption = new("--time-zone") { DefaultValueFactory = _ => "UTC" };
-        Command command = new("update", "Update a property.") { propertyIdOption, nameOption, codeOption, timeZoneOption };
+        Option<long> expectedVersionOption = CreateRequiredVersionOption("--expected-version");
+        Command command = new("update", "Update a property.")
+        {
+            propertyIdOption,
+            nameOption,
+            codeOption,
+            timeZoneOption,
+            expectedVersionOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
         {
             AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
@@ -200,7 +212,8 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                             parseResult.GetRequiredValue(propertyIdOption),
                             parseResult.GetRequiredValue(nameOption),
                             parseResult.GetRequiredValue(codeOption),
-                            parseResult.GetValue(timeZoneOption) ?? "UTC"),
+                            parseResult.GetValue(timeZoneOption) ?? "UTC",
+                            parseResult.GetRequiredValue(expectedVersionOption)),
                         token).ConfigureAwait(false);
 
                     if (result.IsSuccess)
@@ -213,6 +226,36 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 cancellationToken);
         });
 
+        return command;
+    }
+
+    private static Command CreateRetirePropertyCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
+    {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
+        Option<long> expectedVersionOption = CreateRequiredVersionOption("--expected-version");
+        Option<bool> yesOption = new("--yes");
+        Command command = new("retire", "Retire a property after all rooms are retired.")
+        {
+            propertyIdOption,
+            expectedVersionOption,
+            yesOption
+        };
+        command.SetAction((parseResult, cancellationToken) =>
+            ExecuteUnitCommandAsync(
+                services,
+                globalOptions,
+                parseResult,
+                PropertiesAdminOperationNames.PropertiesRetire,
+                PropertiesAdminPermissions.PropertiesManage,
+                provider => parseResult.GetValue(yesOption)
+                    ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
+                        new RetirePropertyCommand(
+                            parseResult.GetRequiredValue(propertyIdOption),
+                            parseResult.GetRequiredValue(expectedVersionOption)),
+                        cancellationToken)
+                    : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
+                "Property retired.",
+                cancellationToken));
         return command;
     }
 
@@ -241,8 +284,9 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateGetRoomCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
-        Command command = new("get", "Get a room.") { roomIdOption };
+        Command command = new("get", "Get a room.") { propertyIdOption, roomIdOption };
         command.SetAction((parseResult, cancellationToken) =>
         {
             AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
@@ -255,7 +299,9 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 {
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
                     Result<RoomDto> result = await dispatcher.QueryAsync(
-                        new GetRoomQuery(parseResult.GetRequiredValue(roomIdOption)),
+                        new GetRoomQuery(
+                            parseResult.GetRequiredValue(propertyIdOption),
+                            parseResult.GetRequiredValue(roomIdOption)),
                         token).ConfigureAwait(false);
 
                     if (result.IsSuccess)
@@ -273,10 +319,18 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
     private static Command CreateCreateRoomCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
+        Option<long> expectedPropertyVersionOption = CreateRequiredVersionOption("--expected-property-version");
         Option<string> nameOption = new("--name") { Required = true };
         Option<string> buildingOption = new("--building");
         Option<string> floorOption = new("--floor");
-        Command command = new("create", "Create a room.") { propertyIdOption, nameOption, buildingOption, floorOption };
+        Command command = new("create", "Create a room.")
+        {
+            propertyIdOption,
+            expectedPropertyVersionOption,
+            nameOption,
+            buildingOption,
+            floorOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
             ExecuteRoomCommandAsync(
                 services,
@@ -287,6 +341,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new CreateRoomCommand(
                         parseResult.GetRequiredValue(propertyIdOption),
+                        parseResult.GetRequiredValue(expectedPropertyVersionOption),
                         parseResult.GetRequiredValue(nameOption),
                         parseResult.GetValue(buildingOption),
                         parseResult.GetValue(floorOption)),
@@ -298,11 +353,21 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateUpdateRoomCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
+        Option<long> expectedVersionOption = CreateRequiredVersionOption("--expected-version");
         Option<string> nameOption = new("--name") { Required = true };
         Option<string> buildingOption = new("--building");
         Option<string> floorOption = new("--floor");
-        Command command = new("update", "Update a room.") { roomIdOption, nameOption, buildingOption, floorOption };
+        Command command = new("update", "Update a room.")
+        {
+            propertyIdOption,
+            roomIdOption,
+            expectedVersionOption,
+            nameOption,
+            buildingOption,
+            floorOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
             ExecuteRoomCommandAsync(
                 services,
@@ -312,7 +377,9 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminPermissions.RoomsManage,
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new UpdateRoomCommand(
+                        parseResult.GetRequiredValue(propertyIdOption),
                         parseResult.GetRequiredValue(roomIdOption),
+                        parseResult.GetRequiredValue(expectedVersionOption),
                         parseResult.GetRequiredValue(nameOption),
                         parseResult.GetValue(buildingOption),
                         parseResult.GetValue(floorOption)),
@@ -324,9 +391,19 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateRetireRoomCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
+        Option<long> expectedVersionOption = CreateRequiredVersionOption("--expected-version");
+        Option<bool> cascadeBedsOption = new("--cascade-beds");
         Option<bool> yesOption = new("--yes");
-        Command command = new("retire", "Retire a room.") { roomIdOption, yesOption };
+        Command command = new("retire", "Retire a room.")
+        {
+            propertyIdOption,
+            roomIdOption,
+            expectedVersionOption,
+            cascadeBedsOption,
+            yesOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
             ExecuteUnitCommandAsync(
                 services,
@@ -335,7 +412,13 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminOperationNames.RoomsRetire,
                 PropertiesAdminPermissions.RoomsManage,
                 provider => parseResult.GetValue(yesOption)
-                    ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new RetireRoomCommand(parseResult.GetRequiredValue(roomIdOption)), cancellationToken)
+                    ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
+                        new RetireRoomCommand(
+                            parseResult.GetRequiredValue(propertyIdOption),
+                            parseResult.GetRequiredValue(roomIdOption),
+                            parseResult.GetRequiredValue(expectedVersionOption),
+                            parseResult.GetValue(cascadeBedsOption)),
+                        cancellationToken)
                     : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
                 "Room retired.",
                 cancellationToken));
@@ -344,10 +427,11 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateListBedsCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
         Option<int> pageOption = new("--page") { DefaultValueFactory = _ => PageRequest.DefaultPage };
         Option<int> pageSizeOption = new("--page-size") { DefaultValueFactory = _ => PageRequest.DefaultPageSize };
-        Command command = new("list", "List beds.") { roomIdOption, pageOption, pageSizeOption };
+        Command command = new("list", "List beds.") { propertyIdOption, roomIdOption, pageOption, pageSizeOption };
         command.SetAction((parseResult, cancellationToken) =>
         {
             AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
@@ -361,6 +445,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
                     Result<BedListResponse> result = await dispatcher.QueryAsync(
                         new ListBedsQuery(
+                            parseResult.GetRequiredValue(propertyIdOption),
                             parseResult.GetRequiredValue(roomIdOption),
                             parseResult.GetValue(pageOption),
                             parseResult.GetValue(pageSizeOption)),
@@ -380,9 +465,17 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateAddBedCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
+        Option<long> expectedRoomVersionOption = CreateRequiredVersionOption("--expected-room-version");
         Option<string> labelOption = CreateBedLabelOption();
-        Command command = new("add", "Add a bed.") { roomIdOption, labelOption };
+        Command command = new("add", "Add a bed.")
+        {
+            propertyIdOption,
+            roomIdOption,
+            expectedRoomVersionOption,
+            labelOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
             ExecuteBedCommandAsync(
                 services,
@@ -391,7 +484,11 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminOperationNames.BedsAdd,
                 PropertiesAdminPermissions.BedsManage,
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                    new AddBedCommand(parseResult.GetRequiredValue(roomIdOption), parseResult.GetRequiredValue(labelOption)),
+                    new AddBedCommand(
+                        parseResult.GetRequiredValue(propertyIdOption),
+                        parseResult.GetRequiredValue(roomIdOption),
+                        parseResult.GetRequiredValue(expectedRoomVersionOption),
+                        parseResult.GetRequiredValue(labelOption)),
                     cancellationToken),
                 "Added bed",
                 cancellationToken));
@@ -400,10 +497,19 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateUpdateBedCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
         Option<Guid> bedIdOption = CreateBedIdOption();
+        Option<long> expectedRoomVersionOption = CreateRequiredVersionOption("--expected-room-version");
         Option<string> labelOption = CreateBedLabelOption();
-        Command command = new("update", "Update a bed.") { roomIdOption, bedIdOption, labelOption };
+        Command command = new("update", "Update a bed.")
+        {
+            propertyIdOption,
+            roomIdOption,
+            bedIdOption,
+            expectedRoomVersionOption,
+            labelOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
             ExecuteBedCommandAsync(
                 services,
@@ -413,8 +519,10 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminPermissions.BedsManage,
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new UpdateBedCommand(
+                        parseResult.GetRequiredValue(propertyIdOption),
                         parseResult.GetRequiredValue(roomIdOption),
                         parseResult.GetRequiredValue(bedIdOption),
+                        parseResult.GetRequiredValue(expectedRoomVersionOption),
                         parseResult.GetRequiredValue(labelOption)),
                     cancellationToken),
                 "Bed updated",
@@ -424,10 +532,19 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateRetireBedCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
         Option<Guid> bedIdOption = CreateBedIdOption();
+        Option<long> expectedRoomVersionOption = CreateRequiredVersionOption("--expected-room-version");
         Option<bool> yesOption = new("--yes");
-        Command command = new("retire", "Retire a bed.") { roomIdOption, bedIdOption, yesOption };
+        Command command = new("retire", "Retire a bed.")
+        {
+            propertyIdOption,
+            roomIdOption,
+            bedIdOption,
+            expectedRoomVersionOption,
+            yesOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
             ExecuteUnitCommandAsync(
                 services,
@@ -437,7 +554,11 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminPermissions.BedsManage,
                 provider => parseResult.GetValue(yesOption)
                     ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                        new RetireBedCommand(parseResult.GetRequiredValue(roomIdOption), parseResult.GetRequiredValue(bedIdOption)),
+                        new RetireBedCommand(
+                            parseResult.GetRequiredValue(propertyIdOption),
+                            parseResult.GetRequiredValue(roomIdOption),
+                            parseResult.GetRequiredValue(bedIdOption),
+                            parseResult.GetRequiredValue(expectedRoomVersionOption)),
                         cancellationToken)
                     : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
                 "Bed retired.",
@@ -570,7 +691,8 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 ("Name", room => room.Name),
                 ("Building", room => room.BuildingLabel ?? string.Empty),
                 ("Floor", room => room.FloorLabel ?? string.Empty),
-                ("Status", room => room.Status.ToString())
+                ("Status", room => room.Status.ToString()),
+                ("Version", room => room.Version.ToString(CultureInfo.InvariantCulture))
             ]);
 
     private static void WriteBeds(IReadOnlyCollection<BedDto> beds, string output) =>
@@ -582,7 +704,9 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 ("RoomId", bed => bed.RoomId.ToString()),
                 ("PropertyId", bed => bed.PropertyId.ToString()),
                 ("Label", bed => bed.Label),
-                ("Status", bed => bed.Status.ToString())
+                ("Status", bed => bed.Status.ToString()),
+                ("Version", bed => bed.Version.ToString(CultureInfo.InvariantCulture)),
+                ("RoomVersion", bed => bed.RoomVersion.ToString(CultureInfo.InvariantCulture))
             ]);
 
     private static Option<Guid> CreatePropertyIdOption() =>
@@ -596,4 +720,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Option<string> CreateBedLabelOption() =>
         new("--label") { Required = true };
+
+    private static Option<long> CreateRequiredVersionOption(string name) =>
+        new(name) { Required = true };
 }

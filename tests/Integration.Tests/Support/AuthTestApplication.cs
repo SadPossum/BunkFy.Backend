@@ -1,6 +1,7 @@
 namespace Integration.Tests.Support;
 
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.AccessControl.Persistence;
 using BunkFy.Host.Api;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -11,8 +12,11 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NATS.Client.Core;
 using Gma.Framework.Messaging;
-using Gma.Framework.Tenancy;
+using Gma.Framework.Scoping;
 using Gma.Framework.Persistence.EntityFrameworkCore;
+using Properties.Persistence;
+using Inventory.Persistence;
+using Reservations.Persistence;
 
 internal sealed class AuthTestApplication(
     string provider,
@@ -127,6 +131,33 @@ internal sealed class AuthTestApplication(
         await dbContext.Database.MigrateAsync().ConfigureAwait(false);
     }
 
+    public async Task MigratePropertiesAuthorizationDatabaseAsync()
+    {
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AccessControlDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<AuthDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<PropertiesDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateInventoryAuthorizationDatabaseAsync()
+    {
+        await this.MigratePropertiesAuthorizationDatabaseAsync().ConfigureAwait(false);
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<InventoryDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateReservationsAuthorizationDatabaseAsync()
+    {
+        await this.MigrateInventoryAuthorizationDatabaseAsync().ConfigureAwait(false);
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
     public async Task<Guid> AddOutboxMessageAsync(DateTimeOffset nowUtc)
     {
         using IServiceScope scope = this.Services.CreateScope();
@@ -235,11 +266,11 @@ internal sealed class AuthTestApplication(
         return snapshot;
     }
 
-    private sealed class DisabledTenantContext : ITenantContext
+    private sealed class DisabledTenantContext : IScopeContext
     {
         public static readonly DisabledTenantContext Instance = new();
 
         public bool IsEnabled => false;
-        public string? TenantId => null;
+        public string? ScopeId => null;
     }
 }

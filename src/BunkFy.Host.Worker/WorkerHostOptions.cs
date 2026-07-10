@@ -32,6 +32,9 @@ public sealed class WorkerHostOptions
             GetBoolean(modules, nameof(WorkerModuleOptions.Auth), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Catalog), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Ordering), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.Properties), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.Inventory), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.Reservations), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.TaskRuntime), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.TaskSamples), defaultValue: false));
 
@@ -61,6 +64,21 @@ public sealed class WorkerHostOptions
             modules.Add("ordering");
         }
 
+        if (this.Modules.Properties)
+        {
+            modules.Add("properties");
+        }
+
+        if (this.Modules.Inventory)
+        {
+            modules.Add("inventory");
+        }
+
+        if (this.Modules.Reservations)
+        {
+            modules.Add("reservations");
+        }
+
         if (this.Modules.TaskRuntime)
         {
             modules.Add("task-runtime");
@@ -87,5 +105,8 @@ public sealed record WorkerModuleOptions(
     bool Auth,
     bool Catalog,
     bool Ordering,
+    bool Properties,
+    bool Inventory,
+    bool Reservations,
     bool TaskRuntime,
     bool TaskSamples);

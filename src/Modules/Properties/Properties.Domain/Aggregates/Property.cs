@@ -7,7 +7,7 @@ using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
-public sealed class Property : TenantAggregateRoot<Guid>
+public sealed class Property : ScopedAggregateRoot<Guid>
 {
     public const int PropertyNameMaxLength = 256;
     public const int PropertyCodeMaxLength = 64;
@@ -15,8 +15,8 @@ public sealed class Property : TenantAggregateRoot<Guid>
 
     private Property() { }
 
-    private Property(Guid id, string tenantId)
-        : base(id, tenantId)
+    private Property(Guid id, string scopeId)
+        : base(id, scopeId)
     {
     }
 
@@ -24,8 +24,11 @@ public sealed class Property : TenantAggregateRoot<Guid>
     public PropertyCode Code { get; private set; }
     public PropertyTimeZoneId TimeZoneId { get; private set; }
     public PropertyState Status { get; private set; } = PropertyState.Active;
+    public long Version { get; private set; } = 1;
+    public long ProjectionOrdinal { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public DateTimeOffset? RetiredAtUtc { get; private set; }
 
     public static Result<Property> Create(
         Guid id,
@@ -52,7 +55,7 @@ public sealed class Property : TenantAggregateRoot<Guid>
             return Result.Failure<Property>(values.Error);
         }
 
-        Property property = new(id, values.Value.TenantId)
+        Property property = new(id, values.Value.ScopeId)
         {
             Name = values.Value.Name,
             Code = values.Value.Code,
@@ -64,11 +67,12 @@ public sealed class Property : TenantAggregateRoot<Guid>
             eventId,
             nowUtc,
             property.Id,
-            property.TenantId,
+            property.ScopeId,
             property.Name.Value,
             property.Code.Value,
             property.TimeZoneId.Value,
-            property.Status));
+            property.Status,
+            property.Version));
 
         return Result.Success(property);
     }
@@ -77,13 +81,20 @@ public sealed class Property : TenantAggregateRoot<Guid>
         string name,
         string code,
         string timeZoneId,
+        long expectedVersion,
         Guid eventId,
         DateTimeOffset nowUtc)
     {
-        Result statusResult = this.EnsureKnownStatus();
+        Result statusResult = this.EnsureActive();
         if (statusResult.IsFailure)
         {
             return statusResult;
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return versionResult;
         }
 
         if (eventId == Guid.Empty)
@@ -91,7 +102,7 @@ public sealed class Property : TenantAggregateRoot<Guid>
             return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
         }
 
-        Result<PropertyValues> values = PropertyValues.Create(this.TenantId, name, code, timeZoneId);
+        Result<PropertyValues> values = PropertyValues.Create(this.ScopeId, name, code, timeZoneId);
         if (values.IsFailure)
         {
             return Result.Failure(values.Error);
@@ -101,27 +112,96 @@ public sealed class Property : TenantAggregateRoot<Guid>
         this.Code = values.Value.Code;
         this.TimeZoneId = values.Value.TimeZoneId;
         this.UpdatedAtUtc = nowUtc;
+        this.Version++;
 
         this.RaiseDomainEvent(new PropertyUpdatedDomainEvent(
             eventId,
             nowUtc,
             this.Id,
-            this.TenantId,
+            this.ScopeId,
             this.Name.Value,
             this.Code.Value,
             this.TimeZoneId.Value,
-            this.Status));
+            this.Status,
+            this.Version));
 
         return Result.Success();
     }
 
-    private Result EnsureKnownStatus() =>
-        this.Status is PropertyState.Active
+    public Result RegisterRoom(long expectedVersion)
+    {
+        Result statusResult = this.EnsureActive();
+        if (statusResult.IsFailure)
+        {
+            return statusResult;
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return versionResult;
+        }
+
+        this.Version++;
+        return Result.Success();
+    }
+
+    public Result Retire(long expectedVersion, Guid eventId, DateTimeOffset nowUtc)
+    {
+        Result statusResult = this.EnsureCanRetire();
+        if (statusResult.IsFailure)
+        {
+            return statusResult;
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return versionResult;
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
+        }
+
+        this.Status = PropertyState.Retired;
+        this.RetiredAtUtc = nowUtc;
+        this.UpdatedAtUtc = nowUtc;
+        this.Version++;
+        this.RaiseDomainEvent(new PropertyRetiredDomainEvent(
+            eventId,
+            nowUtc,
+            this.Id,
+            this.ScopeId,
+            this.Version));
+
+        return Result.Success();
+    }
+
+    private Result EnsureActive() =>
+        this.Status switch
+        {
+            PropertyState.Active => Result.Success(),
+            PropertyState.Retired => Result.Failure(PropertiesDomainErrors.PropertyRetired),
+            _ => Result.Failure(PropertiesDomainErrors.PropertyStatusUnknown)
+        };
+
+    private Result EnsureCanRetire() =>
+        this.Status switch
+        {
+            PropertyState.Active => Result.Success(),
+            PropertyState.Retired => Result.Failure(PropertiesDomainErrors.PropertyAlreadyRetired),
+            _ => Result.Failure(PropertiesDomainErrors.PropertyStatusUnknown)
+        };
+
+    private Result EnsureExpectedVersion(long expectedVersion) =>
+        expectedVersion == this.Version
             ? Result.Success()
-            : Result.Failure(PropertiesDomainErrors.PropertyStatusUnknown);
+            : Result.Failure(PropertiesDomainErrors.VersionConflict);
 
     private sealed record PropertyValues(
-        string TenantId,
+        string ScopeId,
         PropertyName Name,
         PropertyCode Code,
         PropertyTimeZoneId TimeZoneId)

@@ -6,6 +6,9 @@
     <PackageId>BunkFy.AdminCli</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.AdminCli\Gma.Modules.AccessControl.AdminCli.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations\Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Persistence.SqlServerMigrations\Gma.Modules.AccessControl.Persistence.SqlServerMigrations.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="System.CommandLine" />
   </ItemGroup>
@@ -25,6 +28,10 @@
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations\Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations.csproj" />
     <ProjectReference Include="..\Modules\Properties\Properties.AdminCli\Properties.AdminCli.csproj" />
     <ProjectReference Include="..\Modules\Properties\Properties.Persistence.PostgreSqlMigrations\Properties.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\Inventory.AdminCli\Inventory.AdminCli.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\Inventory.Persistence.PostgreSqlMigrations\Inventory.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Reservations\Reservations.AdminCli\Reservations.AdminCli.csproj" />
+    <ProjectReference Include="..\Modules\Reservations\Reservations.Persistence.PostgreSqlMigrations\Reservations.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Cli\Gma.Framework.Administration.Cli.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Caching\Gma.Framework.Caching.Cqrs\Gma.Framework.Caching.Cqrs.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Caching\Gma.Framework.Caching.Redis\Gma.Framework.Caching.Redis.csproj" />

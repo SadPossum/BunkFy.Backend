@@ -11,6 +11,14 @@ using Microsoft.Extensions.Logging;
 using Ordering.Application;
 using Ordering.Contracts;
 using Ordering.Persistence;
+using Properties.Contracts;
+using Properties.Persistence;
+using Inventory.Application;
+using Inventory.Contracts;
+using Inventory.Persistence;
+using Reservations.Application;
+using Reservations.Contracts;
+using Reservations.Persistence;
 using BunkFy.Host.ServiceDefaults;
 using Gma.Framework.Caching.Cqrs;
 using Gma.Framework.Caching.Redis;
@@ -89,7 +97,7 @@ public static class WorkerHostBuilderExtensions
     {
         if (workerOptions.Modules.Auth)
         {
-            builder.SelectModuleProfile(AuthProfile.TenantScoped().Descriptor, "BunkFy.Host.Worker/Auth");
+            builder.SelectModuleProfile(AuthProfile.ScopeAware().Descriptor, "BunkFy.Host.Worker/Auth");
             builder.AddAuthPersistence();
         }
 
@@ -105,6 +113,26 @@ public static class WorkerHostBuilderExtensions
             builder.SelectModuleProfile(OrderingProfiles.Default, "BunkFy.Host.Worker/Ordering");
             builder.Services.AddOrderingApplication();
             builder.AddOrderingPersistence();
+        }
+
+        if (workerOptions.Modules.Properties)
+        {
+            builder.SelectModuleProfile(PropertiesProfiles.Default, "BunkFy.Host.Worker/Properties");
+            builder.AddPropertiesPersistence();
+        }
+
+        if (workerOptions.Modules.Inventory)
+        {
+            builder.SelectModuleProfile(InventoryProfiles.Default, "BunkFy.Host.Worker/Inventory");
+            builder.Services.AddInventoryApplication();
+            builder.AddInventoryPersistence();
+        }
+
+        if (workerOptions.Modules.Reservations)
+        {
+            builder.SelectModuleProfile(ReservationsProfiles.Default, "BunkFy.Host.Worker/Reservations");
+            builder.Services.AddReservationsApplication();
+            builder.AddReservationsPersistence();
         }
 
         if (workerOptions.Modules.TaskRuntime)

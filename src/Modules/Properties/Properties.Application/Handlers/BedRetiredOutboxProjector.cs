@@ -12,10 +12,12 @@ internal sealed class BedRetiredOutboxProjector(IOutboxWriterRegistry outboxWrit
         outboxWriters.GetRequired(PropertiesModuleMetadata.Name).EnqueueAsync(
             new BedRetiredIntegrationEvent(
                 domainEvent.EventId,
-                domainEvent.TenantId,
+                domainEvent.ScopeId,
                 domainEvent.OccurredAtUtc,
                 domainEvent.PropertyId,
                 domainEvent.RoomId,
-                domainEvent.BedId),
+                domainEvent.BedId,
+                domainEvent.RoomVersion,
+                domainEvent.BedVersion),
             cancellationToken);
 }

@@ -13,12 +13,13 @@ internal sealed class PropertyUpdatedOutboxProjector(IOutboxWriterRegistry outbo
         outboxWriters.GetRequired(PropertiesModuleMetadata.Name).EnqueueAsync(
             new PropertyUpdatedIntegrationEvent(
                 domainEvent.EventId,
-                domainEvent.TenantId,
+                domainEvent.ScopeId,
                 domainEvent.OccurredAtUtc,
                 domainEvent.PropertyId,
                 domainEvent.Name,
                 domainEvent.Code,
                 domainEvent.TimeZoneId,
-                PropertiesMapper.MapStatus(domainEvent.Status)),
+                PropertiesMapper.MapStatus(domainEvent.Status),
+                domainEvent.PropertyVersion),
             cancellationToken);
 }

@@ -87,9 +87,12 @@ if (workerEnabled)
         .WaitFor(nats)
         .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
         .WithEnvironment("NatsJetStream__Enabled", "true")
-        .WithEnvironment("NatsConsumers__Enabled", "false")
+        .WithEnvironment("NatsConsumers__Enabled", "true")
         .WithEnvironment("Tasks__Worker__Enabled", "true")
         .WithEnvironment("Worker__Modules__Auth", "true")
+        .WithEnvironment("Worker__Modules__Properties", "true")
+        .WithEnvironment("Worker__Modules__Inventory", "true")
+        .WithEnvironment("Worker__Modules__Reservations", "true")
         .WithEnvironment("Worker__Modules__TaskRuntime", "true");
 
     if (sqlServer is { } configuredWorkerSqlServer)

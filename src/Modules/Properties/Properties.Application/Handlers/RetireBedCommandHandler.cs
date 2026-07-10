@@ -18,12 +18,16 @@ internal sealed class RetireBedCommandHandler(
     public async Task<Result<Unit>> HandleAsync(RetireBedCommand command, CancellationToken cancellationToken)
     {
         Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
-        if (room is null)
+        if (room is null || room.PropertyId != command.PropertyId)
         {
             return Result.Failure<Unit>(PropertiesDomainErrors.RoomNotFound);
         }
 
-        Result result = room.RetireBed(command.BedId, idGenerator.NewId(), clock.UtcNow);
+        Result result = room.RetireBed(
+            command.BedId,
+            command.ExpectedRoomVersion,
+            idGenerator.NewId(),
+            clock.UtcNow);
         if (result.IsFailure)
         {
             return Result.Failure<Unit>(result.Error);

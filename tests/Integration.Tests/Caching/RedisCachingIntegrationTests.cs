@@ -17,6 +17,8 @@ using Xunit;
 [Trait("Category", "Integration")]
 public sealed class RedisCachingIntegrationTests
 {
+    private const string ApplicationNamespace = "bunkfy";
+
     [DockerFact]
     [Trait("Category", "Docker")]
     public async Task Redis_provides_cross_instance_reads_expiration_and_invalidation()
@@ -57,7 +59,7 @@ public sealed class RedisCachingIntegrationTests
                 "populate cross-instance cache entry");
             await WaitForDistributedValueAsync(
                 configuredDistributedCache,
-                "gma:redistests:catalog:global:global:cross-instance");
+                $"{ApplicationNamespace}:redistests:catalog:global:global:cross-instance");
             int distributedHit = await WithTimeout(
                 second.GetOrCreateAsync(
                     sharedKey,
@@ -78,7 +80,7 @@ public sealed class RedisCachingIntegrationTests
                 "populate expiring cache entry");
             await WaitForDistributedValueAsync(
                 configuredDistributedCache,
-                "gma:redistests:catalog:global:global:expiring");
+                $"{ApplicationNamespace}:redistests:catalog:global:global:expiring");
             await Task.Delay(1200);
             await WithTimeout(
                 second.GetOrCreateAsync(expiringKey, _ => ValueTask.FromResult(++expirationCalls), expiring),
@@ -92,7 +94,7 @@ public sealed class RedisCachingIntegrationTests
                 "populate key invalidation entry");
             await WaitForDistributedValueAsync(
                 configuredDistributedCache,
-                "gma:redistests:catalog:global:global:invalidate-key");
+                $"{ApplicationNamespace}:redistests:catalog:global:global:invalidate-key");
             await WithTimeout(
                 second.GetOrCreateAsync(invalidatedKey, _ => ValueTask.FromResult(++keyCalls), distributedOnly),
                 "read key invalidation entry before invalidation");
@@ -114,11 +116,11 @@ public sealed class RedisCachingIntegrationTests
                 "populate tagged cache entry");
             await WaitForDistributedValueAsync(
                 configuredDistributedCache,
-                "gma:redistests:catalog:global:global:tagged:42");
+                $"{ApplicationNamespace}:redistests:catalog:global:global:tagged:42");
             await WithTimeout(
                 second.GetOrCreateAsync(taggedKey, _ => ValueTask.FromResult(++tagCalls), distributedOnly, [products]),
                 "read tagged cache entry before invalidation");
-            const string tagMarkerKey = "__MSFT_HCT__gma:redistests:catalog:global:global:products";
+            string tagMarkerKey = $"__MSFT_HCT__{ApplicationNamespace}:redistests:catalog:global:global:products";
             byte[]? tagMarkerBefore = await WithTimeout(
                 configuredDistributedCache.GetAsync(tagMarkerKey),
                 "read tag marker before invalidation");
@@ -146,6 +148,7 @@ public sealed class RedisCachingIntegrationTests
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder();
         builder.Environment.EnvironmentName = "RedisTests";
+        builder.Configuration["ApplicationIdentity:Namespace"] = ApplicationNamespace;
         builder.Configuration["Caching:Enabled"] = "true";
         builder.Configuration["Caching:Provider"] = "Redis";
         builder.Configuration["Caching:DefaultDistributedExpiration"] = "00:05:00";

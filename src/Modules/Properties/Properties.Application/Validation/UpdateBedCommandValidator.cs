@@ -7,6 +7,11 @@ internal sealed class UpdateBedCommandValidator : ICommandValidator<UpdateBedCom
 {
     public IEnumerable<string> Validate(UpdateBedCommand command)
     {
+        if (command.PropertyId == Guid.Empty)
+        {
+            yield return "Property id is required.";
+        }
+
         if (command.RoomId == Guid.Empty)
         {
             yield return "Room id is required.";
@@ -15,6 +20,11 @@ internal sealed class UpdateBedCommandValidator : ICommandValidator<UpdateBedCom
         if (command.BedId == Guid.Empty)
         {
             yield return "Bed id is required.";
+        }
+
+        foreach (string error in PropertiesValidation.ValidateExpectedVersion(command.ExpectedRoomVersion, "room"))
+        {
+            yield return error;
         }
 
         foreach (string error in PropertiesValidation.ValidateBedWrite(command.Label))

@@ -13,13 +13,14 @@ internal sealed class RoomUpdatedOutboxProjector(IOutboxWriterRegistry outboxWri
         outboxWriters.GetRequired(PropertiesModuleMetadata.Name).EnqueueAsync(
             new RoomUpdatedIntegrationEvent(
                 domainEvent.EventId,
-                domainEvent.TenantId,
+                domainEvent.ScopeId,
                 domainEvent.OccurredAtUtc,
                 domainEvent.PropertyId,
                 domainEvent.RoomId,
                 domainEvent.Name,
                 domainEvent.BuildingLabel,
                 domainEvent.FloorLabel,
-                PropertiesMapper.MapStatus(domainEvent.Status)),
+                PropertiesMapper.MapStatus(domainEvent.Status),
+                domainEvent.RoomVersion),
             cancellationToken);
 }

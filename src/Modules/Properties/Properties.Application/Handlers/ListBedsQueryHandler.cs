@@ -13,12 +13,12 @@ internal sealed class ListBedsQueryHandler(IPropertiesReadRepository repository)
     public async Task<Result<BedListResponse>> HandleAsync(ListBedsQuery query, CancellationToken cancellationToken)
     {
         PageRequest pageRequest = PageRequest.Normalize(query.Page, query.PageSize);
-        RoomDto? room = await repository.GetRoomAsync(query.RoomId, cancellationToken).ConfigureAwait(false);
+        RoomDto? room = await repository.GetRoomAsync(query.PropertyId, query.RoomId, cancellationToken).ConfigureAwait(false);
         if (room is null)
         {
             return Result.Failure<BedListResponse>(PropertiesApplicationErrors.RoomNotFound);
         }
 
-        return Result.Success(await repository.ListBedsAsync(query.RoomId, pageRequest, cancellationToken).ConfigureAwait(false));
+        return Result.Success(await repository.ListBedsAsync(query.PropertyId, query.RoomId, pageRequest, cancellationToken).ConfigureAwait(false));
     }
 }
