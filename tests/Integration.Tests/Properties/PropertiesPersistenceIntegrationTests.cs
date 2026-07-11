@@ -1,12 +1,14 @@
 namespace Integration.Tests;
 
 using System.Globalization;
+using Properties.Application.Ports;
 using Properties.Contracts;
 using Properties.Domain.Aggregates;
 using Properties.Domain.Entities;
 using Properties.Persistence;
 using Gma.Framework.Scoping;
 using Gma.Framework.ProjectionRebuild;
+using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -21,6 +23,52 @@ public sealed class PropertiesPersistenceIntegrationTests
     private static readonly Guid PropertyId = Guid.Parse("10000000-0000-0000-0000-000000000001");
     private static readonly Guid RoomId = Guid.Parse("20000000-0000-0000-0000-000000000001");
     private static readonly Guid BedId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Bed_listing_orders_converted_labels_on_postgresql()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_properties_bed_listing_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        DateTimeOffset nowUtc = new(2026, 7, 11, 8, 0, 0, TimeSpan.Zero);
+        Property property = CreateProperty("hostel-one", "Hostel One");
+        Room room = Room.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            property.Id,
+            "101",
+            null,
+            null,
+            Guid.NewGuid(),
+            nowUtc).Value;
+        Assert.True(room.AddBed(Guid.NewGuid(), "B", room.Version, Guid.NewGuid(), nowUtc).IsSuccess);
+        Assert.True(room.AddBed(Guid.NewGuid(), "A", room.Version, Guid.NewGuid(), nowUtc).IsSuccess);
+
+        await using (PropertiesDbContext dbContext = CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await dbContext.Database.MigrateAsync();
+            dbContext.Properties.Add(property);
+            dbContext.Rooms.Add(room);
+            await dbContext.SaveChangesAsync();
+        }
+
+        using ServiceProvider provider = CreatePersistenceProvider(postgreSql.GetConnectionString());
+        using IServiceScope scope = provider.CreateScope();
+        IPropertiesReadRepository repository = scope.ServiceProvider.GetRequiredService<IPropertiesReadRepository>();
+
+        BedListResponse response = await repository.ListBedsAsync(
+            property.Id,
+            room.Id,
+            new PageRequest(1, 20),
+            CancellationToken.None);
+
+        Assert.Equal(["A", "B"], response.Beds.Select(bed => bed.Label));
+        Assert.All(response.Beds, bed => Assert.Equal(room.Version, bed.RoomVersion));
+    }
 
     [DockerFact]
     [Trait("Category", "Docker")]

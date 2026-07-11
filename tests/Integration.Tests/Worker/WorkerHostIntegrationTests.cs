@@ -10,10 +10,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Ordering.Contracts;
 using Ordering.Persistence;
 using Properties.Persistence;
 using Inventory.Contracts;
 using Inventory.Persistence;
+using Reservations.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.Messaging.Nats;
 using Gma.Framework.ModuleComposition;
@@ -55,6 +57,48 @@ public sealed class WorkerHostIntegrationTests
         Assert.Contains(
             worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>().Subscriptions,
             subscription => subscription.ConsumerModule == InventoryModuleMetadata.Name);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void Worker_host_registers_selected_module_task_handlers_when_task_execution_is_enabled()
+    {
+        HostApplicationBuilder builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
+        builder.Configuration["Persistence:Provider"] = "PostgreSql";
+        builder.Configuration["ConnectionStrings:PostgreSql"] =
+            "Host=localhost;Database=unused;Username=unused;Password=unused";
+        builder.Configuration["NatsJetStream:Enabled"] = "false";
+        builder.Configuration["NatsConsumers:Enabled"] = "false";
+        builder.Configuration["Tasks:Worker:Enabled"] = "true";
+        builder.Configuration["Tasks:Worker:TimeoutScannerEnabled"] = "false";
+        builder.Configuration["Tasks:Worker:MetricsSamplerEnabled"] = "false";
+        builder.Configuration["Worker:Modules:Catalog"] = "true";
+        builder.Configuration["Worker:Modules:Ordering"] = "true";
+        builder.Configuration["Worker:Modules:Properties"] = "true";
+        builder.Configuration["Worker:Modules:Inventory"] = "true";
+        builder.Configuration["Worker:Modules:Reservations"] = "true";
+        builder.Configuration["Worker:Modules:TaskRuntime"] = "true";
+        builder.Logging.ClearProviders();
+
+        builder.AddWorkerHost();
+        ModuleCompositionValidationResult result = builder.ValidateModuleComposition();
+        using IHost worker = builder.Build();
+        ITaskHandlerRegistry registry = worker.Services.GetRequiredService<ITaskHandlerRegistry>();
+
+        Assert.True(result.IsValid, result.Report);
+        Assert.NotNull(registry.Find(
+            OrderingModuleMetadata.Name,
+            RebuildCatalogItemProjectionPayload.TaskName,
+            RebuildCatalogItemProjectionPayload.PayloadVersion));
+        Assert.NotNull(registry.Find(
+            InventoryModuleMetadata.Name,
+            RebuildInventoryTopologyPayload.TaskName,
+            RebuildInventoryTopologyPayload.PayloadVersion));
+        Assert.NotNull(registry.Find(
+            ReservationsModuleMetadata.Name,
+            RebuildReservationInventoryProjectionPayload.TaskName,
+            RebuildReservationInventoryProjectionPayload.PayloadVersion));
     }
 
     [DockerFact]

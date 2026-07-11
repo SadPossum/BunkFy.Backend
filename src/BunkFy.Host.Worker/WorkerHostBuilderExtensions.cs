@@ -112,6 +112,10 @@ public static class WorkerHostBuilderExtensions
         {
             builder.SelectModuleProfile(OrderingProfiles.Default, "BunkFy.Host.Worker/Ordering");
             builder.Services.AddOrderingApplication();
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddOrderingTaskHandlers();
+            }
             builder.AddOrderingPersistence();
         }
 
@@ -125,6 +129,10 @@ public static class WorkerHostBuilderExtensions
         {
             builder.SelectModuleProfile(InventoryProfiles.Default, "BunkFy.Host.Worker/Inventory");
             builder.Services.AddInventoryApplication();
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddInventoryTaskHandlers();
+            }
             builder.AddInventoryPersistence();
         }
 
@@ -132,6 +140,10 @@ public static class WorkerHostBuilderExtensions
         {
             builder.SelectModuleProfile(ReservationsProfiles.Default, "BunkFy.Host.Worker/Reservations");
             builder.Services.AddReservationsApplication();
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddReservationsTaskHandlers();
+            }
             builder.AddReservationsPersistence();
         }
 

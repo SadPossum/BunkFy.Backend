@@ -76,13 +76,17 @@ internal sealed class PropertiesReadRepository(PropertiesDbContext dbContext) : 
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
-        List<BedDto> beds = await dbContext.Rooms
+        var rows = await dbContext.Rooms
             .AsNoTracking()
             .Where(room => room.PropertyId == propertyId && room.Id == roomId)
             .SelectMany(room => room.Beds.Select(bed => new { Bed = bed, RoomVersion = room.Version }))
-            .OrderBy(item => item.Bed.Label.Value)
+            .OrderBy(item => item.Bed.Label)
             .Skip(pageRequest.SkipCount)
             .Take(pageRequest.PageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        List<BedDto> beds = rows
             .Select(item => new BedDto(
                 item.Bed.Id,
                 item.Bed.RoomId,
@@ -94,8 +98,7 @@ internal sealed class PropertiesReadRepository(PropertiesDbContext dbContext) : 
                 item.Bed.CreatedAtUtc,
                 item.Bed.UpdatedAtUtc,
                 item.Bed.RetiredAtUtc))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .ToList();
 
         return new BedListResponse(beds, pageRequest.Page, pageRequest.PageSize);
     }

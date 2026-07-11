@@ -152,7 +152,7 @@ Do not inject a bare `IOutboxWriter` into application code. Multiple modules can
 
 Use notifications only for user/staff delivery, not module-to-module communication. Durable business facts belong in domain events, integration events, outbox, inbox, and projections.
 
-Task payloads that are module metadata or externally enqueueable belong in the owning module `.Contracts` project. Register handlers explicitly from the owning module application registration. Use tenant-scoped task metadata only when the worker host actually runs tenant-scoped work.
+Task payloads that are module metadata or externally enqueueable belong in the owning module `.Contracts` project. Keep task handlers and their registration extension in the owning module application project. Modules shared by API, admin, and worker hosts expose a separate `Add<Module>TaskHandlers()` extension, and only task-execution hosts call it. Use tenant-scoped task metadata only when the worker host actually runs tenant-scoped work.
 
 Keep admin CLI and admin API optional. Route admin commands through the same application commands/queries as other use cases. Keep first-owner/bootstrap style operations in admin CLI unless a separate decision approves an HTTP bootstrap path.
 

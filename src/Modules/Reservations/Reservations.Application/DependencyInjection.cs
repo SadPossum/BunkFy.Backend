@@ -18,7 +18,6 @@ public static class DependencyInjection
 
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(ReservationsModuleMetadata.Descriptor);
-        services.AddProjectionRebuildTasks();
         services.AddIntegrationEventHandler<InventoryAllocationConfirmedIntegrationEvent, InventoryAllocationConfirmedHandler>(
             ReservationsModuleMetadata.Name,
             InventoryModuleMetadata.Name);
@@ -40,6 +39,15 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<ManualInventoryBlockReleasedIntegrationEvent, InventoryManualBlockReleasedHandler>(
             ReservationsModuleMetadata.Name,
             InventoryModuleMetadata.Name);
+
+        return services;
+    }
+
+    public static IServiceCollection AddReservationsTaskHandlers(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddProjectionRebuildTasks();
         services.AddTaskHandler<RebuildReservationInventoryProjectionPayload, RebuildReservationInventoryProjectionTaskHandler>(
             ReservationsModuleMetadata.Name);
 

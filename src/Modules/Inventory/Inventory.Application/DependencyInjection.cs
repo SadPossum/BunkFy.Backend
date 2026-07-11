@@ -20,7 +20,6 @@ public static class DependencyInjection
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<InventoryUnitDefinitionPublisher>();
         services.AddGmaAccessControlPermissionPolicies(InventoryModuleMetadata.Descriptor);
-        services.AddProjectionRebuildTasks();
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, PropertyCreatedTopologyHandler>(InventoryModuleMetadata.Name, PropertiesModuleMetadata.Name);
         services.AddIntegrationEventHandler<PropertyUpdatedIntegrationEvent, PropertyUpdatedTopologyHandler>(InventoryModuleMetadata.Name, PropertiesModuleMetadata.Name);
         services.AddIntegrationEventHandler<PropertyRetiredIntegrationEvent, PropertyRetiredTopologyHandler>(InventoryModuleMetadata.Name, PropertiesModuleMetadata.Name);
@@ -36,7 +35,17 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<InventoryAllocationReleaseRequestedIntegrationEvent, InventoryAllocationReleaseRequestedHandler>(
             InventoryModuleMetadata.Name,
             InventoryModuleMetadata.ReservationsProducerModuleName);
-        services.AddTaskHandler<RebuildInventoryTopologyPayload, RebuildInventoryTopologyTaskHandler>(InventoryModuleMetadata.Name);
+
+        return services;
+    }
+
+    public static IServiceCollection AddInventoryTaskHandlers(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddProjectionRebuildTasks();
+        services.AddTaskHandler<RebuildInventoryTopologyPayload, RebuildInventoryTopologyTaskHandler>(
+            InventoryModuleMetadata.Name);
 
         return services;
     }
