@@ -3,17 +3,20 @@ namespace Integration.Tests.Support;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Gma.Framework.Cqrs;
+using BunkFy.Host.AdminApi;
 using Gma.Framework.AccessControl;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Results;
-using Gma.Modules.Administration.Persistence;
-using Gma.Modules.Administration.Persistence.Entities;
+using Gma.Framework.Scoping;
+using Gma.Framework.Security;
 using Gma.Modules.AccessControl.Application.Commands;
 using Gma.Modules.AccessControl.Persistence;
+using Gma.Modules.Administration.Persistence;
+using Gma.Modules.Administration.Persistence.Entities;
 using Gma.Modules.Auth.Domain.Services;
 using Gma.Modules.Auth.Domain.ValueObjects;
 using Gma.Modules.Auth.Persistence;
-using BunkFy.Host.AdminApi;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -23,9 +26,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using NATS.Client.Core;
-using Gma.Framework.Scoping;
-using Gma.Framework.Security;
-using Gma.Framework.Persistence.EntityFrameworkCore;
 
 internal sealed class AdminApiTestApplication(
     string provider,
@@ -61,6 +61,16 @@ internal sealed class AdminApiTestApplication(
             "Administration:Api:AllowGeneratedPasswordResponses",
             allowGeneratedPasswordResponses.ToString(System.Globalization.CultureInfo.InvariantCulture));
         builder.UseSetting("Caching:Enabled", "false");
+        builder.UseSetting("FileManagement:Enabled", "true");
+        builder.UseSetting("FileManagement:Provider", "Minio");
+        builder.UseSetting("FileManagement:MaximumObjectBytes", "1048576");
+        builder.UseSetting("FileManagement:AllowedContentTypes:0", "application/json");
+        builder.UseSetting("FileManagement:Minio:Endpoint", "localhost:9000");
+        builder.UseSetting("FileManagement:Minio:AccessKey", "integration-test");
+        builder.UseSetting("FileManagement:Minio:SecretKey", "integration-test-secret");
+        builder.UseSetting("FileManagement:Minio:BucketName", "integration-test");
+        builder.UseSetting("FileManagement:Minio:UseSsl", "false");
+        builder.UseSetting("FileManagement:Minio:CreateBucketIfMissing", "false");
         builder.UseSetting("Http:PrivateNetwork:Enabled", "false");
         builder.UseSetting("Http:RateLimiting:Enabled", "false");
 
@@ -84,6 +94,16 @@ internal sealed class AdminApiTestApplication(
                 ["Auth:Jwt:AccessTokenLifetimeMinutes"] = "15",
                 ["Administration:Api:AllowGeneratedPasswordResponses"] = allowGeneratedPasswordResponses.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["Caching:Enabled"] = "false",
+                ["FileManagement:Enabled"] = "true",
+                ["FileManagement:Provider"] = "Minio",
+                ["FileManagement:MaximumObjectBytes"] = "1048576",
+                ["FileManagement:AllowedContentTypes:0"] = "application/json",
+                ["FileManagement:Minio:Endpoint"] = "localhost:9000",
+                ["FileManagement:Minio:AccessKey"] = "integration-test",
+                ["FileManagement:Minio:SecretKey"] = "integration-test-secret",
+                ["FileManagement:Minio:BucketName"] = "integration-test",
+                ["FileManagement:Minio:UseSsl"] = "false",
+                ["FileManagement:Minio:CreateBucketIfMissing"] = "false",
                 ["Http:PrivateNetwork:Enabled"] = "false",
                 ["Http:RateLimiting:Enabled"] = "false"
             };

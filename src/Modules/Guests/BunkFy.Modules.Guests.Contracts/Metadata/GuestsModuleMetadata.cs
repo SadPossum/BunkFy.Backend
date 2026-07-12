@@ -1,0 +1,47 @@
+namespace BunkFy.Modules.Guests.Contracts;
+
+using Gma.Framework.Messaging;
+using Gma.Framework.ModuleComposition;
+using Gma.Framework.Modules;
+using Gma.Framework.Permissions;
+using Gma.Framework.Tasks;
+using BunkFy.Modules.Properties.Contracts;
+
+public static class GuestsModuleMetadata
+{
+    public const string Name = "guests";
+    public const string Schema = "guests";
+    public const string PropertyCreatedHandlerName = "property-created";
+    public const string PropertyUpdatedHandlerName = "property-updated";
+    public const string PropertyRetiredHandlerName = "property-retired";
+    public const string PropertiesProjectionName = "properties";
+    public const int PropertiesProjectionVersion = 1;
+    public const string StayHistoryProjectionName = "reservation-stay-history";
+    public const int StayHistoryProjectionVersion = 1;
+    public const string ProjectionWorkerGroup = "projection-workers";
+    public const string ReservationsProducerModuleName = "reservations";
+    public const string ReservationGuestLinkedHandlerName = "reservation-guest-linked";
+    public const string ReservationGuestStayChangedHandlerName = "reservation-guest-stay-changed";
+
+    public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
+        .Create(Name)
+        .WithSchema(Schema)
+        .WithPermissions([
+            new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Read, "Read guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Create, "Create guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Manage, "Manage guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Archive, "Archive guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants)
+        ])
+        .WithSubscription<PropertyCreatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyCreatedHandlerName)
+        .WithSubscription<PropertyUpdatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyUpdatedHandlerName)
+        .WithSubscription<PropertyRetiredIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyRetiredHandlerName)
+        .WithSubscription<ReservationGuestLinkedIntegrationEvent>(ReservationsProducerModuleName, ReservationGuestLinkedHandlerName)
+        .WithSubscription<ReservationGuestStayChangedIntegrationEvent>(ReservationsProducerModuleName, ReservationGuestStayChangedHandlerName)
+        .WithPublishedEvent<GuestProfileCreatedIntegrationEvent>()
+        .WithPublishedEvent<GuestProfileUpdatedIntegrationEvent>()
+        .WithPublishedEvent<GuestProfileArchivedIntegrationEvent>()
+        .WithTask<RebuildGuestsPropertiesPayload>()
+        .WithTask<RebuildGuestStayHistoryPayload>()
+        .WithProfile(GuestsProfiles.Default)
+        .Build();
+}

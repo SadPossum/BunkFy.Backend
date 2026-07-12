@@ -1,8 +1,14 @@
 namespace Integration.Tests.Support;
 
-using Gma.Modules.Auth.Persistence;
-using Gma.Modules.AccessControl.Persistence;
 using BunkFy.Host.Api;
+using Gma.Framework.Messaging;
+using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.Scoping;
+using Gma.Modules.AccessControl.Persistence;
+using Gma.Modules.Auth.Persistence;
+using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -11,19 +17,21 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NATS.Client.Core;
-using Gma.Framework.Messaging;
-using Gma.Framework.Scoping;
-using Gma.Framework.Persistence.EntityFrameworkCore;
-using Properties.Persistence;
-using Inventory.Persistence;
-using Reservations.Persistence;
+using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Staff.Persistence;
 
 internal sealed class AuthTestApplication(
     string provider,
     string providerConnectionString,
     string natsConnectionString,
     bool disableOutboxPublisher = true,
-    bool enablePrometheus = false)
+    bool enablePrometheus = false,
+    string minioEndpoint = "localhost:9000",
+    string minioAccessKey = "minioadmin",
+    string minioSecretKey = "minioadmin",
+    string minioBucketName = "integration-test-files",
+    bool minioCreateBucketIfMissing = false)
     : WebApplicationFactory<ApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -44,12 +52,14 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Outbox:LockDurationMilliseconds", "1000");
         builder.UseSetting("Observability:Prometheus:Enabled", enablePrometheus.ToString());
         builder.UseSetting("Caching:Enabled", "false");
-        builder.UseSetting("FileManagement:Minio:Endpoint", "localhost:9000");
-        builder.UseSetting("FileManagement:Minio:AccessKey", "minioadmin");
-        builder.UseSetting("FileManagement:Minio:SecretKey", "minioadmin");
-        builder.UseSetting("FileManagement:Minio:BucketName", "integration-test-files");
+        builder.UseSetting("FileManagement:Minio:Endpoint", minioEndpoint);
+        builder.UseSetting("FileManagement:Minio:AccessKey", minioAccessKey);
+        builder.UseSetting("FileManagement:Minio:SecretKey", minioSecretKey);
+        builder.UseSetting("FileManagement:Minio:BucketName", minioBucketName);
         builder.UseSetting("FileManagement:Minio:UseSsl", "false");
-        builder.UseSetting("FileManagement:Minio:CreateBucketIfMissing", "false");
+        builder.UseSetting("FileManagement:Minio:CreateBucketIfMissing", minioCreateBucketIfMissing.ToString());
+        builder.UseSetting("FileManagement:AllowedContentTypes:0", "application/json");
+        builder.UseSetting("FileManagement:AllowedContentTypes:1", "message/rfc822");
         builder.UseSetting("Auth:Jwt:Issuer", JwtIssuer);
         builder.UseSetting("Auth:Jwt:Audience", JwtAudience);
         builder.UseSetting("Auth:Jwt:SigningKey", JwtSigningKey);
@@ -74,12 +84,14 @@ internal sealed class AuthTestApplication(
                 ["Outbox:PollIntervalMilliseconds"] = "100",
                 ["Outbox:LockDurationMilliseconds"] = "1000",
                 ["Observability:Prometheus:Enabled"] = enablePrometheus.ToString(),
-                ["FileManagement:Minio:Endpoint"] = "localhost:9000",
-                ["FileManagement:Minio:AccessKey"] = "minioadmin",
-                ["FileManagement:Minio:SecretKey"] = "minioadmin",
-                ["FileManagement:Minio:BucketName"] = "integration-test-files",
+                ["FileManagement:Minio:Endpoint"] = minioEndpoint,
+                ["FileManagement:Minio:AccessKey"] = minioAccessKey,
+                ["FileManagement:Minio:SecretKey"] = minioSecretKey,
+                ["FileManagement:Minio:BucketName"] = minioBucketName,
                 ["FileManagement:Minio:UseSsl"] = "false",
-                ["FileManagement:Minio:CreateBucketIfMissing"] = "false",
+                ["FileManagement:Minio:CreateBucketIfMissing"] = minioCreateBucketIfMissing.ToString(),
+                ["FileManagement:AllowedContentTypes:0"] = "application/json",
+                ["FileManagement:AllowedContentTypes:1"] = "message/rfc822",
             };
 
             configuration.AddInMemoryCollection(values);
@@ -155,6 +167,29 @@ internal sealed class AuthTestApplication(
         await this.MigrateInventoryAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateGuestRecordsAuthorizationDatabaseAsync()
+    {
+        await this.MigrateReservationsAuthorizationDatabaseAsync().ConfigureAwait(false);
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateStaffAuthorizationDatabaseAsync()
+    {
+        await this.MigratePropertiesAuthorizationDatabaseAsync().ConfigureAwait(false);
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<StaffDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateIngestionDatabaseAsync()
+    {
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IngestionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
     }
 

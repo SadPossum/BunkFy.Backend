@@ -1,6 +1,6 @@
 # Reservations Module Task
 
-Status: first slice implemented
+Status: first slice, ingestion handshake, and stay lifecycle implemented
 Date: 2026-07-11
 
 Build Reservations as the tenant- and property-scoped owner of booking intent and lifecycle. Inventory remains the sole owner of concrete unit claims and the no-overbooking invariant; Guest Records, Rates, Billing, and provider adapters remain separate future modules.
@@ -46,7 +46,7 @@ Do not create a distributed transaction across module DbContexts.
 
 Cancellation follows the same rule: a confirmed reservation enters `CancellationPending`, Inventory releases its allocation, and only the correlated release result moves the reservation to `Cancelled`. A pending reservation records cancellation intent and compensates a late allocation confirmation with an immediate release; an allocation rejection completes that cancellation locally. Already rejected reservations may cancel locally.
 
-The allocation-request and release-request message contracts belong to Inventory because they describe commands accepted by the Inventory boundary, even though Reservations publishes them. Inventory outcome events remain Inventory-published facts. This preserves a one-way project dependency from Reservations to `Inventory.Contracts`.
+The allocation-request and release-request message contracts belong to Inventory because they describe commands accepted by the Inventory boundary, even though Reservations publishes them. Inventory outcome events remain Inventory-published facts. This preserves a one-way project dependency from Reservations to `BunkFy.Modules.Inventory.Contracts`.
 
 ## Inventory Prerequisite
 
@@ -119,7 +119,7 @@ Use tenant and `tenant/property` scopes with descendant matching. Guests never a
 - guest profiles, identity documents, consents, and sensitive guest workflows;
 - room moves, split stays, partial cancellation, extensions, shortening, and amendments;
 - group blocks, pooled inventory, controlled oversell, and waitlists;
-- check-in, checkout, no-show, and housekeeping coordination;
+- room moves, split per-guest arrival/departure, lifecycle reversals, and housekeeping coordination;
 - provider adapters and provider-specific payload storage;
 - expiring pre-booking holds;
 - guest-facing accounts, portals, or self-service APIs.
@@ -140,3 +140,25 @@ Use tenant and `tenant/property` scopes with descendant matching. Guests never a
 ## Completion Note
 
 The first slice is implemented in `src/Modules/Reservations`. Inventory now owns durable multi-unit allocation/release decisions and emits versioned unit-definition, block, and allocation facts. Reservations consumes those facts into a rebuildable local projection, exposes scoped API/Admin API/Admin CLI lifecycle operations, and runs its saga handlers in the Worker. Focused Docker coverage proves real-token property denial and the live create, confirm, overlap rejection, cancellation release, and replacement-booking paths through PostgreSQL and JetStream.
+
+## Ingestion Readiness Slice
+
+The current follow-up adds an independent `DetailsRevision` and latest-change provenance to the Reservation aggregate. Allocation confirmation, cancellation, and other system lifecycle transitions continue to increment aggregate `Version` without impersonating a staff edit.
+
+Each applied details revision emits a typed before/after event. Reservations projects those events into `reservation_details_history` with changed fields, origin, actor, adapter connection, external operation, correlation, and a snapshot hash. The projection has provider-agnostic deduplication keys; the PostgreSQL migration backfills existing reservations at revision 1 with explicit `System` provenance and a synthesized initial snapshot.
+
+The management API currently permits revision-checked guest/contact/notes changes and exposes the details timeline. Stay dates and requested Inventory units are deliberately excluded until a correlated release/reallocation/compensation saga is implemented. Management callers cannot select `Adapter` provenance.
+
+Reservations now accepts four versioned, tenant-scoped external operations: create, guest-details change, allocation amendment, and cancellation. Each carries an Ingestion-owned operation, receipt, connection, property, and source identity. Reservations independently fingerprints and records each terminal operation in its scoped `external_operations` ledger. Exact retries republish the recorded outcome without repeating the product change; reuse of an operation id for different content returns `OperationConflict`.
+
+External guest changes and cancellations require the expected `DetailsRevision`. A stale adapter operation therefore cannot overwrite or cancel after a staff edit. Cancellation may return `Accepted` while Inventory release/late-allocation compensation is still pending; `Applied` is reserved for a completed local transition. Ingestion must retain dispatch state and observe the later reservation lifecycle fact before treating an accepted cancellation as complete.
+
+Allocation-affecting external changes are held as a complete pending candidate while Inventory evaluates an atomic amendment of the existing allocation. Confirmation applies the candidate and details history; rejection retains the old booking and records the reason. Inbox-driven operations dispatch domain events inside the Reservations inbox transaction, preserving the same outbox and history guarantees as management commands.
+
+Ingestion now owns normalized observation models, durable reservation source links, dispatch attempts, outcome consumption, auto-apply policy, and proposal creation. Reservations remains the final validator and owner of every applied change. Direct staff date/unit amendment surfaces and broader stay changes remain later work.
+
+## Stay Lifecycle Slice
+
+Reservations now owns explicit `CheckedIn`, `NoShow`, and `CheckedOut` facts. Check-in is synchronous; no-show and check-out pass through distinct pending states until Inventory confirms the correlated allocation release. A stale release cannot mutate the aggregate or local projection, an exact duplicate is idempotent, and release rejection restores the prior booking state.
+
+Each operation carries a caller-supplied business date, authenticated actor provenance, and expected aggregate version. The public management API, Admin API, and Admin CLI expose separate permission-controlled operations; Admin surfaces require confirmation. PostgreSQL constraints protect complete pending and terminal provenance shapes, while a real PostgreSQL/JetStream scenario proves check-in, both release paths, stale-version conflict, scoped denial, and reuse of freed inventory.

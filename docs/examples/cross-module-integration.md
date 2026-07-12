@@ -9,16 +9,16 @@ Modules may reference another module's `.Contracts` project only.
 Allowed:
 
 ```text
-Ordering.Application -> Catalog.Contracts
+BunkFy.Modules.Inventory.Application -> BunkFy.Modules.Properties.Contracts
 ```
 
 Not allowed:
 
 ```text
-Ordering.Application -> Catalog.Application
-Ordering.Persistence -> Catalog.Persistence
-Ordering.Domain -> Catalog.Domain
-OrderingDbContext -> FK to catalog.items
+BunkFy.Modules.Inventory.Application -> BunkFy.Modules.Properties.Application
+BunkFy.Modules.Inventory.Persistence -> BunkFy.Modules.Properties.Persistence
+BunkFy.Modules.Inventory.Domain -> BunkFy.Modules.Properties.Domain
+InventoryDbContext -> FK to properties.rooms
 ```
 
 Public contract surfaces should still belong to the module that publishes them. A consumer module can reference a producer's contracts for integration event payloads, subject constants, subscription metadata, and projection export contracts, but it should not expose producer DTOs or enums from its own `.Contracts` or `.Admin.Contracts` API. Duplicate the scalar/read-model fields that the consumer owns instead.
@@ -35,31 +35,31 @@ This is not "stale cache" data. It is module-owned state with eventual-consisten
 
 ```mermaid
 flowchart LR
-    A["Catalog command"] --> B["Catalog aggregate"]
+    A["Properties command"] --> B["Property aggregate"]
     B --> C["Domain event"]
-    C --> D["Catalog outbox"]
+    C --> D["Properties outbox"]
     D --> E["NATS JetStream"]
-    E --> F["Ordering consumer"]
-    F --> G["Ordering inbox"]
-    F --> H["CatalogItemProjection"]
-    H --> I["Place order decision"]
+    E --> F["Inventory consumer"]
+    F --> G["Inventory inbox"]
+    F --> H["Property topology projection"]
+    H --> I["Availability decision"]
 ```
 
 ## Addressed Notifications From Local Decisions
 
 Notification delivery follows the same ownership rule. The module that understands the resource decides recipients; the Notifications module only stores and streams already-addressed notification requests.
 
-The Catalog/Ordering example uses:
+The same ownership shape applies when a BunkFy module emits an addressed notification:
 
 ```mermaid
 flowchart LR
-    A["Catalog item changed"] --> B["Catalog outbox"]
+    A["Owned business fact changed"] --> B["Producer outbox"]
     B --> C["NATS JetStream"]
-    C --> D["Ordering consumer"]
-    D --> E["Ordering CatalogItemProjection"]
-    D --> F["Ordering orders by catalog item"]
+    C --> D["Consumer module"]
+    D --> E["Consumer-owned projection"]
+    D --> F["Consumer recipient decision"]
     F --> G["UserNotificationRequestedIntegrationEvent"]
-    G --> H["Ordering outbox"]
+    G --> H["Consumer outbox"]
     H --> I["Notifications consumer"]
     I --> J["notifications.user_notifications"]
 ```
@@ -68,7 +68,7 @@ This is the same shape a private chat or PMS policy module should use:
 
 - chat membership and message visibility belong to the chat module;
 - property/user-management policies belong to the PMS module;
-- catalog regional availability belongs to Catalog or the module that owns regional market rules;
+- inventory availability belongs to Inventory and property topology belongs to Properties;
 - Notifications receives explicit user targets only, never business-specific visibility rules.
 
 ## Compatibility

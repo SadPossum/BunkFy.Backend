@@ -3,8 +3,8 @@ namespace Integration.Tests;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Integration.Tests.Support;
 using Gma.Modules.Notifications.Contracts;
+using Integration.Tests.Support;
 using Xunit;
 using DomainBroadcastAudience = Gma.Modules.Notifications.Domain.ValueObjects.NotificationBroadcastAudience;
 

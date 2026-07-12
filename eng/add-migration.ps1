@@ -78,10 +78,11 @@ function Resolve-GmaDbContextName {
 Invoke-GmaDotNet -Arguments @('tool', 'restore')
 
 $moduleRoot = Join-GmaPath "src\Modules\$Module"
-$persistenceRoot = Join-Path $moduleRoot "$Module.Persistence"
-$migrationRoot = Join-Path $moduleRoot "$Module.Persistence.${Provider}Migrations"
-$persistenceProject = Join-Path $persistenceRoot "$Module.Persistence.csproj"
-$migrationProject = Join-Path $migrationRoot "$Module.Persistence.${Provider}Migrations.csproj"
+$projectPrefix = "BunkFy.Modules.$Module"
+$persistenceRoot = Join-Path $moduleRoot "$projectPrefix.Persistence"
+$migrationRoot = Join-Path $moduleRoot "$projectPrefix.Persistence.${Provider}Migrations"
+$persistenceProject = Join-Path $persistenceRoot "$projectPrefix.Persistence.csproj"
+$migrationProject = Join-Path $migrationRoot "$projectPrefix.Persistence.${Provider}Migrations.csproj"
 $startupProject = $migrationProject
 
 Assert-GmaPathExists -Path $moduleRoot -Description "Module '$Module'"

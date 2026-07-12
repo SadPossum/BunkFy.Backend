@@ -12,13 +12,9 @@
     <GmaModuleAccessControlRoot Condition="'$(GmaModuleAccessControlRoot)' == ''">$(GmaModulesRoot)access-control\src\</GmaModuleAccessControlRoot>
     <GmaModuleAdministrationRoot Condition="'$(GmaModuleAdministrationRoot)' == ''">$(GmaModulesRoot)administration\src\</GmaModuleAdministrationRoot>
     <GmaModuleAuthRoot Condition="'$(GmaModuleAuthRoot)' == ''">$(GmaModulesRoot)auth\src\</GmaModuleAuthRoot>
-    <GmaModuleCatalogRoot Condition="'$(GmaModuleCatalogRoot)' == ''">$(GmaRepositoryRoot)src\Modules\Catalog\</GmaModuleCatalogRoot>
     <GmaModuleFilesRoot Condition="'$(GmaModuleFilesRoot)' == ''">$(GmaModulesRoot)files\src\</GmaModuleFilesRoot>
     <GmaModuleNotificationsRoot Condition="'$(GmaModuleNotificationsRoot)' == ''">$(GmaModulesRoot)notifications\src\</GmaModuleNotificationsRoot>
-    <GmaModuleOrderingRoot Condition="'$(GmaModuleOrderingRoot)' == ''">$(GmaRepositoryRoot)src\Modules\Ordering\</GmaModuleOrderingRoot>
-    <GmaModulePropertiesRoot Condition="'$(GmaModulePropertiesRoot)' == ''">$(GmaRepositoryRoot)src\Modules\Properties\</GmaModulePropertiesRoot>
     <GmaModuleTaskRuntimeRoot Condition="'$(GmaModuleTaskRuntimeRoot)' == ''">$(GmaModulesRoot)task-runtime\src\</GmaModuleTaskRuntimeRoot>
-    <GmaModuleTaskSamplesRoot Condition="'$(GmaModuleTaskSamplesRoot)' == ''">$(GmaRepositoryRoot)src\Modules\TaskSamples\</GmaModuleTaskSamplesRoot>
     <GmaModuleTenancyRoot Condition="'$(GmaModuleTenancyRoot)' == ''">$(GmaModulesRoot)tenancy\src\</GmaModuleTenancyRoot>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <TargetFramework>net10.0</TargetFramework>

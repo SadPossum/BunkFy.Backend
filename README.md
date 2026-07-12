@@ -18,24 +18,20 @@ Selected GMA modules for the initial shell:
 - `task-runtime`
 - `tenancy`
 
-Copied example modules:
-
-- `Catalog`
-- `Ordering`
-- `TaskSamples`
-
-The examples are intentionally still example-domain code. They are here to make framework usage, module layering, persistence, migrations, admin surfaces, worker composition, and tests easy to inspect while BunkFy product modules are still being designed.
-
 Public API modules composed by `src/BunkFy.Host.Api`:
 
 - `auth`
 - `files`
 - `notifications`
 - `tenancy`
-- `Catalog`
-- `Ordering`
+- `Properties`
+- `Inventory`
+- `Reservations`
+- `Guests`
+- `Staff`
+- `Ingestion`
 
-Admin API/CLI compose the reusable administration/auth/task-runtime modules plus the `Catalog` admin example. The worker host keeps background module groups opt-in and demonstrates Auth, Catalog, Ordering, TaskRuntime, and TaskSamples composition.
+Admin API/CLI compose reusable administration, auth, and task-runtime modules plus the BunkFy product administration surfaces. The worker keeps product background module groups opt-in.
 
 The copied Aspire host under `src/BunkFy.Host.AppHost` can run the backend stack standalone. The root BunkFy Aspire host composes the backend and frontend together.
 
@@ -62,7 +58,7 @@ For standalone backend work, initialize the nested GMA submodules and run:
 
 ## Development Notes
 
-- The copied skeleton defaults keep SQL Server as the local provider, with PostgreSQL migration projects present as a parallel provider example.
+- PostgreSQL is the default product provider. Provider-specific migrations remain isolated from module domain and application code.
 - MinIO is the default file-management provider so local and demo environments use the same S3-compatible storage shape.
 - NATS/JetStream, Redis caching hooks, OpenAPI, Prometheus-compatible metrics, and the worker host are wired as composition concerns.
 - TaskRuntime admin API/CLI controls are baseline admin surfaces. The worker enables TaskRuntime when `AppHost:Worker:Enabled=true`; product task handlers are added by BunkFy modules.

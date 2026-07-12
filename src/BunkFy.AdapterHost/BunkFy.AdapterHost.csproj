@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\BunkFy.Adapter.Abstractions\BunkFy.Adapter.Abstractions.csproj" />
+    <ProjectReference Include="..\Shared\BunkFy.Adapter.Runtime\BunkFy.Adapter.Runtime.csproj" />
+    <ProjectReference Include="..\Adapters\BunkFy.Adapters.FakeHttp\BunkFy.Adapters.FakeHttp.csproj" />
+    <ProjectReference Include="..\Adapters\BunkFy.Adapters.Http\BunkFy.Adapters.Http.csproj" />
+    <ProjectReference Include="..\Adapters\BunkFy.Adapters.ImapReservationMail\BunkFy.Adapters.ImapReservationMail.csproj" />
+    <ProjectReference Include="..\Adapters\BunkFy.Adapters.JsonFileDrop\BunkFy.Adapters.JsonFileDrop.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

@@ -17,8 +17,8 @@ using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Properties.Contracts;
-using Properties.Persistence;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
 

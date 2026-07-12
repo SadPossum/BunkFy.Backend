@@ -1,10 +1,10 @@
 namespace Integration.Tests;
 
 using System.Text.Json;
-using Integration.Tests.Support;
-using Gma.Framework.Tasks;
 using Gma.Framework.Results;
+using Gma.Framework.Tasks;
 using Gma.Modules.TaskRuntime.Application;
+using Integration.Tests.Support;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -61,7 +61,7 @@ public sealed class TaskRuntimeIntegrationTests
         await application.EnqueueSampleTaskAsync(runId, DateTimeOffset.UtcNow).ConfigureAwait(false);
         await application.StartAsync().ConfigureAwait(false);
 
-        IReadOnlyList<TaskSamples.Application.Tasks.TaskSampleReport> reports =
+        IReadOnlyList<TestTaskReport> reports =
             await application.Sink.WaitForReportsAsync(1, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
         TaskRunSnapshot snapshot = await application.WaitForStatusAsync(
                 runId,
@@ -80,6 +80,65 @@ public sealed class TaskRuntimeIntegrationTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
+    public async Task Competing_workers_do_not_reclaim_a_quiet_task_while_automatic_heartbeat_is_active()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("gma_task_worker_heartbeat_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        TimeSpan leaseDuration = TimeSpan.FromMilliseconds(600);
+        TimeSpan heartbeatInterval = TimeSpan.FromMilliseconds(150);
+        await using TaskRuntimeTestApplication workerA = new(
+            "PostgreSql",
+            postgreSql.GetConnectionString(),
+            workerEnabled: true,
+            workerId: "worker-a",
+            nodeId: "node-a",
+            leaseDuration: leaseDuration,
+            heartbeatInterval: heartbeatInterval,
+            maxConcurrency: 1,
+            batchSize: 1);
+        await using TaskRuntimeTestApplication workerB = new(
+            "PostgreSql",
+            postgreSql.GetConnectionString(),
+            workerEnabled: true,
+            workerId: "worker-b",
+            nodeId: "node-b",
+            leaseDuration: leaseDuration,
+            heartbeatInterval: heartbeatInterval,
+            maxConcurrency: 1,
+            batchSize: 1);
+        await workerA.MigrateDatabaseAsync().ConfigureAwait(false);
+        Guid runId = Guid.Parse("abababab-abab-abab-abab-abababababab");
+        string payload = JsonSerializer.Serialize(new TestQuietTaskPayload("quiet", 1_800));
+
+        await workerA.EnqueueSampleTaskAsync(
+                runId,
+                DateTimeOffset.UtcNow,
+                maxAttempts: 1,
+                payloadJson: payload,
+                taskName: TestQuietTaskPayload.TaskName)
+            .ConfigureAwait(false);
+        await Task.WhenAll(workerA.StartAsync(), workerB.StartAsync()).ConfigureAwait(false);
+
+        TaskRunSnapshot snapshot = await workerA.WaitForStatusAsync(
+                runId,
+                TaskRunStatus.Succeeded,
+                TimeSpan.FromSeconds(10))
+            .ConfigureAwait(false);
+        IReadOnlyList<TestTaskReport> reports = workerA.Sink.Reports.Concat(workerB.Sink.Reports).ToArray();
+
+        TestTaskReport report = Assert.Single(reports);
+        Assert.Equal(runId, report.RunId);
+        Assert.Equal(1, report.Attempt);
+        Assert.Equal(TaskRunStatus.Succeeded, snapshot.Status);
+        Assert.Equal(1, snapshot.Attempts);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
     public async Task Task_worker_cooperatively_cancels_slow_task_from_control_message()
     {
         await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
@@ -93,7 +152,7 @@ public sealed class TaskRuntimeIntegrationTests
             workerEnabled: true);
         await application.MigrateDatabaseAsync().ConfigureAwait(false);
         Guid runId = Guid.Parse("12121212-3434-5656-7878-909090909090");
-        string payload = JsonSerializer.Serialize(new TaskSamples.Contracts.SlowReportTaskPayload(
+        string payload = JsonSerializer.Serialize(new TestSlowTaskPayload(
             "slow",
             10,
             Steps: 20,
@@ -104,7 +163,7 @@ public sealed class TaskRuntimeIntegrationTests
                 DateTimeOffset.UtcNow,
                 maxAttempts: 1,
                 payloadJson: payload,
-                taskName: TaskSamples.Contracts.SlowReportTaskPayload.TaskName)
+                taskName: TestSlowTaskPayload.TaskName)
             .ConfigureAwait(false);
         await application.StartAsync().ConfigureAwait(false);
         Result<TaskControlMessage> control = await application.SendControlThroughApplicationAsync(
@@ -122,6 +181,58 @@ public sealed class TaskRuntimeIntegrationTests
         Assert.True(control.IsSuccess);
         Assert.Equal(TaskRunStatus.Canceled, snapshot.Status);
         Assert.Empty(application.Sink.Reports);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Task_runtime_retention_deletes_only_due_terminal_runs_without_control_history()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("gma_task_retention_tests")
+            .Build();
+        await postgreSql.StartAsync();
+        await using TaskRuntimeTestApplication application = new(
+            "PostgreSql",
+            postgreSql.GetConnectionString(),
+            workerEnabled: false,
+            clockUtcNow: Now,
+            retentionEnabled: true);
+        await application.MigrateDatabaseAsync().ConfigureAwait(false);
+        Guid oldRunId = Guid.Parse("10101010-1010-1010-1010-101010101010");
+        Guid recentRunId = Guid.Parse("20202020-2020-2020-2020-202020202020");
+        Guid protectedRunId = Guid.Parse("30303030-3030-3030-3030-303030303030");
+
+        await CompleteRunAsync(application, oldRunId, Now.AddDays(-40)).ConfigureAwait(false);
+        await CompleteRunAsync(application, recentRunId, Now.AddDays(-1)).ConfigureAwait(false);
+        await CompleteRunAsync(application, protectedRunId, Now.AddDays(-40)).ConfigureAwait(false);
+        await application.AddPendingControlAsync(
+            Guid.Parse("40404040-4040-4040-4040-404040404040"),
+            protectedRunId,
+            Now.AddDays(-39)).ConfigureAwait(false);
+
+        await application.StartAsync().ConfigureAwait(false);
+
+        Assert.True(await application.WaitForTaskRunDeletionAsync(oldRunId, TimeSpan.FromSeconds(10)));
+        Assert.True(await application.TaskRunExistsAsync(recentRunId).ConfigureAwait(false));
+        Assert.True(await application.TaskRunExistsAsync(protectedRunId).ConfigureAwait(false));
+    }
+
+    private static async Task CompleteRunAsync(
+        TaskRuntimeTestApplication application,
+        Guid runId,
+        DateTimeOffset createdAtUtc)
+    {
+        await application.EnqueueSampleTaskAsync(runId, createdAtUtc).ConfigureAwait(false);
+        TaskRunLease lease = (await application.ClaimAsync(
+                "retention-worker",
+                "retention-node",
+                createdAtUtc,
+                TimeSpan.FromMinutes(5))
+            .ConfigureAwait(false)).Single();
+        TaskExecutionContext context = lease.CreateExecutionContext();
+        await application.MarkStartedAsync(context, createdAtUtc.AddMinutes(1)).ConfigureAwait(false);
+        await application.MarkSucceededAsync(context, createdAtUtc.AddMinutes(2)).ConfigureAwait(false);
     }
 
     private static async Task RunStoreScenarioAsync(
@@ -231,7 +342,7 @@ public sealed class TaskRuntimeIntegrationTests
         TaskRunSnapshot canceledReclaimed = await application.GetSnapshotAsync(cancelReclaimRunId).ConfigureAwait(false);
 
         string dedupeKey = $"sample-dedupe-{provider.ToLowerInvariant()}";
-        string samplePayload = JsonSerializer.Serialize(new TaskSamples.Contracts.GenerateReportTaskPayload("dedupe", 1));
+        string samplePayload = JsonSerializer.Serialize(new TestReportTaskPayload("dedupe", 1));
         Guid dedupeRunId = Guid.Parse($"66666666-6666-6666-6666-{(provider == "SqlServer" ? "111111111111" : "222222222222")}");
         Guid duplicateDedupeRunId = Guid.Parse($"66666666-6666-6666-6666-{(provider == "SqlServer" ? "333333333333" : "444444444444")}");
         Error invalidPayloadError = (await application.EnqueueThroughApplicationAsync(
@@ -285,11 +396,11 @@ public sealed class TaskRuntimeIntegrationTests
         await application.MarkSucceededAsync(renewedReclaimContext, Now.AddSeconds(64)).ConfigureAwait(false);
 
         Guid versionedRunId = Guid.Parse($"44444444-4444-4444-4444-{(provider == "SqlServer" ? "111111111111" : "222222222222")}");
-        string versionedPayload = JsonSerializer.Serialize(new TaskSamples.Contracts.GenerateReportTaskPayloadV2("daily", 10, "csv"));
+        string versionedPayload = JsonSerializer.Serialize(new TestReportTaskPayloadV2("daily", 10, "csv"));
         await application.EnqueueSampleTaskAsync(
                 versionedRunId,
                 Now.AddSeconds(60),
-                payloadVersion: TaskSamples.Contracts.GenerateReportTaskPayloadV2.PayloadVersion,
+            payloadVersion: TestReportTaskPayloadV2.PayloadVersion,
                 payloadJson: versionedPayload)
             .ConfigureAwait(false);
         IReadOnlyList<TaskRunLease> versionedClaim = await application.ClaimAsync(
@@ -372,7 +483,7 @@ public sealed class TaskRuntimeIntegrationTests
         Assert.Equal(renewalRunId, reclaimedAfterRenewedExpiry[0].RunId);
         Assert.Single(versionedClaim);
         Assert.Equal(versionedRunId, versionedClaim[0].RunId);
-        Assert.Equal(TaskSamples.Contracts.GenerateReportTaskPayloadV2.PayloadVersion, versionedClaim[0].PayloadVersion);
+        Assert.Equal(TestReportTaskPayloadV2.PayloadVersion, versionedClaim[0].PayloadVersion);
         Assert.Contains(timedOutRuns, run => run.RunId == timeoutRunId);
         Assert.Equal(TaskRunStatus.TimedOut, timedOut.Status);
         Assert.True(retryTimedOut.IsSuccess);

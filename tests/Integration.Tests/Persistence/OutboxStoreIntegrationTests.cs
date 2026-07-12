@@ -1,8 +1,8 @@
 namespace Integration.Tests;
 
 using DotNet.Testcontainers.Containers;
-using Integration.Tests.Support;
 using Gma.Framework.Messaging;
+using Integration.Tests.Support;
 using Testcontainers.PostgreSql;
 using Xunit;
 

@@ -22,13 +22,11 @@ src/
   BunkFy.Host.Worker/
   BunkFy.Host.ServiceDefaults/
   Modules/
-    Catalog/        # copied GMA skeleton example
-    Ordering/       # copied GMA skeleton example
-    TaskSamples/    # copied GMA skeleton example
     Properties/
     Inventory/
     Reservations/
-    GuestRecords/
+    Guests/
+    Staff/
     Billing/
     Housekeeping/
 tests/
@@ -37,8 +35,8 @@ tests/
   BunkFy.Host.ServiceDefaults.Tests/
 ```
 
-The backend now carries the skeleton-style host set plus copied example modules so product work has concrete patterns for public API, admin API, admin CLI, worker, persistence, migrations, contracts, and module tests. BunkFy-specific PMS modules should follow the same layering but replace the example domain language with hostel/property-management concepts.
+The backend carries the skeleton-style host set and BunkFy-owned PMS modules with public API, admin API, admin CLI, worker, persistence, migrations, contracts, and focused tests. Skeleton example domains are intentionally not part of the product repository.
 
-BunkFy is a staff/operator management system. Guest records may exist as PMS data for reservations, billing, and housekeeping, but guests do not authenticate into this backend or use a guest-facing API surface.
+BunkFy is a staff/operator management system. Guest records may exist as PMS data for reservations, billing, and housekeeping, but guests do not authenticate into this backend or use a guest-facing API surface. BunkFy Staff owns employment profiles and work assignments while GMA Auth and AccessControl retain credentials, sessions, roles, grants, and effective permission evaluation.
 
 File management starts on MinIO rather than local disk. Local and development hosts should use the S3-compatible object-storage path from the beginning, with `Gma.Framework.FileManagement` staying as the app-facing storage contract.

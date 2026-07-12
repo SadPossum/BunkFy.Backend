@@ -4,6 +4,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BunkFy.Host.Api;
+using Gma.Framework.Notifications;
+using Gma.Framework.Security;
+using Gma.Framework.Tenancy;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -11,9 +14,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
-using Gma.Framework.Notifications;
-using Gma.Framework.Security;
-using Gma.Framework.Tenancy;
 
 internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled = true)
     : WebApplicationFactory<ApiAssemblyReference>

@@ -1,8 +1,8 @@
 # BunkFy Backend Docs
 
-BunkFy Backend is the future API and domain repository for BunkFy.
+BunkFy Backend is the API and domain repository for BunkFy.
 
-This repository is intentionally a GMA source-first backend foundation right now. It establishes solution layout, GMA source-root conventions, scripts, CI, and documentation structure before product modules are implemented.
+This repository is a GMA source-first modular backend. It contains the product modules, adapter runtime, hosts, migrations, scripts, guardrails, and concise development decisions used to evolve BunkFy.
 
 Useful entry points:
 
@@ -10,14 +10,36 @@ Useful entry points:
 - [Local Development](getting-started/local-development.md)
 - [Source-First Apps](getting-started/source-first-apps.md)
 - [Architecture Overview](architecture/overview.md)
-- [GMA Rebrand and Source Repo Split](architecture/gma-rebrand-and-source-repo-split.md)
 - [Cross-Module Integration Example](examples/cross-module-integration.md)
 - [Product Domain Map](planning/product-domain-map.md)
 - [Development Guidelines](planning/development-guidelines.md)
+- [GMA Durable Runtime Alignment](planning/gma-durable-runtime-alignment.md)
+- [Ingestion Runtime Baseline](operations/ingestion-runtime-baseline.md)
 - [Pre-Module Readiness](planning/pre-module-readiness.md)
 - [Properties Module Task](planning/properties-module-task.md)
 - [Properties Follow-Up Notes](planning/properties-follow-up-notes.md)
 - [GMA Access Control and Properties Alignment](planning/gma-access-control-properties-alignment.md)
 - [Properties Topology Lifecycle Task](planning/properties-topology-lifecycle-task.md)
 - [Inventory Module Task](planning/inventory-module-task.md)
+- [Guest Records Module Task](planning/guest-records-module-task.md)
+- [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
+- [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
+- [Staff Module](../src/Modules/Staff/docs/README.md)
 - [Reservations Module Task](planning/reservations-module-task.md)
+- [Reservations Stay Lifecycle Task](planning/reservations-stay-lifecycle-task.md)
+- [Ingestion Module Task](planning/ingestion-module-task.md)
+- [Ingestion PII Minimization Task](planning/ingestion-pii-minimization-task.md)
+- [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)
+- [Ingestion Legal Holds Task](planning/ingestion-legal-holds-task.md)
+- [Standalone Adapter Host Task](planning/standalone-adapter-host-task.md)
+- [IMAP Reservation Mail Adapter Task](planning/imap-reservation-mail-adapter-task.md)
+- [IMAP Reservation Mail Authentication Task](planning/imap-reservation-mail-authentication-task.md)
+- [IMAP Reservation Mail Key Rotation Task](planning/imap-reservation-mail-key-rotation-task.md)
+- [Remote Adapter Assignment And Lease Task](planning/remote-adapter-lease-task.md)
+- [Ingestion Source Reprocessing Task](planning/ingestion-source-reprocessing-task.md)
+- [Ingestion Adapter Ingress Task](planning/ingestion-adapter-ingress-task.md)
+- [Adapter HTTP Client Task](planning/adapter-http-client-task.md)
+- [JSON File-Drop Adapter Task](planning/json-file-drop-adapter-task.md)
+- [JSON File-Drop Quarantine Task](planning/json-file-drop-quarantine-task.md)
+- [JSON File-Drop Local Artifact Retention Task](planning/json-file-drop-local-retention-task.md)
+- [Ingestion Adapter Boundary](architecture/ingestion-adapter-boundary.md)

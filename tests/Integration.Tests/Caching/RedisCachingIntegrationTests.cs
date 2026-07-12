@@ -4,14 +4,14 @@ using System.Net;
 using System.Net.Sockets;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Gma.Framework.Cqrs;
 using Gma.Framework.Caching;
 using Gma.Framework.Caching.Cqrs;
 using Gma.Framework.Caching.Redis;
+using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 
 [Trait("Category", "Integration")]

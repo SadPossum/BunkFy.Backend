@@ -1,5 +1,18 @@
 namespace Integration.Tests.Support;
 
+using System.CommandLine;
+using System.CommandLine.Parsing;
+using System.Text.RegularExpressions;
+using BunkFy.Parsers.ReservationMail;
+using Gma.Framework.Administration.Cli;
+using Gma.Framework.Caching.Cqrs;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Infrastructure;
+using Gma.Framework.Messaging.Infrastructure;
+using Gma.Framework.Results;
+using Gma.Framework.Tenancy;
+using Gma.Framework.Tenancy.Caching;
+using Gma.Framework.Tenancy.Messaging.Infrastructure;
 using Gma.Modules.AccessControl.AdminCli;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Administration.AdminCli;
@@ -9,29 +22,19 @@ using Gma.Modules.Auth.Application.Commands;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
 using Gma.Modules.Auth.Persistence;
+using BunkFy.Modules.Ingestion.AdminCli;
+using BunkFy.Modules.Ingestion.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Gma.Framework.Administration.Cli;
-using Gma.Framework.Cqrs;
-using Gma.Framework.Tenancy;
-using Gma.Framework.Caching.Cqrs;
-using Gma.Framework.Results;
-using Gma.Framework.Infrastructure;
-using Gma.Framework.Messaging.Infrastructure;
-using Gma.Framework.Tenancy.Caching;
-using Gma.Framework.Tenancy.Messaging.Infrastructure;
-using System.CommandLine;
-using System.CommandLine.Parsing;
-using System.Text.RegularExpressions;
 
 internal sealed class AdminCliTestApplication : IAsyncDisposable
 {
     private readonly IHost host;
     private readonly RootCommand rootCommand;
 
-    public AdminCliTestApplication(string provider, string connectionString)
+    public AdminCliTestApplication(string provider, string connectionString, bool includeIngestion = false)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder([]);
         builder.Environment.EnvironmentName = "Integration";
@@ -60,6 +63,11 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         builder.AddAdminModule<AdministrationAdminCliModule>();
         builder.AddAdminModule<AccessControlAdminCliModule>();
         builder.AddAdminModule<AuthAdminCliModule>();
+        if (includeIngestion)
+        {
+            builder.Services.AddReservationMailParserDescriptor();
+            builder.AddAdminModule<IngestionAdminCliModule>();
+        }
 
         this.host = builder.Build();
         this.host.Services.ValidateAdminCliStartup();
@@ -72,6 +80,11 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         await scope.ServiceProvider.GetRequiredService<AdminDbContext>().Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<AccessControlDbContext>().Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+        IngestionDbContext? ingestion = scope.ServiceProvider.GetService<IngestionDbContext>();
+        if (ingestion is not null)
+        {
+            await ingestion.Database.MigrateAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task<AdminCliResult> ExecuteAsync(params string[] args)

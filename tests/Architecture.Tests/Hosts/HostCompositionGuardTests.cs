@@ -22,9 +22,12 @@ public sealed class HostCompositionGuardTests
             "builder.AddUserNotificationsRealtime();",
             "builder.AddModule<FilesModule>();",
             "builder.AddModule<NotificationsModule>();",
-            "builder.AddModule<CatalogModule>();",
-            "builder.AddModule<OrderingModule>();",
             "builder.AddModule<PropertiesModule>();",
+            "builder.AddModule<InventoryModule>();",
+            "builder.AddModule<ReservationsModule>();",
+            "builder.AddModule<GuestsModule>();",
+            "builder.AddModule<StaffModule>();",
+            "builder.AddModule<IngestionModule>();",
             "builder.AddGmaProductionHttp();",
             "app.UseGmaProductionHttp();",
             "builder.ValidateModuleComposition();",
@@ -46,15 +49,23 @@ public sealed class HostCompositionGuardTests
 
         Assert.Contains("builder.AddAdminApiModule<AccessControlAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.ScopeAware());", adminApi, StringComparison.Ordinal);
-        Assert.Contains("builder.AddAdminApiModule<CatalogAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<InventoryAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<ReservationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<GuestsAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<StaffAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<IngestionAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("app.UseGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<AccessControlAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAuthAdminModule(AuthProfile.ScopeAware());", adminCli, StringComparison.Ordinal);
-        Assert.Contains("builder.AddAdminModule<CatalogAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<PropertiesAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<InventoryAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<ReservationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<GuestsAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<StaffAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<IngestionAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<TaskRuntimeAdminCliModule>();", adminCli, StringComparison.Ordinal);
     }
 
@@ -65,10 +76,13 @@ public sealed class HostCompositionGuardTests
         string options = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostOptions.cs");
 
         Assert.Contains("\"Auth\": false", appsettings, StringComparison.Ordinal);
-        Assert.Contains("\"Catalog\": false", appsettings, StringComparison.Ordinal);
-        Assert.Contains("\"Ordering\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Properties\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Inventory\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Reservations\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Guests\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Staff\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Ingestion\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"TaskRuntime\": false", appsettings, StringComparison.Ordinal);
-        Assert.Contains("\"TaskSamples\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("defaultValue: false", options, StringComparison.Ordinal);
         Assert.Contains(
             "AuthProfile.ScopeAware().Descriptor",
@@ -93,6 +107,8 @@ public sealed class HostCompositionGuardTests
             ".WaitFor(postgreSql)",
             "Tasks__Worker__Enabled",
             "Worker__Modules__TaskRuntime",
+            "Worker__Modules__Guests",
+            "Worker__Modules__Staff",
             "AppHost:AdminApi:Enabled",
             "AppHost:Worker:Enabled",
             "AppHost:Redis:Enabled"
@@ -123,5 +139,63 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Imap_adapter_metadata_and_executable_code_are_composed_in_the_correct_hosts()
+    {
+        string api = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
+        string adminApi = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
+        string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
+        string worker = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs");
+        string adapterHost = RepositoryPaths.Read("src", "BunkFy.AdapterHost", "Program.cs");
+
+        Assert.Contains("AddImapReservationMailAdapterDescriptor();", api, StringComparison.Ordinal);
+        Assert.Contains("AddImapReservationMailAdapterDescriptor();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("AddImapReservationMailAdapterDescriptor();", adminCli, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddImapReservationMailAdapter();", api, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddImapReservationMailAdapter();", adminApi, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddImapReservationMailAdapter();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("AddImapReservationMailAdapter();", worker, StringComparison.Ordinal);
+        Assert.Contains(
+            "case ImapReservationMailAdapterDescriptor.AdapterType:",
+            adapterHost,
+            StringComparison.Ordinal);
+        Assert.Contains("AddImapReservationMailAdapter();", adapterHost, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Observation_parser_metadata_and_executable_code_are_composed_in_the_correct_hosts()
+    {
+        string api = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
+        string adminApi = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
+        string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
+        string worker = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs");
+        string adapterHost = RepositoryPaths.Read("src", "BunkFy.AdapterHost", "Program.cs");
+
+        Assert.Contains("AddReservationMailParserDescriptor();", api, StringComparison.Ordinal);
+        Assert.Contains("AddReservationMailParserDescriptor();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("AddReservationMailParserDescriptor();", adminCli, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddReservationMailParser();", api, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddReservationMailParser();", adminApi, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddReservationMailParser();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("AddReservationMailParser();", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddReservationMailParser();", adapterHost, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void File_drop_local_retention_is_composed_in_both_executable_hosts()
+    {
+        string worker = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs");
+        string workerSettings = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "appsettings.json");
+        string adapterHostOptions = RepositoryPaths.Read("src", "BunkFy.AdapterHost", "AdapterHostOptions.cs");
+        string adapterHostProgram = RepositoryPaths.Read("src", "BunkFy.AdapterHost", "Program.cs");
+
+        Assert.Contains("Adapters:JsonFileDrop:ProcessedArchiveRetention", worker, StringComparison.Ordinal);
+        Assert.Contains("Adapters:JsonFileDrop:FailedQuarantineRetention", worker, StringComparison.Ordinal);
+        Assert.Contains("\"RetentionEnabled\": true", workerSettings, StringComparison.Ordinal);
+        Assert.Contains("JsonFileDropProcessedArchiveRetention", adapterHostOptions, StringComparison.Ordinal);
+        Assert.Contains("JsonFileDropFailedQuarantineRetention", adapterHostOptions, StringComparison.Ordinal);
+        Assert.Contains("options.JsonFileDropRetentionEnabled", adapterHostProgram, StringComparison.Ordinal);
     }
 }

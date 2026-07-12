@@ -13,12 +13,12 @@ using Gma.Framework.ProjectionRebuild;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Contracts;
 using Integration.Tests.Support;
-using Inventory.Contracts;
-using Inventory.Domain.Aggregates;
-using Inventory.Persistence;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Domain.Aggregates;
+using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Properties.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using Testcontainers.PostgreSql;
 using Xunit;
 

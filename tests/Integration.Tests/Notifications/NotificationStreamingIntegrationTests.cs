@@ -2,10 +2,10 @@ namespace Integration.Tests;
 
 using System.Net;
 using System.Net.Http.Headers;
+using Gma.Framework.Notifications;
+using Integration.Tests.Support;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
-using Integration.Tests.Support;
-using Gma.Framework.Notifications;
 using Xunit;
 
 public sealed class NotificationStreamingIntegrationTests

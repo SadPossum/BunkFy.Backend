@@ -1,10 +1,10 @@
 namespace Integration.Tests;
 
 using System.Net;
+using DotNet.Testcontainers.Containers;
 using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
-using DotNet.Testcontainers.Containers;
 using Integration.Tests.Support;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;

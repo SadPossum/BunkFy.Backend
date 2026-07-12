@@ -138,7 +138,148 @@ public sealed partial class DeveloperExperienceGuardTests
     }
 
     [Fact]
-    public void Source_roots_include_reusable_gma_modules_and_local_examples()
+    public void Product_module_projects_use_bunkfy_branding_and_matching_directories()
+    {
+        string[] offenders = ProjectFile.All()
+            .Where(project => project.RepositoryPath.StartsWith("src/Modules/", StringComparison.Ordinal))
+            .Where(project =>
+            {
+                string module = project.RepositoryPath.Split('/')[2];
+                string expectedPrefix = $"BunkFy.Modules.{module}.";
+                string directory = Path.GetFileName(Path.GetDirectoryName(project.Path))!;
+                return !project.Name.StartsWith(expectedPrefix, StringComparison.Ordinal) ||
+                       !string.Equals(directory, project.Name, StringComparison.Ordinal);
+            })
+            .Select(project => project.RepositoryPath)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Product_module_source_namespaces_use_bunkfy_branding()
+    {
+        string[] offenders = RepositoryPaths.EnumerateFiles("src/Modules", "*.cs")
+            .Select(path => new
+            {
+                Path = path,
+                Namespace = File.ReadLines(path)
+                    .Select(line => line.Trim())
+                    .FirstOrDefault(line => line.StartsWith("namespace ", StringComparison.Ordinal))
+            })
+            .Where(file => file.Namespace is not null)
+            .Where(file =>
+            {
+                string repositoryPath = RepositoryPaths.ToRepositoryPath(file.Path);
+                string module = repositoryPath.Split('/')[2];
+                return !file.Namespace!.StartsWith($"namespace BunkFy.Modules.{module}", StringComparison.Ordinal);
+            })
+            .Select(file => RepositoryPaths.ToRepositoryPath(file.Path))
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Skeleton_example_modules_are_not_product_dependencies()
+    {
+        string[] exampleModules = ["Catalog", "Ordering", "TaskSamples"];
+        string[] existing = exampleModules
+            .Where(module => Directory.Exists(RepositoryPaths.Resolve("src", "Modules", module)))
+            .ToArray();
+        string[] references = ProjectFile.All()
+            .SelectMany(project => project.ProjectReferences
+                .Where(reference => exampleModules.Any(module =>
+                    reference.Contains(module, StringComparison.Ordinal)))
+                .Select(reference => $"{project.RepositoryPath} -> {reference}"))
+            .ToArray();
+
+        Assert.Empty(existing.Concat(references));
+    }
+
+    [Fact]
+    public void Handwritten_domain_files_stay_within_the_reviewable_size_limit()
+    {
+        string[] offenders = RepositoryPaths.EnumerateFiles("src/Modules", "*.cs")
+            .Where(path => RepositoryPaths.ToRepositoryPath(path).Contains(".Domain/", StringComparison.Ordinal))
+            .Where(path => !RepositoryPaths.ToRepositoryPath(path).Contains("/obj/", StringComparison.Ordinal))
+            .Select(path => new
+            {
+                Path = RepositoryPaths.ToRepositoryPath(path),
+                Lines = File.ReadLines(path).Count()
+            })
+            .Where(file => file.Lines > 400)
+            .Select(file => $"{file.Path} has {file.Lines} lines")
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Staff_cqrs_event_and_api_contract_files_define_one_top_level_type()
+    {
+        string[] ownedFolders =
+        [
+            ".Application/Commands/",
+            ".Application/Queries/",
+            ".Application/Handlers/",
+            ".Application/Validation/",
+            ".Domain/Events/",
+            ".Contracts/Events/",
+            ".Contracts/Api/"
+        ];
+        Regex declaration = new(
+            @"^(public|internal) (sealed |static |abstract )*(class|record|interface|enum) ",
+            RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        string[] offenders = RepositoryPaths.EnumerateFiles("src/Modules/Staff", "*.cs")
+            .Where(path => !RepositoryPaths.ToRepositoryPath(path).Contains("/obj/", StringComparison.Ordinal))
+            .Where(path => ownedFolders.Any(folder =>
+                RepositoryPaths.ToRepositoryPath(path).Contains(folder, StringComparison.Ordinal)))
+            .Select(path => new
+            {
+                Path = RepositoryPaths.ToRepositoryPath(path),
+                TypeCount = declaration.Count(File.ReadAllText(path))
+            })
+            .Where(file => file.TypeCount != 1)
+            .Select(file => $"{file.Path} defines {file.TypeCount} top-level types")
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Grouped_application_request_files_are_limited_to_the_cleanup_backlog()
+    {
+        HashSet<string> knownGroupedFiles = new(StringComparer.Ordinal)
+        {
+            "src/Modules/Guests/BunkFy.Modules.Guests.Application/Validation/GuestProfileValidators.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/DecideChangeProposalCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/LegalHoldCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/ManageAdapterConnectionCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/ManageAdapterIngressCredentialCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/ObservationReprocessingCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/RawPayloadRetentionCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/RemoteAdapterLeaseCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Commands/SensitiveHistoryRetentionCommands.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Queries/AdapterIngressCredentialQueries.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Queries/ChangeProposalQueries.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Queries/IngestionOperationsQueries.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Queries/LegalHoldQueries.cs",
+            "src/Modules/Reservations/BunkFy.Modules.Reservations.Application/Validation/ReservationStayCommandValidators.cs"
+        };
+        string[] offenders = RepositoryPaths.EnumerateFiles("src/Modules", "*.cs")
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .Where(path => path.EndsWith("Commands.cs", StringComparison.Ordinal) ||
+                           path.EndsWith("Queries.cs", StringComparison.Ordinal) ||
+                           path.EndsWith("Validators.cs", StringComparison.Ordinal))
+            .Where(path => !knownGroupedFiles.Contains(path))
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Source_roots_include_reusable_gma_modules_only()
     {
         string sourceRoots = RepositoryPaths.Read("Gma.SourceRoots.props.example");
         string[] expectedTokens =
@@ -150,11 +291,7 @@ public sealed partial class DeveloperExperienceGuardTests
             "<GmaModuleFilesRoot>$(GmaModulesRoot)files\\src\\</GmaModuleFilesRoot>",
             "<GmaModuleNotificationsRoot>$(GmaModulesRoot)notifications\\src\\</GmaModuleNotificationsRoot>",
             "<GmaModuleTaskRuntimeRoot>$(GmaModulesRoot)task-runtime\\src\\</GmaModuleTaskRuntimeRoot>",
-            "<GmaModuleTenancyRoot>$(GmaModulesRoot)tenancy\\src\\</GmaModuleTenancyRoot>",
-            "src\\Modules\\Catalog\\",
-            "src\\Modules\\Ordering\\",
-            "src\\Modules\\Properties\\",
-            "src\\Modules\\TaskSamples\\"
+            "<GmaModuleTenancyRoot>$(GmaModulesRoot)tenancy\\src\\</GmaModuleTenancyRoot>"
         ];
 
         string[] missing = expectedTokens

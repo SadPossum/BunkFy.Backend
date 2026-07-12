@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BunkFy.Modules.Guests.Admin.Contracts\BunkFy.Modules.Guests.Admin.Contracts.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Guests.Application\BunkFy.Modules.Guests.Application.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Guests.Contracts\BunkFy.Modules.Guests.Contracts.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Cli\Gma.Framework.Administration.Cli.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration\Gma.Framework.Administration.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Guests.Persistence\BunkFy.Modules.Guests.Persistence.csproj" />
+  </ItemGroup>
+</Project>

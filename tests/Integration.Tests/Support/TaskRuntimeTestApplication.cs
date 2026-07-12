@@ -1,27 +1,24 @@
 namespace Integration.Tests.Support;
 
 using System.Text.Json;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.Results;
+using Gma.Framework.Runtime.Time;
+using Gma.Framework.Tasks;
+using Gma.Framework.Tasks.Cqrs;
+using Gma.Framework.Tasks.Infrastructure;
+using Gma.Framework.Tenancy.Infrastructure;
+using Gma.Framework.Tenancy.Tasks;
+using Gma.Modules.TaskRuntime.Application;
+using Gma.Modules.TaskRuntime.Application.Commands;
+using Gma.Modules.TaskRuntime.Application.Queries;
+using Gma.Modules.TaskRuntime.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Gma.Framework.Cqrs;
-using Gma.Framework.Tasks;
-using Gma.Framework.Tasks.Cqrs;
-using Gma.Framework.Tasks.Infrastructure;
-using Gma.Framework.Results;
-using Gma.Framework.Persistence.EntityFrameworkCore;
-using Gma.Framework.Runtime.Time;
-using Gma.Modules.TaskRuntime.Application;
-using Gma.Modules.TaskRuntime.Application.Commands;
-using Gma.Modules.TaskRuntime.Application.Queries;
-using Gma.Modules.TaskRuntime.Persistence;
-using Gma.Framework.Tenancy.Infrastructure;
-using Gma.Framework.Tenancy.Tasks;
-using TaskSamples.Application;
-using TaskSamples.Application.Tasks;
-using TaskSamples.Contracts;
 
 internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
 {
@@ -33,11 +30,18 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         string provider,
         string connectionString,
         bool workerEnabled,
-        DateTimeOffset? clockUtcNow = null)
+        DateTimeOffset? clockUtcNow = null,
+        string workerId = "worker-test",
+        string nodeId = "node-test",
+        TimeSpan? leaseDuration = null,
+        TimeSpan? heartbeatInterval = null,
+        int maxConcurrency = 5,
+        int batchSize = 5,
+        bool retentionEnabled = false)
     {
         this.provider = provider;
         this.connectionString = connectionString;
-        this.Sink = new RecordingTaskSampleReportSink();
+        this.Sink = new RecordingTestTaskReportSink();
 
         HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -50,15 +54,21 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
             ["ConnectionStrings:PostgreSql"] = provider == "PostgreSql" ? connectionString : string.Empty,
             ["Tenancy:Enabled"] = "true",
             ["Tasks:Worker:Enabled"] = workerEnabled.ToString(),
-            ["Tasks:Worker:WorkerGroups:0"] = TaskSamplesModuleMetadata.WorkerGroup,
-            ["Tasks:Worker:BatchSize"] = "5",
+            ["Tasks:Worker:WorkerGroups:0"] = IntegrationTestTasks.WorkerGroup,
+            ["Tasks:Worker:BatchSize"] = batchSize.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["Tasks:Worker:MaxConcurrency"] = maxConcurrency.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["Tasks:Worker:PollInterval"] = "00:00:00.100",
-            ["Tasks:Worker:LeaseDuration"] = "00:00:05",
+            ["Tasks:Worker:LeaseDuration"] = (leaseDuration ?? TimeSpan.FromSeconds(5)).ToString("c"),
+            ["Tasks:Worker:HeartbeatInterval"] = heartbeatInterval?.ToString("c"),
             ["Tasks:Worker:HandlerTimeout"] = "00:00:05",
             ["Tasks:Worker:RetryBaseDelay"] = "00:00:00.100",
             ["Tasks:Worker:RetryMaxDelay"] = "00:00:01",
-            ["Tasks:Worker:WorkerId"] = "worker-test",
-            ["Tasks:Worker:NodeId"] = "node-test",
+            ["Tasks:Worker:WorkerId"] = workerId,
+            ["Tasks:Worker:NodeId"] = nodeId,
+            ["TaskRuntimeRetention:Enabled"] = retentionEnabled.ToString(),
+            ["TaskRuntimeRetention:CleanupInterval"] = "00:01:00",
+            ["TaskRuntimeRetention:BatchSize"] = "100",
+            ["TaskRuntimeRetention:MaxBatchesPerStatusPerCycle"] = "1",
         });
         builder.Logging.ClearProviders();
         if (clockUtcNow is not null)
@@ -73,13 +83,13 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         builder.AddTaskCqrs();
         builder.AddTaskWorkerRuntime();
         builder.Services.AddSingleton(this.Sink);
-        builder.Services.AddSingleton<ITaskSampleReportSink>(this.Sink);
-        builder.Services.AddTaskSamplesApplication();
+        builder.Services.AddSingleton<ITestTaskReportSink>(this.Sink);
+        builder.Services.AddIntegrationTestTasks();
 
         this.host = builder.Build();
     }
 
-    public RecordingTaskSampleReportSink Sink { get; }
+    public RecordingTestTaskReportSink Sink { get; }
 
     public IServiceProvider Services => this.host.Services;
 
@@ -113,24 +123,24 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         Guid runId,
         DateTimeOffset createdAtUtc,
         int maxAttempts = 3,
-        int payloadVersion = GenerateReportTaskPayload.PayloadVersion,
+        int payloadVersion = TestReportTaskPayload.PayloadVersion,
         string? deduplicationKey = null,
         string? payloadJson = null,
-        string taskName = GenerateReportTaskPayload.TaskName)
+        string taskName = TestReportTaskPayload.TaskName)
     {
         using IServiceScope scope = this.Services.CreateScope();
         ITaskRunStore store = scope.ServiceProvider.GetRequiredService<ITaskRunStore>();
-        string payload = payloadJson ?? JsonSerializer.Serialize(new GenerateReportTaskPayload("daily", 10));
+        string payload = payloadJson ?? JsonSerializer.Serialize(new TestReportTaskPayload("daily", 10));
 
         await store.EnqueueAsync(
                 new TaskRunRequest(
                     runId,
-                    TaskSamplesModuleMetadata.Name,
+                    IntegrationTestTasks.ModuleName,
                     taskName,
                     payload,
                     createdAtUtc,
                     createdAtUtc,
-                    TaskSamplesModuleMetadata.WorkerGroup,
+                    IntegrationTestTasks.WorkerGroup,
                     scopeId: "tenant-a",
                     requestedBy: "operator",
                     maxAttempts: maxAttempts,
@@ -151,7 +161,7 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
 
         return await store.ClaimReadyAsync(
                 new TaskWorkerClaim(
-                    TaskSamplesModuleMetadata.WorkerGroup,
+                    IntegrationTestTasks.WorkerGroup,
                     workerId,
                     nodeId,
                     nowUtc,
@@ -230,7 +240,7 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         string payloadJson,
         DateTimeOffset scheduledAtUtc,
         string? deduplicationKey = null,
-        int payloadVersion = GenerateReportTaskPayload.PayloadVersion)
+        int payloadVersion = TestReportTaskPayload.PayloadVersion)
     {
         using IServiceScope scope = this.Services.CreateScope();
         IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
@@ -238,11 +248,11 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         return await dispatcher.SendAsync(
                 new EnqueueTaskRunCommand(
                     runId,
-                    TaskSamplesModuleMetadata.Name,
-                    GenerateReportTaskPayload.TaskName,
+                    IntegrationTestTasks.ModuleName,
+                    TestReportTaskPayload.TaskName,
                     payloadJson,
                     scheduledAtUtc,
-                    TaskSamplesModuleMetadata.WorkerGroup,
+                    IntegrationTestTasks.WorkerGroup,
                     "tenant-a",
                     null,
                     "operator",
@@ -281,9 +291,9 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
         Result<IReadOnlyList<TaskRunSummary>> result = await dispatcher.QueryAsync(
                 new ListTaskRunsQuery(
-                    TaskSamplesModuleMetadata.Name,
-                    GenerateReportTaskPayload.TaskName,
-                    TaskSamplesModuleMetadata.WorkerGroup,
+                    IntegrationTestTasks.ModuleName,
+                    TestReportTaskPayload.TaskName,
+                    IntegrationTestTasks.WorkerGroup,
                     null,
                     "tenant-a",
                     1,
@@ -303,9 +313,9 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
         return await dispatcher.QueryAsync(
                 new GetTaskRunStatsQuery(
-                    TaskSamplesModuleMetadata.Name,
+                    IntegrationTestTasks.ModuleName,
                     null,
-                    TaskSamplesModuleMetadata.WorkerGroup,
+                    IntegrationTestTasks.WorkerGroup,
                     "tenant-a"),
                 CancellationToken.None)
             .ConfigureAwait(false);
@@ -383,9 +393,47 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
         return snapshot;
     }
 
+    public async Task AddPendingControlAsync(Guid messageId, Guid runId, DateTimeOffset enqueuedAtUtc)
+    {
+        using IServiceScope scope = this.Services.CreateScope();
+        TaskRuntimeDbContext dbContext = scope.ServiceProvider.GetRequiredService<TaskRuntimeDbContext>();
+        dbContext.TaskControlMessages.Add(TaskControlMessageState.Enqueue(new TaskControlMessage(
+            messageId,
+            runId,
+            "tasks.pause",
+            "{}",
+            enqueuedAtUtc,
+            "operator",
+            enqueuedAtUtc.AddYears(1))));
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    public async Task<bool> TaskRunExistsAsync(Guid runId)
+    {
+        using IServiceScope scope = this.Services.CreateScope();
+        TaskRuntimeDbContext dbContext = scope.ServiceProvider.GetRequiredService<TaskRuntimeDbContext>();
+        return await dbContext.TaskRuns.AnyAsync(run => run.Id == runId).ConfigureAwait(false);
+    }
+
+    public async Task<bool> WaitForTaskRunDeletionAsync(Guid runId, TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (!await this.TaskRunExistsAsync(runId).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+        }
+
+        return !await this.TaskRunExistsAsync(runId).ConfigureAwait(false);
+    }
+
     public async Task<TaskRunSnapshot> WaitForStatusAsync(
         Guid runId,
-        Gma.Framework.Tasks.TaskRunStatus expectedStatus,
+        TaskRunStatus expectedStatus,
         TimeSpan timeout)
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
@@ -415,11 +463,11 @@ internal sealed class TaskRuntimeTestApplication : IAsyncDisposable
     }
 }
 
-internal sealed class RecordingTaskSampleReportSink : ITaskSampleReportSink
+internal sealed class RecordingTestTaskReportSink : ITestTaskReportSink
 {
-    private readonly List<TaskSampleReport> reports = [];
+    private readonly List<TestTaskReport> reports = [];
 
-    public IReadOnlyList<TaskSampleReport> Reports
+    public IReadOnlyList<TestTaskReport> Reports
     {
         get
         {
@@ -430,7 +478,7 @@ internal sealed class RecordingTaskSampleReportSink : ITaskSampleReportSink
         }
     }
 
-    public Task RecordAsync(TaskSampleReport report, CancellationToken cancellationToken)
+    public Task RecordAsync(TestTaskReport report, CancellationToken cancellationToken)
     {
         lock (this.reports)
         {
@@ -440,12 +488,12 @@ internal sealed class RecordingTaskSampleReportSink : ITaskSampleReportSink
         return Task.CompletedTask;
     }
 
-    public async Task<IReadOnlyList<TaskSampleReport>> WaitForReportsAsync(int expectedCount, TimeSpan timeout)
+    public async Task<IReadOnlyList<TestTaskReport>> WaitForReportsAsync(int expectedCount, TimeSpan timeout)
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
         while (DateTimeOffset.UtcNow < deadline)
         {
-            IReadOnlyList<TaskSampleReport> current = this.Reports;
+            IReadOnlyList<TestTaskReport> current = this.Reports;
             if (current.Count >= expectedCount)
             {
                 return current;

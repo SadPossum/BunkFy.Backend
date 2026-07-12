@@ -12,6 +12,7 @@ $arguments = @(
     (Join-GmaPath 'BunkFy.slnx'),
     '--filter',
     'Category!=Docker',
+    '-m:1',
     '--logger',
     'console;verbosity=minimal'
 )

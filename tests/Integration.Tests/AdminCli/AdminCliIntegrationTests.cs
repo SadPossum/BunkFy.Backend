@@ -1,13 +1,13 @@
 namespace Integration.Tests;
 
+using DotNet.Testcontainers.Containers;
+using Gma.Framework.Administration;
+using Gma.Framework.Administration.Cli;
 using Gma.Modules.AccessControl.Application;
 using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
-using DotNet.Testcontainers.Containers;
 using Integration.Tests.Support;
-using Gma.Framework.Administration;
-using Gma.Framework.Administration.Cli;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Xunit;

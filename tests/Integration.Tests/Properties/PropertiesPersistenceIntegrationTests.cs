@@ -1,19 +1,19 @@
 namespace Integration.Tests;
 
 using System.Globalization;
-using Properties.Application.Ports;
-using Properties.Contracts;
-using Properties.Domain.Aggregates;
-using Properties.Domain.Entities;
-using Properties.Persistence;
-using Gma.Framework.Scoping;
-using Gma.Framework.ProjectionRebuild;
 using Gma.Framework.Pagination;
+using Gma.Framework.ProjectionRebuild;
+using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using BunkFy.Modules.Properties.Application.Ports;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.Entities;
+using BunkFy.Modules.Properties.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
 

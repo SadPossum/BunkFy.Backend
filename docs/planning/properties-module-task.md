@@ -39,15 +39,15 @@ Do not implement:
 
 Use the GMA module layout:
 
-- `Properties.Contracts`
-- `Properties.Domain`
-- `Properties.Application`
-- `Properties.Persistence`
-- `Properties.Persistence.PostgreSqlMigrations`
-- `Properties.Api`
-- `Properties.Admin.Contracts`
-- `Properties.AdminCli`
-- `Properties.AdminApi`
+- `BunkFy.Modules.Properties.Contracts`
+- `BunkFy.Modules.Properties.Domain`
+- `BunkFy.Modules.Properties.Application`
+- `BunkFy.Modules.Properties.Persistence`
+- `BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations`
+- `BunkFy.Modules.Properties.Api`
+- `BunkFy.Modules.Properties.Admin.Contracts`
+- `BunkFy.Modules.Properties.AdminCli`
+- `BunkFy.Modules.Properties.AdminApi`
 
 Use PostgreSQL-only migrations for this first product module. Keep runtime domain/application code database-provider agnostic.
 

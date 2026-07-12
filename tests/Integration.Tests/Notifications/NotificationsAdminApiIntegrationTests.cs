@@ -3,10 +3,10 @@ namespace Integration.Tests;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Integration.Tests.Support;
+using Gma.Framework.Administration;
 using Gma.Modules.Notifications.Admin.Contracts;
 using Gma.Modules.Notifications.Contracts;
-using Gma.Framework.Administration;
+using Integration.Tests.Support;
 using Xunit;
 
 public sealed class NotificationsAdminApiIntegrationTests

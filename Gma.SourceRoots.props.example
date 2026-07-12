@@ -10,9 +10,5 @@
     <GmaModuleNotificationsRoot>$(GmaModulesRoot)notifications\src\</GmaModuleNotificationsRoot>
     <GmaModuleTaskRuntimeRoot>$(GmaModulesRoot)task-runtime\src\</GmaModuleTaskRuntimeRoot>
     <GmaModuleTenancyRoot>$(GmaModulesRoot)tenancy\src\</GmaModuleTenancyRoot>
-    <GmaModuleCatalogRoot>$(MSBuildThisFileDirectory)src\Modules\Catalog\</GmaModuleCatalogRoot>
-    <GmaModuleOrderingRoot>$(MSBuildThisFileDirectory)src\Modules\Ordering\</GmaModuleOrderingRoot>
-    <GmaModulePropertiesRoot>$(MSBuildThisFileDirectory)src\Modules\Properties\</GmaModulePropertiesRoot>
-    <GmaModuleTaskSamplesRoot>$(MSBuildThisFileDirectory)src\Modules\TaskSamples\</GmaModuleTaskSamplesRoot>
   </PropertyGroup>
 </Project>

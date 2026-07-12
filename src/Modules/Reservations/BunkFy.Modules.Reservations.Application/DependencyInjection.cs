@@ -1,0 +1,90 @@
+namespace BunkFy.Modules.Reservations.Application;
+
+using Gma.Framework.AccessControl;
+using Gma.Framework.Application.Composition;
+using Gma.Framework.Messaging;
+using Gma.Framework.ProjectionRebuild.Tasks;
+using Gma.Framework.Tasks;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Inventory.Contracts;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using BunkFy.Modules.Reservations.Application.External;
+using BunkFy.Modules.Reservations.Application.Handlers;
+using BunkFy.Modules.Reservations.Application.Tasks;
+using BunkFy.Modules.Reservations.Contracts;
+public static class DependencyInjection
+{
+    public static IServiceCollection AddReservationsApplication(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
+        services.AddGmaAccessControlPermissionPolicies(ReservationsModuleMetadata.Descriptor);
+        services.AddIntegrationEventHandler<InventoryAllocationConfirmedIntegrationEvent, InventoryAllocationConfirmedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<InventoryAllocationRejectedIntegrationEvent, InventoryAllocationRejectedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<InventoryAllocationReleasedIntegrationEvent, InventoryAllocationReleasedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<InventoryAllocationReleaseRejectedIntegrationEvent, InventoryAllocationReleaseRejectedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<InventoryAllocationAmendmentConfirmedIntegrationEvent, InventoryAllocationAmendmentConfirmedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<InventoryAllocationAmendmentRejectedIntegrationEvent, InventoryAllocationAmendmentRejectedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<InventoryUnitDefinitionChangedIntegrationEvent, InventoryUnitDefinitionChangedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<ManualInventoryBlockCreatedIntegrationEvent, InventoryManualBlockCreatedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<ManualInventoryBlockReleasedIntegrationEvent, InventoryManualBlockReleasedHandler>(
+            ReservationsModuleMetadata.Name,
+            InventoryModuleMetadata.Name);
+        services.AddIntegrationEventHandler<ExternalReservationCreateRequestedIntegrationEvent, ExternalReservationCreateRequestedHandler>(
+            ReservationsModuleMetadata.Name,
+            ReservationsModuleMetadata.ExternalOperationSourceModuleName);
+        services.AddIntegrationEventHandler<ExternalReservationGuestDetailsChangeRequestedIntegrationEvent, ExternalReservationGuestDetailsChangeRequestedHandler>(
+            ReservationsModuleMetadata.Name,
+            ReservationsModuleMetadata.ExternalOperationSourceModuleName);
+        services.AddIntegrationEventHandler<ExternalReservationAmendmentRequestedIntegrationEvent, ExternalReservationAmendmentRequestedHandler>(
+            ReservationsModuleMetadata.Name,
+            ReservationsModuleMetadata.ExternalOperationSourceModuleName);
+        services.AddIntegrationEventHandler<ExternalReservationCancellationRequestedIntegrationEvent, ExternalReservationCancellationRequestedHandler>(
+            ReservationsModuleMetadata.Name,
+            ReservationsModuleMetadata.ExternalOperationSourceModuleName);
+        services.AddIntegrationEventHandler<GuestProfileCreatedIntegrationEvent, GuestProfileCreatedProjectionHandler>(
+            ReservationsModuleMetadata.Name,
+            GuestsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<GuestProfileUpdatedIntegrationEvent, GuestProfileUpdatedProjectionHandler>(
+            ReservationsModuleMetadata.Name,
+            GuestsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<GuestProfileArchivedIntegrationEvent, GuestProfileArchivedProjectionHandler>(
+            ReservationsModuleMetadata.Name,
+            GuestsModuleMetadata.Name);
+        services.TryAddScoped<ExternalReservationOperationCoordinator>();
+        services.TryAddScoped<ReservationInboxDomainEventDispatcher>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddReservationsTaskHandlers(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddProjectionRebuildTasks();
+        services.AddTaskHandler<RebuildReservationInventoryProjectionPayload, RebuildReservationInventoryProjectionTaskHandler>(
+            ReservationsModuleMetadata.Name);
+        services.AddTaskHandler<RebuildReservationGuestProfilesPayload, RebuildReservationGuestProfilesTaskHandler>(
+            ReservationsModuleMetadata.Name);
+
+        return services;
+    }
+}

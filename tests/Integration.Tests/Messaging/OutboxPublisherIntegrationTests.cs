@@ -1,11 +1,11 @@
 namespace Integration.Tests;
 
-using DotNet.Testcontainers.Containers;
 using BunkFy.Host.Worker;
+using DotNet.Testcontainers.Containers;
+using Gma.Framework.ModuleComposition;
 using Integration.Tests.Support;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Gma.Framework.ModuleComposition;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -91,7 +91,7 @@ public sealed class OutboxPublisherIntegrationTests
         string natsConnectionString,
         string streamName)
     {
-        HostApplicationBuilder builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
             EnvironmentName = "Integration",
         });

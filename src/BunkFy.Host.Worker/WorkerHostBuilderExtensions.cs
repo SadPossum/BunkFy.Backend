@@ -2,27 +2,37 @@ namespace BunkFy.Host.Worker;
 
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Persistence;
-using Catalog.Application;
-using Catalog.Contracts;
-using Catalog.Persistence;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Ordering.Application;
-using Ordering.Contracts;
-using Ordering.Persistence;
-using Properties.Contracts;
-using Properties.Persistence;
-using Inventory.Application;
-using Inventory.Contracts;
-using Inventory.Persistence;
-using Reservations.Application;
-using Reservations.Contracts;
-using Reservations.Persistence;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Inventory.Application;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Reservations.Application;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Guests.Application;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.Staff.Application;
+using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Ingestion.Application;
+using BunkFy.Modules.Ingestion.Contracts;
+using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Adapters.Configuration;
+using BunkFy.Adapters.FakeHttp;
+using BunkFy.Adapters.ImapReservationMail;
+using BunkFy.Adapters.JsonFileDrop;
+using BunkFy.Parsers.ReservationMail;
 using BunkFy.Host.ServiceDefaults;
 using Gma.Framework.Caching.Cqrs;
 using Gma.Framework.Caching.Redis;
 using Gma.Framework.Infrastructure;
+using Gma.Framework.FileManagement.Minio;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Messaging.Nats.Aspire;
 using Gma.Framework.ModuleComposition;
@@ -34,7 +44,6 @@ using Gma.Framework.Tenancy.Tasks;
 using Gma.Modules.TaskRuntime.Application;
 using Gma.Modules.TaskRuntime.Contracts;
 using Gma.Modules.TaskRuntime.Persistence;
-using TaskSamples.Application;
 
 public static class WorkerHostBuilderExtensions
 {
@@ -101,24 +110,6 @@ public static class WorkerHostBuilderExtensions
             builder.AddAuthPersistence();
         }
 
-        if (workerOptions.Modules.Catalog)
-        {
-            builder.SelectModuleProfile(CatalogProfiles.Default, "BunkFy.Host.Worker/Catalog");
-            builder.Services.AddCatalogApplication();
-            builder.AddCatalogPersistence();
-        }
-
-        if (workerOptions.Modules.Ordering)
-        {
-            builder.SelectModuleProfile(OrderingProfiles.Default, "BunkFy.Host.Worker/Ordering");
-            builder.Services.AddOrderingApplication();
-            if (workerOptions.TaskWorkerEnabled)
-            {
-                builder.Services.AddOrderingTaskHandlers();
-            }
-            builder.AddOrderingPersistence();
-        }
-
         if (workerOptions.Modules.Properties)
         {
             builder.SelectModuleProfile(PropertiesProfiles.Default, "BunkFy.Host.Worker/Properties");
@@ -147,6 +138,45 @@ public static class WorkerHostBuilderExtensions
             builder.AddReservationsPersistence();
         }
 
+        if (workerOptions.Modules.Guests)
+        {
+            builder.SelectModuleProfile(GuestsProfiles.Default, "BunkFy.Host.Worker/Guests");
+            builder.Services.AddGuestsApplication();
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddGuestsTaskHandlers();
+            }
+            builder.AddGuestsPersistence();
+        }
+
+        if (workerOptions.Modules.Staff)
+        {
+            builder.SelectModuleProfile(StaffProfiles.Default, "BunkFy.Host.Worker/Staff");
+            builder.Services.AddStaffApplication();
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddStaffTaskHandlers();
+            }
+            builder.AddStaffPersistence();
+        }
+
+        if (workerOptions.Modules.Ingestion)
+        {
+            builder.AddMinioFileStorage();
+            builder.SelectModuleProfile(IngestionProfiles.Default, "BunkFy.Host.Worker/Ingestion");
+            builder.Services.AddIngestionApplication();
+            builder.Services.AddLocalAdapterConfigurationMaterials(builder.Configuration);
+            builder.Services.AddFakeHttpAdapter();
+            builder.Services.AddImapReservationMailAdapter();
+            builder.Services.AddReservationMailParser();
+            builder.Services.AddJsonFileDropAdapter(ResolveJsonFileDropOptions(builder));
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddIngestionTaskHandlers();
+            }
+            builder.AddIngestionPersistence();
+        }
+
         if (workerOptions.Modules.TaskRuntime)
         {
             builder.SelectModuleProfile(TaskRuntimeProfiles.Default, "BunkFy.Host.Worker/TaskRuntime");
@@ -154,10 +184,26 @@ public static class WorkerHostBuilderExtensions
             builder.AddTaskRuntimePersistence();
         }
 
-        if (workerOptions.Modules.TaskSamples)
-        {
-            builder.AddTaskCqrs();
-            builder.Services.AddTaskSamplesApplication();
-        }
+    }
+
+    private static JsonFileDropAdapterOptions ResolveJsonFileDropOptions(IHostApplicationBuilder builder)
+    {
+        string configured = builder.Configuration["Adapters:JsonFileDrop:RootPath"] ??
+            Path.Combine("data", "adapter-file-drop");
+        string root = Path.IsPathRooted(configured)
+            ? configured
+            : Path.Combine(builder.Environment.ContentRootPath, configured);
+        return new JsonFileDropAdapterOptions(
+            root,
+            builder.Configuration.GetValue(
+                "Adapters:JsonFileDrop:ProcessedArchiveRetention",
+                JsonFileDropAdapterOptions.DefaultProcessedArchiveRetention),
+            builder.Configuration.GetValue(
+                "Adapters:JsonFileDrop:FailedQuarantineRetention",
+                JsonFileDropAdapterOptions.DefaultFailedQuarantineRetention),
+            builder.Configuration.GetValue(
+                "Adapters:JsonFileDrop:MaximumDeletesPerRun",
+                JsonFileDropAdapterOptions.DefaultMaximumDeletesPerRun),
+            builder.Configuration.GetValue("Adapters:JsonFileDrop:RetentionEnabled", true));
     }
 }

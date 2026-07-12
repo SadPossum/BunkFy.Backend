@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\BunkFy.Adapter.Abstractions\BunkFy.Adapter.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

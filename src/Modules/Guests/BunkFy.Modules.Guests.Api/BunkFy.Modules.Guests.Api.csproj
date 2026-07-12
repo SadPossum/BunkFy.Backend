@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BunkFy.Modules.Guests.Application\BunkFy.Modules.Guests.Application.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Guests.Contracts\BunkFy.Modules.Guests.Contracts.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Guests.Persistence\BunkFy.Modules.Guests.Persistence.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api\Gma.Framework.Api.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs\Gma.Framework.Cqrs.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Modules\Gma.Framework.ModuleComposition\Gma.Framework.ModuleComposition.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.AccessControl.AspNetCore\Gma.Framework.AccessControl.AspNetCore.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Tenancy\Gma.Framework.Tenancy.AccessControl.AspNetCore\Gma.Framework.Tenancy.AccessControl.AspNetCore.csproj" />
+  </ItemGroup>
+</Project>

@@ -10,8 +10,7 @@ param(
     [switch] $AdminApi,
     [switch] $Inbox,
     [switch] $Outbox,
-    [switch] $Cache,
-    [switch] $RegisterInHost
+    [switch] $Cache
 )
 
 . (Join-Path $PSScriptRoot 'common.ps1')
@@ -20,4 +19,9 @@ $repositoryRoot = Get-GmaRepositoryRoot
 $implementation = Join-Path $repositoryRoot 'gma\framework\eng\new-module.ps1'
 
 & $implementation @PSBoundParameters -RepositoryRoot $repositoryRoot -CompositionSolution 'BunkFy.slnx'
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+& (Join-Path $PSScriptRoot 'brand-module.ps1') -Name $Name
 exit $LASTEXITCODE

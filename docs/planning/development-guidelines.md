@@ -80,6 +80,8 @@ Keep module ownership explicit:
 - provider/import adapters update product modules through commands/events;
 - product modules stay agnostic to database provider and external data source details.
 
+Keep transport-neutral local/remote adapter protocol types in `src/Shared/BunkFy.Adapter.Abstractions`. Provider-specific acquisition and parsing live in adapter projects or processes, not in Ingestion or product modules. Do not move the abstraction to GMA until materially different adapters validate that it is generic.
+
 ## Dependency Rules
 
 Do:
@@ -105,6 +107,8 @@ Use GMA `Result`/`Result<T>` for expected failures. Error codes are stable publi
 Keep detailed diagnostics in logs, not in `Error.Message`. Domain invariants return domain errors; application validation returns application errors; front doors map expected errors to HTTP/admin/CLI shape at the edge.
 
 Use GMA CQRS validators for request-shape checks. Keep deeper business invariants in aggregates and domain services. Do not add a parallel validation framework by default.
+
+Keep one command, query, handler, validator, event, or public contract DTO per file when the types have independent behavior or ownership. Split module endpoint registration by route capability once the module front door stops being readable at a glance. Keep handwritten domain files within the architecture-test size limit by extracting real value objects/entities and cohesive aggregate capability files; do not create empty wrappers merely to satisfy a line count.
 
 Normalize paging through GMA pagination helpers rather than copying local `Math.Max`/`Math.Clamp` rules into handlers or repositories.
 

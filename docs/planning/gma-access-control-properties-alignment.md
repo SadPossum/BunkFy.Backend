@@ -60,7 +60,7 @@ Required GMA tests:
    - `PermissionScopeRequirement.Scoped` metadata;
    - `AuthProfile.ScopeAware()`.
 4. Keep BunkFy contract language tenant-shaped where it is a product fact. The active `ScopeId` is the tenant id in Properties, and contract/event fields may continue to say `TenantId` deliberately.
-5. Catalog, Ordering, and TaskSamples remain as local examples for now and have been ported to the current scope-aware contracts. Reconsider their removal once Properties provides all examples needed by BunkFy development.
+5. The copied Catalog, Ordering, and TaskSamples examples were removed once the BunkFy product modules provided equivalent composition and testing patterns.
 6. Update architecture guards for the new source projects, paths, profile names, and module metadata APIs.
 7. Restore, build, run focused package tests, Properties tests, and architecture tests before continuing.
 

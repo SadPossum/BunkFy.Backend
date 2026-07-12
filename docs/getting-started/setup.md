@@ -30,5 +30,5 @@ For standalone backend work, initialize this repository's GMA submodules, then r
 
 ## Current Scope
 
-This repository contains the backend foundation plus the Properties and Inventory product modules. Public API, admin API/CLI, worker, service defaults, persisted access control, PostgreSQL migrations, architecture/integration tests, and copied examples are composed; Reservations is the next product module to plan.
+This repository contains the backend foundation plus Properties, Inventory, Reservations, Ingestion/adapters, Guest Records, and Staff Profiles. Public API, admin API/CLI, worker, service defaults, persisted access control, PostgreSQL migrations, architecture/integration tests, and copied examples are composed.
 

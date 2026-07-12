@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BunkFy.Modules.Ingestion.Admin.Contracts\BunkFy.Modules.Ingestion.Admin.Contracts.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Ingestion.Application\BunkFy.Modules.Ingestion.Application.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Cli\Gma.Framework.Administration.Cli.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration\Gma.Framework.Administration.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs\Gma.Framework.Cqrs.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Modules\Gma.Framework.ModuleComposition\Gma.Framework.ModuleComposition.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Pagination\Gma.Framework.Pagination\Gma.Framework.Pagination.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Results\Gma.Framework.Results\Gma.Framework.Results.csproj" />
+    <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Application\Gma.Modules.TaskRuntime.Application.csproj" />
+    <ProjectReference Include="..\BunkFy.Modules.Ingestion.Persistence\BunkFy.Modules.Ingestion.Persistence.csproj" />
+  </ItemGroup>
+</Project>

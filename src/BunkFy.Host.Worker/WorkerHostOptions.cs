@@ -30,13 +30,13 @@ public sealed class WorkerHostOptions
         IConfigurationSection modules = configuration.GetSection($"{SectionName}:Modules");
         WorkerModuleOptions moduleOptions = new(
             GetBoolean(modules, nameof(WorkerModuleOptions.Auth), defaultValue: false),
-            GetBoolean(modules, nameof(WorkerModuleOptions.Catalog), defaultValue: false),
-            GetBoolean(modules, nameof(WorkerModuleOptions.Ordering), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Properties), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Inventory), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Reservations), defaultValue: false),
-            GetBoolean(modules, nameof(WorkerModuleOptions.TaskRuntime), defaultValue: false),
-            GetBoolean(modules, nameof(WorkerModuleOptions.TaskSamples), defaultValue: false));
+            GetBoolean(modules, nameof(WorkerModuleOptions.Guests), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.Staff), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.Ingestion), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.TaskRuntime), defaultValue: false));
 
         return new WorkerHostOptions(
             moduleOptions,
@@ -54,16 +54,6 @@ public sealed class WorkerHostOptions
             modules.Add("auth");
         }
 
-        if (this.Modules.Catalog)
-        {
-            modules.Add("catalog");
-        }
-
-        if (this.Modules.Ordering)
-        {
-            modules.Add("ordering");
-        }
-
         if (this.Modules.Properties)
         {
             modules.Add("properties");
@@ -79,14 +69,24 @@ public sealed class WorkerHostOptions
             modules.Add("reservations");
         }
 
+        if (this.Modules.Guests)
+        {
+            modules.Add("guests");
+        }
+
+        if (this.Modules.Staff)
+        {
+            modules.Add("staff");
+        }
+
+        if (this.Modules.Ingestion)
+        {
+            modules.Add("ingestion");
+        }
+
         if (this.Modules.TaskRuntime)
         {
             modules.Add("task-runtime");
-        }
-
-        if (this.Modules.TaskSamples)
-        {
-            modules.Add("task-samples");
         }
 
         return modules;
@@ -103,10 +103,10 @@ public sealed class WorkerHostOptions
 
 public sealed record WorkerModuleOptions(
     bool Auth,
-    bool Catalog,
-    bool Ordering,
     bool Properties,
     bool Inventory,
     bool Reservations,
-    bool TaskRuntime,
-    bool TaskSamples);
+    bool Guests,
+    bool Staff,
+    bool Ingestion,
+    bool TaskRuntime);

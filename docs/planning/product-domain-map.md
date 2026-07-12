@@ -82,7 +82,7 @@ Owns booking lifecycle:
 
 Reservations should depend on Properties/Inventory concepts, but should not absorb inventory locking/allocation, accounting, rates, or provider-adapter logic.
 
-The first Reservations slice is implemented with direct multi-unit allocation, cancellation release, scoped management surfaces, and a rebuildable local Inventory projection. Stay operations, amendments, guest profiles, rates, and accounting remain later slices.
+Reservations now includes direct multi-unit allocation, cancellation release, check-in/no-show/check-out, adapter-safe amendments, canonical guest-role links, scoped management surfaces, and rebuildable local Inventory and Guest eligibility projections. Rates and accounting remain separate later slices.
 
 ### Guest Records
 
@@ -95,20 +95,22 @@ Owns staff-managed guest data:
 
 This is not a guest account module and should not imply guest login.
 
+The first Guest Records slice is implemented with canonical profiles, property-scoped visibility, reservation participant projection, stay history, explicit inactive-link audit state, and rebuildable cross-module projections. Identity documents, consent/retention workflows, merge/split, and entity resolution remain deferred.
+
 ### Staff And Access Policy
 
-Uses GMA Auth and Administration for identity, roles, permissions, and admin surfaces. BunkFy may later need product-specific staff profile and policy modules for:
+Uses GMA Auth, AccessControl, and Administration for identities, roles, permissions, and generic admin infrastructure. BunkFy's Staff module owns product-specific employment profiles and work assignments:
 
 - staff profile details;
 - department/job labels;
 - property assignments;
 - staff status;
-- property-scoped permissions;
+- property work assignments that never grant permissions;
 - approvals and overrides.
 
-Early modules should declare clear operation names so policy can grow without rewriting domain logic.
+The first Staff Profiles slice is implemented with tenant-wide profiles, optional Auth subject correlation, explicit active/suspended/departed lifecycle, retained property assignment history, public/Admin API and Admin CLI surfaces, PII-free integration facts, and a rebuildable Properties projection.
 
-Evaluate the existing GMA policy helpers before this module grows too far. If the helper surface is too thin, improve the generic GMA policy/auth pipeline rather than baking BunkFy-only JWT behavior into product modules.
+Auth account lifecycle and Staff employment lifecycle deliberately remain separate. A Staff assignment cannot grant access, and an AccessControl grant does not prove employment. Coordinated provisioning/offboarding, approvals, workforce scheduling, and payroll remain later workflows.
 
 ### Files
 
@@ -237,6 +239,8 @@ Product modules should receive normalized updates and remain agnostic to where d
 
 Sequence this after Reservations once Properties, Inventory, and Reservations expose enough canonical model to update. It may come before or after Staff/Access depending on the first real product or integration need.
 
+Implementation is now substantial. Ingestion owns durable connections, local and remotely leased runs, receipts, conflict proposals, reservation dispatch/recovery, operator controls, retention, legal holds, health, polling schedules, authenticated external ingress, server checkpoints, and retained-source reprocessing. Long-lived source-link comparison state is reduced to a strict non-PII operational baseline; active proposals, bounded reprocessing reservations, and property legal holds protect raw source evidence according to distinct lifecycles; terminal normalized proposal/dispatch bodies have persisted deadlines plus reason-preserving redaction. The shared adapter protocol is exercised by HTTP polling, JSON file-drop polling, strict IMAP reservation-mail polling, a dependency-light HTTP client, and a standalone daemon with either server-owned lease fencing or explicit local-file coordination. A host-composed versioned parser now proves immutable source evidence plus derived observation lineage. Vendor-specific OTA/mail/HTML parsers and fleet-wide claim-any scheduling remain later slices.
+
 ### Reporting And Analytics
 
 Owns operational and financial views:
@@ -310,4 +314,4 @@ This overlaps with Data Providers/Ingestion but may become a separate management
 
 ## Suggested Next Slice
 
-Properties, Inventory, and the first Reservations lifecycle are complete. Choose the next active module from the first real product pressure: Guest Records for durable guest identity/history, Data Providers/Ingestion for importing external reservations, or Staff Profiles if operational assignments become the immediate need. Keep Rates, Billing, stay operations, and temporary holds separate until their workflows are concrete.
+Properties, Inventory, the provider-agnostic Ingestion platform milestone, the operational Reservations lifecycle, Guest Records, and the first Staff Profiles slice are complete. The next module should be chosen from a concrete operating need rather than precommitted here; Rates, Billing, business-day close/reopen, housekeeping, and temporary holds remain separate candidates.
