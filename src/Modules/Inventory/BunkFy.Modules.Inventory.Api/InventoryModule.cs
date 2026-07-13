@@ -53,6 +53,7 @@ public sealed class InventoryModule : IModule
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomInventoryListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.Read,
@@ -71,6 +72,7 @@ public sealed class InventoryModule : IModule
                     request.SalesMode,
                     request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomInventoryDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.Configure,
@@ -85,6 +87,7 @@ public sealed class InventoryModule : IModule
             (await dispatcher.QueryAsync(
                 new GetInventoryAvailabilityQuery(propertyId, arrival, departure),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<InventoryAvailabilityResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.Read,
@@ -106,6 +109,7 @@ public sealed class InventoryModule : IModule
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<ManualInventoryBlockListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.Read,
@@ -124,6 +128,7 @@ public sealed class InventoryModule : IModule
                     request.Departure,
                     request.Reason),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<ManualInventoryBlockDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,
@@ -138,6 +143,7 @@ public sealed class InventoryModule : IModule
             (await dispatcher.SendAsync(
                 new ReleaseManualInventoryBlockCommand(propertyId, blockId, request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<ManualInventoryBlockDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,

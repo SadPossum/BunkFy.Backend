@@ -79,4 +79,21 @@ internal static class AuthApiClient
         request.Content = JsonContent.Create(value);
         return await client.SendAsync(request).ConfigureAwait(false);
     }
+
+    public static async Task<HttpResponseMessage> PostAsync(
+        HttpClient client,
+        string scopeId,
+        string path,
+        string? bearerToken = null)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Post, path);
+        request.Headers.Add(TenantHeader, scopeId);
+
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+        }
+
+        return await client.SendAsync(request).ConfigureAwait(false);
+    }
 }

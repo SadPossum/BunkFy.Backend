@@ -33,7 +33,7 @@ Public API modules composed by `src/BunkFy.Host.Api`:
 
 Admin API/CLI compose reusable administration, auth, and task-runtime modules plus the BunkFy product administration surfaces. The worker keeps product background module groups opt-in.
 
-The copied Aspire host under `src/BunkFy.Host.AppHost` can run the backend stack standalone. The root BunkFy Aspire host composes the backend and frontend together.
+The Aspire host under `src/BunkFy.Host.AppHost` can run the backend stack standalone. It and the root full-stack AppHost use `src/Shared/BunkFy.AppHost.Composition`, keeping infrastructure, optional worker/admin resources, module switches, and MinIO wiring aligned.
 
 ## Documentation
 
@@ -63,5 +63,8 @@ For standalone backend work, initialize the nested GMA submodules and run:
 - NATS/JetStream, Redis caching hooks, OpenAPI, Prometheus-compatible metrics, and the worker host are wired as composition concerns.
 - TaskRuntime admin API/CLI controls are baseline admin surfaces. The worker enables TaskRuntime when `AppHost:Worker:Enabled=true`; product task handlers are added by BunkFy modules.
 - Tenant-aware Auth is enabled because BunkFy is expected to support real multi-property/operator deployments.
+- Browser clients use the `/api/auth/browser/*` session surface: refresh context is held in path-scoped HttpOnly cookies and responses expose only the short-lived access token. Bearer-oriented Auth endpoints remain available for non-browser clients.
+- `/api/access/permissions/evaluate` provides bounded, tenant-scoped effective-permission decisions for client UX. It does not replace authorization on module endpoints.
+- `eng/export-openapi.ps1` exports or checks the public Swagger snapshot consumed by the root `eng/update-web-contracts.ps1` workflow.
 - BunkFy is a management-only PMS surface for operators and staff. Guests do not get accounts or direct access to this system.
 - Keep product-specific PMS behavior in this repository, not in GMA modules, unless the behavior is reusable across products.

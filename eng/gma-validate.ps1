@@ -26,7 +26,13 @@ foreach ($solution in $solutions) {
     $solutionPath = Join-GmaPath $solution
 
     if (-not $SkipRestore) {
-        Invoke-GmaDotNet -Arguments @('restore', $solutionPath)
+        Invoke-GmaDotNet -Arguments @(
+            'restore',
+            $solutionPath,
+            '--disable-parallel',
+            '-m:1',
+            '-p:BuildInParallel=false'
+        )
     }
 
     if (-not $SkipBuild) {

@@ -61,6 +61,7 @@ public sealed class ReservationsModule : IModule
                     request.SourceReference,
                     request.Notes),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ReservationDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Create,
@@ -80,6 +81,7 @@ public sealed class ReservationsModule : IModule
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ReservationListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Read,
@@ -93,6 +95,7 @@ public sealed class ReservationsModule : IModule
             (await dispatcher.QueryAsync(
                 new GetReservationQuery(propertyId, reservationId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ReservationDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Read,
@@ -182,6 +185,7 @@ public sealed class ReservationsModule : IModule
             (await dispatcher.SendAsync(
                 new CancelReservationCommand(propertyId, reservationId, request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ReservationDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Cancel,

@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Host.Api;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -104,6 +105,48 @@ public sealed class PropertiesAuthorizationIntegrationTests
             tenantManagerB.AccessToken,
             "Gamma House",
             "GAMMA").ConfigureAwait(false);
+
+        using (HttpResponseMessage permissionEvaluation = await SendAsync(
+                   client,
+                   HttpMethod.Post,
+                   TenantA,
+                   "/api/access/permissions/evaluate",
+                   tenantManagerA.AccessToken,
+                   new AccessPermissionEvaluationRequest([
+                       new AccessPermissionCheck(
+                           PropertiesAdminPermissionCodes.PropertiesManage,
+                           $"tenant:{TenantA}"),
+                       new AccessPermissionCheck(
+                           PropertiesAdminPermissionCodes.RoomsManage,
+                           $"tenant:{TenantA}/property:{propertyA1.PropertyId:D}"),
+                       new AccessPermissionCheck(
+                           "inventory.configure",
+                           $"tenant:{TenantA}/property:{propertyA1.PropertyId:D}")
+                   ])).ConfigureAwait(false))
+        {
+            AccessPermissionEvaluationResponse evaluation =
+                await ReadSuccessAsync<AccessPermissionEvaluationResponse>(permissionEvaluation).ConfigureAwait(false);
+            Assert.Collection(
+                evaluation.Permissions,
+                decision => Assert.True(decision.Allowed),
+                decision => Assert.True(decision.Allowed),
+                decision => Assert.False(decision.Allowed));
+        }
+
+        using (HttpResponseMessage foreignTenantScope = await SendAsync(
+                   client,
+                   HttpMethod.Post,
+                   TenantA,
+                   "/api/access/permissions/evaluate",
+                   tenantManagerA.AccessToken,
+                   new AccessPermissionEvaluationRequest([
+                       new AccessPermissionCheck(
+                           PropertiesAdminPermissionCodes.Read,
+                           $"tenant:{TenantB}/property:{propertyB.PropertyId:D}")
+                   ])).ConfigureAwait(false))
+        {
+            await AssertStatusAsync(HttpStatusCode.BadRequest, foreignTenantScope).ConfigureAwait(false);
+        }
 
         using (HttpResponseMessage tenantList = await SendAsync(
                    client,

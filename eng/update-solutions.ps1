@@ -55,38 +55,67 @@ function Add-SolutionEntry {
     }
 }
 
+function Get-OrdinalSortedStrings {
+    param([Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]] $Values)
+
+    $sorted = [System.Collections.Generic.List[string]]::new()
+    foreach ($value in $Values) {
+        [void]$sorted.Add($value)
+    }
+
+    $sorted.Sort([System.StringComparer]::Ordinal)
+    return $sorted
+}
+
 function Write-SolutionFile {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Path,
 
         [Parameter(Mandatory = $true)]
-        [hashtable] $Folders
+        [hashtable] $Folders,
+
+        [switch] $Check
     )
 
     $builder = [System.Text.StringBuilder]::new()
     [void]$builder.AppendLine('<Solution>')
-    foreach ($folderName in $Folders.Keys | Sort-Object) {
+    foreach ($folderName in (Get-OrdinalSortedStrings -Values @($Folders.Keys))) {
         $folder = $Folders[$folderName]
         if ($folder.Projects.Count -eq 0 -and $folder.Files.Count -eq 0) {
             continue
         }
 
         [void]$builder.AppendLine("  <Folder Name=`"$folderName`">")
-        foreach ($file in $folder.Files | Sort-Object) {
+        foreach ($file in (Get-OrdinalSortedStrings -Values @($folder.Files))) {
             [void]$builder.AppendLine("    <File Path=`"$file`" />")
         }
-        foreach ($project in $folder.Projects | Sort-Object) {
+        foreach ($project in (Get-OrdinalSortedStrings -Values @($folder.Projects))) {
             [void]$builder.AppendLine("    <Project Path=`"$project`" />")
         }
         [void]$builder.AppendLine('  </Folder>')
     }
     [void]$builder.AppendLine('</Solution>')
 
-    [System.IO.File]::WriteAllText(
-        $Path,
-        $builder.ToString(),
-        [System.Text.UTF8Encoding]::new($false))
+    $expectedContent = $builder.ToString()
+    if ($Check) {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+            throw "Solution '$Path' does not exist. Run the solution synchronization tool without -Check."
+        }
+
+        $normalize = {
+            param([string] $Value)
+            return $Value.Replace("`r`n", "`n").TrimEnd() + "`n"
+        }
+        $actualContent = [System.IO.File]::ReadAllText($Path)
+        if ((& $normalize $actualContent) -ne (& $normalize $expectedContent)) {
+            throw "Solution '$Path' is out of date. Run the solution synchronization tool without -Check."
+        }
+
+        return
+    }
+
+    [System.IO.File]::WriteAllText($Path, $expectedContent, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Get-BackendProjectFolder {
@@ -142,6 +171,10 @@ function Add-BackendGraph {
 
         foreach ($project in Get-ChildItem -LiteralPath $absoluteRoot -Recurse -Filter *.csproj -File) {
             $relative = Get-WorkspaceRelativePath -BasePath $BasePath -Path $project.FullName
+            if ($relative -match '(^|[\\/])(\.tmp|bin|obj)([\\/]|$)') {
+                continue
+            }
+
             $folder = Get-BackendProjectFolder -RelativePath $relative
             Add-SolutionEntry $Folders "$FolderPrefix$folder" Project "$PathPrefix$relative"
         }
@@ -184,10 +217,6 @@ if ($Check) {
 & $solutionImplementation @solutionArguments
 
 if ($IncludeRootWorkspace) {
-    if ($Check) {
-        throw '-Check currently validates the backend solution only. Run -IncludeRootWorkspace separately when the product workspace should be regenerated.'
-    }
-
     $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot '..\..'))
     $workspaceSolution = Join-Path $workspaceRoot 'BunkFy.Workspace.slnx'
     if (-not (Test-Path -LiteralPath $workspaceSolution -PathType Leaf)) {
@@ -234,10 +263,13 @@ if ($IncludeRootWorkspace) {
         }
     }
 
-    Write-SolutionFile -Path $workspaceSolution -Folders $workspaceFolders
+    Write-SolutionFile -Path $workspaceSolution -Folders $workspaceFolders -Check:$Check
 }
 
-if ($Check) {
+if ($Check -and $IncludeRootWorkspace) {
+    Write-Host 'Backend and product workspace solutions match the current workspace graph.'
+}
+elseif ($Check) {
     Write-Host 'Backend solution matches the current workspace graph.'
 }
 elseif ($IncludeRootWorkspace) {

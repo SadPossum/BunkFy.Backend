@@ -13,6 +13,7 @@
     <PackageReference Include="MessagePack" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Shared\BunkFy.AppHost.Composition\BunkFy.AppHost.Composition.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\BunkFy.Host.AdminApi\BunkFy.Host.AdminApi.csproj" />
     <ProjectReference Include="..\BunkFy.Host.Api\BunkFy.Host.Api.csproj" />
     <ProjectReference Include="..\BunkFy.Host.Worker\BunkFy.Host.Worker.csproj" />

@@ -94,16 +94,21 @@ public sealed class HostCompositionGuardTests
     public void Aspire_apphost_wires_infrastructure_and_optional_worker_surfaces()
     {
         string program = RepositoryPaths.Read("src", "BunkFy.Host.AppHost", "Program.cs");
+        string composition = RepositoryPaths.Read(
+            "src",
+            "Shared",
+            "BunkFy.AppHost.Composition",
+            "BunkFyBackendComposition.cs");
         string appsettings = RepositoryPaths.Read("src", "BunkFy.Host.AppHost", "appsettings.json");
         string[] expectedTokens =
         [
-            "builder.AddPostgres(\"postgres\")",
-            "builder.Configuration[\"AppHost:SqlServer:Enabled\"]",
+            ".AddPostgres(\"postgres\", password: postgreSqlPassword)",
+            "IsEnabled(builder, \"AppHost:SqlServer:Enabled\")",
             "builder.AddSqlServer(\"sql\")",
             "builder.AddNats(\"nats\")",
-            "builder.AddContainer(\"minio\", \"quay.io/minio/minio\", \"latest\")",
+            ".AddContainer(\"minio\", \"quay.io/minio/minio\", \"latest\")",
             "FileManagement__Minio__Endpoint",
-            "builder.AddProject<Projects.BunkFy_Host_Api>(\"bunkfy-host-api\")",
+            ".AddProject(\"bunkfy-host-api\", projectPaths.Api)",
             ".WaitFor(postgreSql)",
             "Tasks__Worker__Enabled",
             "Worker__Modules__TaskRuntime",
@@ -114,8 +119,9 @@ public sealed class HostCompositionGuardTests
             "AppHost:Redis:Enabled"
         ];
 
+        Assert.Contains("builder.AddBunkFyBackend(new(", program, StringComparison.Ordinal);
         string[] missing = expectedTokens
-            .Where(token => !program.Contains(token, StringComparison.Ordinal))
+            .Where(token => !composition.Contains(token, StringComparison.Ordinal))
             .ToArray();
 
         Assert.Empty(missing);

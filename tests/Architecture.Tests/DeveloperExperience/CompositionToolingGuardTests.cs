@@ -65,4 +65,28 @@ public sealed class CompositionToolingGuardTests
         Assert.DoesNotContain(requiredTokens, token => !workflows.Contains(token, StringComparison.Ordinal));
         Assert.True(File.Exists(RepositoryPaths.Resolve(".github", "dependabot.yml")));
     }
+
+    [Fact]
+    public void Root_workspace_sync_is_deterministic_and_filters_generated_projects()
+    {
+        string source = RepositoryPaths.Read("eng", "update-solutions.ps1");
+
+        Assert.Contains("$sorted.Sort([System.StringComparer]::Ordinal)", source, StringComparison.Ordinal);
+        Assert.Contains("$relative -match '(^|[\\\\/])(\\.tmp|bin|obj)([\\\\/]|$)'", source, StringComparison.Ordinal);
+        Assert.Contains("-Check:$Check", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Sort-Object", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Restore_entry_points_bound_msbuild_parallelism()
+    {
+        foreach (string script in new[] { "restore.ps1", "gma-validate.ps1" })
+        {
+            string source = RepositoryPaths.Read("eng", script);
+
+            Assert.Contains("--disable-parallel", source, StringComparison.Ordinal);
+            Assert.Contains("-m:1", source, StringComparison.Ordinal);
+            Assert.Contains("-p:BuildInParallel=false", source, StringComparison.Ordinal);
+        }
+    }
 }

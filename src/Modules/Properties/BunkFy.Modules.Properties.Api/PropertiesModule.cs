@@ -66,6 +66,7 @@ public sealed class PropertiesModule : IModule
 
             return result.ToHttpResult(PublicErrorStatusCodes);
         })
+            .Produces<PropertyListResponse>(StatusCodes.Status200OK)
             .RequireTenant();
 
         properties.MapGet("/{propertyId:guid}", async (
@@ -74,6 +75,7 @@ public sealed class PropertiesModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(new GetPropertyQuery(propertyId), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(PublicErrorStatusCodes))
+            .Produces<PropertyDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.Read, PropertyAccessScopeResolver.ResolverName);
 
@@ -84,6 +86,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new CreatePropertyCommand(request.Name, request.Code, request.TimeZoneId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<PropertyDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(PropertiesAdminPermissionCodes.PropertiesManage);
 
@@ -95,6 +98,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new UpdatePropertyCommand(propertyId, request.Name, request.Code, request.TimeZoneId, request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<PropertyDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -124,6 +128,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.QueryAsync(
                 new ListRoomsQuery(propertyId, page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.Read, PropertyAccessScopeResolver.ResolverName);
 
@@ -140,6 +145,7 @@ public sealed class PropertiesModule : IModule
                     request.BuildingLabel,
                     request.FloorLabel),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.RoomsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -150,6 +156,7 @@ public sealed class PropertiesModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(new GetRoomQuery(propertyId, roomId), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.Read, PropertyAccessScopeResolver.ResolverName);
 
@@ -168,6 +175,7 @@ public sealed class PropertiesModule : IModule
                     request.BuildingLabel,
                     request.FloorLabel),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.RoomsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -199,6 +207,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.QueryAsync(
                 new ListBedsQuery(propertyId, roomId, page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<BedListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.Read, PropertyAccessScopeResolver.ResolverName);
 
@@ -211,6 +220,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new AddBedCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Label),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<BedDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.BedsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -224,6 +234,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new UpdateBedCommand(propertyId, roomId, bedId, request.ExpectedRoomVersion, request.Label),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<BedDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.BedsManage, PropertyAccessScopeResolver.ResolverName);
 

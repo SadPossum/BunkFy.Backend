@@ -6,6 +6,7 @@ using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Notifications.Persistence;
 using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Guests.Persistence;
@@ -47,6 +48,8 @@ using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Gma.Modules.Files.Api;
 using Gma.Modules.Notifications.Api;
 using Gma.Modules.Tenancy.Api;
+using BunkFy.Host.Api;
+using Microsoft.OpenApi;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -100,6 +103,13 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<GuestsDbContext>("guests-da
 builder.Services.AddGmaEntityFrameworkReadinessCheck<StaffDbContext>("staff-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingestion-database");
 builder.AddGmaOpenApi();
+builder.Services.AddTransient<Swashbuckle.AspNetCore.SwaggerGen.ISerializerDataContractResolver, BunkFySwaggerDataContractResolver>();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.MapType<PropertyStatus>(() => new OpenApiSchema { Type = JsonSchemaType.String });
+    options.MapType<RoomStatus>(() => new OpenApiSchema { Type = JsonSchemaType.String });
+    options.MapType<BedStatus>(() => new OpenApiSchema { Type = JsonSchemaType.String });
+});
 builder.ValidateModuleComposition();
 
 WebApplication app = builder.Build();
@@ -119,6 +129,7 @@ app.MapGet("/api/smoke", () => Results.Ok(new
     TimestampUtc = DateTimeOffset.UtcNow
 }));
 app.MapModules();
+app.MapBunkFyAccessPermissionEndpoints();
 app.MapUserNotificationServerSentEvents();
 app.MapUserNotificationSignalR();
 

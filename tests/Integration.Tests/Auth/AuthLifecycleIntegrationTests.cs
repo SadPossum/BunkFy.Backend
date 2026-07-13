@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using System.Net;
+using System.Net.Http.Json;
 using DotNet.Testcontainers.Containers;
 using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Contracts;
@@ -93,5 +94,74 @@ public sealed class AuthLifecycleIntegrationTests
 
         Assert.Equal(HttpStatusCode.NoContent, signOut.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(registered.AccessToken));
+
+        await VerifyBrowserSessionAsync(client, username).ConfigureAwait(false);
+    }
+
+    private static async Task VerifyBrowserSessionAsync(HttpClient client, string username)
+    {
+        using HttpResponseMessage login = await AuthApiClient.PostJsonAsync(
+            client,
+            "tenant-auth",
+            "/api/auth/browser/login",
+            new LoginMemberRequest(username, AuthApiClient.Password)).ConfigureAwait(false);
+
+        login.EnsureSuccessStatusCode();
+        BrowserAuthResponse? loggedIn = await login.Content.ReadFromJsonAsync<BrowserAuthResponse>().ConfigureAwait(false);
+        Assert.NotNull(loggedIn);
+        Assert.False(string.IsNullOrWhiteSpace(loggedIn.AccessToken));
+        string loginBody = await login.Content.ReadAsStringAsync().ConfigureAwait(false);
+        Assert.DoesNotContain("refreshToken", loginBody, StringComparison.OrdinalIgnoreCase);
+
+        string[] setCookieHeaders = login.Headers.GetValues("Set-Cookie").ToArray();
+        AssertBrowserCookies(setCookieHeaders);
+        string loginRefreshCookie = GetRefreshCookieValue(setCookieHeaders);
+
+        using HttpResponseMessage refresh = await AuthApiClient.PostAsync(
+            client,
+            "tenant-auth",
+            "/api/auth/browser/refresh").ConfigureAwait(false);
+        refresh.EnsureSuccessStatusCode();
+        BrowserAuthResponse? refreshed = await refresh.Content.ReadFromJsonAsync<BrowserAuthResponse>().ConfigureAwait(false);
+        Assert.NotNull(refreshed);
+        Assert.False(string.IsNullOrWhiteSpace(refreshed.AccessToken));
+        string[] refreshedCookieHeaders = refresh.Headers.GetValues("Set-Cookie").ToArray();
+        AssertBrowserCookies(refreshedCookieHeaders);
+        Assert.False(
+            string.Equals(loginRefreshCookie, GetRefreshCookieValue(refreshedCookieHeaders), StringComparison.Ordinal),
+            "Browser refresh cookie must rotate without exposing its value.");
+
+        using HttpResponseMessage signOut = await AuthApiClient.PostAsync(
+            client,
+            "tenant-auth",
+            "/api/auth/browser/sign-out",
+            refreshed.AccessToken).ConfigureAwait(false);
+        Assert.Equal(HttpStatusCode.NoContent, signOut.StatusCode);
+
+        using HttpResponseMessage refreshAfterSignOut = await AuthApiClient.PostAsync(
+            client,
+            "tenant-auth",
+            "/api/auth/browser/refresh").ConfigureAwait(false);
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshAfterSignOut.StatusCode);
+    }
+
+    private static void AssertBrowserCookies(string[] setCookieHeaders)
+    {
+        Assert.Equal(2, setCookieHeaders.Length);
+        Assert.All(setCookieHeaders, cookie =>
+        {
+            Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("samesite=strict", cookie, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("path=/api/auth/browser", cookie, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    private static string GetRefreshCookieValue(string[] setCookieHeaders)
+    {
+        string header = Assert.Single(
+            setCookieHeaders,
+            cookie => cookie.StartsWith("gma.auth.refresh=", StringComparison.Ordinal));
+        int separator = header.IndexOf(';', StringComparison.Ordinal);
+        return separator < 0 ? header : header[..separator];
     }
 }
