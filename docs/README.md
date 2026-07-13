@@ -8,7 +8,7 @@ Useful entry points:
 
 - [Setup](getting-started/setup.md)
 - [Local Development](getting-started/local-development.md)
-- [Source-First Apps](getting-started/source-first-apps.md)
+- [GMA Source Mounts](getting-started/gma-source-mounts.md)
 - [Architecture Overview](architecture/overview.md)
 - [Cross-Module Integration Example](examples/cross-module-integration.md)
 - [Product Domain Map](planning/product-domain-map.md)

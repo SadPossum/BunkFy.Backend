@@ -1,5 +1,6 @@
 param(
-    [switch] $IncludeRootWorkspace
+    [switch] $IncludeRootWorkspace,
+    [switch] $Check
 )
 
 . (Join-Path $PSScriptRoot 'common.ps1')
@@ -167,27 +168,26 @@ function Add-BackendGraph {
     }
 }
 
-$backendFolders = @{}
-Add-BackendGraph -Folders $backendFolders -BasePath $repositoryRoot
-foreach ($item in @(
-    '.config/dotnet-tools.json',
-    '.editorconfig',
-    '.gitattributes',
-    '.gitignore',
-    '.gitmodules',
-    'Directory.Build.props',
-    'Directory.Packages.props',
-    'global.json',
-    'Gma.SourceRoots.props.example',
-    'README.md'
-)) {
-    if (Test-Path -LiteralPath (Join-Path $repositoryRoot $item) -PathType Leaf) {
-        Add-SolutionEntry $backendFolders '/Solution Items/' File $item
-    }
+$solutionImplementation = Join-GmaPath 'gma/framework/eng/sync-solution.ps1'
+if (-not (Test-Path -LiteralPath $solutionImplementation -PathType Leaf)) {
+    throw 'GMA framework tooling is not mounted. Run eng/gma-update.ps1 -Init first.'
 }
-Write-SolutionFile -Path (Join-Path $repositoryRoot 'BunkFy.slnx') -Folders $backendFolders
+
+$solutionArguments = @{
+    RepositoryRoot = $repositoryRoot
+    Solution = 'BunkFy.slnx'
+}
+if ($Check) {
+    $solutionArguments.Check = $true
+}
+
+& $solutionImplementation @solutionArguments
 
 if ($IncludeRootWorkspace) {
+    if ($Check) {
+        throw '-Check currently validates the backend solution only. Run -IncludeRootWorkspace separately when the product workspace should be regenerated.'
+    }
+
     $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot '..\..'))
     $workspaceSolution = Join-Path $workspaceRoot 'BunkFy.Workspace.slnx'
     if (-not (Test-Path -LiteralPath $workspaceSolution -PathType Leaf)) {
@@ -237,4 +237,12 @@ if ($IncludeRootWorkspace) {
     Write-SolutionFile -Path $workspaceSolution -Folders $workspaceFolders
 }
 
-Write-Host 'Solution files updated from the current workspace graph.'
+if ($Check) {
+    Write-Host 'Backend solution matches the current workspace graph.'
+}
+elseif ($IncludeRootWorkspace) {
+    Write-Host 'Backend and product workspace solutions updated from the current workspace graph.'
+}
+else {
+    Write-Host 'Backend solution updated from the current workspace graph.'
+}

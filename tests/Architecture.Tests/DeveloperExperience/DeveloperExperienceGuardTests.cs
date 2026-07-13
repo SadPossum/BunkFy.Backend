@@ -93,10 +93,12 @@ public sealed partial class DeveloperExperienceGuardTests
                 ".gitattributes",
                 ".gitignore",
                 ".gitmodules",
+                ".github/dependabot.yml",
                 "Directory.Build.props",
                 "Directory.Packages.props",
                 "global.json",
                 "Gma.SourceRoots.props.example",
+                "nuget.config",
                 "README.md"
             ])
             .Order(StringComparer.OrdinalIgnoreCase)

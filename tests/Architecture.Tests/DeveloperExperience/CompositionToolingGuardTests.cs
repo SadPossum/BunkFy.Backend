@@ -1,0 +1,68 @@
+namespace Architecture.Tests.DeveloperExperience;
+
+using Architecture.Tests.Support;
+using Xunit;
+
+[Trait("Category", "Architecture")]
+public sealed class CompositionToolingGuardTests
+{
+    [Fact]
+    public void Composition_tools_delegate_reusable_behavior_to_the_framework()
+    {
+        string[] wrappers =
+        [
+            "add-migration.ps1",
+            "check-migrations.ps1",
+            "check-source-packages.ps1",
+            "check-submodule-dev-heads.ps1",
+            "export-source-set.ps1",
+        ];
+
+        string[] errors = wrappers.SelectMany(wrapper =>
+        {
+            string path = RepositoryPaths.Resolve("eng", wrapper);
+            string source = File.ReadAllText(path);
+            return new[]
+            {
+                source.Contains("gma/framework/eng/", StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : $"{wrapper} does not delegate to framework tooling.",
+                File.ReadLines(path).Count() <= 65
+                    ? null
+                    : $"{wrapper} contains reusable implementation logic.",
+            }.OfType<string>();
+        }).ToArray();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Module_scaffolding_is_branded_without_a_post_generation_rewrite()
+    {
+        string wrapper = RepositoryPaths.Read("eng", "new-module.ps1");
+
+        Assert.Contains("-ProjectPrefix 'BunkFy.Modules'", wrapper, StringComparison.Ordinal);
+        Assert.Contains("-PublicApiHostProject 'src\\BunkFy.Host.Api", wrapper, StringComparison.Ordinal);
+        Assert.False(File.Exists(RepositoryPaths.Resolve("eng", "brand-module.ps1")));
+        Assert.False(File.Exists(RepositoryPaths.Resolve("eng", "new-gma-app.ps1")));
+    }
+
+    [Fact]
+    public void Backend_ci_uses_immutable_actions_and_source_set_evidence()
+    {
+        string workflows = string.Join(
+            Environment.NewLine,
+            RepositoryPaths.EnumerateFiles(".github/workflows", "*.yml").Select(File.ReadAllText));
+        string[] requiredTokens =
+        [
+            "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+            "actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1",
+            "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+            "persist-credentials: false",
+            "./eng/export-source-set.ps1 -RequireClean",
+        ];
+
+        Assert.DoesNotContain(requiredTokens, token => !workflows.Contains(token, StringComparison.Ordinal));
+        Assert.True(File.Exists(RepositoryPaths.Resolve(".github", "dependabot.yml")));
+    }
+}
