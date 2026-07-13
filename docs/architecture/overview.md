@@ -21,12 +21,15 @@ src/
   BunkFy.Host.AdminCli/
   BunkFy.Host.Worker/
   BunkFy.Host.ServiceDefaults/
+  Extensions/
+    BunkFy.Extensions.Operations.Notifications/
   Modules/
     Properties/
     Inventory/
     Reservations/
     Guests/
     Staff/
+    Ingestion/
     Billing/
     Housekeeping/
 tests/
@@ -40,3 +43,5 @@ The backend carries the skeleton-style host set and BunkFy-owned PMS modules wit
 BunkFy is a staff/operator management system. Guest records may exist as PMS data for reservations, billing, and housekeeping, but guests do not authenticate into this backend or use a guest-facing API surface. BunkFy Staff owns employment profiles and work assignments while GMA Auth and AccessControl retain credentials, sessions, roles, grants, and effective permission evaluation.
 
 File management starts on MinIO rather than local disk. Local and development hosts should use the S3-compatible object-storage path from the beginning, with `Gma.Framework.FileManagement` staying as the app-facing storage contract.
+
+BunkFy-specific cross-module composition policies belong under `src/Extensions`. They may intentionally connect public contracts from multiple modules, but they do not own module data or move product policy into reusable GMA repositories.

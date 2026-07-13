@@ -30,6 +30,7 @@ public sealed class WorkerHostOptions
         IConfigurationSection modules = configuration.GetSection($"{SectionName}:Modules");
         WorkerModuleOptions moduleOptions = new(
             GetBoolean(modules, nameof(WorkerModuleOptions.Auth), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.Notifications), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Properties), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Inventory), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Reservations), defaultValue: false),
@@ -52,6 +53,11 @@ public sealed class WorkerHostOptions
         if (this.Modules.Auth)
         {
             modules.Add("auth");
+        }
+
+        if (this.Modules.Notifications)
+        {
+            modules.Add("notifications");
         }
 
         if (this.Modules.Properties)
@@ -103,6 +109,7 @@ public sealed class WorkerHostOptions
 
 public sealed record WorkerModuleOptions(
     bool Auth,
+    bool Notifications,
     bool Properties,
     bool Inventory,
     bool Reservations,

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(GmaModuleAdministrationRoot)Gma.Modules.Administration.Persistence.PostgreSqlMigrations\Gma.Modules.Administration.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations\Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Persistence.PostgreSqlMigrations\Gma.Modules.Auth.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Persistence.PostgreSqlMigrations\Gma.Modules.Notifications.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations\Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations\BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Reservations\BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations\BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Guests\BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations\BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Staff\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

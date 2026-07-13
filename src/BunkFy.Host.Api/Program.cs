@@ -4,7 +4,11 @@ using Gma.Modules.AccessControl.Application;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Auth.Providers.OpenIdConnect;
+using Gma.Modules.Notifications.Adapters.Email;
 using Gma.Modules.Notifications.Persistence;
+using Gma.Extensions.Auth.Notifications;
+using BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Inventory.Persistence;
@@ -49,7 +53,6 @@ using Gma.Modules.Files.Api;
 using Gma.Modules.Notifications.Api;
 using Gma.Modules.Tenancy.Api;
 using BunkFy.Host.Api;
-using Microsoft.OpenApi;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +63,7 @@ builder.AddUserNotificationsRealtime();
 builder.AddRedisCaching();
 builder.AddCachingCqrs();
 builder.AddGmaInfrastructure();
+builder.AddBunkFyDataProtection();
 builder.AddTenantSerilogRequestLogging();
 builder.AddTenantCaching();
 builder.AddMinioFileStorage();
@@ -81,8 +85,12 @@ builder.AddAccessControlPersistence();
 
 builder.AddModule<TenancyModule>();
 builder.AddAuthModule(AuthProfile.ScopeAware());
+builder.AddAuthOpenIdConnectProviders();
 builder.AddModule<FilesModule>();
 builder.AddModule<NotificationsModule>();
+builder.Services.AddAuthNotificationsExtension();
+builder.Services.AddBunkFyOperationsNotifications();
+builder.Services.AddNotificationEmailAdapter(builder.Configuration);
 builder.AddModule<PropertiesModule>();
 builder.AddModule<InventoryModule>();
 builder.AddModule<ReservationsModule>();
@@ -103,13 +111,6 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<GuestsDbContext>("guests-da
 builder.Services.AddGmaEntityFrameworkReadinessCheck<StaffDbContext>("staff-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingestion-database");
 builder.AddGmaOpenApi();
-builder.Services.AddTransient<Swashbuckle.AspNetCore.SwaggerGen.ISerializerDataContractResolver, BunkFySwaggerDataContractResolver>();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.MapType<PropertyStatus>(() => new OpenApiSchema { Type = JsonSchemaType.String });
-    options.MapType<RoomStatus>(() => new OpenApiSchema { Type = JsonSchemaType.String });
-    options.MapType<BedStatus>(() => new OpenApiSchema { Type = JsonSchemaType.String });
-});
 builder.ValidateModuleComposition();
 
 WebApplication app = builder.Build();

@@ -53,6 +53,7 @@ public static class BunkFyBackendComposition
             .WaitFor(minio)
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
             .WithMinioFileStorage()
+            .WithEnvironment("Notifications__Enabled", "true")
             .WithEnvironment("NatsJetStream__Enabled", workerEnabled ? "false" : "true")
             .WithHttpHealthCheck("/health");
 
@@ -149,6 +150,7 @@ public static class BunkFyBackendComposition
             .WithEnvironment("NatsConsumers__Enabled", "true")
             .WithEnvironment("Tasks__Worker__Enabled", "true")
             .WithEnvironment("Worker__Modules__Auth", "true")
+            .WithEnvironment("Worker__Modules__Notifications", "true")
             .WithEnvironment("Worker__Modules__Properties", "true")
             .WithEnvironment("Worker__Modules__Inventory", "true")
             .WithEnvironment("Worker__Modules__Reservations", "true")

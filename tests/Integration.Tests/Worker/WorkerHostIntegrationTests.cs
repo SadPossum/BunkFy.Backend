@@ -19,6 +19,8 @@ using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Notifications.Application.Ports;
+using Gma.Modules.Notifications.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Contracts;
@@ -38,6 +40,7 @@ using MimeKit;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -71,6 +74,46 @@ public sealed class WorkerHostIntegrationTests
         Assert.Contains(
             worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>().Subscriptions,
             subscription => subscription.ConsumerModule == InventoryModuleMetadata.Name);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void Worker_host_composes_auth_and_product_notification_bridges()
+    {
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
+        builder.Configuration["Persistence:Provider"] = "PostgreSql";
+        builder.Configuration["ConnectionStrings:PostgreSql"] =
+            "Host=localhost;Database=unused;Username=unused;Password=unused";
+        builder.Configuration["NatsJetStream:Enabled"] = "false";
+        builder.Configuration["NatsConsumers:Enabled"] = "false";
+        builder.Configuration["Tasks:Worker:Enabled"] = "false";
+        builder.Configuration["Worker:Modules:Auth"] = "true";
+        builder.Configuration["Worker:Modules:Notifications"] = "true";
+        builder.Configuration["Worker:Modules:Properties"] = "true";
+        builder.Configuration["Worker:Modules:Inventory"] = "true";
+        builder.Configuration["Worker:Modules:Reservations"] = "true";
+        builder.Configuration["Worker:Modules:Staff"] = "true";
+        builder.Configuration["Notifications:Adapters:Email:Enabled"] = "false";
+        builder.Logging.ClearProviders();
+
+        builder.AddWorkerHost();
+        ModuleCompositionValidationResult result = builder.ValidateModuleComposition();
+        using IHost worker = builder.Build();
+        using IServiceScope scope = worker.Services.CreateScope();
+        IIntegrationEventSubscriptionRegistry subscriptions =
+            worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>();
+
+        Assert.True(result.IsValid, result.Report);
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<NotificationsDbContext>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUserNotificationRequestProjector>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IStaffPropertyAudienceReader>());
+        Assert.Contains(
+            subscriptions.Subscriptions,
+            subscription => subscription.HandlerName == "auth-member-authenticated-notification");
+        Assert.Contains(
+            subscriptions.Subscriptions,
+            subscription => subscription.HandlerName == "bunkfy-reservation-confirmed-notification");
     }
 
     [Fact]

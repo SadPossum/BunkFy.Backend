@@ -281,12 +281,13 @@ public sealed partial class DeveloperExperienceGuardTests
     }
 
     [Fact]
-    public void Source_roots_include_reusable_gma_modules_only()
+    public void Source_roots_include_reusable_gma_sources_only()
     {
         string sourceRoots = RepositoryPaths.Read("Gma.SourceRoots.props.example");
         string[] expectedTokens =
         [
             "gma\\framework\\src\\",
+            "<GmaExtensionsRoot>$(MSBuildThisFileDirectory)gma\\extensions\\src\\</GmaExtensionsRoot>",
             "<GmaModuleAccessControlRoot>$(GmaModulesRoot)access-control\\src\\</GmaModuleAccessControlRoot>",
             "<GmaModuleAuthRoot>$(GmaModulesRoot)auth\\src\\</GmaModuleAuthRoot>",
             "<GmaModuleAdministrationRoot>$(GmaModulesRoot)administration\\src\\</GmaModuleAdministrationRoot>",
@@ -409,6 +410,28 @@ public sealed partial class DeveloperExperienceGuardTests
             .ToArray();
 
         Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void OpenApi_export_is_independent_from_background_infrastructure()
+    {
+        string exporter = RepositoryPaths.Read("eng/export-openapi.ps1");
+        string[] disabledSettings =
+        [
+            "Notifications__Delivery__Enabled",
+            "Notifications__Retention__Enabled",
+            "Auth__Retention__Enabled",
+            "MessageJournalCleanup__Enabled",
+            "NatsJetStream__Enabled",
+            "NatsConsumers__Enabled"
+        ];
+
+        string[] missing = disabledSettings
+            .Where(setting => !exporter.Contains($"$env:{setting} = 'false'", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Empty(missing);
+        Assert.Contains("SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')", exporter, StringComparison.Ordinal);
     }
 
     [Fact]

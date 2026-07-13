@@ -84,12 +84,23 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IUserNotificationHistoryWriter>();
+            services.RemoveAll<IUserNotificationDeliveryPolicyEvaluator>();
+            services.AddSingleton<IUserNotificationDeliveryPolicyEvaluator, AllowAllDeliveryPolicyEvaluator>();
 
             if (!tenancyEnabled)
             {
                 services.PostConfigure<TenantOptions>(options => options.Enabled = false);
             }
         });
+    }
+
+    private sealed class AllowAllDeliveryPolicyEvaluator : IUserNotificationDeliveryPolicyEvaluator
+    {
+        public ValueTask<bool> ShouldDeliverAsync(
+            UserNotificationMessage message,
+            string deliveryTag,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(true);
     }
 
     public static string CreateAccessToken(string? scopeId, string userId)

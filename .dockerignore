@@ -1,0 +1,7 @@
+.git
+.vs
+.tmp
+**/bin
+**/obj
+TestResults
+artifacts

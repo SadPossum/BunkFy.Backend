@@ -10,6 +10,7 @@ Useful entry points:
 - [Local Development](getting-started/local-development.md)
 - [GMA Source Mounts](getting-started/gma-source-mounts.md)
 - [Architecture Overview](architecture/overview.md)
+- [Auth And Notifications](architecture/auth-and-notifications.md)
 - [Cross-Module Integration Example](examples/cross-module-integration.md)
 - [Product Domain Map](planning/product-domain-map.md)
 - [Development Guidelines](planning/development-guidelines.md)

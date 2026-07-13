@@ -18,10 +18,14 @@ public sealed class HostCompositionGuardTests
             "builder.AddAccessControlPersistence();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
             "builder.AddAuthModule(AuthProfile.ScopeAware());",
+            "builder.AddAuthOpenIdConnectProviders();",
             "builder.AddMinioFileStorage();",
             "builder.AddUserNotificationsRealtime();",
             "builder.AddModule<FilesModule>();",
             "builder.AddModule<NotificationsModule>();",
+            "builder.Services.AddAuthNotificationsExtension();",
+            "builder.Services.AddBunkFyOperationsNotifications();",
+            "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",
             "builder.AddModule<PropertiesModule>();",
             "builder.AddModule<InventoryModule>();",
             "builder.AddModule<ReservationsModule>();",
@@ -49,6 +53,7 @@ public sealed class HostCompositionGuardTests
 
         Assert.Contains("builder.AddAdminApiModule<AccessControlAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.ScopeAware());", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<NotificationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<InventoryAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<ReservationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
@@ -76,6 +81,7 @@ public sealed class HostCompositionGuardTests
         string options = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostOptions.cs");
 
         Assert.Contains("\"Auth\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Notifications\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Properties\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Inventory\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Reservations\": false", appsettings, StringComparison.Ordinal);
@@ -86,6 +92,10 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("defaultValue: false", options, StringComparison.Ordinal);
         Assert.Contains(
             "AuthProfile.ScopeAware().Descriptor",
+            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs"),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "NotificationsProfiles.Default",
             RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs"),
             StringComparison.Ordinal);
     }
@@ -112,6 +122,7 @@ public sealed class HostCompositionGuardTests
             ".WaitFor(postgreSql)",
             "Tasks__Worker__Enabled",
             "Worker__Modules__TaskRuntime",
+            "Worker__Modules__Notifications",
             "Worker__Modules__Guests",
             "Worker__Modules__Staff",
             "AppHost:AdminApi:Enabled",

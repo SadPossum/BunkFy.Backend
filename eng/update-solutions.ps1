@@ -136,6 +136,13 @@ function Get-BackendProjectFolder {
     if ($segments[0] -eq 'src' -and $segments[1] -eq 'Shared') {
         return '/src/Shared/'
     }
+    if ($segments[0] -eq 'src' -and $segments[1] -eq 'Extensions') {
+        if ($segments[2] -eq 'tests') {
+            return '/src/Extensions/tests/'
+        }
+
+        return '/src/Extensions/'
+    }
     if ($segments[0] -eq 'src' -and $segments[1].StartsWith('BunkFy.Host.', [System.StringComparison]::Ordinal)) {
         return '/src/Hosts/'
     }

@@ -30,11 +30,25 @@ $url = "http://127.0.0.1:$port"
 $swaggerUrl = "$url/swagger/v1/swagger.json"
 $oldEnvironment = $env:ASPNETCORE_ENVIRONMENT
 $oldUrls = $env:ASPNETCORE_URLS
+$exportEnvironment = @{
+    'Notifications__Delivery__Enabled' = $env:Notifications__Delivery__Enabled
+    'Notifications__Retention__Enabled' = $env:Notifications__Retention__Enabled
+    'Auth__Retention__Enabled' = $env:Auth__Retention__Enabled
+    'MessageJournalCleanup__Enabled' = $env:MessageJournalCleanup__Enabled
+    'NatsJetStream__Enabled' = $env:NatsJetStream__Enabled
+    'NatsConsumers__Enabled' = $env:NatsConsumers__Enabled
+}
 $process = $null
 
 try {
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:ASPNETCORE_URLS = $url
+    $env:Notifications__Delivery__Enabled = 'false'
+    $env:Notifications__Retention__Enabled = 'false'
+    $env:Auth__Retention__Enabled = 'false'
+    $env:MessageJournalCleanup__Enabled = 'false'
+    $env:NatsJetStream__Enabled = 'false'
+    $env:NatsConsumers__Enabled = 'false'
     $process = Start-Process `
         -FilePath $dotnet `
         -ArgumentList @($assembly, '--urls', $url) `
@@ -79,6 +93,9 @@ finally {
 
     $env:ASPNETCORE_ENVIRONMENT = $oldEnvironment
     $env:ASPNETCORE_URLS = $oldUrls
+    foreach ($entry in $exportEnvironment.GetEnumerator()) {
+        [System.Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')
+    }
 }
 
 if ($Check) {

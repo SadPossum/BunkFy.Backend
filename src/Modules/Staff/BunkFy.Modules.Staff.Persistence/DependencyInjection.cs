@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Persistence.Repositories;
 
@@ -22,6 +23,7 @@ public static class DependencyInjection
             builder.Configuration, StaffMigrations.SqlServerAssembly, StaffMigrations.PostgreSqlAssembly,
             StaffMigrations.Schema, StaffMigrations.HistoryTable));
         builder.Services.TryAddScoped<IStaffMemberRepository, StaffMemberRepository>();
+        builder.Services.TryAddScoped<IStaffPropertyAudienceReader, StaffPropertyAudienceReader>();
         builder.Services.TryAddScoped<IStaffPropertyProjectionRepository, StaffPropertyProjectionRepository>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>,
             StaffPropertiesProjectionRebuildWriter>();

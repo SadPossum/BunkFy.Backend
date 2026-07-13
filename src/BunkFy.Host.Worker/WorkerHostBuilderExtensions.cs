@@ -2,6 +2,12 @@ namespace BunkFy.Host.Worker;
 
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Notifications.Adapters.Email;
+using Gma.Modules.Notifications.Application;
+using Gma.Modules.Notifications.Contracts;
+using Gma.Modules.Notifications.Persistence;
+using Gma.Extensions.Auth.Notifications;
+using BunkFy.Extensions.Operations.Notifications;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -108,6 +114,24 @@ public static class WorkerHostBuilderExtensions
         {
             builder.SelectModuleProfile(AuthProfile.ScopeAware().Descriptor, "BunkFy.Host.Worker/Auth");
             builder.AddAuthPersistence();
+        }
+
+        if (workerOptions.Modules.Notifications)
+        {
+            builder.SelectModuleProfile(NotificationsProfiles.Default, "BunkFy.Host.Worker/Notifications");
+            builder.Services.AddNotificationsApplication(builder.Configuration);
+            builder.AddNotificationsPersistence();
+            builder.Services.AddNotificationEmailAdapter(builder.Configuration);
+
+            if (workerOptions.Modules.Auth)
+            {
+                builder.Services.AddAuthNotificationsExtension();
+            }
+
+            if (workerOptions.Modules.Staff)
+            {
+                builder.Services.AddBunkFyOperationsNotifications();
+            }
         }
 
         if (workerOptions.Modules.Properties)

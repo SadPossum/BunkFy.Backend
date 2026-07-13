@@ -24,6 +24,7 @@
     <File Path="docs/README.md" />
   </Folder>
   <Folder Name="/docs/architecture/">
+    <File Path="docs/architecture/auth-and-notifications.md" />
     <File Path="docs/architecture/ingestion-adapter-boundary.md" />
     <File Path="docs/architecture/overview.md" />
   </Folder>
@@ -96,6 +97,12 @@
     <File Path="eng/update-solutions.ps1" />
     <File Path="eng/verify.ps1" />
   </Folder>
+  <Folder Name="/gma/extensions/src/">
+    <Project Path="gma/extensions/src/Gma.Extensions.Auth.Notifications/Gma.Extensions.Auth.Notifications.csproj" />
+  </Folder>
+  <Folder Name="/gma/extensions/tests/">
+    <Project Path="gma/extensions/tests/Gma.Extensions.Auth.Notifications.Tests/Gma.Extensions.Auth.Notifications.Tests.csproj" />
+  </Folder>
   <Folder Name="/gma/framework/src/Administration/">
     <Project Path="gma/framework/src/Administration/Gma.Framework.Administration.AccessControl/Gma.Framework.Administration.AccessControl.csproj" />
     <Project Path="gma/framework/src/Administration/Gma.Framework.Administration.Api/Gma.Framework.Administration.Api.csproj" />
@@ -126,6 +133,9 @@
   </Folder>
   <Folder Name="/gma/framework/src/Domain/">
     <Project Path="gma/framework/src/Domain/Gma.Framework.Domain/Gma.Framework.Domain.csproj" />
+  </Folder>
+  <Folder Name="/gma/framework/src/Email/">
+    <Project Path="gma/framework/src/Email/Gma.Framework.Email/Gma.Framework.Email.csproj" />
   </Folder>
   <Folder Name="/gma/framework/src/FileManagement/">
     <Project Path="gma/framework/src/FileManagement/Gma.Framework.FileManagement.LocalStorage/Gma.Framework.FileManagement.LocalStorage.csproj" />
@@ -218,12 +228,18 @@
   <Folder Name="/gma/framework/tests/">
     <Project Path="gma/framework/tests/Gma.Framework.Tests/Gma.Framework.Tests.csproj" />
   </Folder>
-  <Folder Name="/gma/modules/access-control/src/">
+  <Folder Name="/gma/modules/access-control/src/Admin/">
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Admin.Contracts/Gma.Modules.AccessControl.Admin.Contracts.csproj" />
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.AdminApi/Gma.Modules.AccessControl.AdminApi.csproj" />
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.AdminCli/Gma.Modules.AccessControl.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/access-control/src/Application/">
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Application/Gma.Modules.AccessControl.Application.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/access-control/src/Contracts/">
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Contracts/Gma.Modules.AccessControl.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/access-control/src/Persistence/">
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations/Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Persistence.SqlServerMigrations/Gma.Modules.AccessControl.Persistence.SqlServerMigrations.csproj" />
     <Project Path="gma/modules/access-control/src/Gma.Modules.AccessControl.Persistence/Gma.Modules.AccessControl.Persistence.csproj" />
@@ -231,11 +247,17 @@
   <Folder Name="/gma/modules/access-control/tests/">
     <Project Path="gma/modules/access-control/tests/Gma.Modules.AccessControl.Tests/Gma.Modules.AccessControl.Tests.csproj" />
   </Folder>
-  <Folder Name="/gma/modules/administration/src/">
+  <Folder Name="/gma/modules/administration/src/Admin/">
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.AdminApi/Gma.Modules.Administration.AdminApi.csproj" />
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.AdminCli/Gma.Modules.Administration.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/administration/src/Application/">
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.Application/Gma.Modules.Administration.Application.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/administration/src/Contracts/">
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.Contracts/Gma.Modules.Administration.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/administration/src/Persistence/">
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.Persistence.PostgreSqlMigrations/Gma.Modules.Administration.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.Persistence.SqlServerMigrations/Gma.Modules.Administration.Persistence.SqlServerMigrations.csproj" />
     <Project Path="gma/modules/administration/src/Gma.Modules.Administration.Persistence/Gma.Modules.Administration.Persistence.csproj" />
@@ -243,16 +265,31 @@
   <Folder Name="/gma/modules/administration/tests/">
     <Project Path="gma/modules/administration/tests/Gma.Modules.Administration.Tests/Gma.Modules.Administration.Tests.csproj" />
   </Folder>
-  <Folder Name="/gma/modules/auth/src/">
+  <Folder Name="/gma/modules/auth/src/Admin/">
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Admin.Contracts/Gma.Modules.Auth.Admin.Contracts.csproj" />
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.AdminApi/Gma.Modules.Auth.AdminApi.csproj" />
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.AdminCli/Gma.Modules.Auth.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/auth/src/Api/">
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Api/Gma.Modules.Auth.Api.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/auth/src/Application/">
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Application/Gma.Modules.Auth.Application.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/auth/src/Contracts/">
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Contracts/Gma.Modules.Auth.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/auth/src/Domain/">
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Domain/Gma.Modules.Auth.Domain.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/auth/src/Infrastructure/">
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Infrastructure.JwtBearer/Gma.Modules.Auth.Infrastructure.JwtBearer.csproj" />
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Infrastructure/Gma.Modules.Auth.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/auth/src/OpenIdConnect/">
+    <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Providers.OpenIdConnect/Gma.Modules.Auth.Providers.OpenIdConnect.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/auth/src/Persistence/">
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Persistence.PostgreSqlMigrations/Gma.Modules.Auth.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Persistence.SqlServerMigrations/Gma.Modules.Auth.Persistence.SqlServerMigrations.csproj" />
     <Project Path="gma/modules/auth/src/Gma.Modules.Auth.Persistence/Gma.Modules.Auth.Persistence.csproj" />
@@ -260,18 +297,35 @@
   <Folder Name="/gma/modules/auth/tests/">
     <Project Path="gma/modules/auth/tests/Gma.Modules.Auth.Tests/Gma.Modules.Auth.Tests.csproj" />
   </Folder>
-  <Folder Name="/gma/modules/files/src/">
+  <Folder Name="/gma/modules/files/src/Api/">
     <Project Path="gma/modules/files/src/Gma.Modules.Files.Api/Gma.Modules.Files.Api.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/files/src/Application/">
     <Project Path="gma/modules/files/src/Gma.Modules.Files.Application/Gma.Modules.Files.Application.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/files/src/Contracts/">
     <Project Path="gma/modules/files/src/Gma.Modules.Files.Contracts/Gma.Modules.Files.Contracts.csproj" />
   </Folder>
-  <Folder Name="/gma/modules/notifications/src/">
+  <Folder Name="/gma/modules/notifications/src/Admin/">
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Admin.Contracts/Gma.Modules.Notifications.Admin.Contracts.csproj" />
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.AdminApi/Gma.Modules.Notifications.AdminApi.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/notifications/src/Api/">
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Api/Gma.Modules.Notifications.Api.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/notifications/src/Application/">
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Application/Gma.Modules.Notifications.Application.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/notifications/src/Contracts/">
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Contracts/Gma.Modules.Notifications.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/notifications/src/Domain/">
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Domain/Gma.Modules.Notifications.Domain.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/notifications/src/Email/">
+    <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Adapters.Email/Gma.Modules.Notifications.Adapters.Email.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/notifications/src/Persistence/">
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Persistence.PostgreSqlMigrations/Gma.Modules.Notifications.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Persistence.SqlServerMigrations/Gma.Modules.Notifications.Persistence.SqlServerMigrations.csproj" />
     <Project Path="gma/modules/notifications/src/Gma.Modules.Notifications.Persistence/Gma.Modules.Notifications.Persistence.csproj" />
@@ -279,18 +333,26 @@
   <Folder Name="/gma/modules/notifications/tests/">
     <Project Path="gma/modules/notifications/tests/Gma.Modules.Notifications.Tests/Gma.Modules.Notifications.Tests.csproj" />
   </Folder>
-  <Folder Name="/gma/modules/task-runtime/src/">
+  <Folder Name="/gma/modules/task-runtime/src/Admin/">
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.Admin.Contracts/Gma.Modules.TaskRuntime.Admin.Contracts.csproj" />
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.AdminApi/Gma.Modules.TaskRuntime.AdminApi.csproj" />
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.AdminCli/Gma.Modules.TaskRuntime.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/task-runtime/src/Application/">
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.Application/Gma.Modules.TaskRuntime.Application.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/task-runtime/src/Contracts/">
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.Contracts/Gma.Modules.TaskRuntime.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/task-runtime/src/Persistence/">
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations/Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations/Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations.csproj" />
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.Persistence/Gma.Modules.TaskRuntime.Persistence.csproj" />
   </Folder>
-  <Folder Name="/gma/modules/tenancy/src/">
+  <Folder Name="/gma/modules/tenancy/src/Api/">
     <Project Path="gma/modules/tenancy/src/Gma.Modules.Tenancy.Api/Gma.Modules.Tenancy.Api.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/tenancy/src/Contracts/">
     <Project Path="gma/modules/tenancy/src/Gma.Modules.Tenancy.Contracts/Gma.Modules.Tenancy.Contracts.csproj" />
   </Folder>
   <Folder Name="/requests/">
@@ -314,109 +376,176 @@
   <Folder Name="/src/Adapters/tests/">
     <Project Path="src/Adapters/tests/BunkFy.Adapters.Tests/BunkFy.Adapters.Tests.csproj" />
   </Folder>
+  <Folder Name="/src/Extensions/">
+    <Project Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/BunkFy.Extensions.Operations.Notifications.csproj" />
+  </Folder>
+  <Folder Name="/src/Extensions/tests/">
+    <Project Path="src/Extensions/tests/BunkFy.Extensions.Operations.Notifications.Tests/BunkFy.Extensions.Operations.Notifications.Tests.csproj" />
+  </Folder>
   <Folder Name="/src/Hosts/">
     <Project Path="src/BunkFy.Host.AdminApi/BunkFy.Host.AdminApi.csproj" />
     <Project Path="src/BunkFy.Host.AdminCli/BunkFy.Host.AdminCli.csproj" />
     <Project Path="src/BunkFy.Host.Api/BunkFy.Host.Api.csproj" />
     <Project Path="src/BunkFy.Host.AppHost/BunkFy.Host.AppHost.csproj" />
+    <Project Path="src/BunkFy.Host.Migrations/BunkFy.Host.Migrations.csproj" />
     <Project Path="src/BunkFy.Host.ServiceDefaults/BunkFy.Host.ServiceDefaults.csproj" />
     <Project Path="src/BunkFy.Host.Worker/BunkFy.Host.Worker.csproj" />
-  </Folder>
-  <Folder Name="/src/Modules/Guests/">
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Admin.Contracts/BunkFy.Modules.Guests.Admin.Contracts.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.AdminApi/BunkFy.Modules.Guests.AdminApi.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.AdminCli/BunkFy.Modules.Guests.AdminCli.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Api/BunkFy.Modules.Guests.Api.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Application/BunkFy.Modules.Guests.Application.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Contracts/BunkFy.Modules.Guests.Contracts.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Domain/BunkFy.Modules.Guests.Domain.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations/BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.csproj" />
-    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Persistence/BunkFy.Modules.Guests.Persistence.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Guests/docs/">
     <File Path="src/Modules/Guests/docs/README.md" />
   </Folder>
+  <Folder Name="/src/Modules/Guests/src/Admin/">
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Admin.Contracts/BunkFy.Modules.Guests.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.AdminApi/BunkFy.Modules.Guests.AdminApi.csproj" />
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.AdminCli/BunkFy.Modules.Guests.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Guests/src/Api/">
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Api/BunkFy.Modules.Guests.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Guests/src/Application/">
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Application/BunkFy.Modules.Guests.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Guests/src/Contracts/">
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Contracts/BunkFy.Modules.Guests.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Guests/src/Domain/">
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Domain/BunkFy.Modules.Guests.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Guests/src/Persistence/">
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations/BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Persistence/BunkFy.Modules.Guests.Persistence.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Guests/tests/">
     <Project Path="src/Modules/Guests/tests/BunkFy.Modules.Guests.Tests/BunkFy.Modules.Guests.Tests.csproj" />
-  </Folder>
-  <Folder Name="/src/Modules/Ingestion/">
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Admin.Contracts/BunkFy.Modules.Ingestion.Admin.Contracts.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.AdminApi/BunkFy.Modules.Ingestion.AdminApi.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.AdminCli/BunkFy.Modules.Ingestion.AdminCli.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Api/BunkFy.Modules.Ingestion.Api.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/BunkFy.Modules.Ingestion.Application.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Contracts/BunkFy.Modules.Ingestion.Contracts.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Domain/BunkFy.Modules.Ingestion.Domain.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations/BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
-    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Persistence/BunkFy.Modules.Ingestion.Persistence.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Ingestion/docs/">
     <File Path="src/Modules/Ingestion/docs/README.md" />
   </Folder>
+  <Folder Name="/src/Modules/Ingestion/src/Admin/">
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Admin.Contracts/BunkFy.Modules.Ingestion.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.AdminApi/BunkFy.Modules.Ingestion.AdminApi.csproj" />
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.AdminCli/BunkFy.Modules.Ingestion.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Ingestion/src/Api/">
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Api/BunkFy.Modules.Ingestion.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Ingestion/src/Application/">
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/BunkFy.Modules.Ingestion.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Ingestion/src/Contracts/">
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Contracts/BunkFy.Modules.Ingestion.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Ingestion/src/Domain/">
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Domain/BunkFy.Modules.Ingestion.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Ingestion/src/Persistence/">
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations/BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Persistence/BunkFy.Modules.Ingestion.Persistence.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Ingestion/tests/">
     <Project Path="src/Modules/Ingestion/tests/BunkFy.Modules.Ingestion.Tests/BunkFy.Modules.Ingestion.Tests.csproj" />
-  </Folder>
-  <Folder Name="/src/Modules/Inventory/">
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Admin.Contracts/BunkFy.Modules.Inventory.Admin.Contracts.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.AdminApi/BunkFy.Modules.Inventory.AdminApi.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.AdminCli/BunkFy.Modules.Inventory.AdminCli.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Api/BunkFy.Modules.Inventory.Api.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Application/BunkFy.Modules.Inventory.Application.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Contracts/BunkFy.Modules.Inventory.Contracts.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Domain/BunkFy.Modules.Inventory.Domain.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations/BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.csproj" />
-    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Persistence/BunkFy.Modules.Inventory.Persistence.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Inventory/docs/">
     <File Path="src/Modules/Inventory/docs/README.md" />
   </Folder>
+  <Folder Name="/src/Modules/Inventory/src/Admin/">
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Admin.Contracts/BunkFy.Modules.Inventory.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.AdminApi/BunkFy.Modules.Inventory.AdminApi.csproj" />
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.AdminCli/BunkFy.Modules.Inventory.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/src/Api/">
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Api/BunkFy.Modules.Inventory.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/src/Application/">
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Application/BunkFy.Modules.Inventory.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/src/Contracts/">
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Contracts/BunkFy.Modules.Inventory.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/src/Domain/">
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Domain/BunkFy.Modules.Inventory.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Inventory/src/Persistence/">
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations/BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Inventory/BunkFy.Modules.Inventory.Persistence/BunkFy.Modules.Inventory.Persistence.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Inventory/tests/">
     <Project Path="src/Modules/Inventory/tests/BunkFy.Modules.Inventory.Tests/BunkFy.Modules.Inventory.Tests.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Properties/">
+  <Folder Name="/src/Modules/Properties/src/Admin/">
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Admin.Contracts/BunkFy.Modules.Properties.Admin.Contracts.csproj" />
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.AdminApi/BunkFy.Modules.Properties.AdminApi.csproj" />
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.AdminCli/BunkFy.Modules.Properties.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Properties/src/Api/">
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Api/BunkFy.Modules.Properties.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Properties/src/Application/">
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Application/BunkFy.Modules.Properties.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Properties/src/Contracts/">
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Contracts/BunkFy.Modules.Properties.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Properties/src/Domain/">
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Domain/BunkFy.Modules.Properties.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Properties/src/Persistence/">
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations/BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Persistence/BunkFy.Modules.Properties.Persistence.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Properties/tests/">
     <Project Path="src/Modules/Properties/tests/BunkFy.Modules.Properties.Tests/BunkFy.Modules.Properties.Tests.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Reservations/">
+  <Folder Name="/src/Modules/Reservations/docs/">
+    <File Path="src/Modules/Reservations/docs/README.md" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/src/Admin/">
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Admin.Contracts/BunkFy.Modules.Reservations.Admin.Contracts.csproj" />
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.AdminApi/BunkFy.Modules.Reservations.AdminApi.csproj" />
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.AdminCli/BunkFy.Modules.Reservations.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/src/Api/">
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Api/BunkFy.Modules.Reservations.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/src/Application/">
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Application/BunkFy.Modules.Reservations.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/src/Contracts/">
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Contracts/BunkFy.Modules.Reservations.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/src/Domain/">
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Domain/BunkFy.Modules.Reservations.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reservations/src/Persistence/">
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations/BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Persistence/BunkFy.Modules.Reservations.Persistence.csproj" />
-  </Folder>
-  <Folder Name="/src/Modules/Reservations/docs/">
-    <File Path="src/Modules/Reservations/docs/README.md" />
   </Folder>
   <Folder Name="/src/Modules/Reservations/tests/">
     <Project Path="src/Modules/Reservations/tests/BunkFy.Modules.Reservations.Tests/BunkFy.Modules.Reservations.Tests.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Staff/">
+  <Folder Name="/src/Modules/Staff/docs/">
+    <File Path="src/Modules/Staff/docs/README.md" />
+  </Folder>
+  <Folder Name="/src/Modules/Staff/src/Admin/">
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Admin.Contracts/BunkFy.Modules.Staff.Admin.Contracts.csproj" />
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.AdminApi/BunkFy.Modules.Staff.AdminApi.csproj" />
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.AdminCli/BunkFy.Modules.Staff.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Staff/src/Api/">
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Api/BunkFy.Modules.Staff.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Staff/src/Application/">
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Application/BunkFy.Modules.Staff.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Staff/src/Contracts/">
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Contracts/BunkFy.Modules.Staff.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Staff/src/Domain/">
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Domain/BunkFy.Modules.Staff.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Staff/src/Persistence/">
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations/BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.csproj" />
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Persistence/BunkFy.Modules.Staff.Persistence.csproj" />
-  </Folder>
-  <Folder Name="/src/Modules/Staff/docs/">
-    <File Path="src/Modules/Staff/docs/README.md" />
   </Folder>
   <Folder Name="/src/Modules/Staff/tests/">
     <Project Path="src/Modules/Staff/tests/BunkFy.Modules.Staff.Tests/BunkFy.Modules.Staff.Tests.csproj" />

@@ -14,7 +14,7 @@ Regenerate the backend and root Visual Studio solution views after adding, remov
 .\eng\update-solutions.ps1 -IncludeRootWorkspace
 ```
 
-The generated solution folders reflect actual ownership: BunkFy modules stay under `src/Modules`, while mounted framework and reusable-module projects stay under their `gma/framework` and `gma/modules` paths.
+The generated solution folders reflect actual ownership: BunkFy modules and product extensions stay under `src/Modules` and `src/Extensions`, while mounted framework, reusable extensions, and reusable-module projects stay under their `gma/framework`, `gma/extensions`, and `gma/modules` paths.
 
 If Visual Studio opens only its shell and its activity log reports a missing `ComponentModelCache/Microsoft.VisualStudio.Default.assemblyMetadata`, close every Visual Studio process and run the installed `devenv.com /UpdateConfiguration`. That repairs local Visual Studio package metadata; changing the solution file does not fix that machine-level failure.
 

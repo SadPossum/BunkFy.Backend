@@ -49,6 +49,7 @@ $rootLinesBuilder = New-Object 'System.Collections.Generic.List[string]'
 $rootLinesBuilder.Add('<Project>')
 $rootLinesBuilder.Add('  <PropertyGroup>')
 $rootLinesBuilder.Add('    <GmaFrameworkRoot>$(MSBuildThisFileDirectory)gma\framework\src\</GmaFrameworkRoot>')
+$rootLinesBuilder.Add('    <GmaExtensionsRoot>$(MSBuildThisFileDirectory)gma\extensions\src\</GmaExtensionsRoot>')
 $rootLinesBuilder.Add('    <GmaModulesRoot>$(MSBuildThisFileDirectory)gma\modules\</GmaModulesRoot>')
 foreach ($moduleAlias in $selectedModuleAliases) {
     $propertyName = $moduleRootProperties[$moduleAlias]
@@ -62,6 +63,17 @@ $frameworkLines = @(
     '<Project>',
     '  <PropertyGroup>',
     '    <GmaFrameworkRoot>$(MSBuildThisFileDirectory)src\</GmaFrameworkRoot>',
+    '  </PropertyGroup>',
+    '</Project>'
+)
+
+$extensionLines = @(
+    '<Project>',
+    '  <PropertyGroup>',
+    '    <GmaExtensionsRoot>$(MSBuildThisFileDirectory)src\</GmaExtensionsRoot>',
+    '    <GmaFrameworkRoot>$(MSBuildThisFileDirectory)..\framework\src\</GmaFrameworkRoot>',
+    '    <GmaModuleAuthRoot>$(MSBuildThisFileDirectory)..\modules\auth\src\</GmaModuleAuthRoot>',
+    '    <GmaModuleNotificationsRoot>$(MSBuildThisFileDirectory)..\modules\notifications\src\</GmaModuleNotificationsRoot>',
     '  </PropertyGroup>',
     '</Project>'
 )
@@ -81,6 +93,7 @@ $moduleLines = $moduleLinesBuilder.ToArray()
 
 Write-GmaSourceRootsFile -Path (Join-GmaPath 'Gma.SourceRoots.props') -Lines $rootLines -Description 'root source-root configuration'
 Write-GmaSourceRootsFile -Path (Join-GmaPath 'gma\framework\Gma.SourceRoots.props') -Lines $frameworkLines -Description 'framework source-root configuration'
+Write-GmaSourceRootsFile -Path (Join-GmaPath 'gma\extensions\Gma.SourceRoots.props') -Lines $extensionLines -Description 'extensions source-root configuration'
 
 foreach ($moduleAlias in $selectedModuleAliases) {
     $moduleRoot = Join-GmaPath "gma\modules\$moduleAlias"

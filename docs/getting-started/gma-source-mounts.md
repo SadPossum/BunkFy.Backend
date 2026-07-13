@@ -3,6 +3,7 @@
 BunkFy consumes GMA as editable source under stable Git submodule paths:
 
 - framework: `gma/framework`;
+- reusable cross-module integrations: `gma/extensions`;
 - reusable modules: `gma/modules/<alias>`.
 
 After cloning or updating the mounts, prepare and validate the backend with:

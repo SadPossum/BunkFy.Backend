@@ -58,9 +58,9 @@ flowchart LR
     C --> D["Consumer module"]
     D --> E["Consumer-owned projection"]
     D --> F["Consumer recipient decision"]
-    F --> G["UserNotificationRequestedIntegrationEvent"]
-    G --> H["Consumer outbox"]
-    H --> I["Notifications consumer"]
+    F --> G["UserNotificationRequestedIntegrationEventV2"]
+    G --> H["Notifications projector"]
+    H --> I["Notifications unit of work and inbox"]
     I --> J["notifications.user_notifications"]
 ```
 
@@ -70,6 +70,8 @@ This is the same shape a private chat or PMS policy module should use:
 - property/user-management policies belong to the PMS module;
 - inventory availability belongs to Inventory and property topology belongs to Properties;
 - Notifications receives explicit user targets only, never business-specific visibility rules.
+
+BunkFy's operational notification extension is the consumer in this flow. It intentionally joins public product-event contracts, Staff's audience-reader contract, and Notifications' projector seam. The source event remains durable through its producer outbox and NATS; the addressed notification and consumer inbox are committed by Notifications. Deterministic notification ids make retries idempotent for every recipient.
 
 ## Compatibility
 
