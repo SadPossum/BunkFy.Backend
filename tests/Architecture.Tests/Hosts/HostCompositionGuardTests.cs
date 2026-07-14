@@ -7,7 +7,7 @@ using Xunit;
 public sealed class HostCompositionGuardTests
 {
     [Fact]
-    public void Public_api_composes_reusable_and_example_modules_explicitly()
+    public void Public_api_composes_reusable_and_product_modules_explicitly()
     {
         string program = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
         string[] expectedTokens =
@@ -17,13 +17,17 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddAccessControlApplication(builder.Configuration);",
             "builder.AddAccessControlPersistence();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
-            "builder.AddAuthModule(AuthProfile.ScopeAware());",
+            "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
+            "builder.AddAuthModule(authProfile);",
             "builder.AddAuthOpenIdConnectProviders();",
             "builder.AddMinioFileStorage();",
             "builder.AddUserNotificationsRealtime();",
             "builder.AddModule<FilesModule>();",
             "builder.AddModule<NotificationsModule>();",
+            "builder.AddModule<OrganizationsModule>();",
             "builder.Services.AddAuthNotificationsExtension();",
+            "builder.Services.AddAuthOrganizationsExtension(options => options.GlobalAuthScopeId = authScopeId);",
+            "builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);",
             "builder.Services.AddBunkFyOperationsNotifications();",
             "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",
             "builder.AddModule<PropertiesModule>();",
@@ -52,8 +56,9 @@ public sealed class HostCompositionGuardTests
         string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
 
         Assert.Contains("builder.AddAdminApiModule<AccessControlAdminApiModule>();", adminApi, StringComparison.Ordinal);
-        Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.ScopeAware());", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.Global(authScopeId));", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<NotificationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<OrganizationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<InventoryAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<ReservationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
@@ -64,7 +69,8 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("app.UseGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<AccessControlAdminCliModule>();", adminCli, StringComparison.Ordinal);
-        Assert.Contains("builder.AddAuthAdminModule(AuthProfile.ScopeAware());", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAuthAdminModule(AuthProfile.Global(authScopeId));", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<OrganizationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<PropertiesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<InventoryAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<ReservationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
@@ -81,7 +87,9 @@ public sealed class HostCompositionGuardTests
         string options = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostOptions.cs");
 
         Assert.Contains("\"Auth\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"AccessControl\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Notifications\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Organizations\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Properties\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Inventory\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Reservations\": false", appsettings, StringComparison.Ordinal);
@@ -91,7 +99,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("\"TaskRuntime\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("defaultValue: false", options, StringComparison.Ordinal);
         Assert.Contains(
-            "AuthProfile.ScopeAware().Descriptor",
+            "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
             RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs"),
             StringComparison.Ordinal);
         Assert.Contains(
@@ -123,6 +131,8 @@ public sealed class HostCompositionGuardTests
             "Tasks__Worker__Enabled",
             "Worker__Modules__TaskRuntime",
             "Worker__Modules__Notifications",
+            "Worker__Modules__AccessControl",
+            "Worker__Modules__Organizations",
             "Worker__Modules__Guests",
             "Worker__Modules__Staff",
             "AppHost:AdminApi:Enabled",
@@ -159,13 +169,31 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Public_api_keeps_staff_self_registration_closed()
+    public void Public_api_enables_global_account_and_workspace_self_registration()
     {
         string appsettings = RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json");
 
         Assert.Contains("\"SelfRegistration\"", appsettings, StringComparison.Ordinal);
-        Assert.Contains("\"PasswordEnabled\": false", appsettings, StringComparison.Ordinal);
-        Assert.Contains("\"ExternalEnabled\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"GlobalScopeId\": \"default\"", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"PasswordEnabled\": true", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"ExternalEnabled\": true", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"SelfServiceCreationEnabled\": true", appsettings, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Workspace_membership_defaults_to_non_sensitive_read_access()
+    {
+        string roles = RepositoryPaths.Read(
+            "src",
+            "Extensions",
+            "BunkFy.Extensions.Workspaces",
+            "WorkspaceAccessRoles.cs");
+
+        Assert.Contains("PropertiesAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
+        Assert.Contains("InventoryAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
+        Assert.DoesNotContain("Reservations", roles, StringComparison.Ordinal);
+        Assert.DoesNotContain("Guests", roles, StringComparison.Ordinal);
+        Assert.DoesNotContain("StaffAdminPermissionCodes", roles, StringComparison.Ordinal);
     }
 
     [Fact]

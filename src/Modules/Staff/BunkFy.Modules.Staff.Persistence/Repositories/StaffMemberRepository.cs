@@ -19,6 +19,13 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext) : IStaffMe
         dbContext.StaffMembers.Include(member => member.Assignments)
             .FirstOrDefaultAsync(member => member.Id == staffMemberId, cancellationToken);
 
+    public Task<StaffMember?> GetByAuthSubjectAsync(string authSubjectId, CancellationToken cancellationToken)
+    {
+        string normalized = authSubjectId.Trim();
+        return dbContext.StaffMembers.Include(member => member.Assignments)
+            .FirstOrDefaultAsync(member => member.AuthSubjectId == normalized, cancellationToken);
+    }
+
     public Task<StaffMember?> GetAtPropertyAsync(Guid propertyId, Guid staffMemberId,
         CancellationToken cancellationToken) => dbContext.StaffMembers
         .Include(member => member.Assignments)

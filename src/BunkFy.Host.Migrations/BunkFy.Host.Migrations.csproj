@@ -11,6 +11,8 @@
     <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations\Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Persistence.PostgreSqlMigrations\Gma.Modules.Auth.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Persistence.PostgreSqlMigrations\Gma.Modules.Notifications.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence\Gma.Modules.Organizations.Persistence.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.PostgreSqlMigrations\Gma.Modules.Organizations.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations\Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Inventory\BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations\BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.csproj" />

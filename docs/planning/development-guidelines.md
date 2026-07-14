@@ -120,6 +120,18 @@ Guid-backed identity value objects should reject `Guid.Empty`.
 
 ## Tenancy And Access
 
+Use identity, membership, access, employment, and property terms precisely:
+
+- Auth identity proves who authenticated and is global in BunkFy;
+- organization membership proves which workspace the subject may enter;
+- tenant/scope selects the workspace data partition but is never authority by itself;
+- AccessControl grants operation permissions in tenant/property scopes;
+- Staff owns employment state and property work assignments.
+
+Public account registration does not grant PMS access. Accounts without an active workspace membership are restricted to onboarding/account surfaces. Ordinary product endpoints require both active membership and their operation-specific permission. Service, system, platform-admin, and adapter paths use explicit policies and never inherit user membership bypass accidentally.
+
+The platform first-owner/bootstrap operation remains Admin CLI-only. Creating a workspace and its first workspace owner is a separate Organizations-owned public use case approved by the workspace architecture decision; it must not grant platform administration.
+
 Before writing tenant-scoped code, answer:
 
 - Is this endpoint tenant-scoped?

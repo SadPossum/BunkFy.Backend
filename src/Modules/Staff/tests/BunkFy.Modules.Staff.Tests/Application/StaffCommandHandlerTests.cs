@@ -94,6 +94,49 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal("user:owner", Assert.Single(member.Assignments).AssignedBy);
     }
 
+    [Fact]
+    public async Task Identity_reconciliation_creates_one_active_staff_profile_for_the_auth_subject()
+    {
+        FakeStaffMemberRepository members = new();
+        using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
+        ICommandHandler<ReconcileStaffIdentityCommand, Unit> handler = provider
+            .GetRequiredService<ICommandHandler<ReconcileStaffIdentityCommand, Unit>>();
+        ReconcileStaffIdentityCommand command = new(
+            "member-100", "ada@example.test", "ada@example.test", true,
+            "integration:organizations", "Workspace membership changed.");
+
+        Result<Unit> first = await handler.HandleAsync(command, CancellationToken.None);
+        Result<Unit> repeated = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(repeated.IsSuccess, repeated.Error.Code);
+        Assert.NotNull(members.AddedMember);
+        Assert.Equal("member-100", members.AddedMember.AuthSubjectId);
+        Assert.Equal(StaffMemberState.Active, members.AddedMember.Status);
+    }
+
+    [Fact]
+    public async Task Identity_reconciliation_suspends_and_resumes_an_existing_staff_profile()
+    {
+        StaffMember member = CreateMember("member-100");
+        FakeStaffMemberRepository members = new(member);
+        using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
+        ICommandHandler<ReconcileStaffIdentityCommand, Unit> handler = provider
+            .GetRequiredService<ICommandHandler<ReconcileStaffIdentityCommand, Unit>>();
+
+        Result<Unit> suspended = await handler.HandleAsync(new(
+            "member-100", "Ada Operator", "ada@example.test", false,
+            "integration:organizations", "Workspace membership changed."), CancellationToken.None);
+        Result<Unit> resumed = await handler.HandleAsync(new(
+            "member-100", "Ada Operator", "ada@example.test", true,
+            "integration:organizations", "Workspace membership changed."), CancellationToken.None);
+
+        Assert.True(suspended.IsSuccess, suspended.Error.Code);
+        Assert.True(resumed.IsSuccess, resumed.Error.Code);
+        Assert.Equal(StaffMemberState.Active, member.Status);
+        Assert.Equal(3, member.Version);
+    }
+
     private static ServiceProvider CreateProvider(
         IStaffMemberRepository members,
         IStaffPropertyProjectionRepository properties,
@@ -115,9 +158,9 @@ public sealed class StaffCommandHandlerTests
         "Ada Operator", null, "ada@example.test", null, employeeNumber,
         "Manager", "Operations", authSubjectId, "user:owner");
 
-    private static StaffMember CreateMember() => StaffMember.Create(
+    private static StaffMember CreateMember(string? authSubjectId = null) => StaffMember.Create(
         Guid.NewGuid(), "tenant-a", "Ada Operator", null, "ada@example.test", null,
-        "EMP-100", "Manager", "Operations", null, "user:owner", Guid.NewGuid(), TestClock.Now).Value;
+        "EMP-100", "Manager", "Operations", authSubjectId, "user:owner", Guid.NewGuid(), TestClock.Now).Value;
 
     private sealed class FakeStaffMemberRepository(StaffMember? member = null) : IStaffMemberRepository
     {
@@ -133,6 +176,15 @@ public sealed class StaffCommandHandlerTests
 
         public Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken) =>
             Task.FromResult(member?.Id == staffMemberId ? member : null);
+
+        public Task<StaffMember?> GetByAuthSubjectAsync(string authSubjectId,
+            CancellationToken cancellationToken) => Task.FromResult(
+            new[] { member, this.AddedMember }
+                .OfType<StaffMember>()
+                .FirstOrDefault(candidate => string.Equals(
+                    candidate.AuthSubjectId,
+                    authSubjectId.Trim(),
+                    StringComparison.Ordinal)));
 
         public Task<StaffMember?> GetAtPropertyAsync(Guid propertyId, Guid staffMemberId,
             CancellationToken cancellationToken) => Task.FromResult<StaffMember?>(null);

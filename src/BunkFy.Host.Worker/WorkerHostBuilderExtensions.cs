@@ -2,12 +2,19 @@ namespace BunkFy.Host.Worker;
 
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.AccessControl.Application;
+using Gma.Modules.AccessControl.Contracts;
+using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Notifications.Adapters.Email;
 using Gma.Modules.Notifications.Application;
 using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Notifications.Persistence;
 using Gma.Extensions.Auth.Notifications;
+using Gma.Extensions.Auth.Organizations;
+using Gma.Modules.Organizations.Application;
+using Gma.Modules.Organizations.Persistence;
 using BunkFy.Extensions.Operations.Notifications;
+using BunkFy.Extensions.Workspaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -110,10 +117,20 @@ public static class WorkerHostBuilderExtensions
 
     private static void AddConfiguredModuleGroups(IHostApplicationBuilder builder, WorkerHostOptions workerOptions)
     {
+        string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
+        AuthProfile authProfile = AuthProfile.Global(authScopeId);
+
         if (workerOptions.Modules.Auth)
         {
-            builder.SelectModuleProfile(AuthProfile.ScopeAware().Descriptor, "BunkFy.Host.Worker/Auth");
-            builder.AddAuthPersistence();
+            builder.SelectModuleProfile(authProfile.Descriptor, "BunkFy.Host.Worker/Auth");
+            builder.AddAuthPersistence(authProfile);
+        }
+
+        if (workerOptions.Modules.AccessControl)
+        {
+            builder.SelectModuleProfile(AccessControlProfiles.Default, "BunkFy.Host.Worker/AccessControl");
+            builder.Services.AddAccessControlApplication(builder.Configuration);
+            builder.AddAccessControlPersistence();
         }
 
         if (workerOptions.Modules.Notifications)
@@ -131,6 +148,26 @@ public static class WorkerHostBuilderExtensions
             if (workerOptions.Modules.Staff)
             {
                 builder.Services.AddBunkFyOperationsNotifications();
+            }
+        }
+
+        if (workerOptions.Modules.Organizations)
+        {
+            builder.Services.AddOrganizationsApplication(builder.Configuration);
+            builder.AddOrganizationsPersistence();
+
+            if (workerOptions.Modules.Auth)
+            {
+                builder.Services.AddAuthOrganizationsExtension(
+                    options => options.GlobalAuthScopeId = authScopeId);
+            }
+
+            if (workerOptions.Modules.Auth &&
+                workerOptions.Modules.AccessControl &&
+                workerOptions.Modules.Staff)
+            {
+                builder.Services.AddBunkFyWorkspaces(
+                    options => options.GlobalAuthScopeId = authScopeId);
             }
         }
 

@@ -27,6 +27,7 @@
     <File Path="docs/architecture/auth-and-notifications.md" />
     <File Path="docs/architecture/ingestion-adapter-boundary.md" />
     <File Path="docs/architecture/overview.md" />
+    <File Path="docs/architecture/workspaces-and-onboarding.md" />
   </Folder>
   <Folder Name="/docs/examples/">
     <File Path="docs/examples/cross-module-integration.md" />
@@ -69,6 +70,7 @@
     <File Path="docs/planning/reservations-stay-lifecycle-task.md" />
     <File Path="docs/planning/staff-profiles-module-task.md" />
     <File Path="docs/planning/standalone-adapter-host-task.md" />
+    <File Path="docs/planning/workspace-onboarding-task.md" />
   </Folder>
   <Folder Name="/eng/">
     <File Path="eng/add-migration.ps1" />
@@ -99,9 +101,11 @@
   </Folder>
   <Folder Name="/gma/extensions/src/">
     <Project Path="gma/extensions/src/Gma.Extensions.Auth.Notifications/Gma.Extensions.Auth.Notifications.csproj" />
+    <Project Path="gma/extensions/src/Gma.Extensions.Auth.Organizations/Gma.Extensions.Auth.Organizations.csproj" />
   </Folder>
   <Folder Name="/gma/extensions/tests/">
     <Project Path="gma/extensions/tests/Gma.Extensions.Auth.Notifications.Tests/Gma.Extensions.Auth.Notifications.Tests.csproj" />
+    <Project Path="gma/extensions/tests/Gma.Extensions.Auth.Organizations.Tests/Gma.Extensions.Auth.Organizations.Tests.csproj" />
   </Folder>
   <Folder Name="/gma/framework/src/Administration/">
     <Project Path="gma/framework/src/Administration/Gma.Framework.Administration.AccessControl/Gma.Framework.Administration.AccessControl.csproj" />
@@ -333,6 +337,32 @@
   <Folder Name="/gma/modules/notifications/tests/">
     <Project Path="gma/modules/notifications/tests/Gma.Modules.Notifications.Tests/Gma.Modules.Notifications.Tests.csproj" />
   </Folder>
+  <Folder Name="/gma/modules/organizations/src/Admin/">
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Admin.Contracts/Gma.Modules.Organizations.Admin.Contracts.csproj" />
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.AdminApi/Gma.Modules.Organizations.AdminApi.csproj" />
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.AdminCli/Gma.Modules.Organizations.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/organizations/src/Api/">
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Api/Gma.Modules.Organizations.Api.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/organizations/src/Application/">
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Application/Gma.Modules.Organizations.Application.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/organizations/src/Contracts/">
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Contracts/Gma.Modules.Organizations.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/organizations/src/Domain/">
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Domain/Gma.Modules.Organizations.Domain.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/organizations/src/Persistence/">
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Persistence.PostgreSqlMigrations/Gma.Modules.Organizations.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Persistence.SqlServerMigrations/Gma.Modules.Organizations.Persistence.SqlServerMigrations.csproj" />
+    <Project Path="gma/modules/organizations/src/Gma.Modules.Organizations.Persistence/Gma.Modules.Organizations.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/gma/modules/organizations/tests/">
+    <Project Path="gma/modules/organizations/tests/Gma.Modules.Organizations.IntegrationTests/Gma.Modules.Organizations.IntegrationTests.csproj" />
+    <Project Path="gma/modules/organizations/tests/Gma.Modules.Organizations.Tests/Gma.Modules.Organizations.Tests.csproj" />
+  </Folder>
   <Folder Name="/gma/modules/task-runtime/src/Admin/">
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.Admin.Contracts/Gma.Modules.TaskRuntime.Admin.Contracts.csproj" />
     <Project Path="gma/modules/task-runtime/src/Gma.Modules.TaskRuntime.AdminApi/Gma.Modules.TaskRuntime.AdminApi.csproj" />
@@ -378,9 +408,11 @@
   </Folder>
   <Folder Name="/src/Extensions/">
     <Project Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/BunkFy.Extensions.Operations.Notifications.csproj" />
+    <Project Path="src/Extensions/BunkFy.Extensions.Workspaces/BunkFy.Extensions.Workspaces.csproj" />
   </Folder>
   <Folder Name="/src/Extensions/tests/">
     <Project Path="src/Extensions/tests/BunkFy.Extensions.Operations.Notifications.Tests/BunkFy.Extensions.Operations.Notifications.Tests.csproj" />
+    <Project Path="src/Extensions/tests/BunkFy.Extensions.Workspaces.Tests/BunkFy.Extensions.Workspaces.Tests.csproj" />
   </Folder>
   <Folder Name="/src/Hosts/">
     <Project Path="src/BunkFy.Host.AdminApi/BunkFy.Host.AdminApi.csproj" />

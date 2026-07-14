@@ -23,6 +23,9 @@
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.AdminCli\Gma.Modules.TaskRuntime.AdminCli.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations\Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations\Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.AdminCli\Gma.Modules.Organizations.AdminCli.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.PostgreSqlMigrations\Gma.Modules.Organizations.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.SqlServerMigrations\Gma.Modules.Organizations.Persistence.SqlServerMigrations.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.AdminCli\BunkFy.Modules.Properties.AdminCli.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Inventory\BunkFy.Modules.Inventory.AdminCli\BunkFy.Modules.Inventory.AdminCli.csproj" />

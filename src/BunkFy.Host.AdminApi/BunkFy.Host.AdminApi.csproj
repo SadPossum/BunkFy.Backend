@@ -13,6 +13,9 @@
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.AdminApi\Gma.Modules.Notifications.AdminApi.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Persistence.PostgreSqlMigrations\Gma.Modules.Notifications.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Persistence.SqlServerMigrations\Gma.Modules.Notifications.Persistence.SqlServerMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.AdminApi\Gma.Modules.Organizations.AdminApi.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.PostgreSqlMigrations\Gma.Modules.Organizations.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.SqlServerMigrations\Gma.Modules.Organizations.Persistence.SqlServerMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.AdminApi\Gma.Modules.TaskRuntime.AdminApi.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations\Gma.Modules.TaskRuntime.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations\Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations.csproj" />

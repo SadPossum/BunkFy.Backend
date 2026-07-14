@@ -34,13 +34,14 @@ function Write-GmaSourceRootsFile {
     }
 }
 
-$selectedModuleAliases = @('access-control', 'administration', 'auth', 'files', 'notifications', 'task-runtime', 'tenancy')
+$selectedModuleAliases = @('access-control', 'administration', 'auth', 'files', 'notifications', 'organizations', 'task-runtime', 'tenancy')
 $moduleRootProperties = @{
     'access-control' = 'GmaModuleAccessControlRoot'
     'administration' = 'GmaModuleAdministrationRoot'
     'auth' = 'GmaModuleAuthRoot'
     'files' = 'GmaModuleFilesRoot'
     'notifications' = 'GmaModuleNotificationsRoot'
+    'organizations' = 'GmaModuleOrganizationsRoot'
     'task-runtime' = 'GmaModuleTaskRuntimeRoot'
     'tenancy' = 'GmaModuleTenancyRoot'
 }
@@ -74,6 +75,7 @@ $extensionLines = @(
     '    <GmaFrameworkRoot>$(MSBuildThisFileDirectory)..\framework\src\</GmaFrameworkRoot>',
     '    <GmaModuleAuthRoot>$(MSBuildThisFileDirectory)..\modules\auth\src\</GmaModuleAuthRoot>',
     '    <GmaModuleNotificationsRoot>$(MSBuildThisFileDirectory)..\modules\notifications\src\</GmaModuleNotificationsRoot>',
+    '    <GmaModuleOrganizationsRoot>$(MSBuildThisFileDirectory)..\modules\organizations\src\</GmaModuleOrganizationsRoot>',
     '  </PropertyGroup>',
     '</Project>'
 )

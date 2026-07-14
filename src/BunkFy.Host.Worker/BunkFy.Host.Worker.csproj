@@ -6,6 +6,11 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Application\Gma.Modules.AccessControl.Application.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Contracts\Gma.Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Persistence\Gma.Modules.AccessControl.Persistence.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations\Gma.Modules.AccessControl.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Persistence.SqlServerMigrations\Gma.Modules.AccessControl.Persistence.SqlServerMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Contracts\Gma.Modules.Auth.Contracts.csproj" />
     <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Persistence\Gma.Modules.Auth.Persistence.csproj" />
     <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Persistence.PostgreSqlMigrations\Gma.Modules.Auth.Persistence.PostgreSqlMigrations.csproj" />
@@ -14,9 +19,15 @@
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Application\Gma.Modules.Notifications.Application.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Contracts\Gma.Modules.Notifications.Contracts.csproj" />
     <ProjectReference Include="$(GmaExtensionsRoot)Gma.Extensions.Auth.Notifications\Gma.Extensions.Auth.Notifications.csproj" />
+    <ProjectReference Include="$(GmaExtensionsRoot)Gma.Extensions.Auth.Organizations\Gma.Extensions.Auth.Organizations.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Persistence\Gma.Modules.Notifications.Persistence.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Persistence.PostgreSqlMigrations\Gma.Modules.Notifications.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Persistence.SqlServerMigrations\Gma.Modules.Notifications.Persistence.SqlServerMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Application\Gma.Modules.Organizations.Application.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Contracts\Gma.Modules.Organizations.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence\Gma.Modules.Organizations.Persistence.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.PostgreSqlMigrations\Gma.Modules.Organizations.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.SqlServerMigrations\Gma.Modules.Organizations.Persistence.SqlServerMigrations.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.Persistence\BunkFy.Modules.Properties.Persistence.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.csproj" />
@@ -41,6 +52,7 @@
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence\BunkFy.Modules.Ingestion.Persistence.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Extensions\BunkFy.Extensions.Operations.Notifications\BunkFy.Extensions.Operations.Notifications.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.Workspaces\BunkFy.Extensions.Workspaces.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.Configuration\BunkFy.Adapters.Configuration.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.FakeHttp\BunkFy.Adapters.FakeHttp.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.ImapReservationMail\BunkFy.Adapters.ImapReservationMail.csproj" />

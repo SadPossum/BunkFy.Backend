@@ -7,6 +7,8 @@ using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Notifications.AdminApi;
 using Gma.Modules.Notifications.Persistence;
+using Gma.Modules.Organizations.AdminApi;
+using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.AdminApi;
 using Gma.Modules.TaskRuntime.Persistence;
 using BunkFy.Modules.Properties.AdminApi;
@@ -45,6 +47,7 @@ using Gma.Framework.Tenancy.Caching;
 using Gma.Framework.Tenancy.Messaging.Infrastructure;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
 
 builder.Host.UseConfiguredSerilog();
 
@@ -66,8 +69,9 @@ builder.Services.AddReservationMailParserDescriptor();
 
 builder.AddAdminApiModule<AdministrationAdminApiModule>();
 builder.AddAdminApiModule<AccessControlAdminApiModule>();
-builder.AddAuthAdminApiModule(AuthProfile.ScopeAware());
+builder.AddAuthAdminApiModule(AuthProfile.Global(authScopeId));
 builder.AddAdminApiModule<NotificationsAdminApiModule>();
+builder.AddAdminApiModule<OrganizationsAdminApiModule>();
 builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();
 builder.AddAdminApiModule<PropertiesAdminApiModule>();
 builder.AddAdminApiModule<InventoryAdminApiModule>();
@@ -82,6 +86,7 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<AdminDbContext>("administra
 builder.Services.AddGmaEntityFrameworkReadinessCheck<AccessControlDbContext>("access-control-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<AuthDbContext>("auth-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<NotificationsDbContext>("notifications-database");
+builder.Services.AddGmaEntityFrameworkReadinessCheck<OrganizationsDbContext>("organizations-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<TaskRuntimeDbContext>("task-runtime-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<PropertiesDbContext>("properties-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<InventoryDbContext>("inventory-database");

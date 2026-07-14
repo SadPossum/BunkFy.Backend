@@ -7,7 +7,9 @@ using BunkFy.Modules.Staff.Persistence;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Administration.Persistence;
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Notifications.Persistence;
+using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -23,6 +25,7 @@ HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicati
 });
 
 string provider = builder.Configuration["Persistence:Provider"] ?? "PostgreSql";
+string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
 if (!string.Equals(provider, "PostgreSql", StringComparison.OrdinalIgnoreCase))
 {
     throw new InvalidOperationException("BunkFy.Host.Migrations supports the PostgreSQL deployment provider only.");
@@ -31,8 +34,9 @@ if (!string.Equals(provider, "PostgreSql", StringComparison.OrdinalIgnoreCase))
 builder.Services.AddScoped<IScopeContext, DesignTimeScopeContext>();
 builder.AddAdministrationPersistence();
 builder.AddAccessControlPersistence();
-builder.AddAuthPersistence();
+builder.AddAuthPersistence(AuthProfile.Global(authScopeId));
 builder.AddNotificationsPersistence();
+builder.AddOrganizationsPersistence();
 builder.AddTaskRuntimePersistence();
 builder.AddPropertiesPersistence();
 builder.AddInventoryPersistence();
@@ -52,6 +56,7 @@ ILogger logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
     ("access-control", typeof(AccessControlDbContext)),
     ("auth", typeof(AuthDbContext)),
     ("notifications", typeof(NotificationsDbContext)),
+    ("organizations", typeof(OrganizationsDbContext)),
     ("task-runtime", typeof(TaskRuntimeDbContext)),
     ("properties", typeof(PropertiesDbContext)),
     ("inventory", typeof(InventoryDbContext)),

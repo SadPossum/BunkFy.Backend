@@ -8,7 +8,11 @@ using Gma.Modules.Auth.Providers.OpenIdConnect;
 using Gma.Modules.Notifications.Adapters.Email;
 using Gma.Modules.Notifications.Persistence;
 using Gma.Extensions.Auth.Notifications;
+using Gma.Extensions.Auth.Organizations;
+using Gma.Modules.Organizations.Api;
+using Gma.Modules.Organizations.Persistence;
 using BunkFy.Extensions.Operations.Notifications;
+using BunkFy.Extensions.Workspaces;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Inventory.Persistence;
@@ -55,6 +59,8 @@ using Gma.Modules.Tenancy.Api;
 using BunkFy.Host.Api;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
+AuthProfile authProfile = AuthProfile.Global(authScopeId);
 
 builder.Host.UseConfiguredSerilog();
 
@@ -84,11 +90,14 @@ builder.Services.AddAccessControlApplication(builder.Configuration);
 builder.AddAccessControlPersistence();
 
 builder.AddModule<TenancyModule>();
-builder.AddAuthModule(AuthProfile.ScopeAware());
+builder.AddAuthModule(authProfile);
 builder.AddAuthOpenIdConnectProviders();
 builder.AddModule<FilesModule>();
 builder.AddModule<NotificationsModule>();
+builder.AddModule<OrganizationsModule>();
 builder.Services.AddAuthNotificationsExtension();
+builder.Services.AddAuthOrganizationsExtension(options => options.GlobalAuthScopeId = authScopeId);
+builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);
 builder.Services.AddBunkFyOperationsNotifications();
 builder.Services.AddNotificationEmailAdapter(builder.Configuration);
 builder.AddModule<PropertiesModule>();
@@ -104,6 +113,7 @@ builder.AddGmaProductionHttp();
 builder.Services.AddGmaEntityFrameworkReadinessCheck<AccessControlDbContext>("access-control-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<AuthDbContext>("auth-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<NotificationsDbContext>("notifications-database");
+builder.Services.AddGmaEntityFrameworkReadinessCheck<OrganizationsDbContext>("organizations-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<PropertiesDbContext>("properties-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<InventoryDbContext>("inventory-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<ReservationsDbContext>("reservations-database");

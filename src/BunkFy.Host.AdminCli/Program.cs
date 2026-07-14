@@ -3,6 +3,7 @@ using Gma.Modules.Administration.AdminCli;
 using Gma.Modules.Auth.AdminCli;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.TaskRuntime.AdminCli;
+using Gma.Modules.Organizations.AdminCli;
 using BunkFy.Modules.Properties.AdminCli;
 using BunkFy.Modules.Inventory.AdminCli;
 using BunkFy.Modules.Reservations.AdminCli;
@@ -36,6 +37,7 @@ try
             Args = args,
             ContentRootPath = AppContext.BaseDirectory
         });
+    string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
 
     builder.Services.AddGmaAdministrationCli();
     builder.AddRedisCaching();
@@ -51,7 +53,8 @@ try
     builder.AddTenantAwareMessaging();
     builder.AddAdminModule<AdministrationAdminCliModule>();
     builder.AddAdminModule<AccessControlAdminCliModule>();
-    builder.AddAuthAdminModule(AuthProfile.ScopeAware());
+    builder.AddAuthAdminModule(AuthProfile.Global(authScopeId));
+    builder.AddAdminModule<OrganizationsAdminCliModule>();
     builder.AddAdminModule<TaskRuntimeAdminCliModule>();
     builder.AddAdminModule<PropertiesAdminCliModule>();
     builder.AddAdminModule<InventoryAdminCliModule>();

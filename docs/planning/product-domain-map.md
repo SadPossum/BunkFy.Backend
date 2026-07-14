@@ -1,7 +1,7 @@
 # BunkFy Product Domain Map
 
 Status: working planning note
-Date: 2026-07-09
+Date: 2026-07-14
 
 BunkFy is a management-only hostel PMS. Operators and staff authenticate into the system; guests are PMS records and do not get direct system access.
 
@@ -10,9 +10,9 @@ This note lists likely product domains and sorts them into first/core versus fut
 ## Design Bias
 
 - Keep PMS product rules in BunkFy modules.
-- Reuse GMA modules for generic capabilities: Auth, Administration, Files, Notifications, TaskRuntime, Tenancy, messaging, caching, and storage.
+- Reuse GMA modules for generic capabilities: Auth, Organizations, Administration, AccessControl, Files, Notifications, TaskRuntime, Tenancy, messaging, caching, and storage.
 - Use PostgreSQL as the product/default deployment database direction, while keeping module domain/application code database-provider agnostic. Provider-specific behavior belongs in persistence adapters and migration projects.
-- Treat tenant and property as explicit operating boundaries.
+- Treat workspace/tenant and property as explicit operating boundaries.
 - Prefer operation-specific permissions over broad hard-coded roles.
 - Use GMA Auth, Administration, and policy helpers first. If BunkFy needs richer policy behavior, prefer extending GMA generically before adding project-specific auth/JWT infrastructure.
 - Keep module data ownership strict. A module stores another module's facts only as local projections that it owns, repairs, and rebuilds.
@@ -23,7 +23,13 @@ This note lists likely product domains and sorts them into first/core versus fut
 
 Use these terms consistently in module names, contracts, APIs, tests, and docs.
 
-- Tenant: the operator/account boundary used for isolation and ownership.
+- Account: one global GMA Auth identity and its authentication lifecycle.
+- Organization: the reusable GMA-owned membership and tenancy boundary.
+- Workspace: BunkFy's user-facing name for an organization.
+- Tenant/scope: the technical isolation context whose id is the workspace organization id.
+- Membership: the lifecycle relationship between an Auth subject and a workspace; it is not a permission grant or employment record.
+- Invitation: a revocable, expiring offer for one person to join a workspace.
+- Enrollment link: a separately governed reusable workspace join link, optionally rendered as a QR code.
 - Property: a hostel/site managed within a tenant.
 - Building: an optional physical subdivision of a property.
 - Floor: an optional physical subdivision inside a building.
@@ -34,7 +40,8 @@ Use these terms consistently in module names, contracts, APIs, tests, and docs.
 - Allocation: the assignment of reservation demand to concrete inventory units.
 - Reservation: the booking lifecycle record managed by staff.
 - Guest record: staff-managed guest data used by reservations, stays, files, billing, and operations. It is not a login account.
-- Staff member: an authenticated operator-side user who works in the PMS.
+- Staff member: the employment/operations record for a person who works in the PMS; it may exist without a linked Auth account.
+- Access profile: a BunkFy-owned safe assignment template mapped to GMA AccessControl roles and scopes.
 - Policy: a permission or rule deciding whether a staff member can perform an operation.
 - Adapter: a live process or integration component that pulls data from an external source and submits normalized updates.
 - Provider: an external data/source system such as an OTA, corporate API, email inbox, web source, or file import.
@@ -43,6 +50,14 @@ Use these terms consistently in module names, contracts, APIs, tests, and docs.
 ## First/Core Domains
 
 These domains form the operational spine. They should be designed first, even if only a subset is implemented in the first build slice.
+
+### Workspaces And Membership
+
+Uses reusable GMA Organizations for organization identity, ownership, membership, invitations, and enrollment links. BunkFy owns workspace terminology, public creation policy, setup flow, Staff onboarding, product access profiles, property assignment plans, and coordinated offboarding.
+
+Public registration creates a global operator identity with no PMS access. The account must create a workspace or accept an invitation, hold an active membership, and receive operation-specific AccessControl grants before product endpoints are available. A workspace may contain multiple properties, and one account may belong to multiple workspaces.
+
+The architecture and delivery requirements are tracked in [Workspaces, Identity, And Staff Onboarding](../architecture/workspaces-and-onboarding.md) and the [Workspace And Staff Onboarding Task](workspace-onboarding-task.md).
 
 ### Properties
 
@@ -110,7 +125,7 @@ Uses GMA Auth, AccessControl, and Administration for identities, roles, permissi
 
 The first Staff Profiles slice is implemented with tenant-wide profiles, optional Auth subject correlation, explicit active/suspended/departed lifecycle, retained property assignment history, public/Admin API and Admin CLI surfaces, PII-free integration facts, and a rebuildable Properties projection.
 
-Auth account lifecycle and Staff employment lifecycle deliberately remain separate. A Staff assignment cannot grant access, and an AccessControl grant does not prove employment. Coordinated provisioning/offboarding, approvals, workforce scheduling, and payroll remain later workflows.
+Auth account lifecycle, organization membership lifecycle, AccessControl grants, and Staff employment lifecycle deliberately remain separate. A Staff assignment cannot grant access, an active membership cannot grant an operation, and an AccessControl grant does not prove employment. Coordinated workspace/Staff onboarding and offboarding are the next active workflow; approvals, workforce scheduling, and payroll remain later work.
 
 ### Files
 

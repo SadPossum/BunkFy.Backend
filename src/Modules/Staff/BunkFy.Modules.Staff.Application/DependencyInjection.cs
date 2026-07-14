@@ -6,6 +6,7 @@ using Gma.Framework.Messaging;
 using Gma.Framework.ProjectionRebuild.Tasks;
 using Gma.Framework.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Application.Handlers;
 using BunkFy.Modules.Staff.Application.Tasks;
@@ -17,6 +18,7 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
+        services.TryAddScoped<IStaffIdentityReconciler, StaffIdentityReconciler>();
         services.AddGmaAccessControlPermissionPolicies(StaffModuleMetadata.Descriptor);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, StaffPropertyCreatedHandler>(
             StaffModuleMetadata.Name, PropertiesModuleMetadata.Name);

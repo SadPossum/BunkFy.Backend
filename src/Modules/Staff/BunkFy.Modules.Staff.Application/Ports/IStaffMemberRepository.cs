@@ -8,6 +8,7 @@ public interface IStaffMemberRepository
 {
     Task AddAsync(StaffMember member, CancellationToken cancellationToken);
     Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken);
+    Task<StaffMember?> GetByAuthSubjectAsync(string authSubjectId, CancellationToken cancellationToken);
     Task<StaffMember?> GetAtPropertyAsync(Guid propertyId, Guid staffMemberId, CancellationToken cancellationToken);
     Task<StaffListResponse> ListAsync(string? search, StaffStatus? status, PageRequest pageRequest,
         CancellationToken cancellationToken);

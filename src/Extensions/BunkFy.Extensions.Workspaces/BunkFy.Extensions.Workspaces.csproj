@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Inventory\BunkFy.Modules.Inventory.Contracts\BunkFy.Modules.Inventory.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Properties\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Application\Gma.Modules.AccessControl.Application.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Contracts\Gma.Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Contracts\Gma.Modules.Auth.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Contracts\Gma.Modules.Organizations.Contracts.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Messaging\Gma.Framework.Messaging\Gma.Framework.Messaging.csproj" />
+  </ItemGroup>
+</Project>

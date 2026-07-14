@@ -3,7 +3,7 @@ namespace Integration.Tests.Support;
 using BunkFy.Host.Api;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
-using Gma.Framework.Scoping;
+using Gma.Modules.Auth.Application.Ports;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Persistence;
 using BunkFy.Modules.Guests.Persistence;
@@ -305,11 +305,12 @@ internal sealed class AuthTestApplication(
         return snapshot;
     }
 
-    private sealed class DisabledTenantContext : IScopeContext
+    private sealed class DisabledTenantContext : IAuthScopeContext
     {
         public static readonly DisabledTenantContext Instance = new();
 
         public bool IsEnabled => false;
         public string? ScopeId => null;
+        public bool TryRestoreScope(string? scopeId) => true;
     }
 }
