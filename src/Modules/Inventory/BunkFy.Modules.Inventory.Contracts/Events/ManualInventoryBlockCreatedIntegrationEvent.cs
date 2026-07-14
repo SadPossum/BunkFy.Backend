@@ -10,13 +10,14 @@ using Gma.Framework.Tenancy.Messaging;
 public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegrationEvent
 {
     public const string EventType = "manual-inventory-block-created";
-    public const int EventVersion = 1;
+    public const int EventVersion = 2;
 
     public ManualInventoryBlockCreatedIntegrationEvent(
         Guid eventId,
         string tenantId,
         DateTimeOffset occurredAtUtc,
         Guid blockId,
+        Guid blockGroupId,
         Guid propertyId,
         Guid inventoryUnitId,
         DateOnly arrival,
@@ -26,6 +27,7 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.BlockId = IntegrationEventContractGuards.RequireId(blockId, nameof(blockId));
+        this.BlockGroupId = IntegrationEventContractGuards.RequireId(blockGroupId, nameof(blockGroupId));
         this.PropertyId = IntegrationEventContractGuards.RequireId(propertyId, nameof(propertyId));
         this.InventoryUnitId = IntegrationEventContractGuards.RequireId(inventoryUnitId, nameof(inventoryUnitId));
         this.Arrival = arrival;
@@ -41,6 +43,7 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
     }
 
     public Guid BlockId { get; }
+    public Guid BlockGroupId { get; }
     public Guid PropertyId { get; }
     public Guid InventoryUnitId { get; }
     public DateOnly Arrival { get; }

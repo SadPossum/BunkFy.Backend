@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Inventory.Contracts;
 
 public sealed record ManualInventoryBlockDto(
     Guid BlockId,
+    Guid BlockGroupId,
     Guid PropertyId,
     Guid InventoryUnitId,
     DateOnly Arrival,

@@ -7,6 +7,7 @@ internal static class ManualInventoryBlockMappings
 {
     public static ManualInventoryBlockDto ToDto(this ManualInventoryBlock block) => new(
         block.Id,
+        block.BlockGroupId,
         block.PropertyId,
         block.InventoryUnitId,
         block.Arrival,
@@ -18,4 +19,9 @@ internal static class ManualInventoryBlockMappings
         block.Version,
         block.CreatedAtUtc,
         block.ReleasedAtUtc);
+
+    public static ManualInventoryBlockGroupDto ToGroupDto(
+        this IReadOnlyCollection<ManualInventoryBlock> blocks,
+        Guid blockGroupId) =>
+        new(blockGroupId, blocks.Select(ToDto).ToArray());
 }

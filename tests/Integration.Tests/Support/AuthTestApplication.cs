@@ -65,6 +65,8 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Auth:Jwt:SigningKey", JwtSigningKey);
         builder.UseSetting("Auth:Jwt:AccessTokenLifetimeMinutes", "15");
         builder.UseSetting("Auth:RefreshTokens:Pepper", RefreshTokenPepper);
+        builder.UseSetting("Auth:SelfRegistration:PasswordEnabled", "true");
+        builder.UseSetting("Auth:SelfRegistration:ExternalEnabled", "true");
 
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
@@ -79,6 +81,8 @@ internal sealed class AuthTestApplication(
                 ["Auth:Jwt:Audience"] = JwtAudience,
                 ["Auth:Jwt:SigningKey"] = JwtSigningKey,
                 ["Auth:Jwt:AccessTokenLifetimeMinutes"] = "15",
+                ["Auth:SelfRegistration:PasswordEnabled"] = "true",
+                ["Auth:SelfRegistration:ExternalEnabled"] = "true",
                 ["NatsJetStream:Enabled"] = disableOutboxPublisher ? "false" : "true",
                 ["Tenancy:Enabled"] = "true",
                 ["Outbox:PollIntervalMilliseconds"] = "100",

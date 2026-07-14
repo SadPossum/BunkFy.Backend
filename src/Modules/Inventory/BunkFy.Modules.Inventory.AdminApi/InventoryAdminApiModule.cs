@@ -142,6 +142,28 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
 
+        inventory.MapPost("/properties/{propertyId:guid}/block-groups", async (
+            Guid propertyId,
+            CreateManualBlockGroupRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.BlocksCreate, InventoryAdminPermissions.BlocksManage),
+                requireTenant: true,
+                token => dispatcher.SendAsync(
+                    new CreateManualInventoryBlockGroupCommand(
+                        propertyId,
+                        request.Target,
+                        request.Arrival,
+                        request.Departure,
+                        request.Reason),
+                    token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
         inventory.MapPost("/properties/{propertyId:guid}/blocks/{blockId:guid}/release", async (
             Guid propertyId,
             Guid blockId,
@@ -159,11 +181,33 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapPost("/properties/{propertyId:guid}/block-groups/{blockGroupId:guid}/release", async (
+            Guid propertyId,
+            Guid blockGroupId,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.BlocksRelease, InventoryAdminPermissions.BlocksManage),
+                requireTenant: true,
+                token => dispatcher.SendAsync(
+                    new ReleaseManualInventoryBlockGroupCommand(propertyId, blockGroupId),
+                    token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
     }
 
     public sealed record ConfigureSalesModeRequest(InventorySalesMode SalesMode, long ExpectedVersion);
     public sealed record CreateManualBlockRequest(
         Guid InventoryUnitId,
+        DateOnly Arrival,
+        DateOnly Departure,
+        string Reason);
+    public sealed record CreateManualBlockGroupRequest(
+        InventoryBlockTarget Target,
         DateOnly Arrival,
         DateOnly Departure,
         string Reason);
@@ -180,6 +224,9 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         new(InventoryApplicationErrors.InventoryUnitInactive.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.InventoryUnitNotSellable.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.BlockNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.BlockGroupNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.BlockTargetInvalid.Code, StatusCodes.Status400BadRequest),
+        new(InventoryApplicationErrors.BlockTargetEmpty.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.BlockOverlap.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.BlockAllocationConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.StayRangeInvalid.Code, StatusCodes.Status400BadRequest),

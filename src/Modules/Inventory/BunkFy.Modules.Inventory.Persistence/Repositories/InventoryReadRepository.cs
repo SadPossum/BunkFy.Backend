@@ -88,6 +88,84 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
         return new(mapped, mapped.IsSellable);
     }
 
+    public async Task<IReadOnlyCollection<InventoryUnitSnapshot>> ResolveBlockTargetUnitsAsync(
+        Guid propertyId,
+        InventoryBlockTarget target,
+        CancellationToken cancellationToken)
+    {
+        if (target.Kind == InventoryBlockTargetKind.Unit)
+        {
+            InventoryUnitSnapshot? unit = target.InventoryUnitId.HasValue
+                ? await this.GetUnitAsync(propertyId, target.InventoryUnitId.Value, cancellationToken).ConfigureAwait(false)
+                : null;
+            return unit is null ? [] : [unit];
+        }
+
+        InventoryPropertyTopology? property = await dbContext.PropertyTopology
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == propertyId && item.IsKnown, cancellationToken)
+            .ConfigureAwait(false);
+        if (property is null)
+        {
+            return [];
+        }
+
+        IQueryable<InventoryRoomTopology> roomQuery = dbContext.RoomTopology
+            .AsNoTracking()
+            .Where(room => room.PropertyId == propertyId && room.IsKnown);
+        string? buildingLabel = target.BuildingLabel?.Trim();
+        string? floorLabel = target.FloorLabel?.Trim();
+        roomQuery = target.Kind switch
+        {
+            InventoryBlockTargetKind.Property => roomQuery,
+            InventoryBlockTargetKind.Building when buildingLabel is not null => roomQuery.Where(
+                room => room.BuildingLabel == buildingLabel),
+            InventoryBlockTargetKind.Floor when buildingLabel is null && floorLabel is not null => roomQuery.Where(
+                room => room.BuildingLabel == null && room.FloorLabel == floorLabel),
+            InventoryBlockTargetKind.Floor when floorLabel is not null => roomQuery.Where(
+                room => room.BuildingLabel == buildingLabel && room.FloorLabel == floorLabel),
+            InventoryBlockTargetKind.Room when target.RoomId.HasValue => roomQuery.Where(
+                room => room.Id == target.RoomId.Value),
+            _ => roomQuery.Where(_ => false)
+        };
+
+        InventoryRoomTopology[] rooms = await roomQuery
+            .OrderBy(room => room.Id)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        Guid[] roomIds = rooms.Select(room => room.Id).ToArray();
+        if (roomIds.Length == 0)
+        {
+            return [];
+        }
+
+        Dictionary<Guid, RoomInventoryConfiguration> configurations = await dbContext.RoomConfigurations
+            .AsNoTracking()
+            .Where(configuration => roomIds.Contains(configuration.Id))
+            .ToDictionaryAsync(configuration => configuration.Id, cancellationToken)
+            .ConfigureAwait(false);
+        InventoryUnit[] units = await dbContext.InventoryUnits
+            .AsNoTracking()
+            .Where(unit => roomIds.Contains(unit.RoomId) && unit.IsKnown)
+            .OrderBy(unit => unit.Id)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        Dictionary<Guid, InventoryRoomTopology> roomsById = rooms.ToDictionary(room => room.Id);
+
+        return units
+            .Select(unit =>
+            {
+                InventoryRoomTopology room = roomsById[unit.RoomId];
+                RoomSalesMode salesMode = configurations.GetValueOrDefault(unit.RoomId)?.SalesMode ?? RoomSalesMode.Unconfigured;
+                InventoryUnitDto mapped = MapUnit(
+                    unit,
+                    salesMode,
+                    property.Status == PropertyStatus.Active && room.Status == RoomStatus.Active);
+                return new InventoryUnitSnapshot(mapped, mapped.IsSellable);
+            })
+            .ToArray();
+    }
+
     public async Task<RoomInventoryListResponse> ListRoomsAsync(
         Guid propertyId,
         PageRequest pageRequest,
@@ -237,6 +315,8 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             room.PropertyId,
             room.Id,
             room.Name,
+            room.BuildingLabel,
+            room.FloorLabel,
             salesMode switch
             {
                 RoomSalesMode.RoomLevel => InventorySalesMode.RoomLevel,

@@ -159,6 +159,16 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Public_api_keeps_staff_self_registration_closed()
+    {
+        string appsettings = RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json");
+
+        Assert.Contains("\"SelfRegistration\"", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"PasswordEnabled\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"ExternalEnabled\": false", appsettings, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Imap_adapter_metadata_and_executable_code_are_composed_in_the_correct_hosts()
     {
         string api = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");

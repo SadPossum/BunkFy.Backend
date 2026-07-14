@@ -13,6 +13,7 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
 
     private ManualInventoryBlock(
         Guid blockId,
+        Guid blockGroupId,
         string scopeId,
         Guid propertyId,
         Guid inventoryUnitId,
@@ -22,6 +23,7 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
         DateTimeOffset createdAtUtc)
         : base(blockId, scopeId)
     {
+        this.BlockGroupId = blockGroupId;
         this.PropertyId = propertyId;
         this.InventoryUnitId = inventoryUnitId;
         this.Arrival = arrival;
@@ -30,6 +32,7 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
         this.CreatedAtUtc = createdAtUtc;
     }
 
+    public Guid BlockGroupId { get; private set; }
     public Guid PropertyId { get; private set; }
     public Guid InventoryUnitId { get; private set; }
     public DateOnly Arrival { get; private set; }
@@ -42,6 +45,7 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
 
     public static Result<ManualInventoryBlock> Create(
         Guid blockId,
+        Guid blockGroupId,
         string scopeId,
         Guid propertyId,
         Guid inventoryUnitId,
@@ -54,6 +58,11 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
         if (blockId == Guid.Empty)
         {
             return Result.Failure<ManualInventoryBlock>(InventoryDomainErrors.BlockIdRequired);
+        }
+
+        if (blockGroupId == Guid.Empty)
+        {
+            return Result.Failure<ManualInventoryBlock>(InventoryDomainErrors.BlockGroupIdRequired);
         }
 
         if (propertyId == Guid.Empty)
@@ -79,6 +88,7 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
 
         ManualInventoryBlock block = new(
             blockId,
+            blockGroupId,
             scopeId,
             propertyId,
             inventoryUnitId,
@@ -91,6 +101,7 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
             nowUtc,
             block.ScopeId,
             block.Id,
+            block.BlockGroupId,
             block.PropertyId,
             block.InventoryUnitId,
             block.Arrival,
@@ -120,6 +131,7 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
             nowUtc,
             this.ScopeId,
             this.Id,
+            this.BlockGroupId,
             this.PropertyId,
             this.InventoryUnitId,
             this.Version));

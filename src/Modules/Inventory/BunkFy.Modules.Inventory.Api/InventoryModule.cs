@@ -134,6 +134,25 @@ public sealed class InventoryModule : IModule
                 InventoryAdminPermissionCodes.BlocksManage,
                 InventoryPropertyAccessScopeResolver.ResolverName);
 
+        inventory.MapPost("/properties/{propertyId:guid}/block-groups", async (
+            Guid propertyId,
+            CreateManualBlockGroupRequest request,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.SendAsync(
+                new CreateManualInventoryBlockGroupCommand(
+                    propertyId,
+                    request.Target,
+                    request.Arrival,
+                    request.Departure,
+                    request.Reason),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<ManualInventoryBlockGroupDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.BlocksManage,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
         inventory.MapPost("/properties/{propertyId:guid}/blocks/{blockId:guid}/release", async (
             Guid propertyId,
             Guid blockId,
@@ -148,11 +167,30 @@ public sealed class InventoryModule : IModule
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,
                 InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapPost("/properties/{propertyId:guid}/block-groups/{blockGroupId:guid}/release", async (
+            Guid propertyId,
+            Guid blockGroupId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.SendAsync(
+                new ReleaseManualInventoryBlockGroupCommand(propertyId, blockGroupId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<ManualInventoryBlockGroupDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.BlocksManage,
+                InventoryPropertyAccessScopeResolver.ResolverName);
     }
 
     public sealed record ConfigureSalesModeRequest(InventorySalesMode SalesMode, long ExpectedVersion);
     public sealed record CreateManualBlockRequest(
         Guid InventoryUnitId,
+        DateOnly Arrival,
+        DateOnly Departure,
+        string Reason);
+    public sealed record CreateManualBlockGroupRequest(
+        InventoryBlockTarget Target,
         DateOnly Arrival,
         DateOnly Departure,
         string Reason);
@@ -170,6 +208,9 @@ public sealed class InventoryModule : IModule
         new(InventoryApplicationErrors.InventoryUnitInactive.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.InventoryUnitNotSellable.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.BlockNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.BlockGroupNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.BlockTargetInvalid.Code, StatusCodes.Status400BadRequest),
+        new(InventoryApplicationErrors.BlockTargetEmpty.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.BlockOverlap.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.BlockAllocationConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.StayRangeInvalid.Code, StatusCodes.Status400BadRequest),

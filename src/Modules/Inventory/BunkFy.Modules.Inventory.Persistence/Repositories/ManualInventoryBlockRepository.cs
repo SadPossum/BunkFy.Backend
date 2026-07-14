@@ -15,6 +15,12 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
         return Task.CompletedTask;
     }
 
+    public Task AddRangeAsync(IReadOnlyCollection<ManualInventoryBlock> blocks, CancellationToken cancellationToken)
+    {
+        dbContext.ManualBlocks.AddRange(blocks);
+        return Task.CompletedTask;
+    }
+
     public Task<ManualInventoryBlock?> GetAsync(
         Guid propertyId,
         Guid blockId,
@@ -22,6 +28,20 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
         dbContext.ManualBlocks.FirstOrDefaultAsync(
             block => block.Id == blockId && block.PropertyId == propertyId,
             cancellationToken);
+
+    public async Task<IReadOnlyCollection<ManualInventoryBlock>> GetActiveGroupAsync(
+        Guid propertyId,
+        Guid blockGroupId,
+        CancellationToken cancellationToken) =>
+        await dbContext.ManualBlocks
+            .Where(block =>
+                block.PropertyId == propertyId &&
+                block.BlockGroupId == blockGroupId &&
+                block.Status == ManualInventoryBlockState.Active)
+            .OrderBy(block => block.InventoryUnitId)
+            .ThenBy(block => block.Id)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
 
     public Task<bool> HasActiveOverlapAsync(
         Guid inventoryUnitId,
@@ -35,12 +55,39 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
                      arrival < block.Departure,
             cancellationToken);
 
+    public Task<bool> HasAnyActiveOverlapAsync(
+        IReadOnlyCollection<Guid> inventoryUnitIds,
+        DateOnly arrival,
+        DateOnly departure,
+        CancellationToken cancellationToken) =>
+        dbContext.ManualBlocks.AnyAsync(
+            block => inventoryUnitIds.Contains(block.InventoryUnitId) &&
+                     block.Status == ManualInventoryBlockState.Active &&
+                     block.Arrival < departure &&
+                     arrival < block.Departure,
+            cancellationToken);
+
     public async Task TouchUnitAsync(Guid inventoryUnitId, CancellationToken cancellationToken)
     {
         InventoryUnit unit = await dbContext.InventoryUnits
             .SingleAsync(item => item.Id == inventoryUnitId, cancellationToken)
             .ConfigureAwait(false);
         unit.TouchAvailability();
+    }
+
+    public async Task TouchUnitsAsync(
+        IReadOnlyCollection<Guid> inventoryUnitIds,
+        CancellationToken cancellationToken)
+    {
+        InventoryUnit[] units = await dbContext.InventoryUnits
+            .Where(unit => inventoryUnitIds.Contains(unit.Id))
+            .OrderBy(unit => unit.Id)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (InventoryUnit unit in units)
+        {
+            unit.TouchAvailability();
+        }
     }
 
     public async Task<ManualInventoryBlockListResponse> ListAsync(
@@ -71,6 +118,7 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
             .Take(pageRequest.PageSize)
             .Select(block => new ManualInventoryBlockDto(
                 block.Id,
+                block.BlockGroupId,
                 block.PropertyId,
                 block.InventoryUnitId,
                 block.Arrival,

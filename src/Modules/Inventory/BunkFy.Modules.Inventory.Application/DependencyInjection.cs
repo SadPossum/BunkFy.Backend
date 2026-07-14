@@ -19,6 +19,7 @@ public static class DependencyInjection
 
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<InventoryUnitDefinitionPublisher>();
+        services.AddScoped<ManualInventoryBlockCreator>();
         services.AddGmaAccessControlPermissionPolicies(InventoryModuleMetadata.Descriptor);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, PropertyCreatedTopologyHandler>(InventoryModuleMetadata.Name, PropertiesModuleMetadata.Name);
         services.AddIntegrationEventHandler<PropertyUpdatedIntegrationEvent, PropertyUpdatedTopologyHandler>(InventoryModuleMetadata.Name, PropertiesModuleMetadata.Name);

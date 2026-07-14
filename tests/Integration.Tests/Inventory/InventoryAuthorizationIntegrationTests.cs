@@ -162,6 +162,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                    }).ConfigureAwait(false))
         {
             block = await ReadSuccessAsync<ManualInventoryBlockDto>(createBlock).ConfigureAwait(false);
+            Assert.NotEqual(Guid.Empty, block.BlockGroupId);
             Assert.Equal(1, block.Version);
             Assert.Equal(ManualInventoryBlockStatus.Active, block.Status);
         }
@@ -229,6 +230,44 @@ public sealed class InventoryAuthorizationIntegrationTests
             Assert.Equal(2, released.Version);
         }
 
+        ManualInventoryBlockGroupDto blockGroup;
+        using (HttpResponseMessage createBlockGroup = await SendAsync(
+                   client,
+                   HttpMethod.Post,
+                   $"/api/inventory/properties/{PropertyA:D}/block-groups",
+                   operatorTokens.AccessToken,
+                   new
+                   {
+                       target = new { kind = InventoryBlockTargetKind.Property },
+                       arrival = "2026-08-05",
+                       departure = "2026-08-07",
+                       reason = "Property maintenance"
+                   }).ConfigureAwait(false))
+        {
+            blockGroup = await ReadSuccessAsync<ManualInventoryBlockGroupDto>(createBlockGroup).ConfigureAwait(false);
+            ManualInventoryBlockDto groupedBlock = Assert.Single(blockGroup.Blocks);
+            Assert.Equal(blockGroup.BlockGroupId, groupedBlock.BlockGroupId);
+            Assert.Equal(RoomA, groupedBlock.InventoryUnitId);
+        }
+
+        InventoryAvailabilityResponse groupBlocked = await GetAvailabilityAsync(
+            client,
+            operatorTokens.AccessToken,
+            "2026-08-05",
+            "2026-08-06").ConfigureAwait(false);
+        Assert.False(Assert.Single(groupBlocked.Units).IsAvailable);
+
+        using (HttpResponseMessage releaseBlockGroup = await SendAsync(
+                   client,
+                   HttpMethod.Post,
+                   $"/api/inventory/properties/{PropertyA:D}/block-groups/{blockGroup.BlockGroupId:D}/release",
+                   operatorTokens.AccessToken).ConfigureAwait(false))
+        {
+            ManualInventoryBlockGroupDto releasedGroup =
+                await ReadSuccessAsync<ManualInventoryBlockGroupDto>(releaseBlockGroup).ConfigureAwait(false);
+            Assert.Equal(ManualInventoryBlockStatus.Released, Assert.Single(releasedGroup.Blocks).Status);
+        }
+
         InventoryAvailabilityResponse available = await GetAvailabilityAsync(
             client,
             operatorTokens.AccessToken,
@@ -248,7 +287,7 @@ public sealed class InventoryAuthorizationIntegrationTests
             .OrderBy(message => message.OccurredAtUtc)
             .ToListAsync()
             .ConfigureAwait(false);
-        Assert.Equal(2, blockMessages.Count);
+        Assert.Equal(4, blockMessages.Count);
         Assert.All(blockMessages, message => Assert.Equal(TenantA, message.ScopeId));
 
         IInventoryAvailabilityProjectionExportSource exportSource = verificationScope.ServiceProvider
@@ -262,7 +301,8 @@ public sealed class InventoryAuthorizationIntegrationTests
             snapshot => snapshot.PropertyId == PropertyA);
         InventoryUnitProjectionExport unitExport = Assert.Single(propertyExport.Units);
         Assert.True(unitExport.IsSellable);
-        Assert.Equal(ManualInventoryBlockStatus.Released, Assert.Single(unitExport.Blocks).Status);
+        Assert.Equal(2, unitExport.Blocks.Count);
+        Assert.All(unitExport.Blocks, exportedBlock => Assert.Equal(ManualInventoryBlockStatus.Released, exportedBlock.Status));
     }
 
     private static async Task SeedInventoryAsync(AuthTestApplication api)

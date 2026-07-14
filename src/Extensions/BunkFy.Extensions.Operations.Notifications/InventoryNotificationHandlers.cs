@@ -13,7 +13,7 @@ internal sealed class ManualInventoryBlockCreatedNotificationHandler(Operational
         ManualInventoryBlockCreatedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
         projector.ProjectForPropertyAsync(
-            integrationEvent.EventId,
+            integrationEvent.BlockGroupId,
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
@@ -26,6 +26,7 @@ internal sealed class ManualInventoryBlockCreatedNotificationHandler(Operational
                 JsonSerializer.Serialize(new
                 {
                     integrationEvent.BlockId,
+                    integrationEvent.BlockGroupId,
                     integrationEvent.PropertyId,
                     integrationEvent.InventoryUnitId,
                     integrationEvent.Arrival,
@@ -45,7 +46,7 @@ internal sealed class ManualInventoryBlockReleasedNotificationHandler(Operationa
         ManualInventoryBlockReleasedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
         projector.ProjectForPropertyAsync(
-            integrationEvent.EventId,
+            integrationEvent.BlockGroupId,
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
@@ -58,6 +59,7 @@ internal sealed class ManualInventoryBlockReleasedNotificationHandler(Operationa
                 JsonSerializer.Serialize(new
                 {
                     integrationEvent.BlockId,
+                    integrationEvent.BlockGroupId,
                     integrationEvent.PropertyId,
                     integrationEvent.InventoryUnitId,
                     integrationEvent.BlockVersion,

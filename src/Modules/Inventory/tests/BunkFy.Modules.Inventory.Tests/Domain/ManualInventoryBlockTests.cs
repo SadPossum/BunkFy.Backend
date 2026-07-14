@@ -21,11 +21,13 @@ public sealed class ManualInventoryBlockTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Maintenance", result.Value.Reason);
+        Assert.NotEqual(Guid.Empty, result.Value.BlockGroupId);
         Assert.Equal(ManualInventoryBlockState.Active, result.Value.Status);
         Assert.Equal(1, result.Value.Version);
         ManualInventoryBlockCreatedDomainEvent domainEvent =
             Assert.IsType<ManualInventoryBlockCreatedDomainEvent>(Assert.Single(result.Value.DomainEvents));
         Assert.Equal(new DateOnly(2026, 8, 3), domainEvent.Departure);
+        Assert.Equal(result.Value.BlockGroupId, domainEvent.BlockGroupId);
         Assert.Equal(1, domainEvent.BlockVersion);
     }
 
@@ -71,6 +73,7 @@ public sealed class ManualInventoryBlockTests
 
     private static Result<ManualInventoryBlock> CreateBlock(DateOnly arrival, DateOnly departure, string reason) =>
         ManualInventoryBlock.Create(
+            Guid.NewGuid(),
             Guid.NewGuid(),
             "tenant-a",
             Guid.NewGuid(),

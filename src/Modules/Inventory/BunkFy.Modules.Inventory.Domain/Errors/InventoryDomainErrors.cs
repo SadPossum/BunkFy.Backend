@@ -8,6 +8,7 @@ public static class InventoryDomainErrors
     public static readonly Error RoomIdRequired = new("Inventory.RoomIdRequired", "Room id is required.");
     public static readonly Error InventoryUnitIdRequired = new("Inventory.InventoryUnitIdRequired", "Inventory unit id is required.");
     public static readonly Error BlockIdRequired = new("Inventory.BlockIdRequired", "Block id is required.");
+    public static readonly Error BlockGroupIdRequired = new("Inventory.BlockGroupIdRequired", "Block group id is required.");
     public static readonly Error RoomNotFound = new("Inventory.RoomNotFound", "The inventory room was not found.");
     public static readonly Error RoomRetired = new("Inventory.RoomRetired", "Retired room topology cannot be configured.");
     public static readonly Error BedLevelRequiresBeds = new("Inventory.BedLevelRequiresBeds", "Bed-level sales require at least one active bed.");

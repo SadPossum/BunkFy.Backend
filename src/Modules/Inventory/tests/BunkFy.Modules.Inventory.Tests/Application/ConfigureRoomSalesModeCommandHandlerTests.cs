@@ -151,6 +151,8 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
                         PropertyId,
                         RoomId,
                         "101",
+                        null,
+                        null,
                         configuration.SalesMode == RoomSalesMode.BedLevel
                             ? InventorySalesMode.BedLevel
                             : InventorySalesMode.RoomLevel,
@@ -162,6 +164,12 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
             Guid propertyId,
             Guid inventoryUnitId,
             CancellationToken cancellationToken) => Task.FromResult<InventoryUnitSnapshot?>(null);
+
+        public Task<IReadOnlyCollection<InventoryUnitSnapshot>> ResolveBlockTargetUnitsAsync(
+            Guid propertyId,
+            InventoryBlockTarget target,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<InventoryUnitSnapshot>>([]);
 
         public Task<RoomInventoryListResponse> ListRoomsAsync(
             Guid propertyId,

@@ -15,6 +15,7 @@ internal sealed class ManualInventoryBlockCreatedOutboxProjector(IOutboxWriterRe
                 domainEvent.ScopeId,
                 domainEvent.OccurredAtUtc,
                 domainEvent.BlockId,
+                domainEvent.BlockGroupId,
                 domainEvent.PropertyId,
                 domainEvent.InventoryUnitId,
                 domainEvent.Arrival,

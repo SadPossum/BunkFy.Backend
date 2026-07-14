@@ -17,6 +17,9 @@ public static class InventoryApplicationErrors
     public static readonly Error InventoryUnitInactive = new("Inventory.InventoryUnitInactive", "The inventory unit topology is inactive.");
     public static readonly Error InventoryUnitNotSellable = new("Inventory.InventoryUnitNotSellable", "The inventory unit is not sellable in the room's current mode.");
     public static readonly Error BlockNotFound = new("Inventory.BlockNotFound", "The inventory block was not found.");
+    public static readonly Error BlockGroupNotFound = new("Inventory.BlockGroupNotFound", "The inventory block group was not found.");
+    public static readonly Error BlockTargetInvalid = new("Inventory.BlockTargetInvalid", "The inventory block target is invalid.");
+    public static readonly Error BlockTargetEmpty = new("Inventory.BlockTargetEmpty", "The selected target has no sellable inventory.");
     public static readonly Error BlockOverlap = new("Inventory.BlockOverlap", "An active manual block already overlaps this stay range.");
     public static readonly Error BlockAllocationConflict = new("Inventory.BlockAllocationConflict", "An active allocation overlaps this stay range.");
     public static Error StayRangeInvalid => InventoryDomainErrors.StayRangeInvalid;

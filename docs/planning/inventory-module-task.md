@@ -23,6 +23,7 @@ Create a tenant- and property-scoped module that owns:
 - Stay ranges use property-local `DateOnly` values with half-open semantics: `[arrival, departure)`. Arrival must be before departure.
 - Retired Properties topology remains projected for history but is unavailable for new configuration or blocks.
 - Manual blocks are Inventory facts. Maintenance and housekeeping may request them later through contracts, but their workflows stay in their own modules.
+- One operator action may target a property, configured building/floor, room, or unit. Inventory resolves that target to currently sellable units and persists the correlated block group atomically.
 - Optimistic versions protect inventory configuration and block changes. Integration events and exports carry those versions.
 
 ## First Slice
@@ -71,6 +72,7 @@ Use tenant and `tenant/property` scopes with descendant matching, following Prop
 - [x] live handlers and rebuild writes materialize the same durable unit model;
 - [x] room-level and bed-level modes cannot be simultaneously sellable;
 - [x] date-range availability obeys half-open stay semantics and manual blocks;
+- [x] broad physical block targets create and release correlated unit blocks atomically;
 - [x] real-token Docker coverage proves tenant/property permissions and cross-scope denial;
 - [x] downstream availability export includes current unit configuration and block history.
 

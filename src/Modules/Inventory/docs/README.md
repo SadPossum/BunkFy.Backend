@@ -6,7 +6,7 @@ Inventory owns BunkFy's tenant- and property-scoped sellable-unit model. Propert
 
 - durable room and bed inventory-unit identities;
 - explicit `Unconfigured`, `RoomLevel`, or `BedLevel` room sales mode;
-- manual half-open `[arrival, departure)` blocks with optimistic release versions;
+- manual half-open `[arrival, departure)` block groups targeting a property, configured building/floor, room, or unit;
 - durable, idempotent multi-unit reservation allocations and releases with concurrent-claim serialization;
 - date-range availability reads over the currently sellable units;
 - scoped `inventory.read`, `inventory.configure`, and `inventory.blocks.manage` permissions;
@@ -14,6 +14,8 @@ Inventory owns BunkFy's tenant- and property-scoped sellable-unit model. Propert
 - versioned unit-definition, sales-mode, block, and allocation events plus `IInventoryAvailabilityProjectionExportSource` for downstream Reservations rebuilds.
 
 Inventory does not own Properties topology, reservation lifecycle/contact data, temporary booking holds, rates, provider mappings, maintenance workflows, or housekeeping workflows.
+
+Grouped blocks resolve against Inventory's local topology projection at creation time and persist one correlated block per currently sellable unit. Creation and group release are transactional, so a broad physical target cannot leave a partially blocked floor or room. Existing single-unit create/release contracts remain available for compatibility.
 
 ## Runtime
 

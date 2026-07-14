@@ -10,6 +10,7 @@ internal sealed class ManualInventoryBlockConfiguration : IEntityTypeConfigurati
     {
         builder.ToTable("manual_blocks");
         builder.HasKey(block => block.Id);
+        builder.Property(block => block.BlockGroupId).IsRequired();
         builder.Property(block => block.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(block => block.Reason).HasMaxLength(ManualInventoryBlock.ReasonMaxLength).IsRequired();
         builder.Property(block => block.Status).HasConversion<int>().IsRequired();
@@ -23,6 +24,7 @@ internal sealed class ManualInventoryBlockConfiguration : IEntityTypeConfigurati
             block.Arrival,
             block.Departure
         });
+        builder.HasIndex(block => new { block.ScopeId, block.PropertyId, block.BlockGroupId, block.Status });
         builder.HasOne<InventoryUnit>()
             .WithMany()
             .HasForeignKey(block => new { block.ScopeId, block.InventoryUnitId })
