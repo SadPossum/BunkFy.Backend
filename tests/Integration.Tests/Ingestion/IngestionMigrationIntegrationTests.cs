@@ -45,12 +45,8 @@ public sealed class IngestionMigrationIntegrationTests
         Guid terminalDispatchId = Guid.Parse("a7000000-0000-0000-0000-000000000002");
         DateTimeOffset receivedAtUtc = new(2026, 7, 12, 1, 0, 0, TimeSpan.Zero);
         DateTimeOffset terminalAtUtc = receivedAtUtc.AddDays(1);
-        const string validSnapshot =
-            /*lang=json,strict*/
-            "{\"Kind\":1,\"SourceSequence\":1,\"Arrival\":\"2026-08-01\",\"Departure\":\"2026-08-03\",\"InventoryUnitIds\":[\"20000000-0000-0000-0000-000000000002\",\"10000000-0000-0000-0000-000000000001\"],\"PrimaryGuestName\":\"Ada Sensitive\",\"Email\":\"ada@example.test\",\"Phone\":\"+1-555\",\"GuestCount\":1,\"Notes\":\"private\"}";
-        const string cancelledSnapshot =
-            /*lang=json,strict*/
-            "{\"Kind\":2,\"SourceSequence\":2,\"Arrival\":null,\"Departure\":null,\"InventoryUnitIds\":[],\"PrimaryGuestName\":null,\"Email\":null,\"Phone\":null,\"GuestCount\":null,\"Notes\":null}";
+        const string validSnapshot = "{\"Kind\":1,\"SourceSequence\":1,\"Arrival\":\"2026-08-01\",\"Departure\":\"2026-08-03\",\"InventoryUnitIds\":[\"20000000-0000-0000-0000-000000000002\",\"10000000-0000-0000-0000-000000000001\"],\"PrimaryGuestName\":\"Ada Sensitive\",\"Email\":\"ada@example.test\",\"Phone\":\"+1-555\",\"GuestCount\":1,\"Notes\":\"private\"}";
+        const string cancelledSnapshot = "{\"Kind\":2,\"SourceSequence\":2,\"Arrival\":null,\"Departure\":null,\"InventoryUnitIds\":[],\"PrimaryGuestName\":null,\"Email\":null,\"Phone\":null,\"GuestCount\":null,\"Notes\":null}";
 
         await using (IngestionDbContext initial = CreateDbContext(postgreSql.GetConnectionString()))
         {
