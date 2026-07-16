@@ -31,6 +31,8 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
         Guid allocationRequestId,
         DateOnly arrival,
         DateOnly departure,
+        TimeOnly? expectedArrivalTime,
+        TimeOnly? expectedDepartureTime,
         IReadOnlyCollection<Guid> inventoryUnitIds,
         string primaryGuestName,
         string? email,
@@ -47,6 +49,8 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
         this.AllocationRequestId = allocationRequestId;
         this.Arrival = arrival;
         this.Departure = departure;
+        this.ExpectedArrivalTime = expectedArrivalTime;
+        this.ExpectedDepartureTime = expectedDepartureTime;
         this.PrimaryGuestName = primaryGuestName;
         this.Email = email;
         this.Phone = phone;
@@ -69,6 +73,7 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     public ReservationAllocationRejection? AllocationRejection { get; private set; }
     public Guid? ReleaseRequestId { get; private set; }
     public int? LastReleaseRejectionCode { get; private set; }
+    public string? PendingCancellationActorId { get; private set; }
     public DateOnly? PendingStayBusinessDate { get; private set; }
     public string? PendingStayActorId { get; private set; }
     public DateOnly? CheckedInBusinessDate { get; private set; }
@@ -82,10 +87,14 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     public string? CheckedOutBy { get; private set; }
     public DateOnly Arrival { get; private set; }
     public DateOnly Departure { get; private set; }
+    public TimeOnly? ExpectedArrivalTime { get; private set; }
+    public TimeOnly? ExpectedDepartureTime { get; private set; }
     public Guid? PendingAllocationAmendmentId { get; private set; }
     public string? PendingAllocationAmendmentRequestFingerprint { get; private set; }
     public DateOnly? PendingArrival { get; private set; }
     public DateOnly? PendingDeparture { get; private set; }
+    public TimeOnly? PendingExpectedArrivalTime { get; private set; }
+    public TimeOnly? PendingExpectedDepartureTime { get; private set; }
     public string? PendingInventoryUnitIds { get; private set; }
     public string? PendingPrimaryGuestName { get; private set; }
     public string? PendingEmail { get; private set; }
@@ -147,6 +156,8 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
         this.PendingAllocationAmendmentRequestFingerprint = null;
         this.PendingArrival = null;
         this.PendingDeparture = null;
+        this.PendingExpectedArrivalTime = null;
+        this.PendingExpectedDepartureTime = null;
         this.PendingInventoryUnitIds = null;
         this.PendingPrimaryGuestName = null;
         this.PendingEmail = null;
@@ -168,7 +179,9 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
         this.Email,
         this.Phone,
         this.GuestCount,
-        this.Notes);
+        this.Notes,
+        this.ExpectedArrivalTime,
+        this.ExpectedDepartureTime);
 
     private void RaiseGuestStayChanged(Guid eventId, DateTimeOffset occurredAtUtc)
     {
@@ -224,4 +237,7 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
             changedFields.Add(field);
         }
     }
+
+    private static bool HasMinutePrecision(TimeOnly? value) =>
+        !value.HasValue || value.Value.Ticks % TimeSpan.TicksPerMinute == 0;
 }

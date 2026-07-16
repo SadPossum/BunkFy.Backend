@@ -68,7 +68,8 @@ internal sealed class InventoryAllocationConfirmedHandler(
                 reservation.Id,
                 reservation.PropertyId,
                 outcome.AllocationId,
-                reservation.Version),
+                reservation.Version,
+                reservation.LastDetailsActorId),
             cancellationToken).ConfigureAwait(false);
     }
 }
@@ -118,7 +119,8 @@ internal sealed class InventoryAllocationRejectedHandler(
                 reservation.Id,
                 reservation.PropertyId,
                 outcome.Reason,
-                reservation.Version),
+                reservation.Version,
+                reservation.LastDetailsActorId),
             cancellationToken).ConfigureAwait(false);
     }
 }

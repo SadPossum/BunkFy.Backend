@@ -13,7 +13,9 @@ public interface IReservationRepository
     Task<bool> ExternalSourceExistsAsync(string sourceSystem, string sourceReference, CancellationToken cancellationToken);
     Task<ReservationListResponse> ListAsync(
         Guid propertyId,
-        ReservationStatus? status,
+        IReadOnlyCollection<ReservationStatus>? statuses,
+        string? search,
+        ReservationListOrder order,
         PageRequest pageRequest,
         CancellationToken cancellationToken);
 }

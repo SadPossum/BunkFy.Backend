@@ -36,11 +36,33 @@ public sealed class InventoryProfileTests
         Assert.Equal(3, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(10, InventoryModuleMetadata.Descriptor.GetPublishedEvents().Count);
-        Assert.Equal(12, InventoryModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(12, InventoryModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(16, InventoryModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Contains(
+            InventoryModuleMetadata.Descriptor.GetPublishedEvents(),
+            publishedEvent => publishedEvent.EventType == BedRetirementFinalizationRequestedIntegrationEvent.EventType);
+        Assert.Contains(
+            InventoryModuleMetadata.Descriptor.GetPublishedEvents(),
+            publishedEvent => publishedEvent.EventType == RoomRetirementFinalizationRequestedIntegrationEvent.EventType);
         Assert.Contains(
             InventoryModuleMetadata.Descriptor.GetSubscriptions(),
             subscription => subscription.EventType == InventoryAllocationAmendmentRequestedIntegrationEvent.EventType);
+        Assert.Contains(
+            InventoryModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.EventType == BedRetirementFinalizedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
+        Assert.Contains(
+            InventoryModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.EventType == BedRetirementFinalizationRejectedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
+        Assert.Contains(
+            InventoryModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.EventType == RoomRetirementFinalizedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
+        Assert.Contains(
+            InventoryModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.EventType == RoomRetirementFinalizationRejectedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
         Assert.Single(InventoryModuleMetadata.Descriptor.GetTasks());
     }
 }

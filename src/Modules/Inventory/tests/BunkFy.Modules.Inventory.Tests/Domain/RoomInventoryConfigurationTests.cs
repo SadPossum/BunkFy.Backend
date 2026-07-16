@@ -16,6 +16,7 @@ public sealed class RoomInventoryConfigurationTests
 
         Assert.Equal(RoomSalesMode.Unconfigured, configuration.SalesMode);
         Assert.Equal(1, configuration.Version);
+        Assert.Equal(1, configuration.AvailabilityMutationVersion);
         Assert.Empty(configuration.DomainEvents);
     }
 
@@ -30,6 +31,7 @@ public sealed class RoomInventoryConfigurationTests
         Assert.True(result.IsSuccess);
         Assert.Equal(RoomSalesMode.BedLevel, configuration.SalesMode);
         Assert.Equal(2, configuration.Version);
+        Assert.Equal(2, configuration.AvailabilityMutationVersion);
         RoomSalesModeChangedDomainEvent domainEvent =
             Assert.IsType<RoomSalesModeChangedDomainEvent>(Assert.Single(configuration.DomainEvents));
         Assert.Equal(eventId, domainEvent.EventId);
@@ -63,7 +65,19 @@ public sealed class RoomInventoryConfigurationTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, configuration.Version);
+        Assert.Equal(2, configuration.AvailabilityMutationVersion);
         Assert.Empty(configuration.DomainEvents);
+    }
+
+    [Fact]
+    public void Availability_touch_does_not_change_the_operator_configuration_version()
+    {
+        RoomInventoryConfiguration configuration = CreateConfiguration();
+
+        configuration.TouchAvailability();
+
+        Assert.Equal(1, configuration.Version);
+        Assert.Equal(2, configuration.AvailabilityMutationVersion);
     }
 
     private static readonly DateTimeOffset Now = new(2026, 7, 10, 12, 0, 0, TimeSpan.Zero);

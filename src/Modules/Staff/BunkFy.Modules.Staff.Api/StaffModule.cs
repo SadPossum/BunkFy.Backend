@@ -27,6 +27,7 @@ public sealed class StaffModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        StaffSelfServiceEndpoints.Map(endpoints, this.Name);
         StaffMemberEndpoints.Map(endpoints, this.Name);
         StaffPropertyAssignmentEndpoints.Map(endpoints, this.Name);
     }

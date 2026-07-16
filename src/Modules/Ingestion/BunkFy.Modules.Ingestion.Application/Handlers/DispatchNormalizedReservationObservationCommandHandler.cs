@@ -265,6 +265,8 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
         }
 
         return observation.Arrival.HasValue && observation.Departure > observation.Arrival &&
+               HasMinutePrecision(observation.ExpectedArrivalTime) &&
+               HasMinutePrecision(observation.ExpectedDepartureTime) &&
                observation.InventoryUnitIds is { Count: > 0 } &&
                observation.InventoryUnitIds.All(id => id != Guid.Empty) &&
                observation.InventoryUnitIds.Distinct().Count() == observation.InventoryUnitIds.Count &&
@@ -272,6 +274,9 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
             ? Result.Success()
             : Result.Failure(IngestionApplicationErrors.NormalizedReservationObservationInvalid);
     }
+
+    private static bool HasMinutePrecision(TimeOnly? value) =>
+        !value.HasValue || value.Value.Ticks % TimeSpan.TicksPerMinute == 0;
 
     private static string CreateSourceSystem(AdapterConnection connection) =>
         $"{connection.AdapterType}:{connection.Id:N}";

@@ -20,6 +20,9 @@ public static class DependencyInjection
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<InventoryUnitDefinitionPublisher>();
         services.AddScoped<ManualInventoryBlockCreator>();
+        services.AddScoped<BedRetirementCoordinator>();
+        services.AddScoped<RoomRetirementCoordinator>();
+        services.AddScoped<InventoryRetirementCoordinator>();
         services.AddGmaAccessControlPermissionPolicies(InventoryModuleMetadata.Descriptor);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, PropertyCreatedTopologyHandler>(InventoryModuleMetadata.Name, PropertiesModuleMetadata.Name);
         services.AddIntegrationEventHandler<PropertyUpdatedIntegrationEvent, PropertyUpdatedTopologyHandler>(InventoryModuleMetadata.Name, PropertiesModuleMetadata.Name);
@@ -39,6 +42,18 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<InventoryAllocationReleaseRequestedIntegrationEvent, InventoryAllocationReleaseRequestedHandler>(
             InventoryModuleMetadata.Name,
             InventoryModuleMetadata.ReservationsProducerModuleName);
+        services.AddIntegrationEventHandler<BedRetirementFinalizedIntegrationEvent, BedRetirementFinalizedHandler>(
+            InventoryModuleMetadata.Name,
+            PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<BedRetirementFinalizationRejectedIntegrationEvent, BedRetirementFinalizationRejectedHandler>(
+            InventoryModuleMetadata.Name,
+            PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<RoomRetirementFinalizedIntegrationEvent, RoomRetirementFinalizedHandler>(
+            InventoryModuleMetadata.Name,
+            PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<RoomRetirementFinalizationRejectedIntegrationEvent, RoomRetirementFinalizationRejectedHandler>(
+            InventoryModuleMetadata.Name,
+            PropertiesModuleMetadata.Name);
 
         return services;
     }

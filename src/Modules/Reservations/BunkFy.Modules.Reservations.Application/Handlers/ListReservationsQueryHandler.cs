@@ -15,7 +15,9 @@ internal sealed class ListReservationsQueryHandler(IReservationRepository reserv
         CancellationToken cancellationToken) =>
         Result.Success(await reservations.ListAsync(
             query.PropertyId,
-            query.Status,
+            query.Statuses,
+            query.Search,
+            query.Order,
             PageRequest.Normalize(query.Page, query.PageSize),
             cancellationToken).ConfigureAwait(false));
 }

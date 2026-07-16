@@ -54,32 +54,66 @@ internal sealed class ReservationRepository(ReservationsDbContext dbContext) : I
 
     public async Task<ReservationListResponse> ListAsync(
         Guid propertyId,
-        ReservationStatus? status,
+        IReadOnlyCollection<ReservationStatus>? statuses,
+        string? search,
+        ReservationListOrder order,
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
         IQueryable<Reservation> query = dbContext.Reservations
             .AsNoTracking()
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
             .Where(reservation => reservation.PropertyId == propertyId);
-        if (status is { } requestedStatus)
+
+        if (statuses is { Count: > 0 })
         {
-            ReservationState? state = MapStatus(requestedStatus);
-            if (state.HasValue)
-            {
-                query = query.Where(reservation => reservation.Status == state.Value);
-            }
+            ReservationState[] states = statuses
+                .Select(MapStatus)
+                .Where(state => state.HasValue)
+                .Select(state => state!.Value)
+                .Distinct()
+                .ToArray();
+            query = query.Where(reservation => states.Contains(reservation.Status));
         }
 
-        Reservation[] rows = await query
-            .OrderByDescending(reservation => reservation.CreatedAtUtc)
-            .ThenBy(reservation => reservation.Id)
+        string? normalizedSearch = string.IsNullOrWhiteSpace(search)
+            ? null
+            : search.Trim().ToUpperInvariant();
+        if (normalizedSearch is not null)
+        {
+#pragma warning disable CA1304, CA1311, CA1862 // StringComparison overloads are not translated by the supported EF Core providers.
+            query = query.Where(reservation =>
+                reservation.PrimaryGuestName.ToUpper().Contains(normalizedSearch) ||
+                (reservation.Email != null && reservation.Email.ToUpper().Contains(normalizedSearch)) ||
+                (reservation.Phone != null && reservation.Phone.ToUpper().Contains(normalizedSearch)) ||
+                (reservation.SourceSystem != null && reservation.SourceSystem.ToUpper().Contains(normalizedSearch)) ||
+                (reservation.SourceReference != null && reservation.SourceReference.ToUpper().Contains(normalizedSearch)));
+#pragma warning restore CA1304, CA1311, CA1862
+        }
+
+        int totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+        IOrderedQueryable<Reservation> ordered = order switch
+        {
+            ReservationListOrder.ArrivalAscending => query
+                .OrderBy(reservation => reservation.Arrival)
+                .ThenBy(reservation => reservation.ExpectedArrivalTime)
+                .ThenBy(reservation => reservation.Id),
+            ReservationListOrder.DepartureDescending => query
+                .OrderByDescending(reservation => reservation.Departure)
+                .ThenByDescending(reservation => reservation.ExpectedDepartureTime)
+                .ThenBy(reservation => reservation.Id),
+            _ => query
+                .OrderByDescending(reservation => reservation.CreatedAtUtc)
+                .ThenBy(reservation => reservation.Id)
+        };
+        Reservation[] rows = await ordered
+            .AsSplitQuery()
+            .Include(reservation => reservation.RequestedUnits)
+            .Include(reservation => reservation.Guests)
             .Skip(pageRequest.SkipCount)
             .Take(pageRequest.PageSize)
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
-        return new(rows.Select(Map).ToArray(), pageRequest.Page, pageRequest.PageSize);
+        return new(rows.Select(Map).ToArray(), pageRequest.Page, pageRequest.PageSize, totalCount);
     }
 
     private static ReservationDto Map(Reservation reservation) => new(
@@ -87,6 +121,8 @@ internal sealed class ReservationRepository(ReservationsDbContext dbContext) : I
         reservation.PropertyId,
         reservation.Arrival,
         reservation.Departure,
+        reservation.ExpectedArrivalTime,
+        reservation.ExpectedDepartureTime,
         reservation.RequestedUnits.Select(unit => unit.InventoryUnitId).ToArray(),
         reservation.PrimaryGuestName,
         reservation.Email,

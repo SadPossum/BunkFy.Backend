@@ -14,7 +14,7 @@ public sealed record StaffPropertyAssignmentChangedIntegrationEvent : Integratio
 
     public StaffPropertyAssignmentChangedIntegrationEvent(Guid eventId, string scopeId, DateTimeOffset occurredAtUtc,
         Guid staffMemberId, Guid assignmentId, Guid propertyId, bool isCurrent, bool isPrimary,
-        DateOnly effectiveFrom, DateOnly? effectiveTo, long staffVersion)
+        DateOnly effectiveFrom, DateOnly? effectiveTo, long staffVersion, string? actorId = null)
         : base(eventId, occurredAtUtc, EventType, EventVersion)
     {
         this.ScopeId = ScopeIds.Normalize(scopeId, nameof(scopeId));
@@ -26,6 +26,7 @@ public sealed record StaffPropertyAssignmentChangedIntegrationEvent : Integratio
         this.EffectiveFrom = effectiveFrom;
         this.EffectiveTo = effectiveTo;
         this.StaffVersion = staffVersion > 0 ? staffVersion : throw new ArgumentOutOfRangeException(nameof(staffVersion));
+        this.ActorId = OptionalActor(actorId);
     }
 
     public string ScopeId { get; }
@@ -37,5 +38,14 @@ public sealed record StaffPropertyAssignmentChangedIntegrationEvent : Integratio
     public DateOnly EffectiveFrom { get; }
     public DateOnly? EffectiveTo { get; }
     public long StaffVersion { get; }
+    public string? ActorId { get; }
     string IScopedIntegrationEvent.ScopeId => this.ScopeId;
+
+    private static string? OptionalActor(string? value)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return normalized is null || normalized.Length <= StaffContractLimits.ActorIdMaxLength
+            ? normalized
+            : throw new ArgumentException("Actor id is invalid.", nameof(value));
+    }
 }

@@ -33,10 +33,23 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
             [UnitId],
             Now).Value;
         FakeAllocationRepository allocations = new(allocation);
+        FakeAvailabilityRepository availability = new();
         FakeDecisionRepository decisions = new();
         RecordingOutbox outbox = new();
+        BedRetirementCoordinator bedRetirements = new(
+            new FakeBedRetirementRepository(),
+            availability,
+            new TestClock(),
+            new TestIdGenerator());
+        RoomRetirementCoordinator roomRetirements = new(
+            new FakeRoomRetirementRepository(),
+            availability,
+            new TestClock(),
+            new TestIdGenerator());
         InventoryAllocationAmendmentRequestedHandler handler = new(
             allocations,
+            availability,
+            new InventoryRetirementCoordinator(bedRetirements, roomRetirements),
             decisions,
             new RecordingOutboxRegistry(outbox),
             new TestClock(),
@@ -52,7 +65,7 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
 
         Assert.Equal(2, allocation.Version);
         Assert.Equal(new DateOnly(2026, 8, 4), allocation.Departure);
-        Assert.Equal(1, allocations.TouchCount);
+        Assert.Equal(1, availability.TouchCount);
         InventoryAllocationAmendmentDecisionRecord decision = Assert.Single(decisions.Items.Values);
         Assert.True(decision.Confirmed);
         Assert.Equal(2, decision.AllocationVersion);
@@ -82,8 +95,6 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
 
     private sealed class FakeAllocationRepository(InventoryAllocation allocation) : IInventoryAllocationRepository
     {
-        public int TouchCount { get; private set; }
-
         public Task<InventoryAllocation?> GetByRequestAsync(
             Guid allocationRequestId,
             CancellationToken cancellationToken) => Task.FromResult<InventoryAllocation?>(null);
@@ -100,32 +111,124 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
         public Task AddAsync(InventoryAllocation value, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyCollection<InventoryAllocationUnitSnapshot>> GetUnitsAsync(
+    }
+
+    private sealed class FakeAvailabilityRepository : IInventoryAvailabilityRepository
+    {
+        public int TouchCount { get; private set; }
+
+        public Task<InventoryAvailabilityContextSnapshot> GetContextAsync(
             Guid propertyId,
-            IReadOnlyCollection<Guid> inventoryUnitIds,
-            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<InventoryAllocationUnitSnapshot>>(
-            inventoryUnitIds.Select(id => new InventoryAllocationUnitSnapshot(id, true, true)).ToArray());
-
-        public Task<bool> HasManualBlockConflictAsync(
-            IReadOnlyCollection<Guid> inventoryUnitIds,
-            DateOnly arrival,
-            DateOnly departure,
-            CancellationToken cancellationToken) => Task.FromResult(false);
-
-        public Task<bool> HasActiveAllocationConflictAsync(
-            IReadOnlyCollection<Guid> inventoryUnitIds,
-            DateOnly arrival,
-            DateOnly departure,
-            Guid? excludedAllocationId,
-            CancellationToken cancellationToken) => Task.FromResult(false);
-
-        public Task TouchUnitsAsync(
             IReadOnlyCollection<Guid> inventoryUnitIds,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            InventoryAllocationUnitSnapshot[] units = propertyId == PropertyId
+                ? inventoryUnitIds.Select(id => new InventoryAllocationUnitSnapshot(id, true, true)).ToArray()
+                : [];
+            return Task.FromResult(new InventoryAvailabilityContextSnapshot(units, inventoryUnitIds));
+        }
+
+        public Task<InventoryAvailabilityConflictSnapshot> GetConflictsAsync(
+            Guid propertyId,
+            IReadOnlyCollection<Guid> conflictUnitIds,
+            DateOnly arrival,
+            DateOnly departure,
+            Guid? excludedAllocationId,
+            IReadOnlyCollection<Guid> excludedBlockIds,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            bool invalid =
+                propertyId != PropertyId ||
+                conflictUnitIds.Count == 0 ||
+                arrival >= departure ||
+                excludedAllocationId != AllocationId ||
+                excludedBlockIds.Count != 0;
+            return Task.FromResult(new InventoryAvailabilityConflictSnapshot(invalid, invalid));
+        }
+
+        public Task<RoomInventoryImpactSnapshot?> GetRoomImpactAsync(
+            Guid propertyId,
+            Guid roomId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<RoomInventoryImpactSnapshot?>(
+                propertyId == PropertyId && roomId != Guid.Empty ? new(0, 0, 0, 0, [], false) : null);
+        }
+
+        public Task<BedRetirementImpactSnapshot?> GetBedRetirementImpactAsync(
+            Guid propertyId,
+            Guid roomId,
+            Guid bedId,
+            Guid? excludedAllocationId,
+            IReadOnlyCollection<Guid> excludedBlockIds,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<BedRetirementImpactSnapshot?>(
+                propertyId == PropertyId && roomId != Guid.Empty && bedId != Guid.Empty &&
+                excludedBlockIds.Count == 0
+                    ? new(0, 0, [], false)
+                    : null);
+        }
+
+        public Task TouchUnitsAsync(
+            Guid propertyId,
+            IReadOnlyCollection<Guid> inventoryUnitIds,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.Equal(PropertyId, propertyId);
+            Assert.NotEmpty(inventoryUnitIds);
             this.TouchCount++;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeBedRetirementRepository : IBedRetirementRepository
+    {
+        public Task<BedRetirementProcess?> GetAsync(
+            Guid propertyId,
+            Guid topologyChangeId,
+            CancellationToken cancellationToken) => Task.FromResult<BedRetirementProcess?>(null);
+
+        public Task<BedRetirementProcess?> GetByBedAsync(
+            Guid propertyId,
+            Guid bedId,
+            CancellationToken cancellationToken) => Task.FromResult<BedRetirementProcess?>(null);
+
+        public Task<IReadOnlyCollection<BedRetirementProcess>> ListActiveForUnitsAsync(
+            Guid propertyId,
+            IReadOnlyCollection<Guid> inventoryUnitIds,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<BedRetirementProcess>>([]);
+
+        public Task AddAsync(BedRetirementProcess process, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class FakeRoomRetirementRepository : IRoomRetirementRepository
+    {
+        public Task<RoomRetirementProcess?> GetAsync(
+            Guid propertyId,
+            Guid topologyChangeId,
+            CancellationToken cancellationToken) => Task.FromResult<RoomRetirementProcess?>(null);
+
+        public Task<RoomRetirementProcess?> GetByRoomAsync(
+            Guid propertyId,
+            Guid roomId,
+            CancellationToken cancellationToken) => Task.FromResult<RoomRetirementProcess?>(null);
+
+        public Task<IReadOnlyCollection<RoomRetirementProcess>> ListActiveForUnitsAsync(
+            Guid propertyId,
+            IReadOnlyCollection<Guid> inventoryUnitIds,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyCollection<RoomRetirementProcess>>([]);
+
+        public Task AddAsync(RoomRetirementProcess process, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeDecisionRepository : IInventoryAllocationAmendmentDecisionRepository

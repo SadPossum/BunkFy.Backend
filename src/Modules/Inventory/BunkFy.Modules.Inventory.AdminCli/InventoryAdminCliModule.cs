@@ -45,7 +45,9 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                 CreateListBlocksCommand(commands.Services, globalOptions),
                 CreateBlockCommand(commands.Services, globalOptions),
                 CreateReleaseBlockCommand(commands.Services, globalOptions)
-            }
+            },
+            InventoryBedRetirementAdminCliCommandGroup.Create(commands.Services, globalOptions),
+            InventoryRoomRetirementAdminCliCommandGroup.Create(commands.Services, globalOptions)
         };
 
         commands.AddCommand(this.Name, inventory);

@@ -12,7 +12,8 @@ public sealed record RoomSalesModeChangedDomainEvent : ScopedDomainEvent
         Guid propertyId,
         Guid roomId,
         RoomSalesMode salesMode,
-        long configurationVersion)
+        long configurationVersion,
+        string? actorId = null)
         : base(eventId, occurredAtUtc, scopeId)
     {
         this.PropertyId = DomainEventGuards.RequireId(propertyId, nameof(propertyId));
@@ -21,10 +22,12 @@ public sealed record RoomSalesModeChangedDomainEvent : ScopedDomainEvent
         this.ConfigurationVersion = configurationVersion > 0
             ? configurationVersion
             : throw new ArgumentOutOfRangeException(nameof(configurationVersion));
+        this.ActorId = string.IsNullOrWhiteSpace(actorId) ? null : actorId.Trim();
     }
 
     public Guid PropertyId { get; }
     public Guid RoomId { get; }
     public RoomSalesMode SalesMode { get; }
     public long ConfigurationVersion { get; }
+    public string? ActorId { get; }
 }

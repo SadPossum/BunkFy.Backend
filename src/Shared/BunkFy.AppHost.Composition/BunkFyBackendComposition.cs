@@ -149,6 +149,7 @@ public static class BunkFyBackendComposition
             .WithEnvironment("NatsJetStream__Enabled", "true")
             .WithEnvironment("NatsConsumers__Enabled", "true")
             .WithEnvironment("Tasks__Worker__Enabled", "true")
+            .WithEnvironment("Tasks__Scheduler__Enabled", "true")
             .WithEnvironment("Worker__Modules__AccessControl", "true")
             .WithEnvironment("Worker__Modules__Auth", "true")
             .WithEnvironment("Worker__Modules__Notifications", "true")
@@ -162,8 +163,9 @@ public static class BunkFyBackendComposition
             .WithEnvironment("Worker__Modules__TaskRuntime", "true")
             .WithEnvironment("Tasks__Worker__WorkerGroups__0", "default")
             .WithEnvironment("Tasks__Worker__WorkerGroups__1", "projection-workers")
-            .WithEnvironment("Tasks__Worker__WorkerGroups__2", "ingestion-adapters")
-            .WithEnvironment("Tasks__Worker__WorkerGroups__3", "ingestion-maintenance");
+            .WithEnvironment("Tasks__Worker__WorkerGroups__2", "reminder-workers")
+            .WithEnvironment("Tasks__Worker__WorkerGroups__3", "ingestion-adapters")
+            .WithEnvironment("Tasks__Worker__WorkerGroups__4", "ingestion-maintenance");
         if (sqlServer is { } configuredSqlServer)
         {
             worker.WithReference(configuredSqlServer).WaitFor(configuredSqlServer);

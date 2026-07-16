@@ -9,6 +9,9 @@ public static class PropertiesModuleMetadata
 {
     public const string Name = "properties";
     public const string Schema = "properties";
+    public const string BedRetirementFinalizationHandlerName = "bed-retirement-finalization";
+    public const string RoomRetirementFinalizationHandlerName = "room-retirement-finalization";
+    public const string RetirementProducerModuleName = "inventory";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -28,6 +31,16 @@ public static class PropertiesModuleMetadata
         .WithPublishedEvent<BedAddedIntegrationEvent>()
         .WithPublishedEvent<BedUpdatedIntegrationEvent>()
         .WithPublishedEvent<BedRetiredIntegrationEvent>()
+        .WithPublishedEvent<BedRetirementFinalizedIntegrationEvent>()
+        .WithPublishedEvent<BedRetirementFinalizationRejectedIntegrationEvent>()
+        .WithPublishedEvent<RoomRetirementFinalizedIntegrationEvent>()
+        .WithPublishedEvent<RoomRetirementFinalizationRejectedIntegrationEvent>()
+        .WithSubscription<BedRetirementFinalizationRequestedIntegrationEvent>(
+            RetirementProducerModuleName,
+            BedRetirementFinalizationHandlerName)
+        .WithSubscription<RoomRetirementFinalizationRequestedIntegrationEvent>(
+            RetirementProducerModuleName,
+            RoomRetirementFinalizationHandlerName)
         .WithProfile(PropertiesProfiles.Default)
         .Build();
 }

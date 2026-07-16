@@ -11,4 +11,5 @@ public static class ReservationsAdminOperationNames
     public const string NoShow = "reservations.no-show";
     public const string CheckOut = "reservations.check-out";
     public const string LinkGuest = "reservations.link-guest";
+    public const string ReassignInventory = "reservations.reassign-inventory";
 }

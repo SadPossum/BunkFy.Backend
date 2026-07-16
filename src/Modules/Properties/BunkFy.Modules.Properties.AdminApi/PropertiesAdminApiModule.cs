@@ -325,5 +325,7 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
         new(PropertiesApplicationErrors.RoomRetired.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomHasActiveBeds.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.BedStatusUnknown.Code, StatusCodes.Status409Conflict),
-        new(PropertiesApplicationErrors.BedAlreadyRetired.Code, StatusCodes.Status409Conflict));
+        new(PropertiesApplicationErrors.BedAlreadyRetired.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.BedRetirementRequiresInventory.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.RoomRetirementRequiresInventory.Code, StatusCodes.Status409Conflict));
 }

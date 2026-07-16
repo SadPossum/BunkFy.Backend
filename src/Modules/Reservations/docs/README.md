@@ -5,7 +5,7 @@ Reservations owns BunkFy's tenant- and property-scoped booking intent and lifecy
 ## Current Slice
 
 - staff-created direct or externally referenced reservations for one or more explicit Inventory units;
-- primary guest/contact snapshot, guest count, notes, and half-open `[arrival, departure)` stay dates;
+- primary guest/contact snapshot, guest count, notes, half-open `[arrival, departure)` stay dates, and optional expected arrival/departure times in property-local time;
 - asynchronous `PendingAllocation` to `Confirmed` or `AllocationRejected` transitions through outbox/inbox and NATS;
 - confirmed cancellation through `CancellationPending`, Inventory allocation release, and `Cancelled`;
 - check-in with explicit business date and actor provenance;
@@ -15,7 +15,8 @@ Reservations owns BunkFy's tenant- and property-scoped booking intent and lifecy
 - a versioned local Inventory projection with live unit/block/allocation handlers and a rebuild task sourced from `IInventoryAvailabilityProjectionExportSource`;
 - an independent editable-details revision and provenance marker that does not move on allocation-only lifecycle changes;
 - a Reservations-owned before/after details history projection with management timeline reads;
-- revision-checked guest/contact/notes updates through the management API;
+- revision-checked expected-time, guest/contact, and notes updates through the management API;
+- durable expected-arrival reminders dispatched two hours before the property-local arrival time, with revision/status checks that suppress stale, cancelled, checked-in, or already-arrived stays;
 - canonical primary-guest links with explicit replacement, inactive-link audit retention, and a dedicated scoped permission;
 - a PII-free, rebuildable local Guest eligibility projection used only to validate new links;
 - idempotent external create, guest-change, allocation-amendment, and cancellation operations with a scoped request ledger and versioned outcomes;
@@ -27,8 +28,8 @@ The local Inventory projection validates unit/property relationships and support
 
 ## Runtime
 
-Compose Properties, Inventory, Reservations, and Guests in the Worker with NATS consumers and publishing enabled. The normal Aspire graph enables all four. Reservations rebuild tasks source Inventory availability and Guest eligibility from their owning modules.
+Compose Properties, Inventory, Reservations, and Guests in the Worker with NATS consumers, task scheduling, and publishing enabled. The normal Aspire graph enables all four. Reservations rebuild tasks source Inventory availability, Guest eligibility, and property time zones from their owning modules. A minute-level scoped task reads only the indexed due-reminder ledger and publishes reminder events through the Reservations outbox; the Notifications extension owns staff/owner fan-out and delivery preferences.
 
 All Reservations-owned tables use the `reservations` schema. Lifecycle state shapes are protected by PostgreSQL constraints. The module has no foreign keys or writes into another module's schema.
 
-Allocation-affecting adapter changes use a correlated Inventory amendment of the existing allocation and are not accepted by the guest-details command. Direct staff date/unit amendment surfaces, rates, billing, identity documents, business-day close/reopen policy, room moves, and temporary holds remain later slices.
+Expected times are minute-precision local wall-clock values and never replace the actual UTC timestamps recorded by check-in/check-out. Allocation-affecting adapter changes use a correlated Inventory amendment of the existing allocation and are not accepted by the guest-details command. Direct staff date/unit amendment surfaces, property-level expected-time defaults, rates, billing, identity documents, business-day close/reopen policy, room moves, and temporary holds remain later slices.

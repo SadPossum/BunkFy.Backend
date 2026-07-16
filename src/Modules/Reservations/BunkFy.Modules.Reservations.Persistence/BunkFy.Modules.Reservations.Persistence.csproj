@@ -8,6 +8,7 @@
     <ProjectReference Include="..\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Reservations.Application\BunkFy.Modules.Reservations.Application.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Reservations.Domain\BunkFy.Modules.Reservations.Domain.csproj" />
+    <ProjectReference Include="..\..\Properties\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Application\Gma.Framework.Application.Events\Gma.Framework.Application.Events.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Domain\Gma.Framework.Domain\Gma.Framework.Domain.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Persistence\Gma.Framework.Persistence.EntityFrameworkCore\Gma.Framework.Persistence.EntityFrameworkCore.csproj" />

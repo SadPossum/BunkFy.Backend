@@ -16,7 +16,7 @@ The current foundation contains:
 - a provider-neutral adapter capability registry with protocol/schema versions, supported execution modes, and optional polling guidance;
 - a hardened `json.file-drop` polling runner with connection-isolated pending/processed/failed areas, strict envelopes, deterministic replay identity, bounded batches, permanent-input quarantine, and post-acknowledgement archival;
 - versioned connection-owned polling schedules projected into tenant-scoped GMA TaskRuntime occurrences;
-- bounded raw-payload reads and strict `reservation.v1` normalization;
+- bounded raw-payload reads and strict `reservation.v1` normalization, including optional minute-precision expected local arrival/departure times;
 - durable reservation source links, source ordering, dispatch attempts, and versioned non-PII operational baselines;
 - asynchronous create/change/amend/cancel requests with correlated Reservations outcomes and deferred receipt recovery;
 - strict operational-baseline classification of guest-only changes versus allocation-affecting amendments;

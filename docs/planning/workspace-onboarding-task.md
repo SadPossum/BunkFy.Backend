@@ -9,9 +9,9 @@ Date: 2026-07-14
 - reusable Organizations ownership of workspace catalog, memberships, invitations, enrollment links, lifecycle, concurrency, and provider-specific migrations;
 - workspace creation, selection, rename, member inspection, membership suspension/resume, and ownership transfer;
 - single-use recipient-bound invite links plus bounded reusable QR enrollment links;
-- automatic post-registration enrollment with projection-readiness handling;
-- BunkFy Staff identity projection and tenant-scoped owner/member AccessControl roles;
-- deny-by-default product access, permission-filtered navigation, and read-only baseline access for ordinary members;
+- invitation-aware registration with explicit post-registration acceptance and projection-readiness handling;
+- BunkFy Staff identity projection, self-service profile editing, and tenant-scoped owner/member AccessControl roles;
+- deny-by-default product access, permission-filtered navigation, and a front-desk baseline for ordinary members;
 - API, worker, migration, Admin API/CLI, OpenAPI, docs, and local preview composition.
 
 The phases below remain the durable direction. Configurable BunkFy access profiles, pre-created Staff/profile assignment plans, approval-based enrollment UX, offboarding orchestration, and production migration tooling are follow-on slices, not hidden claims of this delivery.
@@ -20,7 +20,7 @@ The phases below remain the durable direction. Configurable BunkFy access profil
 
 Deliver production-shaped public account registration, workspace creation and management, multi-workspace membership, and staff invitation/onboarding without weakening BunkFy's management-only product boundary.
 
-A person can register once, create a workspace, become its first owner, create the first property, invite staff through a link or QR, and later switch among every workspace they actively belong to. Existing accounts can accept invitations without duplication. New invited users can register and be joined automatically after verified acceptance.
+A person can register once, create a workspace, become its first owner, create the first property, invite staff through a link or QR, and later switch among every workspace they actively belong to. Existing accounts can accept invitations without duplication. New invited users can register without losing the invitation, review their Staff profile, and complete acceptance in the same flow.
 
 The durable architecture is defined in [Workspaces, Identity, And Staff Onboarding](../architecture/workspaces-and-onboarding.md).
 

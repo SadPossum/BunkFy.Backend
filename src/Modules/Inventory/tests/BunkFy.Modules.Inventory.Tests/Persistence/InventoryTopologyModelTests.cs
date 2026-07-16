@@ -49,6 +49,7 @@ public sealed class InventoryTopologyModelTests
         IEntityType entity = dbContext.Model.FindEntityType(typeof(RoomInventoryConfiguration))!;
 
         Assert.True(entity.FindProperty(nameof(RoomInventoryConfiguration.Version))!.IsConcurrencyToken);
+        Assert.True(entity.FindProperty(nameof(RoomInventoryConfiguration.AvailabilityMutationVersion))!.IsConcurrencyToken);
         Assert.Contains(
             entity.GetIndexes(),
             index => index.Properties.Select(property => property.Name)
@@ -129,6 +130,49 @@ public sealed class InventoryTopologyModelTests
                 nameof(InventoryAllocationAmendmentDecision.ScopeId),
                 nameof(InventoryAllocationAmendmentDecision.AllocationId),
                 nameof(InventoryAllocationAmendmentDecision.DecidedAtUtc)
+            ]));
+    }
+
+    [Fact]
+    public void Bed_retirement_process_has_concurrency_and_one_process_per_scoped_bed()
+    {
+        using InventoryDbContext dbContext = CreateDbContext();
+
+        IEntityType process = dbContext.Model.FindEntityType(typeof(BedRetirementProcess))!;
+
+        Assert.True(process.FindProperty(nameof(BedRetirementProcess.Version))!.IsConcurrencyToken);
+        Assert.Contains(
+            process.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(BedRetirementProcess.ScopeId), nameof(BedRetirementProcess.BedId)]));
+        Assert.Contains(
+            process.GetIndexes(),
+            index => index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(BedRetirementProcess.ScopeId),
+                nameof(BedRetirementProcess.PropertyId),
+                nameof(BedRetirementProcess.RoomId),
+                nameof(BedRetirementProcess.State)
+            ]));
+    }
+
+    [Fact]
+    public void Room_retirement_process_has_concurrency_and_one_process_per_scoped_room()
+    {
+        using InventoryDbContext dbContext = CreateDbContext();
+
+        IEntityType process = dbContext.Model.FindEntityType(typeof(RoomRetirementProcess))!;
+
+        Assert.True(process.FindProperty(nameof(RoomRetirementProcess.Version))!.IsConcurrencyToken);
+        Assert.Contains(
+            process.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(RoomRetirementProcess.ScopeId), nameof(RoomRetirementProcess.RoomId)]));
+        Assert.Contains(
+            process.GetIndexes(),
+            index => index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(RoomRetirementProcess.ScopeId),
+                nameof(RoomRetirementProcess.PropertyId),
+                nameof(RoomRetirementProcess.State)
             ]));
     }
 

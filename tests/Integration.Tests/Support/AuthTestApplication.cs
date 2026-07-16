@@ -12,6 +12,7 @@ using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -31,7 +32,8 @@ internal sealed class AuthTestApplication(
     string minioAccessKey = "minioadmin",
     string minioSecretKey = "minioadmin",
     string minioBucketName = "integration-test-files",
-    bool minioCreateBucketIfMissing = false)
+    bool minioCreateBucketIfMissing = false,
+    DbCommandInterceptor? inventoryCommandInterceptor = null)
     : WebApplicationFactory<ApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -122,6 +124,12 @@ internal sealed class AuthTestApplication(
             {
                 Url = natsConnectionString,
             }));
+
+            if (inventoryCommandInterceptor is not null)
+            {
+                services.AddDbContext<InventoryDbContext>(options =>
+                    options.AddInterceptors(inventoryCommandInterceptor));
+            }
         });
     }
 

@@ -54,6 +54,8 @@ public sealed class ReservationDetailsHistoryTests
         Assert.Equal(operationId, item.ExternalOperationId);
         Assert.Equal("Ada Guest", item.Before!.PrimaryGuestName);
         Assert.Equal("Grace Guest", item.After.PrimaryGuestName);
+        Assert.Equal(new TimeOnly(15, 30), item.After.ExpectedArrivalTime);
+        Assert.Equal(new TimeOnly(10, 45), item.After.ExpectedDepartureTime);
         Assert.Equal(nameof(Reservation.PrimaryGuestName), Assert.Single(item.ChangedFields));
     }
 
@@ -65,7 +67,9 @@ public sealed class ReservationDetailsHistoryTests
         "guest@example.test",
         null,
         1,
-        null);
+        null,
+        new TimeOnly(15, 30),
+        new TimeOnly(10, 45));
 
     private static ReservationsDbContext CreateDbContext()
     {

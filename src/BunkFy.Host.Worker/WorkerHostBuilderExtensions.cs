@@ -87,6 +87,7 @@ public static class WorkerHostBuilderExtensions
             builder.AddTenantTaskExecutionContext();
             builder.AddTaskCqrs();
             builder.AddTaskWorkerRuntime();
+            builder.AddTaskRunScheduling();
         }
 
         builder.AddServiceDefaults();
@@ -148,6 +149,10 @@ public static class WorkerHostBuilderExtensions
             if (workerOptions.Modules.Staff)
             {
                 builder.Services.AddBunkFyOperationsNotifications();
+                if (workerOptions.Modules.AccessControl)
+                {
+                    builder.Services.AddBunkFyWorkspaceOwnerNotificationAudience();
+                }
             }
         }
 

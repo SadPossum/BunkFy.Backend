@@ -9,5 +9,7 @@ public static class ReservationsContractLimits
     public const int SourceReferenceMaxLength = 200;
     public const int NotesMaxLength = 2000;
     public const int ActorIdMaxLength = 200;
+    public const int TimeZoneIdMaxLength = 100;
+    public const int SearchMaxLength = 200;
     public const int MaximumRequestedUnits = 100;
 }

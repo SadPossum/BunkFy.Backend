@@ -105,12 +105,17 @@ public sealed class PropertiesModule : IModule
         properties.MapPost("/{propertyId:guid}/retire", async (
             Guid propertyId,
             RetirePropertyRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
         {
             Result<Unit> result = request.Confirmed
                 ? await dispatcher.SendAsync(
-                    new RetirePropertyCommand(propertyId, request.ExpectedVersion),
+                    new RetirePropertyCommand(
+                        propertyId,
+                        request.ExpectedVersion,
+                        ResolveActor(httpContext, subjectResolver)),
                     cancellationToken).ConfigureAwait(false)
                 : Result.Failure<Unit>(new("Properties.ConfirmationRequired", "Confirmation is required."));
 
@@ -275,6 +280,14 @@ public sealed class PropertiesModule : IModule
     public sealed record BedWriteRequest(string Label, long ExpectedRoomVersion);
     public sealed record RetireBedRequest(bool Confirmed, long ExpectedRoomVersion);
 
+    private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
+    {
+        AccessSubject? subject = subjectResolver.ResolveSubject(context);
+        return subject is null
+            ? null
+            : $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
+    }
+
     private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(PropertiesApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
         new(PropertiesApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
@@ -292,5 +305,7 @@ public sealed class PropertiesModule : IModule
         new(PropertiesApplicationErrors.RoomRetired.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomHasActiveBeds.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.BedStatusUnknown.Code, StatusCodes.Status409Conflict),
-        new(PropertiesApplicationErrors.BedAlreadyRetired.Code, StatusCodes.Status409Conflict));
+        new(PropertiesApplicationErrors.BedAlreadyRetired.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.BedRetirementRequiresInventory.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.RoomRetirementRequiresInventory.Code, StatusCodes.Status409Conflict));
 }

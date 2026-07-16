@@ -4,6 +4,12 @@ using Gma.Framework.Results;
 
 public static class PropertiesDomainErrors
 {
+    public static readonly Error BedRetirementRequiresInventory = new(
+        "Properties.BedRetirementRequiresInventory",
+        "Bed retirement must be requested through Inventory so active reservations and blocks remain safe.");
+    public static readonly Error RoomRetirementRequiresInventory = new(
+        "Properties.RoomRetirementRequiresInventory",
+        "Room retirement must be requested through Inventory so active reservations and blocks remain safe.");
     public static readonly Error TenantRequired = new("Properties.TenantRequired", "A tenant id is required.");
     public static readonly Error TenantInvalid = new("Properties.TenantInvalid", "The tenant id is not valid.");
     public static readonly Error DomainEventIdRequired = new("BunkFy.Modules.Properties.DomainEventIdRequired", "A domain event id is required.");

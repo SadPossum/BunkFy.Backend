@@ -9,15 +9,18 @@ public sealed record PropertyRetiredDomainEvent : ScopedDomainEvent
         DateTimeOffset occurredAtUtc,
         Guid propertyId,
         string tenantId,
-        long propertyVersion)
+        long propertyVersion,
+        string? actorId = null)
         : base(eventId, occurredAtUtc, tenantId)
     {
         this.PropertyId = DomainEventGuards.RequireId(propertyId, nameof(propertyId));
         this.PropertyVersion = propertyVersion > 0
             ? propertyVersion
             : throw new ArgumentOutOfRangeException(nameof(propertyVersion));
+        this.ActorId = string.IsNullOrWhiteSpace(actorId) ? null : actorId.Trim();
     }
 
     public Guid PropertyId { get; }
     public long PropertyVersion { get; }
+    public string? ActorId { get; }
 }

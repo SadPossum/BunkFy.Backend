@@ -13,18 +13,6 @@ public interface IManualInventoryBlockRepository
         Guid propertyId,
         Guid blockGroupId,
         CancellationToken cancellationToken);
-    Task<bool> HasActiveOverlapAsync(
-        Guid inventoryUnitId,
-        DateOnly arrival,
-        DateOnly departure,
-        CancellationToken cancellationToken);
-    Task<bool> HasAnyActiveOverlapAsync(
-        IReadOnlyCollection<Guid> inventoryUnitIds,
-        DateOnly arrival,
-        DateOnly departure,
-        CancellationToken cancellationToken);
-    Task TouchUnitAsync(Guid inventoryUnitId, CancellationToken cancellationToken);
-    Task TouchUnitsAsync(IReadOnlyCollection<Guid> inventoryUnitIds, CancellationToken cancellationToken);
     Task<ManualInventoryBlockListResponse> ListAsync(
         Guid propertyId,
         Guid? inventoryUnitId,

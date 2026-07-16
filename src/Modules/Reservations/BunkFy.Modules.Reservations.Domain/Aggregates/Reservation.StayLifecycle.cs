@@ -187,8 +187,15 @@ public sealed partial class Reservation
         long expectedVersion,
         Guid releaseRequestId,
         Guid eventId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        string? actorId = null)
     {
+        string? normalizedActorId = NormalizeOptional(actorId);
+        if (normalizedActorId?.Length > ActorIdMaxLength)
+        {
+            return Result.Failure(ReservationsDomainErrors.StayProvenanceInvalid);
+        }
+
         if (this.PendingAllocationAmendmentId.HasValue)
         {
             return Result.Failure(ReservationsDomainErrors.AllocationAmendmentInProgress);
@@ -208,6 +215,7 @@ public sealed partial class Reservation
         {
             this.Status = ReservationState.CancellationPending;
             this.ReleaseRequestId = releaseRequestId;
+            this.PendingCancellationActorId = normalizedActorId;
             this.LastReleaseRejectionCode = null;
             this.Version++;
             this.UpdatedAtUtc = nowUtc;
@@ -226,7 +234,8 @@ public sealed partial class Reservation
                 this.ScopeId,
                 this.Id,
                 this.PropertyId,
-                this.Version));
+                this.Version,
+                normalizedActorId));
             this.RaiseGuestStayChanged(eventId, nowUtc);
             return Result.Success();
         }
@@ -238,6 +247,7 @@ public sealed partial class Reservation
 
         this.Status = ReservationState.CancellationPending;
         this.ReleaseRequestId = releaseRequestId;
+        this.PendingCancellationActorId = normalizedActorId;
         this.LastReleaseRejectionCode = null;
         this.Version++;
         this.UpdatedAtUtc = nowUtc;
@@ -281,6 +291,7 @@ public sealed partial class Reservation
         }
 
         ReservationReleaseCompletion completion;
+        string? cancellationActorId = this.PendingCancellationActorId;
         switch (this.Status)
         {
             case ReservationState.CancellationPending:
@@ -319,6 +330,7 @@ public sealed partial class Reservation
 
         this.PendingStayBusinessDate = null;
         this.PendingStayActorId = null;
+        this.PendingCancellationActorId = null;
         this.LastReleaseRejectionCode = null;
         this.Version++;
         this.UpdatedAtUtc = nowUtc;
@@ -326,7 +338,13 @@ public sealed partial class Reservation
         {
             case ReservationReleaseCompletion.Cancelled:
                 this.RaiseDomainEvent(new ReservationCancelledDomainEvent(
-                    eventId, nowUtc, this.ScopeId, this.Id, this.PropertyId, this.Version));
+                    eventId,
+                    nowUtc,
+                    this.ScopeId,
+                    this.Id,
+                    this.PropertyId,
+                    this.Version,
+                    cancellationActorId));
                 break;
             case ReservationReleaseCompletion.NoShow:
                 this.RaiseDomainEvent(new ReservationNoShowDomainEvent(
@@ -358,39 +376,6 @@ public sealed partial class Reservation
         this.RaiseGuestStayChanged(eventId, nowUtc);
 
         return Result.Success(completion);
-    }
-
-    public Result RestoreAfterReleaseRejection(
-        Guid releaseRequestId,
-        int rejectionCode,
-        Guid eventId,
-        DateTimeOffset nowUtc)
-    {
-        if (this.ReleaseRequestId != releaseRequestId)
-        {
-            return Result.Failure(ReservationsDomainErrors.AllocationCorrelationMismatch);
-        }
-
-        this.Status = this.Status switch
-        {
-            ReservationState.CancellationPending => ReservationState.Confirmed,
-            ReservationState.NoShowPending => ReservationState.Confirmed,
-            ReservationState.CheckoutPending => ReservationState.CheckedIn,
-            _ => this.Status
-        };
-        if (this.Status is not (ReservationState.Confirmed or ReservationState.CheckedIn))
-        {
-            return Result.Failure(ReservationsDomainErrors.AllocationCorrelationMismatch);
-        }
-
-        this.ReleaseRequestId = null;
-        this.PendingStayBusinessDate = null;
-        this.PendingStayActorId = null;
-        this.LastReleaseRejectionCode = rejectionCode;
-        this.Version++;
-        this.UpdatedAtUtc = nowUtc;
-        this.RaiseGuestStayChanged(eventId, nowUtc);
-        return Result.Success();
     }
 
 }

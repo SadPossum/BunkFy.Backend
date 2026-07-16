@@ -71,19 +71,85 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
         Assert.Equal(RoomSalesMode.BedLevel, configuration.SalesMode);
     }
 
+    [Fact]
+    public async Task Mode_change_is_rejected_while_the_room_has_active_claims()
+    {
+        RoomInventoryConfiguration configuration = CreateConfiguration();
+        ServiceProvider provider = CreateProvider(
+            configuration,
+            RoomStatus.Active,
+            activeBedCount: 2,
+            activeAllocationCount: 1);
+        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto> handler =
+            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>>();
+
+        Result<RoomInventoryDto> result = await handler.HandleAsync(
+            new(PropertyId, RoomId, InventorySalesMode.BedLevel, 1),
+            CancellationToken.None);
+
+        Assert.Equal(InventoryApplicationErrors.RoomHasActiveClaims, result.Error);
+        Assert.Equal(RoomSalesMode.Unconfigured, configuration.SalesMode);
+    }
+
     private static ServiceProvider CreateProvider(
         RoomInventoryConfiguration configuration,
         RoomStatus status,
-        int activeBedCount)
+        int activeBedCount,
+        int activeAllocationCount = 0)
     {
         ServiceCollection services = new();
         services.AddSingleton<IInventoryTopologyRepository>(new FakeTopologyRepository(status, activeBedCount));
         services.AddSingleton<IRoomInventoryConfigurationRepository>(new FakeConfigurationRepository(configuration));
         services.AddSingleton<IInventoryReadRepository>(new FakeReadRepository(configuration));
+        services.AddSingleton<IInventoryAvailabilityRepository>(new FakeAvailabilityRepository(activeAllocationCount));
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
         services.AddInventoryApplication();
         return services.BuildServiceProvider();
+    }
+
+    private sealed class FakeAvailabilityRepository(int activeAllocationCount) : IInventoryAvailabilityRepository
+    {
+        public Task<InventoryAvailabilityContextSnapshot> GetContextAsync(
+            Guid propertyId,
+            IReadOnlyCollection<Guid> inventoryUnitIds,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<InventoryAvailabilityConflictSnapshot> GetConflictsAsync(
+            Guid propertyId,
+            IReadOnlyCollection<Guid> conflictUnitIds,
+            DateOnly arrival,
+            DateOnly departure,
+            Guid? excludedAllocationId,
+            IReadOnlyCollection<Guid> excludedBlockIds,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RoomInventoryImpactSnapshot?> GetRoomImpactAsync(
+            Guid propertyId,
+            Guid roomId,
+            CancellationToken cancellationToken) => Task.FromResult<RoomInventoryImpactSnapshot?>(
+            propertyId == PropertyId && roomId == RoomId
+                ? new(
+                    activeAllocationCount,
+                    0,
+                    0,
+                    0,
+                    activeAllocationCount == 0 ? [] : [Guid.NewGuid()],
+                    false)
+                : null);
+
+        public Task<BedRetirementImpactSnapshot?> GetBedRetirementImpactAsync(
+            Guid propertyId,
+            Guid roomId,
+            Guid bedId,
+            Guid? excludedAllocationId,
+            IReadOnlyCollection<Guid> excludedBlockIds,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task TouchUnitsAsync(
+            Guid propertyId,
+            IReadOnlyCollection<Guid> inventoryUnitIds,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private static RoomInventoryConfiguration CreateConfiguration() =>

@@ -23,6 +23,11 @@ internal static class ExternalReservationContractGuards
     public static Guid Id(Guid value, string parameterName) =>
         IntegrationEventContractGuards.RequireId(value, parameterName);
 
+    public static TimeOnly? ExpectedTime(TimeOnly? value, string parameterName) =>
+        !value.HasValue || value.Value.Ticks % TimeSpan.TicksPerMinute == 0
+            ? value
+            : throw new ArgumentException("Expected reservation times must use minute precision.", parameterName);
+
     public static void Common(Guid operationId, Guid receiptId, Guid connectionId, Guid propertyId)
     {
         _ = Id(operationId, nameof(operationId));

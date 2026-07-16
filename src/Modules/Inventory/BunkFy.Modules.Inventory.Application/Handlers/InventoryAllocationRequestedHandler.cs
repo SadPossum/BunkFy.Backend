@@ -10,6 +10,7 @@ using BunkFy.Modules.Inventory.Domain.Aggregates;
 [IntegrationEventHandler(InventoryModuleMetadata.AllocationRequestedHandlerName)]
 internal sealed class InventoryAllocationRequestedHandler(
     IInventoryAllocationRepository allocations,
+    IInventoryAvailabilityRepository availability,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -77,7 +78,10 @@ internal sealed class InventoryAllocationRequestedHandler(
 
         if (decision.Status == InventoryAllocationState.Active)
         {
-            await allocations.TouchUnitsAsync(request.InventoryUnitIds, cancellationToken).ConfigureAwait(false);
+            await availability.TouchUnitsAsync(
+                request.PropertyId,
+                request.InventoryUnitIds,
+                cancellationToken).ConfigureAwait(false);
         }
 
         await allocations.AddAsync(decision, cancellationToken).ConfigureAwait(false);
@@ -88,9 +92,10 @@ internal sealed class InventoryAllocationRequestedHandler(
         InventoryAllocationRequestedIntegrationEvent request,
         CancellationToken cancellationToken)
     {
-        IReadOnlyCollection<InventoryAllocationUnitSnapshot> units = await allocations
-            .GetUnitsAsync(request.PropertyId, request.InventoryUnitIds, cancellationToken)
+        InventoryAvailabilityContextSnapshot context = await availability
+            .GetContextAsync(request.PropertyId, request.InventoryUnitIds, cancellationToken)
             .ConfigureAwait(false);
+        IReadOnlyCollection<InventoryAllocationUnitSnapshot> units = context.Units;
         if (units.Count != request.InventoryUnitIds.Count)
         {
             return InventoryAllocationRejection.UnitNotFound;
@@ -106,21 +111,20 @@ internal sealed class InventoryAllocationRequestedHandler(
             return InventoryAllocationRejection.UnitNotSellable;
         }
 
-        if (await allocations.HasManualBlockConflictAsync(
-                request.InventoryUnitIds,
+        InventoryAvailabilityConflictSnapshot conflicts = await availability.GetConflictsAsync(
+                request.PropertyId,
+                context.ConflictUnitIds,
                 request.Arrival,
                 request.Departure,
-                cancellationToken).ConfigureAwait(false))
+                excludedAllocationId: null,
+                excludedBlockIds: [],
+                cancellationToken).ConfigureAwait(false);
+        if (conflicts.HasManualBlockConflict)
         {
             return InventoryAllocationRejection.ManualBlockConflict;
         }
 
-        return await allocations.HasActiveAllocationConflictAsync(
-                request.InventoryUnitIds,
-                request.Arrival,
-                request.Departure,
-                excludedAllocationId: null,
-                cancellationToken).ConfigureAwait(false)
+        return conflicts.HasActiveAllocationConflict
             ? InventoryAllocationRejection.AllocationConflict
             : InventoryAllocationRejection.None;
     }

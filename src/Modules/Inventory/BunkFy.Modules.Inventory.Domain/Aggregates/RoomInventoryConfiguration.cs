@@ -19,6 +19,7 @@ public sealed class RoomInventoryConfiguration : ScopedAggregateRoot<Guid>
     public Guid PropertyId { get; private set; }
     public RoomSalesMode SalesMode { get; private set; } = RoomSalesMode.Unconfigured;
     public long Version { get; private set; } = 1;
+    public long AvailabilityMutationVersion { get; private set; } = 1;
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
 
@@ -45,7 +46,8 @@ public sealed class RoomInventoryConfiguration : ScopedAggregateRoot<Guid>
         RoomSalesMode salesMode,
         long expectedVersion,
         Guid eventId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        string? actorId = null)
     {
         if (expectedVersion != this.Version)
         {
@@ -64,6 +66,7 @@ public sealed class RoomInventoryConfiguration : ScopedAggregateRoot<Guid>
 
         this.SalesMode = salesMode;
         this.Version++;
+        this.AvailabilityMutationVersion++;
         this.UpdatedAtUtc = nowUtc;
         this.RaiseDomainEvent(new RoomSalesModeChangedDomainEvent(
             eventId,
@@ -72,8 +75,11 @@ public sealed class RoomInventoryConfiguration : ScopedAggregateRoot<Guid>
             this.PropertyId,
             this.Id,
             this.SalesMode,
-            this.Version));
+            this.Version,
+            actorId));
 
         return Result.Success();
     }
+
+    public void TouchAvailability() => this.AvailabilityMutationVersion++;
 }

@@ -53,7 +53,9 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
             externalOperationId: null,
             idGenerator.NewId(),
             idGenerator.NewId(),
-            clock.UtcNow);
+            clock.UtcNow,
+            command.ExpectedArrivalTime,
+            command.ExpectedDepartureTime);
         return changed.IsFailure
             ? Result.Failure<ReservationDto>(changed.Error)
             : Result.Success(reservation.ToDto());

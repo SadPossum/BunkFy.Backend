@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Properties.Application;
 
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Application.Handlers;
+using Gma.Framework.Messaging;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +14,16 @@ public static class DependencyInjection
 
         services.AddGmaAccessControlPermissionPolicies(PropertiesModuleMetadata.Descriptor);
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
+        services.AddIntegrationEventHandler<
+            BedRetirementFinalizationRequestedIntegrationEvent,
+            BedRetirementFinalizationRequestedHandler>(
+                PropertiesModuleMetadata.Name,
+                PropertiesModuleMetadata.RetirementProducerModuleName);
+        services.AddIntegrationEventHandler<
+            RoomRetirementFinalizationRequestedIntegrationEvent,
+            RoomRetirementFinalizationRequestedHandler>(
+                PropertiesModuleMetadata.Name,
+                PropertiesModuleMetadata.RetirementProducerModuleName);
 
         return services;
     }

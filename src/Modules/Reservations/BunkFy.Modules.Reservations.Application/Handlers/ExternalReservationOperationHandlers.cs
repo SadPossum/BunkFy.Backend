@@ -83,7 +83,9 @@ internal sealed class ExternalReservationCreateRequestedHandler(
             request.ConnectionId,
             request.OperationId,
             request.ReceiptId,
-            clock.UtcNow);
+            clock.UtcNow,
+            request.ExpectedArrivalTime,
+            request.ExpectedDepartureTime);
         if (created.IsFailure)
         {
             await CompleteAsync(
@@ -172,7 +174,9 @@ internal sealed class ExternalReservationGuestDetailsChangeRequestedHandler(
             request.OperationId,
             request.ReceiptId,
             idGenerator.NewId(),
-            clock.UtcNow);
+            clock.UtcNow,
+            request.ExpectedArrivalTime,
+            request.ExpectedDepartureTime);
         if (changed.IsFailure)
         {
             ExternalReservationOperationOutcome outcome = changed.Error == ReservationsApplicationErrors.DetailsRevisionConflict
@@ -310,7 +314,9 @@ internal sealed class ExternalReservationAmendmentRequestedHandler(
             request.OperationId,
             request.ReceiptId,
             idGenerator.NewId(),
-            clock.UtcNow);
+            clock.UtcNow,
+            request.ExpectedArrivalTime,
+            request.ExpectedDepartureTime);
         if (begun.IsFailure)
         {
             ExternalReservationOperationOutcome outcome = begun.Error == ReservationsApplicationErrors.DetailsRevisionConflict

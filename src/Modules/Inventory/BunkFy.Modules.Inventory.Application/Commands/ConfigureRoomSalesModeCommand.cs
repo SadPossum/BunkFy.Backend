@@ -7,5 +7,6 @@ public sealed record ConfigureRoomSalesModeCommand(
     Guid PropertyId,
     Guid RoomId,
     InventorySalesMode SalesMode,
-    long ExpectedVersion)
+    long ExpectedVersion,
+    string? ActorId = null)
     : ITransactionalCommand<RoomInventoryDto>;

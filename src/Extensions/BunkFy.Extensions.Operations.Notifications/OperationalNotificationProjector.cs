@@ -3,11 +3,13 @@ namespace BunkFy.Extensions.Operations.Notifications;
 using System.Security.Cryptography;
 using System.Text;
 using BunkFy.Modules.Staff.Contracts;
+using Gma.Framework.AccessControl;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 
 internal sealed class OperationalNotificationProjector(
     IStaffPropertyAudienceReader audienceReader,
+    IWorkspaceOwnerNotificationAudienceReader workspaceOwnerAudienceReader,
     IUserNotificationRequestProjector notificationProjector)
 {
     public async Task ProjectForPropertyAsync(
@@ -18,9 +20,19 @@ internal sealed class OperationalNotificationProjector(
         OperationalNotification notification,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<string> recipients = await audienceReader
+        IReadOnlyList<string> propertyStaffRecipients = await audienceReader
             .ListActiveAuthSubjectIdsAsync(scopeId, propertyId, cancellationToken)
             .ConfigureAwait(false);
+        IReadOnlyList<string> workspaceOwnerRecipients = await workspaceOwnerAudienceReader
+            .ListAuthSubjectIdsAsync(scopeId, cancellationToken)
+            .ConfigureAwait(false);
+
+        string[] recipients = propertyStaffRecipients
+            .Concat(workspaceOwnerRecipients)
+            .Distinct(StringComparer.Ordinal)
+            .Where(recipient => !IsInitiatingUser(recipient, notification.ActorId))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
 
         foreach (string recipient in recipients)
         {
@@ -47,6 +59,11 @@ internal sealed class OperationalNotificationProjector(
             .GetAuthSubjectIdAsync(scopeId, staffMemberId, cancellationToken)
             .ConfigureAwait(false);
         if (recipient is null)
+        {
+            return;
+        }
+
+        if (IsInitiatingUser(recipient, notification.ActorId))
         {
             return;
         }
@@ -90,5 +107,21 @@ internal sealed class OperationalNotificationProjector(
         string identity = $"{sourceEventId:D}|{recipient.Trim()}|{notificationName}";
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
         return new Guid(hash.AsSpan(0, 16));
+    }
+
+    internal static bool IsInitiatingUser(string recipient, string? actorId)
+    {
+        const char separator = ':';
+        string normalizedActor = actorId?.Trim() ?? string.Empty;
+        int separatorIndex = normalizedActor.IndexOf(separator);
+        return separatorIndex > 0 &&
+               string.Equals(
+                   normalizedActor[..separatorIndex],
+                   AccessSubjectKindNames.User,
+                   StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(
+                   normalizedActor[(separatorIndex + 1)..],
+                   recipient.Trim(),
+                   StringComparison.Ordinal);
     }
 }

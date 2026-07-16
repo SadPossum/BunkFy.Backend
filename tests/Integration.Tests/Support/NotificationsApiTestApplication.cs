@@ -38,7 +38,9 @@ internal sealed class NotificationsApiTestApplication : IAsyncDisposable
 
     private NotificationsApiTestApplication(WebApplication app) => this.app = app;
 
-    public static async Task<NotificationsApiTestApplication> CreateAsync(bool tenancyEnabled = true)
+    public static async Task<NotificationsApiTestApplication> CreateAsync(
+        bool tenancyEnabled = true,
+        INotificationUserScopeAuthorizer? scopeAuthorizer = null)
     {
         InMemoryDatabaseRoot databaseRoot = new();
         string databaseName = $"notifications-api-{Guid.NewGuid():N}";
@@ -82,6 +84,10 @@ internal sealed class NotificationsApiTestApplication : IAsyncDisposable
                 };
             });
         builder.Services.AddAuthorization();
+        if (scopeAuthorizer is not null)
+        {
+            builder.Services.AddSingleton<INotificationUserScopeAuthorizer>(scopeAuthorizer);
+        }
 
         builder.Services.AddDbContext<NotificationsDbContext>(
             options => options.UseInMemoryDatabase(databaseName, databaseRoot));

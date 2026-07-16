@@ -8,5 +8,6 @@ public sealed record CreateManualInventoryBlockGroupCommand(
     InventoryBlockTarget Target,
     DateOnly Arrival,
     DateOnly Departure,
-    string Reason)
+    string Reason,
+    string? ActorId = null)
     : ITransactionalCommand<ManualInventoryBlockGroupDto>;

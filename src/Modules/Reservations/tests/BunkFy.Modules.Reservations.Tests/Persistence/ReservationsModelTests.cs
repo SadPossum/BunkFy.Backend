@@ -25,6 +25,10 @@ public sealed class ReservationsModelTests
         Assert.True(reservationEntity.FindProperty(nameof(Reservation.Version))!.IsConcurrencyToken);
         Assert.NotNull(reservationEntity.FindProperty(nameof(Reservation.DetailsRevision)));
         Assert.NotNull(reservationEntity.FindProperty(nameof(Reservation.LastDetailsChangeOrigin)));
+        Assert.Equal("time(0) without time zone", ColumnType(reservationDesignEntity, nameof(Reservation.ExpectedArrivalTime)));
+        Assert.Equal("time(0) without time zone", ColumnType(reservationDesignEntity, nameof(Reservation.ExpectedDepartureTime)));
+        Assert.Equal("time(0) without time zone", ColumnType(reservationDesignEntity, nameof(Reservation.PendingExpectedArrivalTime)));
+        Assert.Equal("time(0) without time zone", ColumnType(reservationDesignEntity, nameof(Reservation.PendingExpectedDepartureTime)));
         Assert.Equal(
             Reservation.ActorIdMaxLength,
             reservationEntity.FindProperty(nameof(Reservation.PendingStayActorId))!.GetMaxLength());
@@ -109,6 +113,33 @@ public sealed class ReservationsModelTests
         Assert.Equal(DeleteBehavior.Cascade, parent.DeleteBehavior);
     }
 
+    [Fact]
+    public void Model_has_indexed_revision_bound_arrival_reminders()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IEntityType reminder = dbContext.Model.FindEntityType(typeof(ReservationArrivalReminder))!;
+        IEntityType property = dbContext.Model.FindEntityType(typeof(ReservationPropertyProjection))!;
+
+        Assert.True(reminder.FindProperty(nameof(ReservationArrivalReminder.Version))!.IsConcurrencyToken);
+        Assert.True(property.FindProperty(nameof(ReservationPropertyProjection.SourceVersion))!.IsConcurrencyToken);
+        Assert.Contains(
+            reminder.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(ReservationArrivalReminder.ScopeId),
+                nameof(ReservationArrivalReminder.ReservationId),
+                nameof(ReservationArrivalReminder.DetailsRevision),
+                nameof(ReservationArrivalReminder.TimeZoneId),
+                nameof(ReservationArrivalReminder.LeadTimeMinutes)
+            ]));
+        Assert.Contains(
+            reminder.GetIndexes(),
+            index => index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(ReservationArrivalReminder.ScopeId),
+                nameof(ReservationArrivalReminder.State),
+                nameof(ReservationArrivalReminder.DueAtUtc)
+            ]));
+    }
+
     private static ReservationsDbContext CreateDbContext()
     {
         DbContextOptions<ReservationsDbContext> options = new DbContextOptionsBuilder<ReservationsDbContext>()
@@ -116,6 +147,9 @@ public sealed class ReservationsModelTests
             .Options;
         return new(options, new TestScopeContext());
     }
+
+    private static string? ColumnType(IEntityType entityType, string propertyName) =>
+        entityType.FindProperty(propertyName)?.FindAnnotation(RelationalAnnotationNames.ColumnType)?.Value as string;
 
     private sealed class TestScopeContext : IScopeContext
     {

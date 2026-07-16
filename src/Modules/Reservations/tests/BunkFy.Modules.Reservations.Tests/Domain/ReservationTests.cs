@@ -268,6 +268,54 @@ public sealed class ReservationTests
     }
 
     [Fact]
+    public void Expected_local_times_are_minute_precise_and_part_of_revisioned_booking_details()
+    {
+        TimeOnly arrivalTime = new(15, 30);
+        TimeOnly departureTime = new(10, 45);
+        Reservation reservation = CreateReservation(
+            expectedArrivalTime: arrivalTime,
+            expectedDepartureTime: departureTime).Value;
+        ReservationDetailsChangedDomainEvent created =
+            Assert.IsType<ReservationDetailsChangedDomainEvent>(reservation.DomainEvents.Last());
+
+        Assert.Equal(arrivalTime, reservation.ExpectedArrivalTime);
+        Assert.Equal(departureTime, reservation.ExpectedDepartureTime);
+        Assert.Equal(arrivalTime, created.After.ExpectedArrivalTime);
+        Assert.Equal(departureTime, created.After.ExpectedDepartureTime);
+
+        reservation.ClearDomainEvents();
+        TimeOnly updatedArrival = new(17, 0);
+        Result<ReservationDetailsChangeOutcome> changed = reservation.UpdateGuestDetails(
+            reservation.PrimaryGuestName,
+            reservation.Email,
+            reservation.Phone,
+            reservation.GuestCount,
+            reservation.Notes,
+            reservation.DetailsRevision,
+            ReservationDetailsChangeOrigin.Staff,
+            "staff:front-desk",
+            null,
+            null,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Now.AddMinutes(1),
+            updatedArrival,
+            departureTime);
+
+        Assert.Equal(ReservationDetailsChangeOutcome.Changed, changed.Value);
+        Assert.Equal(updatedArrival, reservation.ExpectedArrivalTime);
+        ReservationDetailsChangedDomainEvent updated =
+            Assert.IsType<ReservationDetailsChangedDomainEvent>(Assert.Single(reservation.DomainEvents));
+        Assert.Equal(nameof(Reservation.ExpectedArrivalTime), Assert.Single(updated.ChangedFields));
+        Assert.Equal(arrivalTime, updated.Before!.ExpectedArrivalTime);
+        Assert.Equal(updatedArrival, updated.After.ExpectedArrivalTime);
+
+        Assert.Equal(
+            ReservationsDomainErrors.ExpectedStayTimeInvalid,
+            CreateReservation(expectedArrivalTime: new TimeOnly(15, 30, 1)).Error);
+    }
+
+    [Fact]
     public void Guest_details_change_uses_independent_revision_and_records_adapter_provenance()
     {
         Reservation reservation = CreateReservation().Value;
@@ -475,7 +523,9 @@ public sealed class ReservationTests
         int guestCount = 1,
         ReservationSource source = ReservationSource.Direct,
         string? sourceSystem = null,
-        string? sourceReference = null) =>
+        string? sourceReference = null,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null) =>
         Reservation.Create(
             Guid.NewGuid(),
             "tenant-a",
@@ -499,5 +549,7 @@ public sealed class ReservationTests
             initialAdapterConnectionId: null,
             initialExternalOperationId: null,
             Guid.NewGuid(),
-            Now);
+            Now,
+            expectedArrivalTime,
+            expectedDepartureTime);
 }

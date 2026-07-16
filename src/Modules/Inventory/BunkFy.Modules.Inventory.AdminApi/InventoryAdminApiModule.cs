@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Inventory.AdminApi;
 
+using System.Security.Claims;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.Observability;
@@ -76,6 +77,21 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         request.SalesMode,
                         request.ExpectedVersion),
                     token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapGet("/properties/{propertyId:guid}/rooms/{roomId:guid}/change-impact", async (
+            Guid propertyId,
+            Guid roomId,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.RoomsConfigure, InventoryAdminPermissions.Configure),
+                requireTenant: true,
+                token => dispatcher.QueryAsync(new GetRoomInventoryChangeImpactQuery(propertyId, roomId), token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
 
@@ -198,6 +214,112 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapPost("/properties/{propertyId:guid}/rooms/{roomId:guid}/beds/{bedId:guid}/retirement", async (
+            Guid propertyId,
+            Guid roomId,
+            Guid bedId,
+            RequestBedRetirementRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsRequest, InventoryAdminPermissions.Configure),
+                requireTenant: true,
+                token => dispatcher.SendAsync(
+                    new RequestBedRetirementCommand(
+                        propertyId,
+                        roomId,
+                        bedId,
+                        request.Reason,
+                        Actor(httpContext)),
+                    token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapGet("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsGet, InventoryAdminPermissions.Configure),
+                requireTenant: true,
+                token => dispatcher.QueryAsync(new GetBedRetirementQuery(propertyId, topologyChangeId), token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapPost("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}/retry", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsRetry, InventoryAdminPermissions.Configure),
+                requireTenant: true,
+                token => dispatcher.SendAsync(new RetryBedRetirementCommand(propertyId, topologyChangeId), token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapPost("/properties/{propertyId:guid}/rooms/{roomId:guid}/retirement", async (
+            Guid propertyId,
+            Guid roomId,
+            RequestRoomRetirementRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsRequest, InventoryAdminPermissions.Configure),
+                requireTenant: true,
+                token => dispatcher.SendAsync(
+                    new RequestRoomRetirementCommand(
+                        propertyId,
+                        roomId,
+                        request.Reason,
+                        Actor(httpContext)),
+                    token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapGet("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsGet, InventoryAdminPermissions.Configure),
+                requireTenant: true,
+                token => dispatcher.QueryAsync(new GetRoomRetirementQuery(propertyId, topologyChangeId), token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+
+        inventory.MapPost("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}/retry", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsRetry, InventoryAdminPermissions.Configure),
+                requireTenant: true,
+                token => dispatcher.SendAsync(new RetryRoomRetirementCommand(propertyId, topologyChangeId), token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
     }
 
     public sealed record ConfigureSalesModeRequest(InventorySalesMode SalesMode, long ExpectedVersion);
@@ -212,6 +334,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         DateOnly Departure,
         string Reason);
     public sealed record ReleaseManualBlockRequest(long ExpectedVersion);
+    public sealed record RequestBedRetirementRequest(string Reason);
+    public sealed record RequestRoomRetirementRequest(string Reason);
 
     private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(InventoryApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
@@ -220,6 +344,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         new(InventoryApplicationErrors.BedLevelRequiresBeds.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.SalesModeInvalid.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomHasActiveClaims.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status404NotFound),
         new(InventoryApplicationErrors.InventoryUnitInactive.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.InventoryUnitNotSellable.Code, StatusCodes.Status409Conflict),
@@ -231,5 +356,26 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         new(InventoryApplicationErrors.BlockAllocationConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.StayRangeInvalid.Code, StatusCodes.Status400BadRequest),
         new(InventoryApplicationErrors.BlockReasonInvalid.Code, StatusCodes.Status400BadRequest),
-        new(InventoryApplicationErrors.BlockAlreadyReleased.Code, StatusCodes.Status409Conflict));
+        new(InventoryApplicationErrors.BlockAlreadyReleased.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.BedRetirementNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.BedRetirementRetryInvalid.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.BedRetirementStillDraining.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.BedRetirementInProgress.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomRetirementNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.RoomRetirementRetryInvalid.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomRetirementStillDraining.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomRetirementInProgress.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
+
+    private static string Actor(HttpContext context)
+    {
+        string identity = context.User.FindFirst("sub")?.Value
+            ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? context.User.Identity?.Name
+            ?? $"authenticated:{context.User.Identity?.AuthenticationType ?? "unknown"}";
+        return $"admin-api:{identity}";
+    }
 }

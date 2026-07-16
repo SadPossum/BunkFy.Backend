@@ -19,6 +19,8 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<InventoryAllocation> Allocations => this.Set<InventoryAllocation>();
     public DbSet<InventoryAllocationUnit> AllocationUnits => this.Set<InventoryAllocationUnit>();
     public DbSet<InventoryAllocationAmendmentDecision> AllocationAmendmentDecisions => this.Set<InventoryAllocationAmendmentDecision>();
+    public DbSet<BedRetirementProcess> BedRetirements => this.Set<BedRetirementProcess>();
+    public DbSet<RoomRetirementProcess> RoomRetirements => this.Set<RoomRetirementProcess>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
     public DbSet<InventoryProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints => this.Set<InventoryProjectionRebuildCheckpoint>();

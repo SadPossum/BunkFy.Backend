@@ -20,6 +20,7 @@ internal sealed class CreateManualInventoryBlockCommandHandler(ManualInventoryBl
             command.Arrival,
             command.Departure,
             command.Reason,
+            command.ActorId,
             cancellationToken).ConfigureAwait(false);
 
         return result.IsFailure

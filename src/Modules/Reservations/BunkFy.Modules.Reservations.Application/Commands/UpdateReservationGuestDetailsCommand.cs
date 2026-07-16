@@ -13,5 +13,7 @@ public sealed record UpdateReservationGuestDetailsCommand(
     string? Notes,
     long ExpectedDetailsRevision,
     ReservationDetailsChangeOriginKind Origin,
-    string ActorId)
+    string ActorId,
+    TimeOnly? ExpectedArrivalTime = null,
+    TimeOnly? ExpectedDepartureTime = null)
     : ITransactionalCommand<ReservationDto>;

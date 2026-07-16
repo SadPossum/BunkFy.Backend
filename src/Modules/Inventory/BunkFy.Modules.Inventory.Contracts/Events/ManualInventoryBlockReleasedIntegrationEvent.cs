@@ -20,7 +20,8 @@ public sealed record ManualInventoryBlockReleasedIntegrationEvent : TenantIntegr
         Guid blockGroupId,
         Guid propertyId,
         Guid inventoryUnitId,
-        long blockVersion)
+        long blockVersion,
+        string? actorId = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.BlockId = IntegrationEventContractGuards.RequireId(blockId, nameof(blockId));
@@ -30,6 +31,7 @@ public sealed record ManualInventoryBlockReleasedIntegrationEvent : TenantIntegr
         this.BlockVersion = blockVersion > 0
             ? blockVersion
             : throw new ArgumentOutOfRangeException(nameof(blockVersion));
+        this.ActorId = OptionalActor(actorId);
     }
 
     public Guid BlockId { get; }
@@ -37,4 +39,13 @@ public sealed record ManualInventoryBlockReleasedIntegrationEvent : TenantIntegr
     public Guid PropertyId { get; }
     public Guid InventoryUnitId { get; }
     public long BlockVersion { get; }
+    public string? ActorId { get; }
+
+    private static string? OptionalActor(string? value)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return normalized is null || normalized.Length <= 200
+            ? normalized
+            : throw new ArgumentException("Actor id is invalid.", nameof(value));
+    }
 }

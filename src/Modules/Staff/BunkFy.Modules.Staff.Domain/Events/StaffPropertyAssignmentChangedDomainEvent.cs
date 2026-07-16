@@ -14,4 +14,5 @@ public sealed record StaffPropertyAssignmentChangedDomainEvent(
     bool IsPrimary,
     DateOnly EffectiveFrom,
     DateOnly? EffectiveTo,
-    long StaffVersion) : ScopedDomainEvent(EventId, OccurredAtUtc, ScopeId);
+    long StaffVersion,
+    string? ActorId = null) : ScopedDomainEvent(EventId, OccurredAtUtc, ScopeId);

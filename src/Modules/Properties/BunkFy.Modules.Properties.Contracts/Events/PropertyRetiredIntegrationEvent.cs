@@ -17,13 +17,24 @@ public sealed record PropertyRetiredIntegrationEvent : TenantIntegrationEvent
         string tenantId,
         DateTimeOffset occurredAtUtc,
         Guid propertyId,
-        long propertyVersion)
+        long propertyVersion,
+        string? actorId = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.PropertyId = IntegrationEventContractGuards.RequireId(propertyId, nameof(propertyId));
         this.PropertyVersion = PropertiesEventContractGuards.RequireVersion(propertyVersion, nameof(propertyVersion));
+        this.ActorId = OptionalActor(actorId);
     }
 
     public Guid PropertyId { get; }
     public long PropertyVersion { get; }
+    public string? ActorId { get; }
+
+    private static string? OptionalActor(string? value)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return normalized is null || normalized.Length <= 200
+            ? normalized
+            : throw new ArgumentException("Actor id is invalid.", nameof(value));
+    }
 }

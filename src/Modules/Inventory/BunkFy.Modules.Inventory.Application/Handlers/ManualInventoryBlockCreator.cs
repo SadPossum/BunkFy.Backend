@@ -11,7 +11,7 @@ using Gma.Framework.Scoping;
 internal sealed class ManualInventoryBlockCreator(
     IInventoryReadRepository inventory,
     IManualInventoryBlockRepository blocks,
-    IInventoryAllocationRepository allocations,
+    IInventoryAvailabilityRepository availability,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -22,6 +22,7 @@ internal sealed class ManualInventoryBlockCreator(
         DateOnly arrival,
         DateOnly departure,
         string reason,
+        string? actorId,
         CancellationToken cancellationToken)
     {
         string? scopeId = scopeContext.ScopeId;
@@ -68,21 +69,23 @@ internal sealed class ManualInventoryBlockCreator(
             return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.BlockTargetEmpty);
         }
 
-        if (await blocks.HasAnyActiveOverlapAsync(
-                inventoryUnitIds,
+        InventoryAvailabilityContextSnapshot context = await availability
+            .GetContextAsync(propertyId, inventoryUnitIds, cancellationToken)
+            .ConfigureAwait(false);
+        InventoryAvailabilityConflictSnapshot conflicts = await availability.GetConflictsAsync(
+                propertyId,
+                context.ConflictUnitIds,
                 arrival,
                 departure,
-                cancellationToken).ConfigureAwait(false))
+                excludedAllocationId: null,
+                excludedBlockIds: [],
+                cancellationToken).ConfigureAwait(false);
+        if (conflicts.HasManualBlockConflict)
         {
             return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.BlockOverlap);
         }
 
-        if (await allocations.HasActiveAllocationConflictAsync(
-                inventoryUnitIds,
-                arrival,
-                departure,
-                excludedAllocationId: null,
-                cancellationToken).ConfigureAwait(false))
+        if (conflicts.HasActiveAllocationConflict)
         {
             return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.BlockAllocationConflict);
         }
@@ -102,7 +105,8 @@ internal sealed class ManualInventoryBlockCreator(
                 departure,
                 reason,
                 idGenerator.NewId(),
-                nowUtc);
+                nowUtc,
+                actorId);
             if (result.IsFailure)
             {
                 return Result.Failure<ManualInventoryBlockGroupDto>(result.Error);
@@ -111,7 +115,10 @@ internal sealed class ManualInventoryBlockCreator(
             created.Add(result.Value);
         }
 
-        await blocks.TouchUnitsAsync(inventoryUnitIds, cancellationToken).ConfigureAwait(false);
+        await availability.TouchUnitsAsync(
+            propertyId,
+            inventoryUnitIds,
+            cancellationToken).ConfigureAwait(false);
         await blocks.AddRangeAsync(created, cancellationToken).ConfigureAwait(false);
         return Result.Success(created.ToGroupDto(blockGroupId));
     }

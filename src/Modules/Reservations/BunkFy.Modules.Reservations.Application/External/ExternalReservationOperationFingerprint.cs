@@ -14,12 +14,16 @@ internal static class ExternalReservationOperationFingerprint
         request.SourceReference,
         request.Arrival.ToString("O", CultureInfo.InvariantCulture),
         request.Departure.ToString("O", CultureInfo.InvariantCulture),
+        FormatTime(request.ExpectedArrivalTime),
+        FormatTime(request.ExpectedDepartureTime),
         string.Join(',', request.InventoryUnitIds.Order().Select(id => id.ToString("N"))),
         request.PrimaryGuestName,
         request.Email,
         request.Phone,
         request.GuestCount.ToString(CultureInfo.InvariantCulture),
-        request.Notes);
+        request.Notes,
+        FormatTime(request.ExpectedArrivalTime),
+        FormatTime(request.ExpectedDepartureTime));
 
     public static string Change(ExternalReservationGuestDetailsChangeRequestedIntegrationEvent request) => Compute(
         request.OperationId,
@@ -43,6 +47,8 @@ internal static class ExternalReservationOperationFingerprint
         request.ExpectedDetailsRevision.ToString(CultureInfo.InvariantCulture),
         request.Arrival.ToString("O", CultureInfo.InvariantCulture),
         request.Departure.ToString("O", CultureInfo.InvariantCulture),
+        FormatTime(request.ExpectedArrivalTime),
+        FormatTime(request.ExpectedDepartureTime),
         string.Join(',', request.InventoryUnitIds.Order().Select(id => id.ToString("N"))),
         request.PrimaryGuestName,
         request.Email,
@@ -72,4 +78,7 @@ internal static class ExternalReservationOperationFingerprint
 
         return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
+
+    private static string FormatTime(TimeOnly? value) =>
+        value?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
 }

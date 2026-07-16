@@ -38,6 +38,8 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.Property(reservation => reservation.PrimaryGuestName).HasMaxLength(Reservation.PrimaryGuestNameMaxLength).IsRequired();
         builder.Property(reservation => reservation.Email).HasMaxLength(Reservation.EmailMaxLength);
         builder.Property(reservation => reservation.Phone).HasMaxLength(Reservation.PhoneMaxLength);
+        builder.Property(reservation => reservation.ExpectedArrivalTime).HasColumnType("time(0) without time zone");
+        builder.Property(reservation => reservation.ExpectedDepartureTime).HasColumnType("time(0) without time zone");
         builder.Property(reservation => reservation.SourceSystem).HasMaxLength(Reservation.SourceSystemMaxLength);
         builder.Property(reservation => reservation.SourceReference).HasMaxLength(Reservation.SourceReferenceMaxLength);
         builder.Property(reservation => reservation.Notes).HasMaxLength(Reservation.NotesMaxLength);
@@ -46,6 +48,8 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.Property(reservation => reservation.PendingPrimaryGuestName).HasMaxLength(Reservation.PrimaryGuestNameMaxLength);
         builder.Property(reservation => reservation.PendingEmail).HasMaxLength(Reservation.EmailMaxLength);
         builder.Property(reservation => reservation.PendingPhone).HasMaxLength(Reservation.PhoneMaxLength);
+        builder.Property(reservation => reservation.PendingExpectedArrivalTime).HasColumnType("time(0) without time zone");
+        builder.Property(reservation => reservation.PendingExpectedDepartureTime).HasColumnType("time(0) without time zone");
         builder.Property(reservation => reservation.PendingNotes).HasMaxLength(Reservation.NotesMaxLength);
         builder.Property(reservation => reservation.PendingDetailsChangeOrigin).HasConversion<int>().IsRequired();
         builder.Property(reservation => reservation.PendingDetailsActorId).HasMaxLength(Reservation.ActorIdMaxLength);
@@ -54,6 +58,7 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.Property(reservation => reservation.DetailsRevision).IsRequired();
         builder.Property(reservation => reservation.LastDetailsChangeOrigin).HasConversion<int>().IsRequired();
         builder.Property(reservation => reservation.LastDetailsActorId).HasMaxLength(Reservation.ActorIdMaxLength);
+        builder.Property(reservation => reservation.PendingCancellationActorId).HasMaxLength(Reservation.ActorIdMaxLength);
         builder.Property(reservation => reservation.PendingStayActorId).HasMaxLength(Reservation.ActorIdMaxLength);
         builder.Property(reservation => reservation.CheckedInBy).HasMaxLength(Reservation.ActorIdMaxLength);
         builder.Property(reservation => reservation.NoShowBy).HasMaxLength(Reservation.ActorIdMaxLength);

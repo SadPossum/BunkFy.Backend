@@ -57,6 +57,8 @@
     <File Path="docs/planning/ingestion-sensitive-history-retention-task.md" />
     <File Path="docs/planning/ingestion-source-reprocessing-task.md" />
     <File Path="docs/planning/inventory-module-task.md" />
+    <File Path="docs/planning/inventory-room-retirement-and-throughput-hardening-task.md" />
+    <File Path="docs/planning/inventory-topology-change-safety-task.md" />
     <File Path="docs/planning/json-file-drop-adapter-task.md" />
     <File Path="docs/planning/json-file-drop-local-retention-task.md" />
     <File Path="docs/planning/json-file-drop-quarantine-task.md" />
@@ -70,6 +72,7 @@
     <File Path="docs/planning/reservations-stay-lifecycle-task.md" />
     <File Path="docs/planning/staff-profiles-module-task.md" />
     <File Path="docs/planning/standalone-adapter-host-task.md" />
+    <File Path="docs/planning/workspace-access-profiles-task.md" />
     <File Path="docs/planning/workspace-onboarding-task.md" />
   </Folder>
   <Folder Name="/eng/">

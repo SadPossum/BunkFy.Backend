@@ -19,7 +19,8 @@ public sealed record RoomSalesModeChangedIntegrationEvent : TenantIntegrationEve
         Guid propertyId,
         Guid roomId,
         InventorySalesMode salesMode,
-        long configurationVersion)
+        long configurationVersion,
+        string? actorId = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.PropertyId = IntegrationEventContractGuards.RequireId(propertyId, nameof(propertyId));
@@ -30,10 +31,20 @@ public sealed record RoomSalesModeChangedIntegrationEvent : TenantIntegrationEve
         this.ConfigurationVersion = configurationVersion > 0
             ? configurationVersion
             : throw new ArgumentOutOfRangeException(nameof(configurationVersion));
+        this.ActorId = OptionalActor(actorId);
     }
 
     public Guid PropertyId { get; }
     public Guid RoomId { get; }
     public InventorySalesMode SalesMode { get; }
     public long ConfigurationVersion { get; }
+    public string? ActorId { get; }
+
+    private static string? OptionalActor(string? value)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return normalized is null || normalized.Length <= 200
+            ? normalized
+            : throw new ArgumentException("Actor id is invalid.", nameof(value));
+    }
 }

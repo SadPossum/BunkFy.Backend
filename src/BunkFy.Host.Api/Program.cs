@@ -57,6 +57,7 @@ using Gma.Modules.Files.Api;
 using Gma.Modules.Notifications.Api;
 using Gma.Modules.Tenancy.Api;
 using BunkFy.Host.Api;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
@@ -98,7 +99,9 @@ builder.AddModule<OrganizationsModule>();
 builder.Services.AddAuthNotificationsExtension();
 builder.Services.AddAuthOrganizationsExtension(options => options.GlobalAuthScopeId = authScopeId);
 builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);
+builder.Services.Replace(ServiceDescriptor.Scoped<INotificationUserScopeAuthorizer, WorkspaceNotificationUserScopeAuthorizer>());
 builder.Services.AddBunkFyOperationsNotifications();
+builder.Services.AddBunkFyWorkspaceOwnerNotificationAudience();
 builder.Services.AddNotificationEmailAdapter(builder.Configuration);
 builder.AddModule<PropertiesModule>();
 builder.AddModule<InventoryModule>();

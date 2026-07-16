@@ -77,6 +77,12 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
+                    b.Property<TimeOnly?>("ExpectedArrivalTime")
+                        .HasColumnType("time(0) without time zone");
+
+                    b.Property<TimeOnly?>("ExpectedDepartureTime")
+                        .HasColumnType("time(0) without time zone");
+
                     b.Property<int>("GuestCount")
                         .HasColumnType("integer");
 
@@ -127,6 +133,10 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<DateOnly?>("PendingArrival")
                         .HasColumnType("date");
 
+                    b.Property<string>("PendingCancellationActorId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<DateOnly?>("PendingDeparture")
                         .HasColumnType("date");
 
@@ -149,6 +159,12 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<string>("PendingEmail")
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
+
+                    b.Property<TimeOnly?>("PendingExpectedArrivalTime")
+                        .HasColumnType("time(0) without time zone");
+
+                    b.Property<TimeOnly?>("PendingExpectedDepartureTime")
+                        .HasColumnType("time(0) without time zone");
 
                     b.Property<int?>("PendingGuestCount")
                         .HasColumnType("integer");
@@ -332,6 +348,77 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                             t.HasCheckConstraint("CK_reservation_guests_link_version", "\"LinkVersion\" >= 1");
 
                             t.HasCheckConstraint("CK_reservation_guests_unlink_snapshot", "(\"IsCurrent\" = TRUE AND \"UnlinkedBy\" IS NULL AND \"UnlinkedAtUtc\" IS NULL AND \"UnlinkedArrival\" IS NULL AND \"UnlinkedDeparture\" IS NULL AND \"UnlinkedReservationStatus\" IS NULL) OR (\"IsCurrent\" = FALSE AND \"UnlinkedBy\" IS NOT NULL AND \"UnlinkedAtUtc\" IS NOT NULL AND \"UnlinkedArrival\" IS NOT NULL AND \"UnlinkedDeparture\" IS NOT NULL AND \"UnlinkedReservationStatus\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("Arrival")
+                        .HasColumnType("date");
+
+                    b.Property<long>("DetailsRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("DispatchedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DueAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpectedArrivalAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<TimeOnly>("ExpectedArrivalTime")
+                        .HasColumnType("time(0) without time zone");
+
+                    b.Property<int>("LeadTimeMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "PropertyId", "State");
+
+                    b.HasIndex("ScopeId", "State", "DueAtUtc");
+
+                    b.HasIndex("ScopeId", "ReservationId", "DetailsRevision", "TimeZoneId", "LeadTimeMinutes")
+                        .IsUnique();
+
+                    b.ToTable("arrival_reminders", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_arrival_reminders_details_revision", "\"DetailsRevision\" >= 1");
+
+                            t.HasCheckConstraint("CK_arrival_reminders_dispatch_state", "(\"State\" = 2 AND \"DispatchedAtUtc\" IS NOT NULL) OR (\"State\" <> 2 AND \"DispatchedAtUtc\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_arrival_reminders_lead_time", "\"LeadTimeMinutes\" > 0");
                         });
                 });
 
@@ -644,6 +731,40 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.HasIndex("ScopeId", "PropertyId", "RoomId", "IsSellable");
 
                     b.ToTable("inventory_unit_projections", "reservations");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationPropertyProjection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsKnown")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SourceVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IsActive");
+
+                    b.ToTable("property_projection", "reservations");
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationsProjectionRebuildCheckpoint", b =>

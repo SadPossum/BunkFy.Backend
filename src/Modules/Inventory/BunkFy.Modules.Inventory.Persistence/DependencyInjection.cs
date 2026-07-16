@@ -31,10 +31,13 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IInventoryTopologyRepository, InventoryTopologyRepository>();
         builder.Services.TryAddScoped<IRoomInventoryConfigurationRepository, RoomInventoryConfigurationRepository>();
         builder.Services.TryAddScoped<IInventoryReadRepository, InventoryReadRepository>();
+        builder.Services.TryAddScoped<IInventoryAvailabilityRepository, InventoryAvailabilityRepository>();
         builder.Services.TryAddScoped<IManualInventoryBlockRepository, ManualInventoryBlockRepository>();
         builder.Services.TryAddScoped<IInventoryAvailabilityProjectionExportSource, InventoryAvailabilityProjectionExportSource>();
         builder.Services.TryAddScoped<IInventoryAllocationRepository, InventoryAllocationRepository>();
         builder.Services.TryAddScoped<IInventoryAllocationAmendmentDecisionRepository, InventoryAllocationAmendmentDecisionRepository>();
+        builder.Services.TryAddScoped<IBedRetirementRepository, BedRetirementRepository>();
+        builder.Services.TryAddScoped<IRoomRetirementRepository, RoomRetirementRepository>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, InventoryTopologyProjectionRebuildWriter>();
         builder.Services.TryAddEnumerable([
             ServiceDescriptor.Scoped<IUnitOfWork, InventoryUnitOfWork>(),

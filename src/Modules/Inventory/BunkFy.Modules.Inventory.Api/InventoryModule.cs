@@ -63,6 +63,8 @@ public sealed class InventoryModule : IModule
             Guid propertyId,
             Guid roomId,
             ConfigureSalesModeRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
@@ -70,9 +72,24 @@ public sealed class InventoryModule : IModule
                     propertyId,
                     roomId,
                     request.SalesMode,
-                    request.ExpectedVersion),
+                    request.ExpectedVersion,
+                    ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<RoomInventoryDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Configure,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapGet("/properties/{propertyId:guid}/rooms/{roomId:guid}/change-impact", async (
+            Guid propertyId,
+            Guid roomId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new GetRoomInventoryChangeImpactQuery(propertyId, roomId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomInventoryChangeImpactDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.Configure,
@@ -118,6 +135,8 @@ public sealed class InventoryModule : IModule
         inventory.MapPost("/properties/{propertyId:guid}/blocks", async (
             Guid propertyId,
             CreateManualBlockRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
@@ -126,7 +145,8 @@ public sealed class InventoryModule : IModule
                     request.InventoryUnitId,
                     request.Arrival,
                     request.Departure,
-                    request.Reason),
+                    request.Reason,
+                    ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<ManualInventoryBlockDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -137,6 +157,8 @@ public sealed class InventoryModule : IModule
         inventory.MapPost("/properties/{propertyId:guid}/block-groups", async (
             Guid propertyId,
             CreateManualBlockGroupRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
@@ -145,7 +167,8 @@ public sealed class InventoryModule : IModule
                     request.Target,
                     request.Arrival,
                     request.Departure,
-                    request.Reason),
+                    request.Reason,
+                    ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<ManualInventoryBlockGroupDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -157,10 +180,16 @@ public sealed class InventoryModule : IModule
             Guid propertyId,
             Guid blockId,
             ReleaseManualBlockRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new ReleaseManualInventoryBlockCommand(propertyId, blockId, request.ExpectedVersion),
+                new ReleaseManualInventoryBlockCommand(
+                    propertyId,
+                    blockId,
+                    request.ExpectedVersion,
+                    ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<ManualInventoryBlockDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -171,15 +200,130 @@ public sealed class InventoryModule : IModule
         inventory.MapPost("/properties/{propertyId:guid}/block-groups/{blockGroupId:guid}/release", async (
             Guid propertyId,
             Guid blockGroupId,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new ReleaseManualInventoryBlockGroupCommand(propertyId, blockGroupId),
+                new ReleaseManualInventoryBlockGroupCommand(
+                    propertyId,
+                    blockGroupId,
+                    ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<ManualInventoryBlockGroupDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapPost("/properties/{propertyId:guid}/rooms/{roomId:guid}/beds/{bedId:guid}/retirement", async (
+            Guid propertyId,
+            Guid roomId,
+            Guid bedId,
+            RequestBedRetirementRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            Gma.Framework.AccessControl.AccessSubject? subject = subjectResolver.ResolveSubject(httpContext);
+            return subject is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new RequestBedRetirementCommand(
+                        propertyId,
+                        roomId,
+                        bedId,
+                        request.Reason,
+                        $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}"),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes);
+        })
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Configure,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapGet("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new GetBedRetirementQuery(propertyId, topologyChangeId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Configure,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapPost("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}/retry", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.SendAsync(
+                new RetryBedRetirementCommand(propertyId, topologyChangeId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Configure,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapPost("/properties/{propertyId:guid}/rooms/{roomId:guid}/retirement", async (
+            Guid propertyId,
+            Guid roomId,
+            RequestRoomRetirementRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            Gma.Framework.AccessControl.AccessSubject? subject = subjectResolver.ResolveSubject(httpContext);
+            return subject is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new RequestRoomRetirementCommand(
+                        propertyId,
+                        roomId,
+                        request.Reason,
+                        $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}"),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes);
+        })
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Configure,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapGet("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new GetRoomRetirementQuery(propertyId, topologyChangeId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Configure,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapPost("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}/retry", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.SendAsync(
+                new RetryRoomRetirementCommand(propertyId, topologyChangeId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Configure,
                 InventoryPropertyAccessScopeResolver.ResolverName);
     }
 
@@ -195,6 +339,16 @@ public sealed class InventoryModule : IModule
         DateOnly Departure,
         string Reason);
     public sealed record ReleaseManualBlockRequest(long ExpectedVersion);
+    public sealed record RequestBedRetirementRequest(string Reason);
+    public sealed record RequestRoomRetirementRequest(string Reason);
+
+    private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
+    {
+        Gma.Framework.AccessControl.AccessSubject? subject = subjectResolver.ResolveSubject(context);
+        return subject is null
+            ? null
+            : $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
+    }
 
     private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(InventoryApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
@@ -204,6 +358,7 @@ public sealed class InventoryModule : IModule
         new(InventoryApplicationErrors.BedLevelRequiresBeds.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.SalesModeInvalid.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomHasActiveClaims.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status404NotFound),
         new(InventoryApplicationErrors.InventoryUnitInactive.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.InventoryUnitNotSellable.Code, StatusCodes.Status409Conflict),
@@ -215,5 +370,17 @@ public sealed class InventoryModule : IModule
         new(InventoryApplicationErrors.BlockAllocationConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.StayRangeInvalid.Code, StatusCodes.Status400BadRequest),
         new(InventoryApplicationErrors.BlockReasonInvalid.Code, StatusCodes.Status400BadRequest),
-        new(InventoryApplicationErrors.BlockAlreadyReleased.Code, StatusCodes.Status409Conflict));
+        new(InventoryApplicationErrors.BlockAlreadyReleased.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.BedRetirementNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.BedRetirementRetryInvalid.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.BedRetirementStillDraining.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.BedRetirementInProgress.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomRetirementNotFound.Code, StatusCodes.Status404NotFound),
+        new(InventoryApplicationErrors.RoomRetirementRetryInvalid.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomRetirementStillDraining.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RoomRetirementInProgress.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
 }

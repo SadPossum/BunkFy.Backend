@@ -353,10 +353,12 @@ public sealed class ExternalReservationOperationHandlerTests
 
         public Task<ReservationListResponse> ListAsync(
             Guid propertyId,
-            ReservationStatus? status,
+            IReadOnlyCollection<ReservationStatus>? statuses,
+            string? search,
+            ReservationListOrder order,
             PageRequest pageRequest,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize));
+            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize, 0));
     }
 
     private sealed class FakeOperationRepository : IReservationExternalOperationRepository

@@ -15,5 +15,8 @@ public sealed record CreateReservationCommand(
     ReservationSourceKind SourceKind,
     string? SourceSystem,
     string? SourceReference,
-    string? Notes)
+    string? Notes,
+    TimeOnly? ExpectedArrivalTime = null,
+    TimeOnly? ExpectedDepartureTime = null,
+    string? ActorId = null)
     : ITransactionalCommand<ReservationDto>;

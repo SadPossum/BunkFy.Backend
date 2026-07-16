@@ -44,6 +44,8 @@ public sealed class ReservationsModule : IModule
         group.MapPost("", async (
             Guid propertyId,
             CreateReservationRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
@@ -59,7 +61,10 @@ public sealed class ReservationsModule : IModule
                     request.SourceKind,
                     request.SourceSystem,
                     request.SourceReference,
-                    request.Notes),
+                    request.Notes,
+                    request.ExpectedArrivalTime,
+                    request.ExpectedDepartureTime,
+                    ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
             .Produces<ReservationDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -69,7 +74,9 @@ public sealed class ReservationsModule : IModule
 
         group.MapGet("", async (
             Guid propertyId,
-            ReservationStatus? status,
+            ReservationStatus[]? status,
+            string? search,
+            ReservationListOrder? order,
             int? page,
             int? pageSize,
             IRequestDispatcher dispatcher,
@@ -78,6 +85,8 @@ public sealed class ReservationsModule : IModule
                 new ListReservationsQuery(
                     propertyId,
                     status,
+                    search,
+                    order ?? ReservationListOrder.CreatedDescending,
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
@@ -140,9 +149,39 @@ public sealed class ReservationsModule : IModule
                     request.Notes,
                     request.ExpectedDetailsRevision,
                     ReservationDetailsChangeOriginKind.Staff,
-                    $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}"),
+                    $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}",
+                    request.ExpectedArrivalTime,
+                    request.ExpectedDepartureTime),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                ReservationsAdminPermissionCodes.Manage,
+                ReservationsPropertyAccessScopeResolver.ResolverName);
+
+        group.MapPut("/{reservationId:guid}/inventory", async (
+            Guid propertyId,
+            Guid reservationId,
+            ReassignReservationInventoryRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actorId = ResolveActor(httpContext, subjectResolver);
+            return actorId is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new ReassignReservationInventoryCommand(
+                        propertyId,
+                        reservationId,
+                        request.AmendmentRequestId,
+                        request.InventoryUnitIds,
+                        request.ExpectedDetailsRevision,
+                        actorId),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<ReservationDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Manage,
@@ -180,10 +219,16 @@ public sealed class ReservationsModule : IModule
             Guid propertyId,
             Guid reservationId,
             CancelReservationRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new CancelReservationCommand(propertyId, reservationId, request.ExpectedVersion),
+                new CancelReservationCommand(
+                    propertyId,
+                    reservationId,
+                    request.ExpectedVersion,
+                    ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
             .Produces<ReservationDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -273,6 +318,8 @@ public sealed class ReservationsModule : IModule
     public sealed record CreateReservationRequest(
         DateOnly Arrival,
         DateOnly Departure,
+        TimeOnly? ExpectedArrivalTime,
+        TimeOnly? ExpectedDepartureTime,
         IReadOnlyCollection<Guid> InventoryUnitIds,
         string PrimaryGuestName,
         string? Email,
@@ -299,6 +346,13 @@ public sealed class ReservationsModule : IModule
         string? Phone,
         int GuestCount,
         string? Notes,
+        TimeOnly? ExpectedArrivalTime,
+        TimeOnly? ExpectedDepartureTime,
+        long ExpectedDetailsRevision);
+
+    public sealed record ReassignReservationInventoryRequest(
+        Guid AmendmentRequestId,
+        IReadOnlyCollection<Guid> InventoryUnitIds,
         long ExpectedDetailsRevision);
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
@@ -306,9 +360,12 @@ public sealed class ReservationsModule : IModule
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitPropertyMismatch.Code, StatusCodes.Status400BadRequest),
+        new(ReservationsApplicationErrors.ExpectedStayTimeInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.DetailsRevisionConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.DetailsChangeProvenanceInvalid.Code, StatusCodes.Status400BadRequest),
+        new(ReservationsApplicationErrors.AllocationAmendmentInProgress.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.AllocationAmendmentInvalid.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.StayBusinessDateInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.StayProvenanceInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.GuestNotLinkable.Code, StatusCodes.Status409Conflict),

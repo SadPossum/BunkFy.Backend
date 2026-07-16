@@ -36,7 +36,8 @@ internal sealed class StaffPropertyAssignmentChangedNotificationHandler(Operatio
                     integrationEvent.EffectiveTo,
                     integrationEvent.StaffVersion,
                 }),
-                BunkFyNotificationTags.StaffActivity),
+                BunkFyNotificationTags.StaffActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }
 
@@ -67,6 +68,7 @@ internal sealed class StaffMemberLifecycleChangedNotificationHandler(Operational
                     integrationEvent.EffectiveOn,
                     integrationEvent.StaffVersion,
                 }),
-                BunkFyNotificationTags.StaffActivity),
+                BunkFyNotificationTags.StaffActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }

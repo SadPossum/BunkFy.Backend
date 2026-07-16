@@ -15,7 +15,8 @@ public sealed record ManualInventoryBlockCreatedDomainEvent : ScopedDomainEvent
         DateOnly arrival,
         DateOnly departure,
         string reason,
-        long blockVersion)
+        long blockVersion,
+        string? actorId = null)
         : base(eventId, occurredAtUtc, scopeId)
     {
         this.BlockId = DomainEventGuards.RequireId(blockId, nameof(blockId));
@@ -26,6 +27,7 @@ public sealed record ManualInventoryBlockCreatedDomainEvent : ScopedDomainEvent
         this.Departure = departure;
         this.Reason = reason;
         this.BlockVersion = blockVersion;
+        this.ActorId = string.IsNullOrWhiteSpace(actorId) ? null : actorId.Trim();
     }
 
     public Guid BlockId { get; }
@@ -36,4 +38,5 @@ public sealed record ManualInventoryBlockCreatedDomainEvent : ScopedDomainEvent
     public DateOnly Departure { get; }
     public string Reason { get; }
     public long BlockVersion { get; }
+    public string? ActorId { get; }
 }

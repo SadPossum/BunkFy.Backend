@@ -181,7 +181,7 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Workspace_membership_defaults_to_non_sensitive_read_access()
+    public void Workspace_membership_defaults_to_front_desk_access_without_administration()
     {
         string roles = RepositoryPaths.Read(
             "src",
@@ -191,9 +191,14 @@ public sealed class HostCompositionGuardTests
 
         Assert.Contains("PropertiesAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
         Assert.Contains("InventoryAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
-        Assert.DoesNotContain("Reservations", roles, StringComparison.Ordinal);
-        Assert.DoesNotContain("Guests", roles, StringComparison.Ordinal);
-        Assert.DoesNotContain("StaffAdminPermissionCodes", roles, StringComparison.Ordinal);
+        Assert.Contains("InventoryAdminPermissionCodes.BlocksManage", roles, StringComparison.Ordinal);
+        Assert.Contains("ReservationsAdminPermissionCodes.Create", roles, StringComparison.Ordinal);
+        Assert.Contains("ReservationsAdminPermissionCodes.CheckIn", roles, StringComparison.Ordinal);
+        Assert.Contains("GuestsAdminPermissionCodes.Manage", roles, StringComparison.Ordinal);
+        Assert.Contains("StaffAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
+        Assert.DoesNotContain("PropertiesAdminPermissionCodes.Manage", roles, StringComparison.Ordinal);
+        Assert.DoesNotContain("StaffAdminPermissionCodes.Manage", roles, StringComparison.Ordinal);
+        Assert.DoesNotContain("IngestionAdminPermissionCodes", roles, StringComparison.Ordinal);
     }
 
     [Fact]

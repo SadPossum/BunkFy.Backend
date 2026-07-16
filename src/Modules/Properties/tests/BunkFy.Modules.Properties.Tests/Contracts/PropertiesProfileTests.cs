@@ -32,9 +32,24 @@ public sealed class PropertiesProfileTests
         Assert.Equal(4, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(9, PropertiesModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(13, PropertiesModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(2, PropertiesModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             PropertiesModuleMetadata.Descriptor.GetPublishedEvents(),
             publishedEvent => publishedEvent.EventType == PropertyRetiredIntegrationEvent.EventType);
+        Assert.Contains(
+            PropertiesModuleMetadata.Descriptor.GetPublishedEvents(),
+            publishedEvent => publishedEvent.EventType == BedRetirementFinalizedIntegrationEvent.EventType);
+        Assert.Contains(
+            PropertiesModuleMetadata.Descriptor.GetPublishedEvents(),
+            publishedEvent => publishedEvent.EventType == RoomRetirementFinalizedIntegrationEvent.EventType);
+        Assert.Contains(
+            PropertiesModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.EventType == BedRetirementFinalizationRequestedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.RetirementProducerModuleName);
+        Assert.Contains(
+            PropertiesModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.EventType == RoomRetirementFinalizationRequestedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.RetirementProducerModuleName);
     }
 }

@@ -10,7 +10,7 @@ using Gma.Framework.Tenancy.Messaging;
 public sealed record ExternalReservationGuestDetailsChangeRequestedIntegrationEvent : TenantIntegrationEvent
 {
     public const string EventType = "external-reservation-guest-details-change-requested";
-    public const int EventVersion = 1;
+    public const int EventVersion = 2;
 
     public ExternalReservationGuestDetailsChangeRequestedIntegrationEvent(
         Guid eventId,
@@ -28,7 +28,9 @@ public sealed record ExternalReservationGuestDetailsChangeRequestedIntegrationEv
         string? email,
         string? phone,
         int guestCount,
-        string? notes)
+        string? notes,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         ExternalReservationContractGuards.Common(operationId, receiptId, connectionId, propertyId);
@@ -47,6 +49,8 @@ public sealed record ExternalReservationGuestDetailsChangeRequestedIntegrationEv
         this.Phone = ExternalReservationContractGuards.Optional(phone, ReservationsContractLimits.PhoneMaxLength, nameof(phone));
         this.GuestCount = guestCount > 0 ? guestCount : throw new ArgumentOutOfRangeException(nameof(guestCount));
         this.Notes = ExternalReservationContractGuards.Optional(notes, ReservationsContractLimits.NotesMaxLength, nameof(notes));
+        this.ExpectedArrivalTime = ExternalReservationContractGuards.ExpectedTime(expectedArrivalTime, nameof(expectedArrivalTime));
+        this.ExpectedDepartureTime = ExternalReservationContractGuards.ExpectedTime(expectedDepartureTime, nameof(expectedDepartureTime));
     }
 
     public Guid OperationId { get; }
@@ -62,4 +66,6 @@ public sealed record ExternalReservationGuestDetailsChangeRequestedIntegrationEv
     public string? Phone { get; }
     public int GuestCount { get; }
     public string? Notes { get; }
+    public TimeOnly? ExpectedArrivalTime { get; }
+    public TimeOnly? ExpectedDepartureTime { get; }
 }

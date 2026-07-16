@@ -25,7 +25,9 @@ public sealed partial class Reservation
         Guid? externalOperationId,
         Guid correlationId,
         Guid eventId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
     {
         string normalizedFingerprint = requestFingerprint?.Trim().ToLowerInvariant() ?? string.Empty;
         if (this.PendingAllocationAmendmentId == amendmentRequestId &&
@@ -64,6 +66,11 @@ public sealed partial class Reservation
             return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.StayRangeInvalid);
         }
 
+        if (!HasMinutePrecision(expectedArrivalTime) || !HasMinutePrecision(expectedDepartureTime))
+        {
+            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.ExpectedStayTimeInvalid);
+        }
+
         ArgumentNullException.ThrowIfNull(inventoryUnitIds);
         Guid[] units = inventoryUnitIds.ToArray();
         if (units.Length is 0 or > MaximumRequestedUnits || units.Any(id => id == Guid.Empty) ||
@@ -83,6 +90,7 @@ public sealed partial class Reservation
         }
 
         bool unchanged = this.Arrival == arrival && this.Departure == departure &&
+            this.ExpectedArrivalTime == expectedArrivalTime && this.ExpectedDepartureTime == expectedDepartureTime &&
             this.requestedUnits.Select(unit => unit.InventoryUnitId).Order().SequenceEqual(units.Order()) &&
             this.PrimaryGuestName == normalizedGuestName && this.Email == normalizedEmail && this.Phone == normalizedPhone &&
             this.GuestCount == guestCount && this.Notes == normalizedNotes;
@@ -95,6 +103,8 @@ public sealed partial class Reservation
         this.PendingAllocationAmendmentRequestFingerprint = normalizedFingerprint;
         this.PendingArrival = arrival;
         this.PendingDeparture = departure;
+        this.PendingExpectedArrivalTime = expectedArrivalTime;
+        this.PendingExpectedDepartureTime = expectedDepartureTime;
         this.PendingInventoryUnitIds = string.Join(',', units.Order().Select(id => id.ToString("N")));
         this.PendingPrimaryGuestName = normalizedGuestName;
         this.PendingEmail = normalizedEmail;
@@ -156,6 +166,8 @@ public sealed partial class Reservation
         List<string> changedFields = [];
         AddChanged(changedFields, nameof(this.Arrival), this.Arrival, this.PendingArrival.Value);
         AddChanged(changedFields, nameof(this.Departure), this.Departure, this.PendingDeparture.Value);
+        AddChanged(changedFields, nameof(this.ExpectedArrivalTime), this.ExpectedArrivalTime, this.PendingExpectedArrivalTime);
+        AddChanged(changedFields, nameof(this.ExpectedDepartureTime), this.ExpectedDepartureTime, this.PendingExpectedDepartureTime);
         if (!this.requestedUnits.Select(unit => unit.InventoryUnitId).Order().SequenceEqual(units.Order()))
         {
             changedFields.Add(nameof(this.RequestedUnits));
@@ -168,6 +180,8 @@ public sealed partial class Reservation
 
         this.Arrival = this.PendingArrival.Value;
         this.Departure = this.PendingDeparture.Value;
+        this.ExpectedArrivalTime = this.PendingExpectedArrivalTime;
+        this.ExpectedDepartureTime = this.PendingExpectedDepartureTime;
         this.requestedUnits.Clear();
         this.requestedUnits.AddRange(units.Select(unitId => new RequestedInventoryUnit(unitId, this.ScopeId, this.Id)));
         this.PrimaryGuestName = this.PendingPrimaryGuestName!;

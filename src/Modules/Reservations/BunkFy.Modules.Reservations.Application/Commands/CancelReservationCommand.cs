@@ -6,5 +6,6 @@ using BunkFy.Modules.Reservations.Contracts;
 public sealed record CancelReservationCommand(
     Guid PropertyId,
     Guid ReservationId,
-    long ExpectedVersion)
+    long ExpectedVersion,
+    string? ActorId = null)
     : ITransactionalCommand<ReservationDto>;

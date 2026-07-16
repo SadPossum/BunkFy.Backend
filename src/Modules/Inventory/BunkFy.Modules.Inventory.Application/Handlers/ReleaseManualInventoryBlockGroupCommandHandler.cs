@@ -11,6 +11,8 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
     IManualInventoryBlockRepository blocks,
+    IInventoryAvailabilityRepository availability,
+    InventoryRetirementCoordinator retirements,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<ReleaseManualInventoryBlockGroupCommand, ManualInventoryBlockGroupDto>
@@ -30,7 +32,7 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
         DateTimeOffset nowUtc = clock.UtcNow;
         foreach (ManualInventoryBlock block in group)
         {
-            Result released = block.Release(block.Version, idGenerator.NewId(), nowUtc);
+            Result released = block.Release(block.Version, idGenerator.NewId(), nowUtc, command.ActorId);
             if (released.IsFailure)
             {
                 return Result.Failure<ManualInventoryBlockGroupDto>(released.Error);
@@ -38,7 +40,16 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
         }
 
         Guid[] inventoryUnitIds = group.Select(block => block.InventoryUnitId).Distinct().ToArray();
-        await blocks.TouchUnitsAsync(inventoryUnitIds, cancellationToken).ConfigureAwait(false);
+        await availability.TouchUnitsAsync(
+            command.PropertyId,
+            inventoryUnitIds,
+            cancellationToken).ConfigureAwait(false);
+        await retirements.TryAdvanceForUnitsAsync(
+            command.PropertyId,
+            inventoryUnitIds,
+            excludedAllocationId: null,
+            excludedBlockIds: group.Select(block => block.Id).ToArray(),
+            cancellationToken).ConfigureAwait(false);
         return Result.Success(group.ToGroupDto(command.BlockGroupId));
     }
 }

@@ -5,7 +5,9 @@ using BunkFy.Modules.Reservations.Contracts;
 
 public sealed record ListReservationsQuery(
     Guid PropertyId,
-    ReservationStatus? Status,
+    IReadOnlyCollection<ReservationStatus>? Statuses,
+    string? Search,
+    ReservationListOrder Order,
     int Page,
     int PageSize)
     : IQuery<ReservationListResponse>;

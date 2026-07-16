@@ -18,6 +18,11 @@ internal sealed class CreateReservationCommandValidator : ICommandValidator<Crea
             yield return "Arrival must be before Departure.";
         }
 
+        if (!HasMinutePrecision(command.ExpectedArrivalTime) || !HasMinutePrecision(command.ExpectedDepartureTime))
+        {
+            yield return "Expected arrival and departure times must use minute precision.";
+        }
+
         if (command.InventoryUnitIds is null ||
             command.InventoryUnitIds.Count is 0 or > ReservationsContractLimits.MaximumRequestedUnits ||
             command.InventoryUnitIds.Any(id => id == Guid.Empty) ||
@@ -42,4 +47,7 @@ internal sealed class CreateReservationCommandValidator : ICommandValidator<Crea
             yield return "SourceKind must be Direct or External.";
         }
     }
+
+    private static bool HasMinutePrecision(TimeOnly? value) =>
+        !value.HasValue || value.Value.Ticks % TimeSpan.TicksPerMinute == 0;
 }

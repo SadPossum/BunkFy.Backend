@@ -105,5 +105,5 @@ public sealed partial class StaffMember : ScopedAggregateRoot<Guid>
     private void RaiseAssignmentEvent(StaffPropertyAssignment assignment, Guid eventId, DateTimeOffset nowUtc) =>
         this.RaiseDomainEvent(new StaffPropertyAssignmentChangedDomainEvent(eventId, nowUtc, this.ScopeId,
             this.Id, assignment.Id, assignment.PropertyId, assignment.IsCurrent, assignment.IsPrimary,
-            assignment.EffectiveFrom, assignment.EffectiveTo, this.Version));
+            assignment.EffectiveFrom, assignment.EffectiveTo, this.Version, this.LastChangedBy));
 }

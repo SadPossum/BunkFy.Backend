@@ -15,6 +15,7 @@ internal sealed class PropertyRetiredOutboxProjector(IOutboxWriterRegistry outbo
                 domainEvent.ScopeId,
                 domainEvent.OccurredAtUtc,
                 domainEvent.PropertyId,
-                domainEvent.PropertyVersion),
+                domainEvent.PropertyVersion,
+                domainEvent.ActorId),
             cancellationToken);
 }

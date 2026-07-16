@@ -10,7 +10,7 @@ using Gma.Framework.Tenancy.Messaging;
 public sealed record ExternalReservationCreateRequestedIntegrationEvent : TenantIntegrationEvent
 {
     public const string EventType = "external-reservation-create-requested";
-    public const int EventVersion = 1;
+    public const int EventVersion = 2;
 
     public ExternalReservationCreateRequestedIntegrationEvent(
         Guid eventId,
@@ -29,7 +29,9 @@ public sealed record ExternalReservationCreateRequestedIntegrationEvent : Tenant
         string? email,
         string? phone,
         int guestCount,
-        string? notes)
+        string? notes,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         ExternalReservationContractGuards.Common(operationId, receiptId, connectionId, propertyId);
@@ -47,6 +49,8 @@ public sealed record ExternalReservationCreateRequestedIntegrationEvent : Tenant
             nameof(sourceReference));
         this.Arrival = arrival;
         this.Departure = departure > arrival ? departure : throw new ArgumentOutOfRangeException(nameof(departure));
+        this.ExpectedArrivalTime = ExternalReservationContractGuards.ExpectedTime(expectedArrivalTime, nameof(expectedArrivalTime));
+        this.ExpectedDepartureTime = ExternalReservationContractGuards.ExpectedTime(expectedDepartureTime, nameof(expectedDepartureTime));
         ArgumentNullException.ThrowIfNull(inventoryUnitIds);
         Guid[] units = inventoryUnitIds.ToArray();
         if (units.Length is 0 or > ReservationsContractLimits.MaximumRequestedUnits ||
@@ -74,6 +78,8 @@ public sealed record ExternalReservationCreateRequestedIntegrationEvent : Tenant
     public string SourceReference { get; }
     public DateOnly Arrival { get; }
     public DateOnly Departure { get; }
+    public TimeOnly? ExpectedArrivalTime { get; }
+    public TimeOnly? ExpectedDepartureTime { get; }
     public IReadOnlyCollection<Guid> InventoryUnitIds { get; }
     public string PrimaryGuestName { get; }
     public string? Email { get; }

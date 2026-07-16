@@ -13,6 +13,7 @@ using BunkFy.Modules.Reservations.Application.External;
 using BunkFy.Modules.Reservations.Application.Handlers;
 using BunkFy.Modules.Reservations.Application.Tasks;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 public static class DependencyInjection
 {
     public static IServiceCollection AddReservationsApplication(this IServiceCollection services)
@@ -69,6 +70,15 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<GuestProfileArchivedIntegrationEvent, GuestProfileArchivedProjectionHandler>(
             ReservationsModuleMetadata.Name,
             GuestsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, ReservationPropertyCreatedHandler>(
+            ReservationsModuleMetadata.Name,
+            PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<PropertyUpdatedIntegrationEvent, ReservationPropertyUpdatedHandler>(
+            ReservationsModuleMetadata.Name,
+            PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<PropertyRetiredIntegrationEvent, ReservationPropertyRetiredHandler>(
+            ReservationsModuleMetadata.Name,
+            PropertiesModuleMetadata.Name);
         services.TryAddScoped<ExternalReservationOperationCoordinator>();
         services.TryAddScoped<ReservationInboxDomainEventDispatcher>();
 
@@ -84,6 +94,12 @@ public static class DependencyInjection
             ReservationsModuleMetadata.Name);
         services.AddTaskHandler<RebuildReservationGuestProfilesPayload, RebuildReservationGuestProfilesTaskHandler>(
             ReservationsModuleMetadata.Name);
+        services.AddTaskHandler<RebuildReservationPropertiesPayload, RebuildReservationPropertiesTaskHandler>(
+            ReservationsModuleMetadata.Name);
+        services.AddTaskHandler<DispatchReservationArrivalRemindersPayload, DispatchReservationArrivalRemindersTaskHandler>(
+            ReservationsModuleMetadata.Name);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<ITaskScheduleProvider, ReservationReminderScheduleProvider>());
 
         return services;
     }

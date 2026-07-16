@@ -20,7 +20,9 @@ public sealed partial class Reservation
         Guid? externalOperationId,
         Guid correlationId,
         Guid eventId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
     {
         if (this.PendingAllocationAmendmentId.HasValue)
         {
@@ -68,6 +70,11 @@ public sealed partial class Reservation
             return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.NotesInvalid);
         }
 
+        if (!HasMinutePrecision(expectedArrivalTime) || !HasMinutePrecision(expectedDepartureTime))
+        {
+            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.ExpectedStayTimeInvalid);
+        }
+
         if (guestCount <= 0)
         {
             return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.GuestCountInvalid);
@@ -79,6 +86,8 @@ public sealed partial class Reservation
         AddChanged(changedFields, nameof(this.Phone), this.Phone, normalizedPhone);
         AddChanged(changedFields, nameof(this.GuestCount), this.GuestCount, guestCount);
         AddChanged(changedFields, nameof(this.Notes), this.Notes, normalizedNotes);
+        AddChanged(changedFields, nameof(this.ExpectedArrivalTime), this.ExpectedArrivalTime, expectedArrivalTime);
+        AddChanged(changedFields, nameof(this.ExpectedDepartureTime), this.ExpectedDepartureTime, expectedDepartureTime);
         if (changedFields.Count == 0)
         {
             return Result.Success(ReservationDetailsChangeOutcome.Unchanged);
@@ -91,6 +100,8 @@ public sealed partial class Reservation
         this.Phone = normalizedPhone;
         this.GuestCount = guestCount;
         this.Notes = normalizedNotes;
+        this.ExpectedArrivalTime = expectedArrivalTime;
+        this.ExpectedDepartureTime = expectedDepartureTime;
         this.DetailsRevision++;
         this.LastDetailsChangeOrigin = origin;
         this.LastDetailsActorId = normalizedActorId;

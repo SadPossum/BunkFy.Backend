@@ -25,4 +25,10 @@ public static class InventoryDomainErrors
     public static readonly Error AllocationUnitsInvalid = new("Inventory.AllocationUnitsInvalid", "Allocation units must contain unique, non-empty ids within the supported limit.");
     public static readonly Error AllocationRejectionRequired = new("Inventory.AllocationRejectionRequired", "A rejected allocation requires a rejection reason.");
     public static readonly Error AllocationNotActive = new("Inventory.AllocationNotActive", "The inventory allocation is not active.");
+    public static readonly Error BedRetirementIdentityInvalid = new("Inventory.BedRetirementIdentityInvalid", "Bed retirement identity is invalid.");
+    public static readonly Error BedRetirementRequestInvalid = new("Inventory.BedRetirementRequestInvalid", "Bed retirement reason and actor are required and must be within supported limits.");
+    public static readonly Error BedRetirementTransitionInvalid = new("Inventory.BedRetirementTransitionInvalid", "The bed retirement process cannot perform this transition.");
+    public static readonly Error RoomRetirementIdentityInvalid = new("Inventory.RoomRetirementIdentityInvalid", "Room retirement identity is invalid.");
+    public static readonly Error RoomRetirementRequestInvalid = new("Inventory.RoomRetirementRequestInvalid", "Room retirement reason and actor are required and must be within supported limits.");
+    public static readonly Error RoomRetirementTransitionInvalid = new("Inventory.RoomRetirementTransitionInvalid", "The room retirement process cannot perform this transition.");
 }

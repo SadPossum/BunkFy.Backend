@@ -12,5 +12,5 @@ internal sealed class StaffPropertyAssignmentOutboxProjector(IOutboxWriterRegist
     public Task HandleAsync(StaffPropertyAssignmentChangedDomainEvent e, CancellationToken cancellationToken) =>
         writers.GetRequired(StaffModuleMetadata.Name).EnqueueAsync(new StaffPropertyAssignmentChangedIntegrationEvent(
             e.EventId, e.ScopeId, e.OccurredAtUtc, e.StaffMemberId, e.AssignmentId, e.PropertyId,
-            e.IsCurrent, e.IsPrimary, e.EffectiveFrom, e.EffectiveTo, e.StaffVersion), cancellationToken);
+            e.IsCurrent, e.IsPrimary, e.EffectiveFrom, e.EffectiveTo, e.StaffVersion, e.ActorId), cancellationToken);
 }

@@ -9,4 +9,5 @@ internal sealed record OperationalNotification(
     string Body,
     NotificationSeverity Severity,
     string PayloadJson,
-    IReadOnlyList<NotificationTag> Tags);
+    IReadOnlyList<NotificationTag> Tags,
+    string? ActorId = null);

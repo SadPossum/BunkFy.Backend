@@ -17,5 +17,6 @@ internal sealed class CreateManualInventoryBlockGroupCommandHandler(ManualInvent
             command.Arrival,
             command.Departure,
             command.Reason,
+            command.ActorId,
             cancellationToken);
 }

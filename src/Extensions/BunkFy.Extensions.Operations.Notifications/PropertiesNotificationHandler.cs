@@ -26,6 +26,7 @@ internal sealed class PropertyRetiredNotificationHandler(OperationalNotification
                     integrationEvent.PropertyId,
                     integrationEvent.PropertyVersion,
                 }),
-                BunkFyNotificationTags.PropertyActivity),
+                BunkFyNotificationTags.PropertyActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }

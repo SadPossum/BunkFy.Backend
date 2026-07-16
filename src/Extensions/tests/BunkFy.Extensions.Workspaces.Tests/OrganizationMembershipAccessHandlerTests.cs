@@ -10,6 +10,10 @@ using Gma.Modules.Organizations.Contracts;
 using Gma.Framework.Tenancy;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 
 [Trait("Category", "Unit")]
 public sealed class OrganizationMembershipAccessHandlerTests
@@ -63,6 +67,19 @@ public sealed class OrganizationMembershipAccessHandlerTests
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
 
         Assert.DoesNotContain(accessControl.Assignments, assignment => assignment.SubjectId == integrationEvent.SubjectId);
+    }
+
+    [Fact]
+    public void Member_role_is_a_front_desk_baseline_without_administration_permissions()
+    {
+        Assert.Contains(ReservationsAdminPermissionCodes.Create, WorkspaceAccessRoles.MemberPermissions);
+        Assert.Contains(ReservationsAdminPermissionCodes.CheckIn, WorkspaceAccessRoles.MemberPermissions);
+        Assert.Contains(GuestsAdminPermissionCodes.Manage, WorkspaceAccessRoles.MemberPermissions);
+        Assert.Contains(InventoryAdminPermissionCodes.BlocksManage, WorkspaceAccessRoles.MemberPermissions);
+        Assert.Contains(StaffAdminPermissionCodes.Read, WorkspaceAccessRoles.MemberPermissions);
+        Assert.DoesNotContain("properties.properties.manage", WorkspaceAccessRoles.MemberPermissions);
+        Assert.DoesNotContain(StaffAdminPermissionCodes.Manage, WorkspaceAccessRoles.MemberPermissions);
+        Assert.DoesNotContain("ingestion.connections.manage", WorkspaceAccessRoles.MemberPermissions);
     }
 
     private static OrganizationMembershipChangedIntegrationEvent CreateEvent(
@@ -158,6 +175,9 @@ public sealed class OrganizationMembershipAccessHandlerTests
             CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<AccessControlRoleDetails>>([]);
         public Task<IReadOnlyList<AccessControlRoleAssignmentDetails>> ListRoleAssignmentsAsync(
             string roleName, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AccessControlRoleAssignmentDetails>>([]);
+        public Task<IReadOnlyList<AccessControlRoleAssignmentDetails>> ListRoleAssignmentsAsync(
+            string roleName, AccessScope scope, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AccessControlRoleAssignmentDetails>>([]);
     }
 }

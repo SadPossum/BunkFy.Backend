@@ -94,14 +94,17 @@ public sealed partial class Reservation
         this.Status = cancellationWasRequested ? ReservationState.Cancelled : ReservationState.AllocationRejected;
         if (cancellationWasRequested)
         {
+            string? cancellationActorId = this.PendingCancellationActorId;
             this.ReleaseRequestId = null;
+            this.PendingCancellationActorId = null;
             this.RaiseDomainEvent(new ReservationCancelledDomainEvent(
                 cancellationEventId,
                 nowUtc,
                 this.ScopeId,
                 this.Id,
                 this.PropertyId,
-                this.Version));
+                this.Version,
+                cancellationActorId));
         }
 
         this.RaiseGuestStayChanged(cancellationEventId, nowUtc);

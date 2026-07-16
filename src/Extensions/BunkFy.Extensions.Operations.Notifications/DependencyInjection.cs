@@ -15,94 +15,68 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.TryAddSingleton<IWorkspaceOwnerNotificationAudienceReader, EmptyWorkspaceOwnerNotificationAudienceReader>();
         services.TryAddScoped<OperationalNotificationProjector>();
 
         Add<PropertyRetiredIntegrationEvent, PropertyRetiredNotificationHandler>(
             services,
-            PropertiesModuleMetadata.Name,
-            PropertyRetiredIntegrationEvent.EventType,
-            PropertyRetiredIntegrationEvent.EventVersion,
-            "bunkfy-property-retired-notification");
+            PropertiesModuleMetadata.Name);
 
         Add<ManualInventoryBlockCreatedIntegrationEvent, ManualInventoryBlockCreatedNotificationHandler>(
             services,
-            InventoryModuleMetadata.Name,
-            ManualInventoryBlockCreatedIntegrationEvent.EventType,
-            ManualInventoryBlockCreatedIntegrationEvent.EventVersion,
-            "bunkfy-inventory-block-created-notification");
+            InventoryModuleMetadata.Name);
         Add<ManualInventoryBlockReleasedIntegrationEvent, ManualInventoryBlockReleasedNotificationHandler>(
             services,
-            InventoryModuleMetadata.Name,
-            ManualInventoryBlockReleasedIntegrationEvent.EventType,
-            ManualInventoryBlockReleasedIntegrationEvent.EventVersion,
-            "bunkfy-inventory-block-released-notification");
+            InventoryModuleMetadata.Name);
         Add<RoomSalesModeChangedIntegrationEvent, RoomSalesModeChangedNotificationHandler>(
             services,
-            InventoryModuleMetadata.Name,
-            RoomSalesModeChangedIntegrationEvent.EventType,
-            RoomSalesModeChangedIntegrationEvent.EventVersion,
-            "bunkfy-room-sales-mode-changed-notification");
+            InventoryModuleMetadata.Name);
 
         Add<ReservationConfirmedIntegrationEvent, ReservationConfirmedNotificationHandler>(
             services,
-            ReservationsModuleMetadata.Name,
-            ReservationConfirmedIntegrationEvent.EventType,
-            ReservationConfirmedIntegrationEvent.EventVersion,
-            "bunkfy-reservation-confirmed-notification");
+            ReservationsModuleMetadata.Name);
+        Add<ReservationArrivalReminderDueIntegrationEvent, ReservationArrivalReminderNotificationHandler>(
+            services,
+            ReservationsModuleMetadata.Name);
         Add<ReservationAllocationRejectedIntegrationEvent, ReservationAllocationRejectedNotificationHandler>(
             services,
-            ReservationsModuleMetadata.Name,
-            ReservationAllocationRejectedIntegrationEvent.EventType,
-            ReservationAllocationRejectedIntegrationEvent.EventVersion,
-            "bunkfy-reservation-allocation-rejected-notification");
+            ReservationsModuleMetadata.Name);
         Add<ReservationCancelledIntegrationEvent, ReservationCancelledNotificationHandler>(
             services,
-            ReservationsModuleMetadata.Name,
-            ReservationCancelledIntegrationEvent.EventType,
-            ReservationCancelledIntegrationEvent.EventVersion,
-            "bunkfy-reservation-cancelled-notification");
+            ReservationsModuleMetadata.Name);
         Add<ReservationNoShowIntegrationEvent, ReservationNoShowNotificationHandler>(
             services,
-            ReservationsModuleMetadata.Name,
-            ReservationNoShowIntegrationEvent.EventType,
-            ReservationNoShowIntegrationEvent.EventVersion,
-            "bunkfy-reservation-no-show-notification");
+            ReservationsModuleMetadata.Name);
         Add<ExternalReservationOperationCompletedIntegrationEvent,
             ExternalReservationOperationAttentionNotificationHandler>(
             services,
-            ReservationsModuleMetadata.Name,
-            ExternalReservationOperationCompletedIntegrationEvent.EventType,
-            ExternalReservationOperationCompletedIntegrationEvent.EventVersion,
-            "bunkfy-provider-reservation-conflict-notification");
+            ReservationsModuleMetadata.Name);
 
         Add<StaffPropertyAssignmentChangedIntegrationEvent, StaffPropertyAssignmentChangedNotificationHandler>(
             services,
-            StaffModuleMetadata.Name,
-            StaffPropertyAssignmentChangedIntegrationEvent.EventType,
-            StaffPropertyAssignmentChangedIntegrationEvent.EventVersion,
-            "bunkfy-staff-property-assignment-notification");
+            StaffModuleMetadata.Name);
         Add<StaffMemberLifecycleChangedIntegrationEvent, StaffMemberLifecycleChangedNotificationHandler>(
             services,
-            StaffModuleMetadata.Name,
-            StaffMemberLifecycleChangedIntegrationEvent.EventType,
-            StaffMemberLifecycleChangedIntegrationEvent.EventVersion,
-            "bunkfy-staff-lifecycle-notification");
+            StaffModuleMetadata.Name);
 
+        return services;
+    }
+
+    public static IServiceCollection AddBunkFyWorkspaceOwnerNotificationAudience(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.Replace(ServiceDescriptor.Scoped<
+            IWorkspaceOwnerNotificationAudienceReader,
+            WorkspaceOwnerNotificationAudienceReader>());
         return services;
     }
 
     private static void Add<TEvent, THandler>(
         IServiceCollection services,
-        string producerModule,
-        string eventType,
-        int eventVersion,
-        string handlerName)
+        string producerModule)
         where TEvent : class, IIntegrationEvent
         where THandler : class, IIntegrationEventHandler<TEvent> =>
         services.AddIntegrationEventHandler<TEvent, THandler>(
             NotificationsModuleMetadata.Name,
-            producerModule,
-            eventType,
-            eventVersion,
-            handlerName);
+            producerModule);
 }

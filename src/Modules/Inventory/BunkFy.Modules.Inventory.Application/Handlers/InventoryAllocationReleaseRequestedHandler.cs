@@ -12,6 +12,8 @@ using BunkFy.Modules.Inventory.Domain.Errors;
 [IntegrationEventHandler(InventoryModuleMetadata.AllocationReleaseRequestedHandlerName)]
 internal sealed class InventoryAllocationReleaseRequestedHandler(
     IInventoryAllocationRepository allocations,
+    IInventoryAvailabilityRepository availability,
+    InventoryRetirementCoordinator retirements,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -51,8 +53,15 @@ internal sealed class InventoryAllocationReleaseRequestedHandler(
 
         if (!alreadyReleased)
         {
-            await allocations.TouchUnitsAsync(
+            await availability.TouchUnitsAsync(
+                allocation.PropertyId,
                 allocation.Units.Select(unit => unit.InventoryUnitId).ToArray(),
+                cancellationToken).ConfigureAwait(false);
+            await retirements.TryAdvanceForUnitsAsync(
+                allocation.PropertyId,
+                allocation.Units.Select(unit => unit.InventoryUnitId).ToArray(),
+                excludedAllocationId: allocation.Id,
+                excludedBlockIds: [],
                 cancellationToken).ConfigureAwait(false);
         }
 

@@ -30,7 +30,9 @@ public sealed partial class Reservation
         Guid? initialAdapterConnectionId,
         Guid? initialExternalOperationId,
         Guid initialCorrelationId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
     {
         if (reservationId == Guid.Empty)
         {
@@ -66,6 +68,11 @@ public sealed partial class Reservation
         if (arrival >= departure)
         {
             return Result.Failure<Reservation>(ReservationsDomainErrors.StayRangeInvalid);
+        }
+
+        if (!HasMinutePrecision(expectedArrivalTime) || !HasMinutePrecision(expectedDepartureTime))
+        {
+            return Result.Failure<Reservation>(ReservationsDomainErrors.ExpectedStayTimeInvalid);
         }
 
         ArgumentNullException.ThrowIfNull(inventoryUnitIds);
@@ -125,6 +132,8 @@ public sealed partial class Reservation
             allocationRequestId,
             arrival,
             departure,
+            expectedArrivalTime,
+            expectedDepartureTime,
             units,
             normalizedGuestName,
             normalizedEmail,
@@ -168,6 +177,8 @@ public sealed partial class Reservation
             [
                 nameof(Arrival),
                 nameof(Departure),
+                nameof(ExpectedArrivalTime),
+                nameof(ExpectedDepartureTime),
                 nameof(RequestedUnits),
                 nameof(PrimaryGuestName),
                 nameof(Email),

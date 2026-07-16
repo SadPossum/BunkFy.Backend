@@ -146,7 +146,7 @@ public sealed class Property : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
-    public Result Retire(long expectedVersion, Guid eventId, DateTimeOffset nowUtc)
+    public Result Retire(long expectedVersion, Guid eventId, DateTimeOffset nowUtc, string? actorId = null)
     {
         Result statusResult = this.EnsureCanRetire();
         if (statusResult.IsFailure)
@@ -174,7 +174,8 @@ public sealed class Property : ScopedAggregateRoot<Guid>
             nowUtc,
             this.Id,
             this.ScopeId,
-            this.Version));
+            this.Version,
+            actorId));
 
         return Result.Success();
     }

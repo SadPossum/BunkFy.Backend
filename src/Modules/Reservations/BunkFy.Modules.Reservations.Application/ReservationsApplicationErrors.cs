@@ -13,12 +13,16 @@ public static class ReservationsApplicationErrors
     public static Error VersionConflict => ReservationsDomainErrors.VersionConflict;
     public static Error InvalidTransition => ReservationsDomainErrors.InvalidTransition;
     public static Error StayRangeInvalid => ReservationsDomainErrors.StayRangeInvalid;
+    public static Error ExpectedStayTimeInvalid => ReservationsDomainErrors.ExpectedStayTimeInvalid;
     public static Error RequestedUnitsInvalid => ReservationsDomainErrors.RequestedUnitsInvalid;
     public static Error DetailsRevisionConflict => ReservationsDomainErrors.DetailsRevisionConflict;
     public static Error DetailsChangeProvenanceInvalid => ReservationsDomainErrors.DetailsChangeProvenanceInvalid;
+    public static Error AllocationAmendmentInProgress => ReservationsDomainErrors.AllocationAmendmentInProgress;
+    public static Error AllocationAmendmentInvalid => ReservationsDomainErrors.AllocationAmendmentInvalid;
     public static Error StayBusinessDateInvalid => ReservationsDomainErrors.StayBusinessDateInvalid;
     public static Error StayProvenanceInvalid => ReservationsDomainErrors.StayProvenanceInvalid;
     public static readonly Error GuestNotLinkable = new("Reservations.GuestNotLinkable", "The guest is not active and visible at this property.");
+    public static readonly Error ReminderTaskOptionsInvalid = new("Reservations.ReminderTaskOptionsInvalid", "Reservation reminder task options are invalid.");
     public static Error ReservationGuestLinkInvalid => ReservationsDomainErrors.ReservationGuestLinkInvalid;
     public static Error ReservationGuestRoleOccupied => ReservationsDomainErrors.ReservationGuestRoleOccupied;
 }

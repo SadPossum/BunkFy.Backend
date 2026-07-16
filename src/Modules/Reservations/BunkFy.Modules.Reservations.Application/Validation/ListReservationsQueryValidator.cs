@@ -13,10 +13,24 @@ internal sealed class ListReservationsQueryValidator : IQueryValidator<ListReser
             yield return "PropertyId is required.";
         }
 
-        if (query.Status.HasValue &&
-            (query.Status.Value == ReservationStatus.Unknown || !Enum.IsDefined(query.Status.Value)))
+        if (query.Statuses?.Any(status => status == ReservationStatus.Unknown || !Enum.IsDefined(status)) == true)
         {
-            yield return "Status is invalid.";
+            yield return "Statuses contain an invalid value.";
+        }
+
+        if (query.Statuses?.Count > Enum.GetValues<ReservationStatus>().Length - 1)
+        {
+            yield return "Too many statuses were requested.";
+        }
+
+        if (query.Search?.Trim().Length > ReservationsContractLimits.SearchMaxLength)
+        {
+            yield return "Search exceeds the supported limit.";
+        }
+
+        if (query.Order == ReservationListOrder.Unknown || !Enum.IsDefined(query.Order))
+        {
+            yield return "Order is invalid.";
         }
     }
 }

@@ -10,4 +10,5 @@ public sealed record StaffMemberLifecycleChangedDomainEvent(
     Guid StaffMemberId,
     StaffMemberState Status,
     DateOnly EffectiveOn,
-    long StaffVersion) : ScopedDomainEvent(EventId, OccurredAtUtc, ScopeId);
+    long StaffVersion,
+    string? ActorId = null) : ScopedDomainEvent(EventId, OccurredAtUtc, ScopeId);

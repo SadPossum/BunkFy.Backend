@@ -7,6 +7,7 @@ using Gma.Framework.Permissions;
 using Gma.Framework.Tasks;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 
 public static class ReservationsModuleMetadata
 {
@@ -16,7 +17,11 @@ public static class ReservationsModuleMetadata
     public const int InventoryProjectionVersion = 1;
     public const string GuestProfilesProjectionName = "guest-profiles";
     public const int GuestProfilesProjectionVersion = 1;
+    public const string PropertyProjectionName = "properties";
+    public const int PropertyProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
+    public const string ReminderWorkerGroup = "reminder-workers";
+    public const int ArrivalReminderLeadTimeMinutes = 120;
     public const string AllocationConfirmedHandlerName = "allocation-confirmed";
     public const string AllocationRejectedHandlerName = "allocation-rejected";
     public const string AllocationReleasedHandlerName = "allocation-released";
@@ -34,6 +39,9 @@ public static class ReservationsModuleMetadata
     public const string GuestCreatedHandlerName = "guest-created";
     public const string GuestUpdatedHandlerName = "guest-updated";
     public const string GuestArchivedHandlerName = "guest-archived";
+    public const string PropertyCreatedHandlerName = "property-created";
+    public const string PropertyUpdatedHandlerName = "property-updated";
+    public const string PropertyRetiredHandlerName = "property-retired";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -64,6 +72,9 @@ public static class ReservationsModuleMetadata
         .WithSubscription<GuestProfileCreatedIntegrationEvent>(GuestsModuleMetadata.Name, GuestCreatedHandlerName)
         .WithSubscription<GuestProfileUpdatedIntegrationEvent>(GuestsModuleMetadata.Name, GuestUpdatedHandlerName)
         .WithSubscription<GuestProfileArchivedIntegrationEvent>(GuestsModuleMetadata.Name, GuestArchivedHandlerName)
+        .WithSubscription<PropertyCreatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyCreatedHandlerName)
+        .WithSubscription<PropertyUpdatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyUpdatedHandlerName)
+        .WithSubscription<PropertyRetiredIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyRetiredHandlerName)
         .WithPublishedEvent<ReservationCreatedIntegrationEvent>()
         .WithPublishedEvent<ReservationConfirmedIntegrationEvent>()
         .WithPublishedEvent<ReservationAllocationRejectedIntegrationEvent>()
@@ -77,8 +88,11 @@ public static class ReservationsModuleMetadata
         .WithPublishedEvent<InventoryAllocationAmendmentRequestedIntegrationEvent>()
         .WithPublishedEvent<ReservationGuestLinkedIntegrationEvent>()
         .WithPublishedEvent<ReservationGuestStayChangedIntegrationEvent>()
+        .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEvent>()
         .WithTask<RebuildReservationInventoryProjectionPayload>()
         .WithTask<RebuildReservationGuestProfilesPayload>()
+        .WithTask<RebuildReservationPropertiesPayload>()
+        .WithTask<DispatchReservationArrivalRemindersPayload>()
         .WithProfile(ReservationsProfiles.Default)
         .Build();
 }

@@ -34,7 +34,8 @@ internal sealed class ManualInventoryBlockCreatedNotificationHandler(Operational
                     integrationEvent.Reason,
                     integrationEvent.BlockVersion,
                 }),
-                BunkFyNotificationTags.InventoryActivity),
+                BunkFyNotificationTags.InventoryActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }
 
@@ -64,7 +65,8 @@ internal sealed class ManualInventoryBlockReleasedNotificationHandler(Operationa
                     integrationEvent.InventoryUnitId,
                     integrationEvent.BlockVersion,
                 }),
-                BunkFyNotificationTags.InventoryActivity),
+                BunkFyNotificationTags.InventoryActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }
 
@@ -93,6 +95,7 @@ internal sealed class RoomSalesModeChangedNotificationHandler(OperationalNotific
                     integrationEvent.SalesMode,
                     integrationEvent.ConfigurationVersion,
                 }),
-                BunkFyNotificationTags.InventoryActivity),
+                BunkFyNotificationTags.InventoryActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }

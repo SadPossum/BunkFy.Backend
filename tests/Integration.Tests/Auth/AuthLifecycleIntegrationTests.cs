@@ -85,6 +85,24 @@ public sealed class AuthLifecycleIntegrationTests
         AuthTokensResponse loggedIn = await AuthApiClient.LoginAsync(client, "tenant-auth", username).ConfigureAwait(false);
         AuthTokensResponse refreshed = await AuthApiClient.RefreshAsync(client, "tenant-auth", loggedIn).ConfigureAwait(false);
 
+        using (HttpResponseMessage listSessions = await GetAuthenticatedAsync(
+                   client, "/api/auth/sessions", refreshed.AccessToken).ConfigureAwait(false))
+        {
+            listSessions.EnsureSuccessStatusCode();
+            AuthenticationSessionsResponse? active = await listSessions.Content
+                .ReadFromJsonAsync<AuthenticationSessionsResponse>().ConfigureAwait(false);
+            Assert.NotNull(active);
+            Assert.Equal(2, active.Sessions.Count);
+            AuthenticationSessionResponse other = Assert.Single(active.Sessions, session => !session.IsCurrent);
+
+            using HttpResponseMessage revoke = await AuthApiClient.PostAsync(
+                client,
+                "tenant-auth",
+                $"/api/auth/sessions/{other.SessionId:D}/sign-out",
+                refreshed.AccessToken).ConfigureAwait(false);
+            Assert.Equal(HttpStatusCode.NoContent, revoke.StatusCode);
+        }
+
         using HttpResponseMessage signOut = await AuthApiClient.PostJsonAsync(
             client,
             "tenant-auth",
@@ -154,6 +172,17 @@ public sealed class AuthLifecycleIntegrationTests
             Assert.Contains("samesite=strict", cookie, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("path=/api/auth/browser", cookie, StringComparison.OrdinalIgnoreCase);
         });
+    }
+
+    private static async Task<HttpResponseMessage> GetAuthenticatedAsync(
+        HttpClient client,
+        string path,
+        string accessToken)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Get, path);
+        request.Headers.Add("X-Tenant-Id", "tenant-auth");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        return await client.SendAsync(request).ConfigureAwait(false);
     }
 
     private static string GetRefreshCookieValue(string[] setCookieHeaders)

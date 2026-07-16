@@ -44,7 +44,40 @@ internal sealed class ReservationConfirmedNotificationHandler(OperationalNotific
                 integrationEvent.AllocationId,
                 integrationEvent.ReservationVersion,
             }),
-            BunkFyNotificationTags.ReservationActivity);
+            BunkFyNotificationTags.ReservationActivity,
+            integrationEvent.ActorId);
+}
+
+[IntegrationEventHandler("bunkfy-reservation-arrival-reminder-notification", RequiresExplicitProducerBinding = true)]
+internal sealed class ReservationArrivalReminderNotificationHandler(OperationalNotificationProjector projector)
+    : IIntegrationEventHandler<ReservationArrivalReminderDueIntegrationEvent>
+{
+    public Task HandleAsync(
+        ReservationArrivalReminderDueIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        projector.ProjectForPropertyAsync(
+            integrationEvent.EventId,
+            integrationEvent.TenantId,
+            integrationEvent.OccurredAtUtc,
+            integrationEvent.PropertyId,
+            new OperationalNotification(
+                ReservationsModuleMetadata.Name,
+                "reservation-arrival-soon",
+                "Expected arrival soon",
+                $"{integrationEvent.PrimaryGuestName} is expected at " +
+                $"{integrationEvent.ExpectedArrivalTime:HH\\:mm} on {integrationEvent.Arrival:MMM d}.",
+                NotificationSeverity.Info,
+                JsonSerializer.Serialize(new
+                {
+                    integrationEvent.ReservationId,
+                    integrationEvent.PropertyId,
+                    integrationEvent.Arrival,
+                    integrationEvent.ExpectedArrivalTime,
+                    integrationEvent.TimeZoneId,
+                    integrationEvent.DetailsRevision,
+                }),
+                BunkFyNotificationTags.ReservationActivity),
+            cancellationToken);
 }
 
 [IntegrationEventHandler("bunkfy-reservation-allocation-rejected-notification", RequiresExplicitProducerBinding = true)]
@@ -72,7 +105,8 @@ internal sealed class ReservationAllocationRejectedNotificationHandler(Operation
                     integrationEvent.Reason,
                     integrationEvent.ReservationVersion,
                 }),
-                BunkFyNotificationTags.ReservationActivity),
+                BunkFyNotificationTags.ReservationActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }
 
@@ -100,7 +134,8 @@ internal sealed class ReservationCancelledNotificationHandler(OperationalNotific
                     integrationEvent.PropertyId,
                     integrationEvent.ReservationVersion,
                 }),
-                BunkFyNotificationTags.ReservationActivity),
+                BunkFyNotificationTags.ReservationActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }
 
@@ -130,7 +165,8 @@ internal sealed class ReservationNoShowNotificationHandler(OperationalNotificati
                     integrationEvent.ActorId,
                     integrationEvent.ReservationVersion,
                 }),
-                BunkFyNotificationTags.ReservationActivity),
+                BunkFyNotificationTags.ReservationActivity,
+                integrationEvent.ActorId),
             cancellationToken);
 }
 

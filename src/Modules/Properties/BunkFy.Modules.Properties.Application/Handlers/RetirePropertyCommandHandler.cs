@@ -29,7 +29,11 @@ internal sealed class RetirePropertyCommandHandler(
             return Result.Failure<Unit>(PropertiesDomainErrors.PropertyHasActiveRooms);
         }
 
-        Result result = property.Retire(command.ExpectedVersion, idGenerator.NewId(), clock.UtcNow);
+        Result result = property.Retire(
+            command.ExpectedVersion,
+            idGenerator.NewId(),
+            clock.UtcNow,
+            command.ActorId);
         return result.IsSuccess
             ? Result.Success(Unit.Value)
             : Result.Failure<Unit>(result.Error);

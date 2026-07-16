@@ -16,6 +16,7 @@ internal sealed class ReservationCancelledOutboxProjector(IOutboxWriterRegistry 
                 domainEvent.OccurredAtUtc,
                 domainEvent.ReservationId,
                 domainEvent.PropertyId,
-                domainEvent.ReservationVersion),
+                domainEvent.ReservationVersion,
+                domainEvent.ActorId),
             cancellationToken);
 }

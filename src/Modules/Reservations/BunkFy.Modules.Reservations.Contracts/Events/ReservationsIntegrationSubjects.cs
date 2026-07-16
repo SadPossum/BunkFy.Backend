@@ -27,4 +27,7 @@ public static class ReservationsIntegrationSubjects
 
     public static string CreateExternalOperationCompleted(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(prefix, ReservationsModuleMetadata.Name, ExternalReservationOperationCompletedIntegrationEvent.EventType, ExternalReservationOperationCompletedIntegrationEvent.EventVersion);
+
+    public static string CreateReservationArrivalReminderDue(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(prefix, ReservationsModuleMetadata.Name, ReservationArrivalReminderDueIntegrationEvent.EventType, ReservationArrivalReminderDueIntegrationEvent.EventVersion);
 }

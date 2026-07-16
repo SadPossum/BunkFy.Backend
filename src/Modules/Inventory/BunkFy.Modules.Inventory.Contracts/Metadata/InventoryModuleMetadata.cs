@@ -26,6 +26,10 @@ public static class InventoryModuleMetadata
     public const string AllocationRequestedHandlerName = "allocation-requested";
     public const string AllocationAmendmentRequestedHandlerName = "allocation-amendment-requested";
     public const string AllocationReleaseRequestedHandlerName = "allocation-release-requested";
+    public const string BedRetirementFinalizedHandlerName = "bed-retirement-finalized";
+    public const string BedRetirementRejectedHandlerName = "bed-retirement-finalization-rejected";
+    public const string RoomRetirementFinalizedHandlerName = "room-retirement-finalized";
+    public const string RoomRetirementRejectedHandlerName = "room-retirement-finalization-rejected";
     public const string ReservationsProducerModuleName = "reservations";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
@@ -48,6 +52,10 @@ public static class InventoryModuleMetadata
         .WithSubscription<InventoryAllocationRequestedIntegrationEvent>(ReservationsProducerModuleName, AllocationRequestedHandlerName)
         .WithSubscription<InventoryAllocationAmendmentRequestedIntegrationEvent>(ReservationsProducerModuleName, AllocationAmendmentRequestedHandlerName)
         .WithSubscription<InventoryAllocationReleaseRequestedIntegrationEvent>(ReservationsProducerModuleName, AllocationReleaseRequestedHandlerName)
+        .WithSubscription<BedRetirementFinalizedIntegrationEvent>(PropertiesModuleMetadata.Name, BedRetirementFinalizedHandlerName)
+        .WithSubscription<BedRetirementFinalizationRejectedIntegrationEvent>(PropertiesModuleMetadata.Name, BedRetirementRejectedHandlerName)
+        .WithSubscription<RoomRetirementFinalizedIntegrationEvent>(PropertiesModuleMetadata.Name, RoomRetirementFinalizedHandlerName)
+        .WithSubscription<RoomRetirementFinalizationRejectedIntegrationEvent>(PropertiesModuleMetadata.Name, RoomRetirementRejectedHandlerName)
         .WithPublishedEvent<RoomSalesModeChangedIntegrationEvent>()
         .WithPublishedEvent<InventoryUnitDefinitionChangedIntegrationEvent>()
         .WithPublishedEvent<ManualInventoryBlockCreatedIntegrationEvent>()
@@ -58,6 +66,8 @@ public static class InventoryModuleMetadata
         .WithPublishedEvent<InventoryAllocationAmendmentRejectedIntegrationEvent>()
         .WithPublishedEvent<InventoryAllocationReleasedIntegrationEvent>()
         .WithPublishedEvent<InventoryAllocationReleaseRejectedIntegrationEvent>()
+        .WithPublishedEvent<BedRetirementFinalizationRequestedIntegrationEvent>()
+        .WithPublishedEvent<RoomRetirementFinalizationRequestedIntegrationEvent>()
         .WithTask<RebuildInventoryTopologyPayload>()
         .WithProfile(InventoryProfiles.Default)
         .Build();

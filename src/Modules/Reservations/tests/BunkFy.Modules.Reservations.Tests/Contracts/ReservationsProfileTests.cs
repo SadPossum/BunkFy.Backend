@@ -33,8 +33,8 @@ public sealed class ReservationsProfileTests
         Assert.Equal(8, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(13, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
-        Assert.Equal(16, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(14, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(19, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
             published => published.EventType == ExternalReservationOperationCompletedIntegrationEvent.EventType);
@@ -47,11 +47,14 @@ public sealed class ReservationsProfileTests
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
             published => published.EventType == ReservationCheckedOutIntegrationEvent.EventType);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
+            published => published.EventType == ReservationArrivalReminderDueIntegrationEvent.EventType);
         Assert.Equal(
             4,
             ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count(subscription =>
                 subscription.ProducerModule == ReservationsModuleMetadata.ExternalOperationSourceModuleName));
-        Assert.Equal(2, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Equal(4, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Single(ReservationsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(6, (int)ReservationStatus.CheckedIn);
         Assert.Equal(7, (int)ReservationStatus.NoShowPending);
@@ -69,6 +72,10 @@ public sealed class ReservationsProfileTests
         Assert.EndsWith(
             ".reservations.reservation-checked-out.v1",
             ReservationsIntegrationSubjects.CreateReservationCheckedOut(),
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            ".reservations.reservation-arrival-reminder-due.v1",
+            ReservationsIntegrationSubjects.CreateReservationArrivalReminderDue(),
             StringComparison.Ordinal);
     }
 }

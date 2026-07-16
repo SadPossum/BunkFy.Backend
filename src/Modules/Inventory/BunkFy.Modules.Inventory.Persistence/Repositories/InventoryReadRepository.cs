@@ -44,8 +44,18 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             .ThenBy(unit => unit.Label)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+        (HashSet<Guid> drainedBedIds, HashSet<Guid> drainingRoomIds, HashSet<Guid> fullyDrainingRoomIds) = await this
+            .GetActiveDrainsAsync(propertyId, [roomId], cancellationToken)
+            .ConfigureAwait(false);
 
-        return MapRoom(room, configuration, units, property?.Status == PropertyStatus.Active);
+        return MapRoom(
+            room,
+            configuration,
+            units,
+            property?.Status == PropertyStatus.Active,
+            drainedBedIds,
+            drainingRoomIds,
+            fullyDrainingRoomIds);
     }
 
     public async Task<InventoryUnitSnapshot?> GetUnitAsync(
@@ -81,10 +91,17 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             return null;
         }
 
+        (HashSet<Guid> drainedBedIds, HashSet<Guid> drainingRoomIds, HashSet<Guid> fullyDrainingRoomIds) = await this
+            .GetActiveDrainsAsync(propertyId, [unit.RoomId], cancellationToken)
+            .ConfigureAwait(false);
+
         InventoryUnitDto mapped = MapUnit(
             unit,
             configuration?.SalesMode ?? RoomSalesMode.Unconfigured,
-            property?.Status == PropertyStatus.Active && room.Status == RoomStatus.Active);
+            property?.Status == PropertyStatus.Active && room.Status == RoomStatus.Active,
+            drainedBedIds,
+            drainingRoomIds,
+            fullyDrainingRoomIds);
         return new(mapped, mapped.IsSellable);
     }
 
@@ -151,6 +168,9 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
         Dictionary<Guid, InventoryRoomTopology> roomsById = rooms.ToDictionary(room => room.Id);
+        (HashSet<Guid> drainedBedIds, HashSet<Guid> drainingRoomIds, HashSet<Guid> fullyDrainingRoomIds) = await this
+            .GetActiveDrainsAsync(propertyId, roomIds, cancellationToken)
+            .ConfigureAwait(false);
 
         return units
             .Select(unit =>
@@ -160,7 +180,10 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
                 InventoryUnitDto mapped = MapUnit(
                     unit,
                     salesMode,
-                    property.Status == PropertyStatus.Active && room.Status == RoomStatus.Active);
+                    property.Status == PropertyStatus.Active && room.Status == RoomStatus.Active,
+                    drainedBedIds,
+                    drainingRoomIds,
+                    fullyDrainingRoomIds);
                 return new InventoryUnitSnapshot(mapped, mapped.IsSellable);
             })
             .ToArray();
@@ -203,13 +226,19 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         ILookup<Guid, InventoryUnit> unitsByRoom = units.ToLookup(unit => unit.RoomId);
+        (HashSet<Guid> drainedBedIds, HashSet<Guid> drainingRoomIds, HashSet<Guid> fullyDrainingRoomIds) = await this
+            .GetActiveDrainsAsync(propertyId, roomIds, cancellationToken)
+            .ConfigureAwait(false);
 
         RoomInventoryDto[] result = rooms
             .Select(room => MapRoom(
                 room,
                 configurations.GetValueOrDefault(room.Id),
                 unitsByRoom[room.Id],
-                property.Status == PropertyStatus.Active))
+                property.Status == PropertyStatus.Active,
+                drainedBedIds,
+                drainingRoomIds,
+                fullyDrainingRoomIds))
             .ToArray();
         return new(result, pageRequest.Page, pageRequest.PageSize);
     }
@@ -276,6 +305,10 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             allocation => allocation.InventoryUnitId,
             allocation => allocation.AllocationId);
         Dictionary<Guid, InventoryRoomTopology> roomsById = rooms.ToDictionary(room => room.Id);
+        ILookup<Guid, InventoryUnit> unitsByRoom = units.ToLookup(unit => unit.RoomId);
+        (HashSet<Guid> drainedBedIds, HashSet<Guid> drainingRoomIds, HashSet<Guid> fullyDrainingRoomIds) = await this
+            .GetActiveDrainsAsync(propertyId, roomIds, cancellationToken)
+            .ConfigureAwait(false);
 
         InventoryUnitAvailabilityDto[] availability = units
             .Select(unit =>
@@ -284,9 +317,27 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
                                   property.Status == PropertyStatus.Active &&
                                   room.Status == RoomStatus.Active;
                 RoomSalesMode mode = configurations.GetValueOrDefault(unit.RoomId)?.SalesMode ?? RoomSalesMode.Unconfigured;
-                InventoryUnitDto mapped = MapUnit(unit, mode, roomActive);
-                Guid[] blockingIds = blocksByUnit[unit.Id].ToArray();
-                Guid[] allocationIds = allocationsByUnit[unit.Id].ToArray();
+                InventoryUnitDto mapped = MapUnit(
+                    unit,
+                    mode,
+                    roomActive,
+                    drainedBedIds,
+                    drainingRoomIds,
+                    fullyDrainingRoomIds);
+                Guid[] conflictUnitIds = unit.Kind == InventoryUnitKind.Room
+                    ? unitsByRoom[unit.RoomId].Select(item => item.Id).ToArray()
+                    : unitsByRoom[unit.RoomId]
+                        .Where(item => item.Id == unit.Id || item.Kind == InventoryUnitKind.Room)
+                        .Select(item => item.Id)
+                        .ToArray();
+                Guid[] blockingIds = conflictUnitIds
+                    .SelectMany(conflictUnitId => blocksByUnit[conflictUnitId])
+                    .Distinct()
+                    .ToArray();
+                Guid[] allocationIds = conflictUnitIds
+                    .SelectMany(conflictUnitId => allocationsByUnit[conflictUnitId])
+                    .Distinct()
+                    .ToArray();
                 return new InventoryUnitAvailabilityDto(
                     mapped,
                     mapped.IsSellable && blockingIds.Length == 0 && allocationIds.Length == 0,
@@ -303,12 +354,21 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
         InventoryRoomTopology room,
         RoomInventoryConfiguration? configuration,
         IEnumerable<InventoryUnit> units,
-        bool propertyActive)
+        bool propertyActive,
+        IReadOnlySet<Guid>? drainedBedIds = null,
+        IReadOnlySet<Guid>? drainingRoomIds = null,
+        IReadOnlySet<Guid>? fullyDrainingRoomIds = null)
     {
         RoomSalesMode salesMode = configuration?.SalesMode ?? RoomSalesMode.Unconfigured;
         bool roomActive = propertyActive && room.Status == RoomStatus.Active;
         InventoryUnitDto[] mappedUnits = units
-            .Select(unit => MapUnit(unit, salesMode, roomActive))
+            .Select(unit => MapUnit(
+                unit,
+                salesMode,
+                roomActive,
+                drainedBedIds,
+                drainingRoomIds,
+                fullyDrainingRoomIds))
             .ToArray();
 
         return new(
@@ -330,12 +390,19 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
     private static InventoryUnitDto MapUnit(
         InventoryUnit unit,
         RoomSalesMode salesMode,
-        bool roomActive)
+        bool roomActive,
+        IReadOnlySet<Guid>? drainedBedIds = null,
+        IReadOnlySet<Guid>? drainingRoomIds = null,
+        IReadOnlySet<Guid>? fullyDrainingRoomIds = null)
     {
         bool topologyActive = roomActive && unit.IsTopologyActive;
         bool sellable = topologyActive &&
                         ((unit.Kind == InventoryUnitKind.Room && salesMode == RoomSalesMode.RoomLevel) ||
-                         (unit.Kind == InventoryUnitKind.Bed && salesMode == RoomSalesMode.BedLevel));
+                         (unit.Kind == InventoryUnitKind.Bed && salesMode == RoomSalesMode.BedLevel)) &&
+                        (unit.Kind != InventoryUnitKind.Room || drainingRoomIds?.Contains(unit.RoomId) != true) &&
+                        (unit.Kind != InventoryUnitKind.Bed ||
+                         (drainedBedIds?.Contains(unit.Id) != true &&
+                          fullyDrainingRoomIds?.Contains(unit.RoomId) != true));
         return new(
             unit.Id,
             unit.PropertyId,
@@ -345,5 +412,62 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             unit.Label,
             sellable,
             topologyActive);
+    }
+
+    private async Task<(HashSet<Guid> BedIds, HashSet<Guid> RoomIds, HashSet<Guid> FullyDrainingRoomIds)> GetActiveDrainsAsync(
+        Guid propertyId,
+        IReadOnlyCollection<Guid> roomIds,
+        CancellationToken cancellationToken)
+    {
+        BedRetirementProcess[] drains = await dbContext.BedRetirements
+            .AsNoTracking()
+            .Where(process =>
+                process.PropertyId == propertyId &&
+                roomIds.Contains(process.RoomId) &&
+                (process.State == InventoryRetirementProcessState.Draining ||
+                 process.State == InventoryRetirementProcessState.FinalizationRequested ||
+                 process.State == InventoryRetirementProcessState.FinalizedAwaitingTopology ||
+                 process.State == InventoryRetirementProcessState.Rejected))
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (BedRetirementProcess local in dbContext.BedRetirements.Local.Where(process =>
+                     process.PropertyId == propertyId &&
+                     roomIds.Contains(process.RoomId) &&
+                     BedRetirementProcess.IsDrainActive(process.State)))
+        {
+            if (drains.All(process => process.Id != local.Id))
+            {
+                drains = [.. drains, local];
+            }
+        }
+
+        RoomRetirementProcess[] roomDrains = await dbContext.RoomRetirements
+            .AsNoTracking()
+            .Where(process =>
+                process.PropertyId == propertyId &&
+                roomIds.Contains(process.RoomId) &&
+                (process.State == InventoryRetirementProcessState.Draining ||
+                 process.State == InventoryRetirementProcessState.FinalizationRequested ||
+                 process.State == InventoryRetirementProcessState.FinalizedAwaitingTopology ||
+                 process.State == InventoryRetirementProcessState.Rejected))
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (RoomRetirementProcess local in dbContext.RoomRetirements.Local.Where(process =>
+                     process.PropertyId == propertyId &&
+                     roomIds.Contains(process.RoomId) &&
+                     RoomRetirementProcess.IsDrainActive(process.State)))
+        {
+            if (roomDrains.All(process => process.Id != local.Id))
+            {
+                roomDrains = [.. roomDrains, local];
+            }
+        }
+
+        HashSet<Guid> fullyDrainingRoomIds = roomDrains.Select(process => process.RoomId).ToHashSet();
+
+        return (
+            drains.Select(process => process.BedId).ToHashSet(),
+            drains.Select(process => process.RoomId).Concat(fullyDrainingRoomIds).ToHashSet(),
+            fullyDrainingRoomIds);
     }
 }

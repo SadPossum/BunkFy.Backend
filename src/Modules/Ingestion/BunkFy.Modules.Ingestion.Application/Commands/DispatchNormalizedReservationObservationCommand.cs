@@ -24,7 +24,9 @@ public sealed record NormalizedReservationObservation(
     string? Email,
     string? Phone,
     int? GuestCount,
-    string? Notes);
+    string? Notes,
+    TimeOnly? ExpectedArrivalTime = null,
+    TimeOnly? ExpectedDepartureTime = null);
 
 public sealed record ReservationObservationDispatchResult(
     Guid ReceiptId,

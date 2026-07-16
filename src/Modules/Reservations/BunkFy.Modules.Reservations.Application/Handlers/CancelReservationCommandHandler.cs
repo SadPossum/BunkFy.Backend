@@ -31,7 +31,8 @@ internal sealed class CancelReservationCommandHandler(
             command.ExpectedVersion,
             idGenerator.NewId(),
             idGenerator.NewId(),
-            clock.UtcNow);
+            clock.UtcNow,
+            command.ActorId);
         return result.IsFailure
             ? Result.Failure<ReservationDto>(result.Error)
             : Result.Success(reservation.ToDto());

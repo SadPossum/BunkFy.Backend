@@ -3,6 +3,10 @@ namespace Integration.Tests;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using Gma.Framework.AccessControl;
+using Gma.Framework.Scoping;
+using Gma.Modules.Notifications.Api;
 using Gma.Modules.Notifications.Contracts;
 using Integration.Tests.Support;
 using Xunit;
@@ -10,6 +14,37 @@ using DomainBroadcastAudience = Gma.Modules.Notifications.Domain.ValueObjects.No
 
 public sealed class NotificationsApiIntegrationTests
 {
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task User_api_accepts_a_host_authorized_scope_without_weakening_other_scopes()
+    {
+        const string userId = "delegated-user";
+        DelegatedScopeAuthorizer authorizer = new("tenant-a", userId);
+        await using NotificationsApiTestApplication application = await NotificationsApiTestApplication
+            .CreateAsync(scopeAuthorizer: authorizer);
+        await application.AddNotificationAsync(
+            "tenant-a",
+            userId,
+            Guid.Parse("10101010-1010-1010-1010-101010101010"),
+            "Delegated scope",
+            1);
+
+        using HttpClient allowed = CreateAuthenticatedClient(application, "default", userId);
+        allowed.DefaultRequestHeaders.Remove("X-Tenant-Id");
+        allowed.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-a");
+        NotificationHistoryListResponse list = await GetJsonAsync<NotificationHistoryListResponse>(
+            allowed,
+            "/api/notifications/?page=1&pageSize=10");
+
+        using HttpClient denied = CreateAuthenticatedClient(application, "default", userId);
+        denied.DefaultRequestHeaders.Remove("X-Tenant-Id");
+        denied.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-b");
+        using HttpResponseMessage deniedResponse = await denied.GetAsync("/api/notifications/");
+
+        Assert.Single(list.Items);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedResponse.StatusCode);
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public async Task User_history_api_enforces_tenant_and_user_scope_and_marks_read()
@@ -37,6 +72,8 @@ public sealed class NotificationsApiIntegrationTests
             .GetAsync($"/api/notifications/{otherUserId}");
         using HttpResponseMessage markRead = await client
             .PostAsync($"/api/notifications/{secondId}/read", content: null);
+        using HttpResponseMessage markReadAgain = await client
+            .PostAsync($"/api/notifications/{secondId}/read", content: null);
         NotificationHistoryListResponse unread = await GetJsonAsync<NotificationHistoryListResponse>(
                 client,
                 "/api/notifications/?unreadOnly=true&page=1&pageSize=10");
@@ -59,6 +96,7 @@ public sealed class NotificationsApiIntegrationTests
         Assert.All(list.Items, item => Assert.Equal(NotificationSeverity.Info, item.Severity));
         Assert.Equal(HttpStatusCode.NotFound, otherUserResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, markRead.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, markReadAgain.StatusCode);
         NotificationHistoryItem unreadItem = Assert.Single(unread.Items);
         Assert.Equal(firstId, unreadItem.Id);
         Assert.Equal(1, unread.TotalCount);
@@ -147,6 +185,47 @@ public sealed class NotificationsApiIntegrationTests
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task User_sse_streams_replay_visible_history_and_broadcasts()
+    {
+        await using NotificationsApiTestApplication application = await NotificationsApiTestApplication
+            .CreateAsync();
+        await application.AddNotificationAsync(
+            "tenant-a",
+            "user-a",
+            Guid.Parse("56565656-5656-5656-5656-565656565656"),
+            "Streamed notification",
+            11);
+        await application.AddBroadcastAsync(
+            "tenant-a",
+            DomainBroadcastAudience.TenantUsers,
+            Guid.Parse("78787878-7878-7878-7878-787878787878"),
+            "Streamed announcement",
+            12);
+        using HttpClient client = CreateAuthenticatedClient(application, "tenant-a", "user-a");
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+
+        using HttpResponseMessage history = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/api/notifications/history/stream?afterSequence=0"),
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token);
+        string historyData = await ReadFirstServerSentEventDataAsync(history, timeout.Token);
+
+        using HttpResponseMessage broadcasts = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/api/notifications/broadcasts/stream?afterSequence=0"),
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token);
+        string broadcastData = await ReadFirstServerSentEventDataAsync(broadcasts, timeout.Token);
+
+        Assert.Equal(HttpStatusCode.OK, history.StatusCode);
+        Assert.Equal("text/event-stream", history.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Streamed notification", historyData, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, broadcasts.StatusCode);
+        Assert.Equal("text/event-stream", broadcasts.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Streamed announcement", broadcastData, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task User_broadcast_api_uses_default_tenant_scope_when_tenancy_is_disabled()
     {
         await using NotificationsApiTestApplication application = await NotificationsApiTestApplication
@@ -222,5 +301,40 @@ public sealed class NotificationsApiIntegrationTests
         T? result = await response.Content.ReadFromJsonAsync<T>();
         Assert.NotNull(result);
         return result;
+    }
+
+    private static async Task<string> ReadFirstServerSentEventDataAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        await using Stream stream = await response.Content
+            .ReadAsStreamAsync(cancellationToken)
+            .ConfigureAwait(false);
+        using StreamReader reader = new(stream);
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            if (line.StartsWith("data:", StringComparison.Ordinal))
+            {
+                return line;
+            }
+        }
+
+        throw new InvalidOperationException("The notification stream ended before producing an SSE data frame.");
+    }
+
+    private sealed class DelegatedScopeAuthorizer(string allowedScopeId, string allowedSubjectId)
+        : INotificationUserScopeAuthorizer
+    {
+        public Task<bool> AuthorizeAsync(
+            ClaimsPrincipal principal,
+            AccessSubject subject,
+            IScopeContext scopeContext,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(
+                string.Equals(subject.Id, allowedSubjectId, StringComparison.Ordinal) &&
+                string.Equals(scopeContext.ScopeId, allowedScopeId, StringComparison.Ordinal));
+        }
     }
 }

@@ -11,6 +11,8 @@ using BunkFy.Modules.Inventory.Domain.Aggregates;
 
 internal sealed class ReleaseManualInventoryBlockCommandHandler(
     IManualInventoryBlockRepository blocks,
+    IInventoryAvailabilityRepository availability,
+    InventoryRetirementCoordinator retirements,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<ReleaseManualInventoryBlockCommand, ManualInventoryBlockDto>
@@ -27,13 +29,26 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
             return Result.Failure<ManualInventoryBlockDto>(InventoryApplicationErrors.BlockNotFound);
         }
 
-        Result released = block.Release(command.ExpectedVersion, idGenerator.NewId(), clock.UtcNow);
+        Result released = block.Release(
+            command.ExpectedVersion,
+            idGenerator.NewId(),
+            clock.UtcNow,
+            command.ActorId);
         if (released.IsFailure)
         {
             return Result.Failure<ManualInventoryBlockDto>(released.Error);
         }
 
-        await blocks.TouchUnitAsync(block.InventoryUnitId, cancellationToken).ConfigureAwait(false);
+        await availability.TouchUnitsAsync(
+            block.PropertyId,
+            [block.InventoryUnitId],
+            cancellationToken).ConfigureAwait(false);
+        await retirements.TryAdvanceForUnitsAsync(
+            block.PropertyId,
+            [block.InventoryUnitId],
+            excludedAllocationId: null,
+            excludedBlockIds: [block.Id],
+            cancellationToken).ConfigureAwait(false);
         return Result.Success(block.ToDto());
     }
 }

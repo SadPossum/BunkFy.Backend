@@ -13,6 +13,7 @@ internal sealed class RoomInventoryConfigurationConfiguration : IEntityTypeConfi
         builder.Property(configuration => configuration.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(configuration => configuration.SalesMode).HasConversion<int>();
         builder.Property(configuration => configuration.Version).IsConcurrencyToken();
+        builder.Property(configuration => configuration.AvailabilityMutationVersion).IsConcurrencyToken().IsRequired();
         builder.HasIndex(configuration => new { configuration.ScopeId, configuration.PropertyId });
         builder.Ignore(configuration => configuration.DomainEvents);
     }

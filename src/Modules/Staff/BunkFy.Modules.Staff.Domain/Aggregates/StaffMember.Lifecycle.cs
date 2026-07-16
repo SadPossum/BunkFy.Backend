@@ -97,7 +97,7 @@ public sealed partial class StaffMember
         this.DepartedAtUtc = nowUtc;
         this.DepartureEffectiveOn = effectiveOn;
         this.RaiseDomainEvent(new StaffMemberLifecycleChangedDomainEvent(lifecycleEventId, nowUtc,
-            this.ScopeId, this.Id, this.Status, effectiveOn, this.Version));
+            this.ScopeId, this.Id, this.Status, effectiveOn, this.Version, actor.Value.Value));
         return Result.Success();
     }
 
@@ -115,7 +115,7 @@ public sealed partial class StaffMember
         this.SuspendedAtUtc = status == StaffMemberState.Suspended ? nowUtc : null;
         this.Advance(actor.Value, nowUtc);
         this.RaiseDomainEvent(new StaffMemberLifecycleChangedDomainEvent(eventId, nowUtc, this.ScopeId,
-            this.Id, this.Status, effectiveOn, this.Version));
+            this.Id, this.Status, effectiveOn, this.Version, actor.Value.Value));
         return Result.Success();
     }
 }

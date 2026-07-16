@@ -87,6 +87,37 @@ public sealed class StaffAuthorizationIntegrationTests
                 member = await ReadSuccessAsync<StaffMemberDto>(create).ConfigureAwait(false);
             }
 
+            using (HttpResponseMessage selfRead = await SendAsync(client, HttpMethod.Get,
+                       "/api/staff/me", assignedTokens.AccessToken).ConfigureAwait(false))
+            {
+                StaffMemberDto visible = await ReadSuccessAsync<StaffMemberDto>(selfRead).ConfigureAwait(false);
+                Assert.Equal(member.StaffMemberId, visible.StaffMemberId);
+            }
+
+            using (HttpResponseMessage selfUpdate = await SendAsync(client, HttpMethod.Put,
+                       "/api/staff/me", assignedTokens.AccessToken, new
+                       {
+                           displayName = "Ada Front Desk",
+                           legalName = member.LegalName,
+                           workEmail = member.WorkEmail,
+                           workPhone = member.WorkPhone,
+                           employeeNumber = member.EmployeeNumber,
+                           jobTitle = "Front Desk",
+                           department = member.Department,
+                           expectedVersion = member.Version
+                       }).ConfigureAwait(false))
+            {
+                member = await ReadSuccessAsync<StaffMemberDto>(selfUpdate).ConfigureAwait(false);
+                Assert.Equal("Ada Front Desk", member.DisplayName);
+                Assert.Equal("Front Desk", member.JobTitle);
+            }
+
+            using (HttpResponseMessage unlinkedSelf = await SendAsync(client, HttpMethod.Get,
+                       "/api/staff/me", managerTokens.AccessToken).ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.NotFound, unlinkedSelf).ConfigureAwait(false);
+            }
+
             using (HttpResponseMessage assign = await SendAsync(client, HttpMethod.Put,
                        $"/api/staff/properties/{propertyA.PropertyId:D}/members/{member.StaffMemberId:D}/assignment",
                        managerTokens.AccessToken, new

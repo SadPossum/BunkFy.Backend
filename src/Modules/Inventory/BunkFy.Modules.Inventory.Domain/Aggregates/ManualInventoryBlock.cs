@@ -53,7 +53,8 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
         DateOnly departure,
         string reason,
         Guid eventId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        string? actorId = null)
     {
         if (blockId == Guid.Empty)
         {
@@ -107,11 +108,12 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
             block.Arrival,
             block.Departure,
             block.Reason,
-            block.Version));
+            block.Version,
+            actorId));
         return Result.Success(block);
     }
 
-    public Result Release(long expectedVersion, Guid eventId, DateTimeOffset nowUtc)
+    public Result Release(long expectedVersion, Guid eventId, DateTimeOffset nowUtc, string? actorId = null)
     {
         if (expectedVersion != this.Version)
         {
@@ -134,7 +136,8 @@ public sealed class ManualInventoryBlock : ScopedAggregateRoot<Guid>
             this.BlockGroupId,
             this.PropertyId,
             this.InventoryUnitId,
-            this.Version));
+            this.Version,
+            actorId));
         return Result.Success();
     }
 }

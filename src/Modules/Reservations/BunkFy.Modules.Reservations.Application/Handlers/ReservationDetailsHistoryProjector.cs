@@ -4,11 +4,25 @@ using Gma.Framework.Application.Events;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Domain.Events;
 
-internal sealed class ReservationDetailsHistoryProjector(IReservationDetailsHistoryWriter history)
+internal sealed class ReservationDetailsHistoryProjector(
+    IReservationDetailsHistoryWriter history,
+    IReservationArrivalReminderRepository reminders)
     : IDomainEventHandler<ReservationDetailsChangedDomainEvent>
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         ReservationDetailsChangedDomainEvent domainEvent,
-        CancellationToken cancellationToken) =>
-        history.AppendAsync(domainEvent, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        await history.AppendAsync(domainEvent, cancellationToken).ConfigureAwait(false);
+        await reminders.RefreshReservationAsync(
+            new(
+                domainEvent.ScopeId,
+                domainEvent.ReservationId,
+                domainEvent.PropertyId,
+                domainEvent.After.Arrival,
+                domainEvent.After.ExpectedArrivalTime,
+                domainEvent.After.PrimaryGuestName,
+                domainEvent.ToRevision),
+            cancellationToken).ConfigureAwait(false);
+    }
 }

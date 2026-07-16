@@ -71,11 +71,13 @@ internal sealed class CreateReservationCommandHandler(
             idGenerator.NewId(),
             idGenerator.NewId(),
             ReservationDetailsChangeOrigin.Staff,
-            initialDetailsActorId: null,
+            initialDetailsActorId: command.ActorId,
             initialAdapterConnectionId: null,
             initialExternalOperationId: null,
             idGenerator.NewId(),
-            clock.UtcNow);
+            clock.UtcNow,
+            command.ExpectedArrivalTime,
+            command.ExpectedDepartureTime);
         if (created.IsFailure)
         {
             return Result.Failure<ReservationDto>(created.Error);

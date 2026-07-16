@@ -9,6 +9,7 @@ public static class ReservationsDomainErrors
     public static readonly Error AllocationRequestIdRequired = new("Reservations.AllocationRequestIdRequired", "Allocation request id is required.");
     public static readonly Error AllocationIdRequired = new("Reservations.AllocationIdRequired", "Allocation id is required.");
     public static readonly Error StayRangeInvalid = new("Reservations.StayRangeInvalid", "Arrival must be before departure.");
+    public static readonly Error ExpectedStayTimeInvalid = new("Reservations.ExpectedStayTimeInvalid", "Expected arrival and departure times must use minute precision.");
     public static readonly Error RequestedUnitsInvalid = new("Reservations.RequestedUnitsInvalid", "Requested units must contain unique, non-empty ids within the supported limit.");
     public static readonly Error PrimaryGuestNameInvalid = new("Reservations.PrimaryGuestNameInvalid", "Primary guest name is required and is too long.");
     public static readonly Error EmailInvalid = new("Reservations.EmailInvalid", "Email is too long.");

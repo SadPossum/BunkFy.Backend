@@ -12,6 +12,8 @@ using BunkFy.Modules.Inventory.Domain.Aggregates;
 [IntegrationEventHandler(InventoryModuleMetadata.AllocationAmendmentRequestedHandlerName)]
 internal sealed class InventoryAllocationAmendmentRequestedHandler(
     IInventoryAllocationRepository allocations,
+    IInventoryAvailabilityRepository availability,
+    InventoryRetirementCoordinator retirements,
     IInventoryAllocationAmendmentDecisionRepository decisions,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
@@ -79,7 +81,10 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
             .Concat(request.InventoryUnitIds)
             .Distinct()
             .ToArray();
-        await allocations.TouchUnitsAsync(touchedUnits, cancellationToken).ConfigureAwait(false);
+        await availability.TouchUnitsAsync(
+            request.PropertyId,
+            touchedUnits,
+            cancellationToken).ConfigureAwait(false);
         var amended = allocation.Amend(
             request.AmendmentRequestId,
             request.ExpectedAllocationVersion,
@@ -91,6 +96,13 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
             throw new InvalidOperationException(
                 $"Validated allocation amendment failed with '{amended.Error.Code}'.");
         }
+
+        await retirements.TryAdvanceForUnitsAsync(
+            request.PropertyId,
+            touchedUnits,
+            excludedAllocationId: allocation.Id,
+            excludedBlockIds: [],
+            cancellationToken).ConfigureAwait(false);
 
         InventoryAllocationAmendmentDecisionRecord confirmed = new(
             request.AmendmentRequestId,
@@ -112,9 +124,10 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
         InventoryAllocationAmendmentRequestedIntegrationEvent request,
         CancellationToken cancellationToken)
     {
-        IReadOnlyCollection<InventoryAllocationUnitSnapshot> units = await allocations
-            .GetUnitsAsync(request.PropertyId, request.InventoryUnitIds, cancellationToken)
+        InventoryAvailabilityContextSnapshot context = await availability
+            .GetContextAsync(request.PropertyId, request.InventoryUnitIds, cancellationToken)
             .ConfigureAwait(false);
+        IReadOnlyCollection<InventoryAllocationUnitSnapshot> units = context.Units;
         if (units.Count != request.InventoryUnitIds.Count)
         {
             return InventoryAllocationRejectionReason.UnitNotFound;
@@ -130,21 +143,20 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
             return InventoryAllocationRejectionReason.UnitNotSellable;
         }
 
-        if (await allocations.HasManualBlockConflictAsync(
-                request.InventoryUnitIds,
+        InventoryAvailabilityConflictSnapshot conflicts = await availability.GetConflictsAsync(
+                request.PropertyId,
+                context.ConflictUnitIds,
                 request.Arrival,
                 request.Departure,
-                cancellationToken).ConfigureAwait(false))
+                allocation.Id,
+                excludedBlockIds: [],
+                cancellationToken).ConfigureAwait(false);
+        if (conflicts.HasManualBlockConflict)
         {
             return InventoryAllocationRejectionReason.ManualBlockConflict;
         }
 
-        return await allocations.HasActiveAllocationConflictAsync(
-                request.InventoryUnitIds,
-                request.Arrival,
-                request.Departure,
-                allocation.Id,
-                cancellationToken).ConfigureAwait(false)
+        return conflicts.HasActiveAllocationConflict
             ? InventoryAllocationRejectionReason.AllocationConflict
             : null;
     }

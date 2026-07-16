@@ -39,6 +39,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             CreateCreateCommand(commands.Services, globalOptions),
             CreateCancelCommand(commands.Services, globalOptions),
             CreateLinkGuestCommand(commands.Services, globalOptions),
+            ReservationInventoryAdminCliCommand.Create(commands.Services, globalOptions),
             CreateStayLifecycleCommand(
                 commands.Services,
                 globalOptions,
@@ -101,7 +102,9 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                     Result<ReservationListResponse> result = await dispatcher.QueryAsync(
                         new ListReservationsQuery(
                             parseResult.GetRequiredValue(propertyOption),
-                            status,
+                            status.HasValue ? [status.Value] : null,
+                            null,
+                            ReservationListOrder.CreatedDescending,
                             parseResult.GetValue(pageOption),
                             parseResult.GetValue(pageSizeOption)),
                         token).ConfigureAwait(false);
@@ -142,6 +145,8 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
         Option<Guid> propertyOption = PropertyOption();
         Option<string> arrivalOption = RequiredString("--arrival");
         Option<string> departureOption = RequiredString("--departure");
+        Option<string?> expectedArrivalTimeOption = new("--expected-arrival-time");
+        Option<string?> expectedDepartureTimeOption = new("--expected-departure-time");
         Option<string> unitIdsOption = RequiredString("--unit-ids");
         Option<string> guestNameOption = RequiredString("--guest-name");
         Option<int> guestCountOption = new("--guest-count") { DefaultValueFactory = _ => 1 };
@@ -155,6 +160,8 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             propertyOption,
             arrivalOption,
             departureOption,
+            expectedArrivalTimeOption,
+            expectedDepartureTimeOption,
             unitIdsOption,
             guestNameOption,
             guestCountOption,
@@ -181,6 +188,12 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                         return Result.Failure<ReservationDto>(ReservationsApplicationErrors.StayRangeInvalid);
                     }
 
+                    if (!TryParseOptionalTime(parseResult.GetValue(expectedArrivalTimeOption), out TimeOnly? expectedArrivalTime) ||
+                        !TryParseOptionalTime(parseResult.GetValue(expectedDepartureTimeOption), out TimeOnly? expectedDepartureTime))
+                    {
+                        return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ExpectedStayTimeInvalid);
+                    }
+
                     if (!TryParseUnitIds(parseResult.GetRequiredValue(unitIdsOption), out Guid[] unitIds))
                     {
                         return Result.Failure<ReservationDto>(ReservationsApplicationErrors.RequestedUnitsInvalid);
@@ -205,7 +218,9 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                             sourceKind,
                             sourceSystem,
                             sourceReference,
-                            parseResult.GetValue(notesOption)),
+                            parseResult.GetValue(notesOption),
+                            expectedArrivalTime,
+                            expectedDepartureTime),
                         token).ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
@@ -387,6 +402,8 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                 ("PropertyId", reservation => reservation.PropertyId.ToString()),
                 ("Arrival", reservation => reservation.Arrival.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
                 ("Departure", reservation => reservation.Departure.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                ("ExpectedArrival", reservation => reservation.ExpectedArrivalTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty),
+                ("ExpectedDeparture", reservation => reservation.ExpectedDepartureTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty),
                 ("Guest", reservation => reservation.PrimaryGuestName),
                 ("Status", reservation => reservation.Status.ToString()),
                 ("Units", reservation => string.Join(',', reservation.InventoryUnitIds)),
@@ -404,6 +421,24 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
 
     private static bool TryParseDate(string value, out DateOnly date) =>
         DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
+
+    private static bool TryParseOptionalTime(string? value, out TimeOnly? time)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            time = null;
+            return true;
+        }
+
+        bool parsed = TimeOnly.TryParseExact(
+            value.Trim(),
+            "HH:mm",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out TimeOnly result);
+        time = parsed ? result : null;
+        return parsed;
+    }
 
     private static bool TryParseUnitIds(string value, out Guid[] unitIds)
     {

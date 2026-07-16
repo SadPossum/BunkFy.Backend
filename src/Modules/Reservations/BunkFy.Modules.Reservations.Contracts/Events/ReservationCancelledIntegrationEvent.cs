@@ -18,15 +18,26 @@ public sealed record ReservationCancelledIntegrationEvent : TenantIntegrationEve
         DateTimeOffset occurredAtUtc,
         Guid reservationId,
         Guid propertyId,
-        long reservationVersion)
+        long reservationVersion,
+        string? actorId = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.ReservationId = IntegrationEventContractGuards.RequireId(reservationId, nameof(reservationId));
         this.PropertyId = IntegrationEventContractGuards.RequireId(propertyId, nameof(propertyId));
         this.ReservationVersion = reservationVersion > 0 ? reservationVersion : throw new ArgumentOutOfRangeException(nameof(reservationVersion));
+        this.ActorId = OptionalActor(actorId);
     }
 
     public Guid ReservationId { get; }
     public Guid PropertyId { get; }
     public long ReservationVersion { get; }
+    public string? ActorId { get; }
+
+    private static string? OptionalActor(string? value)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return normalized is null || normalized.Length <= ReservationsContractLimits.ActorIdMaxLength
+            ? normalized
+            : throw new ArgumentException("Actor id is invalid.", nameof(value));
+    }
 }

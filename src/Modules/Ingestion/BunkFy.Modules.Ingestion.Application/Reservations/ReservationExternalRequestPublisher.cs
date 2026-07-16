@@ -30,7 +30,8 @@ internal sealed class ReservationExternalRequestPublisher(
                 idGenerator.NewId(), receipt.ScopeId, clock.UtcNow, operationId, receipt.Id, receipt.ConnectionId,
                 receipt.PropertyId, link.SourceSystem, receipt.ExternalId, observation.Arrival!.Value,
                 observation.Departure!.Value, observation.InventoryUnitIds, observation.PrimaryGuestName!,
-                observation.Email, observation.Phone, observation.GuestCount!.Value, observation.Notes), cancellationToken)
+                observation.Email, observation.Phone, observation.GuestCount!.Value, observation.Notes,
+                observation.ExpectedArrivalTime, observation.ExpectedDepartureTime), cancellationToken)
                 .ConfigureAwait(false);
             return;
         }
@@ -56,7 +57,8 @@ internal sealed class ReservationExternalRequestPublisher(
                 receipt.PropertyId, reservationId, link.SourceSystem, receipt.ExternalId,
                 requiredExpectedRevision, observation.Arrival!.Value, observation.Departure!.Value,
                 observation.InventoryUnitIds, observation.PrimaryGuestName!, observation.Email, observation.Phone,
-                observation.GuestCount!.Value, observation.Notes), cancellationToken).ConfigureAwait(false);
+                observation.GuestCount!.Value, observation.Notes, observation.ExpectedArrivalTime,
+                observation.ExpectedDepartureTime), cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -64,6 +66,7 @@ internal sealed class ReservationExternalRequestPublisher(
             idGenerator.NewId(), receipt.ScopeId, clock.UtcNow, operationId, receipt.Id, receipt.ConnectionId,
             receipt.PropertyId, reservationId, link.SourceSystem, receipt.ExternalId,
             requiredExpectedRevision, observation.PrimaryGuestName!, observation.Email, observation.Phone,
-            observation.GuestCount!.Value, observation.Notes), cancellationToken).ConfigureAwait(false);
+            observation.GuestCount!.Value, observation.Notes, observation.ExpectedArrivalTime,
+            observation.ExpectedDepartureTime), cancellationToken).ConfigureAwait(false);
     }
 }

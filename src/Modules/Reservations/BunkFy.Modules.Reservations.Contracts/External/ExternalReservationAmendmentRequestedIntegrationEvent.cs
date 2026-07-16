@@ -10,7 +10,7 @@ using Gma.Framework.Tenancy.Messaging;
 public sealed record ExternalReservationAmendmentRequestedIntegrationEvent : TenantIntegrationEvent
 {
     public const string EventType = "external-reservation-amendment-requested";
-    public const int EventVersion = 1;
+    public const int EventVersion = 2;
 
     public ExternalReservationAmendmentRequestedIntegrationEvent(
         Guid eventId,
@@ -31,7 +31,9 @@ public sealed record ExternalReservationAmendmentRequestedIntegrationEvent : Ten
         string? email,
         string? phone,
         int guestCount,
-        string? notes)
+        string? notes,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         ExternalReservationContractGuards.Common(operationId, receiptId, connectionId, propertyId);
@@ -53,6 +55,8 @@ public sealed record ExternalReservationAmendmentRequestedIntegrationEvent : Ten
             : throw new ArgumentOutOfRangeException(nameof(expectedDetailsRevision));
         this.Arrival = arrival;
         this.Departure = departure > arrival ? departure : throw new ArgumentOutOfRangeException(nameof(departure));
+        this.ExpectedArrivalTime = ExternalReservationContractGuards.ExpectedTime(expectedArrivalTime, nameof(expectedArrivalTime));
+        this.ExpectedDepartureTime = ExternalReservationContractGuards.ExpectedTime(expectedDepartureTime, nameof(expectedDepartureTime));
         ArgumentNullException.ThrowIfNull(inventoryUnitIds);
         Guid[] units = inventoryUnitIds.ToArray();
         if (units.Length is 0 or > ReservationsContractLimits.MaximumRequestedUnits ||
@@ -82,6 +86,8 @@ public sealed record ExternalReservationAmendmentRequestedIntegrationEvent : Ten
     public long ExpectedDetailsRevision { get; }
     public DateOnly Arrival { get; }
     public DateOnly Departure { get; }
+    public TimeOnly? ExpectedArrivalTime { get; }
+    public TimeOnly? ExpectedDepartureTime { get; }
     public IReadOnlyCollection<Guid> InventoryUnitIds { get; }
     public string PrimaryGuestName { get; }
     public string? Email { get; }

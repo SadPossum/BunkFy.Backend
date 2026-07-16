@@ -6,5 +6,6 @@ using BunkFy.Modules.Inventory.Contracts;
 public sealed record ReleaseManualInventoryBlockCommand(
     Guid PropertyId,
     Guid BlockId,
-    long ExpectedVersion)
+    long ExpectedVersion,
+    string? ActorId = null)
     : ITransactionalCommand<ManualInventoryBlockDto>;

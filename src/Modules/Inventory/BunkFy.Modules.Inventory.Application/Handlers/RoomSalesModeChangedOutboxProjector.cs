@@ -23,7 +23,8 @@ internal sealed class RoomSalesModeChangedOutboxProjector(
                 domainEvent.SalesMode == RoomSalesMode.RoomLevel
                     ? InventorySalesMode.RoomLevel
                     : InventorySalesMode.BedLevel,
-                domainEvent.ConfigurationVersion),
+                domainEvent.ConfigurationVersion,
+                domainEvent.ActorId),
             cancellationToken).ConfigureAwait(false);
         await definitions.PublishRoomAsync(
             domainEvent.PropertyId,

@@ -14,6 +14,7 @@ using BunkFy.Modules.Properties.Contracts;
 internal sealed class ConfigureRoomSalesModeCommandHandler(
     IInventoryTopologyRepository topologyRepository,
     IRoomInventoryConfigurationRepository configurationRepository,
+    IInventoryAvailabilityRepository availability,
     IInventoryReadRepository readRepository,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -52,11 +53,23 @@ internal sealed class ConfigureRoomSalesModeCommandHandler(
         RoomSalesMode salesMode = command.SalesMode == InventorySalesMode.RoomLevel
             ? RoomSalesMode.RoomLevel
             : RoomSalesMode.BedLevel;
+        if (configuration.SalesMode != salesMode)
+        {
+            RoomInventoryImpactSnapshot? impact = await availability
+                .GetRoomImpactAsync(command.PropertyId, command.RoomId, cancellationToken)
+                .ConfigureAwait(false);
+            if (impact?.PreventsSalesModeChange == true)
+            {
+                return Result.Failure<RoomInventoryDto>(InventoryApplicationErrors.RoomHasActiveClaims);
+            }
+        }
+
         Result result = configuration.Configure(
             salesMode,
             command.ExpectedVersion,
             idGenerator.NewId(),
-            clock.UtcNow);
+            clock.UtcNow,
+            command.ActorId);
         if (result.IsFailure)
         {
             return Result.Failure<RoomInventoryDto>(result.Error);

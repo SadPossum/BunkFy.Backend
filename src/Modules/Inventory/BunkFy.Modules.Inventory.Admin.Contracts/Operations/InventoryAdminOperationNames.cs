@@ -8,4 +8,10 @@ public static class InventoryAdminOperationNames
     public const string BlocksList = "inventory.blocks.list";
     public const string BlocksCreate = "inventory.blocks.create";
     public const string BlocksRelease = "inventory.blocks.release";
+    public const string BedRetirementsGet = "inventory.bed-retirements.get";
+    public const string BedRetirementsRequest = "inventory.bed-retirements.request";
+    public const string BedRetirementsRetry = "inventory.bed-retirements.retry";
+    public const string RoomRetirementsGet = "inventory.room-retirements.get";
+    public const string RoomRetirementsRequest = "inventory.room-retirements.request";
+    public const string RoomRetirementsRetry = "inventory.room-retirements.retry";
 }

@@ -13,6 +13,10 @@ public static class PropertiesIntegrationSubjects
     public static string BedAdded => CreateBedAdded();
     public static string BedUpdated => CreateBedUpdated();
     public static string BedRetired => CreateBedRetired();
+    public static string BedRetirementFinalized => CreateBedRetirementFinalized();
+    public static string BedRetirementFinalizationRejected => CreateBedRetirementFinalizationRejected();
+    public static string RoomRetirementFinalized => CreateRoomRetirementFinalized();
+    public static string RoomRetirementFinalizationRejected => CreateRoomRetirementFinalizationRejected();
 
     public static string CreatePropertyCreated(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, PropertyCreatedIntegrationEvent.EventType, PropertyCreatedIntegrationEvent.EventVersion);
@@ -40,4 +44,16 @@ public static class PropertiesIntegrationSubjects
 
     public static string CreateBedRetired(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, BedRetiredIntegrationEvent.EventType, BedRetiredIntegrationEvent.EventVersion);
+
+    public static string CreateBedRetirementFinalized(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, BedRetirementFinalizedIntegrationEvent.EventType, BedRetirementFinalizedIntegrationEvent.EventVersion);
+
+    public static string CreateBedRetirementFinalizationRejected(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, BedRetirementFinalizationRejectedIntegrationEvent.EventType, BedRetirementFinalizationRejectedIntegrationEvent.EventVersion);
+
+    public static string CreateRoomRetirementFinalized(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, RoomRetirementFinalizedIntegrationEvent.EventType, RoomRetirementFinalizedIntegrationEvent.EventVersion);
+
+    public static string CreateRoomRetirementFinalizationRejected(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, RoomRetirementFinalizationRejectedIntegrationEvent.EventType, RoomRetirementFinalizationRejectedIntegrationEvent.EventVersion);
 }

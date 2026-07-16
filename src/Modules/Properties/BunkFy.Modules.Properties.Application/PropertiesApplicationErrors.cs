@@ -23,4 +23,6 @@ public static class PropertiesApplicationErrors
     public static readonly Error BedNotFound = PropertiesDomainErrors.BedNotFound;
     public static readonly Error BedStatusUnknown = PropertiesDomainErrors.BedStatusUnknown;
     public static readonly Error BedAlreadyRetired = PropertiesDomainErrors.BedAlreadyRetired;
+    public static readonly Error BedRetirementRequiresInventory = PropertiesDomainErrors.BedRetirementRequiresInventory;
+    public static readonly Error RoomRetirementRequiresInventory = PropertiesDomainErrors.RoomRetirementRequiresInventory;
 }

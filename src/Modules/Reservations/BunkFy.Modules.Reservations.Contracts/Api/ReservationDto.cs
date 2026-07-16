@@ -7,6 +7,8 @@ public sealed record ReservationDto(
     Guid PropertyId,
     DateOnly Arrival,
     DateOnly Departure,
+    TimeOnly? ExpectedArrivalTime,
+    TimeOnly? ExpectedDepartureTime,
     IReadOnlyCollection<Guid> InventoryUnitIds,
     string PrimaryGuestName,
     string? Email,

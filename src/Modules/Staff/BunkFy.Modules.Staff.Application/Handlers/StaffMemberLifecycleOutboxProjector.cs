@@ -12,5 +12,5 @@ internal sealed class StaffMemberLifecycleOutboxProjector(IOutboxWriterRegistry 
     public Task HandleAsync(StaffMemberLifecycleChangedDomainEvent e, CancellationToken cancellationToken) =>
         writers.GetRequired(StaffModuleMetadata.Name).EnqueueAsync(new StaffMemberLifecycleChangedIntegrationEvent(
             e.EventId, e.ScopeId, e.OccurredAtUtc, e.StaffMemberId,
-            StaffMappings.MapStatus(e.Status), e.EffectiveOn, e.StaffVersion), cancellationToken);
+            StaffMappings.MapStatus(e.Status), e.EffectiveOn, e.StaffVersion, e.ActorId), cancellationToken);
 }

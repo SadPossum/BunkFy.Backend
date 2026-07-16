@@ -43,53 +43,6 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
 
-    public Task<bool> HasActiveOverlapAsync(
-        Guid inventoryUnitId,
-        DateOnly arrival,
-        DateOnly departure,
-        CancellationToken cancellationToken) =>
-        dbContext.ManualBlocks.AnyAsync(
-            block => block.InventoryUnitId == inventoryUnitId &&
-                     block.Status == ManualInventoryBlockState.Active &&
-                     block.Arrival < departure &&
-                     arrival < block.Departure,
-            cancellationToken);
-
-    public Task<bool> HasAnyActiveOverlapAsync(
-        IReadOnlyCollection<Guid> inventoryUnitIds,
-        DateOnly arrival,
-        DateOnly departure,
-        CancellationToken cancellationToken) =>
-        dbContext.ManualBlocks.AnyAsync(
-            block => inventoryUnitIds.Contains(block.InventoryUnitId) &&
-                     block.Status == ManualInventoryBlockState.Active &&
-                     block.Arrival < departure &&
-                     arrival < block.Departure,
-            cancellationToken);
-
-    public async Task TouchUnitAsync(Guid inventoryUnitId, CancellationToken cancellationToken)
-    {
-        InventoryUnit unit = await dbContext.InventoryUnits
-            .SingleAsync(item => item.Id == inventoryUnitId, cancellationToken)
-            .ConfigureAwait(false);
-        unit.TouchAvailability();
-    }
-
-    public async Task TouchUnitsAsync(
-        IReadOnlyCollection<Guid> inventoryUnitIds,
-        CancellationToken cancellationToken)
-    {
-        InventoryUnit[] units = await dbContext.InventoryUnits
-            .Where(unit => inventoryUnitIds.Contains(unit.Id))
-            .OrderBy(unit => unit.Id)
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-        foreach (InventoryUnit unit in units)
-        {
-            unit.TouchAvailability();
-        }
-    }
-
     public async Task<ManualInventoryBlockListResponse> ListAsync(
         Guid propertyId,
         Guid? inventoryUnitId,

@@ -6,6 +6,7 @@ using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -34,8 +35,10 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IReservationExternalOperationRepository, ReservationExternalOperationRepository>();
         builder.Services.TryAddScoped<IInventoryProjectionRepository, InventoryProjectionRepository>();
         builder.Services.TryAddScoped<IReservationGuestProfileProjectionRepository, ReservationGuestProfileProjectionRepository>();
+        builder.Services.TryAddScoped<IReservationArrivalReminderRepository, ReservationArrivalReminderRepository>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<InventoryAvailabilityProjectionExport>, InventoryProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<GuestProfileEligibilityProjectionExport>, ReservationGuestProfilesProjectionRebuildWriter>();
+        builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, ReservationPropertyProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IReservationGuestStayProjectionExportSource, ReservationGuestStayProjectionExportSource>();
 
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, ReservationsUnitOfWork>());

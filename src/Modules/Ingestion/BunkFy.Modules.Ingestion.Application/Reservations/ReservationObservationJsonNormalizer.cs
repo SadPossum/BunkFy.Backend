@@ -34,6 +34,7 @@ internal static class ReservationObservationJsonNormalizer
             if (kind == NormalizedReservationObservationKind.Unknown || document.SourceSequence < 0 ||
                 (kind == NormalizedReservationObservationKind.Upsert &&
                  (!document.Arrival.HasValue || !document.Departure.HasValue || document.Departure <= document.Arrival ||
+                  !HasMinutePrecision(document.ExpectedArrivalTime) || !HasMinutePrecision(document.ExpectedDepartureTime) ||
                   units.Length == 0 || units.Any(id => id == Guid.Empty) || units.Distinct().Count() != units.Length ||
                   string.IsNullOrWhiteSpace(document.PrimaryGuestName) || document.GuestCount <= 0)))
             {
@@ -50,7 +51,9 @@ internal static class ReservationObservationJsonNormalizer
                 Normalize(document.Email),
                 Normalize(document.Phone),
                 document.GuestCount,
-                Normalize(document.Notes)));
+                Normalize(document.Notes),
+                document.ExpectedArrivalTime,
+                document.ExpectedDepartureTime));
         }
         catch (JsonException)
         {
@@ -63,6 +66,9 @@ internal static class ReservationObservationJsonNormalizer
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool HasMinutePrecision(TimeOnly? value) =>
+        !value.HasValue || value.Value.Ticks % TimeSpan.TicksPerMinute == 0;
 
     private sealed class ReservationDocument
     {
@@ -77,6 +83,12 @@ internal static class ReservationObservationJsonNormalizer
 
         [JsonPropertyName("departure")]
         public DateOnly? Departure { get; init; }
+
+        [JsonPropertyName("expectedArrivalTime")]
+        public TimeOnly? ExpectedArrivalTime { get; init; }
+
+        [JsonPropertyName("expectedDepartureTime")]
+        public TimeOnly? ExpectedDepartureTime { get; init; }
 
         [JsonPropertyName("inventoryUnitIds")]
         public List<Guid>? InventoryUnitIds { get; init; }

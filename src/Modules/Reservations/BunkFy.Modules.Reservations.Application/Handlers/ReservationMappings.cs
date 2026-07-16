@@ -11,6 +11,8 @@ internal static class ReservationMappings
         reservation.PropertyId,
         reservation.Arrival,
         reservation.Departure,
+        reservation.ExpectedArrivalTime,
+        reservation.ExpectedDepartureTime,
         reservation.RequestedUnits.Select(unit => unit.InventoryUnitId).ToArray(),
         reservation.PrimaryGuestName,
         reservation.Email,

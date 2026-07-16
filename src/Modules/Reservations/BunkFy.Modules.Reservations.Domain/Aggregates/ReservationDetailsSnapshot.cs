@@ -10,10 +10,14 @@ public sealed record ReservationDetailsSnapshot
         string? email,
         string? phone,
         int guestCount,
-        string? notes)
+        string? notes,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
     {
         this.Arrival = arrival;
         this.Departure = departure;
+        this.ExpectedArrivalTime = expectedArrivalTime;
+        this.ExpectedDepartureTime = expectedDepartureTime;
         this.InventoryUnitIds = Array.AsReadOnly(inventoryUnitIds.ToArray());
         this.PrimaryGuestName = primaryGuestName;
         this.Email = email;
@@ -24,6 +28,8 @@ public sealed record ReservationDetailsSnapshot
 
     public DateOnly Arrival { get; }
     public DateOnly Departure { get; }
+    public TimeOnly? ExpectedArrivalTime { get; }
+    public TimeOnly? ExpectedDepartureTime { get; }
     public IReadOnlyCollection<Guid> InventoryUnitIds { get; }
     public string PrimaryGuestName { get; }
     public string? Email { get; }

@@ -23,7 +23,8 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
         DateOnly arrival,
         DateOnly departure,
         string reason,
-        long blockVersion)
+        long blockVersion,
+        string? actorId = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.BlockId = IntegrationEventContractGuards.RequireId(blockId, nameof(blockId));
@@ -40,6 +41,7 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
         this.BlockVersion = blockVersion > 0
             ? blockVersion
             : throw new ArgumentOutOfRangeException(nameof(blockVersion));
+        this.ActorId = OptionalActor(actorId);
     }
 
     public Guid BlockId { get; }
@@ -50,4 +52,13 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
     public DateOnly Departure { get; }
     public string Reason { get; }
     public long BlockVersion { get; }
+    public string? ActorId { get; }
+
+    private static string? OptionalActor(string? value)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return normalized is null || normalized.Length <= 200
+            ? normalized
+            : throw new ArgumentException("Actor id is invalid.", nameof(value));
+    }
 }

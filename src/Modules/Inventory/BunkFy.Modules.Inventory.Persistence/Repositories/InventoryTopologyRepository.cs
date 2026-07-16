@@ -177,6 +177,50 @@ internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) 
 
         Dictionary<Guid, InventoryRoomTopology> roomsById = rooms.ToDictionary(item => item.Id);
         Dictionary<Guid, RoomInventoryConfiguration> configurationsByRoom = configurations.ToDictionary(item => item.Id);
+        List<BedRetirementProcess> drains = roomIds.Length == 0
+            ? []
+            : await dbContext.BedRetirements
+                .Where(process => roomIds.Contains(process.RoomId) &&
+                    (process.State == InventoryRetirementProcessState.Draining ||
+                     process.State == InventoryRetirementProcessState.FinalizationRequested ||
+                     process.State == InventoryRetirementProcessState.FinalizedAwaitingTopology ||
+                     process.State == InventoryRetirementProcessState.Rejected))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        foreach (BedRetirementProcess local in dbContext.BedRetirements.Local.Where(process =>
+                     roomIds.Contains(process.RoomId) && BedRetirementProcess.IsDrainActive(process.State)))
+        {
+            if (drains.All(process => process.Id != local.Id))
+            {
+                drains.Add(local);
+            }
+        }
+
+        List<RoomRetirementProcess> roomDrains = roomIds.Length == 0
+            ? []
+            : await dbContext.RoomRetirements
+                .Where(process => roomIds.Contains(process.RoomId) &&
+                    (process.State == InventoryRetirementProcessState.Draining ||
+                     process.State == InventoryRetirementProcessState.FinalizationRequested ||
+                     process.State == InventoryRetirementProcessState.FinalizedAwaitingTopology ||
+                     process.State == InventoryRetirementProcessState.Rejected))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        foreach (RoomRetirementProcess local in dbContext.RoomRetirements.Local.Where(process =>
+                     roomIds.Contains(process.RoomId) && RoomRetirementProcess.IsDrainActive(process.State)))
+        {
+            if (roomDrains.All(process => process.Id != local.Id))
+            {
+                roomDrains.Add(local);
+            }
+        }
+
+        HashSet<Guid> drainedBedIds = drains.Select(process => process.BedId).ToHashSet();
+        HashSet<Guid> fullyDrainingRoomIds = roomDrains.Select(process => process.RoomId).ToHashSet();
+        HashSet<Guid> drainingRoomIds = drains
+            .Select(process => process.RoomId)
+            .Concat(fullyDrainingRoomIds)
+            .ToHashSet();
         List<InventoryUnitDefinitionSnapshot> snapshots = [];
         foreach (InventoryUnit unit in units.Where(item => item.IsKnown).OrderBy(item => item.RoomId).ThenBy(item => item.Id))
         {
@@ -194,7 +238,10 @@ internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) 
             RoomSalesMode salesMode = configuration?.SalesMode ?? RoomSalesMode.Unconfigured;
             bool sellable = topologyActive &&
                             ((unit.Kind == InventoryUnitKind.Room && salesMode == RoomSalesMode.RoomLevel) ||
-                             (unit.Kind == InventoryUnitKind.Bed && salesMode == RoomSalesMode.BedLevel));
+                             (unit.Kind == InventoryUnitKind.Bed && salesMode == RoomSalesMode.BedLevel)) &&
+                            (unit.Kind != InventoryUnitKind.Room || !drainingRoomIds.Contains(unit.RoomId)) &&
+                            (unit.Kind != InventoryUnitKind.Bed ||
+                             (!drainedBedIds.Contains(unit.Id) && !fullyDrainingRoomIds.Contains(unit.RoomId)));
             snapshots.Add(new(
                 unit.ScopeId,
                 unit.Id,
