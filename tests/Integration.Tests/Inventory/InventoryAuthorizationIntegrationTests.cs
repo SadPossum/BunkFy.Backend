@@ -36,7 +36,7 @@ using Xunit;
 
 public sealed class InventoryAuthorizationIntegrationTests
 {
-    private const string TenantA = "tenant-inventory-a";
+    private const string TenantA = "a2000000-0000-0000-0000-000000000001";
     private const string TenantHeader = "X-Tenant-Id";
     private static readonly Guid PropertyA = Guid.Parse("10000000-0000-0000-0000-00000000000a");
     private static readonly Guid PropertyB = Guid.Parse("10000000-0000-0000-0000-00000000000b");
@@ -92,6 +92,7 @@ public sealed class InventoryAuthorizationIntegrationTests
             TenantA,
             "operator@inventory.test").ConfigureAwait(false);
         Guid operatorId = GetSubjectId(operatorTokens.AccessToken);
+        await api.SeedOrganizationMembershipAsync(TenantA, operatorId).ConfigureAwait(false);
 
         using (HttpResponseMessage noGrant = await SendAsync(
                    client,

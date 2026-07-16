@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Ingestion.Persistence;
 
 using Gma.Framework.Cqrs.UnitOfWork;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +61,10 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IReservationDispatchRepository, ReservationDispatchRepository>();
         builder.Services.TryAddScoped<IChangeProposalRepository, ChangeProposalRepository>();
         builder.Services.TryAddScoped<IChangeProposalReader, ChangeProposalReader>();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(IngestionPersistenceRetryBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddScoped<IRawPayloadStore, IngestionRawPayloadStore>();
         builder.Services.TryAddSingleton<IIngestionRetentionPolicy>(
             ConfiguredIngestionRetentionPolicy.FromConfiguration(builder.Configuration));

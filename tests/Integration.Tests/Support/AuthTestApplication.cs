@@ -6,6 +6,9 @@ using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Modules.Auth.Application.Ports;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Organizations.Domain.Aggregates;
+using Gma.Modules.Organizations.Domain.Enums;
+using Gma.Modules.Organizations.Persistence;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Inventory.Persistence;
@@ -162,6 +165,8 @@ internal sealed class AuthTestApplication(
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<PropertiesDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
     }
@@ -201,8 +206,57 @@ internal sealed class AuthTestApplication(
     public async Task MigrateIngestionDatabaseAsync()
     {
         using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task SeedOrganizationMembershipAsync(string tenantId, Guid subjectId)
+    {
+        if (!Guid.TryParse(tenantId, out Guid organizationId) || organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("The product tenant id must be a non-empty organization id.", nameof(tenantId));
+        }
+
+        using IServiceScope scope = this.Services.CreateScope();
+        OrganizationsDbContext dbContext = scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>();
+        bool organizationExists = await dbContext.Organizations
+            .AnyAsync(item => item.Id == organizationId)
+            .ConfigureAwait(false);
+        string subject = subjectId.ToString("D");
+        string actor = $"user:{subject}";
+        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+
+        if (!organizationExists)
+        {
+            Organization organization = Organization.Create(
+                organizationId,
+                $"Integration {organizationId:N}",
+                $"integration-{organizationId:N}",
+                actor,
+                Guid.NewGuid(),
+                nowUtc).Value;
+            dbContext.Organizations.Add(organization);
+        }
+
+        bool membershipExists = await dbContext.Memberships
+            .AnyAsync(item => item.OrganizationId == organizationId && item.SubjectId == subject)
+            .ConfigureAwait(false);
+        if (!membershipExists)
+        {
+            OrganizationMembership membership = OrganizationMembership.Create(
+                Guid.NewGuid(),
+                organizationId,
+                subject,
+                organizationExists ? OrganizationMembershipRole.Member : OrganizationMembershipRole.Owner,
+                actor,
+                Guid.NewGuid(),
+                nowUtc).Value;
+            dbContext.Memberships.Add(membership);
+        }
+
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
     }
 
     public async Task<Guid> AddOutboxMessageAsync(DateTimeOffset nowUtc)

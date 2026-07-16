@@ -493,7 +493,7 @@ public sealed class IngestionModule : IModule
 
             return Results.Ok(new AdapterIngressSubmissionResponse(results));
         })
-            .RequireTenant()
+            .RequireTenantWithIndependentAuthentication()
             .WithMetadata(new RequestSizeLimitAttribute(AdapterIngressContractLimits.MaximumHttpRequestBodyBytes));
 
         group.MapPost("/{connectionId:guid}/remote-leases/claim", async (
@@ -527,7 +527,7 @@ public sealed class IngestionModule : IModule
                 return Results.Conflict();
             }
         })
-            .RequireTenant()
+            .RequireTenantWithIndependentAuthentication()
             .WithMetadata(new RequestSizeLimitAttribute(16 * 1024L));
 
         group.MapPost("/{connectionId:guid}/remote-leases/renew", async (
@@ -561,7 +561,7 @@ public sealed class IngestionModule : IModule
                 return Results.Conflict();
             }
         })
-            .RequireTenant()
+            .RequireTenantWithIndependentAuthentication()
             .WithMetadata(new RequestSizeLimitAttribute(16 * 1024L));
 
         group.MapPost("/{connectionId:guid}/remote-leases/observations", async (
@@ -663,7 +663,7 @@ public sealed class IngestionModule : IModule
                     checkpointAccepted,
                     acceptedCheckpoint)));
         })
-            .RequireTenant()
+            .RequireTenantWithIndependentAuthentication()
             .WithMetadata(new RequestSizeLimitAttribute(AdapterIngressContractLimits.MaximumHttpRequestBodyBytes));
 
         group.MapPost("/{connectionId:guid}/remote-leases/complete", async (
@@ -697,7 +697,7 @@ public sealed class IngestionModule : IModule
                 return Results.Conflict();
             }
         })
-            .RequireTenant()
+            .RequireTenantWithIndependentAuthentication()
             .WithMetadata(new RequestSizeLimitAttribute(32 * 1024L));
     }
 

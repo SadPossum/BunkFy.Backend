@@ -33,7 +33,7 @@ using Xunit;
 
 public sealed class ReservationsSagaIntegrationTests
 {
-    private const string TenantId = "tenant-reservations-saga";
+    private const string TenantId = "a3000000-0000-0000-0000-000000000001";
     private const string TenantHeader = "X-Tenant-Id";
     private static readonly Guid PropertyId = Guid.Parse("71000000-0000-0000-0000-000000000001");
     private static readonly Guid OtherPropertyId = Guid.Parse("71000000-0000-0000-0000-000000000002");
@@ -76,6 +76,7 @@ public sealed class ReservationsSagaIntegrationTests
                 TenantId,
                 "operator@reservations.test").ConfigureAwait(false);
             Guid operatorId = GetSubjectId(tokens.AccessToken);
+            await api.SeedOrganizationMembershipAsync(TenantId, operatorId).ConfigureAwait(false);
             await GrantReservationsAccessAsync(admin, operatorId).ConfigureAwait(false);
 
             GuestProfileDto canonicalGuest = await CreateGuestAsync(

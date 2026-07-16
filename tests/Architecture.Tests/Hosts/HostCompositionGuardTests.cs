@@ -27,6 +27,7 @@ public sealed class HostCompositionGuardTests
             "builder.AddModule<OrganizationsModule>();",
             "builder.Services.AddAuthNotificationsExtension();",
             "builder.Services.AddAuthOrganizationsExtension(options => options.GlobalAuthScopeId = authScopeId);",
+            "builder.Services.AddOrganizationsTenancyExtension();",
             "builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);",
             "builder.Services.AddBunkFyOperationsNotifications();",
             "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",

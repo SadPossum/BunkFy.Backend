@@ -25,7 +25,7 @@ using Xunit;
 
 public sealed class StaffAuthorizationIntegrationTests
 {
-    private const string TenantId = "tenant-staff-a";
+    private const string TenantId = "a4000000-0000-0000-0000-000000000001";
     private const string TenantHeader = "X-Tenant-Id";
 
     [DockerFact]
@@ -58,6 +58,8 @@ public sealed class StaffAuthorizationIntegrationTests
                 "assigned@staff.test").ConfigureAwait(false);
             Guid managerId = GetSubjectId(managerTokens.AccessToken);
             Guid assignedUserId = GetSubjectId(assignedTokens.AccessToken);
+            await api.SeedOrganizationMembershipAsync(TenantId, managerId).ConfigureAwait(false);
+            await api.SeedOrganizationMembershipAsync(TenantId, assignedUserId).ConfigureAwait(false);
 
             await ConfigureAccessAsync(admin, managerId).ConfigureAwait(false);
             PropertyDto propertyA = await CreatePropertyAsync(client, managerTokens.AccessToken,

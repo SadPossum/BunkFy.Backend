@@ -43,7 +43,7 @@ using Xunit;
 
 public sealed class IngestionOperationsIntegrationTests
 {
-    private const string TenantId = "tenant-ingestion-operations";
+    private const string TenantId = "a5000000-0000-0000-0000-000000000001";
     private const string AccessKey = "minioadmin";
     private const string SecretKey = "minioadmin";
     private static readonly Guid PropertyId = Guid.Parse("91000000-0000-0000-0000-000000000001");
@@ -92,8 +92,10 @@ public sealed class IngestionOperationsIntegrationTests
             client,
             TenantId,
             "operator@ingestion.test").ConfigureAwait(false);
+        Guid operatorId = GetSubjectId(tokens.AccessToken);
+        await api.SeedOrganizationMembershipAsync(TenantId, operatorId).ConfigureAwait(false);
         Guid adminActorId = Guid.NewGuid();
-        await GrantAccessAsync(admin, GetSubjectId(tokens.AccessToken), adminActorId).ConfigureAwait(false);
+        await GrantAccessAsync(admin, operatorId, adminActorId).ConfigureAwait(false);
         await using AdminApiTestApplication adminApi = new(
             "PostgreSql",
             connectionString,

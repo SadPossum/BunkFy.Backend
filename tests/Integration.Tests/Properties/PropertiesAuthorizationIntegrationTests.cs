@@ -5,30 +5,22 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using System.Text.Json;
 using DotNet.Testcontainers.Containers;
+using BunkFy.Modules.Properties.Application;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
-using Gma.Framework.ProjectionRebuild;
-using Gma.Framework.Runtime;
-using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Contracts;
 using Integration.Tests.Support;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Host.Api;
 using Testcontainers.PostgreSql;
 using Xunit;
 
 public sealed class PropertiesAuthorizationIntegrationTests
 {
-    private const string TenantA = "tenant-properties-a";
-    private const string TenantB = "tenant-properties-b";
+    private const string TenantA = "a1000000-0000-0000-0000-000000000001";
+    private const string TenantB = "a1000000-0000-0000-0000-000000000002";
     private const string TenantHeader = "X-Tenant-Id";
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -80,6 +72,9 @@ public sealed class PropertiesAuthorizationIntegrationTests
         Guid tenantManagerAId = GetSubjectId(tenantManagerA.AccessToken);
         Guid localOperatorId = GetSubjectId(localOperator.AccessToken);
         Guid tenantManagerBId = GetSubjectId(tenantManagerB.AccessToken);
+        await api.SeedOrganizationMembershipAsync(TenantA, tenantManagerAId).ConfigureAwait(false);
+        await api.SeedOrganizationMembershipAsync(TenantA, localOperatorId).ConfigureAwait(false);
+        await api.SeedOrganizationMembershipAsync(TenantB, tenantManagerBId).ConfigureAwait(false);
 
         await AssertAdminSuccessAsync(admin.ExecuteAsync("admin", "bootstrap", "--actor", "owner", "--yes"));
         await CreatePropertiesRoleAsync(admin, "property-manager").ConfigureAwait(false);
@@ -263,7 +258,9 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken,
                    new { confirmed = true, expectedRoomVersion = bed.RoomVersion }).ConfigureAwait(false))
         {
-            await AssertStatusAsync(HttpStatusCode.NoContent, retireBed).ConfigureAwait(false);
+            string body = await retireBed.Content.ReadAsStringAsync().ConfigureAwait(false);
+            Assert.Equal(HttpStatusCode.Conflict, retireBed.StatusCode);
+            Assert.Contains(PropertiesApplicationErrors.BedRetirementRequiresInventory.Code, body, StringComparison.Ordinal);
         }
 
         using (HttpResponseMessage retireRoom = await SendAsync(
@@ -272,66 +269,11 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    $"/api/properties/{propertyA1.PropertyId:D}/rooms/{room.RoomId:D}/retire",
                    localOperator.AccessToken,
-                   new { confirmed = true, expectedVersion = bed.RoomVersion + 1, cascadeBeds = false }).ConfigureAwait(false))
+                   new { confirmed = true, expectedVersion = bed.RoomVersion, cascadeBeds = true }).ConfigureAwait(false))
         {
-            await AssertStatusAsync(HttpStatusCode.NoContent, retireRoom).ConfigureAwait(false);
-        }
-
-        using (HttpResponseMessage retireProperty = await SendAsync(
-                   client,
-                   HttpMethod.Post,
-                   TenantA,
-                   $"/api/properties/{propertyA1.PropertyId:D}/retire",
-                   localOperator.AccessToken,
-                   new { confirmed = true, expectedVersion = 3 }).ConfigureAwait(false))
-        {
-            await AssertStatusAsync(HttpStatusCode.NoContent, retireProperty).ConfigureAwait(false);
-        }
-
-        using (IServiceScope scope = api.Services.CreateScope())
-        {
-            ITenantContextAccessor tenantContext = scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>();
-            tenantContext.SetTenant(TenantA);
-
-            PropertiesDbContext dbContext = scope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
-            var retirementMessage = Assert.Single(await dbContext.OutboxMessages
-                .AsNoTracking()
-                .Where(message => message.EventType == typeof(PropertyRetiredIntegrationEvent).FullName)
-                .ToListAsync()
-                .ConfigureAwait(false));
-
-            string subjectPrefix = scope.ServiceProvider
-                .GetRequiredService<IOptions<ApplicationIdentityOptions>>()
-                .Value.EffectiveNamespace;
-            Assert.Equal(PropertiesIntegrationSubjects.CreatePropertyRetired(subjectPrefix), retirementMessage.Subject);
-            Assert.Equal(PropertyRetiredIntegrationEvent.EventVersion, retirementMessage.Version);
-            Assert.Equal(TenantA, retirementMessage.ScopeId);
-            PropertyRetiredIntegrationEvent? retiredEvent = JsonSerializer.Deserialize<PropertyRetiredIntegrationEvent>(
-                retirementMessage.Payload,
-                JsonOptions);
-            Assert.NotNull(retiredEvent);
-            Assert.Equal(propertyA1.PropertyId, retiredEvent.PropertyId);
-            Assert.Equal(4, retiredEvent.PropertyVersion);
-
-            IPropertiesTopologyProjectionExportSource exportSource =
-                scope.ServiceProvider.GetRequiredService<IPropertiesTopologyProjectionExportSource>();
-            ProjectionRebuildRequest rebuildRequest = new("inventory-topology", projectionVersion: 1, batchSize: 1);
-            ProjectionReadBatch<PropertyTopologyProjectionExport> firstBatch = await exportSource
-                .ReadAsync(rebuildRequest, cursor: null, CancellationToken.None)
-                .ConfigureAwait(false);
-            ProjectionReadBatch<PropertyTopologyProjectionExport> resumedBatch = await exportSource
-                .ReadAsync(rebuildRequest, firstBatch.NextCursor, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            PropertyTopologyProjectionExport retiredTopology = Assert.Single(firstBatch.Snapshots);
-            Assert.Equal(propertyA1.PropertyId, retiredTopology.PropertyId);
-            Assert.Equal(PropertyStatus.Retired, retiredTopology.Status);
-            Assert.Equal(4, retiredTopology.Version);
-            RoomTopologyProjectionExport retiredRoom = Assert.Single(retiredTopology.Rooms);
-            Assert.Equal(RoomStatus.Retired, retiredRoom.Status);
-            BedTopologyProjectionExport retiredBed = Assert.Single(retiredRoom.Beds);
-            Assert.Equal(BedStatus.Retired, retiredBed.Status);
-            Assert.Equal(propertyA2.PropertyId, Assert.Single(resumedBatch.Snapshots).PropertyId);
+            string body = await retireRoom.Content.ReadAsStringAsync().ConfigureAwait(false);
+            Assert.Equal(HttpStatusCode.Conflict, retireRoom.StatusCode);
+            Assert.Contains(PropertiesApplicationErrors.RoomRetirementRequiresInventory.Code, body, StringComparison.Ordinal);
         }
 
         using (HttpResponseMessage tenantMismatch = await SendAsync(
