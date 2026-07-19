@@ -49,6 +49,7 @@ The baseline backend stack is intentionally already wired before product modules
 
 - `BunkFy.Host.Api` composes Tenancy, global-account Auth with the optional TOTP authenticator, Files, Notifications, MinIO file storage, NATS/JetStream messaging, caching hooks, OpenAPI, and service defaults.
 - `BunkFy.Host.AdminApi` and `BunkFy.Host.AdminCli` compose Administration, tenant-scoped Auth admin surfaces, TaskRuntime controls, and BunkFy product administration surfaces.
+- Administration audit reads use `Administration:Audit:DefaultPageSize` and `Administration:Audit:MaxPageSize`; purge batches use `Administration:Audit:DefaultPurgeBatchSize` and `Administration:Audit:MaxPurgeBatchSize`.
 - `BunkFy.Host.Worker` is present from the start. Enabling `AppHost:Worker:Enabled=true` runs the worker with NATS publishing, Auth support, TaskRuntime persistence, and the task worker loop.
 - PostgreSQL is the default persistence provider and normal Aspire database. SQL Server remains available only where a composed reusable GMA module retains that provider.
 - MinIO is the default storage path for local and development environments. Local disk storage remains only as an adapter/test reference.

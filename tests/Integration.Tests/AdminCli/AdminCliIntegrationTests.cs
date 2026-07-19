@@ -4,6 +4,7 @@ using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
 using Gma.Modules.AccessControl.Application;
+using Gma.Modules.Administration.Admin.Contracts;
 using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
@@ -84,6 +85,72 @@ public sealed class AdminCliIntegrationTests
             "--target-actor", "support",
             "--role", "support",
             "--scope", "tenant:tenant-admin"));
+
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "create",
+            "--actor", "owner",
+            "--name", "audit-reader"));
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "grant",
+            "--actor", "owner",
+            "--role", "audit-reader",
+            "--permission", AdministrationAdminPermissions.AuditRead.Code));
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "assign",
+            "--actor", "owner",
+            "--target-actor", "audit-support",
+            "--role", "audit-reader",
+            "--scope", "tenant:tenant-admin"));
+
+        AdminCliResult tenantScopedAuditDenied = await application.ExecuteAsync(
+            "administration", "audit", "list",
+            "--actor", "audit-support",
+            "--tenant", "tenant-admin");
+        Assert.Equal(AdminExitCodes.Unauthorized, tenantScopedAuditDenied.ExitCode);
+
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "assign",
+            "--actor", "owner",
+            "--target-actor", "audit-support",
+            "--role", "audit-reader"));
+        AdminCliResult auditList = await AssertSuccess(application.ExecuteAsync(
+            "administration", "audit", "list",
+            "--actor", "audit-support",
+            "--operation", AdministrationAdminOperationNames.AuditList,
+            "--limit", "1",
+            "--output", "json"));
+        Assert.Contains(AdministrationAdminOperationNames.AuditList, auditList.Output, StringComparison.Ordinal);
+        await AssertSuccess(application.ExecuteAsync(
+            "administration", "audit", "list",
+            "--actor", "audit-support",
+            "--tenant", "tenant-admin",
+            "--limit", "1"));
+
+        AdminCliResult purgeDenied = await application.ExecuteAsync(
+            "administration", "audit", "purge",
+            "--actor", "audit-support",
+            "--before", "2020-01-01T00:00:00Z",
+            "--yes");
+        Assert.Equal(AdminExitCodes.Unauthorized, purgeDenied.ExitCode);
+
+        await AssertSuccess(application.ExecuteAsync(
+            "admin", "roles", "grant",
+            "--actor", "owner",
+            "--role", "audit-reader",
+            "--permission", AdministrationAdminPermissions.AuditPurge.Code));
+        AdminCliResult unconfirmedPurge = await application.ExecuteAsync(
+            "administration", "audit", "purge",
+            "--actor", "audit-support",
+            "--before", "2020-01-01T00:00:00Z");
+        Assert.Equal(AdminExitCodes.Failed, unconfirmedPurge.ExitCode);
+        Assert.Contains(AdminErrors.ConfirmationRequired.Message, unconfirmedPurge.Error, StringComparison.Ordinal);
+        AdminCliResult purge = await AssertSuccess(application.ExecuteAsync(
+            "administration", "audit", "purge",
+            "--actor", "audit-support",
+            "--before", "2020-01-01T00:00:00Z",
+            "--batch-size", "10",
+            "--yes"));
+        Assert.Contains("Deleted 0 audit record(s).", purge.Output, StringComparison.Ordinal);
 
         await AssertSuccess(application.ExecuteAsync(
             "admin", "roles", "create",
@@ -206,6 +273,9 @@ public sealed class AdminCliIntegrationTests
             "auth", "members", "list",
             "--actor", "support",
             "--tenant", "tenant-admin"));
+        int disableConfirmationAuditCountBefore = await application
+            .CountAuditEntriesContainingAsync(AdminErrors.ConfirmationRequired.Code)
+            .ConfigureAwait(false);
         AdminCliResult missingDisableConfirmation = await application.ExecuteAsync(
             "auth", "members", "disable",
             "--actor", "support",
@@ -213,7 +283,9 @@ public sealed class AdminCliIntegrationTests
             "--member-id", memberId.ToString(),
             "--reason", "support request");
         Assert.Equal(AdminExitCodes.Failed, missingDisableConfirmation.ExitCode);
-        Assert.Equal(1, await application.CountAuditEntriesContainingAsync(AdminErrors.ConfirmationRequired.Code).ConfigureAwait(false));
+        Assert.Equal(
+            disableConfirmationAuditCountBefore + 1,
+            await application.CountAuditEntriesContainingAsync(AdminErrors.ConfirmationRequired.Code).ConfigureAwait(false));
 
         await AssertSuccess(application.ExecuteAsync(
             "auth", "members", "disable",
