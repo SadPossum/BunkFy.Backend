@@ -6,6 +6,7 @@ obj/
 .codex/
 .tmp/
 artifacts/
+.data/
 [Tt]est[Rr]esult*/
 Gma.SourceRoots.props
 *.user

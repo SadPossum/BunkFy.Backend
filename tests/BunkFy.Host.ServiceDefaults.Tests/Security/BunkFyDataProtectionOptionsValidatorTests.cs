@@ -1,6 +1,8 @@
 namespace BunkFy.Host.ServiceDefaults.Tests.Security;
 
 using BunkFy.Host.ServiceDefaults.Security;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 public sealed class BunkFyDataProtectionOptionsValidatorTests
@@ -35,5 +37,22 @@ public sealed class BunkFyDataProtectionOptionsValidatorTests
         Microsoft.Extensions.Options.ValidateOptionsResult result = this.validator.Validate(null, options);
 
         Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public void Production_composition_rejects_an_ephemeral_key_ring()
+    {
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = Environments.Production,
+        });
+        builder.Configuration["DataProtection:ApplicationName"] = "bunkfy";
+
+        OptionsValidationException exception = Assert.Throws<OptionsValidationException>(() =>
+            builder.AddBunkFyDataProtection());
+
+        Assert.Contains(
+            exception.Failures,
+            failure => failure.Contains("Production", StringComparison.Ordinal));
     }
 }

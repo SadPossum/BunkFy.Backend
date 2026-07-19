@@ -27,6 +27,14 @@ public static class DataProtectionExtensions
                 validation.Failures);
         }
 
+        if (builder.Environment.IsProduction() && string.IsNullOrWhiteSpace(configured.KeyRingPath))
+        {
+            throw new OptionsValidationException(
+                BunkFyDataProtectionOptions.SectionName,
+                typeof(BunkFyDataProtectionOptions),
+                ["DataProtection:KeyRingPath is required in Production so protected authentication state survives restarts and works across replicas."]);
+        }
+
         builder.Services
             .AddOptions<BunkFyDataProtectionOptions>()
             .Bind(builder.Configuration.GetSection(BunkFyDataProtectionOptions.SectionName))
@@ -41,7 +49,7 @@ public static class DataProtectionExtensions
         if (!string.IsNullOrWhiteSpace(configured.KeyRingPath))
         {
             string keyRingPath = Path.GetFullPath(
-                configured.KeyRingPath,
+                configured.KeyRingPath.Trim(),
                 builder.Environment.ContentRootPath);
             Directory.CreateDirectory(keyRingPath);
             dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));

@@ -1,4 +1,5 @@
 using Gma.Modules.Auth.Api;
+using Gma.Modules.Auth.Authenticators.Totp;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.AccessControl.Application;
 using Gma.Modules.AccessControl.Contracts;
@@ -93,6 +94,7 @@ builder.AddAccessControlPersistence();
 
 builder.AddModule<TenancyModule>();
 builder.AddAuthModule(authProfile);
+builder.AddAuthTotpAuthenticator();
 builder.AddAuthOpenIdConnectProviders();
 builder.AddModule<FilesModule>();
 builder.AddModule<NotificationsModule>();

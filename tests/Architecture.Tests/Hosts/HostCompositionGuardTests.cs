@@ -19,7 +19,9 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
             "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
             "builder.AddAuthModule(authProfile);",
+            "builder.AddAuthTotpAuthenticator();",
             "builder.AddAuthOpenIdConnectProviders();",
+            "builder.AddBunkFyDataProtection();",
             "builder.AddMinioFileStorage();",
             "builder.AddUserNotificationsRealtime();",
             "builder.AddModule<FilesModule>();",
@@ -48,6 +50,24 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void Public_api_protects_authentication_secrets_with_a_production_durable_key_ring()
+    {
+        string composition = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.ServiceDefaults",
+            "DataProtectionExtensions.cs");
+        string developmentSettings = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Api",
+            "appsettings.Development.json");
+
+        Assert.Contains("builder.Environment.IsProduction()", composition, StringComparison.Ordinal);
+        Assert.Contains("PersistKeysToFileSystem", composition, StringComparison.Ordinal);
+        Assert.Contains("SetApplicationName", composition, StringComparison.Ordinal);
+        Assert.Contains("\"KeyRingPath\": \".data/data-protection-keys\"", developmentSettings, StringComparison.Ordinal);
     }
 
     [Fact]

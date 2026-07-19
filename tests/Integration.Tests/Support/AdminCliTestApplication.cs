@@ -18,6 +18,7 @@ using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Administration.AdminCli;
 using Gma.Modules.Administration.Persistence;
 using Gma.Modules.Auth.AdminCli;
+using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Application.Commands;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
@@ -120,8 +121,17 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         tenantContext.SetTenant(tenantId);
         IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        return await dispatcher.SendAsync(new LoginMemberCommand(username, password), CancellationToken.None)
+        Result<PrimaryAuthenticationResult> result = await dispatcher
+            .SendAsync(new LoginMemberCommand(username, password), CancellationToken.None)
             .ConfigureAwait(false);
+        if (result.IsFailure)
+        {
+            return Result.Failure<AuthTokensResponse>(result.Error);
+        }
+
+        return result.Value.Tokens is { } tokens
+            ? Result.Success(tokens)
+            : Result.Failure<AuthTokensResponse>(AuthApplicationErrors.MultiFactorChallengeInvalid);
     }
 
     public async Task<int> CountAuditEntriesContainingAsync(string value)
