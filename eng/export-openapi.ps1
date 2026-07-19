@@ -34,6 +34,7 @@ $exportEnvironment = @{
     'Notifications__Delivery__Enabled' = $env:Notifications__Delivery__Enabled
     'Notifications__Retention__Enabled' = $env:Notifications__Retention__Enabled
     'Auth__Retention__Enabled' = $env:Auth__Retention__Enabled
+    'Organizations__Retention__Enabled' = $env:Organizations__Retention__Enabled
     'MessageJournalCleanup__Enabled' = $env:MessageJournalCleanup__Enabled
     'NatsJetStream__Enabled' = $env:NatsJetStream__Enabled
     'NatsConsumers__Enabled' = $env:NatsConsumers__Enabled
@@ -46,6 +47,7 @@ try {
     $env:Notifications__Delivery__Enabled = 'false'
     $env:Notifications__Retention__Enabled = 'false'
     $env:Auth__Retention__Enabled = 'false'
+    $env:Organizations__Retention__Enabled = 'false'
     $env:MessageJournalCleanup__Enabled = 'false'
     $env:NatsJetStream__Enabled = 'false'
     $env:NatsConsumers__Enabled = 'false'

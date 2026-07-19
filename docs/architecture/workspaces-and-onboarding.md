@@ -172,6 +172,7 @@ A QR code is a transport representation, not a separate authority mechanism. A o
 - Owner departure requires ownership transfer or another active owner. The last owner cannot be removed, suspended, or downgraded accidentally.
 - Sessions remain global. High-risk account compromise uses Auth session revocation; ordinary workspace offboarding uses membership/grant revocation.
 - Historical Staff, membership, invitation, assignment, and audit records follow separate retention/redaction policies rather than cascading hard deletes.
+- Organizations invitation and enrollment retention is bounded but disabled in the API and Worker baseline. After product policy is approved, enable it on exactly one long-running maintenance host, normally the Worker.
 
 ## Consistency And Failure Recovery
 

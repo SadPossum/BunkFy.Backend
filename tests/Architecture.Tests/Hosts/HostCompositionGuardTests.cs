@@ -1,6 +1,7 @@
 namespace Architecture.Tests.Hosts;
 
 using Architecture.Tests.Support;
+using System.Text.Json;
 using Xunit;
 
 [Trait("Category", "Architecture")]
@@ -127,6 +128,31 @@ public sealed class HostCompositionGuardTests
             "NotificationsProfiles.Default",
             RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs"),
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Organization_retention_is_bounded_and_disabled_until_a_single_owner_is_selected()
+    {
+        string[] settingsPaths =
+        [
+            "src/BunkFy.Host.Api/appsettings.json",
+            "src/BunkFy.Host.Worker/appsettings.json"
+        ];
+
+        foreach (string path in settingsPaths)
+        {
+            using JsonDocument document = JsonDocument.Parse(RepositoryPaths.Read(path.Split('/')));
+            JsonElement retention = document.RootElement
+                .GetProperty("Organizations")
+                .GetProperty("Retention");
+
+            Assert.False(retention.GetProperty("Enabled").GetBoolean());
+            Assert.InRange(retention.GetProperty("InvitationHistoryDays").GetInt32(), 1, 3650);
+            Assert.InRange(retention.GetProperty("EnrollmentHistoryDays").GetInt32(), 1, 3650);
+            Assert.InRange(retention.GetProperty("BatchSize").GetInt32(), 1, 10000);
+            Assert.InRange(retention.GetProperty("MaxBatchesPerCategoryPerCycle").GetInt32(), 1, 100);
+            Assert.InRange(retention.GetProperty("IntervalMinutes").GetInt32(), 1, 1440);
+        }
     }
 
     [Fact]

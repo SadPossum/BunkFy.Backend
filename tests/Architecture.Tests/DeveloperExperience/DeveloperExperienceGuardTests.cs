@@ -421,6 +421,7 @@ public sealed partial class DeveloperExperienceGuardTests
             "Notifications__Delivery__Enabled",
             "Notifications__Retention__Enabled",
             "Auth__Retention__Enabled",
+            "Organizations__Retention__Enabled",
             "MessageJournalCleanup__Enabled",
             "NatsJetStream__Enabled",
             "NatsConsumers__Enabled"
