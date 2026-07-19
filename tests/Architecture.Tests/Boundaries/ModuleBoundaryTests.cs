@@ -90,6 +90,31 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Product_extensions_use_access_control_through_its_contracts_facade()
+    {
+        string[] projectReferenceOffenders = ProjectFile.All()
+            .Where(project => project.RepositoryPath.StartsWith("src/Extensions/", StringComparison.Ordinal))
+            .SelectMany(project => project.ProjectReferences
+                .Where(reference => reference.Contains(
+                    "Gma.Modules.AccessControl.",
+                    StringComparison.OrdinalIgnoreCase))
+                .Where(reference => !reference.Contains(
+                    "Gma.Modules.AccessControl.Contracts",
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(reference => $"{project.RepositoryPath} -> {reference}"))
+            .ToArray();
+
+        string[] sourceOffenders = RepositoryPaths.EnumerateFiles("src/Extensions", "*.cs")
+            .Where(path => File.ReadAllText(path).Contains(
+                "Gma.Modules.AccessControl.Application",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+
+        Assert.Empty(projectReferenceOffenders.Concat(sourceOffenders));
+    }
+
+    [Fact]
     public void Standalone_adapter_runtime_stays_dependency_light()
     {
         ProjectFile runtime = Assert.Single(

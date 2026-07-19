@@ -3,11 +3,13 @@ namespace BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Extensions.Workspaces;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Naming;
-using Gma.Modules.AccessControl.Application.Ports;
+using Gma.Modules.AccessControl.Contracts;
 
 internal sealed class WorkspaceOwnerNotificationAudienceReader(
-    IAccessControlRbacRepository accessControl) : IWorkspaceOwnerNotificationAudienceReader
+    IAccessControlRoleProvisioner accessControl) : IWorkspaceOwnerNotificationAudienceReader
 {
+    private const int AssignmentPageSize = 100;
+
     public async Task<IReadOnlyList<string>> ListAuthSubjectIdsAsync(
         string scopeId,
         CancellationToken cancellationToken)
@@ -16,16 +18,32 @@ internal sealed class WorkspaceOwnerNotificationAudienceReader(
         AccessScope workspaceScope = AccessScope.Create(
             AccessScopeSegment.Create("tenant", normalizedScopeId));
 
-        return (await accessControl
-                .ListRoleAssignmentsAsync(
+        HashSet<string> subjectIds = new(StringComparer.Ordinal);
+        int page = 1;
+        while (true)
+        {
+            AccessControlPage<AccessControlRoleAssignment> assignments = await accessControl
+                .ListAssignmentsAsync(
                     WorkspaceAccessRoles.Owner,
                     workspaceScope,
+                    page,
+                    AssignmentPageSize,
                     cancellationToken)
-                .ConfigureAwait(false))
-            .Where(assignment => assignment.SubjectKind == AccessSubjectKind.User)
-            .Select(assignment => assignment.SubjectId)
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+                .ConfigureAwait(false);
+            foreach (AccessControlRoleAssignment assignment in assignments.Items)
+            {
+                if (assignment.SubjectKind == AccessSubjectKind.User)
+                {
+                    subjectIds.Add(assignment.SubjectId);
+                }
+            }
+
+            if (!assignments.HasMore)
+            {
+                return subjectIds.Order(StringComparer.Ordinal).ToArray();
+            }
+
+            page = checked(page + 1);
+        }
     }
 }

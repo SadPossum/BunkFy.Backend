@@ -14,9 +14,8 @@ public sealed class HostCompositionGuardTests
         string[] expectedTokens =
         [
             "builder.AddModule<TenancyModule>();",
-            "builder.SelectModuleProfile(AccessControlProfiles.Default, \"BunkFy.Host.Api/AccessControl\");",
-            "builder.Services.AddAccessControlApplication(builder.Configuration);",
-            "builder.AddAccessControlPersistence();",
+            "builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);",
+            "builder.AddModule<AccessControlApiModule>();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
             "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
             "builder.AddAuthModule(authProfile);",

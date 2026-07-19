@@ -1,11 +1,8 @@
 namespace BunkFy.Extensions.Workspaces.Tests;
 
 using Gma.Framework.AccessControl;
-using Gma.Framework.Permissions;
-using Gma.Framework.Runtime.Time;
 using Gma.Framework.Messaging;
-using Gma.Modules.AccessControl.Application;
-using Gma.Modules.AccessControl.Application.Ports;
+using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Gma.Framework.Tenancy;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,8 +34,8 @@ public sealed class OrganizationMembershipAccessHandlerTests
     [Fact]
     public async Task Active_owner_receives_only_the_tenant_scoped_owner_assignment()
     {
-        FakeAccessControlRepository accessControl = new();
-        OrganizationMembershipAccessHandler handler = new(accessControl, new TestClock());
+        FakeAccessControlRoleProvisioner accessControl = new();
+        OrganizationMembershipAccessHandler handler = new(accessControl);
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
             OrganizationMembershipRole.Owner,
             OrganizationMembershipStatus.Active);
@@ -59,10 +56,10 @@ public sealed class OrganizationMembershipAccessHandlerTests
             OrganizationMembershipRole.Member,
             OrganizationMembershipStatus.Suspended);
         string scope = $"tenant:{integrationEvent.ScopeId}";
-        FakeAccessControlRepository accessControl = new();
+        FakeAccessControlRoleProvisioner accessControl = new();
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.Owner, scope));
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.Member, scope));
-        OrganizationMembershipAccessHandler handler = new(accessControl, new TestClock());
+        OrganizationMembershipAccessHandler handler = new(accessControl);
 
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
 
@@ -80,6 +77,36 @@ public sealed class OrganizationMembershipAccessHandlerTests
         Assert.DoesNotContain("properties.properties.manage", WorkspaceAccessRoles.MemberPermissions);
         Assert.DoesNotContain(StaffAdminPermissionCodes.Manage, WorkspaceAccessRoles.MemberPermissions);
         Assert.DoesNotContain("ingestion.connections.manage", WorkspaceAccessRoles.MemberPermissions);
+    }
+
+    [Fact]
+    public void Custom_profiles_are_limited_to_the_explicit_front_desk_allowlist()
+    {
+        Assert.All(WorkspaceAccessRoles.DelegablePermissions, permission =>
+            Assert.Contains(permission, WorkspaceAccessRoles.MemberPermissions));
+        Assert.Equal(
+            WorkspaceAccessRoles.DelegablePermissions.Count,
+            WorkspaceAccessRoles.DelegablePermissions.Distinct(StringComparer.Ordinal).Count());
+        Assert.DoesNotContain(WorkspaceAccessRoles.OwnerPermissions, permission =>
+            WorkspaceAccessRoles.DelegablePermissions.Contains(permission, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task Demoting_the_final_owner_surfaces_access_control_protection()
+    {
+        OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
+            OrganizationMembershipRole.Member,
+            OrganizationMembershipStatus.Active);
+        FakeAccessControlRoleProvisioner accessControl = new()
+        {
+            ProtectedRole = WorkspaceAccessRoles.Owner
+        };
+        OrganizationMembershipAccessHandler handler = new(accessControl);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.HandleAsync(integrationEvent, CancellationToken.None));
+
+        Assert.Contains("final owner", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static OrganizationMembershipChangedIntegrationEvent CreateEvent(
@@ -100,84 +127,63 @@ public sealed class OrganizationMembershipAccessHandlerTests
             1);
     }
 
-    private sealed class TestClock : ISystemClock
+    private static class TestClock
     {
         public static DateTimeOffset Now { get; } = new(2026, 7, 14, 12, 0, 0, TimeSpan.Zero);
-        public DateTimeOffset UtcNow => Now;
     }
 
-    private sealed class FakeAccessControlRepository : IAccessControlRbacRepository
+    private sealed class FakeAccessControlRoleProvisioner : IAccessControlRoleProvisioner
     {
         public Dictionary<string, List<string>> Permissions { get; } = new(StringComparer.Ordinal);
         public HashSet<(string SubjectId, string Role, string Scope)> Assignments { get; } = [];
+        public string? ProtectedRole { get; init; }
 
-        public Task EnsureSubjectAsync(AccessSubject subject, DateTimeOffset createdAtUtc,
-            CancellationToken cancellationToken) => Task.CompletedTask;
-
-        public Task EnsureRoleAsync(string roleName, DateTimeOffset createdAtUtc,
+        public Task EnsureRoleAsync(AccessControlRoleDefinition role,
             CancellationToken cancellationToken)
         {
-            this.Permissions.TryAdd(roleName, []);
+            this.Permissions[role.Name] = role.Permissions.ToList();
             return Task.CompletedTask;
         }
 
-        public Task EnsureRolePermissionAsync(string roleName, string permissionCode,
-            DateTimeOffset createdAtUtc, CancellationToken cancellationToken)
-        {
-            List<string> permissions = this.Permissions[roleName];
-            if (!permissions.Contains(permissionCode, StringComparer.Ordinal))
-            {
-                permissions.Add(permissionCode);
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public Task EnsureRoleAssignmentAsync(AccessSubject subject, string roleName, AccessScope scope,
-            DateTimeOffset createdAtUtc, CancellationToken cancellationToken)
+        public Task EnsureAssignmentAsync(
+            AccessSubject subject,
+            string roleName,
+            AccessScope scope,
+            CancellationToken cancellationToken)
         {
             this.Assignments.Add((subject.Id, roleName, scope.Value));
             return Task.CompletedTask;
         }
 
-        public Task<AccessControlRemovalOutcome> UnassignRoleAsync(AccessSubject subject, string roleName,
-            AccessScope scope, CancellationToken cancellationToken) => Task.FromResult(
-            this.Assignments.Remove((subject.Id, roleName, scope.Value))
-                ? AccessControlRemovalOutcome.Removed
-                : AccessControlRemovalOutcome.NotFound);
+        public Task<AccessControlAssignmentRemovalOutcome> RemoveAssignmentAsync(
+            AccessSubject subject,
+            string roleName,
+            AccessScope scope,
+            CancellationToken cancellationToken)
+        {
+            if (string.Equals(roleName, this.ProtectedRole, StringComparison.Ordinal))
+            {
+                return Task.FromResult(AccessControlAssignmentRemovalOutcome.LastOwnerProtected);
+            }
 
-        public Task<bool> HasAnyAssignmentsAsync(CancellationToken cancellationToken) => Task.FromResult(false);
-        public Task<bool> TryBootstrapOwnerAsync(AccessSubject subject, string roleName,
-            DateTimeOffset createdAtUtc, bool allowWhenAssignmentsExist,
-            CancellationToken cancellationToken) => Task.FromResult(false);
-        public Task<bool> RoleExistsAsync(string roleName, CancellationToken cancellationToken) =>
-            Task.FromResult(this.Permissions.ContainsKey(roleName));
-        public Task<bool> RoleHasPermissionAsync(string roleName, string permissionCode,
-            CancellationToken cancellationToken) => Task.FromResult(
-            this.Permissions.TryGetValue(roleName, out List<string>? values) && values.Contains(permissionCode));
-        public Task<bool> AssignmentExistsAsync(AccessSubject subject, string roleName, AccessScope scope,
+            return Task.FromResult(this.Assignments.Remove((subject.Id, roleName, scope.Value))
+                ? AccessControlAssignmentRemovalOutcome.Removed
+                : AccessControlAssignmentRemovalOutcome.NotFound);
+        }
+
+        public Task<bool> HasAssignmentAsync(
+            AccessSubject subject,
+            string roleName,
+            AccessScope scope,
             CancellationToken cancellationToken) => Task.FromResult(
             this.Assignments.Contains((subject.Id, roleName, scope.Value)));
-        public Task<bool> HasPermissionAsync(AccessSubject subject, PermissionCode permission, AccessScope scope,
-            CancellationToken cancellationToken) => Task.FromResult(false);
-        public Task<IReadOnlyList<AccessGrantScope>> ListGrantedScopesAsync(AccessSubject subject,
-            PermissionCode permission, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<AccessGrantScope>>([]);
-        public Task<AccessControlRoleDetails> CreateRoleAsync(string roleName, DateTimeOffset createdAtUtc,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task GrantRolePermissionAsync(string roleName, string permissionCode,
-            DateTimeOffset createdAtUtc, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task AssignRoleAsync(AccessSubject subject, string roleName, AccessScope scope,
-            DateTimeOffset createdAtUtc, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<AccessControlRemovalOutcome> RevokeRolePermissionAsync(string roleName,
-            string permissionCode, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<IReadOnlyList<AccessControlRoleDetails>> ListRolesAsync(
-            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<AccessControlRoleDetails>>([]);
-        public Task<IReadOnlyList<AccessControlRoleAssignmentDetails>> ListRoleAssignmentsAsync(
-            string roleName, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<AccessControlRoleAssignmentDetails>>([]);
-        public Task<IReadOnlyList<AccessControlRoleAssignmentDetails>> ListRoleAssignmentsAsync(
-            string roleName, AccessScope scope, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<AccessControlRoleAssignmentDetails>>([]);
+
+        public Task<AccessControlPage<AccessControlRoleAssignment>> ListAssignmentsAsync(
+            string roleName,
+            AccessScope scope,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken) => Task.FromResult(
+            new AccessControlPage<AccessControlRoleAssignment>([], page, pageSize, false));
     }
 }

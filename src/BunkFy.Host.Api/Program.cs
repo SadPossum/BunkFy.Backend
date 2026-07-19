@@ -1,8 +1,8 @@
 using Gma.Modules.Auth.Api;
 using Gma.Modules.Auth.Authenticators.Totp;
 using Gma.Modules.Auth.Contracts;
+using Gma.Modules.AccessControl.Api;
 using Gma.Modules.AccessControl.Application;
-using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Auth.Providers.OpenIdConnect;
@@ -88,9 +88,8 @@ builder.Services.AddImapReservationMailAdapterDescriptor();
 builder.Services.AddJsonFileDropAdapterDescriptor();
 builder.Services.AddReservationMailParserDescriptor();
 
-builder.SelectModuleProfile(AccessControlProfiles.Default, "BunkFy.Host.Api/AccessControl");
-builder.Services.AddAccessControlApplication(builder.Configuration);
-builder.AddAccessControlPersistence();
+builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);
+builder.AddModule<AccessControlApiModule>();
 
 builder.AddModule<TenancyModule>();
 builder.AddAuthModule(authProfile);

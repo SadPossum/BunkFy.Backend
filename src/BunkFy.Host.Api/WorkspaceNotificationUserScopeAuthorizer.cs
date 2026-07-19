@@ -6,11 +6,11 @@ using Gma.Framework.AccessControl;
 using Gma.Framework.Naming;
 using Gma.Framework.Scoping;
 using Gma.Framework.Security;
-using Gma.Modules.AccessControl.Application.Ports;
+using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Notifications.Api;
 
 internal sealed class WorkspaceNotificationUserScopeAuthorizer(
-    IAccessControlRbacRepository accessControl)
+    IAccessControlRoleProvisioner accessControl)
     : INotificationUserScopeAuthorizer
 {
     public async Task<bool> AuthorizeAsync(
@@ -43,12 +43,12 @@ internal sealed class WorkspaceNotificationUserScopeAuthorizer(
 
         AccessScope workspaceScope = AccessScope.Create(
             AccessScopeSegment.Create("tenant", workspaceId));
-        return await accessControl.AssignmentExistsAsync(
+        return await accessControl.HasAssignmentAsync(
                 subject,
                 WorkspaceAccessRoles.Owner,
                 workspaceScope,
                 cancellationToken).ConfigureAwait(false) ||
-            await accessControl.AssignmentExistsAsync(
+            await accessControl.HasAssignmentAsync(
                 subject,
                 WorkspaceAccessRoles.Member,
                 workspaceScope,

@@ -2,14 +2,12 @@ namespace BunkFy.Extensions.Workspaces;
 
 using Gma.Framework.AccessControl;
 using Gma.Framework.Messaging;
-using Gma.Framework.Runtime.Time;
-using Gma.Modules.AccessControl.Application.Ports;
+using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
 
 [IntegrationEventHandler(HandlerName, RequiresExplicitProducerBinding = true)]
 internal sealed class OrganizationMembershipAccessHandler(
-    IAccessControlRbacRepository accessControl,
-    ISystemClock clock)
+    IAccessControlRoleProvisioner accessControl)
     : IIntegrationEventHandler<OrganizationMembershipChangedIntegrationEvent>
 {
     public const string HandlerName = "bunkfy-workspace-access-membership";
@@ -18,22 +16,20 @@ internal sealed class OrganizationMembershipAccessHandler(
         OrganizationMembershipChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
-        DateTimeOffset nowUtc = clock.UtcNow;
         AccessSubject subject = AccessSubject.User(integrationEvent.SubjectId);
         AccessScope scope = AccessScope.Create(
             AccessScopeSegment.Create("tenant", integrationEvent.ScopeId));
 
-        await this.EnsureRoleAsync(
-            WorkspaceAccessRoles.Owner,
-            WorkspaceAccessRoles.OwnerPermissions,
-            nowUtc,
+        await accessControl.EnsureRoleAsync(
+            new AccessControlRoleDefinition(
+                WorkspaceAccessRoles.Owner,
+                WorkspaceAccessRoles.OwnerPermissions),
             cancellationToken).ConfigureAwait(false);
-        await this.EnsureRoleAsync(
-            WorkspaceAccessRoles.Member,
-            WorkspaceAccessRoles.MemberPermissions,
-            nowUtc,
+        await accessControl.EnsureRoleAsync(
+            new AccessControlRoleDefinition(
+                WorkspaceAccessRoles.Member,
+                WorkspaceAccessRoles.MemberPermissions),
             cancellationToken).ConfigureAwait(false);
-        await accessControl.EnsureSubjectAsync(subject, nowUtc, cancellationToken).ConfigureAwait(false);
 
         if (integrationEvent.Status != OrganizationMembershipStatus.Active)
         {
@@ -45,30 +41,12 @@ internal sealed class OrganizationMembershipAccessHandler(
         bool isOwner = integrationEvent.Role == OrganizationMembershipRole.Owner;
         string desiredRole = isOwner ? WorkspaceAccessRoles.Owner : WorkspaceAccessRoles.Member;
         string obsoleteRole = isOwner ? WorkspaceAccessRoles.Member : WorkspaceAccessRoles.Owner;
-        await accessControl.EnsureRoleAssignmentAsync(
+        await accessControl.EnsureAssignmentAsync(
             subject,
             desiredRole,
             scope,
-            nowUtc,
             cancellationToken).ConfigureAwait(false);
         await this.RemoveAsync(subject, obsoleteRole, scope, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task EnsureRoleAsync(
-        string roleName,
-        IReadOnlyList<string> permissions,
-        DateTimeOffset nowUtc,
-        CancellationToken cancellationToken)
-    {
-        await accessControl.EnsureRoleAsync(roleName, nowUtc, cancellationToken).ConfigureAwait(false);
-        foreach (string permission in permissions)
-        {
-            await accessControl.EnsureRolePermissionAsync(
-                roleName,
-                permission,
-                nowUtc,
-                cancellationToken).ConfigureAwait(false);
-        }
     }
 
     private async Task RemoveAsync(
@@ -77,12 +55,12 @@ internal sealed class OrganizationMembershipAccessHandler(
         AccessScope scope,
         CancellationToken cancellationToken)
     {
-        AccessControlRemovalOutcome outcome = await accessControl.UnassignRoleAsync(
+        AccessControlAssignmentRemovalOutcome outcome = await accessControl.RemoveAssignmentAsync(
             subject,
             roleName,
             scope,
             cancellationToken).ConfigureAwait(false);
-        if (outcome == AccessControlRemovalOutcome.LastOwnerProtected)
+        if (outcome == AccessControlAssignmentRemovalOutcome.LastOwnerProtected)
         {
             throw new InvalidOperationException("AccessControl protected the final owner assignment.");
         }
