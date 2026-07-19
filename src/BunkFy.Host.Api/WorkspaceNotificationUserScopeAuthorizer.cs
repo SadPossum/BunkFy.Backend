@@ -5,7 +5,6 @@ using BunkFy.Extensions.Workspaces;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Naming;
 using Gma.Framework.Scoping;
-using Gma.Framework.Security;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Notifications.Api;
 
@@ -24,13 +23,6 @@ internal sealed class WorkspaceNotificationUserScopeAuthorizer(
         ArgumentNullException.ThrowIfNull(scopeContext);
 
         if (!scopeContext.IsEnabled)
-        {
-            return true;
-        }
-
-        string? tokenScopeId = principal.FindFirstValue(ApplicationClaimNames.ScopeId);
-        if (ScopeIds.TryNormalize(tokenScopeId, out string? normalizedTokenScopeId) &&
-            string.Equals(normalizedTokenScopeId, scopeContext.ScopeId, StringComparison.Ordinal))
         {
             return true;
         }
