@@ -16,6 +16,13 @@ public sealed class DurableRuntimeConfigurationTests
         "BunkFy.Host.Worker",
     ];
 
+    private static readonly string[] AuthRetentionHosts =
+    [
+        "BunkFy.Host.Api",
+        "BunkFy.Host.AdminApi",
+        "BunkFy.Host.Worker",
+    ];
+
     [Fact]
     public void Messaging_hosts_expose_bounded_replay_safe_runtime_defaults()
     {
@@ -59,6 +66,34 @@ public sealed class DurableRuntimeConfigurationTests
         Assert.False(retention.GetProperty("Enabled").GetBoolean());
         Assert.True(retention.GetProperty("BatchSize").GetInt32() > 0);
         Assert.True(retention.GetProperty("MaxBatchesPerStatusPerCycle").GetInt32() > 0);
+    }
+
+    [Fact]
+    public void Public_api_exposes_bounded_authentication_runtime_defaults()
+    {
+        using JsonDocument document = JsonDocument.Parse(
+            RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json"));
+        JsonElement auth = document.RootElement.GetProperty("Auth");
+
+        Assert.InRange(auth.GetProperty("MaximumActiveSessionsPerMember").GetInt32(), 1, 1000);
+        Assert.InRange(auth.GetProperty("FailedLoginLimit").GetInt32(), 1, 100);
+        Assert.InRange(auth.GetProperty("FailedLoginWindowMinutes").GetInt32(), 1, 1440);
+    }
+
+    [Fact]
+    public void Long_running_auth_persistence_hosts_expose_bounded_failure_retention_defaults()
+    {
+        foreach (string host in AuthRetentionHosts)
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.json"));
+            JsonElement retention = document.RootElement
+                .GetProperty("Auth")
+                .GetProperty("Retention");
+
+            Assert.False(retention.GetProperty("Enabled").GetBoolean());
+            Assert.InRange(retention.GetProperty("AuthenticationFailureHistoryHours").GetInt32(), 1, 8760);
+        }
     }
 
     private static TimeSpan ParseDuration(JsonElement section, string propertyName) =>
