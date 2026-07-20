@@ -33,13 +33,12 @@ internal sealed class DispatchReservationArrivalRemindersCommandHandler(
         foreach (ReservationArrivalReminderDispatch reminder in claimed.Dispatches)
         {
             await outbox.EnqueueAsync(
-                new ReservationArrivalReminderDueIntegrationEvent(
+                new ReservationArrivalReminderDueIntegrationEventV2(
                     reminder.ReminderId,
                     reminder.ScopeId,
                     nowUtc,
                     reminder.ReservationId,
                     reminder.PropertyId,
-                    reminder.PrimaryGuestName,
                     reminder.Arrival,
                     reminder.ExpectedArrivalTime,
                     reminder.TimeZoneId,

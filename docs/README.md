@@ -33,6 +33,7 @@ Useful entry points:
 - [Staff Module](../src/Modules/Staff/docs/README.md)
 - [Reservations Module Task](planning/reservations-module-task.md)
 - [Reservations Stay Lifecycle Task](planning/reservations-stay-lifecycle-task.md)
+- [Reservations PII Minimization Task](planning/reservations-pii-minimization-task.md)
 - [Ingestion Module Task](planning/ingestion-module-task.md)
 - [Ingestion PII Minimization Task](planning/ingestion-pii-minimization-task.md)
 - [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)

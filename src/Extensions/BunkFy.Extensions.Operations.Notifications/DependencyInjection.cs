@@ -38,6 +38,9 @@ public static class DependencyInjection
         Add<ReservationArrivalReminderDueIntegrationEvent, ReservationArrivalReminderNotificationHandler>(
             services,
             ReservationsModuleMetadata.Name);
+        Add<ReservationArrivalReminderDueIntegrationEventV2, ReservationArrivalReminderV2NotificationHandler>(
+            services,
+            ReservationsModuleMetadata.Name);
         Add<ReservationAllocationRejectedIntegrationEvent, ReservationAllocationRejectedNotificationHandler>(
             services,
             ReservationsModuleMetadata.Name);

@@ -89,6 +89,7 @@ public static class ReservationsModuleMetadata
         .WithPublishedEvent<ReservationGuestLinkedIntegrationEvent>()
         .WithPublishedEvent<ReservationGuestStayChangedIntegrationEvent>()
         .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEvent>()
+        .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEventV2>()
         .WithTask<RebuildReservationInventoryProjectionPayload>()
         .WithTask<RebuildReservationGuestProfilesPayload>()
         .WithTask<RebuildReservationPropertiesPayload>()

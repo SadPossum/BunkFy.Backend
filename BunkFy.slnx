@@ -69,6 +69,7 @@
     <File Path="docs/planning/properties-topology-lifecycle-task.md" />
     <File Path="docs/planning/remote-adapter-lease-task.md" />
     <File Path="docs/planning/reservations-module-task.md" />
+    <File Path="docs/planning/reservations-pii-minimization-task.md" />
     <File Path="docs/planning/reservations-stay-lifecycle-task.md" />
     <File Path="docs/planning/staff-profiles-module-task.md" />
     <File Path="docs/planning/standalone-adapter-host-task.md" />

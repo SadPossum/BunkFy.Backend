@@ -30,7 +30,6 @@ public sealed class ReservationArrivalReminderTests
                 propertyId,
                 new DateOnly(2026, 7, 16),
                 new TimeOnly(15, 30),
-                "Maya Chen",
                 1),
             CancellationToken.None);
         await dbContext.SaveChangesAsync();
@@ -54,11 +53,11 @@ public sealed class ReservationArrivalReminderTests
         await dbContext.SaveChangesAsync();
 
         await repository.RefreshReservationAsync(
-            new("tenant-a", reservationId, propertyId, new(2026, 7, 16), new(15, 30), "Maya Chen", 1),
+            new("tenant-a", reservationId, propertyId, new(2026, 7, 16), new(15, 30), 1),
             CancellationToken.None);
         await dbContext.SaveChangesAsync();
         await repository.RefreshReservationAsync(
-            new("tenant-a", reservationId, propertyId, new(2026, 7, 16), new(17, 0), "Maya Chen", 2),
+            new("tenant-a", reservationId, propertyId, new(2026, 7, 16), new(17, 0), 2),
             CancellationToken.None);
         await dbContext.SaveChangesAsync();
 
@@ -83,7 +82,7 @@ public sealed class ReservationArrivalReminderTests
         await dbContext.SaveChangesAsync();
 
         await repository.RefreshReservationAsync(
-            new("tenant-a", Guid.NewGuid(), propertyId, new(2026, 3, 8), new(2, 30), "Guest", 1),
+            new("tenant-a", Guid.NewGuid(), propertyId, new(2026, 3, 8), new(2, 30), 1),
             CancellationToken.None);
         await dbContext.SaveChangesAsync();
 

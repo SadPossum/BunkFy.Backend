@@ -27,7 +27,7 @@ public sealed class OperationalNotificationTests
             .Select(descriptor => descriptor.ImplementationInstance)
             .OfType<IntegrationEventSubscription>()
             .ToArray();
-        Assert.Equal(12, subscriptions.Length);
+        Assert.Equal(13, subscriptions.Length);
         Assert.All(subscriptions, subscription => Assert.True(subscription.IsTenantScoped()));
     }
 
@@ -99,23 +99,22 @@ public sealed class OperationalNotificationTests
     }
 
     [Fact]
-    public async Task Arrival_reminder_names_the_guest_and_keeps_exact_reservation_navigation_payload()
+    public async Task Arrival_reminder_omits_guest_identity_and_keeps_exact_reservation_navigation_payload()
     {
         var notifications = new CapturingProjector();
         var projector = new OperationalNotificationProjector(
             new TestAudienceReader(["user-a"]),
             new TestWorkspaceOwnerAudienceReader([]),
             notifications);
-        var handler = new ReservationArrivalReminderNotificationHandler(projector);
+        var handler = new ReservationArrivalReminderV2NotificationHandler(projector);
         Guid reservationId = Guid.NewGuid();
         Guid propertyId = Guid.NewGuid();
-        var integrationEvent = new ReservationArrivalReminderDueIntegrationEvent(
+        var integrationEvent = new ReservationArrivalReminderDueIntegrationEventV2(
             Guid.NewGuid(),
             "tenant-a",
             Now,
             reservationId,
             propertyId,
-            "Maya Chen",
             new DateOnly(2026, 7, 16),
             new TimeOnly(15, 30),
             "Europe/Moscow",
@@ -125,10 +124,37 @@ public sealed class OperationalNotificationTests
 
         UserNotificationRequestedIntegrationEventV2 notification = Assert.Single(notifications.Events);
         Assert.Equal("reservation-arrival-soon", notification.NotificationName);
-        Assert.Contains("Maya Chen", notification.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Maya Chen", notification.Body, StringComparison.Ordinal);
+        Assert.Contains("A reservation", notification.Body, StringComparison.Ordinal);
         Assert.Contains("15:30", notification.Body, StringComparison.Ordinal);
         Assert.Contains(reservationId.ToString(), notification.PayloadJson, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(propertyId.ToString(), notification.PayloadJson, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Legacy_arrival_reminder_projects_the_same_minimized_notification()
+    {
+        var notifications = new CapturingProjector();
+        var projector = new OperationalNotificationProjector(
+            new TestAudienceReader(["user-a"]),
+            new TestWorkspaceOwnerAudienceReader([]),
+            notifications);
+        var handler = new ReservationArrivalReminderNotificationHandler(projector);
+        var integrationEvent = new ReservationArrivalReminderDueIntegrationEvent(
+            Guid.NewGuid(),
+            "tenant-a",
+            Now,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 16),
+            new TimeOnly(15, 30),
+            "Europe/Moscow",
+            3);
+
+        await handler.HandleAsync(integrationEvent, CancellationToken.None);
+
+        UserNotificationRequestedIntegrationEventV2 notification = Assert.Single(notifications.Events);
+        Assert.Equal("A reservation is expected at 15:30 on Jul 16.", notification.Body);
     }
 
     [Fact]

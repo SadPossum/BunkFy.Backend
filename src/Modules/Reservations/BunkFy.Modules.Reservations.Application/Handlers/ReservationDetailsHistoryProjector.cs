@@ -21,7 +21,6 @@ internal sealed class ReservationDetailsHistoryProjector(
                 domainEvent.PropertyId,
                 domainEvent.After.Arrival,
                 domainEvent.After.ExpectedArrivalTime,
-                domainEvent.After.PrimaryGuestName,
                 domainEvent.ToRevision),
             cancellationToken).ConfigureAwait(false);
     }

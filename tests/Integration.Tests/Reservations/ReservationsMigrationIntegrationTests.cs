@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using Gma.Framework.Scoping;
+using Gma.Framework.Messaging.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -13,6 +14,7 @@ public sealed class ReservationsMigrationIntegrationTests
 {
     private const string InitialMigration = "20260710200251_InitialCreate";
     private const string CanonicalGuestLinksMigration = "20260712151534_AddCanonicalGuestLinks";
+    private const string ArrivalRemindersMigration = "20260715123149_AddReservationArrivalReminders";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -83,6 +85,45 @@ public sealed class ReservationsMigrationIntegrationTests
         Assert.True(guest.IsCurrent);
         Assert.Equal(1, guest.LinkVersion);
         Assert.Null(guest.UnlinkedAtUtc);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Arrival_reminder_redaction_migration_neutralizes_legacy_guest_names()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_reservations_reminder_redaction_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        Guid eventId = Guid.Parse("60000000-0000-0000-0000-000000000001");
+        DateTimeOffset occurredAtUtc = new(2026, 7, 16, 10, 30, 0, TimeSpan.Zero);
+        const string eventType =
+            "BunkFy.Modules.Reservations.Contracts.ReservationArrivalReminderDueIntegrationEvent";
+        const string payload =
+            "{\"eventId\":\"60000000-0000-0000-0000-000000000001\",\"primaryGuestName\":\"Maya Chen\"}";
+
+        await using (ReservationsDbContext previous = CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>().MigrateAsync(ArrivalRemindersMigration);
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.outbox_messages (
+                    "Id", "Subject", "EventType", "Version", "ScopeId", "OccurredAtUtc",
+                    "CreatedAtUtc", "Payload", "Attempts")
+                VALUES (
+                    {eventId}, {"gma.reservations.reservation-arrival-reminder-due.v1"},
+                    {eventType}, {1}, {"tenant-a"}, {occurredAtUtc}, {occurredAtUtc}, {payload}, {0});
+                """);
+        }
+
+        await using ReservationsDbContext upgraded = CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        OutboxMessage message = await upgraded.OutboxMessages.SingleAsync(item => item.Id == eventId);
+        Assert.DoesNotContain("Maya Chen", message.Payload, StringComparison.Ordinal);
+        Assert.Contains("A guest", message.Payload, StringComparison.Ordinal);
+        Assert.Equal(1, message.Version);
     }
 
     private static ReservationsDbContext CreateDbContext(string connectionString)

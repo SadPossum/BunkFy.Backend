@@ -32,7 +32,6 @@ public sealed record ReservationReminderSource(
     Guid PropertyId,
     DateOnly Arrival,
     TimeOnly? ExpectedArrivalTime,
-    string PrimaryGuestName,
     long DetailsRevision);
 
 public sealed record ReservationArrivalReminderDispatch(
@@ -40,7 +39,6 @@ public sealed record ReservationArrivalReminderDispatch(
     string ScopeId,
     Guid ReservationId,
     Guid PropertyId,
-    string PrimaryGuestName,
     DateOnly Arrival,
     TimeOnly ExpectedArrivalTime,
     string TimeZoneId,

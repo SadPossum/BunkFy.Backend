@@ -33,7 +33,7 @@ public sealed class ReservationsProfileTests
         Assert.Equal(8, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(14, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(15, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Equal(19, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
@@ -75,6 +75,10 @@ public sealed class ReservationsProfileTests
             StringComparison.Ordinal);
         Assert.EndsWith(
             ".reservations.reservation-arrival-reminder-due.v1",
+            ReservationsIntegrationSubjects.CreateReservationArrivalReminderDueV1(),
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            ".reservations.reservation-arrival-reminder-due.v2",
             ReservationsIntegrationSubjects.CreateReservationArrivalReminderDue(),
             StringComparison.Ordinal);
     }

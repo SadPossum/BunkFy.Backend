@@ -7,12 +7,12 @@ using Gma.Framework.Tenancy.Messaging;
 [IntegrationEventName(EventType)]
 [IntegrationEventVersion(EventVersion)]
 [TenantScoped]
-public sealed record ReservationArrivalReminderDueIntegrationEvent : TenantIntegrationEvent
+public sealed record ReservationArrivalReminderDueIntegrationEventV2 : TenantIntegrationEvent
 {
-    public const string EventType = "reservation-arrival-reminder-due";
-    public const int EventVersion = 1;
+    public const string EventType = ReservationArrivalReminderDueIntegrationEvent.EventType;
+    public const int EventVersion = 2;
 
-    public ReservationArrivalReminderDueIntegrationEvent(
+    public ReservationArrivalReminderDueIntegrationEventV2(
         Guid eventId,
         string tenantId,
         DateTimeOffset occurredAtUtc,

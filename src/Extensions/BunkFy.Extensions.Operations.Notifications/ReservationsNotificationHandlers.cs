@@ -55,26 +55,74 @@ internal sealed class ReservationArrivalReminderNotificationHandler(OperationalN
     public Task HandleAsync(
         ReservationArrivalReminderDueIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
-        projector.ProjectForPropertyAsync(
+        ReservationArrivalReminderNotification.ProjectAsync(
+            projector,
             integrationEvent.EventId,
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            integrationEvent.ReservationId,
+            integrationEvent.Arrival,
+            integrationEvent.ExpectedArrivalTime,
+            integrationEvent.TimeZoneId,
+            integrationEvent.DetailsRevision,
+            cancellationToken);
+}
+
+[IntegrationEventHandler("bunkfy-reservation-arrival-reminder-notification-v2", RequiresExplicitProducerBinding = true)]
+internal sealed class ReservationArrivalReminderV2NotificationHandler(OperationalNotificationProjector projector)
+    : IIntegrationEventHandler<ReservationArrivalReminderDueIntegrationEventV2>
+{
+    public Task HandleAsync(
+        ReservationArrivalReminderDueIntegrationEventV2 integrationEvent,
+        CancellationToken cancellationToken) =>
+        ReservationArrivalReminderNotification.ProjectAsync(
+            projector,
+            integrationEvent.EventId,
+            integrationEvent.TenantId,
+            integrationEvent.OccurredAtUtc,
+            integrationEvent.PropertyId,
+            integrationEvent.ReservationId,
+            integrationEvent.Arrival,
+            integrationEvent.ExpectedArrivalTime,
+            integrationEvent.TimeZoneId,
+            integrationEvent.DetailsRevision,
+            cancellationToken);
+}
+
+internal static class ReservationArrivalReminderNotification
+{
+    public static Task ProjectAsync(
+        OperationalNotificationProjector projector,
+        Guid eventId,
+        string tenantId,
+        DateTimeOffset occurredAtUtc,
+        Guid propertyId,
+        Guid reservationId,
+        DateOnly arrival,
+        TimeOnly expectedArrivalTime,
+        string timeZoneId,
+        long detailsRevision,
+        CancellationToken cancellationToken) =>
+        projector.ProjectForPropertyAsync(
+            eventId,
+            tenantId,
+            occurredAtUtc,
+            propertyId,
             new OperationalNotification(
                 ReservationsModuleMetadata.Name,
                 "reservation-arrival-soon",
                 "Expected arrival soon",
-                $"{integrationEvent.PrimaryGuestName} is expected at " +
-                $"{integrationEvent.ExpectedArrivalTime:HH\\:mm} on {integrationEvent.Arrival:MMM d}.",
+                $"A reservation is expected at {expectedArrivalTime:HH\\:mm} on {arrival:MMM d}.",
                 NotificationSeverity.Info,
                 JsonSerializer.Serialize(new
                 {
-                    integrationEvent.ReservationId,
-                    integrationEvent.PropertyId,
-                    integrationEvent.Arrival,
-                    integrationEvent.ExpectedArrivalTime,
-                    integrationEvent.TimeZoneId,
-                    integrationEvent.DetailsRevision,
+                    ReservationId = reservationId,
+                    PropertyId = propertyId,
+                    Arrival = arrival,
+                    ExpectedArrivalTime = expectedArrivalTime,
+                    TimeZoneId = timeZoneId,
+                    DetailsRevision = detailsRevision,
                 }),
                 BunkFyNotificationTags.ReservationActivity),
             cancellationToken);

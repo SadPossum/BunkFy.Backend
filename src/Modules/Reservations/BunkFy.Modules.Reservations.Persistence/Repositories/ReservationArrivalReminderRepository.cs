@@ -42,30 +42,31 @@ internal sealed class ReservationArrivalReminderRepository(
         }
 
         DateOnly earliestRelevantArrival = DateOnly.FromDateTime(property.OccurredAtUtc.UtcDateTime.AddDays(-1));
-        Reservation[] reservations = await dbContext.Reservations
+        ReservationReminderSource[] reservations = await dbContext.Reservations
+            .AsNoTracking()
             .Where(reservation =>
                 reservation.PropertyId == property.PropertyId &&
                 reservation.ExpectedArrivalTime != null &&
                 reservation.Arrival >= earliestRelevantArrival &&
                 (reservation.Status == ReservationState.PendingAllocation ||
                  reservation.Status == ReservationState.Confirmed))
+            .Select(reservation => new ReservationReminderSource(
+                reservation.ScopeId,
+                reservation.Id,
+                reservation.PropertyId,
+                reservation.Arrival,
+                reservation.ExpectedArrivalTime,
+                reservation.DetailsRevision))
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
 
-        HashSet<Guid> relevantReservationIds = reservations.Select(reservation => reservation.Id).ToHashSet();
+        HashSet<Guid> relevantReservationIds = reservations.Select(reservation => reservation.ReservationId).ToHashSet();
         Supersede(existing.Where(reminder => !relevantReservationIds.Contains(reminder.ReservationId)));
-        foreach (Reservation reservation in reservations)
+        foreach (ReservationReminderSource reservation in reservations)
         {
             this.RefreshCore(
-                new(
-                    reservation.ScopeId,
-                    reservation.Id,
-                    reservation.PropertyId,
-                    reservation.Arrival,
-                    reservation.ExpectedArrivalTime,
-                    reservation.PrimaryGuestName,
-                    reservation.DetailsRevision),
+                reservation,
                 projection,
-                existing.Where(reminder => reminder.ReservationId == reservation.Id).ToArray());
+                existing.Where(reminder => reminder.ReservationId == reservation.ReservationId).ToArray());
         }
     }
 
@@ -105,9 +106,17 @@ internal sealed class ReservationArrivalReminderRepository(
 
         Guid[] reservationIds = candidates.Select(reminder => reminder.ReservationId).Distinct().ToArray();
         Guid[] propertyIds = candidates.Select(reminder => reminder.PropertyId).Distinct().ToArray();
-        Dictionary<Guid, Reservation> reservations = await dbContext.Reservations
+        Dictionary<Guid, ReservationReminderCandidate> reservations = await dbContext.Reservations
+            .AsNoTracking()
             .Where(reservation => reservationIds.Contains(reservation.Id))
-            .ToDictionaryAsync(reservation => reservation.Id, cancellationToken).ConfigureAwait(false);
+            .Select(reservation => new ReservationReminderCandidate(
+                reservation.Id,
+                reservation.PropertyId,
+                reservation.Status,
+                reservation.DetailsRevision,
+                reservation.Arrival,
+                reservation.ExpectedArrivalTime))
+            .ToDictionaryAsync(reservation => reservation.ReservationId, cancellationToken).ConfigureAwait(false);
         Dictionary<Guid, ReservationPropertyProjection> properties = await dbContext.PropertyProjections
             .AsNoTracking()
             .Where(property => propertyIds.Contains(property.Id))
@@ -116,7 +125,7 @@ internal sealed class ReservationArrivalReminderRepository(
 
         foreach (ReservationArrivalReminder candidate in candidates)
         {
-            if (!reservations.TryGetValue(candidate.ReservationId, out Reservation? reservation) ||
+            if (!reservations.TryGetValue(candidate.ReservationId, out ReservationReminderCandidate? reservation) ||
                 reservation.Status != ReservationState.Confirmed ||
                 reservation.PropertyId != candidate.PropertyId ||
                 reservation.DetailsRevision != candidate.DetailsRevision ||
@@ -138,7 +147,6 @@ internal sealed class ReservationArrivalReminderRepository(
                 candidate.ScopeId,
                 candidate.ReservationId,
                 candidate.PropertyId,
-                reservation.PrimaryGuestName,
                 candidate.Arrival,
                 candidate.ExpectedArrivalTime,
                 candidate.TimeZoneId,
@@ -245,4 +253,12 @@ internal sealed class ReservationArrivalReminderRepository(
             return false;
         }
     }
+
+    private sealed record ReservationReminderCandidate(
+        Guid ReservationId,
+        Guid PropertyId,
+        ReservationState Status,
+        long DetailsRevision,
+        DateOnly Arrival,
+        TimeOnly? ExpectedArrivalTime);
 }
