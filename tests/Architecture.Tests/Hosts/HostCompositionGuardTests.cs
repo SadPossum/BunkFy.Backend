@@ -102,6 +102,34 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Admin_hosts_keep_audit_and_bootstrap_settings_under_their_domain_owners()
+    {
+        string[] settingsPaths =
+        [
+            "src/BunkFy.Host.AdminApi/appsettings.json",
+            "src/BunkFy.Host.AdminCli/appsettings.json"
+        ];
+
+        foreach (string path in settingsPaths)
+        {
+            using JsonDocument document = JsonDocument.Parse(RepositoryPaths.Read(path.Split('/')));
+            JsonElement administration = document.RootElement.GetProperty("Administration");
+            JsonElement audit = administration.GetProperty("Audit");
+            JsonElement bootstrap = document.RootElement
+                .GetProperty("AccessControl")
+                .GetProperty("Bootstrap");
+
+            Assert.False(administration.TryGetProperty("Bootstrap", out _));
+            Assert.Equal(50, audit.GetProperty("DefaultPageSize").GetInt32());
+            Assert.Equal(200, audit.GetProperty("MaxPageSize").GetInt32());
+            Assert.Equal(500, audit.GetProperty("DefaultPurgeBatchSize").GetInt32());
+            Assert.Equal(2000, audit.GetProperty("MaxPurgeBatchSize").GetInt32());
+            Assert.False(bootstrap.GetProperty("AllowWhenAssignmentsExist").GetBoolean());
+            Assert.Equal("owner", bootstrap.GetProperty("OwnerRoleName").GetString());
+        }
+    }
+
+    [Fact]
     public void Worker_keeps_background_module_groups_opt_in()
     {
         string appsettings = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "appsettings.json");
