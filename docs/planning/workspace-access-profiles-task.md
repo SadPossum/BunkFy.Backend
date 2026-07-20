@@ -1,7 +1,7 @@
 # Workspace Access Profiles Task
 
-Status: planned after onboarding UX stabilization
-Date: 2026-07-14
+Status: backend security foundation complete; product UX remains planned
+Date: 2026-07-20
 
 ## Goal
 
@@ -14,19 +14,23 @@ Let workspace owners configure named access profiles and assign them to members 
 - Ordinary members cannot configure properties or inventory sales, manage integrations, administer Staff lifecycle, archive guests, or manage workspace membership.
 - Staff self-service profile reads and writes are identity-bound and do not require broad `staff.manage` access.
 
-## Required GMA Capability
+## Delivered GMA Capability
 
-GMA AccessControl role definitions are currently global while assignments are scoped. A workspace role editor must not create unqualified global role names from tenant input.
+GMA AccessControl retains global compatibility roles and now separately owns tenant-scoped access profiles. Profiles have an immutable id and owner scope, a tenant-local key, display metadata, bounded permission definitions, optimistic versions, immutable change history, archive behavior, and scoped assignments.
 
-Add a reusable scoped role-template capability to AccessControl, or an equivalent namespace-owning application seam, with:
+The reusable module now provides:
 
-- immutable template id plus owning scope;
+- immutable profile id plus owning scope;
 - display name and description separated from the internal role key;
 - explicit permission allowlist supplied by the composing product;
-- scoped assignment and last-owner protection;
-- rename/update concurrency and audit facts;
+- actor anti-escalation for every delegated permission;
+- a Contracts policy seam for product-owned assignment eligibility;
+- exact-scope, transactional assignment cleanup with immutable history;
+- scoped assignment, update concurrency, and history facts;
 - list/create/update/archive/assign APIs authorized in the owning scope;
 - no dependency on Organizations, BunkFy modules, or product role names.
+
+BunkFy supplies the explicit front-desk permission allowlist. A profile target must be a user with an active owner or member compatibility assignment in the same exact workspace scope. Suspension and removal first revoke those compatibility assignments and then remove every custom profile assignment through AccessControl Contracts, so a concurrent new assignment cannot survive offboarding.
 
 ## BunkFy Responsibility
 
@@ -36,6 +40,8 @@ Add a reusable scoped role-template capability to AccessControl, or an equivalen
 - present role visibility and action summaries in Workspace settings;
 - coordinate invitation profile selection and later access changes;
 - preserve access denial while assignments are provisioning or being removed.
+
+The backend allowlist, exact-workspace assignment policy, and ordered offboarding cleanup are complete. Seed-profile management, invitation-time selection, summaries, and workspace-admin UI remain product work.
 
 ## Completion Proof
 

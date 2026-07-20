@@ -7,18 +7,19 @@ using Gma.Modules.Organizations.Contracts;
 
 [IntegrationEventHandler(HandlerName, RequiresExplicitProducerBinding = true)]
 internal sealed class OrganizationMembershipAccessHandler(
-    IAccessControlRoleProvisioner accessControl)
+    IAccessControlRoleProvisioner accessControl,
+    IAccessProfileAssignmentRevoker profileAssignments)
     : IIntegrationEventHandler<OrganizationMembershipChangedIntegrationEvent>
 {
     public const string HandlerName = "bunkfy-workspace-access-membership";
+    public const string RevocationActorId = "bunkfy-workspace-membership-sync";
 
     public async Task HandleAsync(
         OrganizationMembershipChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
         AccessSubject subject = AccessSubject.User(integrationEvent.SubjectId);
-        AccessScope scope = AccessScope.Create(
-            AccessScopeSegment.Create("tenant", integrationEvent.ScopeId));
+        AccessScope scope = WorkspaceAccessScopes.Create(integrationEvent.ScopeId);
 
         await accessControl.EnsureRoleAsync(
             new AccessControlRoleDefinition(
@@ -35,6 +36,12 @@ internal sealed class OrganizationMembershipAccessHandler(
         {
             await this.RemoveAsync(subject, WorkspaceAccessRoles.Owner, scope, cancellationToken).ConfigureAwait(false);
             await this.RemoveAsync(subject, WorkspaceAccessRoles.Member, scope, cancellationToken).ConfigureAwait(false);
+            await profileAssignments.RevokeAllAsync(
+                    subject,
+                    scope,
+                    AccessSubject.System(RevocationActorId),
+                    cancellationToken)
+                .ConfigureAwait(false);
             return;
         }
 

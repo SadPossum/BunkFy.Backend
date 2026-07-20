@@ -5,6 +5,7 @@ using Gma.Framework.Messaging;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 public static class DependencyInjection
 {
@@ -28,6 +29,10 @@ public static class DependencyInjection
                 options => !string.IsNullOrWhiteSpace(options.GlobalAuthScopeId),
                 "A global Auth scope id is required.")
             .ValidateOnStart();
+
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IAccessProfileAssignmentPolicy,
+            WorkspaceAccessProfileAssignmentPolicy>());
 
         services.AddIntegrationEventHandler<
             OrganizationMembershipChangedIntegrationEvent,
