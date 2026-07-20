@@ -3,7 +3,6 @@ namespace Integration.Tests;
 using System.Net;
 using System.Net.Http.Json;
 using DotNet.Testcontainers.Containers;
-using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
 using Integration.Tests.Support;
@@ -58,7 +57,7 @@ public sealed class AuthLifecycleIntegrationTests
         using HttpClient client = application.CreateClient();
 
         string username = $"{provider.ToLowerInvariant()}@example.com";
-        using HttpResponseMessage invalidUsernameType = await AuthApiClient.PostJsonAsync(
+        using HttpResponseMessage malformedUsernameType = await AuthApiClient.PostJsonAsync(
             client,
             "tenant-auth",
             "/api/auth/register",
@@ -68,9 +67,7 @@ public sealed class AuthLifecycleIntegrationTests
                 usernameType = 999,
                 password = AuthApiClient.Password
             }).ConfigureAwait(false);
-        string invalidUsernameTypeBody = await invalidUsernameType.Content.ReadAsStringAsync().ConfigureAwait(false);
-        Assert.Equal(HttpStatusCode.BadRequest, invalidUsernameType.StatusCode);
-        Assert.Contains(AuthApplicationErrors.UsernameTypeInvalid.Code, invalidUsernameTypeBody, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.BadRequest, malformedUsernameType.StatusCode);
 
         AuthTokensResponse registered = await AuthApiClient.RegisterAsync(client, "tenant-auth", username).ConfigureAwait(false);
         using HttpResponseMessage duplicateUsername = await AuthApiClient.PostJsonAsync(

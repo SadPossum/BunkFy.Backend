@@ -18,7 +18,7 @@ internal static class AuthApiClient
             "/api/auth/register",
             new RegisterMemberRequest(username, UsernameType.Email, Password)).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await AssertSuccessAsync(response).ConfigureAwait(false);
         AuthTokensResponse? tokens = await response.Content.ReadFromJsonAsync<AuthTokensResponse>()
             .ConfigureAwait(false);
 
@@ -34,7 +34,7 @@ internal static class AuthApiClient
             "/api/auth/login",
             new LoginMemberRequest(username, Password)).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await AssertSuccessAsync(response).ConfigureAwait(false);
         AuthTokensResponse? tokens = await response.Content.ReadFromJsonAsync<AuthTokensResponse>()
             .ConfigureAwait(false);
 
@@ -53,7 +53,7 @@ internal static class AuthApiClient
             "/api/auth/refresh",
             new RefreshTokenRequest(tokens.AccessToken, tokens.RefreshToken)).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await AssertSuccessAsync(response).ConfigureAwait(false);
         AuthTokensResponse? refreshed = await response.Content.ReadFromJsonAsync<AuthTokensResponse>()
             .ConfigureAwait(false);
 
@@ -95,5 +95,16 @@ internal static class AuthApiClient
         }
 
         return await client.SendAsync(request).ConfigureAwait(false);
+    }
+
+    private static async Task AssertSuccessAsync(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        Assert.Fail($"Auth request failed with HTTP {(int)response.StatusCode} ({response.StatusCode}): {body}");
     }
 }

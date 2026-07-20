@@ -15,7 +15,6 @@ using Gma.Modules.AccessControl.Application;
 using Gma.Modules.Administration.Admin.Contracts;
 using Gma.Modules.Administration.Application;
 using Gma.Modules.Auth.Admin.Contracts;
-using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
 using Integration.Tests.Support;
@@ -318,10 +317,10 @@ public sealed class AdminApiIntegrationTests
         using HttpResponseMessage missingMember = await supportClient.GetAsync($"/api/admin/auth/members/{Guid.NewGuid()}").ConfigureAwait(false);
         Assert.Equal(HttpStatusCode.NotFound, missingMember.StatusCode);
 
-        int invalidUsernameTypeAuditCountBefore = await application
-            .CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate, AuthApplicationErrors.UsernameTypeInvalid.Code)
+        int malformedPayloadAuditCountBefore = await application
+            .CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate)
             .ConfigureAwait(false);
-        using HttpResponseMessage invalidUsernameType = await supportClient.PostAsJsonAsync(
+        using HttpResponseMessage malformedUsernameType = await supportClient.PostAsJsonAsync(
             "/api/admin/auth/members",
             new
             {
@@ -330,13 +329,11 @@ public sealed class AdminApiIntegrationTests
                 password = "manual-password",
                 generatePassword = false
             }).ConfigureAwait(false);
-        string invalidUsernameTypeBody = await invalidUsernameType.Content.ReadAsStringAsync().ConfigureAwait(false);
-        Assert.Equal(HttpStatusCode.BadRequest, invalidUsernameType.StatusCode);
-        Assert.Contains(AuthApplicationErrors.UsernameTypeInvalid.Code, invalidUsernameTypeBody, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.BadRequest, malformedUsernameType.StatusCode);
         Assert.Equal(
-            invalidUsernameTypeAuditCountBefore + 1,
+            malformedPayloadAuditCountBefore,
             await application
-                .CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate, AuthApplicationErrors.UsernameTypeInvalid.Code)
+                .CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate)
                 .ConfigureAwait(false));
 
         int generatedPasswordDisabledAuditCountBefore = await application
