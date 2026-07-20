@@ -24,7 +24,6 @@ public sealed class HostCompositionGuardTests
             "builder.AddBunkFyDataProtection();",
             "builder.AddMinioFileStorage();",
             "builder.AddUserNotificationsRealtime();",
-            "builder.AddModule<FilesModule>();",
             "builder.AddModule<NotificationsModule>();",
             "builder.AddModule<OrganizationsModule>();",
             "builder.Services.AddAuthNotificationsExtension();",
@@ -50,6 +49,68 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void Public_api_does_not_expose_the_generic_files_front_door()
+    {
+        string program = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
+        string project = RepositoryPaths.Read("src", "BunkFy.Host.Api", "BunkFy.Host.Api.csproj");
+
+        Assert.DoesNotContain("Gma.Modules.Files.Api", program, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddModule<FilesModule>()", program, StringComparison.Ordinal);
+        Assert.DoesNotContain("Gma.Modules.Files.Api.csproj", project, StringComparison.Ordinal);
+        Assert.Contains("builder.AddMinioFileStorage();", program, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Production_hosts_allow_only_canonical_json_object_storage()
+    {
+        string[] settingsPaths =
+        [
+            "src/BunkFy.Host.Api/appsettings.json",
+            "src/BunkFy.Host.AdminApi/appsettings.json",
+            "src/BunkFy.Host.AdminCli/appsettings.json",
+            "src/BunkFy.Host.Worker/appsettings.json"
+        ];
+
+        foreach (string path in settingsPaths)
+        {
+            using JsonDocument document = JsonDocument.Parse(RepositoryPaths.Read(path.Split('/')));
+            string[] allowedContentTypes = document.RootElement
+                .GetProperty("FileManagement")
+                .GetProperty("AllowedContentTypes")
+                .EnumerateArray()
+                .Select(value => value.GetString())
+                .OfType<string>()
+                .ToArray();
+
+            Assert.Equal(["application/json"], allowedContentTypes);
+        }
+    }
+
+    [Fact]
+    public void Raw_email_storage_is_an_explicit_local_development_exception()
+    {
+        string[] settingsPaths =
+        [
+            "src/BunkFy.Host.Api/appsettings.Development.json",
+            "src/BunkFy.Host.Worker/appsettings.Development.json"
+        ];
+
+        foreach (string path in settingsPaths)
+        {
+            using JsonDocument document = JsonDocument.Parse(RepositoryPaths.Read(path.Split('/')));
+            string[] allowedContentTypes = document.RootElement
+                .GetProperty("FileManagement")
+                .GetProperty("AllowedContentTypes")
+                .EnumerateArray()
+                .Select(value => value.GetString())
+                .OfType<string>()
+                .ToArray();
+
+            Assert.Equal(["application/json", "message/rfc822"], allowedContentTypes);
+        }
     }
 
     [Fact]
