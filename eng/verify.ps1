@@ -9,6 +9,8 @@ param(
 
 & (Join-Path $PSScriptRoot 'update-solutions.ps1') -Check
 
+& (Join-Path $PSScriptRoot 'check-source-packages.ps1') -SkipRestore -SkipBuild
+
 if (-not $SkipRestore) {
     & (Join-Path $PSScriptRoot 'restore.ps1')
 }

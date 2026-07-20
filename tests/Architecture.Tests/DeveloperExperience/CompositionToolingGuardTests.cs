@@ -48,6 +48,14 @@ public sealed class CompositionToolingGuardTests
     }
 
     [Fact]
+    public void Backend_verification_enforces_source_package_ownership()
+    {
+        string source = RepositoryPaths.Read("eng", "verify.ps1");
+
+        Assert.Contains("check-source-packages.ps1') -SkipRestore -SkipBuild", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Backend_ci_uses_immutable_actions_and_source_set_evidence()
     {
         string workflows = string.Join(
