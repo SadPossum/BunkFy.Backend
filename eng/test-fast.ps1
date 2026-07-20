@@ -13,6 +13,7 @@ $arguments = @(
     '--filter',
     'Category!=Docker',
     '-m:1',
+    '-nr:false',
     '--logger',
     'console;verbosity=minimal'
 )
