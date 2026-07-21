@@ -28,16 +28,16 @@ Do not present custom profiles as authoritative workspace roles until this is co
 - Profile replacement and offboarding are deny-first, transactional or durably recoverable. A partial failure may temporarily deny access, but must never retain broader authority than the requested result.
 - Existing member assignments require an explicit, idempotent backfill before the compatibility role loses its permissions.
 
-## Required Generic GMA Seams
+## Delivered Generic GMA Seams
 
-GMA continues to own only domain-neutral mechanics. Before BunkFy changes the compatibility baseline, AccessControl needs a narrow Contracts facade that can:
+GMA continues to own only domain-neutral mechanics. AccessControl now exposes a narrow Contracts facade that can:
 
 - create a tenant-scoped profile only when its product-owned key is absent and return the existing profile without overwriting customer edits;
 - inspect profiles and assignments by exact owner scope and stable key;
 - reconcile the complete profile-assignment set for one subject and owner scope atomically, with existing delegation and product assignment policies applied to every target profile;
 - preserve immutable assignment history and optimistic concurrency during reconciliation.
 
-Organizations needs a Contracts-only membership lifecycle facade so a product-owned Staff offboarding process can suspend or resume the exact ordinary membership idempotently. The generic facade owns no Staff status, reason vocabulary, property plan, or BunkFy role name.
+Organizations now exposes a Contracts-only membership lifecycle facade so a product-owned Staff offboarding process can activate, suspend, remove, or restore the exact ordinary membership idempotently. Owner memberships are protected and invalid transitions are reported without writes. The generic facade owns no Staff status, reason vocabulary, property plan, or BunkFy role name.
 
 These seams belong in GMA because cross-module extensions must not reference another reusable module's Application implementation or call its HTTP API internally. Seed definitions, migration policy, default selection, and offboarding decisions remain BunkFy-owned.
 
@@ -52,6 +52,9 @@ The reusable module now provides:
 - explicit permission allowlist supplied by the composing product;
 - actor anti-escalation for every delegated permission;
 - a Contracts policy seam for product-owned assignment eligibility;
+- seed-safe ensure-by-key that never overwrites an existing customer-edited profile;
+- exact-scope profile and subject-assignment inspection;
+- atomic exact-set assignment reconciliation with policy validation before writes;
 - exact-scope, transactional assignment cleanup with immutable history;
 - scoped assignment, update concurrency, and history facts;
 - list/create/update/archive/assign APIs authorized in the owning scope;
@@ -72,8 +75,8 @@ The backend allowlist, exact-workspace assignment eligibility policy, and member
 
 ## Delivery Order
 
-1. Prepare and land the two generic Contracts facades in their owning GMA modules, with provider-neutral behavior, PostgreSQL/SQL Server coverage where applicable, concurrency tests, and no BunkFy vocabulary.
-2. Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
+1. [Complete] Prepare and land the two generic Contracts facades in their owning GMA modules, with provider-neutral behavior, PostgreSQL/SQL Server coverage where applicable, concurrency tests, and no BunkFy vocabulary.
+2. [In progress] Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
 3. Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing permissions from the compatibility role.
 4. Add a BunkFy workspace-role facade and permission catalogue for the web. Reconciliation must be exact-scope, anti-escalating, and deny-first.
 5. Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
