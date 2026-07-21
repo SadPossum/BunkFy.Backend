@@ -17,9 +17,10 @@ public sealed class IngestionMetadataTests
     {
         IReadOnlyCollection<ModulePermissionDescriptor> permissions = IngestionModuleMetadata.Descriptor.GetPermissions();
 
-        Assert.Equal(9, permissions.Count);
+        Assert.Equal(10, permissions.Count);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.CredentialsManage);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.RawPayloadsRead);
+        Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.SensitiveHistoryRead);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.RetentionManage);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.ReprocessingManage);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.LegalHoldsManage);

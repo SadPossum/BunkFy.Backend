@@ -111,8 +111,7 @@ public sealed class RemoteAdapterLeaseHandlerTests
             0,
             0,
             AcceptedCheckpoint: null,
-            ErrorCode: null,
-            ErrorMessage: null);
+            ErrorCode: null);
         var completed = await completeHandler.HandleAsync(
             new(connection.Id, CredentialId, completion), CancellationToken.None);
         Assert.True(connection.AdvanceCheckpoint(

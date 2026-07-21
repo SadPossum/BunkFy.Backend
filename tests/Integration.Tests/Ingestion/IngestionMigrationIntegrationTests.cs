@@ -33,7 +33,9 @@ public sealed class IngestionMigrationIntegrationTests
         Guid propertyId = Guid.Parse("a1000000-0000-0000-0000-000000000001");
         Guid connectionId = Guid.Parse("a2000000-0000-0000-0000-000000000001");
         Guid runId = Guid.Parse("a2500000-0000-0000-0000-000000000001");
+        Guid failedRunId = Guid.Parse("a2500000-0000-0000-0000-000000000002");
         Guid taskRunId = Guid.Parse("a2600000-0000-0000-0000-000000000001");
+        Guid failedTaskRunId = Guid.Parse("a2600000-0000-0000-0000-000000000002");
         Guid receiptId = Guid.Parse("a3000000-0000-0000-0000-000000000001");
         Guid secondReceiptId = Guid.Parse("a3000000-0000-0000-0000-000000000002");
         Guid validLinkId = Guid.Parse("a5000000-0000-0000-0000-000000000001");
@@ -67,11 +69,14 @@ public sealed class IngestionMigrationIntegrationTests
 
                 INSERT INTO ingestion.runs (
                     "Id", "ConnectionId", "PropertyId", "TaskRunId", "TaskAttempt", "State",
-                    "ObservedCount", "AcceptedCount", "RejectedCount", "Version",
+                    "ObservedCount", "AcceptedCount", "RejectedCount", "ErrorMessage", "Version",
                     "StartedAtUtc", "CompletedAtUtc", "ScopeId")
-                VALUES (
-                    {runId}, {connectionId}, {propertyId}, {taskRunId}, {1}, {2},
-                    {1}, {1}, {0}, {2L}, {receivedAtUtc}, {receivedAtUtc.AddMinutes(1)}, {"tenant-a"});
+                VALUES
+                    ({runId}, {connectionId}, {propertyId}, {taskRunId}, {1}, {2},
+                     {1}, {1}, {0}, {null}, {2L}, {receivedAtUtc}, {receivedAtUtc.AddMinutes(1)}, {"tenant-a"}),
+                    ({failedRunId}, {connectionId}, {propertyId}, {failedTaskRunId}, {1}, {4},
+                     {0}, {0}, {0}, {"Provider said guest Ada failed at /private/path"}, {2L},
+                     {receivedAtUtc}, {receivedAtUtc.AddMinutes(2)}, {"tenant-a"});
 
                 INSERT INTO ingestion.observation_receipts (
                     "Id", "PropertyId", "ConnectionId", "OperationId", "SourceRecordType",
@@ -139,6 +144,7 @@ public sealed class IngestionMigrationIntegrationTests
         ObservationReceipt receipt = await upgraded.ObservationReceipts.SingleAsync(item => item.Id == receiptId);
         AdapterConnection connection = await upgraded.AdapterConnections.SingleAsync(item => item.Id == connectionId);
         IngestionRun run = await upgraded.Runs.SingleAsync(item => item.Id == runId);
+        IngestionRun failedRun = await upgraded.Runs.SingleAsync(item => item.Id == failedRunId);
         ReservationSourceLink validLink = await upgraded.ReservationSourceLinks.SingleAsync(item => item.Id == validLinkId);
         ReservationSourceLink cancelledLink = await upgraded.ReservationSourceLinks.SingleAsync(item => item.Id == cancelledLinkId);
         ReservationSourceLink malformedLink = await upgraded.ReservationSourceLinks.SingleAsync(item => item.Id == malformedLinkId);
@@ -162,6 +168,7 @@ public sealed class IngestionMigrationIntegrationTests
         Assert.Equal(1, run.TaskAttempt);
         Assert.Null(run.RemoteLeaseId);
         Assert.Null(run.RemoteLeaseEpoch);
+        Assert.Equal("ingestion.legacy-adapter-failure", failedRun.ErrorCode);
         Assert.Empty(await upgraded.AdapterIngressCredentials.ToArrayAsync());
         Assert.NotNull(validLink.LastAppliedOperationalBaseline);
         using (JsonDocument baseline = JsonDocument.Parse(validLink.LastAppliedOperationalBaseline))
@@ -289,6 +296,30 @@ public sealed class IngestionMigrationIntegrationTests
                 WHERE "Id" = {propertyId};
                 """));
         Assert.Equal(PostgresErrorCodes.CheckViolation, invalidRetentionFence.SqlState);
+
+        PostgresException successfulRunWithError = await Assert.ThrowsAsync<PostgresException>(() =>
+            upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE ingestion.runs
+                SET "ErrorCode" = {"provider.failure"}
+                WHERE "Id" = {runId};
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, successfulRunWithError.SqlState);
+
+        PostgresException freeFormRunError = await Assert.ThrowsAsync<PostgresException>(() =>
+            upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE ingestion.runs
+                SET "ErrorCode" = {"Provider failed with guest Ada"}
+                WHERE "Id" = {failedRunId};
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, freeFormRunError.SqlState);
+
+        PostgresException failedRunWithoutError = await Assert.ThrowsAsync<PostgresException>(() =>
+            upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE ingestion.runs
+                SET "ErrorCode" = NULL
+                WHERE "Id" = {failedRunId};
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, failedRunWithoutError.SqlState);
     }
 
     private static IngestionDbContext CreateDbContext(string connectionString)

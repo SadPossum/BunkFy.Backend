@@ -278,8 +278,7 @@ public sealed class RemoteLeasedAdapterCycleRunner(
                             0,
                             0,
                             this.acceptedCheckpoint,
-                            errorCode,
-                            ErrorMessage: null),
+                            errorCode),
                         cleanup.Token).ConfigureAwait(false);
                 }
                 finally
@@ -364,7 +363,6 @@ public sealed class RemoteLeasedAdapterCycleRunner(
             completion.AcceptedCount,
             completion.RejectedCount,
             completion.AcceptedCheckpoint,
-            completion.ErrorCode,
-            completion.ErrorMessage);
+            completion.ErrorCode);
     }
 }

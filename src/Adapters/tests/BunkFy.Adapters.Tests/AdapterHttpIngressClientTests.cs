@@ -295,8 +295,7 @@ public sealed class AdapterHttpIngressClientTests
                 int.MaxValue,
                 int.MaxValue,
                 AcceptedCheckpoint: null,
-                ErrorCode: null,
-                ErrorMessage: null),
+                ErrorCode: null),
             CancellationToken.None));
 
         Assert.Equal(0, tokens.Calls);

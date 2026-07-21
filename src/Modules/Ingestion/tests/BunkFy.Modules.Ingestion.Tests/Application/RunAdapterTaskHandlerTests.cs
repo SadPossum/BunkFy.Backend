@@ -56,7 +56,7 @@ public sealed class RunAdapterTaskHandlerTests
 
         CompleteAdapterRunCommand failure = Assert.Single(dispatcher.Completions);
         Assert.Equal(AdapterRunOutcome.Failed, failure.Outcome);
-        Assert.Equal(IngestionApplicationErrors.AdapterRunnerNotRegistered.Code, failure.ErrorMessage);
+        Assert.Equal(IngestionApplicationErrors.AdapterRunnerNotRegistered.Code.ToLowerInvariant(), failure.ErrorCode);
     }
 
     [Fact]
@@ -76,8 +76,31 @@ public sealed class RunAdapterTaskHandlerTests
 
         CompleteAdapterRunCommand failure = Assert.Single(dispatcher.Completions);
         Assert.Equal(AdapterRunOutcome.Failed, failure.Outcome);
-        Assert.Equal(IngestionApplicationErrors.AdapterConfigurationMaterialNotFound.Code, failure.ErrorMessage);
+        Assert.Equal(
+            IngestionApplicationErrors.AdapterConfigurationMaterialNotFound.Code.ToLowerInvariant(),
+            failure.ErrorCode);
         Assert.Null(runner.Assignment);
+    }
+
+    [Fact]
+    public async Task Oversized_framework_error_code_is_replaced_before_source_run_persistence()
+    {
+        FakeTaskCommandDispatcher dispatcher = new();
+        Error oversized = new($"Provider.{new string('x', 200)}", "Provider resolution failed.");
+        ITaskHandler<RunAdapterTaskPayload> handler = CreateHandler(
+            dispatcher,
+            new FakeRunner(),
+            new FailingMaterialResolver(oversized));
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.HandleAsync(
+                new RunAdapterTaskPayload(dispatcher.Start.ConnectionId),
+                CreateExecutionContext(),
+                CancellationToken.None));
+
+        CompleteAdapterRunCommand failure = Assert.Single(dispatcher.Completions);
+        Assert.Equal("ingestion.adapter-execution-failed", failure.ErrorCode);
+        Assert.Equal(failure.ErrorCode, exception.Message);
     }
 
     [Fact]
@@ -97,7 +120,7 @@ public sealed class RunAdapterTaskHandlerTests
             CancellationToken.None));
 
         CompleteAdapterRunCommand failure = Assert.Single(dispatcher.Completions);
-        Assert.Equal(IngestionApplicationErrors.AdapterDescriptorMismatch.Code, failure.ErrorMessage);
+        Assert.Equal(IngestionApplicationErrors.AdapterDescriptorMismatch.Code.ToLowerInvariant(), failure.ErrorCode);
         Assert.Null(runner.Assignment);
     }
 
@@ -249,13 +272,13 @@ public sealed class RunAdapterTaskHandlerTests
                 "{}"u8)));
     }
 
-    private sealed class FailingMaterialResolver : IAdapterConfigurationMaterialResolver
+    private sealed class FailingMaterialResolver(Error? error = null) : IAdapterConfigurationMaterialResolver
     {
         public Task<Result<AdapterConfigurationMaterial>> ResolveAsync(
             AdapterConfigurationMaterialRequest request,
             CancellationToken cancellationToken) =>
             Task.FromResult(Result.Failure<AdapterConfigurationMaterial>(
-                IngestionApplicationErrors.AdapterConfigurationMaterialNotFound));
+                error ?? IngestionApplicationErrors.AdapterConfigurationMaterialNotFound));
     }
 
     private sealed class FakeSinkFactory : IAdapterObservationSinkFactory

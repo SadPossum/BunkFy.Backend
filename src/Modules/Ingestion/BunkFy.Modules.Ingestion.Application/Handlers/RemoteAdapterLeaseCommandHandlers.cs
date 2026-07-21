@@ -284,10 +284,10 @@ internal sealed class CompleteRemoteAdapterRunCommandHandler(
         }
 
         string? acceptedCheckpoint = Normalize(command.Request.AcceptedCheckpoint);
-        string? error = NormalizeError(command.Request.ErrorCode, command.Request.ErrorMessage);
+        string? errorCode = NormalizeErrorCode(command.Request.ErrorCode);
         if (run.State != IngestionRunState.Running)
         {
-            return MatchesCompleted(run, command.CredentialId, command.Request, acceptedCheckpoint, error)
+            return MatchesCompleted(run, command.CredentialId, command.Request, acceptedCheckpoint, errorCode)
                 ? Result.Success(Map(run, command.Request.Lease))
                 : Result.Failure<AdapterRemoteRunCompletionResponse>(
                     IngestionApplicationErrors.AdapterCompletionMismatch);
@@ -310,7 +310,7 @@ internal sealed class CompleteRemoteAdapterRunCommandHandler(
             command.Request.AcceptedCount,
             command.Request.RejectedCount,
             acceptedCheckpoint,
-            error,
+            errorCode,
             run.Version,
             nowUtc);
         if (completed.IsFailure)
@@ -336,7 +336,7 @@ internal sealed class CompleteRemoteAdapterRunCommandHandler(
         Guid credentialId,
         AdapterRemoteRunCompletionRequest request,
         string? acceptedCheckpoint,
-        string? error) =>
+        string? errorCode) =>
         run.ExecutionKind == IngestionRunExecutionKind.RemoteLease &&
         run.RemoteLeaseId == request.Lease.LeaseId &&
         run.RemoteLeaseEpoch == request.Lease.LeaseEpoch &&
@@ -347,7 +347,7 @@ internal sealed class CompleteRemoteAdapterRunCommandHandler(
         run.AcceptedCount == request.AcceptedCount &&
         run.RejectedCount == request.RejectedCount &&
         string.Equals(run.AcceptedCheckpoint, acceptedCheckpoint, StringComparison.Ordinal) &&
-        string.Equals(run.ErrorMessage, error, StringComparison.Ordinal);
+        string.Equals(run.ErrorCode, errorCode, StringComparison.Ordinal);
 
     private static AdapterRemoteRunCompletionResponse Map(
         IngestionRun run,
@@ -380,11 +380,6 @@ internal sealed class CompleteRemoteAdapterRunCommandHandler(
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string? NormalizeError(string? errorCode, string? errorMessage)
-    {
-        string? value = Normalize(errorCode) ?? Normalize(errorMessage);
-        return value?.Length > IngestionRun.ErrorMessageMaxLength
-            ? value[..IngestionRun.ErrorMessageMaxLength]
-            : value;
-    }
+    private static string? NormalizeErrorCode(string? errorCode)
+        => Normalize(errorCode)?.ToLowerInvariant();
 }

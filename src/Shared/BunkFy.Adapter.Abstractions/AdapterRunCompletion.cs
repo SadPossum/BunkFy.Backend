@@ -34,14 +34,27 @@ public sealed record AdapterRunCompletion
             acceptedCheckpoint,
             AdapterProtocolLimits.CheckpointMaxLength,
             nameof(acceptedCheckpoint));
-        this.ErrorCode = AdapterProtocolGuards.Optional(
-            errorCode,
-            AdapterProtocolLimits.ErrorCodeMaxLength,
-            nameof(errorCode));
-        this.ErrorMessage = AdapterProtocolGuards.Optional(
+        string? normalizedErrorCode = string.IsNullOrWhiteSpace(errorCode)
+            ? null
+            : AdapterProtocolGuards.StableKey(
+                errorCode,
+                AdapterProtocolLimits.ErrorCodeMaxLength,
+                nameof(errorCode));
+        string? normalizedErrorMessage = AdapterProtocolGuards.Optional(
             errorMessage,
             AdapterProtocolLimits.ErrorMessageMaxLength,
             nameof(errorMessage));
+        bool requiresErrorCode = outcome is AdapterRunOutcome.PartiallySucceeded or
+            AdapterRunOutcome.Failed or AdapterRunOutcome.Cancelled;
+        if (requiresErrorCode != (normalizedErrorCode is not null) ||
+            (outcome == AdapterRunOutcome.Succeeded && normalizedErrorMessage is not null))
+        {
+            throw new ArgumentException(
+                "Non-successful adapter runs require an error code, and successful runs cannot include error details.");
+        }
+
+        this.ErrorCode = normalizedErrorCode;
+        this.ErrorMessage = normalizedErrorMessage;
     }
 
     public Guid RunId { get; }

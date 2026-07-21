@@ -491,7 +491,7 @@ public sealed class IngestionOperationsIntegrationTests
                     completion.AcceptedCount,
                     completion.RejectedCount,
                     completion.AcceptedCheckpoint,
-                    completion.ErrorMessage),
+                    completion.ErrorCode),
                 CancellationToken.None).ConfigureAwait(false);
             Assert.True(completed.IsSuccess, completed.Error.Code);
 
@@ -759,8 +759,7 @@ public sealed class IngestionOperationsIntegrationTests
                     0,
                     0,
                     "remote-cursor-1",
-                    ErrorCode: null,
-                    ErrorMessage: null)).ConfigureAwait(false);
+                    ErrorCode: null)).ConfigureAwait(false);
             _ = await ReadSuccessAsync<AdapterRemoteRunCompletionResponse>(completed).ConfigureAwait(false);
         }
         finally
@@ -793,7 +792,7 @@ public sealed class IngestionOperationsIntegrationTests
         IngestionRunDto expiredRun = Assert.Single(
             remoteRuns.Runs,
             run => run.Status == IngestionRunStatus.Failed);
-        Assert.Equal("ingestion.remote-lease-expired", expiredRun.ErrorMessage);
+        Assert.Equal("ingestion.remote-lease-expired", expiredRun.ErrorCode);
     }
 
     private static async Task ProveAdapterIngressAsync(

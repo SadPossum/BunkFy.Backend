@@ -33,7 +33,7 @@ public sealed class IngestionRunTests
             2,
             1,
             "cursor-2",
-            null,
+            "adapter.partial-observations",
             1,
             Now.AddMinutes(1)).IsSuccess);
 
@@ -46,13 +46,35 @@ public sealed class IngestionRunTests
     }
 
     [Fact]
-    public void Failed_completion_requires_an_error_message()
+    public void Non_successful_completion_requires_a_bounded_stable_error_code()
     {
         IngestionRun run = CreateRun(Guid.NewGuid(), taskAttempt: 1);
 
         Assert.Equal(
-            IngestionDomainErrors.ErrorMessageInvalid,
+            IngestionDomainErrors.ErrorCodeInvalid,
             run.Complete(AdapterRunOutcome.Failed, 0, 0, 0, null, null, 1, Now).Error);
+        Assert.Equal(
+            IngestionDomainErrors.ErrorCodeInvalid,
+            run.Complete(
+                AdapterRunOutcome.Failed,
+                0,
+                0,
+                0,
+                null,
+                "Guest Maya could not be parsed",
+                1,
+                Now).Error);
+        Assert.Equal(
+            IngestionDomainErrors.ErrorCodeInvalid,
+            run.Complete(
+                AdapterRunOutcome.Succeeded,
+                0,
+                0,
+                0,
+                null,
+                "adapter.unexpected-detail",
+                1,
+                Now).Error);
     }
 
     [Fact]

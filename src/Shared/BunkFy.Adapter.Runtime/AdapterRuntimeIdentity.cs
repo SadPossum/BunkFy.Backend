@@ -30,9 +30,9 @@ public sealed record AdapterRuntimeIdentity
         }
 
         if (normalizedAdapterType.Length is 0 or > AdapterProtocolLimits.AdapterTypeMaxLength ||
-            !char.IsLetterOrDigit(normalizedAdapterType[0]) ||
+            !char.IsAsciiLetterOrDigit(normalizedAdapterType[0]) ||
             normalizedAdapterType.Any(character =>
-                !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_'))
+                !char.IsAsciiLetterOrDigit(character) && character is not '.' and not '-' and not '_'))
         {
             throw new ArgumentException("The adapter type is invalid.", nameof(adapterType));
         }

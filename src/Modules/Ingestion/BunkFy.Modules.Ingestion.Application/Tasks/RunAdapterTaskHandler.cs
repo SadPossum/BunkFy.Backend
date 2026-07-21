@@ -88,6 +88,7 @@ internal sealed class RunAdapterTaskHandler(
             start.Value.Checkpoint);
 
         AdapterRunCompletion completion;
+        string? declaredFailureCode = null;
         try
         {
             Result<AdapterConfigurationMaterial> resolvedMaterial = await materialResolver.ResolveAsync(
@@ -102,6 +103,7 @@ internal sealed class RunAdapterTaskHandler(
                 cancellationToken).ConfigureAwait(false);
             if (resolvedMaterial.IsFailure)
             {
+                declaredFailureCode = resolvedMaterial.Error.Code;
                 throw new InvalidOperationException(resolvedMaterial.Error.Code);
             }
 
@@ -118,18 +120,19 @@ internal sealed class RunAdapterTaskHandler(
                 start.Value,
                 context,
                 AdapterRunOutcome.Cancelled,
-                "Adapter execution was cancelled.",
+                "ingestion.adapter-execution-cancelled",
                 CancellationToken.None).ConfigureAwait(false);
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
+            string failureCode = declaredFailureCode ?? "ingestion.adapter-execution-failed";
             await this.RecordFailureAsync(
                 start.Value,
                 context,
-                Truncate(exception.Message),
+                failureCode,
                 cancellationToken).ConfigureAwait(false);
-            throw;
+            throw new InvalidOperationException(NormalizeErrorCode(failureCode));
         }
 
         if (completion.RunId != assignment.RunId || completion.LeaseId != assignment.LeaseId)
@@ -153,7 +156,7 @@ internal sealed class RunAdapterTaskHandler(
                 completion.AcceptedCount,
                 completion.RejectedCount,
                 completion.AcceptedCheckpoint,
-                completion.ErrorMessage),
+                completion.ErrorCode),
             cancellationToken).ConfigureAwait(false);
         if (recorded.IsFailure)
         {
@@ -167,27 +170,27 @@ internal sealed class RunAdapterTaskHandler(
 
         if (completion.Outcome == AdapterRunOutcome.Cancelled)
         {
-            throw new TaskRunCanceledException(completion.ErrorMessage ?? "Adapter run was cancelled.");
+            throw new TaskRunCanceledException(completion.ErrorCode ?? "ingestion.adapter-execution-cancelled");
         }
     }
 
     private Task<Result<Unit>> RecordFailureAsync(
         AdapterRunStart start,
         TaskExecutionContext context,
-        string message,
+        string errorCode,
         CancellationToken cancellationToken) =>
         this.RecordTerminalAsync(
             start,
             context,
             AdapterRunOutcome.Failed,
-            message,
+            errorCode,
             cancellationToken);
 
     private Task<Result<Unit>> RecordTerminalAsync(
         AdapterRunStart start,
         TaskExecutionContext context,
         AdapterRunOutcome outcome,
-        string message,
+        string errorCode,
         CancellationToken cancellationToken) =>
         commandDispatcher.DispatchAsync<CompleteAdapterRunCommand, Unit>(
             context,
@@ -200,14 +203,18 @@ internal sealed class RunAdapterTaskHandler(
                 0,
                 0,
                 AcceptedCheckpoint: null,
-                Truncate(message)),
+                NormalizeErrorCode(errorCode)),
             cancellationToken);
 
-    private static string Truncate(string? message)
+    private static string NormalizeErrorCode(string? errorCode)
     {
-        string normalized = string.IsNullOrWhiteSpace(message) ? "Adapter execution failed." : message.Trim();
-        return normalized.Length <= AdapterProtocolLimits.ErrorMessageMaxLength
-            ? normalized
-            : normalized[..AdapterProtocolLimits.ErrorMessageMaxLength];
+        string normalized = string.IsNullOrWhiteSpace(errorCode)
+            ? "ingestion.adapter-execution-failed"
+            : errorCode.Trim().ToLowerInvariant();
+        bool valid = normalized.Length <= AdapterProtocolLimits.ErrorCodeMaxLength &&
+                     char.IsAsciiLetterOrDigit(normalized[0]) &&
+                     normalized.All(character =>
+                         char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_');
+        return valid ? normalized : "ingestion.adapter-execution-failed";
     }
 }

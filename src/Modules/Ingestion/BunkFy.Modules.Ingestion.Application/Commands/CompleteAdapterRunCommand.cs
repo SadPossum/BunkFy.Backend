@@ -12,5 +12,5 @@ public sealed record CompleteAdapterRunCommand(
     int AcceptedCount,
     int RejectedCount,
     string? AcceptedCheckpoint,
-    string? ErrorMessage)
+    string? ErrorCode)
     : ITransactionalCommand<Unit>;

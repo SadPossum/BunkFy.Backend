@@ -297,9 +297,7 @@ public sealed class WorkerHostIntegrationTests
                 Assert.Equal(IngestionRunState.PartiallySucceeded, ingestionRun.State);
                 Assert.Equal(1, ingestionRun.ObservedCount);
                 Assert.Equal(1, ingestionRun.AcceptedCount);
-                Assert.Equal("1 file-drop input was quarantined.", ingestionRun.ErrorMessage);
-                Assert.DoesNotContain(root, ingestionRun.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-                Assert.DoesNotContain(invalidFileName, ingestionRun.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal("json-file-drop.input-quarantined", ingestionRun.ErrorCode);
                 Assert.False(File.Exists(Path.Combine(pending, fileName)));
                 Assert.False(File.Exists(Path.Combine(pending, invalidFileName)));
                 Assert.True(File.Exists(Path.Combine(

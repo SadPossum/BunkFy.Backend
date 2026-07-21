@@ -492,6 +492,8 @@
   </Folder>
   <Folder Name="/src/Modules/Ingestion/docs/">
     <File Path="src/Modules/Ingestion/docs/README.md" />
+    <File Path="src/Modules/Ingestion/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/Ingestion/docs/personal-data-inventory.v1.md" />
   </Folder>
   <Folder Name="/src/Modules/Ingestion/src/Admin/">
     <Project Path="src/Modules/Ingestion/BunkFy.Modules.Ingestion.Admin.Contracts/BunkFy.Modules.Ingestion.Admin.Contracts.csproj" />

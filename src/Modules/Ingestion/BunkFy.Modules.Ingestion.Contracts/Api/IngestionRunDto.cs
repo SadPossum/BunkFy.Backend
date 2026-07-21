@@ -35,7 +35,7 @@ public sealed record IngestionRunDto(
     int ObservedCount,
     int AcceptedCount,
     int RejectedCount,
-    string? ErrorMessage,
+    string? ErrorCode,
     long Version,
     DateTimeOffset StartedAtUtc,
     DateTimeOffset? CompletedAtUtc);

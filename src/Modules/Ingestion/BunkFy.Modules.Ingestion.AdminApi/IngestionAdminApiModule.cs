@@ -581,7 +581,9 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         group.MapGet("/{proposalId:guid}", async (Guid propertyId, Guid proposalId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
-                AdminOperation.Create(IngestionAdminOperationNames.ProposalGet, IngestionAdminPermissions.Read), true,
+                AdminOperation.Create(
+                    IngestionAdminOperationNames.ProposalGet,
+                    IngestionAdminPermissions.SensitiveHistoryRead), true,
                 ct => dispatcher.QueryAsync(new GetChangeProposalQuery(propertyId, proposalId), ct), token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
         group.MapPost("/{proposalId:guid}/accept", async (Guid propertyId, Guid proposalId, AcceptProposalRequest request,

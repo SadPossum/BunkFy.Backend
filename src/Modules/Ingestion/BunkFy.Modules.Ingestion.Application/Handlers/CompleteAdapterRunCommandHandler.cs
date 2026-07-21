@@ -33,7 +33,7 @@ internal sealed class CompleteAdapterRunCommandHandler(
             command.AcceptedCount,
             command.RejectedCount,
             command.AcceptedCheckpoint,
-            command.ErrorMessage,
+            command.ErrorCode,
             run.Version,
             clock.UtcNow);
         return completed.IsSuccess

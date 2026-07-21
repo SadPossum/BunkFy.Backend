@@ -38,6 +38,7 @@ public sealed class AdapterProtocolTests
         Assert.Equal(2, descriptor.ConfigurationSchemaVersion);
         Assert.Equal([AdapterExecutionMode.Polling], descriptor.ExecutionModes);
         Assert.Throws<ArgumentException>(() => new AdapterDescriptor("booking/email", 1, 1, [AdapterExecutionMode.Polling]));
+        Assert.Throws<ArgumentException>(() => new AdapterDescriptor("réservation.email", 1, 1, [AdapterExecutionMode.Polling]));
         Assert.Throws<ArgumentException>(() => new AdapterDescriptor("booking.email", 1, 1, [AdapterExecutionMode.Unknown]));
     }
 
@@ -155,10 +156,13 @@ public sealed class AdapterProtocolTests
             Guid.NewGuid(), Guid.NewGuid(), [result], checkpointAccepted: true, acceptedCheckpoint: null));
         AdapterObservationResult rejected = new(
             Guid.NewGuid(), AdapterObservationDisposition.Rejected, receiptId: null, errorCode: "invalid-envelope");
+        Assert.Equal("invalid-envelope", rejected.ErrorCode);
         Assert.Throws<ArgumentException>(() => new AdapterObservationAcknowledgement(
             Guid.NewGuid(), Guid.NewGuid(), [rejected], checkpointAccepted: true, acceptedCheckpoint: "cursor-3"));
         Assert.Throws<ArgumentException>(() => new AdapterObservationResult(
             Guid.NewGuid(), AdapterObservationDisposition.Accepted, receiptId: null, errorCode: null));
+        Assert.Throws<ArgumentException>(() => new AdapterObservationResult(
+            Guid.NewGuid(), AdapterObservationDisposition.Rejected, receiptId: null, errorCode: "réservation.invalid"));
     }
 
     [Fact]
@@ -172,10 +176,11 @@ public sealed class AdapterProtocolTests
             acceptedCount: 2,
             rejectedCount: 1,
             "cursor-2",
-            errorCode: null,
+            errorCode: "provider.partial",
             errorMessage: null);
 
         Assert.Equal(3, completion.ObservedCount);
+        Assert.Equal("provider.partial", completion.ErrorCode);
         Assert.Throws<ArgumentException>(() => new AdapterRunCompletion(
             Guid.NewGuid(),
             Guid.NewGuid(),

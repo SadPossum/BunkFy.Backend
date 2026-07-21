@@ -354,7 +354,7 @@ public sealed class StandaloneAdapterRuntimeTests
         rejectedCount: acknowledgement.Results.Count(result =>
             result.Disposition == AdapterObservationDisposition.Rejected),
         acknowledgement.AcceptedCheckpoint,
-        errorCode: null,
+        errorCode: outcome == AdapterRunOutcome.Succeeded ? null : "adapter.observation-rejected",
         errorMessage: null);
 
     private sealed class TestRunner(

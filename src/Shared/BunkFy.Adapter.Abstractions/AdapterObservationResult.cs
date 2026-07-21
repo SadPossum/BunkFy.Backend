@@ -23,10 +23,12 @@ public sealed record AdapterObservationResult
 
         this.Disposition = disposition;
         this.ReceiptId = receiptId;
-        this.ErrorCode = AdapterProtocolGuards.Optional(
-            errorCode,
-            AdapterProtocolLimits.ErrorCodeMaxLength,
-            nameof(errorCode));
+        this.ErrorCode = string.IsNullOrWhiteSpace(errorCode)
+            ? null
+            : AdapterProtocolGuards.StableKey(
+                errorCode,
+                AdapterProtocolLimits.ErrorCodeMaxLength,
+                nameof(errorCode));
     }
 
     public Guid OperationId { get; }

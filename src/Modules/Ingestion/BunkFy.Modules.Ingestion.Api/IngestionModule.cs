@@ -92,7 +92,7 @@ public sealed class IngestionModule : IModule
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
             .RequireTenant()
             .RequireResolvedScopePermission(
-                IngestionAdminPermissionCodes.Read,
+                IngestionAdminPermissionCodes.SensitiveHistoryRead,
                 IngestionPropertyAccessScopeResolver.ResolverName);
 
         group.MapPost("/{proposalId:guid}/accept", async (

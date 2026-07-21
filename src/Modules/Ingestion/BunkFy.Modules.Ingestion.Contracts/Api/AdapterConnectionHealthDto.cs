@@ -42,7 +42,7 @@ public sealed record AdapterConnectionHealthDto(
     IngestionRunStatus? LatestRunStatus,
     DateTimeOffset? LatestRunStartedAtUtc,
     DateTimeOffset? LatestRunCompletedAtUtc,
-    string? LatestRunError,
+    string? LatestRunErrorCode,
     DateTimeOffset? LastSuccessfulRunAtUtc,
     DateTimeOffset? LastObservationReceivedAtUtc,
     long PendingReceiptCount,

@@ -186,8 +186,7 @@ public sealed class AdapterHttpIngressClient : IAdapterPushObservationSink, IAda
             request.ObservedCount < 0 || request.AcceptedCount < 0 || request.RejectedCount < 0 ||
             (long)request.AcceptedCount + request.RejectedCount > request.ObservedCount ||
             request.AcceptedCheckpoint?.Length > AdapterProtocolLimits.CheckpointMaxLength ||
-            request.ErrorCode?.Length > AdapterProtocolLimits.ErrorCodeMaxLength ||
-            request.ErrorMessage?.Length > AdapterProtocolLimits.ErrorMessageMaxLength)
+            request.ErrorCode?.Length > AdapterProtocolLimits.ErrorCodeMaxLength)
         {
             throw new ArgumentException("The remote run completion is invalid.", nameof(request));
         }

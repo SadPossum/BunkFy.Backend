@@ -41,7 +41,7 @@ public static class IngestionDomainErrors
     public static readonly Error RunNotActive = new("Ingestion.RunNotActive", "The adapter run is no longer active.");
     public static readonly Error RunOutcomeInvalid = new("Ingestion.RunOutcomeInvalid", "The adapter run outcome is invalid.");
     public static readonly Error RunCountsInvalid = new("Ingestion.RunCountsInvalid", "Adapter run counts cannot be negative or inconsistent.");
-    public static readonly Error ErrorMessageInvalid = new("Ingestion.ErrorMessageInvalid", "The error message is invalid.");
+    public static readonly Error ErrorCodeInvalid = new("Ingestion.ErrorCodeInvalid", "The adapter error code is invalid.");
     public static readonly Error ReceiptIdentityInvalid = new("Ingestion.ReceiptIdentityInvalid", "The observation receipt identity is invalid.");
     public static readonly Error PayloadInvalid = new("Ingestion.PayloadInvalid", "The observation payload reference or hash is invalid.");
     public static readonly Error RawPayloadRetentionInvalid = new("Ingestion.RawPayloadRetentionInvalid", "The raw payload retention deadline is invalid.");

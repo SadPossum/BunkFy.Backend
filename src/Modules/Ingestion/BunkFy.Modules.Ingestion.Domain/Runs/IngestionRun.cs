@@ -8,7 +8,7 @@ using BunkFy.Modules.Ingestion.Domain.Errors;
 public sealed class IngestionRun : ScopedAggregateRoot<Guid>
 {
     public const int CheckpointMaxLength = AdapterProtocolLimits.CheckpointMaxLength;
-    public const int ErrorMessageMaxLength = 2000;
+    public const int ErrorCodeMaxLength = AdapterProtocolLimits.ErrorCodeMaxLength;
 
     private IngestionRun() { }
 
@@ -34,7 +34,7 @@ public sealed class IngestionRun : ScopedAggregateRoot<Guid>
     public int ObservedCount { get; private set; }
     public int AcceptedCount { get; private set; }
     public int RejectedCount { get; private set; }
-    public string? ErrorMessage { get; private set; }
+    public string? ErrorCode { get; private set; }
     public long Version { get; private set; } = 1;
     public DateTimeOffset StartedAtUtc { get; private set; }
     public DateTimeOffset? CompletedAtUtc { get; private set; }
@@ -172,7 +172,7 @@ public sealed class IngestionRun : ScopedAggregateRoot<Guid>
         int acceptedCount,
         int rejectedCount,
         string? acceptedCheckpoint,
-        string? errorMessage,
+        string? errorCode,
         long expectedVersion,
         DateTimeOffset nowUtc)
     {
@@ -189,7 +189,7 @@ public sealed class IngestionRun : ScopedAggregateRoot<Guid>
             acceptedCount,
             rejectedCount,
             acceptedCheckpoint,
-            errorMessage,
+            errorCode,
             expectedVersion,
             nowUtc);
     }
@@ -250,7 +250,7 @@ public sealed class IngestionRun : ScopedAggregateRoot<Guid>
         int acceptedCount,
         int rejectedCount,
         string? acceptedCheckpoint,
-        string? errorMessage,
+        string? errorCode,
         long expectedVersion,
         DateTimeOffset nowUtc)
     {
@@ -285,11 +285,12 @@ public sealed class IngestionRun : ScopedAggregateRoot<Guid>
             return checkpoint;
         }
 
-        string? normalizedError = string.IsNullOrWhiteSpace(errorMessage) ? null : errorMessage.Trim();
-        if (normalizedError?.Length > ErrorMessageMaxLength ||
-            (finalState == IngestionRunState.Failed && normalizedError is null))
+        string? normalizedErrorCode = NormalizeErrorCode(errorCode);
+        bool requiresErrorCode = finalState is IngestionRunState.PartiallySucceeded or
+            IngestionRunState.Failed or IngestionRunState.Cancelled;
+        if (!IsValidErrorCode(normalizedErrorCode) || requiresErrorCode != (normalizedErrorCode is not null))
         {
-            return Result.Failure(IngestionDomainErrors.ErrorMessageInvalid);
+            return Result.Failure(IngestionDomainErrors.ErrorCodeInvalid);
         }
 
         this.State = finalState;
@@ -297,7 +298,7 @@ public sealed class IngestionRun : ScopedAggregateRoot<Guid>
         this.AcceptedCount = acceptedCount;
         this.RejectedCount = rejectedCount;
         this.AcceptedCheckpoint = NormalizeCheckpoint(acceptedCheckpoint);
-        this.ErrorMessage = normalizedError;
+        this.ErrorCode = normalizedErrorCode;
         this.CompletedAtUtc = nowUtc;
         this.Version++;
         return Result.Success();
@@ -351,4 +352,13 @@ public sealed class IngestionRun : ScopedAggregateRoot<Guid>
 
     private static string? NormalizeCheckpoint(string? checkpoint) =>
         string.IsNullOrWhiteSpace(checkpoint) ? null : checkpoint.Trim();
+
+    private static string? NormalizeErrorCode(string? errorCode) =>
+        string.IsNullOrWhiteSpace(errorCode) ? null : errorCode.Trim().ToLowerInvariant();
+
+    private static bool IsValidErrorCode(string? errorCode) =>
+        errorCode is null ||
+        (errorCode.Length <= ErrorCodeMaxLength &&
+         char.IsAsciiLetterOrDigit(errorCode[0]) &&
+         errorCode.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'));
 }

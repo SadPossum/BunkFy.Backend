@@ -15,9 +15,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Api\BunkFy.Modules.Ingestion.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Application\BunkFy.Modules.Ingestion.Application.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Domain\BunkFy.Modules.Ingestion.Domain.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Persistence\BunkFy.Modules.Ingestion.Persistence.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\BunkFy.Adapter.Abstractions\BunkFy.Adapter.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\BunkFy.Ingestion.Parsing.Abstractions\BunkFy.Ingestion.Parsing.Abstractions.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Scoping\Gma.Framework.Scoping\Gma.Framework.Scoping.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs\Gma.Framework.Cqrs.csproj" />
@@ -25,5 +27,13 @@
     <ProjectReference Include="$(GmaFrameworkRoot)Runtime\Gma.Framework.Runtime\Gma.Framework.Runtime.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks\Gma.Framework.Tasks.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks.Cqrs\Gma.Framework.Tasks.Cqrs.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\docs\personal-data-catalog.v1.json"
+          Link="DataGovernance\personal-data-catalog.v1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\docs\personal-data-inventory.v1.md"
+          Link="DataGovernance\personal-data-inventory.v1.md"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

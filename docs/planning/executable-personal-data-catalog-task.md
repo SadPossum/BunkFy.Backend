@@ -6,7 +6,7 @@ Status: in progress
 
 Complete company-readiness control SP-001 one domain at a time. BunkFy must have a versioned, machine-readable catalogue that makes undocumented personal data fail verification instead of silently entering persistence, contracts, messages, logs, or other processing surfaces.
 
-The first delivery slice covered Guests because it is the canonical owner of durable guest profiles. Reservations now applies the same executable contract to booking records, change history, adapter ingress, and operational events.
+The first delivery slice covered Guests because it is the canonical owner of durable guest profiles. Reservations applies the same executable contract to booking records and operational events, and Ingestion now covers source evidence, normalized history, adapter credentials, operator audit, and adapter/parser boundaries.
 
 ## Ownership
 
@@ -66,12 +66,20 @@ The Reservations catalogue classifies:
 
 Executable guards prove all selected EF Core members and public boundary members are classified, every binding resolves to a real member, adapter ingress is limited to the four explicit external-reservation request contracts, direct or unstructured guest data cannot enter operational outputs, rejection reasons remain bounded, legacy reminder JSON cannot reintroduce a guest name, and the checked-in inventory is deterministic.
 
+## Ingestion Slice
+
+Status: implemented and verified
+
+The Ingestion catalogue classifies raw source payloads, normalized reservation history, adapter configuration and credential material, operator/legal-hold audit, durable processing state, API/admin-facing models, adapter and parser ingress, and the minimal receipt-accepted integration event. Proposal list access remains operational, while proposal detail uses the separate `ingestion.sensitive-history.read` permission.
+
+Executable guards prove every Ingestion-owned mapped persistence member and selected public command, query, port, API, task, adapter, parser, and event member is classified. Raw source evidence is limited to explicit adapter ingress, file ingress, application command, and API response surfaces. Direct, contact, free-text, search, and structured data cannot enter events, notifications, logs, metrics, traces, or support bundles. Persisted and remote failures expose stable bounded error codes instead of provider messages, raw downloads are non-cacheable opaque sandboxed attachments, and the resolved inventory is deterministic.
+
 ## Delivery Slices
 
 1. Add the shared catalogue model, strict parser, validator, and focused adversarial tests.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
-4. Continue one module at a time through Ingestion, Staff and Workspaces, Notifications extensions, Inventory, and Properties.
+4. Continue one module at a time through Staff and Workspaces, Notifications extensions, Inventory, and Properties. Ingestion is completed.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -104,9 +112,17 @@ Completed Reservations evidence:
 - Direct identity, contact, free text, search input, and structured payloads are prohibited from integration events, notifications, logs, metrics, traces, and support bundles.
 - Focused Reservations verification and the complete repository verifier pass with a synchronized solution, warning-free build, zero migration drift, and the full non-Docker fast suite green. Exact-commit CI remains required when the slice is published.
 
+Completed Ingestion evidence:
+
+- 232 field definitions resolve 630 concrete bindings across Ingestion persistence, application/API contracts, adapter/parser ingress, raw evidence, credentials, and the single PII-minimized cross-module event.
+- Raw evidence has a dedicated permission and constrained download response; normalized proposal history has a separate sensitive-history permission from ordinary operational reads.
+- Stable ASCII error codes replace free-form remote and persisted run errors, with PostgreSQL lifecycle/format constraints and a compatibility migration for existing rows.
+- Focused Ingestion, adapter, architecture, migration, frontend, complete repository, and exact-commit CI evidence must be green on publication.
+
 ## Deferred Dependencies
 
 - Founder/counsel approval of controller/processor allocation, field purposes, legal bases, retention periods, country rules, and rights exceptions.
 - SP-002 rights orchestration across modules and deletion ledger.
 - SP-003 automatic retention provisioning, monitoring, legal holds, and backup consequences.
+- Provider-neutral object-storage inventory plus bounded orphan reconciliation for the crash window between evidence storage and receipt transaction commit.
 - Production evidence and independent review for the completed product-wide control.

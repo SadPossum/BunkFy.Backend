@@ -197,7 +197,7 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
             latestRun?.Status,
             latestRun?.StartedAtUtc,
             latestRun?.CompletedAtUtc,
-            latestRun?.ErrorMessage,
+            latestRun?.ErrorCode,
             lastSuccessfulRunAtUtc,
             receiptStats?.LastObservationReceivedAtUtc,
             receiptStats?.PendingReceiptCount ?? 0,
@@ -418,7 +418,7 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
         run.ObservedCount,
         run.AcceptedCount,
         run.RejectedCount,
-        run.ErrorMessage,
+        run.ErrorCode,
         run.Version,
         run.StartedAtUtc,
         run.CompletedAtUtc);

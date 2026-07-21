@@ -1343,7 +1343,9 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         Command command = new("get", "Get a change proposal.") { propertyOption, proposalOption };
         command.SetAction((parseResult, cancellationToken) => services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
             parseResult,
-            AdminOperation.Create(IngestionAdminOperationNames.ProposalGet, IngestionAdminPermissions.Read),
+            AdminOperation.Create(
+                IngestionAdminOperationNames.ProposalGet,
+                IngestionAdminPermissions.SensitiveHistoryRead),
             parseResult.GetValue(globalOptions.TenantOption),
             requireTenant: true,
             async (provider, token) =>

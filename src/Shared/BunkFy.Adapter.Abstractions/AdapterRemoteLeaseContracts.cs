@@ -51,8 +51,7 @@ public sealed record AdapterRemoteRunCompletionRequest(
     int AcceptedCount,
     int RejectedCount,
     string? AcceptedCheckpoint,
-    string? ErrorCode,
-    string? ErrorMessage);
+    string? ErrorCode);
 
 public sealed record AdapterRemoteRunCompletionResponse(
     Guid RunId,

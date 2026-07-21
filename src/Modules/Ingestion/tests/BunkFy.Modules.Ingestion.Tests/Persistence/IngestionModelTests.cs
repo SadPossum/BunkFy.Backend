@@ -262,7 +262,7 @@ public sealed class IngestionModelTests
             Guid.NewGuid(), "tenant-a", connection.Id, propertyId, Guid.NewGuid(), 1, "cursor-1", now.AddHours(-1)).Value;
         Assert.True(failed.Complete(
             BunkFy.Adapter.Abstractions.AdapterRunOutcome.Failed,
-            0, 0, 0, null, "provider unavailable", failed.Version, now.AddMinutes(-30)).IsSuccess);
+            0, 0, 0, null, "provider.unavailable", failed.Version, now.AddMinutes(-30)).IsSuccess);
         ObservationReceipt pending = CreateReceipt(connection, now.AddHours(-2), now.AddHours(1));
         ObservationReceipt expired = CreateReceipt(connection, now.AddHours(-3), now.AddHours(-1));
         Assert.True(expired.Reject("invalid", now.AddHours(-2)).IsSuccess);
@@ -281,7 +281,7 @@ public sealed class IngestionModelTests
         Assert.Equal(AdapterConnectionOperationalState.LastRunFailed, health.OperationalState);
         Assert.Equal(failed.Id, health.LatestRunId);
         Assert.Equal(IngestionRunStatus.Failed, health.LatestRunStatus);
-        Assert.Equal("provider unavailable", health.LatestRunError);
+        Assert.Equal("provider.unavailable", health.LatestRunErrorCode);
         Assert.Equal(now.AddHours(-2), health.LastSuccessfulRunAtUtc);
         Assert.Equal(1, health.PendingReceiptCount);
         Assert.Equal(2, health.RejectedReceiptCount);

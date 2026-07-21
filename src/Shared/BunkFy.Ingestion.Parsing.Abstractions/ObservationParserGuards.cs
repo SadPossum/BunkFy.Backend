@@ -5,8 +5,8 @@ internal static class ObservationParserGuards
     public static string StableKey(string? value, int maxLength, string parameterName)
     {
         string normalized = Required(value, maxLength, parameterName).ToLowerInvariant();
-        if (!char.IsLetterOrDigit(normalized[0]) || normalized.Any(character =>
-                !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_'))
+        if (!char.IsAsciiLetterOrDigit(normalized[0]) || normalized.Any(character =>
+                !char.IsAsciiLetterOrDigit(character) && character is not '.' and not '-' and not '_'))
         {
             throw new ArgumentException(
                 $"{parameterName} must start with a letter or digit and contain only letters, digits, '.', '-', or '_'.",

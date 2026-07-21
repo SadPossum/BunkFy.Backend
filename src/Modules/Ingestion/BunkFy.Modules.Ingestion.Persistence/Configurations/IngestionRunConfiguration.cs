@@ -9,14 +9,24 @@ internal sealed class IngestionRunConfiguration : IEntityTypeConfiguration<Inges
 {
     public void Configure(EntityTypeBuilder<IngestionRun> builder)
     {
-        builder.ToTable("runs", table => table.HasCheckConstraint(
-            "CK_runs_execution_identity",
-            "(\"ExecutionKind\" = 1 AND \"TaskRunId\" IS NOT NULL AND \"TaskAttempt\" > 0 AND " +
-            "\"RemoteLeaseId\" IS NULL AND \"RemoteClaimId\" IS NULL AND \"RemoteLeaseEpoch\" IS NULL AND \"RemoteCredentialId\" IS NULL AND " +
-            "\"RemoteWorkerId\" IS NULL AND \"RemoteLeaseExpiresAtUtc\" IS NULL) OR " +
-            "(\"ExecutionKind\" = 2 AND \"TaskRunId\" IS NULL AND \"TaskAttempt\" IS NULL AND " +
-            "\"RemoteLeaseId\" IS NOT NULL AND \"RemoteClaimId\" IS NOT NULL AND \"RemoteLeaseEpoch\" > 0 AND \"RemoteCredentialId\" IS NOT NULL AND " +
-            "\"RemoteWorkerId\" IS NOT NULL AND \"RemoteLeaseExpiresAtUtc\" IS NOT NULL)"));
+        builder.ToTable("runs", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_runs_execution_identity",
+                "(\"ExecutionKind\" = 1 AND \"TaskRunId\" IS NOT NULL AND \"TaskAttempt\" > 0 AND " +
+                "\"RemoteLeaseId\" IS NULL AND \"RemoteClaimId\" IS NULL AND \"RemoteLeaseEpoch\" IS NULL AND \"RemoteCredentialId\" IS NULL AND " +
+                "\"RemoteWorkerId\" IS NULL AND \"RemoteLeaseExpiresAtUtc\" IS NULL) OR " +
+                "(\"ExecutionKind\" = 2 AND \"TaskRunId\" IS NULL AND \"TaskAttempt\" IS NULL AND " +
+                "\"RemoteLeaseId\" IS NOT NULL AND \"RemoteClaimId\" IS NOT NULL AND \"RemoteLeaseEpoch\" > 0 AND \"RemoteCredentialId\" IS NOT NULL AND " +
+                "\"RemoteWorkerId\" IS NOT NULL AND \"RemoteLeaseExpiresAtUtc\" IS NOT NULL)");
+            table.HasCheckConstraint(
+                "CK_runs_error_code_lifecycle",
+                "(\"State\" IN (1, 2) AND \"ErrorCode\" IS NULL) OR " +
+                "(\"State\" IN (3, 4, 5) AND \"ErrorCode\" IS NOT NULL)");
+            table.HasCheckConstraint(
+                "CK_runs_error_code_format",
+                "\"ErrorCode\" IS NULL OR \"ErrorCode\" ~ '^[a-z0-9][a-z0-9._-]{0,199}$'");
+        });
         builder.HasKey(run => run.Id);
         builder.HasAlternateKey(run => new { run.ScopeId, run.Id });
         builder.Property(run => run.ScopeId).HasMaxLength(128).IsRequired();
@@ -24,7 +34,7 @@ internal sealed class IngestionRunConfiguration : IEntityTypeConfiguration<Inges
         builder.Property(run => run.StartingCheckpoint).HasMaxLength(IngestionRun.CheckpointMaxLength);
         builder.Property(run => run.AcceptedCheckpoint).HasMaxLength(IngestionRun.CheckpointMaxLength);
         builder.Property(run => run.State).HasConversion<int>().IsRequired();
-        builder.Property(run => run.ErrorMessage).HasMaxLength(IngestionRun.ErrorMessageMaxLength);
+        builder.Property(run => run.ErrorCode).HasMaxLength(IngestionRun.ErrorCodeMaxLength);
         builder.Property(run => run.Version).IsConcurrencyToken().IsRequired();
         builder.HasIndex(run => new { run.ScopeId, run.TaskRunId, run.TaskAttempt })
             .IsUnique()
