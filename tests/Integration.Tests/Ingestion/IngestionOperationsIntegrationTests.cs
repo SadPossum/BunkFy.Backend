@@ -931,7 +931,7 @@ public sealed class IngestionOperationsIntegrationTests
             .ReadFromJsonAsync<AdapterIngressSubmissionResponse>().ConfigureAwait(false))!;
         AdapterObservationResult rejectedResult = Assert.Single(rejected.Results);
         Assert.Equal(AdapterObservationDisposition.Rejected, rejectedResult.Disposition);
-        Assert.Equal(IngestionApplicationErrors.ConnectionNotEnabled.Code, rejectedResult.ErrorCode);
+        Assert.Equal("ingestion.connectionnotenabled", rejectedResult.ErrorCode);
 
         AdapterIngressCredentialListResponse finalList = await GetAsync<AdapterIngressCredentialListResponse>(
             managementClient, credentialsPath).ConfigureAwait(false);
