@@ -78,7 +78,9 @@
     <File Path="docs/planning/staff-profiles-module-task.md" />
     <File Path="docs/planning/standalone-adapter-host-task.md" />
     <File Path="docs/planning/workspace-access-profiles-task.md" />
+    <File Path="docs/planning/workspace-invitation-access-plans-task.md" />
     <File Path="docs/planning/workspace-onboarding-task.md" />
+    <File Path="docs/planning/workspace-staff-access-lifecycle-task.md" />
   </Folder>
   <Folder Name="/eng/">
     <File Path="eng/add-migration.ps1" />
