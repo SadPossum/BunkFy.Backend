@@ -331,12 +331,13 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Workspace_membership_defaults_to_front_desk_access_without_administration()
+    public void Workspace_member_profile_is_front_desk_access_without_administration()
     {
         string roles = RepositoryPaths.Read(
             "src",
-            "Extensions",
-            "BunkFy.Extensions.Workspaces",
+            "Modules",
+            "Workspaces",
+            "BunkFy.Modules.Workspaces.Contracts",
             "WorkspaceAccessRoles.cs");
 
         Assert.Contains("PropertiesAdminPermissionCodes.Read", roles, StringComparison.Ordinal);

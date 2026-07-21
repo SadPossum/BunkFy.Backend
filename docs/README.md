@@ -28,6 +28,7 @@ Useful entry points:
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)
+- [Secure Staff Enrollment Task](planning/secure-staff-enrollment-task.md)
 - [Workspace Access Profiles Task](planning/workspace-access-profiles-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Staff Module](../src/Modules/Staff/docs/README.md)

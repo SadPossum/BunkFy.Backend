@@ -137,6 +137,28 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal(3, member.Version);
     }
 
+    [Fact]
+    public async Task Onboarding_provisioning_is_replay_safe_for_an_existing_auth_subject()
+    {
+        FakeStaffMemberRepository members = new();
+        using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
+        ICommandHandler<ProvisionStaffOnboardingCommand, StaffMemberDto> handler = provider
+            .GetRequiredService<ICommandHandler<ProvisionStaffOnboardingCommand, StaffMemberDto>>();
+        ProvisionStaffOnboardingCommand command = new(
+            "member-100", "Ada Operator", "Ada Lovelace", "ada@example.test", null,
+            "EMP-100", "Manager", "Operations", "integration:organizations", "Onboarding accepted.");
+
+        Result<StaffMemberDto> first = await handler.HandleAsync(command, CancellationToken.None);
+        Result<StaffMemberDto> replayed = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replayed.IsSuccess, replayed.Error.Code);
+        Assert.Equal(first.Value.StaffMemberId, replayed.Value.StaffMemberId);
+        Assert.Equal(1, members.AddCount);
+        Assert.Equal("Ada Lovelace", replayed.Value.LegalName);
+        Assert.Equal("EMP-100", replayed.Value.EmployeeNumber);
+    }
+
     private static ServiceProvider CreateProvider(
         IStaffMemberRepository members,
         IStaffPropertyProjectionRepository properties,
@@ -167,10 +189,12 @@ public sealed class StaffCommandHandlerTests
         public string? ExistingEmployeeNumber { get; init; }
         public string? ExistingAuthSubjectId { get; init; }
         public StaffMember? AddedMember { get; private set; }
+        public int AddCount { get; private set; }
 
         public Task AddAsync(StaffMember value, CancellationToken cancellationToken)
         {
             this.AddedMember = value;
+            this.AddCount++;
             return Task.CompletedTask;
         }
 

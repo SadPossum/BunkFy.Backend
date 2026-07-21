@@ -1,8 +1,8 @@
-namespace BunkFy.Extensions.Workspaces;
+namespace BunkFy.Modules.Workspaces.Contracts;
 
 using Gma.Framework.AccessControl;
 
-internal static class WorkspaceAccessScopes
+public static class WorkspaceAccessScopes
 {
     public const string SegmentName = "tenant";
 

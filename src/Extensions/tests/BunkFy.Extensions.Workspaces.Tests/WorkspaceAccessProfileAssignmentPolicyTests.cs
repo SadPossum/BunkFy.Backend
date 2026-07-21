@@ -1,5 +1,6 @@
 namespace BunkFy.Extensions.Workspaces.Tests;
 
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;

@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Modules\Reservations\BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations\BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Guests\BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations\BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Staff\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
   </ItemGroup>
   <ItemGroup>

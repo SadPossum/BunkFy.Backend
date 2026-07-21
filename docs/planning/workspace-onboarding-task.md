@@ -10,11 +10,11 @@ Date: 2026-07-14
 - workspace creation, selection, rename, member inspection, membership suspension/resume, and ownership transfer;
 - single-use recipient-bound invite links plus bounded reusable QR enrollment links;
 - invitation-aware registration with explicit post-registration acceptance and projection-readiness handling;
-- BunkFy Staff identity projection, self-service profile editing, and tenant-scoped owner/member AccessControl roles;
-- deny-by-default product access, permission-filtered navigation, and a front-desk baseline for ordinary members;
+- BunkFy Staff identity projection, self-service profile editing, and tenant-scoped owner governance access;
+- deny-by-default product access, permission-filtered navigation, and a constrained front-desk baseline installed only after Staff provisioning succeeds;
 - API, worker, migration, Admin API/CLI, OpenAPI, docs, and local preview composition.
 
-The phases below remain the durable direction. Configurable BunkFy access profiles, pre-created Staff/profile assignment plans, approval-based enrollment UX, offboarding orchestration, and production migration tooling are follow-on slices, not hidden claims of this delivery.
+The secure applicant-supplied Staff enrollment baseline is implemented by [Secure Staff Enrollment](secure-staff-enrollment-task.md). The phases below remain the durable direction. Configurable BunkFy access profiles, manager-pre-created Staff/property assignment plans, offboarding orchestration, production migration tooling, and deployed multi-account smoke are follow-on slices, not hidden claims of this delivery.
 
 ## Goal
 
@@ -167,16 +167,16 @@ Create a dedicated GMA source repository mounted as `gma/modules/organizations` 
 
 ### Staff onboarding process
 
-Create a BunkFy-owned durable process package, not a second employment aggregate. It owns only coordination state and references:
+Create a BunkFy-owned durable process module, not a second employment aggregate. The implemented baseline owns temporary applicant profile data and coordination state:
 
-- organization/invitation id;
-- Staff member id;
-- requested property assignments;
-- requested BunkFy access profile;
-- accepted Auth subject id;
+- organization and Organizations source id;
+- authenticated applicant subject and verified contact email;
+- proposed Staff profile until terminal completion/rejection;
+- bound claim id/version when approval is required;
+- provisioned Staff member id;
 - step/version/error/retry/audit facts.
 
-The process uses existing Staff commands to create/link profiles and assign properties. It uses public AccessControl behavior through a constrained product policy. It never matches Staff automatically by email.
+The process uses a narrow Staff provisioning contract and public AccessControl behavior through a constrained product policy. It never matches Staff automatically by email. Requested property assignments and named access profiles remain future server-owned plan fields, not browser authority.
 
 ### Access profiles and delegation
 

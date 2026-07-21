@@ -46,6 +46,9 @@
     <ProjectReference Include="..\Modules\Staff\BunkFy.Modules.Staff.Application\BunkFy.Modules.Staff.Application.csproj" />
     <ProjectReference Include="..\Modules\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
     <ProjectReference Include="..\Modules\Staff\BunkFy.Modules.Staff.Persistence\BunkFy.Modules.Staff.Persistence.csproj" />
+    <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Application\BunkFy.Modules.Workspaces.Application.csproj" />
+    <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence\BunkFy.Modules.Workspaces.Persistence.csproj" />
     <ProjectReference Include="..\Modules\Staff\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Application\BunkFy.Modules.Ingestion.Application.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />

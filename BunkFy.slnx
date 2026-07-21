@@ -73,6 +73,7 @@
     <File Path="docs/planning/reservations-module-task.md" />
     <File Path="docs/planning/reservations-pii-minimization-task.md" />
     <File Path="docs/planning/reservations-stay-lifecycle-task.md" />
+    <File Path="docs/planning/secure-staff-enrollment-task.md" />
     <File Path="docs/planning/staff-profiles-module-task.md" />
     <File Path="docs/planning/standalone-adapter-host-task.md" />
     <File Path="docs/planning/workspace-access-profiles-task.md" />
@@ -616,6 +617,25 @@
   </Folder>
   <Folder Name="/src/Modules/Staff/tests/">
     <Project Path="src/Modules/Staff/tests/BunkFy.Modules.Staff.Tests/BunkFy.Modules.Staff.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/src/Api/">
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Api/BunkFy.Modules.Workspaces.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/src/Application/">
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Application/BunkFy.Modules.Workspaces.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/src/Contracts/">
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Contracts/BunkFy.Modules.Workspaces.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/src/Domain/">
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Domain/BunkFy.Modules.Workspaces.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/src/Persistence/">
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations/BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Persistence/BunkFy.Modules.Workspaces.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/tests/">
+    <Project Path="src/Modules/Workspaces/tests/BunkFy.Modules.Workspaces.Tests/BunkFy.Modules.Workspaces.Tests.csproj" />
   </Folder>
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/BunkFy.Adapter.Abstractions/BunkFy.Adapter.Abstractions.csproj" />

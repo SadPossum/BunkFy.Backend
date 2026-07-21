@@ -19,6 +19,12 @@ internal sealed class OrganizationMembershipStaffHandler(
         OrganizationMembershipChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
+        if (integrationEvent.Status == OrganizationMembershipStatus.Active &&
+            integrationEvent.Role != OrganizationMembershipRole.Owner)
+        {
+            return;
+        }
+
         string? verifiedEmail = await this.GetVerifiedEmailAsync(
             integrationEvent.SubjectId,
             cancellationToken).ConfigureAwait(false);

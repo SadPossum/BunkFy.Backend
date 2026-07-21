@@ -78,6 +78,9 @@
     <ProjectReference Include="..\..\src\Modules\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Staff\BunkFy.Modules.Staff.Persistence\BunkFy.Modules.Staff.Persistence.csproj" />
     <ProjectReference Include="..\..\src\Modules\Staff\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\BunkFy.Modules.Workspaces.Domain\BunkFy.Modules.Workspaces.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence\BunkFy.Modules.Workspaces.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\..\src\Modules\Properties\BunkFy.Modules.Properties.Domain\BunkFy.Modules.Properties.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Properties\BunkFy.Modules.Properties.Persistence\BunkFy.Modules.Properties.Persistence.csproj" />
     <ProjectReference Include="..\..\src\Modules\Properties\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.csproj" />

@@ -94,7 +94,7 @@ Cross-module behavior belongs in opt-in extensions:
 - Organizations/AccessControl provisions owner governance access and removes or disables scoped access during membership lifecycle changes.
 - Organizations/Notifications may deliver invitation and membership security messages without coupling either source module to Notifications.
 
-Extensions reference only public module contracts. Durable process state belongs to the extension that coordinates the process, not to either participating module's private tables.
+Extensions reference only public module contracts. Generic cross-module process state may belong to the extension that coordinates it. Product-specific state and policy, such as a proposed BunkFy Staff profile, belong to a BunkFy module even when that module coordinates several GMA authorities.
 
 ### BunkFy
 
@@ -102,13 +102,13 @@ BunkFy owns the product policy and experience:
 
 - workspace terminology and navigation;
 - whether workspace creation is enabled for public accounts in a deployment;
-- staff pre-provisioning and profile data;
+- applicant-proposed and manager-pre-provisioned Staff profile data;
 - property assignment choices;
 - named access profiles and which profiles an inviter may delegate;
 - coordinated Staff/Auth/access onboarding and offboarding process state;
 - setup progress, retries, operator-visible failures, and audit presentation.
 
-The existing Staff aggregate remains the source of employment truth. A BunkFy onboarding process references an organization invitation, a pre-created Staff member, requested property assignments, and requested access profile. It never stores credentials or writes another module's tables.
+The existing Staff aggregate remains the source of employment truth. The BunkFy Workspaces module owns the temporary enrollment process: it holds the applicant's proposed profile until Organizations accepts or rejects the join, then provisions Staff and a constrained AccessControl baseline through public contracts. Terminal applicant PII is redacted. Future manager-pre-provisioned profiles, property assignment plans, and named access profiles extend this product-owned process without changing GMA Organizations.
 
 ## Registration And Workspace Creation
 
@@ -117,7 +117,7 @@ The existing Staff aggregate remains the source of employment truth. A BunkFy on
 3. The account verifies a usable email before creating a workspace or accepting an email-bound invitation. A provider-verified email can satisfy the same Auth-owned fact.
 4. An account with no active memberships sees only onboarding, account-security, sign-out, invitation acceptance, and workspace-creation surfaces.
 5. Workspace creation creates the organization and first owner membership in the Organizations transaction.
-6. Durable extensions provision tenant-scoped owner access and the BunkFy owner Staff profile idempotently.
+6. Durable BunkFy composition provisions tenant-scoped owner access and the BunkFy owner Staff profile idempotently.
 7. Product access remains deny-by-default while provisioning is incomplete. The client shows setup progress and can safely retry/resume.
 8. The first property is created as a subsequent BunkFy setup step. It is not part of the organization transaction.
 
@@ -135,17 +135,17 @@ The current frontend keeps workspace and property selection in one `WorkspacePro
 
 ## Staff Invitation Flow
 
-1. An authorized manager creates or selects an unlinked Staff profile.
-2. The manager chooses property assignments and one permitted BunkFy access profile.
-3. BunkFy's onboarding process creates a single-use organization invitation and stores only orchestration references plus requested product policy.
-4. The recipient opens the link or one-person QR and sees a sanitized preview: workspace, inviter, intended access summary, and expiry.
-5. An existing account signs in; a new person registers a global account. Invitation intent survives password and external-provider redirects without placing member ids, credentials, or trusted role data in the URL.
-6. The recipient confirms the exact account that will join and accepts through a state-changing POST.
-7. Organizations atomically consumes the invitation and creates or restores the unique membership.
-8. The BunkFy process explicitly links the Staff profile to the accepted Auth subject, applies planned property assignments, and installs only the approved AccessControl assignments.
-9. The process completes after every required projection/assignment acknowledges success. Failures remain default-denied, visible, retryable, and idempotent.
+1. An authorized manager creates a single-use invitation or a separately governed reusable enrollment link.
+2. The recipient opens the link or QR and sees a sanitized preview: workspace, inviter, enrollment mode, and expiry.
+3. An existing account signs in; a new person registers a global account. Invitation intent survives redirects in tab-scoped storage while the URL fragment is scrubbed immediately.
+4. The authenticated applicant submits the original token plus a proposed Staff profile. BunkFy derives the organization/source identifiers and verified Auth email on the server.
+5. Organizations admits only the exact subject and source for which the BunkFy process is ready. Automatic enrollment may create membership immediately; approval enrollment first creates a pending claim bound to the process.
+6. An owner approves or rejects a bound claim. Organizations atomically creates or restores membership only on acceptance.
+7. Accepted invitation/claim facts drive the Workspaces process to provision one idempotent Staff identity and then install the constrained member assignment.
+8. The process completes only after both product authorities acknowledge success. Until then membership alone grants no BunkFy operation; failures are visible and owner-retryable.
+9. A later access-profile slice may add manager-selected Staff/property/profile plans, but those plans remain server-owned BunkFy state and cannot broaden reusable links into owner access.
 
-Email values are never used to discover and silently link a Staff profile. The correlation is the invitation/onboarding id selected by the inviter. Email is only a recipient constraint verified against Auth-owned email state.
+Email values are never used to discover and silently link an existing Staff profile. The current correlation is the server-inspected Organizations source plus authenticated subject; email is only a recipient constraint and display/contact fact verified against Auth-owned state.
 
 ## Invitation And Enrollment Security
 
@@ -186,7 +186,7 @@ The membership gate and AccessControl both fail closed. A partially provisioned 
 
 ## Migration Direction
 
-BunkFy currently uses tenant-scoped Auth members and asks for a workspace id before login. Moving to global identities requires an explicit upgrade path:
+BunkFy's current composition uses global Auth identities and no workspace-id login field. Any deployment upgrading legacy tenant-scoped Auth data still requires an explicit reconciliation path:
 
 - preserve Auth member ids where possible so Staff subject links remain valid;
 - preflight duplicate usernames and external identities across legacy tenant scopes;
@@ -194,7 +194,7 @@ BunkFy currently uses tenant-scoped Auth members and asks for a workspace id bef
 - require operator reconciliation for collisions;
 - revoke legacy sessions during the profile transition;
 - move retained accounts to the configured global Auth partition;
-- remove the workspace-id login field only after the global membership path is live;
+- verify the global membership path before removing legacy workspace-id login compatibility;
 - document a reset-only path for disposable local/preview data separately from production upgrades.
 
 The migration and the steady-state schema must be covered against PostgreSQL. Provider-specific migration code remains outside Auth domain/application behavior.

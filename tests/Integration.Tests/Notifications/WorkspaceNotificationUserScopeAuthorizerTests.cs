@@ -1,7 +1,7 @@
 namespace Integration.Tests;
 
 using System.Security.Claims;
-using BunkFy.Extensions.Workspaces;
+using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Host.Api;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Scoping;

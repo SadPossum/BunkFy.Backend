@@ -12,6 +12,7 @@ using Gma.Modules.Notifications.Persistence;
 using Gma.Extensions.Auth.Notifications;
 using Gma.Extensions.Auth.Organizations;
 using Gma.Modules.Organizations.Application;
+using Gma.Modules.Organizations.Contracts;
 using Gma.Modules.Organizations.Persistence;
 using BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Extensions.Workspaces;
@@ -57,6 +58,9 @@ using Gma.Framework.Tenancy.Tasks;
 using Gma.Modules.TaskRuntime.Application;
 using Gma.Modules.TaskRuntime.Contracts;
 using Gma.Modules.TaskRuntime.Persistence;
+using BunkFy.Modules.Workspaces.Application;
+using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Persistence;
 
 public static class WorkerHostBuilderExtensions
 {
@@ -158,6 +162,9 @@ public static class WorkerHostBuilderExtensions
 
         if (workerOptions.Modules.Organizations)
         {
+            builder.SelectModuleProfile(
+                OrganizationsProfiles.Default,
+                "BunkFy.Host.Worker/Organizations");
             builder.Services.AddOrganizationsApplication(builder.Configuration);
             builder.AddOrganizationsPersistence();
 
@@ -173,6 +180,11 @@ public static class WorkerHostBuilderExtensions
             {
                 builder.Services.AddBunkFyWorkspaces(
                     options => options.GlobalAuthScopeId = authScopeId);
+                builder.SelectModuleProfile(
+                    WorkspacesProfiles.Default,
+                    "BunkFy.Host.Worker/Workspaces");
+                builder.Services.AddWorkspacesApplication(authScopeId);
+                builder.AddWorkspacesPersistence();
             }
         }
 

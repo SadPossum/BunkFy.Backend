@@ -19,6 +19,7 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<IStaffIdentityReconciler, StaffIdentityReconciler>();
+        services.TryAddScoped<IStaffOnboardingProvisioner, StaffOnboardingProvisioner>();
         services.AddGmaAccessControlPermissionPolicies(StaffModuleMetadata.Descriptor);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, StaffPropertyCreatedHandler>(
             StaffModuleMetadata.Name, PropertiesModuleMetadata.Name);

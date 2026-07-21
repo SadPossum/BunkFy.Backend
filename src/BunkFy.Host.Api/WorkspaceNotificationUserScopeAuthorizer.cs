@@ -1,7 +1,7 @@
 namespace BunkFy.Host.Api;
 
 using System.Security.Claims;
-using BunkFy.Extensions.Workspaces;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Naming;
 using Gma.Framework.Scoping;

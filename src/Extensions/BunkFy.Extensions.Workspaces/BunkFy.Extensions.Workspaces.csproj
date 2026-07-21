@@ -5,6 +5,7 @@
     <ProjectReference Include="..\..\Modules\Properties\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Reservations\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Contracts\Gma.Modules.AccessControl.Contracts.csproj" />
     <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Contracts\Gma.Modules.Auth.Contracts.csproj" />
     <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Application\Gma.Modules.Organizations.Application.csproj" />

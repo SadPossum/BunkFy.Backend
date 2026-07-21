@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio"><PrivateAssets>all</PrivateAssets></PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BunkFy.Modules.Workspaces.Application\BunkFy.Modules.Workspaces.Application.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Workspaces.Domain\BunkFy.Modules.Workspaces.Domain.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Workspaces.Persistence\BunkFy.Modules.Workspaces.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Contracts\Gma.Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Contracts\Gma.Modules.Auth.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Contracts\Gma.Modules.Organizations.Contracts.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs\Gma.Framework.Cqrs.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Pagination\Gma.Framework.Pagination\Gma.Framework.Pagination.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Runtime\Gma.Framework.Runtime\Gma.Framework.Runtime.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Scoping\Gma.Framework.Scoping\Gma.Framework.Scoping.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.AccessControl\Gma.Framework.AccessControl.csproj" />
+  </ItemGroup>
+</Project>

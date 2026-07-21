@@ -1,5 +1,6 @@
 namespace BunkFy.Extensions.Workspaces;
 
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Modules.AccessControl.Contracts;
 

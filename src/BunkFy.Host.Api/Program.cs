@@ -27,6 +27,9 @@ using BunkFy.Modules.Reservations.Api;
 using BunkFy.Modules.Guests.Api;
 using BunkFy.Modules.Staff.Api;
 using BunkFy.Modules.Ingestion.Api;
+using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Api;
+using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
@@ -120,6 +123,7 @@ builder.AddModule<InventoryModule>();
 builder.AddModule<ReservationsModule>();
 builder.AddModule<GuestsModule>();
 builder.AddModule<StaffModule>();
+builder.AddModule<WorkspacesModule>();
 builder.AddModule<IngestionModule>();
 // module-scaffold:public-api-modules
 
@@ -134,6 +138,7 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<InventoryDbContext>("invent
 builder.Services.AddGmaEntityFrameworkReadinessCheck<ReservationsDbContext>("reservations-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<GuestsDbContext>("guests-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<StaffDbContext>("staff-database");
+builder.Services.AddGmaEntityFrameworkReadinessCheck<WorkspacesDbContext>("workspaces-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingestion-database");
 builder.AddGmaOpenApi();
 builder.ValidateModuleComposition();

@@ -4,6 +4,7 @@ using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Administration.Persistence;
 using Gma.Modules.Auth.Persistence;
@@ -43,6 +44,7 @@ builder.AddInventoryPersistence();
 builder.AddReservationsPersistence();
 builder.AddGuestsPersistence();
 builder.AddStaffPersistence();
+builder.AddWorkspacesPersistence();
 builder.AddIngestionPersistence();
 
 using IHost host = builder.Build();
@@ -63,6 +65,7 @@ ILogger logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
     ("reservations", typeof(ReservationsDbContext)),
     ("guests", typeof(GuestsDbContext)),
     ("staff", typeof(StaffDbContext)),
+    ("workspaces", typeof(WorkspacesDbContext)),
     ("ingestion", typeof(IngestionDbContext))
 ];
 

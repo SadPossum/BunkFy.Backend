@@ -12,5 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\BunkFy.Extensions.Operations.Notifications\BunkFy.Extensions.Operations.Notifications.csproj" />
+    <ProjectReference Include="..\..\..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
   </ItemGroup>
 </Project>

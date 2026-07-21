@@ -1,5 +1,6 @@
 namespace BunkFy.Extensions.Workspaces;
 
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Messaging;
 using Gma.Modules.AccessControl.Contracts;
@@ -45,15 +46,26 @@ internal sealed class OrganizationMembershipAccessHandler(
             return;
         }
 
-        bool isOwner = integrationEvent.Role == OrganizationMembershipRole.Owner;
-        string desiredRole = isOwner ? WorkspaceAccessRoles.Owner : WorkspaceAccessRoles.Member;
-        string obsoleteRole = isOwner ? WorkspaceAccessRoles.Member : WorkspaceAccessRoles.Owner;
-        await accessControl.EnsureAssignmentAsync(
+        if (integrationEvent.Role == OrganizationMembershipRole.Owner)
+        {
+            await accessControl.EnsureAssignmentAsync(
+                subject,
+                WorkspaceAccessRoles.Owner,
+                scope,
+                cancellationToken).ConfigureAwait(false);
+            await this.RemoveAsync(
+                subject,
+                WorkspaceAccessRoles.Member,
+                scope,
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await this.RemoveAsync(
             subject,
-            desiredRole,
+            WorkspaceAccessRoles.Owner,
             scope,
             cancellationToken).ConfigureAwait(false);
-        await this.RemoveAsync(subject, obsoleteRole, scope, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task RemoveAsync(

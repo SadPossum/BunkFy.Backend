@@ -1,6 +1,6 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
-using BunkFy.Extensions.Workspaces;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Naming;
 using Gma.Modules.AccessControl.Contracts;

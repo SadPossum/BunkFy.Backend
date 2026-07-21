@@ -11,6 +11,7 @@ using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 
 [Trait("Category", "Unit")]
 public sealed class OrganizationMembershipAccessHandlerTests
@@ -52,6 +53,23 @@ public sealed class OrganizationMembershipAccessHandlerTests
         Assert.Equal(WorkspaceAccessRoles.OwnerPermissions, accessControl.Permissions[WorkspaceAccessRoles.Owner]);
         Assert.Equal(WorkspaceAccessRoles.MemberPermissions, accessControl.Permissions[WorkspaceAccessRoles.Member]);
         Assert.Empty(profileAssignments.Calls);
+    }
+
+    [Fact]
+    public async Task Active_member_membership_does_not_grant_operational_access()
+    {
+        FakeAccessControlRoleProvisioner accessControl = new();
+        OrganizationMembershipAccessHandler handler = new(
+            accessControl,
+            new RecordingProfileAssignmentRevoker(accessControl));
+        OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
+            OrganizationMembershipRole.Member,
+            OrganizationMembershipStatus.Active);
+
+        await handler.HandleAsync(integrationEvent, CancellationToken.None);
+
+        Assert.DoesNotContain(accessControl.Assignments, assignment =>
+            assignment.SubjectId == integrationEvent.SubjectId);
     }
 
     [Fact]
