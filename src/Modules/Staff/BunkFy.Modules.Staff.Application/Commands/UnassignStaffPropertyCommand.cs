@@ -5,4 +5,4 @@ using BunkFy.Modules.Staff.Contracts;
 
 public sealed record UnassignStaffPropertyCommand(Guid StaffMemberId, Guid PropertyId,
     DateOnly EffectiveTo, string Reason, long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<StaffMemberDto>;
+    string ActorId) : ITransactionalCommand<StaffDirectoryMemberDto>;

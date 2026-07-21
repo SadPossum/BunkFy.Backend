@@ -28,41 +28,65 @@ internal static class StaffMemberEndpoints
             (await dispatcher.QueryAsync(new ListStaffMembersQuery(search, status,
                 page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryListResponse>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.Read);
         members.MapGet("/{staffMemberId:guid}", async (Guid staffMemberId,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.QueryAsync(new GetStaffMemberQuery(staffMemberId), token)
+            (await dispatcher.QueryAsync(new GetStaffDirectoryMemberQuery(staffMemberId), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.Read);
+        members.MapGet("/{staffMemberId:guid}/profile", async (Guid staffMemberId,
+            HttpContext context, IRequestDispatcher dispatcher, CancellationToken token) =>
+        {
+            StaffApiEndpointSupport.MarkSensitiveResponse(context);
+            return (await dispatcher.QueryAsync(new GetStaffMemberQuery(staffMemberId), token)
+                .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
+        }).Produces<StaffMemberDto>(StatusCodes.Status200OK)
+            .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);
         members.MapPost("", async (StaffProfileWriteRequest request, HttpContext context,
             IAccessHttpSubjectResolver subjects, IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new CreateStaffMemberCommand(request.DisplayName, request.LegalName,
+        {
+            StaffApiEndpointSupport.MarkSensitiveResponse(context);
+            return (await dispatcher.SendAsync(new CreateStaffMemberCommand(request.DisplayName, request.LegalName,
                 request.WorkEmail, request.WorkPhone, request.EmployeeNumber, request.JobTitle,
                 request.Department, request.AuthSubjectId, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
-                .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+                .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
+        }).Produces<StaffMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.Create);
         members.MapPut("/{staffMemberId:guid}", async (Guid staffMemberId,
             StaffProfileUpdateRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new UpdateStaffMemberCommand(staffMemberId, request.DisplayName,
+        {
+            StaffApiEndpointSupport.MarkSensitiveResponse(context);
+            return (await dispatcher.SendAsync(new UpdateStaffMemberCommand(staffMemberId, request.DisplayName,
                 request.LegalName, request.WorkEmail, request.WorkPhone, request.EmployeeNumber,
                 request.JobTitle, request.Department, request.ExpectedVersion,
                 StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
-                .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.Manage);
+                .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
+        }).Produces<StaffMemberDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);
         members.MapPut("/{staffMemberId:guid}/auth-subject", async (Guid staffMemberId,
             StaffAuthSubjectRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new SetStaffAuthSubjectCommand(staffMemberId, request.AuthSubjectId,
+        {
+            StaffApiEndpointSupport.MarkSensitiveResponse(context);
+            return (await dispatcher.SendAsync(new SetStaffAuthSubjectCommand(staffMemberId, request.AuthSubjectId,
                 request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
-                .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.Manage);
+                .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
+        }).Produces<StaffMemberDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);
         members.MapPost("/{staffMemberId:guid}/suspend", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
             (await dispatcher.SendAsync(new SuspendStaffMemberCommand(staffMemberId, request.Reason,
                 request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.ManageLifecycle);
         members.MapPost("/{staffMemberId:guid}/resume", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
@@ -70,6 +94,7 @@ internal static class StaffMemberEndpoints
             (await dispatcher.SendAsync(new ResumeStaffMemberCommand(staffMemberId, request.Reason,
                 request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.ManageLifecycle);
         members.MapPost("/{staffMemberId:guid}/depart", async (Guid staffMemberId,
             StaffDepartureRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
@@ -77,6 +102,7 @@ internal static class StaffMemberEndpoints
             (await dispatcher.SendAsync(new DepartStaffMemberCommand(staffMemberId, request.EffectiveOn,
                 request.Reason, request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.ManageLifecycle);
     }
 }

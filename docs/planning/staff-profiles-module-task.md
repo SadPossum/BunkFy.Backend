@@ -1,7 +1,7 @@
 # Staff Profiles Module Task
 
-Status: first slice implemented
-Date: 2026-07-12
+Status: privacy hardening implemented and locally verified; exact-commit CI pending
+Date: 2026-07-21
 
 ## Goal
 
@@ -97,6 +97,26 @@ The module consumes Properties created, updated, and retired events into a monot
 - Actor ids, reasons, identifiers, labels, paging, and search input are bounded.
 - Historical assignments and departed profiles are not erasure. Retention/anonymization is a later compliance workflow.
 
+## Production Privacy Audit
+
+The production privacy hardening slice is implemented:
+
+- keep `staff.read` as an operational directory permission returning display name, job title, department, status, and only the current assignment facts needed for navigation and notification audiences;
+- add a separate `staff.sensitive-profile.read` permission for legal name, work contact details, employee number, Auth subject correlation, lifecycle audit timestamps, and historical assignments;
+- keep the current user's full profile available through the identity-bound self-service endpoint without granting tenant-wide sensitive access;
+- separate directory and sensitive DTO/query shapes so omitted fields cannot leak through serialization or future mapping changes;
+- limit ordinary directory search to display name; a future sensitive search requires the sensitive permission and an explicit management surface;
+- add no-store response handling where Staff profile detail contains sensitive data;
+- add an executable Staff personal-data catalogue and reflection guards covering persistence, search copies, commands, queries, public/admin requests and responses, cross-module onboarding contracts, domain events, and integration events;
+- preserve PII-free integration events and add negative guards for logs, notifications, metrics, traces, and support bundles;
+- align Admin API, Admin CLI, typed OpenAPI responses, frontend visibility, and tests with the same boundary.
+
+Directory queries project minimized DTOs directly in persistence and include current assignments only. Sensitive responses use `Cache-Control: no-store`; public management updates require both management and sensitive-profile permissions because they return the full profile. The frontend requests `/profile` only for authorized readers and no longer correlates workspace membership to Staff email or Auth-subject data through the broad directory.
+
+The versioned Staff catalogue currently contains 44 field definitions and 366 concrete bindings. Tests fail when a mapped Staff column, search copy, selected public/admin contract, cross-module request, domain event, or integration event gains an undocumented member. Direct identifiers, contact data, free text, search input, and structured payloads are prohibited from events, notifications, logs, metrics, traces, and support bundles.
+
+Retention, anonymization, staff-data export, and legal-hold policy remain explicit later controls; a narrower read model is not an erasure workflow.
+
 ## Verification
 
 - domain tests cover validation, optimistic versions, profile changes, Auth-link uniqueness semantics, lifecycle transitions, primary assignment behavior, and assignment history;
@@ -109,7 +129,7 @@ The module consumes Properties created, updated, and retired events into a monot
 
 ## Deferred
 
-- coordinated account provisioning, invitations, offboarding, and AccessControl grant templates;
+- versioned access-profile seeds, invitation property/profile plans, and Staff-driven offboarding orchestration;
 - payroll, compensation, benefits, expenses, and staff accounting;
 - shifts, availability, time-off, attendance, and scheduling;
 - certifications, training, performance, and disciplinary records;
@@ -119,7 +139,6 @@ The module consumes Properties created, updated, and retired events into a monot
 - approval chains, delegation, temporary elevation, and break-glass workflows;
 - bulk imports, HR integrations, merge/split, and employee-number reuse policy;
 - automated Auth disablement or AccessControl revocation on suspension/departure;
-- self-service profile editing and staff-facing personal views.
 - future-dated assignment and departure scheduling with property-local business dates.
 
 ## Completion Criterion

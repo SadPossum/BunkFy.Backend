@@ -7,6 +7,7 @@ Status: in progress
 Complete company-readiness control SP-001 one domain at a time. BunkFy must have a versioned, machine-readable catalogue that makes undocumented personal data fail verification instead of silently entering persistence, contracts, messages, logs, or other processing surfaces.
 
 The first delivery slice covered Guests because it is the canonical owner of durable guest profiles. Reservations applies the same executable contract to booking records and operational events, and Ingestion now covers source evidence, normalized history, adapter credentials, operator audit, and adapter/parser boundaries.
+Staff now applies the same control to employment profiles, assignment history, directory/sensitive response boundaries, onboarding contracts, and PII-minimized events.
 
 ## Ownership
 
@@ -74,12 +75,20 @@ The Ingestion catalogue classifies raw source payloads, normalized reservation h
 
 Executable guards prove every Ingestion-owned mapped persistence member and selected public command, query, port, API, task, adapter, parser, and event member is classified. Raw source evidence is limited to explicit adapter ingress, file ingress, application command, and API response surfaces. Direct, contact, free-text, search, and structured data cannot enter events, notifications, logs, metrics, traces, or support bundles. Persisted and remote failures expose stable bounded error codes instead of provider messages, raw downloads are non-cacheable opaque sandboxed attachments, and the resolved inventory is deterministic.
 
+## Staff Slice
+
+Status: implemented and locally verified; exact-commit CI pending
+
+The Staff catalogue classifies employment identity and contact fields, Auth subject correlation, lifecycle and audit facts, current and historical property assignments, search copies, directory and sensitive profile responses, public/admin inputs, cross-module onboarding and identity reconciliation contracts, domain events, and integration events.
+
+Executable guards cover every mapped `StaffMember` and `StaffPropertyAssignment` property and every selected command, query, API/admin contract, cross-module request, domain event, and integration event member. Directory DTO shapes are allow-listed so legal name, work contact details, employee number, Auth correlation, lifecycle timestamps, and assignment history cannot drift into `staff.read`. Direct identity, contact, free text, search input, and structured data cannot enter operational outputs, and the checked-in inventory is deterministic.
+
 ## Delivery Slices
 
 1. Add the shared catalogue model, strict parser, validator, and focused adversarial tests.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
-4. Continue one module at a time through Staff and Workspaces, Notifications extensions, Inventory, and Properties. Ingestion is completed.
+4. Continue one module at a time through Workspaces, Notifications extensions, Inventory, and Properties. Staff and Ingestion are implemented and locally verified; exact-commit publication evidence remains required.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -118,6 +127,12 @@ Completed Ingestion evidence:
 - Raw evidence has a dedicated permission and constrained download response; normalized proposal history has a separate sensitive-history permission from ordinary operational reads.
 - Stable ASCII error codes replace free-form remote and persisted run errors, with PostgreSQL lifecycle/format constraints and a compatibility migration for existing rows.
 - Focused Ingestion, adapter, architecture, migration, frontend, complete repository, and exact-commit CI evidence must be green on publication.
+
+Current Staff evidence:
+
+- 44 field definitions resolve 366 concrete bindings across Staff persistence, search, application, public/admin API, cross-module, domain-event, and integration-event surfaces.
+- Directory contracts are separate from sensitive profile contracts; ordinary persistence queries project only directory fields and current assignments.
+- Focused Staff reflection, privacy-boundary, route-metadata, persistence, application, and contract tests pass. The synchronized solution, warning-free repository build, zero-drift migration checks, 2,177 non-Docker tests, 30 Docker tests, and the frontend typecheck, lint, 95 tests, production build, and generated-contract checks are green locally. Exact-commit CI remains required on publication.
 
 ## Deferred Dependencies
 

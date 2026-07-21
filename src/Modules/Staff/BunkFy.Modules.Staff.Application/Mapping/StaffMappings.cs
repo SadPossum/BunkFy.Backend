@@ -28,11 +28,35 @@ public static class StaffMappings
             .Select(ToDto)
             .ToArray());
 
+    public static StaffDirectoryMemberDto ToDirectoryDto(
+        this StaffMember member,
+        Guid? visiblePropertyId = null) => new(
+        member.Id,
+        member.DisplayName,
+        member.JobTitle,
+        member.Department,
+        MapStatus(member.Status),
+        member.Version,
+        member.Assignments
+            .Where(assignment => assignment.IsCurrent &&
+                                 (!visiblePropertyId.HasValue || assignment.PropertyId == visiblePropertyId.Value))
+            .OrderByDescending(assignment => assignment.IsPrimary)
+            .ThenBy(assignment => assignment.PropertyId)
+            .Select(ToDirectoryDto)
+            .ToArray());
+
     public static StaffPropertyAssignmentDto ToDto(StaffPropertyAssignment assignment) => new(
         assignment.Id, assignment.PropertyId, assignment.PropertyJobTitle, assignment.IsPrimary,
         assignment.IsCurrent, assignment.EffectiveFrom, assignment.EffectiveTo,
         assignment.AssignedAtUtc, assignment.UnassignedAtUtc,
         assignment.AssignedAtVersion, assignment.UnassignedAtVersion);
+
+    public static StaffDirectoryAssignmentDto ToDirectoryDto(StaffPropertyAssignment assignment) => new(
+        assignment.Id,
+        assignment.PropertyId,
+        assignment.PropertyJobTitle,
+        assignment.IsPrimary,
+        assignment.EffectiveFrom);
 
     public static StaffStatus MapStatus(StaffMemberState status) => status switch
     {

@@ -9,9 +9,10 @@ using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 
 internal sealed class SuspendStaffMemberCommandHandler(IStaffMemberRepository members,
-    ISystemClock clock, IIdGenerator ids) : ICommandHandler<SuspendStaffMemberCommand, StaffMemberDto>
+    ISystemClock clock, IIdGenerator ids)
+    : ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>
 {
-    public Task<Result<StaffMemberDto>> HandleAsync(SuspendStaffMemberCommand command,
+    public Task<Result<StaffDirectoryMemberDto>> HandleAsync(SuspendStaffMemberCommand command,
         CancellationToken cancellationToken) => StaffMemberChange.ApplyAsync(members, command.StaffMemberId,
         member => member.Suspend(command.ExpectedVersion, command.ActorId, command.Reason, ids.NewId(), clock.UtcNow),
         cancellationToken);

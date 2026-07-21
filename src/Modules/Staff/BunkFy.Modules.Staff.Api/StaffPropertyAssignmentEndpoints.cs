@@ -28,12 +28,14 @@ internal static class StaffPropertyAssignmentEndpoints
             (await dispatcher.QueryAsync(new ListStaffMembersAtPropertyQuery(propertyId, search, status,
                 page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryListResponse>(StatusCodes.Status200OK)
             .RequireTenant().RequireResolvedScopePermission(StaffAdminPermissionCodes.Read,
                 StaffPropertyAccessScopeResolver.ResolverName);
         members.MapGet("/{staffMemberId:guid}", async (Guid propertyId, Guid staffMemberId,
             IRequestDispatcher dispatcher, CancellationToken token) =>
             (await dispatcher.QueryAsync(new GetStaffMemberAtPropertyQuery(propertyId, staffMemberId), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireResolvedScopePermission(StaffAdminPermissionCodes.Read,
                 StaffPropertyAccessScopeResolver.ResolverName);
         members.MapPut("/{staffMemberId:guid}/assignment", async (Guid propertyId, Guid staffMemberId,
@@ -43,6 +45,7 @@ internal static class StaffPropertyAssignmentEndpoints
                 request.PropertyJobTitle, request.IsPrimary, request.EffectiveFrom,
                 request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireResolvedScopePermission(StaffAdminPermissionCodes.AssignProperties,
                 StaffPropertyAccessScopeResolver.ResolverName);
         members.MapPost("/{staffMemberId:guid}/unassign", async (Guid propertyId, Guid staffMemberId,
@@ -52,6 +55,7 @@ internal static class StaffPropertyAssignmentEndpoints
                 request.EffectiveTo, request.Reason, request.ExpectedVersion,
                 StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireResolvedScopePermission(StaffAdminPermissionCodes.AssignProperties,
                 StaffPropertyAccessScopeResolver.ResolverName);
     }

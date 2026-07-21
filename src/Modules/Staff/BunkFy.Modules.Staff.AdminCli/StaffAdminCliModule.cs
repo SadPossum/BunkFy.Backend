@@ -51,14 +51,14 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Option<string?> status = new("--status");
         Option<int> page = new("--page") { DefaultValueFactory = _ => PageRequest.DefaultPage };
         Option<int> pageSize = new("--page-size") { DefaultValueFactory = _ => PageRequest.DefaultPageSize };
-        Command command = new("list", "List tenant staff profiles.") { search, status, page, pageSize };
+        Command command = new("list", "List the tenant staff directory.") { search, status, page, pageSize };
         command.SetAction((parse, token) => ExecuteAsync(services, global, parse,
             StaffAdminOperationNames.List, StaffAdminPermissions.Read, async (provider, ct) =>
             {
                 string? text = parse.GetValue(status);
                 StaffStatus? parsed = string.IsNullOrWhiteSpace(text) ? null :
                     Enum.TryParse(text, true, out StaffStatus value) ? value : StaffStatus.Unknown;
-                Result<StaffListResponse> result = await provider.GetRequiredService<IRequestDispatcher>()
+                Result<StaffDirectoryListResponse> result = await provider.GetRequiredService<IRequestDispatcher>()
                     .QueryAsync(new ListStaffMembersQuery(parse.GetValue(search), parsed,
                         parse.GetValue(page), parse.GetValue(pageSize)), ct).ConfigureAwait(false);
                 if (result.IsSuccess)
@@ -75,8 +75,8 @@ public sealed class StaffAdminCliModule : IAdminCliModule
     {
         Option<Guid> member = MemberOption();
         Command command = new("get", "Get a staff profile.") { member };
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
-            StaffAdminOperationNames.Get, StaffAdminPermissions.Read,
+        command.SetAction((parse, token) => ExecuteFullProfileAsync(services, global, parse,
+            StaffAdminOperationNames.Get, StaffAdminPermissions.SensitiveProfileRead,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>()
                 .QueryAsync(new GetStaffMemberQuery(parse.GetRequiredValue(member)), ct), token));
         return command;
@@ -87,7 +87,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         ProfileOptions options = new();
         Command command = new("create", "Create a staff profile.");
         options.AddTo(command, false);
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteFullProfileAsync(services, global, parse,
             StaffAdminOperationNames.Create, StaffAdminPermissions.Create,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                 new CreateStaffMemberCommand(parse.GetRequiredValue(options.DisplayName),
@@ -104,7 +104,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         ProfileOptions options = new();
         Command command = new("update", "Update a staff profile.") { member };
         options.AddTo(command, true);
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteFullProfileAsync(services, global, parse,
             StaffAdminOperationNames.Update, StaffAdminPermissions.Manage,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                 new UpdateStaffMemberCommand(parse.GetRequiredValue(member),
@@ -124,7 +124,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Option<bool> yes = new("--yes");
         Command command = new("set-auth-subject", "Link, replace, or clear an Auth user subject.")
             { member, subject, version, yes };
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteFullProfileAsync(services, global, parse,
             StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.Manage,
             (provider, ct) => parse.GetValue(yes)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
@@ -144,13 +144,13 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Option<long> version = VersionOption();
         Command command = new("assign-property", "Assign a staff member to a property.")
             { member, property, title, primary, effective, version };
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             StaffAdminOperationNames.AssignProperty, StaffAdminPermissions.AssignProperties,
             (provider, ct) => TryDate(parse.GetRequiredValue(effective), out DateOnly date)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new AssignStaffPropertyCommand(
                     parse.GetRequiredValue(member), parse.GetRequiredValue(property), parse.GetValue(title),
                     parse.GetValue(primary), date, parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffMemberDto>(InvalidDateError)), token));
+                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(InvalidDateError)), token));
         return command;
     }
 
@@ -163,13 +163,13 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Option<long> version = VersionOption();
         Command command = new("unassign-property", "End a staff property assignment.")
             { member, property, effective, reason, version };
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             StaffAdminOperationNames.UnassignProperty, StaffAdminPermissions.AssignProperties,
             (provider, ct) => TryDate(parse.GetRequiredValue(effective), out DateOnly date)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new UnassignStaffPropertyCommand(
                     parse.GetRequiredValue(member), parse.GetRequiredValue(property), date,
                     parse.GetRequiredValue(reason), parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffMemberDto>(InvalidDateError)), token));
+                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(InvalidDateError)), token));
         return command;
     }
 
@@ -181,7 +181,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Command command = new(name, $"{char.ToUpperInvariant(name[0])}{name[1..]} a staff member.")
             { member, reason, version };
         bool suspend = name == "suspend";
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             suspend ? StaffAdminOperationNames.Suspend : StaffAdminOperationNames.Resume,
             StaffAdminPermissions.ManageLifecycle,
             (provider, ct) => suspend
@@ -203,24 +203,39 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Option<bool> yes = new("--yes");
         Command command = new("depart", "Mark a staff member as departed.")
             { member, effective, reason, version, yes };
-        command.SetAction((parse, token) => ExecuteProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             StaffAdminOperationNames.Depart, StaffAdminPermissions.ManageLifecycle,
             (provider, ct) => parse.GetValue(yes) && TryDate(parse.GetRequiredValue(effective), out DateOnly date)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new DepartStaffMemberCommand(
                     parse.GetRequiredValue(member), date, parse.GetRequiredValue(reason),
                     parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffMemberDto>(parse.GetValue(yes)
+                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(parse.GetValue(yes)
                     ? InvalidDateError : AdminErrors.ConfirmationRequired)), token));
         return command;
     }
 
-    private static async Task<int> ExecuteProfileAsync(IServiceProvider services, AdminCliGlobalOptions global,
+    private static async Task<int> ExecuteFullProfileAsync(IServiceProvider services, AdminCliGlobalOptions global,
         ParseResult parse, string operation, AdminPermission permission,
         Func<IServiceProvider, CancellationToken, Task<Result<StaffMemberDto>>> action,
         CancellationToken token) => await ExecuteAsync(services, global, parse, operation, permission,
         async (provider, ct) =>
         {
             Result<StaffMemberDto> result = await action(provider, ct).ConfigureAwait(false);
+            if (result.IsSuccess)
+            {
+                Write([result.Value], Output(parse, global));
+            }
+
+            return result;
+        }, token).ConfigureAwait(false);
+
+    private static async Task<int> ExecuteDirectoryMemberAsync(IServiceProvider services,
+        AdminCliGlobalOptions global, ParseResult parse, string operation, AdminPermission permission,
+        Func<IServiceProvider, CancellationToken, Task<Result<StaffDirectoryMemberDto>>> action,
+        CancellationToken token) => await ExecuteAsync(services, global, parse, operation, permission,
+        async (provider, ct) =>
+        {
+            Result<StaffDirectoryMemberDto> result = await action(provider, ct).ConfigureAwait(false);
             if (result.IsSuccess)
             {
                 Write([result.Value], Output(parse, global));
@@ -244,6 +259,18 @@ public sealed class StaffAdminCliModule : IAdminCliModule
             ("JobTitle", profile => profile.JobTitle ?? string.Empty),
             ("Status", profile => profile.Status.ToString()),
             ("AuthSubjectId", profile => profile.AuthSubjectId ?? string.Empty),
+            ("Assignments", profile => profile.Assignments.Count.ToString(CultureInfo.InvariantCulture)),
+            ("Version", profile => profile.Version.ToString(CultureInfo.InvariantCulture))
+        ]);
+
+    private static void Write(IReadOnlyCollection<StaffDirectoryMemberDto> profiles, string output) =>
+        AdminCliOutput.WriteRows(profiles, output,
+        [
+            ("StaffMemberId", profile => profile.StaffMemberId.ToString()),
+            ("DisplayName", profile => profile.DisplayName),
+            ("JobTitle", profile => profile.JobTitle ?? string.Empty),
+            ("Department", profile => profile.Department ?? string.Empty),
+            ("Status", profile => profile.Status.ToString()),
             ("Assignments", profile => profile.Assignments.Count.ToString(CultureInfo.InvariantCulture)),
             ("Version", profile => profile.Version.ToString(CultureInfo.InvariantCulture))
         ]);

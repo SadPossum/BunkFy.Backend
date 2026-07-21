@@ -1,0 +1,4016 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "staff.personal-data",
+  "catalogVersion": 1,
+  "module": "staff",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "staff-audit",
+      "scope": "tenant-internal-audit",
+      "readers": [
+        "permission:staff.sensitive-profile.read",
+        "system:authorized-audit-consumer"
+      ],
+      "writers": [
+        "system:staff-domain"
+      ]
+    },
+    {
+      "id": "staff-directory",
+      "scope": "tenant-property-authorized",
+      "readers": [
+        "permission:staff.read",
+        "system:staff-authorized-audience-reader"
+      ],
+      "writers": [
+        "permission:staff.assign-properties",
+        "permission:staff.create",
+        "permission:staff.manage",
+        "permission:staff.manage-lifecycle",
+        "system:workspace-staff-onboarding"
+      ]
+    },
+    {
+      "id": "staff-directory-request",
+      "scope": "tenant-property-authorized-request",
+      "readers": [
+        "permission:staff.read"
+      ],
+      "writers": [
+        "permission:staff.read"
+      ]
+    },
+    {
+      "id": "staff-event-metadata",
+      "scope": "tenant-internal-messaging",
+      "readers": [
+        "system:authorized-module-consumer"
+      ],
+      "writers": [
+        "system:staff-outbox"
+      ]
+    },
+    {
+      "id": "staff-internal",
+      "scope": "tenant-internal",
+      "readers": [
+        "system:staff-projection-runtime"
+      ],
+      "writers": [
+        "system:staff-projection-runtime"
+      ]
+    },
+    {
+      "id": "staff-sensitive-profile",
+      "scope": "tenant-sensitive-profile",
+      "readers": [
+        "permission:staff.sensitive-profile.read",
+        "subject:self",
+        "system:workspace-staff-onboarding"
+      ],
+      "writers": [
+        "permission:staff.create",
+        "permission:staff.manage",
+        "subject:self",
+        "system:workspace-staff-onboarding"
+      ]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "integration-message-journal",
+      "approvalState": "engineering-default",
+      "startsAt": "message-created",
+      "endsAt": "message-journal-retention-completed",
+      "legalHoldBehavior": "no-payload-hold"
+    },
+    {
+      "id": "staff-assignment-history",
+      "approvalState": "engineering-default",
+      "startsAt": "staff-assignment-created",
+      "endsAt": "approved-erasure-or-employment-retention-completed",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "staff-profile-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "staff-profile-created",
+      "endsAt": "approved-erasure-or-employment-retention-completed",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "transient-request",
+      "approvalState": "engineering-default",
+      "startsAt": "request-accepted",
+      "endsAt": "request-completed",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "transient-response",
+      "approvalState": "engineering-default",
+      "startsAt": "response-created",
+      "endsAt": "response-completed",
+      "legalHoldBehavior": "not-applicable"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "staff-audit-attribution",
+      "export": "include-in-authorized-staff-export",
+      "correction": "correct-authoritative-account-source",
+      "restriction": "retain-minimum-required-audit-attribution",
+      "erasure": "pseudonymize-subject-to-minimum-audit-receipt"
+    },
+    {
+      "id": "staff-employment-history",
+      "export": "include-in-authorized-staff-export",
+      "correction": "append-corrective-employment-action",
+      "restriction": "suppress-non-required-operational-use",
+      "erasure": "anonymize-or-delete-after-approved-employment-retention"
+    },
+    {
+      "id": "staff-profile-editable",
+      "export": "include-in-authorized-staff-export",
+      "correction": "replace-through-staff-profile-workflow",
+      "restriction": "suppress-non-required-operational-use",
+      "erasure": "irreversibly-anonymize-or-delete"
+    },
+    {
+      "id": "transient-request-data",
+      "export": "not-retained-after-request",
+      "correction": "replace-before-submission",
+      "restriction": "discard-request",
+      "erasure": "discard-on-request-completion"
+    }
+  ],
+  "fields": [
+    {
+      "id": "staff.assignment-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-linkage"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.assignment.identifier",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "AssignmentId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "AssignmentId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "AssignmentId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "AssignmentId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.assignment-state",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.assignment.lifecycle",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest",
+          "member": "IsPrimary",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffAssignmentRequest",
+          "member": "IsPrimary",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "IsPrimary",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "IsPrimary",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "IsPrimary",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "IsCurrent",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "IsCurrent",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "IsPrimary",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "IsPrimary",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "IsCurrent",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "IsPrimary",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.assignment-timestamps",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-audit"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.assignment.audit",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "AssignedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "AssignedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "UnassignedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "UnassignedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "AssignedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "UnassignedAtUtc",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.assignment-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-audit"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.assignment.audit",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "AssignedAtVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "AssignedAtVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "UnassignedAtVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "UnassignedAtVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "AssignedAtVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "UnassignedAtVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.assignments",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-assignment-presentation"
+      ],
+      "sources": [
+        "system-derived"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.assignment.collection",
+      "retentionPolicy": "transient-response",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Assignments",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Assignments",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Assignments",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Assignments",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.audit-actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-audit",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "application-command",
+        "integration-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SetStaffAuthSubjectCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "member": "ActorId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "ActorId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "CreatedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "LastChangedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "AssignedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "UnassignedBy",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.auth-subject-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "account-linkage"
+      ],
+      "sources": [
+        "auth-owned-identity"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile.account-link",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "application-query",
+        "integration-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAuthSubjectRequest",
+          "member": "AuthSubjectId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "AuthSubjectId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffAuthSubjectRequest",
+          "member": "AuthSubjectId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "AuthSubjectId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "AuthSubjectId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "AuthSubjectId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "member": "AuthSubjectId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SetStaffAuthSubjectCommand",
+          "member": "AuthSubjectId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "AuthSubjectId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.GetCurrentStaffMemberQuery",
+          "member": "AuthSubjectId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "member": "AuthSubjectId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "AuthSubjectId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "AuthSubjectId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "AuthSubjectId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "AuthSubjectId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.change-reason",
+      "dataSubject": "staff",
+      "classification": "free-text",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "employment-change-context"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.change.reason",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-input",
+        "api-input",
+        "application-command",
+        "integration-command"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffDepartureRequest",
+          "member": "Reason",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffLifecycleRequest",
+          "member": "Reason",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "member": "Reason",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "Reason",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.assignment-change-reason",
+      "dataSubject": "staff",
+      "classification": "free-text",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "assignment-change-context"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.assignment.reason",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-input",
+        "api-input",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffUnassignmentRequest",
+          "member": "Reason",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffUnassignmentRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "UnassignmentReason",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.department",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "operational-directory"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.profile.job",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "integration-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "Department",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "Department",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "Department",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "Department",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "Department",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "Department",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "Department",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "Department",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Department",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Department",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Department",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Department",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "Department",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "Department",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.departure-effective-on",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "employment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile.lifecycle",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-input",
+        "api-input",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffDepartureRequest",
+          "member": "EffectiveOn",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest",
+          "member": "EffectiveOn",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand",
+          "member": "EffectiveOn",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "DepartureEffectiveOn",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.directory-items",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-directory-presentation"
+      ],
+      "sources": [
+        "system-derived"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.directory.collection",
+      "retentionPolicy": "transient-response",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListResponse",
+          "member": "Items",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListResponse",
+          "member": "Items",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.display-name",
+      "dataSubject": "staff",
+      "classification": "direct-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-identification"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.profile.identity",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "integration-command",
+        "persistence",
+        "search-index"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "DisplayName",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "DisplayName",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "DisplayName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "DisplayName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "DisplayName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "DisplayName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "member": "DisplayName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "DisplayName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "DisplayName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "DisplayName",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "DisplayName",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "member": "DisplayName",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "DisplayName",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "DisplayName",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "DisplayName",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "DisplayName",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "DisplayNameSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "DisplayNameSearch",
+          "surface": "search-index"
+        }
+      ]
+    },
+    {
+      "id": "staff.effective-from",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.assignment.lifecycle",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest",
+          "member": "EffectiveFrom",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffAssignmentRequest",
+          "member": "EffectiveFrom",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "EffectiveFrom",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "EffectiveFrom",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "EffectiveFrom",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "EffectiveFrom",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "EffectiveFrom",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "EffectiveFrom",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.effective-to",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.assignment.lifecycle",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffUnassignmentRequest",
+          "member": "EffectiveTo",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffUnassignmentRequest",
+          "member": "EffectiveTo",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand",
+          "member": "EffectiveTo",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "EffectiveTo",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "EffectiveTo",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "EffectiveTo",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.employee-number",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "employment-administration"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile.employee-identifier",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "integration-command",
+        "persistence",
+        "search-index"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "EmployeeNumber",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "EmployeeNumber",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "EmployeeNumber",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "EmployeeNumber",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "EmployeeNumber",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "EmployeeNumber",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "EmployeeNumber",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "EmployeeNumber",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "EmployeeNumber",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "EmployeeNumber",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "EmployeeNumber",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "EmployeeNumber",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "EmployeeNumberSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "EmployeeNumberSearch",
+          "surface": "search-index"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "ActorId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "ActorId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.assignment-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-linkage"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "AssignmentId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "AssignmentId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.auth-subject-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "account-linkage"
+      ],
+      "sources": [
+        "auth-owned-identity"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAuthSubjectChangedIntegrationEvent",
+          "member": "AuthSubjectId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberCreatedIntegrationEvent",
+          "member": "AuthSubjectId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffAuthSubjectChangedDomainEvent",
+          "member": "AuthSubjectId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberCreatedDomainEvent",
+          "member": "AuthSubjectId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.effective-from",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "EffectiveFrom",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "EffectiveFrom",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.effective-on",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "employment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "EffectiveOn",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "EffectiveOn",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.effective-to",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "EffectiveTo",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "EffectiveTo",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.event-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "idempotent-event-processing"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAuthSubjectChangedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberCreatedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberUpdatedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffAuthSubjectChangedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberCreatedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberUpdatedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.is-current",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "assignment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "IsCurrent",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "IsCurrent",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.is-primary",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "primary-assignment-selection"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "IsPrimary",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "IsPrimary",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.occurred-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "event-ordering"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAuthSubjectChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberCreatedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberUpdatedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffAuthSubjectChangedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberCreatedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberUpdatedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.property-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "property-assignment"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.scope-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-isolation"
+      ],
+      "sources": [
+        "system-derived"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAuthSubjectChangedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberCreatedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberUpdatedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffAuthSubjectChangedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberCreatedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberUpdatedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.staff-member-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-record-linkage"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAuthSubjectChangedIntegrationEvent",
+          "member": "StaffMemberId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberCreatedIntegrationEvent",
+          "member": "StaffMemberId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "StaffMemberId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberUpdatedIntegrationEvent",
+          "member": "StaffMemberId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "StaffMemberId",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffAuthSubjectChangedDomainEvent",
+          "member": "StaffMemberId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberCreatedDomainEvent",
+          "member": "StaffMemberId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "StaffMemberId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberUpdatedDomainEvent",
+          "member": "StaffMemberId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "StaffMemberId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.staff-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "projection-consistency"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAuthSubjectChangedIntegrationEvent",
+          "member": "StaffVersion",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberCreatedIntegrationEvent",
+          "member": "StaffVersion",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "StaffVersion",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberUpdatedIntegrationEvent",
+          "member": "StaffVersion",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentChangedIntegrationEvent",
+          "member": "StaffVersion",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffAuthSubjectChangedDomainEvent",
+          "member": "StaffVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberCreatedDomainEvent",
+          "member": "StaffVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "StaffVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberUpdatedDomainEvent",
+          "member": "StaffVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffPropertyAssignmentChangedDomainEvent",
+          "member": "StaffVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.event.status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "employment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-event-metadata",
+      "countryPolicyKey": "staff.event.metadata",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberCreatedIntegrationEvent",
+          "member": "Status",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "Status",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberUpdatedIntegrationEvent",
+          "member": "Status",
+          "surface": "integration-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberCreatedDomainEvent",
+          "member": "Status",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberLifecycleChangedDomainEvent",
+          "member": "Status",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffMemberUpdatedDomainEvent",
+          "member": "Status",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.job-title",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "operational-directory"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.profile.job",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "integration-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "JobTitle",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "JobTitle",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "JobTitle",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "JobTitle",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "JobTitle",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "JobTitle",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "JobTitle",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "JobTitle",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "JobTitle",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "JobTitle",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "JobTitle",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "JobTitle",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "JobTitle",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "JobTitle",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.legal-name",
+      "dataSubject": "staff",
+      "classification": "direct-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "employment-administration"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile.legal-identity",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "integration-command",
+        "persistence",
+        "search-index"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "LegalName",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "LegalName",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "LegalName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "LegalName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "LegalName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "LegalName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "LegalName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "LegalName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "LegalName",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "LegalName",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "LegalName",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "LegalName",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "LegalNameSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "LegalNameSearch",
+          "surface": "search-index"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-timestamps",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "employment-lifecycle"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile.lifecycle",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "CreatedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "CreatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "DepartedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "DepartedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "LastChangedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "LastChangedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "SuspendedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "SuspendedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "CreatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "DepartedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "LastChangedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "SuspendedAtUtc",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.projection-ordinal",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "projection-ordering"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-internal",
+      "countryPolicyKey": "staff.projection.order",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "ProjectionOrdinal",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.property-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "property-assignment"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.assignment.property",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "application-query",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.GetStaffMemberAtPropertyQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.ListStaffMembersAtPropertyQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "PropertyId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "PropertyId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "PropertyId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.property-job-title",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "property-operations"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.assignment.job",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest",
+          "member": "PropertyJobTitle",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffAssignmentRequest",
+          "member": "PropertyJobTitle",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "PropertyJobTitle",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "PropertyJobTitle",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryAssignmentDto",
+          "member": "PropertyJobTitle",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "PropertyJobTitle",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentDto",
+          "member": "PropertyJobTitle",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "PropertyJobTitle",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.record-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "optimistic-concurrency"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.profile.version",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest",
+          "member": "ExpectedVersion",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAuthSubjectRequest",
+          "member": "ExpectedVersion",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffDepartureRequest",
+          "member": "ExpectedVersion",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffLifecycleRequest",
+          "member": "ExpectedVersion",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "ExpectedVersion",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffUnassignmentRequest",
+          "member": "ExpectedVersion",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffAssignmentRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffAuthSubjectRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffUnassignmentRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SetStaffAuthSubjectCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Version",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Version",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Version",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Version",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "Version",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.scope-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-isolation"
+      ],
+      "sources": [
+        "system-derived"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.scope.identifier",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.search-input",
+      "dataSubject": "staff",
+      "classification": "search-input",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "staff-directory-search"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory-request",
+      "countryPolicyKey": "staff.search.input",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "transient-request-data",
+      "allowedSurfaces": [
+        "application-query"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.ListStaffMembersAtPropertyQuery",
+          "member": "Search",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.ListStaffMembersQuery",
+          "member": "Search",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.staff-member-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-record-linkage"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.profile.identifier",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "application-query",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SetStaffAuthSubjectCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.GetStaffDirectoryMemberQuery",
+          "member": "StaffMemberId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.GetStaffMemberAtPropertyQuery",
+          "member": "StaffMemberId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.GetStaffMemberQuery",
+          "member": "StaffMemberId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "StaffMemberId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "StaffMemberId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "StaffMemberId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "StaffMemberId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningResult",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "employment-lifecycle"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.profile.lifecycle",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "application-query",
+        "integration-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "member": "IsActive",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.ListStaffMembersAtPropertyQuery",
+          "member": "Status",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Queries.ListStaffMembersQuery",
+          "member": "Status",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryMemberDto",
+          "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "member": "IsActive",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "Status",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.work-email",
+      "dataSubject": "staff",
+      "classification": "contact",
+      "sensitivity": "elevated",
+      "purposes": [
+        "staff-contact"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile.contact",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "integration-command",
+        "persistence",
+        "search-index"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "WorkEmail",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "WorkEmail",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "WorkEmail",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "WorkEmail",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "WorkEmail",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "WorkEmail",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "member": "WorkEmail",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "WorkEmail",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "WorkEmail",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "member": "WorkEmail",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "WorkEmail",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "WorkEmail",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "WorkEmail",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "WorkEmail",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "WorkEmailSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "WorkEmailSearch",
+          "surface": "search-index"
+        }
+      ]
+    },
+    {
+      "id": "staff.work-phone",
+      "dataSubject": "staff",
+      "classification": "contact",
+      "sensitivity": "elevated",
+      "purposes": [
+        "staff-contact"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile.contact",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "admin-input",
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "integration-command",
+        "persistence",
+        "search-index"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "WorkPhone",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "WorkPhone",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "WorkPhone",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "WorkPhone",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "WorkPhone",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "WorkPhone",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "WorkPhone",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "WorkPhone",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "WorkPhone",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
+          "member": "WorkPhone",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "WorkPhone",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "WorkPhone",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "WorkPhoneSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Aggregates.StaffMember",
+          "member": "WorkPhoneSearch",
+          "surface": "search-index"
+        }
+      ]
+    }
+  ]
+}

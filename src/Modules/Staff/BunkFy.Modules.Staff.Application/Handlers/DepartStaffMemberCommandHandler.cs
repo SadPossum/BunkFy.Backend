@@ -11,15 +11,16 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
 internal sealed class DepartStaffMemberCommandHandler(IStaffMemberRepository members,
-    ISystemClock clock, IIdGenerator ids) : ICommandHandler<DepartStaffMemberCommand, StaffMemberDto>
+    ISystemClock clock, IIdGenerator ids)
+    : ICommandHandler<DepartStaffMemberCommand, StaffDirectoryMemberDto>
 {
-    public async Task<Result<StaffMemberDto>> HandleAsync(DepartStaffMemberCommand command,
+    public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(DepartStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
         StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
         if (member is null)
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+            return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
         }
 
         Guid[] assignmentEventIds = member.Assignments.Where(item => item.IsCurrent)
@@ -27,7 +28,7 @@ internal sealed class DepartStaffMemberCommandHandler(IStaffMemberRepository mem
         Result departed = member.Depart(command.EffectiveOn, command.ExpectedVersion, command.ActorId,
             command.Reason, ids.NewId(), assignmentEventIds, clock.UtcNow);
         return departed.IsSuccess
-            ? Result.Success(member.ToDto())
-            : Result.Failure<StaffMemberDto>(departed.Error);
+            ? Result.Success(member.ToDirectoryDto())
+            : Result.Failure<StaffDirectoryMemberDto>(departed.Error);
     }
 }

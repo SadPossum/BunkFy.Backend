@@ -12,27 +12,27 @@ using BunkFy.Modules.Staff.Domain.Aggregates;
 
 internal sealed class AssignStaffPropertyCommandHandler(IStaffMemberRepository members,
     IStaffPropertyProjectionRepository properties, ISystemClock clock, IIdGenerator ids)
-    : ICommandHandler<AssignStaffPropertyCommand, StaffMemberDto>
+    : ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto>
 {
-    public async Task<Result<StaffMemberDto>> HandleAsync(AssignStaffPropertyCommand command,
+    public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(AssignStaffPropertyCommand command,
         CancellationToken cancellationToken)
     {
         if (!await properties.IsActiveAsync(command.PropertyId, cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.PropertyUnavailable);
+            return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.PropertyUnavailable);
         }
 
         StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
         if (member is null)
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+            return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
         }
 
         Result assigned = member.AssignProperty(ids.NewId(), command.PropertyId, command.PropertyJobTitle,
             command.IsPrimary, command.EffectiveFrom, command.ExpectedVersion, command.ActorId,
             ids.NewId(), clock.UtcNow);
         return assigned.IsSuccess
-            ? Result.Success(member.ToDto())
-            : Result.Failure<StaffMemberDto>(assigned.Error);
+            ? Result.Success(member.ToDirectoryDto(command.PropertyId))
+            : Result.Failure<StaffDirectoryMemberDto>(assigned.Error);
     }
 }

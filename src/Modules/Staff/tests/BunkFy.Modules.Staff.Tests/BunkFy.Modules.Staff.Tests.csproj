@@ -4,19 +4,32 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\BunkFy.Modules.Staff.Api\BunkFy.Modules.Staff.Api.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Staff.AdminApi\BunkFy.Modules.Staff.AdminApi.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Application\BunkFy.Modules.Staff.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Domain\BunkFy.Modules.Staff.Domain.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Persistence\BunkFy.Modules.Staff.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Modules\Gma.Framework.ModuleComposition\Gma.Framework.ModuleComposition.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Scoping\Gma.Framework.Scoping\Gma.Framework.Scoping.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.AccessControl.AspNetCore\Gma.Framework.AccessControl.AspNetCore.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.Permissions\Gma.Framework.Permissions.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks\Gma.Framework.Tasks.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\docs\personal-data-catalog.v1.json"
+          Link="DataGovernance\personal-data-catalog.v1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\docs\personal-data-inventory.v1.md"
+          Link="DataGovernance\personal-data-inventory.v1.md"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

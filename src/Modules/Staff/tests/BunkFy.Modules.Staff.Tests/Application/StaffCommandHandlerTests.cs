@@ -60,10 +60,10 @@ public sealed class StaffCommandHandlerTests
         StaffMember member = CreateMember();
         FakeStaffMemberRepository members = new(member);
         using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
-        ICommandHandler<AssignStaffPropertyCommand, StaffMemberDto> handler = provider
-            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffMemberDto>>();
+        ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto> handler = provider
+            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto>>();
 
-        Result<StaffMemberDto> result = await handler.HandleAsync(
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
             new AssignStaffPropertyCommand(member.Id, Guid.NewGuid(), null, false,
                 new DateOnly(2026, 7, 12), member.Version, "user:owner"),
             CancellationToken.None);
@@ -80,17 +80,18 @@ public sealed class StaffCommandHandlerTests
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
             new FakePropertyProjectionRepository(propertyId));
-        ICommandHandler<AssignStaffPropertyCommand, StaffMemberDto> handler = provider
-            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffMemberDto>>();
+        ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto> handler = provider
+            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto>>();
 
-        Result<StaffMemberDto> result = await handler.HandleAsync(
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
             new AssignStaffPropertyCommand(member.Id, propertyId, "Duty Manager", true,
                 new DateOnly(2026, 7, 12), member.Version, " user:owner "),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Equal(2, result.Value.Version);
-        Assert.Equal(TestClock.Now, Assert.Single(result.Value.Assignments).AssignedAtUtc);
+        Assert.Single(result.Value.Assignments);
+        Assert.Equal(TestClock.Now, Assert.Single(member.Assignments).AssignedAtUtc);
         Assert.Equal("user:owner", Assert.Single(member.Assignments).AssignedBy);
     }
 
@@ -210,16 +211,22 @@ public sealed class StaffCommandHandlerTests
                     authSubjectId.Trim(),
                     StringComparison.Ordinal)));
 
-        public Task<StaffMember?> GetAtPropertyAsync(Guid propertyId, Guid staffMemberId,
-            CancellationToken cancellationToken) => Task.FromResult<StaffMember?>(null);
+        public Task<StaffDirectoryMemberDto?> GetDirectoryAsync(Guid staffMemberId,
+            CancellationToken cancellationToken) => Task.FromResult(
+            member?.Id == staffMemberId ? ToDirectory(member) : null);
 
-        public Task<StaffListResponse> ListAsync(string? search, StaffStatus? status,
+        public Task<StaffDirectoryMemberDto?> GetDirectoryAtPropertyAsync(Guid propertyId,
+            Guid staffMemberId, CancellationToken cancellationToken) => Task.FromResult(
+            member?.Id == staffMemberId ? ToDirectory(member, propertyId) : null);
+
+        public Task<StaffDirectoryListResponse> ListDirectoryAsync(string? search, StaffStatus? status,
             PageRequest pageRequest, CancellationToken cancellationToken) =>
-            Task.FromResult(new StaffListResponse([], pageRequest.Page, pageRequest.PageSize));
+            Task.FromResult(new StaffDirectoryListResponse([], pageRequest.Page, pageRequest.PageSize));
 
-        public Task<StaffListResponse> ListAtPropertyAsync(Guid propertyId, string? search,
-            StaffStatus? status, PageRequest pageRequest, CancellationToken cancellationToken) =>
-            Task.FromResult(new StaffListResponse([], pageRequest.Page, pageRequest.PageSize));
+        public Task<StaffDirectoryListResponse> ListDirectoryAtPropertyAsync(Guid propertyId,
+            string? search, StaffStatus? status, PageRequest pageRequest,
+            CancellationToken cancellationToken) => Task.FromResult(
+            new StaffDirectoryListResponse([], pageRequest.Page, pageRequest.PageSize));
 
         public Task<bool> EmployeeNumberExistsAsync(string employeeNumber, Guid? exceptStaffMemberId,
             CancellationToken cancellationToken) => Task.FromResult(
@@ -228,6 +235,24 @@ public sealed class StaffCommandHandlerTests
         public Task<bool> AuthSubjectExistsAsync(string authSubjectId, Guid? exceptStaffMemberId,
             CancellationToken cancellationToken) => Task.FromResult(
             string.Equals(authSubjectId, this.ExistingAuthSubjectId, StringComparison.Ordinal));
+
+        private static StaffDirectoryMemberDto ToDirectory(StaffMember value, Guid? propertyId = null) => new(
+            value.Id,
+            value.DisplayName,
+            value.JobTitle,
+            value.Department,
+            (StaffStatus)value.Status,
+            value.Version,
+            value.Assignments
+                .Where(assignment => assignment.IsCurrent &&
+                    (!propertyId.HasValue || assignment.PropertyId == propertyId.Value))
+                .Select(assignment => new StaffDirectoryAssignmentDto(
+                    assignment.Id,
+                    assignment.PropertyId,
+                    assignment.PropertyJobTitle,
+                    assignment.IsPrimary,
+                    assignment.EffectiveFrom))
+                .ToArray());
     }
 
     private sealed class FakePropertyProjectionRepository(params Guid[] activeProperties)

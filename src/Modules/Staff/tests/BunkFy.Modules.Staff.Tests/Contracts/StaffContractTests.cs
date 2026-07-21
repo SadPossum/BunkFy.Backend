@@ -14,9 +14,11 @@ public sealed class StaffContractTests
     public void Descriptor_exposes_scoped_permissions_property_subscriptions_and_rebuild_task()
     {
         IReadOnlyCollection<ModulePermissionDescriptor> permissions = StaffModuleMetadata.Descriptor.GetPermissions();
-        Assert.Equal(5, permissions.Count);
+        Assert.Equal(6, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped,
             permission.ScopeRequirement));
+        Assert.Contains(permissions, permission =>
+            permission.Code == StaffAdminPermissionCodes.SensitiveProfileRead);
         Assert.Equal(3, StaffModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Equal(5, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Single(StaffModuleMetadata.Descriptor.GetTasks());

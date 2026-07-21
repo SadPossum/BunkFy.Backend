@@ -8,18 +8,18 @@ using BunkFy.Modules.Staff.Domain.Aggregates;
 
 internal static class StaffMemberChange
 {
-    public static async Task<Result<StaffMemberDto>> ApplyAsync(IStaffMemberRepository members,
+    public static async Task<Result<StaffDirectoryMemberDto>> ApplyAsync(IStaffMemberRepository members,
         Guid staffMemberId, Func<StaffMember, Result> change, CancellationToken cancellationToken)
     {
         StaffMember? member = await members.GetAsync(staffMemberId, cancellationToken).ConfigureAwait(false);
         if (member is null)
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+            return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
         }
 
         Result changed = change(member);
         return changed.IsSuccess
-            ? Result.Success(member.ToDto())
-            : Result.Failure<StaffMemberDto>(changed.Error);
+            ? Result.Success(member.ToDirectoryDto())
+            : Result.Failure<StaffDirectoryMemberDto>(changed.Error);
     }
 }

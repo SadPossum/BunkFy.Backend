@@ -24,4 +24,11 @@ internal static class StaffApiEndpointSupport
             ? "authenticated:unknown"
             : $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
     }
+
+    public static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
 }

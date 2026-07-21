@@ -1,7 +1,7 @@
 namespace BunkFy.Modules.Staff.Application.Queries;
 
-using Gma.Framework.Cqrs;
 using BunkFy.Modules.Staff.Contracts;
+using Gma.Framework.Cqrs;
 
-public sealed record GetStaffMemberAtPropertyQuery(Guid PropertyId, Guid StaffMemberId)
+public sealed record GetStaffDirectoryMemberQuery(Guid StaffMemberId)
     : IQuery<StaffDirectoryMemberDto>;

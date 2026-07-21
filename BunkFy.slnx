@@ -601,6 +601,8 @@
   </Folder>
   <Folder Name="/src/Modules/Staff/docs/">
     <File Path="src/Modules/Staff/docs/README.md" />
+    <File Path="src/Modules/Staff/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/Staff/docs/personal-data-inventory.v1.md" />
   </Folder>
   <Folder Name="/src/Modules/Staff/src/Admin/">
     <Project Path="src/Modules/Staff/BunkFy.Modules.Staff.Admin.Contracts/BunkFy.Modules.Staff.Admin.Contracts.csproj" />

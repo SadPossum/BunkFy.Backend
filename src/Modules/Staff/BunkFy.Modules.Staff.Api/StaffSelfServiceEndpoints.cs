@@ -29,6 +29,7 @@ internal static class StaffSelfServiceEndpoints
             IRequestDispatcher dispatcher,
             CancellationToken token) =>
         {
+            StaffApiEndpointSupport.MarkSensitiveResponse(context);
             AccessSubject? subject = ResolveUser(context, subjects);
             if (subject is null)
             {
@@ -47,6 +48,7 @@ internal static class StaffSelfServiceEndpoints
             IRequestDispatcher dispatcher,
             CancellationToken token) =>
         {
+            StaffApiEndpointSupport.MarkSensitiveResponse(context);
             AccessSubject? subject = ResolveUser(context, subjects);
             if (subject is null)
             {

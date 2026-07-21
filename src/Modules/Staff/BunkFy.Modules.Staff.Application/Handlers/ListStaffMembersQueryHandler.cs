@@ -8,9 +8,12 @@ using BunkFy.Modules.Staff.Application.Queries;
 using BunkFy.Modules.Staff.Contracts;
 
 internal sealed class ListStaffMembersQueryHandler(IStaffMemberRepository members)
-    : IQueryHandler<ListStaffMembersQuery, StaffListResponse>
+    : IQueryHandler<ListStaffMembersQuery, StaffDirectoryListResponse>
 {
-    public async Task<Result<StaffListResponse>> HandleAsync(ListStaffMembersQuery query,
-        CancellationToken cancellationToken) => Result.Success(await members.ListAsync(query.Search,
-        query.Status, PageRequest.Normalize(query.Page, query.PageSize), cancellationToken).ConfigureAwait(false));
+    public async Task<Result<StaffDirectoryListResponse>> HandleAsync(ListStaffMembersQuery query,
+        CancellationToken cancellationToken) => Result.Success(await members.ListDirectoryAsync(
+        query.Search,
+        query.Status,
+        PageRequest.Normalize(query.Page, query.PageSize),
+        cancellationToken).ConfigureAwait(false));
 }

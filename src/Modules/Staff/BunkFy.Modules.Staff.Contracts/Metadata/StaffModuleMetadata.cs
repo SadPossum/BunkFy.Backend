@@ -22,7 +22,8 @@ public static class StaffModuleMetadata
         .Create(Name)
         .WithSchema(Schema)
         .WithPermissions([
-            new ModulePermissionDescriptor(StaffAdminPermissionCodes.Read, "Read staff profiles.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(StaffAdminPermissionCodes.Read, "Read the operational staff directory.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(StaffAdminPermissionCodes.SensitiveProfileRead, "Read sensitive staff employment profiles.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.Create, "Create staff profiles.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.Manage, "Manage staff profiles.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.AssignProperties, "Manage staff property assignments.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
