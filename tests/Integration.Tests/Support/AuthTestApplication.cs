@@ -3,6 +3,7 @@ namespace Integration.Tests.Support;
 using BunkFy.Host.Api;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.Results;
 using Gma.Modules.Auth.Application.Ports;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Persistence;
@@ -41,7 +42,7 @@ internal sealed class AuthTestApplication(
 {
     private const string JwtIssuer = "BunkFy";
     private const string JwtAudience = "BunkFy";
-    private const string JwtSigningKey = "integration-test-signing-key-change-me-000000000000000000";
+    internal const string JwtSigningKey = "integration-test-signing-key-change-me-000000000000000000";
     private const string RefreshTokenPepper = "integration-test-refresh-token-pepper-change-me-000000000000000000";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -254,6 +255,34 @@ internal sealed class AuthTestApplication(
                 Guid.NewGuid(),
                 nowUtc).Value;
             dbContext.Memberships.Add(membership);
+        }
+
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    public async Task SetOrganizationMembershipSuspendedAsync(
+        string tenantId,
+        Guid subjectId,
+        bool suspended)
+    {
+        if (!Guid.TryParse(tenantId, out Guid organizationId) || organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("The product tenant id must be a non-empty organization id.", nameof(tenantId));
+        }
+
+        using IServiceScope scope = this.Services.CreateScope();
+        OrganizationsDbContext dbContext = scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>();
+        string subject = subjectId.ToString("D");
+        OrganizationMembership membership = await dbContext.Memberships
+            .SingleAsync(item => item.OrganizationId == organizationId && item.SubjectId == subject)
+            .ConfigureAwait(false);
+        string actor = $"user:{subject}";
+        Result result = suspended
+            ? membership.Suspend(membership.Version, actor, Guid.NewGuid(), DateTimeOffset.UtcNow)
+            : membership.Resume(membership.Version, actor, Guid.NewGuid(), DateTimeOffset.UtcNow);
+        if (result.IsFailure)
+        {
+            throw new InvalidOperationException(result.Error.Message);
         }
 
         await dbContext.SaveChangesAsync().ConfigureAwait(false);

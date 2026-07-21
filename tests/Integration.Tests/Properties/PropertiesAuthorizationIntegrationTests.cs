@@ -296,6 +296,30 @@ public sealed class PropertiesAuthorizationIntegrationTests
             await AssertStatusAsync(HttpStatusCode.NotFound, crossTenantIdentifier).ConfigureAwait(false);
         }
 
+        await api.SetOrganizationMembershipSuspendedAsync(TenantA, localOperatorId, suspended: true)
+            .ConfigureAwait(false);
+        using (HttpResponseMessage suspendedMembership = await SendAsync(
+                   client,
+                   HttpMethod.Get,
+                   TenantA,
+                   $"/api/properties/{propertyA1.PropertyId:D}",
+                   localOperator.AccessToken).ConfigureAwait(false))
+        {
+            await AssertStatusAsync(HttpStatusCode.Forbidden, suspendedMembership).ConfigureAwait(false);
+        }
+
+        await api.SetOrganizationMembershipSuspendedAsync(TenantA, localOperatorId, suspended: false)
+            .ConfigureAwait(false);
+        using (HttpResponseMessage resumedMembership = await SendAsync(
+                   client,
+                   HttpMethod.Get,
+                   TenantA,
+                   $"/api/properties/{propertyA1.PropertyId:D}",
+                   localOperator.AccessToken).ConfigureAwait(false))
+        {
+            await AssertStatusAsync(HttpStatusCode.OK, resumedMembership).ConfigureAwait(false);
+        }
+
         await AssertAdminSuccessAsync(admin.ExecuteAsync(
             "admin", "roles", "unassign",
             "--actor", "owner",

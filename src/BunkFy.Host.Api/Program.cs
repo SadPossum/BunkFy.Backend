@@ -58,11 +58,15 @@ using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Gma.Modules.Notifications.Api;
 using Gma.Modules.Tenancy.Api;
 using BunkFy.Host.Api;
+using BunkFy.Host.Api.Security;
+using Gma.Framework.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
 AuthProfile authProfile = AuthProfile.Global(authScopeId);
+AuthenticationAssuranceRequirement privilegedOperationAssurance =
+    BunkFyAuthenticationAssurance.CreatePrivilegedOperationRequirement(builder.Configuration);
 
 builder.Host.UseConfiguredSerilog();
 
@@ -88,6 +92,12 @@ builder.Services.AddJsonFileDropAdapterDescriptor();
 builder.Services.AddReservationMailParserDescriptor();
 
 builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);
+builder.Services.Configure<AccessControlApiSecurityOptions>(
+    options => options.ProfileManagementAssurance = privilegedOperationAssurance);
+builder.Services.Configure<OrganizationsApiSecurityOptions>(
+    options => options.GovernanceOperationsAssurance = privilegedOperationAssurance);
+builder.Services.Configure<IngestionApiSecurityOptions>(
+    options => options.CredentialManagementAssurance = privilegedOperationAssurance);
 builder.AddModule<AccessControlApiModule>();
 
 builder.AddModule<TenancyModule>();
@@ -100,6 +110,7 @@ builder.Services.AddAuthNotificationsExtension();
 builder.Services.AddAuthOrganizationsExtension(options => options.GlobalAuthScopeId = authScopeId);
 builder.Services.AddOrganizationsTenancyExtension();
 builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);
+builder.Services.AddBunkFyWorkspaceAdmission(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.Replace(ServiceDescriptor.Scoped<INotificationUserScopeAuthorizer, WorkspaceNotificationUserScopeAuthorizer>());
 builder.Services.AddBunkFyOperationsNotifications();
 builder.Services.AddBunkFyWorkspaceOwnerNotificationAudience();

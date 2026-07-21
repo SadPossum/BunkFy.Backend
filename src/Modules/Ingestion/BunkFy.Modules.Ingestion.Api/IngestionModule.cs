@@ -13,6 +13,7 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Security;
+using Gma.Framework.Security.AspNetCore;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Commands;
@@ -27,6 +28,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 public sealed class IngestionModule : IModule
 {
@@ -35,6 +37,7 @@ public sealed class IngestionModule : IModule
     public void AddServices(IHostApplicationBuilder builder)
     {
         builder.SelectModuleProfile(IngestionProfiles.Default, "BunkFy.Modules.Ingestion.Api");
+        builder.Services.AddOptions<IngestionApiSecurityOptions>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, IngestionPropertyAccessScopeResolver>());
         builder.Services.AddIngestionApplication();
@@ -43,9 +46,13 @@ public sealed class IngestionModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        AuthenticationAssuranceRequirement? credentialManagementAssurance = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<IngestionApiSecurityOptions>>()
+            .Value
+            .CredentialManagementAssurance;
         this.MapAdapterTypeEndpoints(endpoints);
         this.MapParserTypeEndpoints(endpoints);
-        this.MapConnectionEndpoints(endpoints);
+        this.MapConnectionEndpoints(endpoints, credentialManagementAssurance);
         this.MapIngressEndpoints(endpoints);
         this.MapRunEndpoints(endpoints);
         this.MapReceiptEndpoints(endpoints);
@@ -183,7 +190,9 @@ public sealed class IngestionModule : IModule
                 IngestionPropertyAccessScopeResolver.ResolverName);
     }
 
-    private void MapConnectionEndpoints(IEndpointRouteBuilder endpoints)
+    private void MapConnectionEndpoints(
+        IEndpointRouteBuilder endpoints,
+        AuthenticationAssuranceRequirement? credentialManagementAssurance)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/ingestion/properties/{propertyId:guid}/connections")
             .WithModuleName(this.Name)
@@ -363,7 +372,7 @@ public sealed class IngestionModule : IModule
                 IngestionAdminPermissionCodes.CredentialsManage,
                 IngestionPropertyAccessScopeResolver.ResolverName);
 
-        group.MapPost("/{connectionId:guid}/credentials", async (
+        RouteHandlerBuilder createCredential = group.MapPost("/{connectionId:guid}/credentials", async (
             Guid propertyId,
             Guid connectionId,
             CreateIngressCredentialRequest request,
@@ -397,8 +406,9 @@ public sealed class IngestionModule : IModule
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.CredentialsManage,
                 IngestionPropertyAccessScopeResolver.ResolverName);
+        RequireAssuranceWhenConfigured(createCredential, credentialManagementAssurance);
 
-        group.MapPost("/{connectionId:guid}/credentials/{credentialId:guid}/revoke", async (
+        RouteHandlerBuilder revokeCredential = group.MapPost("/{connectionId:guid}/credentials/{credentialId:guid}/revoke", async (
             Guid propertyId,
             Guid connectionId,
             Guid credentialId,
@@ -426,7 +436,15 @@ public sealed class IngestionModule : IModule
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.CredentialsManage,
                 IngestionPropertyAccessScopeResolver.ResolverName);
+        RequireAssuranceWhenConfigured(revokeCredential, credentialManagementAssurance);
     }
+
+    private static RouteHandlerBuilder RequireAssuranceWhenConfigured(
+        RouteHandlerBuilder endpoint,
+        AuthenticationAssuranceRequirement? requirement) =>
+        requirement is null
+            ? endpoint
+            : endpoint.RequireAuthenticationAssurance(requirement);
 
     private void MapIngressEndpoints(IEndpointRouteBuilder endpoints)
     {

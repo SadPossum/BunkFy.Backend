@@ -15,6 +15,9 @@ public sealed class HostCompositionGuardTests
         [
             "builder.AddModule<TenancyModule>();",
             "builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);",
+            "options => options.ProfileManagementAssurance = privilegedOperationAssurance",
+            "options => options.GovernanceOperationsAssurance = privilegedOperationAssurance",
+            "options => options.CredentialManagementAssurance = privilegedOperationAssurance",
             "builder.AddModule<AccessControlApiModule>();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
             "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
@@ -30,6 +33,7 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddAuthOrganizationsExtension(options => options.GlobalAuthScopeId = authScopeId);",
             "builder.Services.AddOrganizationsTenancyExtension();",
             "builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);",
+            "builder.Services.AddBunkFyWorkspaceAdmission(builder.Configuration, builder.Environment.IsProduction());",
             "builder.Services.AddBunkFyOperationsNotifications();",
             "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",
             "builder.AddModule<PropertiesModule>();",
@@ -304,15 +308,26 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Public_api_enables_global_account_and_workspace_self_registration()
+    public void Public_api_requires_explicit_production_admission_policy()
     {
         string appsettings = RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json");
+        string development = RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.Development.json");
+        string program = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
 
         Assert.Contains("\"SelfRegistration\"", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"GlobalScopeId\": \"default\"", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"PasswordEnabled\": true", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"ExternalEnabled\": true", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"SelfServiceCreationEnabled\": true", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"AccountRegistration\": \"Unspecified\"", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"WorkspaceCreation\": \"Unspecified\"", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"AccountRegistration\": \"Public\"", development, StringComparison.Ordinal);
+        Assert.Contains("\"WorkspaceCreation\": \"SelfService\"", development, StringComparison.Ordinal);
+        Assert.Contains("\"RequireVerifiedEmailForWorkspaceCreation\": false", development, StringComparison.Ordinal);
+        Assert.Contains(
+            "AddBunkFyWorkspaceAdmission(builder.Configuration, builder.Environment.IsProduction())",
+            program,
+            StringComparison.Ordinal);
     }
 
     [Fact]

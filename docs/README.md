@@ -35,6 +35,7 @@ Useful entry points:
 - [Reservations Stay Lifecycle Task](planning/reservations-stay-lifecycle-task.md)
 - [Reservations PII Minimization Task](planning/reservations-pii-minimization-task.md)
 - [Production File Surface Lockdown Task](planning/production-file-surface-lockdown-task.md)
+- [Production Authentication Admission And Assurance Task](planning/production-authentication-admission-task.md)
 - [Ingestion Module Task](planning/ingestion-module-task.md)
 - [Ingestion PII Minimization Task](planning/ingestion-pii-minimization-task.md)
 - [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)
