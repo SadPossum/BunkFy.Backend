@@ -30,6 +30,8 @@ Useful entry points:
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)
 - [Secure Staff Enrollment Task](planning/secure-staff-enrollment-task.md)
 - [Workspace Access Profiles Task](planning/workspace-access-profiles-task.md)
+- [Workspace Invitation Access Plans Task](planning/workspace-invitation-access-plans-task.md)
+- [Workspace Staff Access Lifecycle Task](planning/workspace-staff-access-lifecycle-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Staff Module](../src/Modules/Staff/docs/README.md)
 - [Reservations Module Task](planning/reservations-module-task.md)
