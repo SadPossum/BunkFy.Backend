@@ -254,7 +254,7 @@ if ($IncludeRootWorkspace) {
 
     foreach ($item in @(
         '.gitignore', '.gitmodules', 'Directory.Build.props', 'Directory.Packages.props',
-        'global.json', 'LICENSE', 'nuget.config', 'README.md'
+        'global.json', 'LICENSE', 'nuget.config', 'README.md', 'SECURITY.md'
     )) {
         if (Test-Path -LiteralPath (Join-Path $workspaceRoot $item) -PathType Leaf) {
             Add-SolutionEntry $workspaceFolders '/Solution Items/' File $item
