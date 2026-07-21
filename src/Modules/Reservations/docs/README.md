@@ -2,6 +2,13 @@
 
 Reservations owns BunkFy's tenant- and property-scoped booking intent and lifecycle. Inventory remains the sole authority for concrete room/bed claims and the no-overbooking decision.
 
+The module's executable personal-data contract is
+[`personal-data-catalog.v1.json`](personal-data-catalog.v1.json). The generated
+[`personal-data-inventory.v1.md`](personal-data-inventory.v1.md) is checked by
+reflection-backed tests against Reservations persistence, commands, queries, APIs, adapter ingress,
+domain events, and integration events. The catalogue is an engineering default until its country,
+retention, and rights policies receive production approval.
+
 ## Current Slice
 
 - staff-created direct or externally referenced reservations for one or more explicit Inventory units;

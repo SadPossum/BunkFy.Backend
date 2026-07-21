@@ -570,6 +570,8 @@
   </Folder>
   <Folder Name="/src/Modules/Reservations/docs/">
     <File Path="src/Modules/Reservations/docs/README.md" />
+    <File Path="src/Modules/Reservations/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/Reservations/docs/personal-data-inventory.v1.md" />
   </Folder>
   <Folder Name="/src/Modules/Reservations/src/Admin/">
     <Project Path="src/Modules/Reservations/BunkFy.Modules.Reservations.Admin.Contracts/BunkFy.Modules.Reservations.Admin.Contracts.csproj" />

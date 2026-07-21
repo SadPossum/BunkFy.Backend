@@ -178,7 +178,9 @@ public enum PersonalDataClassification
     LinkedOperational = 6,
     Lifecycle = 7,
     AuditAttribution = 8,
-    SearchInput = 9
+    SearchInput = 9,
+    StructuredPayload = 10,
+    PseudonymousIdentifier = 11
 }
 
 public enum PersonalDataSensitivity
@@ -218,7 +220,8 @@ public enum PersonalDataSurface
     Cache = 16,
     SupportBundle = 17,
     AdapterIngress = 18,
-    FileIngress = 19
+    FileIngress = 19,
+    DomainEvent = 20
 }
 
 public enum PersonalDataBoundary

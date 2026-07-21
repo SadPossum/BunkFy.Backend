@@ -86,6 +86,20 @@ public sealed class PersonalDataCatalogTests
     }
 
     [Fact]
+    public void Validator_rejects_an_allowed_surface_without_a_concrete_binding()
+    {
+        PersonalDataCatalogDocument catalogue = Parse(ValidJson);
+        PersonalDataFieldDefinition field = catalogue.Fields[0] with
+        {
+            AllowedSurfaces = [.. catalogue.Fields[0].AllowedSurfaces, PersonalDataSurface.Notification]
+        };
+
+        IReadOnlyList<string> errors = PersonalDataCatalogValidator.Validate(catalogue with { Fields = [field] });
+
+        Assert.Contains(errors, error => error.Contains("without a concrete member binding", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_mode_rejects_unapproved_catalogue_fields_and_retention()
     {
         PersonalDataCatalogValidationException exception = Assert.Throws<PersonalDataCatalogValidationException>(
@@ -171,6 +185,12 @@ public sealed class PersonalDataCatalogTests
                   "type": "BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile",
                   "member": "DisplayName",
                   "surface": "persistence"
+                },
+                {
+                  "assembly": "BunkFy.Modules.Guests.Contracts",
+                  "type": "BunkFy.Modules.Guests.Contracts.GuestProfileDto",
+                  "member": "DisplayName",
+                  "surface": "api-response"
                 }
               ]
             }

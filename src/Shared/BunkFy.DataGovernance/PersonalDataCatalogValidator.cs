@@ -143,6 +143,7 @@ public static class PersonalDataCatalogValidator
             }
 
             HashSet<PersonalDataSurface> allowedSurfaces = [.. field.AllowedSurfaces ?? []];
+            HashSet<PersonalDataSurface> boundSurfaces = [];
             foreach (PersonalDataMemberBinding binding in field.Bindings)
             {
                 ValidateText(binding.Assembly, $"{fieldPath}.Bindings.Assembly", errors);
@@ -165,11 +166,20 @@ public static class PersonalDataCatalogValidator
                         $"which is not allowed by field '{field.Id}'.");
                 }
 
+                boundSurfaces.Add(binding.Surface);
+
                 string bindingKey = string.Join('|', binding.Assembly, binding.Type, binding.Member, binding.Surface);
                 if (!bindingKeys.Add(bindingKey))
                 {
                     errors.Add($"Duplicate member binding '{bindingKey}'.");
                 }
+            }
+
+            foreach (PersonalDataSurface allowedSurface in allowedSurfaces.Where(
+                         surface => !boundSurfaces.Contains(surface)))
+            {
+                errors.Add(
+                    $"Field '{field.Id}' allows surface '{allowedSurface}' without a concrete member binding.");
             }
         }
 

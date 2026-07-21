@@ -6,7 +6,7 @@ Status: in progress
 
 Complete company-readiness control SP-001 one domain at a time. BunkFy must have a versioned, machine-readable catalogue that makes undocumented personal data fail verification instead of silently entering persistence, contracts, messages, logs, or other processing surfaces.
 
-The first delivery slice covers Guests because it is the canonical owner of durable guest profiles. Reservations keeps its existing focused event guard until its catalogue slice is aligned with this contract.
+The first delivery slice covered Guests because it is the canonical owner of durable guest profiles. Reservations now applies the same executable contract to booking records, change history, adapter ingress, and operational events.
 
 ## Ownership
 
@@ -52,11 +52,25 @@ Executable guards must prove:
 4. direct identity, contact, demographic, preference, and free-text fields do not appear in Guests integration events;
 5. the generated resolved inventory is deterministic and contains no unresolved policy references.
 
+## Reservations Slice
+
+Status: implemented and verified
+
+The Reservations catalogue classifies:
+
+- current and pending guest details, stay dates and times, lifecycle state, and booking-source provenance;
+- reservation-to-Guest links, retained unlink snapshots, reminder state, and Inventory allocation projections;
+- staff actor attribution, adapter connection/receipt/operation provenance, correlation keys, and request fingerprints;
+- before/after details snapshots, changed-field payloads, revisions, and history persistence;
+- commands, queries, API requests and responses, approved adapter-ingress contracts, internal domain events, and payload-minimized integration events.
+
+Executable guards prove all selected EF Core members and public boundary members are classified, every binding resolves to a real member, adapter ingress is limited to the four explicit external-reservation request contracts, direct or unstructured guest data cannot enter operational outputs, rejection reasons remain bounded, legacy reminder JSON cannot reintroduce a guest name, and the checked-in inventory is deterministic.
+
 ## Delivery Slices
 
 1. Add the shared catalogue model, strict parser, validator, and focused adversarial tests.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
-3. Align Reservations with its existing PII-minimisation guard.
+3. Align Reservations with its existing PII-minimisation guard. Completed.
 4. Continue one module at a time through Ingestion, Staff and Workspaces, Notifications extensions, Inventory, and Properties.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
@@ -82,6 +96,13 @@ Completed Guests evidence:
 - Shared catalogue tests pass, including strict parsing, adversarial validation, canonical keys, production approval gates, and deterministic rendering.
 - Guests reflection guards pass for mapped entities and selected public contracts.
 - The complete repository verification passes with a warning-free build, all PostgreSQL and GMA migration models at zero drift, and the full non-Docker fast suite green.
+
+Completed Reservations evidence:
+
+- 71 field definitions resolve 645 concrete bindings across nine Reservations-owned persistence types and 55 selected boundary types.
+- Adapter ingress is separated from ordinary integration events; internal domain-event snapshots are transient and remain intra-module.
+- Direct identity, contact, free text, search input, and structured payloads are prohibited from integration events, notifications, logs, metrics, traces, and support bundles.
+- Focused Reservations verification and the complete repository verifier pass with a synchronized solution, warning-free build, zero migration drift, and the full non-Docker fast suite green. Exact-commit CI remains required when the slice is published.
 
 ## Deferred Dependencies
 
