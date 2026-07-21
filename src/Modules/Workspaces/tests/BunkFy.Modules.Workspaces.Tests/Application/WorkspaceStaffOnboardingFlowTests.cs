@@ -179,14 +179,33 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         FakeContactReader? contacts = null)
     {
         ServiceCollection services = new();
+        FakeAccessProfiles profiles = new();
+        FakeJoinTokenInspector tokenInspector = tokens ?? new FakeJoinTokenInspector(
+            WorkspaceStaffOnboardingTests.OrganizationId,
+            Guid.NewGuid());
+        WorkspaceStaffAccessPlan[] plans = applications.Applications
+            .Select(application => CreateActivePlan(
+                application.SourceKind,
+                application.SourceId,
+                profiles.ProfileId))
+            .Append(CreateActivePlan(
+                WorkspaceStaffOnboardingSource.EnrollmentLink,
+                tokenInspector.SourceId,
+                profiles.ProfileId))
+            .GroupBy(plan => plan.Id)
+            .Select(group => group.First())
+            .ToArray();
         services.AddLogging();
         services.AddSingleton<IWorkspaceStaffOnboardingRepository>(applications);
+        services.AddSingleton<IWorkspaceStaffAccessPlanRepository>(new FakeAccessPlanRepository(plans));
         services.AddSingleton<IStaffOnboardingProvisioner>(staff);
+        services.AddSingleton<IStaffPropertyAssignmentProvisioner>(new FakeStaffPropertyProvisioner());
         services.AddSingleton<IAccessControlRoleProvisioner>(access);
-        services.AddSingleton<IAccessProfileProvisioner>(new FakeAccessProfiles());
-        services.AddSingleton<IOrganizationJoinTokenInspector>(tokens ?? new FakeJoinTokenInspector(
-            WorkspaceStaffOnboardingTests.OrganizationId,
-            Guid.NewGuid()));
+        services.AddSingleton<IAccessProfileProvisioner>(profiles);
+        services.AddSingleton<IScopedAccessProfileProvisioner>(profiles);
+        services.AddSingleton<IAccessAuthorizationService>(new AllowAllAuthorizationService());
+        services.AddSingleton<IWorkspacePropertyProjectionRepository>(new FakePropertyProjectionRepository());
+        services.AddSingleton<IOrganizationJoinTokenInspector>(tokenInspector);
         services.AddSingleton<IAuthMemberContactReader>(contacts ?? new FakeContactReader());
         services.AddSingleton<IScopeContextAccessor>(new FakeScopeContext());
         services.AddSingleton<IScopeContext>(provider => provider.GetRequiredService<IScopeContextAccessor>());
@@ -196,10 +215,30 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         return services.BuildServiceProvider();
     }
 
+    private static WorkspaceStaffAccessPlan CreateActivePlan(
+        WorkspaceStaffOnboardingSource sourceKind,
+        Guid sourceId,
+        Guid profileId)
+    {
+        WorkspaceStaffAccessPlan plan = WorkspaceStaffAccessPlan.Create(
+            sourceId,
+            WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+            sourceKind,
+            profileId,
+            WorkspaceAccessProfileSeeds.FrontDeskKey,
+            [],
+            WorkspaceStaffOnboardingTests.SubjectId,
+            WorkspaceStaffOnboardingTests.Now).Value;
+        Assert.True(plan.Activate(WorkspaceStaffOnboardingTests.Now.AddSeconds(1)).IsSuccess);
+        return plan;
+    }
+
     private sealed class FakeRepository(params WorkspaceStaffOnboarding[] seed)
         : IWorkspaceStaffOnboardingRepository
     {
         private readonly List<WorkspaceStaffOnboarding> applications = [.. seed];
+
+        public IReadOnlyList<WorkspaceStaffOnboarding> Applications => this.applications;
 
         public Task<WorkspaceStaffOnboarding?> GetAsync(Guid applicationId, CancellationToken cancellationToken) =>
             Task.FromResult(this.applications.SingleOrDefault(item => item.Id == applicationId));
@@ -234,6 +273,25 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         }
     }
 
+    private sealed class FakeAccessPlanRepository(params WorkspaceStaffAccessPlan[] seed)
+        : IWorkspaceStaffAccessPlanRepository
+    {
+        private readonly List<WorkspaceStaffAccessPlan> plans = [.. seed];
+
+        public Task<WorkspaceStaffAccessPlan?> GetAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(this.plans.SingleOrDefault(plan => plan.Id == sourceId));
+
+        public Task AddAsync(
+            WorkspaceStaffAccessPlan plan,
+            CancellationToken cancellationToken)
+        {
+            this.plans.Add(plan);
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class FakeStaffProvisioner : IStaffOnboardingProvisioner
     {
         public Guid? StaffMemberId { get; init; } = Guid.NewGuid();
@@ -249,6 +307,17 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 ? new StaffOnboardingProvisioningResult(true, this.StaffMemberId, null)
                 : new StaffOnboardingProvisioningResult(false, null, this.ErrorCode));
         }
+    }
+
+    private sealed class FakeStaffPropertyProvisioner : IStaffPropertyAssignmentProvisioner
+    {
+        public Task<StaffPropertyAssignmentProvisioningResult> ReconcileAsync(
+            StaffPropertyAssignmentProvisioningRequest request,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+                new StaffPropertyAssignmentProvisioningResult(
+                    true,
+                    request.PropertyIds.ToArray(),
+                    null));
     }
 
     private sealed class FakeAccessControl : IAccessControlRoleProvisioner
@@ -282,7 +351,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             AccessSubject subject,
             string roleName,
             AccessScope scope,
-            CancellationToken cancellationToken = default) => Task.FromResult(false);
+            CancellationToken cancellationToken = default) => Task.FromResult(
+                string.Equals(roleName, WorkspaceAccessRoles.Owner, StringComparison.Ordinal));
 
         public Task<AccessControlPage<AccessControlRoleAssignment>> ListAssignmentsAsync(
             string roleName,
@@ -293,9 +363,11 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 new AccessControlPage<AccessControlRoleAssignment>([], page, pageSize, false));
     }
 
-    private sealed class FakeAccessProfiles : IAccessProfileProvisioner
+    private sealed class FakeAccessProfiles : IAccessProfileProvisioner, IScopedAccessProfileProvisioner
     {
         private readonly Guid frontDeskId = Guid.NewGuid();
+
+        public Guid ProfileId => this.frontDeskId;
 
         public Task<AccessProfileDto> EnsureProfileAsync(
             AccessScope ownerScope,
@@ -318,7 +390,19 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         public Task<AccessProfileDto?> FindProfileByKeyAsync(
             AccessScope ownerScope,
             string key,
-            CancellationToken cancellationToken = default) => Task.FromResult<AccessProfileDto?>(null);
+            CancellationToken cancellationToken = default) => Task.FromResult<AccessProfileDto?>(
+                new AccessProfileDto(
+                    this.frontDeskId,
+                    ownerScope.Value,
+                    WorkspaceAccessProfileSeeds.FrontDeskKey,
+                    "Front desk",
+                    "Front desk operations.",
+                    AccessProfileStatus.Active,
+                    1,
+                    WorkspaceAccessProfileSeeds.FrontDesk.Permissions.ToArray(),
+                    0,
+                    WorkspaceStaffOnboardingTests.Now,
+                    WorkspaceStaffOnboardingTests.Now));
 
         public Task<AccessProfileAssignmentSet> GetSubjectAssignmentsAsync(
             AccessSubject subject,
@@ -338,11 +422,32 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 profileIds.ToArray(),
                 profileIds.Count,
                 0));
+
+        public Task<ScopedAccessProfileAssignmentSet> GetSubjectScopedAssignmentsAsync(
+            AccessSubject subject,
+            AccessScope ownerScope,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+            new ScopedAccessProfileAssignmentSet(subject, ownerScope, []));
+
+        public Task<ScopedAccessProfileAssignmentReconciliation> ReconcileSubjectScopedAssignmentsAsync(
+            AccessSubject subject,
+            AccessScope ownerScope,
+            IReadOnlyCollection<AccessProfileAssignmentTarget> targets,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+            new ScopedAccessProfileAssignmentReconciliation(
+                subject,
+                ownerScope,
+                targets.ToArray(),
+                targets.Count,
+                0));
     }
 
     private sealed class FakeJoinTokenInspector(Guid organizationId, Guid sourceId)
         : IOrganizationJoinTokenInspector
     {
+        public Guid SourceId => sourceId;
+
         public Task<OrganizationJoinTokenInspection<OrganizationInvitationPreviewDto>> InspectInvitationAsync(
             string token,
             CancellationToken cancellationToken = default) => Task.FromResult(
@@ -371,6 +476,25 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                         OrganizationEnrollmentApprovalMode.RequiresApproval,
                         OrganizationEnrollmentLinkStatus.Active),
                     null));
+    }
+
+    private sealed class AllowAllAuthorizationService : IAccessAuthorizationService
+    {
+        public Task<AccessDecision> AuthorizeAsync(
+            AccessRequirement requirement,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(AccessDecision.Allowed());
+    }
+
+    private sealed class FakePropertyProjectionRepository : IWorkspacePropertyProjectionRepository
+    {
+        public Task<bool> AreAllActiveAsync(
+            IReadOnlyCollection<Guid> propertyIds,
+            CancellationToken cancellationToken) => Task.FromResult(true);
+
+        public Task ApplyAsync(
+            WorkspacePropertyProjectionWriteModel property,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeContactReader : IAuthMemberContactReader

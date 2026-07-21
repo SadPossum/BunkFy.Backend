@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Api;
 
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Api.Requests;
+using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Commands;
 using BunkFy.Modules.Workspaces.Application.Queries;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -56,6 +57,65 @@ internal static class WorkspaceStaffOnboardingEndpoints
                 token).ConfigureAwait(false)).ToHttpResult(
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         }).Produces<WorkspaceStaffOnboardingDto>(StatusCodes.Status200OK);
+
+        group.MapPost("/sources/invitations", async (
+            IssueWorkspaceInvitationRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IWorkspaceStaffJoinSourceIssuer issuer,
+            CancellationToken token) =>
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            AccessSubject? subject = WorkspacesApiEndpointSupport.ResolveUser(context, subjects);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await issuer.IssueInvitationAsync(
+                new WorkspaceInvitationIssuanceRequest(
+                    request.SourceId,
+                    request.RecipientEmail,
+                    request.LifetimeHours,
+                    request.ProfileKey,
+                    request.PropertyIds ?? [],
+                    subject.Id),
+                token).ConfigureAwait(false)).ToHttpResult(
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .Produces<WorkspaceStaffJoinSourceIssuanceDto>(StatusCodes.Status200OK);
+
+        group.MapPost("/sources/enrollment-links", async (
+            IssueWorkspaceEnrollmentLinkRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IWorkspaceStaffJoinSourceIssuer issuer,
+            CancellationToken token) =>
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            AccessSubject? subject = WorkspacesApiEndpointSupport.ResolveUser(context, subjects);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await issuer.IssueEnrollmentLinkAsync(
+                new WorkspaceEnrollmentLinkIssuanceRequest(
+                    request.SourceId,
+                    request.LifetimeHours,
+                    request.MaximumClaims,
+                    request.ApprovalMode,
+                    request.ProfileKey,
+                    request.PropertyIds ?? [],
+                    subject.Id),
+                token).ConfigureAwait(false)).ToHttpResult(
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .Produces<WorkspaceStaffJoinSourceIssuanceDto>(StatusCodes.Status200OK);
 
         group.MapGet("/{organizationId:guid}/applications/current", async (
             Guid organizationId,

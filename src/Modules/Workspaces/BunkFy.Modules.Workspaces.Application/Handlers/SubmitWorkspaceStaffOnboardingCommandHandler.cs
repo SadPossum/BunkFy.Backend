@@ -16,6 +16,7 @@ using Microsoft.Extensions.Options;
 
 internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
     IWorkspaceStaffOnboardingRepository applications,
+    IWorkspaceStaffAccessPlanRepository plans,
     IOrganizationJoinTokenInspector joinTokens,
     IAuthMemberContactReader contacts,
     IOptions<WorkspaceStaffOnboardingOptions> options,
@@ -40,6 +41,17 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
 
         scopeContext.SetScope(authority.Value.OrganizationId.ToString("D"));
 
+        WorkspaceStaffOnboardingSource sourceKind = command.SourceKind.ToDomain();
+        WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
+            authority.Value.SourceId,
+            cancellationToken).ConfigureAwait(false);
+        if (plan is null || plan.SourceKind != sourceKind ||
+            plan.Status != WorkspaceStaffAccessPlanState.Active)
+        {
+            return Result.Failure<WorkspaceStaffOnboardingDto>(
+                WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
+        }
+
         if (!Guid.TryParse(command.SubjectId, out Guid memberId))
         {
             return Result.Failure<WorkspaceStaffOnboardingDto>(
@@ -56,7 +68,6 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
                 WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired);
         }
 
-        WorkspaceStaffOnboardingSource sourceKind = command.SourceKind.ToDomain();
         WorkspaceStaffOnboarding? application = await applications.GetBySourceAndSubjectAsync(
             sourceKind,
             authority.Value.SourceId,

@@ -23,6 +23,79 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBySubjectId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("LastChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProfileKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("SourceKind")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId", "Status", "CreatedAtUtc", "Id");
+
+                    b.ToTable("staff_access_plans", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_access_plans_source", "\"SourceKind\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_staff_access_plans_status", "\"Status\" IN (1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_staff_access_plans_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlanProperty", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ScopeId", "PlanId", "PropertyId");
+
+                    b.HasIndex("ScopeId", "PropertyId", "PlanId");
+
+                    b.ToTable("staff_access_plan_properties", "workspaces");
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessProcess", b =>
                 {
                     b.Property<Guid>("Id")
@@ -207,6 +280,79 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Persistence.WorkspaceProjectionRebuildCheckpoint", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ProjectionName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Cursor")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<long>("FailedCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProcessedCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ProjectionVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SkippedCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("WrittenCount")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ScopeId", "ProjectionName", "RunId");
+
+                    b.ToTable("projection_rebuild_checkpoints", "workspaces");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Persistence.WorkspacePropertyProjection", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "Status", "Id");
+
+                    b.ToTable("property_projection", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_workspaces_property_projection_version", "\"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Gma.Framework.Messaging.Infrastructure.InboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -272,6 +418,16 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                     b.ToTable("inbox_messages", "workspaces");
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlanProperty", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan", null)
+                        .WithMany("Properties")
+                        .HasForeignKey("ScopeId", "PlanId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessProcess", b =>
                 {
                     b.OwnsMany("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessProfileSnapshot", "ProfileSnapshots", b1 =>
@@ -282,7 +438,11 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                             b1.Property<Guid>("ProfileId")
                                 .HasColumnType("uuid");
 
-                            b1.HasKey("ProcessId", "ProfileId");
+                            b1.Property<string>("AssignmentScope")
+                                .HasMaxLength(1024)
+                                .HasColumnType("character varying(1024)");
+
+                            b1.HasKey("ProcessId", "ProfileId", "AssignmentScope");
 
                             b1.ToTable("staff_access_profile_snapshots", "workspaces");
 
@@ -291,6 +451,11 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                         });
 
                     b.Navigation("ProfileSnapshots");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan", b =>
+                {
+                    b.Navigation("Properties");
                 });
 #pragma warning restore 612, 618
         }

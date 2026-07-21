@@ -51,8 +51,16 @@ public sealed class WorkspacesModelTests
         Microsoft.EntityFrameworkCore.Metadata.IEntityType snapshot = context.Model
             .FindEntityType(typeof(WorkspaceStaffAccessProfileSnapshot))!;
         Assert.Equal(
-            ["ProcessId", nameof(WorkspaceStaffAccessProfileSnapshot.ProfileId)],
+            [
+                "ProcessId",
+                nameof(WorkspaceStaffAccessProfileSnapshot.ProfileId),
+                nameof(WorkspaceStaffAccessProfileSnapshot.AssignmentScope)
+            ],
             snapshot.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
+        Assert.Equal(
+            WorkspaceStaffAccessProfileSnapshot.AssignmentScopeMaxLength,
+            snapshot.FindProperty(nameof(WorkspaceStaffAccessProfileSnapshot.AssignmentScope))!
+                .GetMaxLength());
     }
 
     private sealed class TestScopeContext : IScopeContext

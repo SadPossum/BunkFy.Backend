@@ -184,6 +184,10 @@ public static class WorkerHostBuilderExtensions
                     WorkspacesProfiles.Default,
                     "BunkFy.Host.Worker/Workspaces");
                 builder.Services.AddWorkspacesApplication(authScopeId);
+                if (workerOptions.TaskWorkerEnabled)
+                {
+                    builder.Services.AddWorkspacesTaskHandlers();
+                }
                 builder.AddWorkspacesPersistence();
             }
         }

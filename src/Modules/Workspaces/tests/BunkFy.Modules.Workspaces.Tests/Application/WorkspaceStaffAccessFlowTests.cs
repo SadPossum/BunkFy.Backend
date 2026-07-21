@@ -330,7 +330,9 @@ public sealed class WorkspaceStaffAccessFlowTests
         targetVersion,
         new DateOnly(2026, 7, 21),
         "user:owner",
-        profiles,
+        profiles.Select(profileId => new WorkspaceStaffAccessProfileTarget(
+            profileId,
+            WorkspaceAccessScopes.Create(ScopeId).Value)).ToArray(),
         Now).Value;
 
     private sealed class FakeProcessRepository(params WorkspaceStaffAccessProcess[] processes)
@@ -464,7 +466,8 @@ public sealed class WorkspaceStaffAccessFlowTests
             new AccessControlPage<AccessControlRoleAssignment>([], page, pageSize, false));
     }
 
-    private sealed class FakeProfiles(List<string> operations) : IAccessProfileProvisioner
+    private sealed class FakeProfiles(List<string> operations)
+        : IAccessProfileProvisioner, IScopedAccessProfileProvisioner
     {
         private readonly Dictionary<Guid, AccessProfileDto> profiles = [];
         private readonly Dictionary<(AccessSubjectKind Kind, string Subject, string Scope), HashSet<Guid>> assignments = [];
@@ -528,6 +531,41 @@ public sealed class WorkspaceStaffAccessFlowTests
             current.UnionWith(profileIds);
             return Task.FromResult(new AccessProfileAssignmentReconciliation(
                 subject, ownerScope, profileIds.ToArray(), added, removed));
+        }
+
+        public Task<ScopedAccessProfileAssignmentSet> GetSubjectScopedAssignmentsAsync(
+            AccessSubject subject,
+            AccessScope ownerScope,
+            CancellationToken cancellationToken = default)
+        {
+            HashSet<Guid> ids = this.GetAssignments(subject, ownerScope);
+            ScopedAccessProfileAssignment[] current = this.profiles.Values
+                .Where(profile => ids.Contains(profile.Id))
+                .Select(profile => new ScopedAccessProfileAssignment(profile, ownerScope))
+                .ToArray();
+            return Task.FromResult(new ScopedAccessProfileAssignmentSet(subject, ownerScope, current));
+        }
+
+        public async Task<ScopedAccessProfileAssignmentReconciliation>
+            ReconcileSubjectScopedAssignmentsAsync(
+                AccessSubject subject,
+                AccessScope ownerScope,
+                IReadOnlyCollection<AccessProfileAssignmentTarget> targets,
+                AccessSubject actor,
+                CancellationToken cancellationToken = default)
+        {
+            AccessProfileAssignmentReconciliation result = await this.ReconcileSubjectAssignmentsAsync(
+                subject,
+                ownerScope,
+                targets.Select(target => target.ProfileId).ToArray(),
+                actor,
+                cancellationToken);
+            return new ScopedAccessProfileAssignmentReconciliation(
+                subject,
+                ownerScope,
+                targets.ToArray(),
+                result.AssignedCount,
+                result.UnassignedCount);
         }
 
         private HashSet<Guid> GetAssignments(AccessSubject subject, AccessScope scope)

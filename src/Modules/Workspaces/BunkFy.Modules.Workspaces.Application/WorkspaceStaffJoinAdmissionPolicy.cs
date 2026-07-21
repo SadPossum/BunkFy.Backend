@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 
 internal sealed class WorkspaceStaffJoinAdmissionPolicy(
     IWorkspaceStaffOnboardingRepository applications,
+    IWorkspaceStaffAccessPlanRepository plans,
     IAuthMemberContactReader contacts,
     IOptions<WorkspaceStaffOnboardingOptions> options,
     IScopeContextAccessor scopeContext)
@@ -34,6 +35,15 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
         }
 
         scopeContext.SetScope(context.OrganizationId.ToString("D"));
+        WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
+            context.SourceId,
+            cancellationToken).ConfigureAwait(false);
+        if (plan is null || plan.SourceKind != sourceKind ||
+            plan.Status != WorkspaceStaffAccessPlanState.Active)
+        {
+            return false;
+        }
+
         WorkspaceStaffOnboarding? application = await applications.GetBySourceAndSubjectAsync(
             sourceKind,
             context.SourceId,

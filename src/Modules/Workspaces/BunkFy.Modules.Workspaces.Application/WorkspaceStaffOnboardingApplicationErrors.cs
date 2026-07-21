@@ -9,4 +9,7 @@ public static class WorkspaceStaffOnboardingApplicationErrors
     public static readonly Error JoinTokenInvalid = new("Workspaces.JoinTokenInvalid", "The workspace join token is invalid or unavailable.");
     public static readonly Error ApplicationNotFound = new("Workspaces.StaffOnboardingNotFound", "The Staff onboarding application was not found.");
     public static readonly Error ProvisioningFailed = new("Workspaces.StaffOnboardingProvisioningFailed", "Staff onboarding provisioning did not complete.");
+    public static readonly Error AccessPlanUnavailable = new(
+        "Workspaces.StaffAccessPlanUnavailable",
+        "The workspace Staff access plan is unavailable.");
 }

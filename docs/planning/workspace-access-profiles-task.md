@@ -77,7 +77,7 @@ BunkFy supplies the explicit front-desk permission allowlist. A profile target m
 - coordinate invitation profile selection and later access changes;
 - preserve access denial while assignments are provisioning or being removed.
 
-The backend allowlist, exact-workspace assignment eligibility policy, versioned seeds, default onboarding assignment, per-workspace migration tool, and membership-driven cleanup are complete. Staff-driven offboarding orchestration, invitation-time selection, role summaries/facade, workspace-admin UI, and deployed tenant migration evidence remain product work.
+The backend allowlist, workspace/property-scoped assignment eligibility policy, versioned seeds, default onboarding assignment, per-workspace migration tool, membership-driven cleanup, Staff-driven offboarding orchestration, and invitation-time profile/property plans are complete. Role summaries/facade, workspace-admin UI, and deployed tenant migration evidence remain product work.
 
 ## Delivery Order
 
@@ -85,8 +85,8 @@ The backend allowlist, exact-workspace assignment eligibility policy, versioned 
 2. [Complete] Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
 3. [Backend complete; deployment pending] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
 4. Add a BunkFy workspace-role facade and permission catalogue for the web. Reconciliation must be exact-scope, anti-escalating, and deny-first.
-5. Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
-6. Add durable Staff suspension/departure orchestration that denies membership first, revokes profile assignments, preserves unrelated workspaces/global Auth, and supports explicit recovery.
+5. [Backend complete; product reads pending] Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
+6. [Complete] Add durable Staff suspension/departure orchestration that denies membership first, revokes profile assignments, preserves unrelated workspaces/global Auth, and supports explicit recovery.
 7. Build workspace-admin role/profile UI, effective-permission summaries, assignment controls, and invitation-time selection.
 8. Run real PostgreSQL/NATS concurrency and restart tests plus the deployed owner/applicant multi-account browser smoke.
 

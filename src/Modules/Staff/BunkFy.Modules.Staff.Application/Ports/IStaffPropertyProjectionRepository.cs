@@ -5,6 +5,9 @@ using BunkFy.Modules.Properties.Contracts;
 public interface IStaffPropertyProjectionRepository
 {
     Task<bool> IsActiveAsync(Guid propertyId, CancellationToken cancellationToken);
+    Task<bool> AreAllActiveAsync(
+        IReadOnlyCollection<Guid> propertyIds,
+        CancellationToken cancellationToken);
     Task ApplyAsync(StaffPropertyProjectionWriteModel property, CancellationToken cancellationToken);
 }
 

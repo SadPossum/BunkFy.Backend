@@ -23,15 +23,22 @@ public sealed class WorkspaceStaffAccessProcessTests
             2,
             new DateOnly(2026, 7, 21),
             " user:owner ",
-            [secondProfile, firstProfile, firstProfile],
+            [
+                new(secondProfile, "tenant:workspace-a/property:second"),
+                new(firstProfile, "tenant:workspace-a"),
+                new(firstProfile, "tenant:workspace-a")
+            ],
             Now).Value;
 
         Assert.Equal("member-a", process.SubjectId);
         Assert.Equal("user:owner", process.RequestedBy);
         Assert.Equal(WorkspaceStaffAccessProcessState.Prepared, process.State);
         Assert.Equal(
-            new[] { firstProfile, secondProfile }.Order().ToArray(),
+            [firstProfile, secondProfile],
             process.ProfileSnapshots.Select(snapshot => snapshot.ProfileId).ToArray());
+        Assert.Equal(
+            ["tenant:workspace-a", "tenant:workspace-a/property:second"],
+            process.ProfileSnapshots.Select(snapshot => snapshot.AssignmentScope).ToArray());
     }
 
     [Fact]
@@ -84,6 +91,6 @@ public sealed class WorkspaceStaffAccessProcessTests
             2,
             new DateOnly(2026, 7, 21),
             "user:owner",
-            [Guid.NewGuid()],
+            [new(Guid.NewGuid(), "tenant:workspace-a")],
             Now).Value;
 }

@@ -39,7 +39,7 @@ public sealed class WorkspaceStaffAccessProcess : ScopedAggregateRoot<Guid>
         long targetStaffVersion,
         DateOnly effectiveOn,
         string requestedBy,
-        IReadOnlyCollection<Guid> profileIds,
+        IReadOnlyCollection<WorkspaceStaffAccessProfileTarget> profileTargets,
         DateTimeOffset nowUtc)
     {
         string normalizedSubject = subjectId?.Trim() ?? string.Empty;
@@ -49,8 +49,13 @@ public sealed class WorkspaceStaffAccessProcess : ScopedAggregateRoot<Guid>
             normalizedSubject.Length is 0 or > SubjectIdMaxLength ||
             normalizedActor.Length is 0 or > ActorIdMaxLength ||
             targetState == WorkspaceStaffAccessTargetState.Unknown || !Enum.IsDefined(targetState) ||
-            targetStaffVersion < 2 || effectiveOn == default || profileIds is null ||
-            profileIds.Any(profileId => profileId == Guid.Empty))
+            targetStaffVersion < 2 || effectiveOn == default || profileTargets is null ||
+            profileTargets.Any(target =>
+                target is null ||
+                target.ProfileId == Guid.Empty ||
+                string.IsNullOrWhiteSpace(target.AssignmentScope) ||
+                target.AssignmentScope.Trim().Length >
+                    WorkspaceStaffAccessProfileSnapshot.AssignmentScopeMaxLength))
         {
             return Result.Failure<WorkspaceStaffAccessProcess>(WorkspaceStaffAccessErrors.Invalid);
         }
@@ -67,10 +72,16 @@ public sealed class WorkspaceStaffAccessProcess : ScopedAggregateRoot<Guid>
             CreatedAtUtc = nowUtc,
             LastChangedAtUtc = nowUtc
         };
-        process.profileSnapshots.AddRange(profileIds
+        process.profileSnapshots.AddRange(profileTargets
+            .Select(target => new WorkspaceStaffAccessProfileTarget(
+                target.ProfileId,
+                target.AssignmentScope.Trim()))
             .Distinct()
-            .Order()
-            .Select(profileId => new WorkspaceStaffAccessProfileSnapshot(profileId)));
+            .OrderBy(target => target.AssignmentScope, StringComparer.Ordinal)
+            .ThenBy(target => target.ProfileId)
+            .Select(target => new WorkspaceStaffAccessProfileSnapshot(
+                target.ProfileId,
+                target.AssignmentScope)));
         return Result.Success(process);
     }
 

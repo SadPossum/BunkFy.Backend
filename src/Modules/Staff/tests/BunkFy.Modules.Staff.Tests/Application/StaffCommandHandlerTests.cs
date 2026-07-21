@@ -161,6 +161,103 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
+    public async Task Property_plan_reconciles_the_exact_active_set_and_preserves_history()
+    {
+        StaffMember member = CreateMember("member-100");
+        Guid retainedPropertyId = Guid.NewGuid();
+        Guid removedPropertyId = Guid.NewGuid();
+        Guid addedPropertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(), retainedPropertyId, null, false, new DateOnly(2026, 7, 1),
+            member.Version, "user:owner", Guid.NewGuid(), TestClock.Now).IsSuccess);
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(), removedPropertyId, null, false, new DateOnly(2026, 7, 1),
+            member.Version, "user:owner", Guid.NewGuid(), TestClock.Now).IsSuccess);
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(retainedPropertyId, addedPropertyId));
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ReconcileStaffPropertyAssignmentsCommand, IReadOnlyCollection<Guid>>>();
+
+        Result<IReadOnlyCollection<Guid>> result = await handler.HandleAsync(
+            new ReconcileStaffPropertyAssignmentsCommand(
+                member.Id,
+                [addedPropertyId, retainedPropertyId, addedPropertyId],
+                "integration:workspaces",
+                "Workspace access plan changed."),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(
+            new[] { addedPropertyId, retainedPropertyId }.Order(),
+            result.Value.Order());
+        Assert.Equal(
+            new[] { addedPropertyId, retainedPropertyId }.Order(),
+            member.Assignments.Where(assignment => assignment.IsCurrent)
+                .Select(assignment => assignment.PropertyId).Order());
+        Assert.Contains(member.Assignments, assignment =>
+            assignment.PropertyId == removedPropertyId && !assignment.IsCurrent);
+    }
+
+    [Fact]
+    public async Task Property_plan_replay_does_not_advance_staff_history()
+    {
+        StaffMember member = CreateMember("member-100");
+        Guid propertyId = Guid.NewGuid();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(propertyId));
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ReconcileStaffPropertyAssignmentsCommand, IReadOnlyCollection<Guid>>>();
+        ReconcileStaffPropertyAssignmentsCommand command = new(
+            member.Id,
+            [propertyId],
+            "integration:workspaces",
+            "Workspace access plan applied.");
+
+        Result<IReadOnlyCollection<Guid>> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        long appliedVersion = member.Version;
+        Result<IReadOnlyCollection<Guid>> replayed = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replayed.IsSuccess, replayed.Error.Code);
+        Assert.Equal(appliedVersion, member.Version);
+        Assert.Single(member.Assignments);
+    }
+
+    [Fact]
+    public async Task Property_plan_rejects_an_inactive_property_before_mutating_staff()
+    {
+        StaffMember member = CreateMember("member-100");
+        Guid currentPropertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(), currentPropertyId, null, false, new DateOnly(2026, 7, 1),
+            member.Version, "user:owner", Guid.NewGuid(), TestClock.Now).IsSuccess);
+        long originalVersion = member.Version;
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(currentPropertyId));
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ReconcileStaffPropertyAssignmentsCommand, IReadOnlyCollection<Guid>>>();
+
+        Result<IReadOnlyCollection<Guid>> result = await handler.HandleAsync(
+            new ReconcileStaffPropertyAssignmentsCommand(
+                member.Id,
+                [Guid.NewGuid()],
+                "integration:workspaces",
+                "Workspace access plan changed."),
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.PropertyUnavailable, result.Error);
+        Assert.Equal(originalVersion, member.Version);
+        Assert.True(Assert.Single(member.Assignments).IsCurrent);
+    }
+
+    [Fact]
     public async Task Suspend_prepares_workspace_lifecycle_before_returning_success()
     {
         StaffMember member = CreateMember("member-100");
@@ -358,6 +455,11 @@ public sealed class StaffCommandHandlerTests
     {
         public Task<bool> IsActiveAsync(Guid propertyId, CancellationToken cancellationToken) =>
             Task.FromResult(activeProperties.Contains(propertyId));
+
+        public Task<bool> AreAllActiveAsync(
+            IReadOnlyCollection<Guid> propertyIds,
+            CancellationToken cancellationToken) => Task.FromResult(
+            propertyIds.All(activeProperties.Contains));
 
         public Task ApplyAsync(StaffPropertyProjectionWriteModel property,
             CancellationToken cancellationToken) => Task.CompletedTask;

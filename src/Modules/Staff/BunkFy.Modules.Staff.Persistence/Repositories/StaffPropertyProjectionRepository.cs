@@ -11,6 +11,25 @@ internal sealed class StaffPropertyProjectionRepository(StaffDbContext dbContext
         dbContext.PropertyProjections.AsNoTracking().AnyAsync(property =>
             property.Id == propertyId && property.Status == PropertyStatus.Active, cancellationToken);
 
+    public async Task<bool> AreAllActiveAsync(
+        IReadOnlyCollection<Guid> propertyIds,
+        CancellationToken cancellationToken)
+    {
+        Guid[] distinctIds = propertyIds.Distinct().ToArray();
+        if (distinctIds.Length == 0)
+        {
+            return true;
+        }
+
+        int activeCount = await dbContext.PropertyProjections.AsNoTracking()
+            .CountAsync(
+                property => distinctIds.Contains(property.Id) &&
+                    property.Status == PropertyStatus.Active,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return activeCount == distinctIds.Length;
+    }
+
     public async Task ApplyAsync(StaffPropertyProjectionWriteModel property,
         CancellationToken cancellationToken)
     {

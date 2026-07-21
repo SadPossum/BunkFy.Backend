@@ -13,4 +13,5 @@ public static class StaffContractLimits
     public const int ReasonMaxLength = 1000;
     public const int ActorIdMaxLength = 200;
     public const int SearchMaxLength = 256;
+    public const int PropertyAssignmentPlanMaxCount = 500;
 }

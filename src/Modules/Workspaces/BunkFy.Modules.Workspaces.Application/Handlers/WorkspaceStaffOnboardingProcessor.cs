@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Application.Handlers;
 
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.Results;
@@ -9,6 +10,9 @@ using Microsoft.Extensions.Logging;
 
 internal sealed class WorkspaceStaffOnboardingProcessor(
     IStaffOnboardingProvisioner staff,
+    IStaffPropertyAssignmentProvisioner staffProperties,
+    IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffAccessPlanPolicy planPolicy,
     WorkspaceAccessProvisioner access,
     ISystemClock clock,
     ILogger<WorkspaceStaffOnboardingProcessor> logger)
@@ -21,6 +25,41 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
         if (application.Status == WorkspaceStaffOnboardingState.Completed)
         {
             return Result.Success();
+        }
+
+        WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
+            application.SourceId,
+            cancellationToken).ConfigureAwait(false);
+        if (plan is null || plan.SourceKind != application.SourceKind ||
+            plan.Status != WorkspaceStaffAccessPlanState.Active)
+        {
+            application.Fail(
+                WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable.Code,
+                clock.UtcNow);
+            return Result.Failure(
+                WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
+        }
+
+        Guid[] propertyIds = plan.Properties
+            .Select(property => property.PropertyId)
+            .Order()
+            .ToArray();
+        Result<Gma.Modules.AccessControl.Contracts.AccessProfileDto> validated =
+            await planPolicy.ValidateAsync(
+                application.ScopeId,
+                plan.SourceKind,
+                plan.ProfileKey,
+                propertyIds,
+                plan.CreatedBySubjectId,
+                cancellationToken).ConfigureAwait(false);
+        if (validated.IsFailure || validated.Value.Id != plan.ProfileId)
+        {
+            string failureCode = validated.IsFailure
+                ? validated.Error.Code
+                : WorkspaceStaffAccessPlanApplicationErrors.ProfileUnavailable.Code;
+            application.Fail(failureCode, clock.UtcNow);
+            return Result.Failure(
+                WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -77,11 +116,33 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
             }
         }
 
+        StaffPropertyAssignmentProvisioningResult assignments =
+            await staffProperties.ReconcileAsync(
+                new StaffPropertyAssignmentProvisioningRequest(
+                    application.StaffMemberId!.Value,
+                    propertyIds,
+                    "integration:workspaces",
+                    "Workspace Staff access plan applied."),
+                cancellationToken).ConfigureAwait(false);
+        if (!assignments.IsSuccess)
+        {
+            string failureCode = assignments.ErrorCode ??
+                WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed.Code;
+            application.Fail(failureCode, clock.UtcNow);
+            logger.LogWarning(
+                "Staff onboarding {ApplicationId} could not reconcile properties: {ErrorCode}.",
+                application.Id,
+                failureCode);
+            return Result.Failure(WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed);
+        }
+
         try
         {
-            await access.ProvisionDefaultMemberAsync(
+            await access.ProvisionMemberAsync(
                     application.ScopeId,
                     application.SubjectId,
+                    plan.ProfileId,
+                    propertyIds,
                     cancellationToken)
                 .ConfigureAwait(false);
         }

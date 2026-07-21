@@ -51,7 +51,11 @@ internal sealed class WorkspaceStaffAccessRestorer(
             await access.RestoreMemberAsync(
                 process.ScopeId,
                 process.SubjectId,
-                process.ProfileSnapshots.Select(snapshot => snapshot.ProfileId).ToArray(),
+                process.ProfileSnapshots
+                    .Select(snapshot => new WorkspaceStaffAccessProfileTarget(
+                        snapshot.ProfileId,
+                        snapshot.AssignmentScope))
+                    .ToArray(),
                 cancellationToken).ConfigureAwait(false);
             return process.Complete(clock.UtcNow).IsSuccess
                 ? WorkspaceStaffAccessCoordinationOutcome.Allowed

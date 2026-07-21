@@ -60,7 +60,7 @@ internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
             observedPriorCommit = open;
         }
 
-        IReadOnlyCollection<Guid> profileIds;
+        IReadOnlyCollection<WorkspaceStaffAccessProfileTarget> profileTargets;
         if (targetState == WorkspaceStaffAccessTargetState.Active)
         {
             WorkspaceStaffAccessProcess? suspension = observedPriorCommit ??
@@ -75,11 +75,15 @@ internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
                     WorkspaceStaffAccessApplicationErrors.ResumeSnapshotUnavailable);
             }
 
-            profileIds = suspension.ProfileSnapshots.Select(snapshot => snapshot.ProfileId).ToArray();
+            profileTargets = suspension.ProfileSnapshots
+                .Select(snapshot => new WorkspaceStaffAccessProfileTarget(
+                    snapshot.ProfileId,
+                    snapshot.AssignmentScope))
+                .ToArray();
         }
         else
         {
-            profileIds = await access.CaptureRestorableProfileIdsAsync(
+            profileTargets = await access.CaptureRestorableProfilesAsync(
                 context.ScopeId,
                 context.AuthSubjectId,
                 cancellationToken).ConfigureAwait(false);
@@ -94,7 +98,7 @@ internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
             context.TargetVersion,
             context.EffectiveOn,
             context.ActorId,
-            profileIds,
+            profileTargets,
             nowUtc);
         if (created.IsFailure)
         {

@@ -44,6 +44,10 @@ public sealed class StaffPersonalDataCatalogTests
         [typeof(StaffOnboardingProvisioningResult)] = new(
             [nameof(StaffOnboardingProvisioningResult.IsSuccess), nameof(StaffOnboardingProvisioningResult.ErrorCode)],
             StringComparer.Ordinal),
+        [typeof(StaffPropertyAssignmentProvisioningResult)] = new(
+            [nameof(StaffPropertyAssignmentProvisioningResult.IsSuccess),
+                nameof(StaffPropertyAssignmentProvisioningResult.ErrorCode)],
+            StringComparer.Ordinal),
         [typeof(StaffAdminApiModule.StaffAuthSubjectRequest)] = new(
             [nameof(StaffAdminApiModule.StaffAuthSubjectRequest.Confirmed)],
             StringComparer.Ordinal),
@@ -236,7 +240,9 @@ public sealed class StaffPersonalDataCatalogTests
                                     type == typeof(StaffIdentityReconciliationRequest) ||
                                     type == typeof(StaffIdentityReconciliationResult) ||
                                     type == typeof(StaffOnboardingProvisioningRequest) ||
-                                    type == typeof(StaffOnboardingProvisioningResult))
+                                    type == typeof(StaffOnboardingProvisioningResult) ||
+                                    type == typeof(StaffPropertyAssignmentProvisioningRequest) ||
+                                    type == typeof(StaffPropertyAssignmentProvisioningResult))
                      .Where(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Length > 0))
         {
             if (typeof(IIntegrationEvent).IsAssignableFrom(type))
@@ -244,12 +250,14 @@ public sealed class StaffPersonalDataCatalogTests
                 yield return (PersonalDataSurface.IntegrationEvent, type);
             }
             else if (type == typeof(StaffIdentityReconciliationRequest) ||
-                     type == typeof(StaffOnboardingProvisioningRequest))
+                     type == typeof(StaffOnboardingProvisioningRequest) ||
+                     type == typeof(StaffPropertyAssignmentProvisioningRequest))
             {
                 yield return (PersonalDataSurface.IntegrationCommand, type);
             }
             else if (type == typeof(StaffIdentityReconciliationResult) ||
-                     type == typeof(StaffOnboardingProvisioningResult))
+                     type == typeof(StaffOnboardingProvisioningResult) ||
+                     type == typeof(StaffPropertyAssignmentProvisioningResult))
             {
                 yield return (PersonalDataSurface.ProjectionExport, type);
             }

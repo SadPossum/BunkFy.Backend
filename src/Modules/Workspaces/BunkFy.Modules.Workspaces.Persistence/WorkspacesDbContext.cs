@@ -15,6 +15,12 @@ public sealed class WorkspacesDbContext(
         this.Set<WorkspaceStaffOnboarding>();
     public DbSet<WorkspaceStaffAccessProcess> StaffAccessProcesses =>
         this.Set<WorkspaceStaffAccessProcess>();
+    public DbSet<WorkspaceStaffAccessPlan> StaffAccessPlans =>
+        this.Set<WorkspaceStaffAccessPlan>();
+    public DbSet<WorkspacePropertyProjection> PropertyProjections =>
+        this.Set<WorkspacePropertyProjection>();
+    public DbSet<WorkspaceProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>
+        this.Set<WorkspaceProjectionRebuildCheckpoint>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 [IntegrationEventHandler(WorkspacesModuleMetadata.InvitationChangedHandlerName)]
 internal sealed class OrganizationInvitationStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
+    IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffOnboardingProcessor processor,
     ISystemClock clock,
     ILogger<OrganizationInvitationStaffOnboardingHandler> logger)
@@ -37,6 +38,10 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
         if (integrationEvent.Status is OrganizationInvitationStatus.Revoked or
             OrganizationInvitationStatus.Superseded)
         {
+            WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
+                integrationEvent.InvitationId,
+                cancellationToken).ConfigureAwait(false);
+            plan?.Supersede(clock.UtcNow);
             IReadOnlyList<WorkspaceStaffOnboarding> active = await applications.ListActiveBySourceAsync(
                 WorkspaceStaffOnboardingSource.Invitation,
                 integrationEvent.InvitationId,
@@ -141,6 +146,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
 [IntegrationEventHandler(WorkspacesModuleMetadata.EnrollmentLinkChangedHandlerName)]
 internal sealed class OrganizationEnrollmentLinkStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
+    IWorkspaceStaffAccessPlanRepository plans,
     ISystemClock clock)
     : IIntegrationEventHandler<OrganizationEnrollmentLinkChangedIntegrationEvent>
 {
@@ -162,5 +168,10 @@ internal sealed class OrganizationEnrollmentLinkStaffOnboardingHandler(
         {
             application.Supersede(clock.UtcNow);
         }
+
+        WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
+            integrationEvent.EnrollmentLinkId,
+            cancellationToken).ConfigureAwait(false);
+        plan?.Supersede(clock.UtcNow);
     }
 }

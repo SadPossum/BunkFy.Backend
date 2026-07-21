@@ -1,15 +1,30 @@
 namespace BunkFy.Modules.Workspaces.Application;
 
 using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
 using Gma.Modules.AccessControl.Contracts;
 
 internal sealed class WorkspaceAccessProvisioner(
     IAccessControlRoleProvisioner roles,
-    IAccessProfileProvisioner profiles)
+    IAccessProfileProvisioner profiles,
+    IScopedAccessProfileProvisioner scopedProfiles)
 {
-    internal const string ProvisioningActorId = "bunkfy-workspace-access-provisioner";
+    internal const string ProvisioningActorId = WorkspaceAccessActors.Provisioner;
     private const int AssignmentPageSize = 100;
+
+    internal WorkspaceAccessProvisioner(
+        IAccessControlRoleProvisioner roles,
+        IAccessProfileProvisioner profiles)
+        : this(
+            roles,
+            profiles,
+            profiles as IScopedAccessProfileProvisioner ??
+                throw new ArgumentException(
+                    "The profile provisioner must support scoped assignments.",
+                    nameof(profiles)))
+    {
+    }
 
     public async Task ProvisionDefaultMemberAsync(
         string workspaceId,
@@ -41,6 +56,44 @@ internal sealed class WorkspaceAccessProvisioner(
             .ConfigureAwait(false);
     }
 
+    public async Task ProvisionMemberAsync(
+        string workspaceId,
+        string subjectId,
+        Guid profileId,
+        IReadOnlyCollection<Guid> propertyIds,
+        CancellationToken cancellationToken)
+    {
+        if (profileId == Guid.Empty)
+        {
+            throw new ArgumentException("An access-profile id is required.", nameof(profileId));
+        }
+
+        AccessScope workspaceScope = WorkspaceAccessScopes.Create(workspaceId);
+        AccessSubject subject = AccessSubject.User(subjectId);
+        AccessSubject actor = AccessSubject.System(ProvisioningActorId);
+        await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
+        await roles.EnsureAssignmentAsync(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            workspaceScope,
+            cancellationToken).ConfigureAwait(false);
+
+        Guid[] distinctPropertyIds = propertyIds.Distinct().Order().ToArray();
+        AccessProfileAssignmentTarget[] targets = distinctPropertyIds.Length == 0
+            ? [new AccessProfileAssignmentTarget(profileId, workspaceScope)]
+            : distinctPropertyIds.Select(propertyId => new AccessProfileAssignmentTarget(
+                profileId,
+                WorkspaceAccessScopes.CreateProperty(workspaceId, propertyId))).ToArray();
+        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
+            subject,
+            workspaceScope,
+            targets,
+            actor,
+            cancellationToken).ConfigureAwait(false);
+        await this.RemoveLegacyMemberAssignmentAsync(subject, workspaceScope, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     private async Task ProvisionDefaultMemberAsync(
         AccessSubject subject,
         AccessScope scope,
@@ -55,21 +108,23 @@ internal sealed class WorkspaceAccessProvisioner(
                 cancellationToken)
             .ConfigureAwait(false);
 
-        AccessProfileAssignmentSet current = await profiles.GetSubjectAssignmentsAsync(
+        ScopedAccessProfileAssignmentSet current = await scopedProfiles.GetSubjectScopedAssignmentsAsync(
                 subject,
                 scope,
                 cancellationToken)
             .ConfigureAwait(false);
-        Guid[] desiredProfileIds = current.Profiles
-            .Select(profile => profile.Id)
-            .Append(frontDeskProfileId)
+        AccessProfileAssignmentTarget[] desiredTargets = current.Assignments
+            .Select(assignment => new AccessProfileAssignmentTarget(
+                assignment.Profile.Id,
+                assignment.AssignmentScope))
+            .Append(new AccessProfileAssignmentTarget(frontDeskProfileId, scope))
             .Distinct()
             .ToArray();
 
-        await profiles.ReconcileSubjectAssignmentsAsync(
+        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
                 subject,
                 scope,
-                desiredProfileIds,
+                desiredTargets,
                 actor,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -164,7 +219,7 @@ internal sealed class WorkspaceAccessProvisioner(
         }
     }
 
-    public async Task<IReadOnlyCollection<Guid>> CaptureRestorableProfileIdsAsync(
+    public async Task<IReadOnlyCollection<WorkspaceStaffAccessProfileTarget>> CaptureRestorableProfilesAsync(
         string workspaceId,
         string subjectId,
         CancellationToken cancellationToken)
@@ -183,11 +238,16 @@ internal sealed class WorkspaceAccessProvisioner(
                 cancellationToken).ConfigureAwait(false);
         }
 
-        AccessProfileAssignmentSet assignments = await profiles.GetSubjectAssignmentsAsync(
+        ScopedAccessProfileAssignmentSet assignments = await scopedProfiles.GetSubjectScopedAssignmentsAsync(
             subject,
             scope,
             cancellationToken).ConfigureAwait(false);
-        return assignments.Profiles.Select(profile => profile.Id).Distinct().ToArray();
+        return assignments.Assignments
+            .Select(assignment => new WorkspaceStaffAccessProfileTarget(
+                assignment.Profile.Id,
+                assignment.AssignmentScope.Value))
+            .Distinct()
+            .ToArray();
     }
 
     public async Task DenyMemberAsync(
@@ -198,7 +258,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject subject = AccessSubject.User(subjectId);
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
-        await profiles.ReconcileSubjectAssignmentsAsync(
+        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
             subject,
             scope,
             [],
@@ -213,7 +273,7 @@ internal sealed class WorkspaceAccessProvisioner(
     public async Task RestoreMemberAsync(
         string workspaceId,
         string subjectId,
-        IReadOnlyCollection<Guid> profileIds,
+        IReadOnlyCollection<WorkspaceStaffAccessProfileTarget> profileTargets,
         CancellationToken cancellationToken)
     {
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
@@ -225,10 +285,15 @@ internal sealed class WorkspaceAccessProvisioner(
             WorkspaceAccessRoles.MembershipMarker,
             scope,
             cancellationToken).ConfigureAwait(false);
-        await profiles.ReconcileSubjectAssignmentsAsync(
+        AccessProfileAssignmentTarget[] targets = profileTargets
+            .Select(target => new AccessProfileAssignmentTarget(
+                target.ProfileId,
+                AccessScope.Parse(target.AssignmentScope)))
+            .ToArray();
+        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
             subject,
             scope,
-            profileIds,
+            targets,
             actor,
             cancellationToken).ConfigureAwait(false);
         await this.RemoveAssignmentAsync(

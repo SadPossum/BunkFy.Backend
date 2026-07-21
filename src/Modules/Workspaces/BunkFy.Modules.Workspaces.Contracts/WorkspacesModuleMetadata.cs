@@ -1,9 +1,11 @@
 namespace BunkFy.Modules.Workspaces.Contracts;
 
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Modules;
+using Gma.Framework.Tasks;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Organizations.Contracts;
@@ -17,6 +19,12 @@ public static class WorkspacesModuleMetadata
     public const string EnrollmentLinkChangedHandlerName = "staff-enrollment-link-changed";
     public const string MembershipAccessSeedHandlerName = "bunkfy-workspace-access-profile-seeds";
     public const string StaffAccessLifecycleHandlerName = "bunkfy-workspace-staff-access-lifecycle";
+    public const string PropertyCreatedHandlerName = "workspace-property-created";
+    public const string PropertyUpdatedHandlerName = "workspace-property-updated";
+    public const string PropertyRetiredHandlerName = "workspace-property-retired";
+    public const string PropertiesProjectionName = "properties";
+    public const int PropertiesProjectionVersion = 1;
+    public const string ProjectionWorkerGroup = "projection-workers";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -36,6 +44,16 @@ public static class WorkspacesModuleMetadata
         .WithSubscription<StaffMemberLifecycleChangedIntegrationEvent>(
             StaffModuleMetadata.Name,
             StaffAccessLifecycleHandlerName)
+        .WithSubscription<PropertyCreatedIntegrationEvent>(
+            PropertiesModuleMetadata.Name,
+            PropertyCreatedHandlerName)
+        .WithSubscription<PropertyUpdatedIntegrationEvent>(
+            PropertiesModuleMetadata.Name,
+            PropertyUpdatedHandlerName)
+        .WithSubscription<PropertyRetiredIntegrationEvent>(
+            PropertiesModuleMetadata.Name,
+            PropertyRetiredHandlerName)
+        .WithTask<RebuildWorkspacePropertiesPayload>()
         .WithProfile(WorkspacesProfiles.Default)
         .Build();
 }
@@ -64,7 +82,9 @@ public static class WorkspacesProfiles
             new RequiredCompositionModule(AccessControlModuleMetadata.Name, Provider,
                 reason: "Completed onboarding installs a constrained workspace assignment."),
             new RequiredCompositionModule(StaffModuleMetadata.Name, Provider,
-                reason: "Accepted applicant profiles become Staff-owned employment records.")
+                reason: "Accepted applicant profiles become Staff-owned employment records."),
+            new RequiredCompositionModule(PropertiesModuleMetadata.Name, Provider,
+                reason: "Invitation access plans validate their property scope from a local projection.")
         ],
         displayName: "BunkFy workspaces",
         description: "Product-owned Staff enrollment and workspace provisioning coordination.");

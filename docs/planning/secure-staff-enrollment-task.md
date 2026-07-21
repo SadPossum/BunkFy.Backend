@@ -74,7 +74,7 @@ AccessControl remains authoritative for roles and assignments. BunkFy grants its
 
 ## Deferred Follow-Ups
 
-- Named seed access profiles and property assignment plans replace the single constrained member baseline in the access-profile slice.
+- Named seed access profiles and exact property assignment plans now replace the original single constrained member baseline. Product-facing plan summaries and management UX remain in the access-profile slice.
 - Retention policy will set the bounded lifetime for terminal coordination audit rows; this slice redacts terminal applicant PII immediately.
 - Email delivery, reminder, and abuse-operations dashboards belong to deployment/notification work, not Organizations.
 

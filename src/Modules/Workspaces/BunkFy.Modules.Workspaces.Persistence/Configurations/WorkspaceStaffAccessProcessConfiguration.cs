@@ -46,8 +46,14 @@ internal sealed class WorkspaceStaffAccessProcessConfiguration
             snapshots.ToTable("staff_access_profile_snapshots");
             snapshots.WithOwner().HasForeignKey("ProcessId");
             snapshots.Property<Guid>("ProcessId");
-            snapshots.HasKey("ProcessId", nameof(WorkspaceStaffAccessProfileSnapshot.ProfileId));
+            snapshots.HasKey(
+                "ProcessId",
+                nameof(WorkspaceStaffAccessProfileSnapshot.ProfileId),
+                nameof(WorkspaceStaffAccessProfileSnapshot.AssignmentScope));
             snapshots.Property(snapshot => snapshot.ProfileId).ValueGeneratedNever();
+            snapshots.Property(snapshot => snapshot.AssignmentScope)
+                .HasMaxLength(WorkspaceStaffAccessProfileSnapshot.AssignmentScopeMaxLength)
+                .IsRequired();
         });
         builder.Ignore(process => process.DomainEvents);
     }

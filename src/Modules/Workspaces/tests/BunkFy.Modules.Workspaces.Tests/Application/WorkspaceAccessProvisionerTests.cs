@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;
@@ -11,6 +12,9 @@ public sealed class WorkspaceAccessProvisionerTests
 {
     private const string WorkspaceId = "workspace-a";
     private static readonly AccessScope WorkspaceScope = WorkspaceAccessScopes.Create(WorkspaceId);
+    private static readonly AccessScope PropertyScope = AccessScope.Create(
+        AccessScopeSegment.Create(WorkspaceAccessScopes.SegmentName, WorkspaceId),
+        AccessScopeSegment.Create("property", "property-a"));
 
     [Fact]
     public async Task Default_member_provisioning_preserves_custom_profiles_and_retires_legacy_access_last()
@@ -22,6 +26,7 @@ public sealed class WorkspaceAccessProvisionerTests
         roles.Add(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope);
         AccessProfileDto custom = profiles.AddProfile(WorkspaceScope, "custom", ["reservations.read"]);
         profiles.Assign(member, WorkspaceScope, custom.Id);
+        profiles.Assign(member, PropertyScope, custom.Id);
         WorkspaceAccessProvisioner provisioner = new(roles, profiles);
 
         await provisioner.ProvisionDefaultMemberAsync(WorkspaceId, member.Id, CancellationToken.None);
@@ -36,6 +41,7 @@ public sealed class WorkspaceAccessProvisionerTests
         Assert.Equal(
             new[] { custom.Id, frontDesk.Id }.Order().ToArray(),
             profiles.AssignedProfileIds(member, WorkspaceScope).Order().ToArray());
+        Assert.Equal([custom.Id], profiles.AssignedProfileIds(member, PropertyScope));
 
         int markerAssigned = operations.IndexOf("role:assign:bunkfy-workspace-member-v2:member-a");
         int reconciled = operations.IndexOf("profile:reconcile:member-a");
@@ -238,13 +244,17 @@ public sealed class WorkspaceAccessProvisionerTests
             ["reservations.read"]);
         profiles.Assign(member, WorkspaceScope, custom.Id);
 
-        IReadOnlyCollection<Guid> snapshot = await new WorkspaceAccessProvisioner(roles, profiles)
-            .CaptureRestorableProfileIdsAsync(WorkspaceId, member.Id, CancellationToken.None);
+        IReadOnlyCollection<WorkspaceStaffAccessProfileTarget> snapshot =
+            await new WorkspaceAccessProvisioner(roles, profiles)
+                .CaptureRestorableProfilesAsync(WorkspaceId, member.Id, CancellationToken.None);
 
         AccessProfileDto frontDesk = Assert.Single(
             profiles.Profiles,
             profile => profile.Key == WorkspaceAccessProfileSeeds.FrontDeskKey);
-        Assert.Equal(new[] { custom.Id, frontDesk.Id }.Order(), snapshot.Order());
+        Assert.Equal(
+            new[] { custom.Id, frontDesk.Id }.Order(),
+            snapshot.Select(target => target.ProfileId).Order());
+        Assert.All(snapshot, target => Assert.Equal(WorkspaceScope.Value, target.AssignmentScope));
         Assert.True(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
         Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
     }
@@ -262,12 +272,14 @@ public sealed class WorkspaceAccessProvisionerTests
             "custom",
             ["inventory.read"]);
         profiles.Assign(member, WorkspaceScope, profile.Id);
+        profiles.Assign(member, PropertyScope, profile.Id);
         WorkspaceAccessProvisioner provisioner = new(roles, profiles);
 
         await provisioner.DenyMemberAsync(WorkspaceId, member.Id, CancellationToken.None);
         await provisioner.DenyMemberAsync(WorkspaceId, member.Id, CancellationToken.None);
 
         Assert.Empty(profiles.AssignedProfileIds(member, WorkspaceScope));
+        Assert.Empty(profiles.AssignedProfileIds(member, PropertyScope));
         Assert.False(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
         Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
     }
@@ -291,12 +303,44 @@ public sealed class WorkspaceAccessProvisionerTests
         await new WorkspaceAccessProvisioner(roles, profiles).RestoreMemberAsync(
             WorkspaceId,
             member.Id,
-            [first.Id],
+            [new WorkspaceStaffAccessProfileTarget(first.Id, WorkspaceScope.Value)],
             CancellationToken.None);
 
         Assert.Equal([first.Id], profiles.AssignedProfileIds(member, WorkspaceScope));
         Assert.True(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
         Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
+    }
+
+    [Fact]
+    public async Task Lifecycle_snapshot_and_restore_preserve_property_assignment_scopes()
+    {
+        FakeRoles roles = new([]);
+        FakeProfiles profiles = new([]);
+        AccessSubject member = AccessSubject.User("member-a");
+        AccessProfileDto profile = profiles.AddProfile(
+            WorkspaceScope,
+            "property-manager",
+            ["properties.read"]);
+        profiles.Assign(member, PropertyScope, profile.Id);
+        WorkspaceAccessProvisioner provisioner = new(roles, profiles);
+
+        IReadOnlyCollection<WorkspaceStaffAccessProfileTarget> snapshot =
+            await provisioner.CaptureRestorableProfilesAsync(
+                WorkspaceId,
+                member.Id,
+                CancellationToken.None);
+        await provisioner.DenyMemberAsync(WorkspaceId, member.Id, CancellationToken.None);
+        await provisioner.RestoreMemberAsync(
+            WorkspaceId,
+            member.Id,
+            snapshot,
+            CancellationToken.None);
+
+        WorkspaceStaffAccessProfileTarget target = Assert.Single(snapshot);
+        Assert.Equal(profile.Id, target.ProfileId);
+        Assert.Equal(PropertyScope.Value, target.AssignmentScope);
+        Assert.Empty(profiles.AssignedProfileIds(member, WorkspaceScope));
+        Assert.Equal([profile.Id], profiles.AssignedProfileIds(member, PropertyScope));
     }
 
     private sealed class FakeRoles(List<string> operations) : IAccessControlRoleProvisioner
@@ -395,7 +439,8 @@ public sealed class WorkspaceAccessProvisionerTests
             string Scope);
     }
 
-    private sealed class FakeProfiles(List<string> operations) : IAccessProfileProvisioner
+    private sealed class FakeProfiles(List<string> operations)
+        : IAccessProfileProvisioner, IScopedAccessProfileProvisioner
     {
         private readonly Dictionary<(AccessSubjectKind Kind, string SubjectId, string Scope), HashSet<Guid>> assignments = [];
         private readonly Dictionary<(string Scope, string Key), AccessProfileDto> profiles = [];
@@ -487,6 +532,72 @@ public sealed class WorkspaceAccessProvisionerTests
                 unassignedCount));
         }
 
+        public Task<ScopedAccessProfileAssignmentSet> GetSubjectScopedAssignmentsAsync(
+            AccessSubject subject,
+            AccessScope ownerScope,
+            CancellationToken cancellationToken = default)
+        {
+            ScopedAccessProfileAssignment[] current = this.assignments
+                .Where(entry =>
+                    entry.Key.Kind == subject.Kind &&
+                    entry.Key.SubjectId == subject.Id &&
+                    IsWithin(ownerScope.Value, entry.Key.Scope))
+                .SelectMany(entry => entry.Value.Select(profileId =>
+                    (ProfileId: profileId, AssignmentScope: AccessScope.Parse(entry.Key.Scope))))
+                .Where(entry =>
+                    this.profiles.Values.Any(profile =>
+                        profile.Id == entry.ProfileId &&
+                        profile.OwnerScope == ownerScope.Value))
+                .Select(entry => new ScopedAccessProfileAssignment(
+                    this.profiles.Values.Single(profile => profile.Id == entry.ProfileId),
+                    entry.AssignmentScope))
+                .ToArray();
+            return Task.FromResult(new ScopedAccessProfileAssignmentSet(subject, ownerScope, current));
+        }
+
+        public async Task<ScopedAccessProfileAssignmentReconciliation>
+            ReconcileSubjectScopedAssignmentsAsync(
+                AccessSubject subject,
+                AccessScope ownerScope,
+                IReadOnlyCollection<AccessProfileAssignmentTarget> targets,
+                AccessSubject actor,
+                CancellationToken cancellationToken = default)
+        {
+            operations.Add($"profile:reconcile:{subject.Id}");
+            if (this.FailReconciliation)
+            {
+                throw new InvalidOperationException("Profile reconciliation failed.");
+            }
+
+            ScopedAccessProfileAssignmentSet existing = await this.GetSubjectScopedAssignmentsAsync(
+                subject,
+                ownerScope,
+                cancellationToken);
+            AccessProfileAssignmentTarget[] current = existing.Assignments
+                .Select(assignment => new AccessProfileAssignmentTarget(
+                    assignment.Profile.Id,
+                    assignment.AssignmentScope))
+                .ToArray();
+            AccessProfileAssignmentTarget[] desired = targets.Distinct().ToArray();
+
+            foreach (AccessProfileAssignmentTarget removed in current.Except(desired))
+            {
+                this.GetAssignmentSet(subject, removed.AssignmentScope).Remove(removed.ProfileId);
+            }
+
+            foreach (AccessProfileAssignmentTarget added in desired.Except(current))
+            {
+                this.GetAssignmentSet(subject, added.AssignmentScope).Add(added.ProfileId);
+            }
+
+            return new ScopedAccessProfileAssignmentReconciliation(
+                subject,
+                ownerScope,
+                desired,
+                desired.Except(current).Count(),
+                current.Except(desired).Count());
+        }
+
         private HashSet<Guid> GetAssignmentSet(AccessSubject subject, AccessScope scope)
         {
             (AccessSubjectKind Kind, string Id, string Scope) key = (subject.Kind, subject.Id, scope.Value);
@@ -498,6 +609,10 @@ public sealed class WorkspaceAccessProvisionerTests
 
             return assigned;
         }
+
+        private static bool IsWithin(string ownerScope, string assignmentScope) =>
+            string.Equals(ownerScope, assignmentScope, StringComparison.Ordinal) ||
+            assignmentScope.StartsWith(ownerScope + "/", StringComparison.Ordinal);
 
         private static AccessProfileDto CreateProfile(
             AccessScope scope,
