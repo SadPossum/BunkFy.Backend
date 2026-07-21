@@ -201,10 +201,13 @@ function Add-BackendGraph {
         }
     }
 
-    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $BasePath 'src') -Recurse -File |
-        Where-Object { $_.Extension -in @('.md', '.json') }) {
+    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $BasePath 'src') -Recurse -File) {
         $relative = Get-WorkspaceRelativePath -BasePath $BasePath -Path $file.FullName
         if ($relative -match '(^|[\\/])(\.tmp|bin|obj)([\\/]|$)') {
+            continue
+        }
+        $normalizedRelative = $relative.Replace('\', '/')
+        if ($file.Extension -ne '.md' -and $normalizedRelative -notlike 'src/Modules/*/docs/*.json') {
             continue
         }
 
@@ -221,7 +224,8 @@ if (-not (Test-Path -LiteralPath $solutionImplementation -PathType Leaf)) {
 $solutionArguments = @{
     RepositoryRoot = $repositoryRoot
     Solution = 'BunkFy.slnx'
-    SourceFileExtensions = @('.md', '.json')
+    SourceFileExtensions = @('.md')
+    SourceFilePathPatterns = @('src/Modules/*/docs/*.json')
 }
 if ($Check) {
     $solutionArguments.Check = $true

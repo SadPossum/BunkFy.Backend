@@ -444,40 +444,6 @@
   <Folder Name="/src/Adapters/tests/">
     <Project Path="src/Adapters/tests/BunkFy.Adapters.Tests/BunkFy.Adapters.Tests.csproj" />
   </Folder>
-  <Folder Name="/src/BunkFy.AdapterHost/">
-    <File Path="src/BunkFy.AdapterHost/appsettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.AdapterHost/Properties/">
-    <File Path="src/BunkFy.AdapterHost/Properties/launchSettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.AdminApi/">
-    <File Path="src/BunkFy.Host.AdminApi/appsettings.Development.json" />
-    <File Path="src/BunkFy.Host.AdminApi/appsettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.AdminApi/Properties/">
-    <File Path="src/BunkFy.Host.AdminApi/Properties/launchSettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.AdminCli/">
-    <File Path="src/BunkFy.Host.AdminCli/appsettings.Development.json" />
-    <File Path="src/BunkFy.Host.AdminCli/appsettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.Api/">
-    <File Path="src/BunkFy.Host.Api/appsettings.Development.json" />
-    <File Path="src/BunkFy.Host.Api/appsettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.Api/Properties/">
-    <File Path="src/BunkFy.Host.Api/Properties/launchSettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.AppHost/">
-    <File Path="src/BunkFy.Host.AppHost/appsettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.Migrations/">
-    <File Path="src/BunkFy.Host.Migrations/appsettings.json" />
-  </Folder>
-  <Folder Name="/src/BunkFy.Host.Worker/">
-    <File Path="src/BunkFy.Host.Worker/appsettings.Development.json" />
-    <File Path="src/BunkFy.Host.Worker/appsettings.json" />
-  </Folder>
   <Folder Name="/src/Extensions/">
     <Project Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/BunkFy.Extensions.Operations.Notifications.csproj" />
     <Project Path="src/Extensions/BunkFy.Extensions.Workspaces/BunkFy.Extensions.Workspaces.csproj" />
