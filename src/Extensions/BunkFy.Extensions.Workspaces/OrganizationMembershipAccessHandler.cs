@@ -8,17 +8,20 @@ using Gma.Modules.Organizations.Contracts;
 
 [IntegrationEventHandler(HandlerName, RequiresExplicitProducerBinding = true)]
 internal sealed class OrganizationMembershipAccessHandler(
-    IAccessControlRoleProvisioner accessControl,
-    IAccessProfileAssignmentRevoker profileAssignments)
+    IAccessControlRoleProvisioner accessControl)
     : IIntegrationEventHandler<OrganizationMembershipChangedIntegrationEvent>
 {
     public const string HandlerName = "bunkfy-workspace-access-membership";
-    public const string RevocationActorId = "bunkfy-workspace-membership-sync";
 
     public async Task HandleAsync(
         OrganizationMembershipChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
+        if (integrationEvent.Status != OrganizationMembershipStatus.Active)
+        {
+            return;
+        }
+
         AccessSubject subject = AccessSubject.User(integrationEvent.SubjectId);
         AccessScope scope = WorkspaceAccessScopes.Create(integrationEvent.ScopeId);
 
@@ -27,26 +30,6 @@ internal sealed class OrganizationMembershipAccessHandler(
                 WorkspaceAccessRoles.Owner,
                 WorkspaceAccessRoles.OwnerPermissions),
             cancellationToken).ConfigureAwait(false);
-        await accessControl.EnsureRoleAsync(
-            new AccessControlRoleDefinition(
-                WorkspaceAccessRoles.MembershipMarker,
-                WorkspaceAccessRoles.MembershipMarkerPermissions),
-            cancellationToken).ConfigureAwait(false);
-
-        if (integrationEvent.Status != OrganizationMembershipStatus.Active)
-        {
-            await this.RemoveAsync(subject, WorkspaceAccessRoles.Owner, scope, cancellationToken).ConfigureAwait(false);
-            await this.RemoveAsync(subject, WorkspaceAccessRoles.MembershipMarker, scope, cancellationToken).ConfigureAwait(false);
-            await this.RemoveAsync(subject, WorkspaceAccessRoles.LegacyMember, scope, cancellationToken).ConfigureAwait(false);
-            await profileAssignments.RevokeAllAsync(
-                    subject,
-                    scope,
-                    AccessSubject.System(RevocationActorId),
-                    cancellationToken)
-                .ConfigureAwait(false);
-            return;
-        }
-
         if (integrationEvent.Role == OrganizationMembershipRole.Owner)
         {
             await accessControl.EnsureAssignmentAsync(
@@ -64,6 +47,11 @@ internal sealed class OrganizationMembershipAccessHandler(
                 WorkspaceAccessRoles.LegacyMember,
                 scope,
                 cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (integrationEvent.Change != OrganizationMembershipChange.DemotedToMember)
+        {
             return;
         }
 

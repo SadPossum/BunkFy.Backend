@@ -7,7 +7,7 @@ using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Options;
 
 [IntegrationEventHandler(HandlerName, RequiresExplicitProducerBinding = true)]
-internal sealed class OrganizationMembershipStaffHandler(
+internal sealed class OrganizationOwnerStaffBootstrapHandler(
     IStaffIdentityReconciler staff,
     IAuthMemberContactReader contacts,
     IOptions<BunkFyWorkspacesOptions> options)
@@ -19,7 +19,8 @@ internal sealed class OrganizationMembershipStaffHandler(
         OrganizationMembershipChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
-        if (integrationEvent.Status == OrganizationMembershipStatus.Active &&
+        if (integrationEvent.Change != OrganizationMembershipChange.Joined ||
+            integrationEvent.Status != OrganizationMembershipStatus.Active ||
             integrationEvent.Role != OrganizationMembershipRole.Owner)
         {
             return;
@@ -34,9 +35,9 @@ internal sealed class OrganizationMembershipStaffHandler(
                 integrationEvent.SubjectId,
                 displayName,
                 verifiedEmail,
-                integrationEvent.Status == OrganizationMembershipStatus.Active,
+                true,
                 "integration:organizations",
-                "Organization membership changed."),
+                "Workspace owner profile bootstrap."),
             cancellationToken).ConfigureAwait(false);
 
         if (!result.IsSuccess)

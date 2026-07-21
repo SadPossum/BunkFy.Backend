@@ -196,6 +196,14 @@ public sealed class StaffAuthorizationIntegrationTests
                 member.Version,
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
+            using (HttpResponseMessage refreshedSelf = await SendAsync(client, HttpMethod.Get,
+                       "/api/staff/me", assignedTokens.AccessToken).ConfigureAwait(false))
+            {
+                StaffMemberDto authoritative =
+                    await ReadSuccessAsync<StaffMemberDto>(refreshedSelf).ConfigureAwait(false);
+                Assert.Equal(member.Version, authoritative.Version);
+            }
+
             using (HttpResponseMessage unassign = await SendAsync(client, HttpMethod.Post,
                        $"/api/staff/properties/{propertyA.PropertyId:D}/members/{member.StaffMemberId:D}/unassign",
                        managerTokens.AccessToken, new

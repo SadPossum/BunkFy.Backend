@@ -39,7 +39,7 @@ public static class DependencyInjection
 
         services.AddIntegrationEventHandler<
             OrganizationMembershipChangedIntegrationEvent,
-            OrganizationMembershipStaffHandler>(
+            OrganizationOwnerStaffBootstrapHandler>(
             StaffModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
         services.AddIntegrationEventHandler<

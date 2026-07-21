@@ -70,12 +70,14 @@ Staff Contracts exposes a product-neutral lifecycle policy context containing wo
 - Workspace owners are protected and missing restore targets remain denied.
 - Open processes can be listed and retried through confirmation-gated Admin API and CLI operations.
 - BunkFy rejects direct owner-facing Organizations membership lifecycle changes; the product UI routes lifecycle work through Staff.
+- Legacy Organizations event handlers retain first-owner bootstrap and owner-role demotion only; Staff lifecycle synchronization has one durable owner and cannot feed membership changes back into Staff.
 
 ## Verification Evidence
 
 - GMA AccessControl profile-assignment reads passed the real PostgreSQL regression suite at module revision `8776dde`; GMA-Skeleton passed its aggregate verification at revision `d6130be`.
 - Backend source-package, architecture, zero-warning build, migration-drift, unit, and integration checks passed through `eng/verify.ps1`.
 - Backend real-infrastructure verification passed all 30 Docker scenarios through `eng/test-docker.ps1`.
+- The suspend/resume/property-assignment lifecycle scenario passed eight consecutive real-infrastructure stress runs, including an assertion that no duplicate asynchronous mutation advances the Staff version.
 - The operator web application passed type checking, lint, all 95 tests, and its production build through `pnpm verify`.
 
 ## Not In This Slice

@@ -7,14 +7,14 @@ using Microsoft.Extensions.Options;
 using Xunit;
 
 [Trait("Category", "Unit")]
-public sealed class OrganizationMembershipStaffHandlerTests
+public sealed class OrganizationOwnerStaffBootstrapHandlerTests
 {
     [Fact]
     public async Task Active_member_membership_does_not_create_a_staff_profile()
     {
         RecordingStaffIdentityReconciler staff = new();
         RecordingContactReader contacts = new();
-        OrganizationMembershipStaffHandler handler = new(
+        OrganizationOwnerStaffBootstrapHandler handler = new(
             staff,
             contacts,
             Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "global" }));
@@ -32,7 +32,7 @@ public sealed class OrganizationMembershipStaffHandlerTests
     {
         RecordingStaffIdentityReconciler staff = new();
         RecordingContactReader contacts = new();
-        OrganizationMembershipStaffHandler handler = new(
+        OrganizationOwnerStaffBootstrapHandler handler = new(
             staff,
             contacts,
             Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "global" }));
@@ -48,9 +48,33 @@ public sealed class OrganizationMembershipStaffHandlerTests
         Assert.Equal("owner@example.test", request.WorkEmail);
     }
 
+    [Theory]
+    [InlineData(OrganizationMembershipChange.Suspended, OrganizationMembershipStatus.Suspended)]
+    [InlineData(OrganizationMembershipChange.Resumed, OrganizationMembershipStatus.Active)]
+    [InlineData(OrganizationMembershipChange.Removed, OrganizationMembershipStatus.Removed)]
+    public async Task Membership_lifecycle_changes_do_not_mutate_staff(
+        OrganizationMembershipChange change,
+        OrganizationMembershipStatus status)
+    {
+        RecordingStaffIdentityReconciler staff = new();
+        RecordingContactReader contacts = new();
+        OrganizationOwnerStaffBootstrapHandler handler = new(
+            staff,
+            contacts,
+            Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "global" }));
+
+        await handler.HandleAsync(
+            CreateEvent(OrganizationMembershipRole.Owner, status, change),
+            CancellationToken.None);
+
+        Assert.Empty(staff.Requests);
+        Assert.Equal(0, contacts.CallCount);
+    }
+
     private static OrganizationMembershipChangedIntegrationEvent CreateEvent(
         OrganizationMembershipRole role,
-        OrganizationMembershipStatus status)
+        OrganizationMembershipStatus status,
+        OrganizationMembershipChange change = OrganizationMembershipChange.Joined)
     {
         Guid organizationId = Guid.NewGuid();
         return new OrganizationMembershipChangedIntegrationEvent(
@@ -60,7 +84,7 @@ public sealed class OrganizationMembershipStaffHandlerTests
             organizationId,
             Guid.NewGuid(),
             Guid.NewGuid().ToString("D"),
-            OrganizationMembershipChange.Joined,
+            change,
             role,
             status,
             1);

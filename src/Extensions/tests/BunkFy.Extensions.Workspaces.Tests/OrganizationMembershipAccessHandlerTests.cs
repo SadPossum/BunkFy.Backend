@@ -39,8 +39,7 @@ public sealed class OrganizationMembershipAccessHandlerTests
     public async Task Active_owner_receives_only_the_tenant_scoped_owner_assignment()
     {
         FakeAccessControlRoleProvisioner accessControl = new();
-        RecordingProfileAssignmentRevoker profileAssignments = new(accessControl);
-        OrganizationMembershipAccessHandler handler = new(accessControl, profileAssignments);
+        OrganizationMembershipAccessHandler handler = new(accessControl);
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
             OrganizationMembershipRole.Owner,
             OrganizationMembershipStatus.Active);
@@ -52,17 +51,13 @@ public sealed class OrganizationMembershipAccessHandlerTests
         Assert.DoesNotContain((integrationEvent.SubjectId, WorkspaceAccessRoles.MembershipMarker, scope), accessControl.Assignments);
         Assert.DoesNotContain((integrationEvent.SubjectId, WorkspaceAccessRoles.LegacyMember, scope), accessControl.Assignments);
         Assert.Equal(WorkspaceAccessRoles.OwnerPermissions, accessControl.Permissions[WorkspaceAccessRoles.Owner]);
-        Assert.Empty(accessControl.Permissions[WorkspaceAccessRoles.MembershipMarker]);
-        Assert.Empty(profileAssignments.Calls);
     }
 
     [Fact]
     public async Task Active_member_membership_does_not_grant_operational_access()
     {
         FakeAccessControlRoleProvisioner accessControl = new();
-        OrganizationMembershipAccessHandler handler = new(
-            accessControl,
-            new RecordingProfileAssignmentRevoker(accessControl));
+        OrganizationMembershipAccessHandler handler = new(accessControl);
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
             OrganizationMembershipRole.Member,
             OrganizationMembershipStatus.Active);
@@ -74,27 +69,22 @@ public sealed class OrganizationMembershipAccessHandlerTests
     }
 
     [Fact]
-    public async Task Inactive_membership_removes_both_workspace_assignments()
+    public async Task Inactive_membership_is_left_to_the_durable_staff_coordinator()
     {
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
             OrganizationMembershipRole.Member,
-            OrganizationMembershipStatus.Suspended);
+            OrganizationMembershipStatus.Suspended,
+            OrganizationMembershipChange.Suspended);
         string scope = $"tenant:{integrationEvent.ScopeId}";
         FakeAccessControlRoleProvisioner accessControl = new();
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.Owner, scope));
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.MembershipMarker, scope));
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.LegacyMember, scope));
-        RecordingProfileAssignmentRevoker profileAssignments = new(accessControl);
-        OrganizationMembershipAccessHandler handler = new(accessControl, profileAssignments);
+        OrganizationMembershipAccessHandler handler = new(accessControl);
 
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
 
-        Assert.DoesNotContain(accessControl.Assignments, assignment => assignment.SubjectId == integrationEvent.SubjectId);
-        ProfileRevocationCall revocation = Assert.Single(profileAssignments.Calls);
-        Assert.True(revocation.CompatibilityAssignmentsWereRemoved);
-        Assert.Equal(AccessSubject.User(integrationEvent.SubjectId), revocation.Subject);
-        Assert.Equal(AccessScope.Parse(scope), revocation.Scope);
-        Assert.Equal(AccessSubject.System(OrganizationMembershipAccessHandler.RevocationActorId), revocation.Actor);
+        Assert.Equal(3, accessControl.Assignments.Count);
     }
 
     [Fact]
@@ -130,14 +120,13 @@ public sealed class OrganizationMembershipAccessHandlerTests
     {
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
             OrganizationMembershipRole.Member,
-            OrganizationMembershipStatus.Active);
+            OrganizationMembershipStatus.Active,
+            OrganizationMembershipChange.DemotedToMember);
         FakeAccessControlRoleProvisioner accessControl = new()
         {
             ProtectedRole = WorkspaceAccessRoles.Owner
         };
-        OrganizationMembershipAccessHandler handler = new(
-            accessControl,
-            new RecordingProfileAssignmentRevoker(accessControl));
+        OrganizationMembershipAccessHandler handler = new(accessControl);
 
         InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.HandleAsync(integrationEvent, CancellationToken.None));
@@ -147,7 +136,8 @@ public sealed class OrganizationMembershipAccessHandlerTests
 
     private static OrganizationMembershipChangedIntegrationEvent CreateEvent(
         OrganizationMembershipRole role,
-        OrganizationMembershipStatus status)
+        OrganizationMembershipStatus status,
+        OrganizationMembershipChange change = OrganizationMembershipChange.Joined)
     {
         Guid organizationId = Guid.NewGuid();
         return new(
@@ -157,7 +147,7 @@ public sealed class OrganizationMembershipAccessHandlerTests
             organizationId,
             Guid.NewGuid(),
             Guid.NewGuid().ToString("D"),
-            OrganizationMembershipChange.Joined,
+            change,
             role,
             status,
             1);
@@ -223,32 +213,4 @@ public sealed class OrganizationMembershipAccessHandlerTests
             new AccessControlPage<AccessControlRoleAssignment>([], page, pageSize, false));
     }
 
-    private sealed class RecordingProfileAssignmentRevoker(
-        FakeAccessControlRoleProvisioner accessControl) : IAccessProfileAssignmentRevoker
-    {
-        public List<ProfileRevocationCall> Calls { get; } = [];
-
-        public Task<int> RevokeAllAsync(
-            AccessSubject subject,
-            AccessScope ownerScope,
-            AccessSubject actor,
-            CancellationToken cancellationToken)
-        {
-            bool compatibilityAssignmentsWereRemoved = !accessControl.Assignments.Any(assignment =>
-                assignment.SubjectId == subject.Id &&
-                assignment.Scope == ownerScope.Value);
-            this.Calls.Add(new ProfileRevocationCall(
-                subject,
-                ownerScope,
-                actor,
-                compatibilityAssignmentsWereRemoved));
-            return Task.FromResult(0);
-        }
-    }
-
-    private sealed record ProfileRevocationCall(
-        AccessSubject Subject,
-        AccessScope Scope,
-        AccessSubject Actor,
-        bool CompatibilityAssignmentsWereRemoved);
 }
