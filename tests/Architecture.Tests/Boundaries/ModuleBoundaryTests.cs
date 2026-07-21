@@ -130,6 +130,17 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Data_governance_catalogue_model_stays_dependency_free()
+    {
+        ProjectFile governance = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(project.Name, "BunkFy.DataGovernance", StringComparison.Ordinal));
+
+        Assert.Empty(governance.PackageReferences);
+        Assert.Empty(governance.ProjectReferences);
+    }
+
+    [Fact]
     public void Remote_adapter_lease_protocol_stays_in_shared_runtime_transport_and_ingestion()
     {
         string[] allowedRoots =

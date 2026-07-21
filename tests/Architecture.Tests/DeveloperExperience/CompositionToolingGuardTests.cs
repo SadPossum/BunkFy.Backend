@@ -81,6 +81,11 @@ public sealed class CompositionToolingGuardTests
 
         Assert.Contains("$sorted.Sort([System.StringComparer]::Ordinal)", source, StringComparison.Ordinal);
         Assert.Contains("$relative -match '(^|[\\\\/])(\\.tmp|bin|obj)([\\\\/]|$)'", source, StringComparison.Ordinal);
+        Assert.Equal(2, source.Split(
+            "$relative -match '(^|[\\\\/])(\\.tmp|bin|obj)([\\\\/]|$)'",
+            StringSplitOptions.None).Length - 1);
+        Assert.Contains("SourceFileExtensions = @('.md', '.json')", source, StringComparison.Ordinal);
+        Assert.Contains("$_.Extension -in @('.md', '.json')", source, StringComparison.Ordinal);
         Assert.Contains("-Check:$Check", source, StringComparison.Ordinal);
         Assert.Contains("'SECURITY.md'", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Sort-Object", source, StringComparison.Ordinal);

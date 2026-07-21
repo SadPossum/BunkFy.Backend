@@ -1,5 +1,11 @@
 # Guests
 
+The module's versioned personal-data policy is defined in
+[`personal-data-catalog.v1.json`](personal-data-catalog.v1.json). The generated
+[`personal-data-inventory.v1.md`](personal-data-inventory.v1.md) is checked by
+reflection-backed tests against persistence, commands, queries, responses,
+projection exports, and integration events.
+
 Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay history. Guest records never imply authentication, membership, or guest-facing access.
 
 ## Current Slice

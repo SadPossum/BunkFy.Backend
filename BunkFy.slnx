@@ -44,6 +44,7 @@
     <File Path="docs/planning/adapter-http-client-task.md" />
     <File Path="docs/planning/architecture-cleanup-task.md" />
     <File Path="docs/planning/development-guidelines.md" />
+    <File Path="docs/planning/executable-personal-data-catalog-task.md" />
     <File Path="docs/planning/gma-access-control-properties-alignment.md" />
     <File Path="docs/planning/gma-durable-runtime-alignment.md" />
     <File Path="docs/planning/guest-records-module-task.md" />
@@ -427,6 +428,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/BunkFy.AdapterHost/BunkFy.AdapterHost.csproj" />
+    <Project Path="src/Tools/BunkFy.DataGovernance.Tool/BunkFy.DataGovernance.Tool.csproj" />
   </Folder>
   <Folder Name="/src/Adapters/">
     <Project Path="src/Adapters/BunkFy.Adapters.Configuration/BunkFy.Adapters.Configuration.csproj" />
@@ -441,6 +443,40 @@
   </Folder>
   <Folder Name="/src/Adapters/tests/">
     <Project Path="src/Adapters/tests/BunkFy.Adapters.Tests/BunkFy.Adapters.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/BunkFy.AdapterHost/">
+    <File Path="src/BunkFy.AdapterHost/appsettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.AdapterHost/Properties/">
+    <File Path="src/BunkFy.AdapterHost/Properties/launchSettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.AdminApi/">
+    <File Path="src/BunkFy.Host.AdminApi/appsettings.Development.json" />
+    <File Path="src/BunkFy.Host.AdminApi/appsettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.AdminApi/Properties/">
+    <File Path="src/BunkFy.Host.AdminApi/Properties/launchSettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.AdminCli/">
+    <File Path="src/BunkFy.Host.AdminCli/appsettings.Development.json" />
+    <File Path="src/BunkFy.Host.AdminCli/appsettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.Api/">
+    <File Path="src/BunkFy.Host.Api/appsettings.Development.json" />
+    <File Path="src/BunkFy.Host.Api/appsettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.Api/Properties/">
+    <File Path="src/BunkFy.Host.Api/Properties/launchSettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.AppHost/">
+    <File Path="src/BunkFy.Host.AppHost/appsettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.Migrations/">
+    <File Path="src/BunkFy.Host.Migrations/appsettings.json" />
+  </Folder>
+  <Folder Name="/src/BunkFy.Host.Worker/">
+    <File Path="src/BunkFy.Host.Worker/appsettings.Development.json" />
+    <File Path="src/BunkFy.Host.Worker/appsettings.json" />
   </Folder>
   <Folder Name="/src/Extensions/">
     <Project Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/BunkFy.Extensions.Operations.Notifications.csproj" />
@@ -461,6 +497,8 @@
   </Folder>
   <Folder Name="/src/Modules/Guests/docs/">
     <File Path="src/Modules/Guests/docs/README.md" />
+    <File Path="src/Modules/Guests/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/Guests/docs/personal-data-inventory.v1.md" />
   </Folder>
   <Folder Name="/src/Modules/Guests/src/Admin/">
     <Project Path="src/Modules/Guests/BunkFy.Modules.Guests.Admin.Contracts/BunkFy.Modules.Guests.Admin.Contracts.csproj" />
@@ -642,6 +680,8 @@
     <Project Path="src/Shared/BunkFy.Adapter.Abstractions/tests/BunkFy.Adapter.Abstractions.Tests/BunkFy.Adapter.Abstractions.Tests.csproj" />
     <Project Path="src/Shared/BunkFy.Adapter.Runtime/BunkFy.Adapter.Runtime.csproj" />
     <Project Path="src/Shared/BunkFy.AppHost.Composition/BunkFy.AppHost.Composition.csproj" />
+    <Project Path="src/Shared/BunkFy.DataGovernance/BunkFy.DataGovernance.csproj" />
+    <Project Path="src/Shared/BunkFy.DataGovernance/tests/BunkFy.DataGovernance.Tests/BunkFy.DataGovernance.Tests.csproj" />
     <Project Path="src/Shared/BunkFy.Ingestion.Parsing.Abstractions/BunkFy.Ingestion.Parsing.Abstractions.csproj" />
   </Folder>
   <Folder Name="/tests/">
