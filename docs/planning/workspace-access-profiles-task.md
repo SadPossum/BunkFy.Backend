@@ -1,6 +1,6 @@
 # Workspace Access Profiles Task
 
-Status: generic foundation complete; effective BunkFy role model and product UX remain planned
+Status: backend least-privilege cutover implemented; deployed tenant migration and product UX remain
 Date: 2026-07-21
 
 ## Goal
@@ -10,23 +10,29 @@ Let workspace owners configure named access profiles and assign them to members 
 ## Current Baseline
 
 - Workspace owners receive the protected owner wildcard role.
-- Ordinary members receive a front-desk baseline: property and inventory visibility, inventory blocking, reservation operations, guest profile operations, and Staff directory visibility.
+- Organizations membership is admission and governance only; it grants no ordinary BunkFy operation permissions by itself.
+- New ordinary members receive a permission-free membership marker plus the versioned Front desk access profile only after Staff onboarding succeeds.
+- Existing members retain the legacy front-desk compatibility grant until the explicit workspace bootstrap safely installs profiles and removes that grant member by member.
 - Ordinary members cannot configure properties or inventory sales, manage integrations, administer Staff lifecycle, archive guests, or manage workspace membership.
 - Staff self-service profile reads and writes are identity-bound and do not require broad `staff.manage` access.
 
 ## Production Audit
 
-The current access profiles are additive to the ordinary-member compatibility role. That role still grants the complete front-desk baseline, so assigning a narrower custom profile cannot remove any of those permissions. The generic profile API is therefore sound as an additive RBAC primitive, but the current BunkFy composition does not yet deliver configurable least-privilege roles.
-
-Do not present custom profiles as authoritative workspace roles until this is corrected. The target model is:
+The backend now implements the target least-privilege model:
 
 - Organizations membership remains the admission and governance fact (`Owner` or ordinary member).
-- The BunkFy ordinary-member compatibility role becomes a permission-free membership marker used by assignment policy.
+- A new BunkFy ordinary-member role is a permission-free membership marker used by assignment policy. The old role remains a temporary compatibility grant only for unmigrated tenants.
 - Workspace owners keep the protected owner wildcard assignment.
 - Every active ordinary member receives at least one tenant-scoped access profile. A versioned BunkFy Front desk seed is the onboarding default.
 - Effective permissions are the union of assigned profiles. The UI must make multiple-profile composition explicit and show the resulting capabilities.
 - Profile replacement and offboarding are deny-first, transactional or durably recoverable. A partial failure may temporarily deny access, but must never retain broader authority than the requested result.
-- Existing member assignments require an explicit, idempotent backfill before the compatibility role loses its permissions.
+- Existing member assignments require an explicit, idempotent backfill before their compatibility grant is removed.
+
+Seed version `1` is code-owned, but seed ensure is intentionally non-destructive: an existing tenant profile with the same key is never overwritten. Versions describe the shipped defaults; actual profile state and assignment state remain the migration truth.
+
+The Admin CLI and private Admin API expose tenant-required status and confirmation-gated bootstrap operations under the dedicated `workspaces.access.bootstrap` permission. Bootstrap drains the legacy assignment set in bounded pages, preserves every existing custom profile, adds Front desk, installs the permission-free marker, and removes the legacy assignment last. A failed profile reconciliation therefore retains prior access for a safe retry.
+
+The global legacy role definition must not be changed or deleted until every deployed workspace reports zero legacy assignments. BunkFy deliberately has no unsafe global finalizer or inferred tenant enumeration.
 
 ## Delivered Generic GMA Seams
 
@@ -71,13 +77,13 @@ BunkFy supplies the explicit front-desk permission allowlist. A profile target m
 - coordinate invitation profile selection and later access changes;
 - preserve access denial while assignments are provisioning or being removed.
 
-The backend allowlist, exact-workspace assignment eligibility policy, and membership-driven cleanup are complete. Effective least-privilege defaults, Staff-driven offboarding, seed-profile management, invitation-time selection, summaries, and workspace-admin UI remain product work.
+The backend allowlist, exact-workspace assignment eligibility policy, versioned seeds, default onboarding assignment, per-workspace migration tool, and membership-driven cleanup are complete. Staff-driven offboarding orchestration, invitation-time selection, role summaries/facade, workspace-admin UI, and deployed tenant migration evidence remain product work.
 
 ## Delivery Order
 
 1. [Complete] Prepare and land the two generic Contracts facades in their owning GMA modules, with provider-neutral behavior, PostgreSQL/SQL Server coverage where applicable, concurrency tests, and no BunkFy vocabulary.
-2. [In progress] Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
-3. Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing permissions from the compatibility role.
+2. [Complete] Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
+3. [Backend complete; deployment pending] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
 4. Add a BunkFy workspace-role facade and permission catalogue for the web. Reconciliation must be exact-scope, anti-escalating, and deny-first.
 5. Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
 6. Add durable Staff suspension/departure orchestration that denies membership first, revokes profile assignments, preserves unrelated workspaces/global Auth, and supports explicit recovery.

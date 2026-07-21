@@ -28,9 +28,19 @@ internal sealed class WorkspaceAccessProfileAssignmentPolicy(
             return true;
         }
 
+        if (await accessControl.HasAssignmentAsync(
+                context.Subject,
+                WorkspaceAccessRoles.MembershipMarker,
+                context.OwnerScope,
+                cancellationToken)
+            .ConfigureAwait(false))
+        {
+            return true;
+        }
+
         return await accessControl.HasAssignmentAsync(
                 context.Subject,
-                WorkspaceAccessRoles.Member,
+                WorkspaceAccessRoles.LegacyMember,
                 context.OwnerScope,
                 cancellationToken)
             .ConfigureAwait(false);

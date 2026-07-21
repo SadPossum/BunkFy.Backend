@@ -29,14 +29,15 @@ internal sealed class OrganizationMembershipAccessHandler(
             cancellationToken).ConfigureAwait(false);
         await accessControl.EnsureRoleAsync(
             new AccessControlRoleDefinition(
-                WorkspaceAccessRoles.Member,
-                WorkspaceAccessRoles.MemberPermissions),
+                WorkspaceAccessRoles.MembershipMarker,
+                WorkspaceAccessRoles.MembershipMarkerPermissions),
             cancellationToken).ConfigureAwait(false);
 
         if (integrationEvent.Status != OrganizationMembershipStatus.Active)
         {
             await this.RemoveAsync(subject, WorkspaceAccessRoles.Owner, scope, cancellationToken).ConfigureAwait(false);
-            await this.RemoveAsync(subject, WorkspaceAccessRoles.Member, scope, cancellationToken).ConfigureAwait(false);
+            await this.RemoveAsync(subject, WorkspaceAccessRoles.MembershipMarker, scope, cancellationToken).ConfigureAwait(false);
+            await this.RemoveAsync(subject, WorkspaceAccessRoles.LegacyMember, scope, cancellationToken).ConfigureAwait(false);
             await profileAssignments.RevokeAllAsync(
                     subject,
                     scope,
@@ -55,7 +56,12 @@ internal sealed class OrganizationMembershipAccessHandler(
                 cancellationToken).ConfigureAwait(false);
             await this.RemoveAsync(
                 subject,
-                WorkspaceAccessRoles.Member,
+                WorkspaceAccessRoles.MembershipMarker,
+                scope,
+                cancellationToken).ConfigureAwait(false);
+            await this.RemoveAsync(
+                subject,
+                WorkspaceAccessRoles.LegacyMember,
                 scope,
                 cancellationToken).ConfigureAwait(false);
             return;

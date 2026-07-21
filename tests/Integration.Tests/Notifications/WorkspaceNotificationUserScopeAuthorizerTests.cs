@@ -28,12 +28,15 @@ public sealed class WorkspaceNotificationUserScopeAuthorizerTests
             CancellationToken.None);
 
         Assert.False(authorized);
-        Assert.Equal([WorkspaceAccessRoles.Owner, WorkspaceAccessRoles.Member], accessControl.CheckedRoles);
+        Assert.Equal(
+            [WorkspaceAccessRoles.Owner, WorkspaceAccessRoles.MembershipMarker, WorkspaceAccessRoles.LegacyMember],
+            accessControl.CheckedRoles);
     }
 
     [Theory]
     [InlineData(WorkspaceAccessRoles.Owner)]
-    [InlineData(WorkspaceAccessRoles.Member)]
+    [InlineData(WorkspaceAccessRoles.MembershipMarker)]
+    [InlineData(WorkspaceAccessRoles.LegacyMember)]
     public async Task Current_workspace_owner_or_member_assignment_authorizes_notifications(string roleName)
     {
         StubRoleProvisioner accessControl = new(roleName);

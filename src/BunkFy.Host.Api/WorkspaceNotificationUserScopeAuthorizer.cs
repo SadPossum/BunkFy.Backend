@@ -42,7 +42,12 @@ internal sealed class WorkspaceNotificationUserScopeAuthorizer(
                 cancellationToken).ConfigureAwait(false) ||
             await accessControl.HasAssignmentAsync(
                 subject,
-                WorkspaceAccessRoles.Member,
+                WorkspaceAccessRoles.MembershipMarker,
+                workspaceScope,
+                cancellationToken).ConfigureAwait(false) ||
+            await accessControl.HasAssignmentAsync(
+                subject,
+                WorkspaceAccessRoles.LegacyMember,
                 workspaceScope,
                 cancellationToken).ConfigureAwait(false);
     }

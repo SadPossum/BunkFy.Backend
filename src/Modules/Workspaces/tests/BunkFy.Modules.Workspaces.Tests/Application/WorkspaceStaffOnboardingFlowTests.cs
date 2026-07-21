@@ -183,6 +183,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IWorkspaceStaffOnboardingRepository>(applications);
         services.AddSingleton<IStaffOnboardingProvisioner>(staff);
         services.AddSingleton<IAccessControlRoleProvisioner>(access);
+        services.AddSingleton<IAccessProfileProvisioner>(new FakeAccessProfiles());
         services.AddSingleton<IOrganizationJoinTokenInspector>(tokens ?? new FakeJoinTokenInspector(
             WorkspaceStaffOnboardingTests.OrganizationId,
             Guid.NewGuid()));
@@ -290,6 +291,53 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             int pageSize,
             CancellationToken cancellationToken = default) => Task.FromResult(
                 new AccessControlPage<AccessControlRoleAssignment>([], page, pageSize, false));
+    }
+
+    private sealed class FakeAccessProfiles : IAccessProfileProvisioner
+    {
+        private readonly Guid frontDeskId = Guid.NewGuid();
+
+        public Task<AccessProfileDto> EnsureProfileAsync(
+            AccessScope ownerScope,
+            AccessProfileDefinition definition,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+            new AccessProfileDto(
+                this.frontDeskId,
+                ownerScope.Value,
+                definition.Key,
+                definition.DisplayName,
+                definition.Description ?? string.Empty,
+                AccessProfileStatus.Active,
+                1,
+                definition.Permissions.ToArray(),
+                0,
+                WorkspaceStaffOnboardingTests.Now,
+                WorkspaceStaffOnboardingTests.Now));
+
+        public Task<AccessProfileDto?> FindProfileByKeyAsync(
+            AccessScope ownerScope,
+            string key,
+            CancellationToken cancellationToken = default) => Task.FromResult<AccessProfileDto?>(null);
+
+        public Task<AccessProfileAssignmentSet> GetSubjectAssignmentsAsync(
+            AccessSubject subject,
+            AccessScope ownerScope,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+            new AccessProfileAssignmentSet(subject, ownerScope, []));
+
+        public Task<AccessProfileAssignmentReconciliation> ReconcileSubjectAssignmentsAsync(
+            AccessSubject subject,
+            AccessScope ownerScope,
+            IReadOnlyCollection<Guid> profileIds,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+            new AccessProfileAssignmentReconciliation(
+                subject,
+                ownerScope,
+                profileIds.ToArray(),
+                profileIds.Count,
+                0));
     }
 
     private sealed class FakeJoinTokenInspector(Guid organizationId, Guid sourceId)

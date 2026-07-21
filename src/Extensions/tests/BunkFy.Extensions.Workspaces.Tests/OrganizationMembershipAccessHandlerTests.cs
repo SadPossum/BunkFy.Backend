@@ -49,9 +49,10 @@ public sealed class OrganizationMembershipAccessHandlerTests
 
         string scope = $"tenant:{integrationEvent.ScopeId}";
         Assert.Contains((integrationEvent.SubjectId, WorkspaceAccessRoles.Owner, scope), accessControl.Assignments);
-        Assert.DoesNotContain((integrationEvent.SubjectId, WorkspaceAccessRoles.Member, scope), accessControl.Assignments);
+        Assert.DoesNotContain((integrationEvent.SubjectId, WorkspaceAccessRoles.MembershipMarker, scope), accessControl.Assignments);
+        Assert.DoesNotContain((integrationEvent.SubjectId, WorkspaceAccessRoles.LegacyMember, scope), accessControl.Assignments);
         Assert.Equal(WorkspaceAccessRoles.OwnerPermissions, accessControl.Permissions[WorkspaceAccessRoles.Owner]);
-        Assert.Equal(WorkspaceAccessRoles.MemberPermissions, accessControl.Permissions[WorkspaceAccessRoles.Member]);
+        Assert.Empty(accessControl.Permissions[WorkspaceAccessRoles.MembershipMarker]);
         Assert.Empty(profileAssignments.Calls);
     }
 
@@ -81,7 +82,8 @@ public sealed class OrganizationMembershipAccessHandlerTests
         string scope = $"tenant:{integrationEvent.ScopeId}";
         FakeAccessControlRoleProvisioner accessControl = new();
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.Owner, scope));
-        accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.Member, scope));
+        accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.MembershipMarker, scope));
+        accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.LegacyMember, scope));
         RecordingProfileAssignmentRevoker profileAssignments = new(accessControl);
         OrganizationMembershipAccessHandler handler = new(accessControl, profileAssignments);
 
@@ -98,21 +100,24 @@ public sealed class OrganizationMembershipAccessHandlerTests
     [Fact]
     public void Member_role_is_a_front_desk_baseline_without_administration_permissions()
     {
-        Assert.Contains(ReservationsAdminPermissionCodes.Create, WorkspaceAccessRoles.MemberPermissions);
-        Assert.Contains(ReservationsAdminPermissionCodes.CheckIn, WorkspaceAccessRoles.MemberPermissions);
-        Assert.Contains(GuestsAdminPermissionCodes.Manage, WorkspaceAccessRoles.MemberPermissions);
-        Assert.Contains(InventoryAdminPermissionCodes.BlocksManage, WorkspaceAccessRoles.MemberPermissions);
-        Assert.Contains(StaffAdminPermissionCodes.Read, WorkspaceAccessRoles.MemberPermissions);
-        Assert.DoesNotContain("properties.properties.manage", WorkspaceAccessRoles.MemberPermissions);
-        Assert.DoesNotContain(StaffAdminPermissionCodes.Manage, WorkspaceAccessRoles.MemberPermissions);
-        Assert.DoesNotContain("ingestion.connections.manage", WorkspaceAccessRoles.MemberPermissions);
+        Assert.Contains(ReservationsAdminPermissionCodes.Create, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.Contains(ReservationsAdminPermissionCodes.CheckIn, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.Contains(GuestsAdminPermissionCodes.Manage, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.Contains(InventoryAdminPermissionCodes.BlocksManage, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.Contains(StaffAdminPermissionCodes.Read, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.DoesNotContain("properties.properties.manage", WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.DoesNotContain(StaffAdminPermissionCodes.Manage, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.DoesNotContain("ingestion.connections.manage", WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.Empty(WorkspaceAccessRoles.MembershipMarkerPermissions);
     }
 
     [Fact]
     public void Custom_profiles_are_limited_to_the_explicit_front_desk_allowlist()
     {
-        Assert.All(WorkspaceAccessRoles.DelegablePermissions, permission =>
-            Assert.Contains(permission, WorkspaceAccessRoles.MemberPermissions));
+        Assert.All(WorkspaceAccessRoles.LegacyMemberPermissions, permission =>
+            Assert.Contains(permission, WorkspaceAccessRoles.DelegablePermissions));
+        Assert.All(WorkspaceAccessProfileSeeds.Manager.Permissions, permission =>
+            Assert.Contains(permission, WorkspaceAccessRoles.DelegablePermissions));
         Assert.Equal(
             WorkspaceAccessRoles.DelegablePermissions.Count,
             WorkspaceAccessRoles.DelegablePermissions.Distinct(StringComparer.Ordinal).Count());

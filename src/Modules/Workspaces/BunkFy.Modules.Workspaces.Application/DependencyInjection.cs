@@ -21,6 +21,7 @@ public static class DependencyInjection
             options => options.GlobalAuthScopeId = globalAuthScopeId.Trim());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<WorkspaceStaffOnboardingProcessor>();
+        services.TryAddScoped<WorkspaceAccessProvisioner>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IOrganizationJoinAdmissionPolicy,
             WorkspaceStaffJoinAdmissionPolicy>());
@@ -37,6 +38,11 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<
             OrganizationEnrollmentLinkChangedIntegrationEvent,
             OrganizationEnrollmentLinkStaffOnboardingHandler>(
+            WorkspacesModuleMetadata.Name,
+            OrganizationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            OrganizationMembershipChangedIntegrationEvent,
+            OrganizationMembershipAccessProfileSeedHandler>(
             WorkspacesModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
         return services;

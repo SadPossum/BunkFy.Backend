@@ -151,6 +151,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminApiModule<GuestsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<StaffAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<IngestionAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<WorkspacesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("app.UseGmaProductionHttp();", adminApi, StringComparison.Ordinal);
@@ -163,6 +164,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminModule<GuestsAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<StaffAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<IngestionAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<WorkspacesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<TaskRuntimeAdminCliModule>();", adminCli, StringComparison.Ordinal);
     }
 
@@ -331,7 +333,7 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Workspace_member_profile_is_front_desk_access_without_administration()
+    public void Workspace_membership_marker_is_permission_free_and_operation_access_is_profile_owned()
     {
         string roles = RepositoryPaths.Read(
             "src",
@@ -339,17 +341,17 @@ public sealed class HostCompositionGuardTests
             "Workspaces",
             "BunkFy.Modules.Workspaces.Contracts",
             "WorkspaceAccessRoles.cs");
+        string seeds = RepositoryPaths.Read(
+            "src",
+            "Modules",
+            "Workspaces",
+            "BunkFy.Modules.Workspaces.Contracts",
+            "WorkspaceAccessProfileSeeds.cs");
 
-        Assert.Contains("PropertiesAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
-        Assert.Contains("InventoryAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
-        Assert.Contains("InventoryAdminPermissionCodes.BlocksManage", roles, StringComparison.Ordinal);
-        Assert.Contains("ReservationsAdminPermissionCodes.Create", roles, StringComparison.Ordinal);
-        Assert.Contains("ReservationsAdminPermissionCodes.CheckIn", roles, StringComparison.Ordinal);
-        Assert.Contains("GuestsAdminPermissionCodes.Manage", roles, StringComparison.Ordinal);
-        Assert.Contains("StaffAdminPermissionCodes.Read", roles, StringComparison.Ordinal);
-        Assert.DoesNotContain("PropertiesAdminPermissionCodes.Manage", roles, StringComparison.Ordinal);
-        Assert.DoesNotContain("StaffAdminPermissionCodes.Manage", roles, StringComparison.Ordinal);
-        Assert.DoesNotContain("IngestionAdminPermissionCodes", roles, StringComparison.Ordinal);
+        Assert.Contains("MembershipMarkerPermissions { get; } = [];", roles, StringComparison.Ordinal);
+        Assert.Contains("LegacyMemberPermissions", roles, StringComparison.Ordinal);
+        Assert.Contains("WorkspaceAccessRoles.LegacyMemberPermissions", seeds, StringComparison.Ordinal);
+        Assert.DoesNotContain("AccessControlPermissionGrants.OwnerWildcard", seeds, StringComparison.Ordinal);
     }
 
     [Fact]

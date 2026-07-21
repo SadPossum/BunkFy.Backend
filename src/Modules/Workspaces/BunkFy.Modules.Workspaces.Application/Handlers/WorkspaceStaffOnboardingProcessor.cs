@@ -3,15 +3,13 @@ namespace BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
-using Gma.Framework.AccessControl;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
-using Gma.Modules.AccessControl.Contracts;
 using Microsoft.Extensions.Logging;
 
 internal sealed class WorkspaceStaffOnboardingProcessor(
     IStaffOnboardingProvisioner staff,
-    IAccessControlRoleProvisioner accessControl,
+    WorkspaceAccessProvisioner access,
     ISystemClock clock,
     ILogger<WorkspaceStaffOnboardingProcessor> logger)
 {
@@ -81,16 +79,11 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
 
         try
         {
-            await accessControl.EnsureRoleAsync(
-                new AccessControlRoleDefinition(
-                    WorkspaceAccessRoles.Member,
-                    WorkspaceAccessRoles.MemberPermissions),
-                cancellationToken).ConfigureAwait(false);
-            await accessControl.EnsureAssignmentAsync(
-                AccessSubject.User(application.SubjectId),
-                WorkspaceAccessRoles.Member,
-                WorkspaceAccessScopes.Create(application.ScopeId),
-                cancellationToken).ConfigureAwait(false);
+            await access.ProvisionDefaultMemberAsync(
+                    application.ScopeId,
+                    application.SubjectId,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

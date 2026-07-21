@@ -628,6 +628,11 @@
   <Folder Name="/src/Modules/Staff/tests/">
     <Project Path="src/Modules/Staff/tests/BunkFy.Modules.Staff.Tests/BunkFy.Modules.Staff.Tests.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Workspaces/src/Admin/">
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Admin.Contracts/BunkFy.Modules.Workspaces.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.AdminApi/BunkFy.Modules.Workspaces.AdminApi.csproj" />
+    <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.AdminCli/BunkFy.Modules.Workspaces.AdminCli.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Workspaces/src/Api/">
     <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Api/BunkFy.Modules.Workspaces.Api.csproj" />
   </Folder>

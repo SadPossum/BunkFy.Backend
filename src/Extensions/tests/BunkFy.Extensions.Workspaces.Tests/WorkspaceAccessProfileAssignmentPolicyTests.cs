@@ -14,7 +14,8 @@ public sealed class WorkspaceAccessProfileAssignmentPolicyTests
 
     [Theory]
     [InlineData(WorkspaceAccessRoles.Owner)]
-    [InlineData(WorkspaceAccessRoles.Member)]
+    [InlineData(WorkspaceAccessRoles.MembershipMarker)]
+    [InlineData(WorkspaceAccessRoles.LegacyMember)]
     public async Task Active_workspace_compatibility_assignment_allows_profile_target(string roleName)
     {
         StubRoleProvisioner accessControl = new(WorkspaceScope, roleName);
@@ -34,7 +35,7 @@ public sealed class WorkspaceAccessProfileAssignmentPolicyTests
         bool allowed = await policy.IsAllowedAsync(CreateContext(Target), CancellationToken.None);
 
         Assert.False(allowed);
-        Assert.Equal(2, accessControl.CheckedRoles.Count);
+        Assert.Equal(3, accessControl.CheckedRoles.Count);
     }
 
     [Fact]
@@ -42,7 +43,7 @@ public sealed class WorkspaceAccessProfileAssignmentPolicyTests
     {
         StubRoleProvisioner accessControl = new(
             AccessScope.Parse("tenant:workspace-b"),
-            WorkspaceAccessRoles.Member);
+            WorkspaceAccessRoles.MembershipMarker);
         WorkspaceAccessProfileAssignmentPolicy policy = new(accessControl);
 
         bool allowed = await policy.IsAllowedAsync(CreateContext(Target), CancellationToken.None);
@@ -54,7 +55,7 @@ public sealed class WorkspaceAccessProfileAssignmentPolicyTests
     [Fact]
     public async Task Non_user_and_non_workspace_scope_targets_are_rejected_without_lookup()
     {
-        StubRoleProvisioner accessControl = new(WorkspaceScope, WorkspaceAccessRoles.Member);
+        StubRoleProvisioner accessControl = new(WorkspaceScope, WorkspaceAccessRoles.MembershipMarker);
         WorkspaceAccessProfileAssignmentPolicy policy = new(accessControl);
 
         bool serviceAllowed = await policy.IsAllowedAsync(

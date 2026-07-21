@@ -10,6 +10,7 @@ using BunkFy.Modules.Reservations.AdminCli;
 using BunkFy.Modules.Guests.AdminCli;
 using BunkFy.Modules.Staff.AdminCli;
 using BunkFy.Modules.Ingestion.AdminCli;
+using BunkFy.Modules.Workspaces.AdminCli;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
@@ -62,6 +63,7 @@ try
     builder.AddAdminModule<GuestsAdminCliModule>();
     builder.AddAdminModule<StaffAdminCliModule>();
     builder.AddAdminModule<IngestionAdminCliModule>();
+    builder.AddAdminModule<WorkspacesAdminCliModule>();
     builder.ValidateModuleComposition();
 
     using IHost host = builder.Build();
