@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<IStaffIdentityReconciler, StaffIdentityReconciler>();
         services.TryAddScoped<IStaffOnboardingProvisioner, StaffOnboardingProvisioner>();
+        services.TryAddScoped<StaffLifecyclePolicyEvaluator>();
         services.AddGmaAccessControlPermissionPolicies(StaffModuleMetadata.Descriptor);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, StaffPropertyCreatedHandler>(
             StaffModuleMetadata.Name, PropertiesModuleMetadata.Name);

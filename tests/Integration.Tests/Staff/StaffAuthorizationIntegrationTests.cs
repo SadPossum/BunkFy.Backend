@@ -20,6 +20,8 @@ using Microsoft.Extensions.Hosting;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -188,6 +190,12 @@ public sealed class StaffAuthorizationIntegrationTests
                 member = member with { Version = visible.Version };
             }
 
+            await WaitForWorkspaceAccessCompletionAsync(
+                api,
+                member.StaffMemberId,
+                member.Version,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+
             using (HttpResponseMessage unassign = await SendAsync(client, HttpMethod.Post,
                        $"/api/staff/properties/{propertyA.PropertyId:D}/members/{member.StaffMemberId:D}/unassign",
                        managerTokens.AccessToken, new
@@ -253,6 +261,9 @@ public sealed class StaffAuthorizationIntegrationTests
             ["NatsConsumers:HandlerTimeout"] = "00:00:10",
             ["NatsConsumers:NakDelay"] = "00:00:00.100",
             ["Worker:Modules:Properties"] = "true",
+            ["Worker:Modules:AccessControl"] = "true",
+            ["Worker:Modules:Auth"] = "true",
+            ["Worker:Modules:Organizations"] = "true",
             ["Worker:Modules:Staff"] = "true",
             ["Tasks:Worker:Enabled"] = "false"
         });
@@ -319,6 +330,37 @@ public sealed class StaffAuthorizationIntegrationTests
         }
 
         throw new TimeoutException("Staff did not receive the property projection.");
+    }
+
+    private static async Task WaitForWorkspaceAccessCompletionAsync(
+        AuthTestApplication api,
+        Guid staffMemberId,
+        long targetStaffVersion,
+        TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using IServiceScope scope = api.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
+            WorkspaceStaffAccessProcess? process = await scope.ServiceProvider
+                .GetRequiredService<WorkspacesDbContext>()
+                .StaffAccessProcesses
+                .AsNoTracking()
+                .SingleOrDefaultAsync(item =>
+                    item.StaffMemberId == staffMemberId &&
+                    item.TargetStaffVersion == targetStaffVersion)
+                .ConfigureAwait(false);
+            if (process?.State == WorkspaceStaffAccessProcessState.Completed)
+            {
+                return;
+            }
+
+            await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        throw new TimeoutException(
+            $"Workspace access process for Staff {staffMemberId:D} version {targetStaffVersion} did not complete.");
     }
 
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method,

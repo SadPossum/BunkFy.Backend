@@ -160,10 +160,104 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal("EMP-100", replayed.Value.EmployeeNumber);
     }
 
+    [Fact]
+    public async Task Suspend_prepares_workspace_lifecycle_before_returning_success()
+    {
+        StaffMember member = CreateMember("member-100");
+        RecordingLifecyclePolicy policy = new(StaffLifecyclePolicyDecision.Allowed);
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: policy);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>>();
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            new SuspendStaffMemberCommand(member.Id, "Leave", member.Version, "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.NotNull(policy.Context);
+        Assert.Equal(StaffLifecycleTransition.Suspend, policy.Context.Transition);
+        Assert.Equal(StaffStatus.Active, policy.Context.PreviousStatus);
+        Assert.Equal(StaffStatus.Suspended, policy.Context.TargetStatus);
+        Assert.Equal("member-100", policy.Context.AuthSubjectId);
+        Assert.Equal(2, policy.Context.TargetVersion);
+    }
+
+    [Fact]
+    public async Task Resume_maps_retryable_workspace_coordination_to_a_stable_staff_error()
+    {
+        StaffMember member = CreateMember("member-100");
+        Assert.True(member.Suspend(
+            member.Version, "user:owner", "Leave", Guid.NewGuid(), TestClock.Now).IsSuccess);
+        RecordingLifecyclePolicy policy = new(StaffLifecyclePolicyDecision.RetryRequired);
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: policy);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ResumeStaffMemberCommand, StaffDirectoryMemberDto>>();
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            new ResumeStaffMemberCommand(member.Id, "Returned", member.Version, "user:owner"),
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.LifecycleCoordinationPending, result.Error);
+        Assert.NotNull(policy.Context);
+        Assert.Equal(StaffLifecycleTransition.Resume, policy.Context.Transition);
+        Assert.Equal(StaffStatus.Suspended, policy.Context.PreviousStatus);
+        Assert.Equal(StaffStatus.Active, policy.Context.TargetStatus);
+    }
+
+    [Fact]
+    public async Task Depart_forwards_the_effective_date_to_workspace_lifecycle_policy()
+    {
+        StaffMember member = CreateMember("member-100");
+        RecordingLifecyclePolicy policy = new(StaffLifecyclePolicyDecision.Allowed);
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: policy);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<DepartStaffMemberCommand, StaffDirectoryMemberDto>>();
+        DateOnly effectiveOn = new(2026, 7, 21);
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            new DepartStaffMemberCommand(
+                member.Id, effectiveOn, "Contract ended", member.Version, "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.NotNull(policy.Context);
+        Assert.Equal(StaffLifecycleTransition.Depart, policy.Context.Transition);
+        Assert.Equal(StaffStatus.Departed, policy.Context.TargetStatus);
+        Assert.Equal(effectiveOn, policy.Context.EffectiveOn);
+    }
+
+    [Fact]
+    public async Task Owner_protection_is_reported_without_exposing_cross_module_details()
+    {
+        StaffMember member = CreateMember("member-100");
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: new RecordingLifecyclePolicy(StaffLifecyclePolicyDecision.OwnerProtected));
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>>();
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            new SuspendStaffMemberCommand(member.Id, "Leave", member.Version, "user:owner"),
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.WorkspaceOwnerProtected, result.Error);
+    }
+
     private static ServiceProvider CreateProvider(
         IStaffMemberRepository members,
         IStaffPropertyProjectionRepository properties,
-        IScopeContext? scope = null)
+        IScopeContext? scope = null,
+        IStaffLifecyclePolicy? lifecyclePolicy = null)
     {
         ServiceCollection services = new();
         services.AddSingleton(members);
@@ -171,6 +265,10 @@ public sealed class StaffCommandHandlerTests
         services.AddSingleton(scope ?? new TestScopeContext(true, "tenant-a"));
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
+        if (lifecyclePolicy is not null)
+        {
+            services.AddSingleton(lifecyclePolicy);
+        }
         services.AddStaffApplication();
         return services.BuildServiceProvider();
     }
@@ -280,5 +378,19 @@ public sealed class StaffCommandHandlerTests
     private sealed class TestIdGenerator : IIdGenerator
     {
         public Guid NewId() => Guid.CreateVersion7();
+    }
+
+    private sealed class RecordingLifecyclePolicy(StaffLifecyclePolicyDecision decision)
+        : IStaffLifecyclePolicy
+    {
+        public StaffLifecyclePolicyContext? Context { get; private set; }
+
+        public ValueTask<StaffLifecyclePolicyDecision> PrepareAsync(
+            StaffLifecyclePolicyContext context,
+            CancellationToken cancellationToken = default)
+        {
+            this.Context = context;
+            return ValueTask.FromResult(decision);
+        }
     }
 }

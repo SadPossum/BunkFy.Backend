@@ -15,6 +15,8 @@ public static class WorkspacesModuleMetadata
     public const string InvitationChangedHandlerName = "staff-invitation-changed";
     public const string EnrollmentClaimChangedHandlerName = "staff-enrollment-claim-changed";
     public const string EnrollmentLinkChangedHandlerName = "staff-enrollment-link-changed";
+    public const string MembershipAccessSeedHandlerName = "bunkfy-workspace-access-profile-seeds";
+    public const string StaffAccessLifecycleHandlerName = "bunkfy-workspace-staff-access-lifecycle";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -28,6 +30,12 @@ public static class WorkspacesModuleMetadata
         .WithSubscription<OrganizationEnrollmentLinkChangedIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             EnrollmentLinkChangedHandlerName)
+        .WithSubscription<OrganizationMembershipChangedIntegrationEvent>(
+            OrganizationsModuleMetadata.Name,
+            MembershipAccessSeedHandlerName)
+        .WithSubscription<StaffMemberLifecycleChangedIntegrationEvent>(
+            StaffModuleMetadata.Name,
+            StaffAccessLifecycleHandlerName)
         .WithProfile(WorkspacesProfiles.Default)
         .Build();
 }

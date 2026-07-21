@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Application.Handlers;
 
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Modules.Organizations.Contracts;
 
@@ -8,7 +9,7 @@ internal sealed class OrganizationMembershipAccessProfileSeedHandler(
     WorkspaceAccessProvisioner provisioner)
     : IIntegrationEventHandler<OrganizationMembershipChangedIntegrationEvent>
 {
-    public const string HandlerName = "bunkfy-workspace-access-profile-seeds";
+    public const string HandlerName = WorkspacesModuleMetadata.MembershipAccessSeedHandlerName;
 
     public Task HandleAsync(
         OrganizationMembershipChangedIntegrationEvent integrationEvent,

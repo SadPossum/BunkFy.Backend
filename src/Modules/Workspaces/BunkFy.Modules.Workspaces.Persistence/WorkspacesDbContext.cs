@@ -13,6 +13,8 @@ public sealed class WorkspacesDbContext(
 {
     public DbSet<WorkspaceStaffOnboarding> StaffOnboardingApplications =>
         this.Set<WorkspaceStaffOnboarding>();
+    public DbSet<WorkspaceStaffAccessProcess> StaffAccessProcesses =>
+        this.Set<WorkspaceStaffAccessProcess>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

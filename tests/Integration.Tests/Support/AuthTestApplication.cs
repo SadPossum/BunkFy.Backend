@@ -25,6 +25,7 @@ using NATS.Client.Core;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
 
 internal sealed class AuthTestApplication(
     string provider,
@@ -201,6 +202,8 @@ internal sealed class AuthTestApplication(
         await this.MigratePropertiesAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<StaffDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
     }
 

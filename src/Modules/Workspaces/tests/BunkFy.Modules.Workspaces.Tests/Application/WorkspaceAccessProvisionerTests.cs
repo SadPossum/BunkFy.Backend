@@ -225,6 +225,80 @@ public sealed class WorkspaceAccessProvisionerTests
         Assert.Empty(profiles.AssignedProfileIds(member, WorkspaceScope));
     }
 
+    [Fact]
+    public async Task Lifecycle_snapshot_migrates_only_legacy_access_and_preserves_custom_profiles()
+    {
+        FakeRoles roles = new([]);
+        FakeProfiles profiles = new([]);
+        AccessSubject member = AccessSubject.User("member-a");
+        roles.Add(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope);
+        AccessProfileDto custom = profiles.AddProfile(
+            WorkspaceScope,
+            "night-auditor",
+            ["reservations.read"]);
+        profiles.Assign(member, WorkspaceScope, custom.Id);
+
+        IReadOnlyCollection<Guid> snapshot = await new WorkspaceAccessProvisioner(roles, profiles)
+            .CaptureRestorableProfileIdsAsync(WorkspaceId, member.Id, CancellationToken.None);
+
+        AccessProfileDto frontDesk = Assert.Single(
+            profiles.Profiles,
+            profile => profile.Key == WorkspaceAccessProfileSeeds.FrontDeskKey);
+        Assert.Equal(new[] { custom.Id, frontDesk.Id }.Order(), snapshot.Order());
+        Assert.True(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
+        Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
+    }
+
+    [Fact]
+    public async Task Lifecycle_denial_removes_profiles_marker_and_legacy_assignment_idempotently()
+    {
+        FakeRoles roles = new([]);
+        FakeProfiles profiles = new([]);
+        AccessSubject member = AccessSubject.User("member-a");
+        roles.Add(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope);
+        roles.Add(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope);
+        AccessProfileDto profile = profiles.AddProfile(
+            WorkspaceScope,
+            "custom",
+            ["inventory.read"]);
+        profiles.Assign(member, WorkspaceScope, profile.Id);
+        WorkspaceAccessProvisioner provisioner = new(roles, profiles);
+
+        await provisioner.DenyMemberAsync(WorkspaceId, member.Id, CancellationToken.None);
+        await provisioner.DenyMemberAsync(WorkspaceId, member.Id, CancellationToken.None);
+
+        Assert.Empty(profiles.AssignedProfileIds(member, WorkspaceScope));
+        Assert.False(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
+        Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
+    }
+
+    [Fact]
+    public async Task Lifecycle_restoration_installs_only_the_exact_snapshot_and_marker()
+    {
+        FakeRoles roles = new([]);
+        FakeProfiles profiles = new([]);
+        AccessSubject member = AccessSubject.User("member-a");
+        AccessProfileDto first = profiles.AddProfile(
+            WorkspaceScope,
+            "first",
+            ["properties.read"]);
+        AccessProfileDto second = profiles.AddProfile(
+            WorkspaceScope,
+            "second",
+            ["reservations.read"]);
+        profiles.Assign(member, WorkspaceScope, second.Id);
+
+        await new WorkspaceAccessProvisioner(roles, profiles).RestoreMemberAsync(
+            WorkspaceId,
+            member.Id,
+            [first.Id],
+            CancellationToken.None);
+
+        Assert.Equal([first.Id], profiles.AssignedProfileIds(member, WorkspaceScope));
+        Assert.True(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
+        Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
+    }
+
     private sealed class FakeRoles(List<string> operations) : IAccessControlRoleProvisioner
     {
         private readonly HashSet<RoleAssignment> assignments = [];

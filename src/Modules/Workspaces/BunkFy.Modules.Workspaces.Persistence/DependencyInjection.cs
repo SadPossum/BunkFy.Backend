@@ -27,6 +27,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IWorkspaceStaffOnboardingRepository,
             WorkspaceStaffOnboardingRepository>();
+        builder.Services.TryAddScoped<
+            IWorkspaceStaffAccessProcessRepository,
+            WorkspaceStaffAccessProcessRepository>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IUnitOfWork, WorkspacesUnitOfWork>());
         builder.Services.TryAddEnumerable(

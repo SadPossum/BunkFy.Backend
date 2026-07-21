@@ -11,6 +11,7 @@ using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.Observability;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Modules.Auth.Contracts;
 using Microsoft.AspNetCore.Builder;
@@ -69,7 +70,52 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
                     : Task.FromResult(Result.Failure<WorkspaceAccessBootstrapResult>(
                         AdminErrors.ConfirmationRequired)),
                 cancellationToken).ConfigureAwait(false));
+
+        RouteGroupBuilder staffAccess = endpoints.MapGroup("/api/admin/workspaces/staff-access-processes")
+            .WithModuleName(this.Name)
+            .WithTags("Workspaces Admin")
+            .RequireAuthorization();
+
+        staffAccess.MapGet("/", async (
+            int? page,
+            int? pageSize,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(
+                    WorkspacesAdminOperationNames.StaffAccessList,
+                    WorkspacesAdminPermissions.StaffAccessManage),
+                requireTenant: true,
+                token => dispatcher.QueryAsync(new ListOpenWorkspaceStaffAccessProcessesQuery(
+                    page ?? PageRequest.DefaultPage,
+                    pageSize ?? PageRequest.DefaultPageSize), token),
+                cancellationToken).ConfigureAwait(false))
+            .Produces<WorkspaceStaffAccessProcessListResponse>(StatusCodes.Status200OK);
+
+        staffAccess.MapPost("/{processId:guid}/retry", async (
+            Guid processId,
+            StaffAccessRetryRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(
+                    WorkspacesAdminOperationNames.StaffAccessRetry,
+                    WorkspacesAdminPermissions.StaffAccessManage),
+                requireTenant: true,
+                token => request.Confirmed
+                    ? dispatcher.SendAsync(new RetryWorkspaceStaffAccessProcessCommand(processId), token)
+                    : Task.FromResult(Result.Failure<WorkspaceStaffAccessProcessDto>(
+                        AdminErrors.ConfirmationRequired)),
+                cancellationToken).ConfigureAwait(false))
+            .Produces<WorkspaceStaffAccessProcessDto>(StatusCodes.Status200OK);
     }
 
     public sealed record AccessBootstrapRequest(bool Confirmed);
+    public sealed record StaffAccessRetryRequest(bool Confirmed);
 }

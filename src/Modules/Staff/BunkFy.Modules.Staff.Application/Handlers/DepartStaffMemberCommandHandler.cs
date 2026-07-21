@@ -11,7 +11,7 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
 internal sealed class DepartStaffMemberCommandHandler(IStaffMemberRepository members,
-    ISystemClock clock, IIdGenerator ids)
+    StaffLifecyclePolicyEvaluator policies, ISystemClock clock, IIdGenerator ids)
     : ICommandHandler<DepartStaffMemberCommand, StaffDirectoryMemberDto>
 {
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(DepartStaffMemberCommand command,
@@ -25,10 +25,22 @@ internal sealed class DepartStaffMemberCommandHandler(IStaffMemberRepository mem
 
         Guid[] assignmentEventIds = member.Assignments.Where(item => item.IsCurrent)
             .Select(_ => ids.NewId()).ToArray();
+        Guid transitionId = ids.NewId();
+        StaffStatus previousStatus = StaffMappings.MapStatus(member.Status);
         Result departed = member.Depart(command.EffectiveOn, command.ExpectedVersion, command.ActorId,
-            command.Reason, ids.NewId(), assignmentEventIds, clock.UtcNow);
-        return departed.IsSuccess
+            command.Reason, transitionId, assignmentEventIds, clock.UtcNow);
+        if (departed.IsFailure)
+        {
+            return Result.Failure<StaffDirectoryMemberDto>(departed.Error);
+        }
+
+        Result prepared = await policies.PrepareAsync(new StaffLifecyclePolicyContext(
+            transitionId, member.ScopeId, member.Id, member.AuthSubjectId,
+            StaffLifecycleTransition.Depart, previousStatus, StaffStatus.Departed,
+            command.EffectiveOn, command.ExpectedVersion, member.Version, command.ActorId),
+            cancellationToken).ConfigureAwait(false);
+        return prepared.IsSuccess
             ? Result.Success(member.ToDirectoryDto())
-            : Result.Failure<StaffDirectoryMemberDto>(departed.Error);
+            : Result.Failure<StaffDirectoryMemberDto>(prepared.Error);
     }
 }

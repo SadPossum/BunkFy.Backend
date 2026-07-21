@@ -1,6 +1,6 @@
 # Workspace Staff Access Lifecycle Task
 
-Status: planned; implementation follows workspace access-profile migration
+Status: implemented and verified; production rollout remains pending
 Date: 2026-07-21
 
 ## Goal
@@ -13,7 +13,7 @@ Make Staff suspension, resumption, and departure coordinate workspace membership
 - Organizations owns ordinary membership state and owner protection.
 - AccessControl owns tenant-scoped profile assignments and authorization history.
 - Workspaces owns the BunkFy process that coordinates those authorities and stores the exact reversible access plan.
-- GMA stays product-neutral. The existing Organizations membership lifecycle and AccessControl profile facades are sufficient.
+- GMA stays product-neutral. Organizations exposes a generic owner-facing membership-change policy seam and trusted lifecycle facade; AccessControl exposes generic profile facades. BunkFy owns all Staff semantics and orchestration.
 
 ## Required Invariants
 
@@ -61,6 +61,23 @@ Staff Contracts exposes a product-neutral lifecycle policy context containing wo
 - direct API, Admin API, and CLI all execute the same policy;
 - PostgreSQL restart and broker-redelivery tests prove recovery.
 
+## Delivered Slice
+
+- Staff lifecycle policies run before suspend, resume, and departure commits.
+- Workspaces persists versioned, tenant-filtered processes with exact access-profile snapshots.
+- Suspension and departure deny Organizations membership before removing BunkFy access.
+- Resume restores membership and only the captured profile ids after the matching Staff event.
+- Workspace owners are protected and missing restore targets remain denied.
+- Open processes can be listed and retried through confirmation-gated Admin API and CLI operations.
+- BunkFy rejects direct owner-facing Organizations membership lifecycle changes; the product UI routes lifecycle work through Staff.
+
+## Verification Evidence
+
+- GMA AccessControl profile-assignment reads passed the real PostgreSQL regression suite at module revision `8776dde`; GMA-Skeleton passed its aggregate verification at revision `d6130be`.
+- Backend source-package, architecture, zero-warning build, migration-drift, unit, and integration checks passed through `eng/verify.ps1`.
+- Backend real-infrastructure verification passed all 30 Docker scenarios through `eng/test-docker.ps1`.
+- The operator web application passed type checking, lint, all 95 tests, and its production build through `pnpm verify`.
+
 ## Not In This Slice
 
 - Auth account disabling or global session revocation;
@@ -68,3 +85,4 @@ Staff Contracts exposes a product-neutral lifecycle policy context containing wo
 - scheduled future departure execution;
 - invitation profile/property plans;
 - workspace role-management UI.
+- approved Workspaces personal-data catalogue entries and retention/redaction policy for the stored subject and actor identifiers.

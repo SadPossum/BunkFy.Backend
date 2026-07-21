@@ -1,0 +1,164 @@
+namespace BunkFy.Modules.Workspaces.Domain;
+
+using Gma.Framework.Domain.Models;
+using Gma.Framework.Naming;
+using Gma.Framework.Results;
+
+public sealed class WorkspaceStaffAccessProcess : ScopedAggregateRoot<Guid>
+{
+    public const int SubjectIdMaxLength = 256;
+    public const int ActorIdMaxLength = 200;
+    public const int FailureCodeMaxLength = 200;
+
+    private readonly List<WorkspaceStaffAccessProfileSnapshot> profileSnapshots = [];
+
+    private WorkspaceStaffAccessProcess() { }
+    private WorkspaceStaffAccessProcess(Guid id, string scopeId) : base(id, scopeId) { }
+
+    public Guid StaffMemberId { get; private set; }
+    public string SubjectId { get; private set; } = string.Empty;
+    public WorkspaceStaffAccessTargetState TargetState { get; private set; }
+    public long TargetStaffVersion { get; private set; }
+    public DateOnly EffectiveOn { get; private set; }
+    public string RequestedBy { get; private set; } = string.Empty;
+    public WorkspaceStaffAccessProcessState State { get; private set; }
+    public string? FailureCode { get; private set; }
+    public long Version { get; private set; } = 1;
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset LastChangedAtUtc { get; private set; }
+    public DateTimeOffset? CompletedAtUtc { get; private set; }
+    public IReadOnlyCollection<WorkspaceStaffAccessProfileSnapshot> ProfileSnapshots =>
+        this.profileSnapshots.AsReadOnly();
+
+    public static Result<WorkspaceStaffAccessProcess> Create(
+        Guid id,
+        string scopeId,
+        Guid staffMemberId,
+        string subjectId,
+        WorkspaceStaffAccessTargetState targetState,
+        long targetStaffVersion,
+        DateOnly effectiveOn,
+        string requestedBy,
+        IReadOnlyCollection<Guid> profileIds,
+        DateTimeOffset nowUtc)
+    {
+        string normalizedSubject = subjectId?.Trim() ?? string.Empty;
+        string normalizedActor = requestedBy?.Trim() ?? string.Empty;
+        if (id == Guid.Empty || staffMemberId == Guid.Empty ||
+            !TenantIds.TryNormalize(scopeId, out string? normalizedScope) ||
+            normalizedSubject.Length is 0 or > SubjectIdMaxLength ||
+            normalizedActor.Length is 0 or > ActorIdMaxLength ||
+            targetState == WorkspaceStaffAccessTargetState.Unknown || !Enum.IsDefined(targetState) ||
+            targetStaffVersion < 2 || effectiveOn == default || profileIds is null ||
+            profileIds.Any(profileId => profileId == Guid.Empty))
+        {
+            return Result.Failure<WorkspaceStaffAccessProcess>(WorkspaceStaffAccessErrors.Invalid);
+        }
+
+        WorkspaceStaffAccessProcess process = new(id, normalizedScope)
+        {
+            StaffMemberId = staffMemberId,
+            SubjectId = normalizedSubject,
+            TargetState = targetState,
+            TargetStaffVersion = targetStaffVersion,
+            EffectiveOn = effectiveOn,
+            RequestedBy = normalizedActor,
+            State = WorkspaceStaffAccessProcessState.Prepared,
+            CreatedAtUtc = nowUtc,
+            LastChangedAtUtc = nowUtc
+        };
+        process.profileSnapshots.AddRange(profileIds
+            .Distinct()
+            .Order()
+            .Select(profileId => new WorkspaceStaffAccessProfileSnapshot(profileId)));
+        return Result.Success(process);
+    }
+
+    public Result MarkAwaitingStaffCommit(DateTimeOffset nowUtc)
+    {
+        if (this.State == WorkspaceStaffAccessProcessState.AwaitingStaffCommit)
+        {
+            return Result.Success();
+        }
+
+        if (this.State != WorkspaceStaffAccessProcessState.Prepared)
+        {
+            return Result.Failure(WorkspaceStaffAccessErrors.StateConflict);
+        }
+
+        this.State = WorkspaceStaffAccessProcessState.AwaitingStaffCommit;
+        this.Advance(nowUtc);
+        return Result.Success();
+    }
+
+    public Result ObserveStaffCommit(DateTimeOffset nowUtc)
+    {
+        if (this.State is WorkspaceStaffAccessProcessState.RestorationPending or
+            WorkspaceStaffAccessProcessState.Completed)
+        {
+            return Result.Success();
+        }
+
+        if (this.State != WorkspaceStaffAccessProcessState.AwaitingStaffCommit)
+        {
+            return Result.Failure(WorkspaceStaffAccessErrors.StateConflict);
+        }
+
+        if (this.TargetState == WorkspaceStaffAccessTargetState.Active)
+        {
+            this.State = WorkspaceStaffAccessProcessState.RestorationPending;
+            this.Advance(nowUtc);
+            return Result.Success();
+        }
+
+        return this.Complete(nowUtc);
+    }
+
+    public Result Complete(DateTimeOffset nowUtc)
+    {
+        if (this.State == WorkspaceStaffAccessProcessState.Completed)
+        {
+            return Result.Success();
+        }
+
+        if (this.State is not (WorkspaceStaffAccessProcessState.AwaitingStaffCommit or
+            WorkspaceStaffAccessProcessState.RestorationPending))
+        {
+            return Result.Failure(WorkspaceStaffAccessErrors.StateConflict);
+        }
+
+        this.State = WorkspaceStaffAccessProcessState.Completed;
+        this.FailureCode = null;
+        this.CompletedAtUtc = nowUtc;
+        this.Advance(nowUtc);
+        return Result.Success();
+    }
+
+    public Result RecordFailure(string failureCode, DateTimeOffset nowUtc)
+    {
+        string normalized = failureCode?.Trim() ?? string.Empty;
+        if (this.State == WorkspaceStaffAccessProcessState.Completed ||
+            normalized.Length is 0 or > FailureCodeMaxLength)
+        {
+            return Result.Failure(WorkspaceStaffAccessErrors.StateConflict);
+        }
+
+        this.FailureCode = normalized;
+        this.Advance(nowUtc);
+        return Result.Success();
+    }
+
+    public bool Matches(
+        string subjectId,
+        WorkspaceStaffAccessTargetState targetState,
+        DateOnly effectiveOn) =>
+        string.Equals(this.SubjectId, subjectId.Trim(), StringComparison.Ordinal) &&
+        this.TargetState == targetState &&
+        this.EffectiveOn == effectiveOn;
+
+    private void Advance(DateTimeOffset nowUtc)
+    {
+        this.Version++;
+        this.LastChangedAtUtc = nowUtc;
+    }
+}

@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Application;
 
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Application.Composition;
@@ -22,6 +23,14 @@ public static class DependencyInjection
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<WorkspaceStaffOnboardingProcessor>();
         services.TryAddScoped<WorkspaceAccessProvisioner>();
+        services.TryAddScoped<WorkspaceStaffAccessDenier>();
+        services.TryAddScoped<WorkspaceStaffAccessRestorer>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IStaffLifecyclePolicy,
+            WorkspaceStaffLifecyclePolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IOrganizationMembershipChangePolicy,
+            WorkspaceOrganizationMembershipChangePolicy>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IOrganizationJoinAdmissionPolicy,
             WorkspaceStaffJoinAdmissionPolicy>());
@@ -45,6 +54,11 @@ public static class DependencyInjection
             OrganizationMembershipAccessProfileSeedHandler>(
             WorkspacesModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            StaffMemberLifecycleChangedIntegrationEvent,
+            StaffLifecycleWorkspaceAccessHandler>(
+            WorkspacesModuleMetadata.Name,
+            StaffModuleMetadata.Name);
         return services;
     }
 }

@@ -39,9 +39,15 @@ public sealed class WorkspacesAdminCliModule : IAdminCliModule
             CreateStatusCommand(commands.Services, global),
             CreateBootstrapCommand(commands.Services, global)
         };
+        Command staffAccess = new("staff-access", "Inspect and retry Staff access lifecycle processes.")
+        {
+            CreateStaffAccessListCommand(commands.Services, global),
+            CreateStaffAccessRetryCommand(commands.Services, global)
+        };
         Command module = new(WorkspacesModuleMetadata.Name, "Workspace composition administration operations.")
         {
-            access
+            access,
+            staffAccess
         };
         commands.AddCommand(this.Name, module);
     }
@@ -120,4 +126,82 @@ public sealed class WorkspacesAdminCliModule : IAdminCliModule
                 ("MarkerMembers", item => item.MarkerMemberCount.ToString(CultureInfo.InvariantCulture)),
                 ("RequiresBackfill", item => item.RequiresBackfill.ToString())
             ]);
+
+    private static Command CreateStaffAccessListCommand(
+        IServiceProvider services,
+        AdminCliGlobalOptions global)
+    {
+        Command command = new("list", "List non-completed Staff access lifecycle processes.");
+        command.SetAction((parse, cancellationToken) => services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
+            parse,
+            AdminOperation.Create(
+                WorkspacesAdminOperationNames.StaffAccessList,
+                WorkspacesAdminPermissions.StaffAccessManage),
+            parse.GetValue(global.TenantOption),
+            requireTenant: true,
+            async (provider, token) =>
+            {
+                Result<WorkspaceStaffAccessProcessListResponse> result = await provider
+                    .GetRequiredService<IRequestDispatcher>()
+                    .QueryAsync(new ListOpenWorkspaceStaffAccessProcessesQuery(1, 100), token)
+                    .ConfigureAwait(false);
+                if (result.IsSuccess)
+                {
+                    AdminCliOutput.WriteRows(
+                        result.Value.Items,
+                        parse.GetValue(global.OutputOption) ?? AdminCliOutput.Table,
+                        [
+                            ("ProcessId", item => item.ProcessId.ToString("D")),
+                            ("StaffMemberId", item => item.StaffMemberId.ToString("D")),
+                            ("Target", item => item.TargetStatus.ToString()),
+                            ("StaffVersion", item => item.TargetStaffVersion.ToString(CultureInfo.InvariantCulture)),
+                            ("Status", item => item.Status.ToString()),
+                            ("Profiles", item => item.ProfileCount.ToString(CultureInfo.InvariantCulture)),
+                            ("Failure", item => item.FailureCode ?? string.Empty)
+                        ]);
+                }
+
+                return result;
+            },
+            cancellationToken));
+        return command;
+    }
+
+    private static Command CreateStaffAccessRetryCommand(
+        IServiceProvider services,
+        AdminCliGlobalOptions global)
+    {
+        Option<Guid> processId = new("--process-id") { Required = true };
+        Option<bool> yes = new("--yes");
+        Command command = new("retry", "Retry one Staff access lifecycle process.")
+        {
+            processId,
+            yes
+        };
+        command.SetAction((parse, cancellationToken) => services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
+            parse,
+            AdminOperation.Create(
+                WorkspacesAdminOperationNames.StaffAccessRetry,
+                WorkspacesAdminPermissions.StaffAccessManage),
+            parse.GetValue(global.TenantOption),
+            requireTenant: true,
+            async (provider, token) =>
+            {
+                Result<WorkspaceStaffAccessProcessDto> result = parse.GetValue(yes)
+                    ? await provider.GetRequiredService<IRequestDispatcher>()
+                        .SendAsync(new RetryWorkspaceStaffAccessProcessCommand(
+                            parse.GetValue(processId)), token)
+                        .ConfigureAwait(false)
+                    : Result.Failure<WorkspaceStaffAccessProcessDto>(AdminErrors.ConfirmationRequired);
+                if (result.IsSuccess)
+                {
+                    AdminCliOutput.WriteMessage(
+                        $"Staff access process {result.Value.ProcessId:D} is {result.Value.Status}.");
+                }
+
+                return result;
+            },
+            cancellationToken));
+        return command;
+    }
 }
