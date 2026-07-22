@@ -8,6 +8,9 @@ Complete company-readiness control SP-001 one domain at a time. BunkFy must have
 
 The first delivery slice covered Guests because it is the canonical owner of durable guest profiles. Reservations applies the same executable contract to booking records and operational events, and Ingestion now covers source evidence, normalized history, adapter credentials, operator audit, and adapter/parser boundaries.
 Staff now applies the same control to employment profiles, assignment history, directory/sensitive response boundaries, onboarding contracts, and PII-minimized events.
+Workspaces now applies the control to onboarding copies, account correlation,
+access-process history, join-source responses, and the Organizations and Staff
+events it consumes.
 
 ## Ownership
 
@@ -83,12 +86,33 @@ The Staff catalogue classifies employment identity and contact fields, Auth subj
 
 Executable guards cover every mapped `StaffMember` and `StaffPropertyAssignment` property and every selected command, query, API/admin contract, cross-module request, domain event, and integration event member. Directory DTO shapes are allow-listed so legal name, work contact details, employee number, Auth correlation, lifecycle timestamps, and assignment history cannot drift into `staff.read`. Direct identity, contact, free text, search input, and structured data cannot enter operational outputs, and the checked-in inventory is deterministic.
 
+## Workspaces Slice
+
+Status: implemented and locally verified; exact-commit CI pending
+
+The Workspaces catalogue classifies copied onboarding profile data, verified
+account email, Auth subject correlation, onboarding/source/claim lifecycle,
+staff access-process and access-plan history, actor attribution, scoped profile
+and property assignments, one-time join tokens, public/admin response shapes,
+and the person-linked Organizations and Staff integration events consumed by
+the module.
+
+Executable guards cover every mapped Workspaces-owned onboarding, access
+process, profile snapshot, access plan, and plan-property member. Selected
+commands, queries, API inputs, API/admin outputs, and consumed event members are
+reflection-checked. Direct identity, contact, free text, and structured payloads
+cannot enter operational outputs, terminal onboarding states redact copied
+applicant data, sensitive responses are non-cacheable, and the resolved
+inventory is deterministic.
+
 ## Delivery Slices
 
 1. Add the shared catalogue model, strict parser, validator, and focused adversarial tests.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
-4. Continue one module at a time through Workspaces, Notifications extensions, Inventory, and Properties. Staff and Ingestion are implemented and locally verified; exact-commit publication evidence remains required.
+4. Continue one module at a time through Notifications extensions, Inventory,
+   and Properties. Workspaces, Staff, and Ingestion are implemented and locally
+   verified; exact-commit publication evidence remains required.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -133,6 +157,17 @@ Current Staff evidence:
 - 44 field definitions resolve 366 concrete bindings across Staff persistence, search, application, public/admin API, cross-module, domain-event, and integration-event surfaces.
 - Directory contracts are separate from sensitive profile contracts; ordinary persistence queries project only directory fields and current assignments.
 - Focused Staff reflection, privacy-boundary, route-metadata, persistence, application, and contract tests pass. The synchronized solution, warning-free repository build, zero-drift migration checks, 2,177 non-Docker tests, 30 Docker tests, and the frontend typecheck, lint, 95 tests, production build, and generated-contract checks are green locally. Exact-commit CI remains required on publication.
+
+Current Workspaces evidence:
+
+- 64 field definitions resolve 235 concrete bindings across onboarding and
+  access persistence, public/application boundaries, admin responses, and five
+  consumed Organizations/Staff integration events.
+- Reflection guards cover every selected EF and boundary member; terminal-state
+  redaction tests and non-cacheable API/Admin API response tests pass.
+- The synchronized warning-free build, all migration drift checks, all 2,312
+  non-Docker tests, and all 33 Docker integration tests are green locally.
+  Exact-commit CI remains required on publication.
 
 ## Deferred Dependencies
 

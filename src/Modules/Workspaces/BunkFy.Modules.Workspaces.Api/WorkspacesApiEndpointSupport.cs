@@ -66,5 +66,6 @@ internal static class WorkspacesApiEndpointSupport
     {
         context.Response.Headers.CacheControl = "no-store";
         context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
     }
 }

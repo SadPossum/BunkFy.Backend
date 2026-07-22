@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Workspaces.Tests.Api;
 
+using System.Reflection;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.AdminApi;
 using BunkFy.Modules.Workspaces.Api;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -19,6 +21,28 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class WorkspacesApiSecurityTests
 {
+    [Fact]
+    public void Sensitive_response_policies_disable_storage()
+    {
+        Type apiSupport = typeof(WorkspacesModule).Assembly.GetType(
+            "BunkFy.Modules.Workspaces.Api.WorkspacesApiEndpointSupport",
+            throwOnError: true)!;
+        MethodInfo apiPolicy = apiSupport.GetMethod(
+            "SetNoStore",
+            BindingFlags.Public | BindingFlags.Static)!;
+        MethodInfo adminPolicy = typeof(WorkspacesAdminApiModule).GetMethod(
+            "MarkSensitiveResponse",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        DefaultHttpContext apiContext = new();
+        DefaultHttpContext adminContext = new();
+        apiPolicy.Invoke(null, [apiContext]);
+        adminPolicy.Invoke(null, [adminContext]);
+
+        AssertNoStore(apiContext);
+        AssertNoStore(adminContext);
+    }
+
     [Fact]
     public async Task Join_source_issuance_requires_staff_management_and_returns_the_one_time_result()
     {
@@ -174,6 +198,13 @@ public sealed class WorkspacesApiSecurityTests
         Assert.Equal(StaffAdminPermissionCodes.Manage, permission.Permission.Value);
         Assert.Equal("tenant", permission.ScopeResolverName);
         Assert.Equal(typeof(WorkspaceStaffJoinSourceIssuanceDto), response.Type);
+    }
+
+    private static void AssertNoStore(HttpContext context)
+    {
+        Assert.Equal("no-store", context.Response.Headers.CacheControl);
+        Assert.Equal("no-cache", context.Response.Headers.Pragma);
+        Assert.Equal("0", context.Response.Headers.Expires);
     }
 
     private static void AssertProtectedRoute(

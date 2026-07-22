@@ -83,6 +83,7 @@
     <File Path="docs/planning/workspace-onboarding-production-proof-task.md" />
     <File Path="docs/planning/workspace-onboarding-task.md" />
     <File Path="docs/planning/workspace-staff-access-lifecycle-task.md" />
+    <File Path="docs/planning/workspaces-personal-data-catalogue-task.md" />
   </Folder>
   <Folder Name="/eng/">
     <File Path="eng/add-migration.ps1" />
@@ -631,6 +632,11 @@
   </Folder>
   <Folder Name="/src/Modules/Staff/tests/">
     <Project Path="src/Modules/Staff/tests/BunkFy.Modules.Staff.Tests/BunkFy.Modules.Staff.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/docs/">
+    <File Path="src/Modules/Workspaces/docs/README.md" />
+    <File Path="src/Modules/Workspaces/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/Workspaces/docs/personal-data-inventory.v1.md" />
   </Folder>
   <Folder Name="/src/Modules/Workspaces/src/Admin/">
     <Project Path="src/Modules/Workspaces/BunkFy.Modules.Workspaces.Admin.Contracts/BunkFy.Modules.Workspaces.Admin.Contracts.csproj" />

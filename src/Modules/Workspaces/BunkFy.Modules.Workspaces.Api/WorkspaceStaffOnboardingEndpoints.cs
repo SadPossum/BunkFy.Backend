@@ -280,26 +280,34 @@ internal static class WorkspaceStaffOnboardingEndpoints
         group.MapGet("/applications", async (
             int? page,
             int? pageSize,
+            HttpContext context,
             IRequestDispatcher dispatcher,
             CancellationToken token) =>
-            (await dispatcher.QueryAsync(
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            return (await dispatcher.QueryAsync(
                 new ListActionableWorkspaceStaffOnboardingQuery(
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
                 token).ConfigureAwait(false)).ToHttpResult(
-                    WorkspacesApiEndpointSupport.ErrorStatusCodes))
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .Produces<WorkspaceStaffOnboardingListResponse>(StatusCodes.Status200OK);
 
         group.MapPost("/applications/{applicationId:guid}/retry", async (
             Guid applicationId,
+            HttpContext context,
             IRequestDispatcher dispatcher,
             CancellationToken token) =>
-            (await dispatcher.SendAsync(
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            return (await dispatcher.SendAsync(
                 new RetryWorkspaceStaffOnboardingCommand(applicationId),
                 token).ConfigureAwait(false)).ToHttpResult(
-                    WorkspacesApiEndpointSupport.ErrorStatusCodes))
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .Produces<WorkspaceStaffOnboardingDto>(StatusCodes.Status200OK);

@@ -83,7 +83,9 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            await executor.ExecuteAsync(
+        {
+            MarkSensitiveResponse(httpContext);
+            return await executor.ExecuteAsync(
                 httpContext,
                 AdminOperation.Create(
                     WorkspacesAdminOperationNames.StaffAccessList,
@@ -92,7 +94,8 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
                 token => dispatcher.QueryAsync(new ListOpenWorkspaceStaffAccessProcessesQuery(
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize), token),
-                cancellationToken).ConfigureAwait(false))
+                cancellationToken).ConfigureAwait(false);
+        })
             .Produces<WorkspaceStaffAccessProcessListResponse>(StatusCodes.Status200OK);
 
         staffAccess.MapPost("/{processId:guid}/retry", async (
@@ -102,7 +105,9 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            await executor.ExecuteAsync(
+        {
+            MarkSensitiveResponse(httpContext);
+            return await executor.ExecuteAsync(
                 httpContext,
                 AdminOperation.Create(
                     WorkspacesAdminOperationNames.StaffAccessRetry,
@@ -112,10 +117,18 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
                     ? dispatcher.SendAsync(new RetryWorkspaceStaffAccessProcessCommand(processId), token)
                     : Task.FromResult(Result.Failure<WorkspaceStaffAccessProcessDto>(
                         AdminErrors.ConfirmationRequired)),
-                cancellationToken).ConfigureAwait(false))
+                cancellationToken).ConfigureAwait(false);
+        })
             .Produces<WorkspaceStaffAccessProcessDto>(StatusCodes.Status200OK);
     }
 
     public sealed record AccessBootstrapRequest(bool Confirmed);
     public sealed record StaffAccessRetryRequest(bool Confirmed);
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
 }
