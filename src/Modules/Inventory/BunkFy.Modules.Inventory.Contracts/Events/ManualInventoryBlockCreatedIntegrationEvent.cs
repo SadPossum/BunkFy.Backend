@@ -10,7 +10,7 @@ using Gma.Framework.Tenancy.Messaging;
 public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegrationEvent
 {
     public const string EventType = "manual-inventory-block-created";
-    public const int EventVersion = 2;
+    public const int EventVersion = 3;
 
     public ManualInventoryBlockCreatedIntegrationEvent(
         Guid eventId,
@@ -22,7 +22,6 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
         Guid inventoryUnitId,
         DateOnly arrival,
         DateOnly departure,
-        string reason,
         long blockVersion,
         string? actorId = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
@@ -35,9 +34,6 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
         this.Departure = departure > arrival
             ? departure
             : throw new ArgumentOutOfRangeException(nameof(departure));
-        this.Reason = string.IsNullOrWhiteSpace(reason)
-            ? throw new ArgumentException("Block reason is required.", nameof(reason))
-            : reason.Trim();
         this.BlockVersion = blockVersion > 0
             ? blockVersion
             : throw new ArgumentOutOfRangeException(nameof(blockVersion));
@@ -50,7 +46,6 @@ public sealed record ManualInventoryBlockCreatedIntegrationEvent : TenantIntegra
     public Guid InventoryUnitId { get; }
     public DateOnly Arrival { get; }
     public DateOnly Departure { get; }
-    public string Reason { get; }
     public long BlockVersion { get; }
     public string? ActorId { get; }
 

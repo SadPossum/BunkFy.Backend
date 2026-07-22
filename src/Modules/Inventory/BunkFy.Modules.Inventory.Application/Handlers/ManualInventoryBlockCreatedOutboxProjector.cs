@@ -20,7 +20,6 @@ internal sealed class ManualInventoryBlockCreatedOutboxProjector(IOutboxWriterRe
                 domainEvent.InventoryUnitId,
                 domainEvent.Arrival,
                 domainEvent.Departure,
-                domainEvent.Reason,
                 domainEvent.BlockVersion,
                 domainEvent.ActorId),
             cancellationToken);

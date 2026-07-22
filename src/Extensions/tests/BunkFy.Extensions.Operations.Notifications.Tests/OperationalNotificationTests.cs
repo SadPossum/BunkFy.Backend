@@ -268,7 +268,7 @@ public sealed class OperationalNotificationTests
             new ManualInventoryBlockCreatedIntegrationEvent(
                 Guid.NewGuid(), ScopeId, Now, Guid.NewGuid(), Guid.NewGuid(), propertyId,
                 Guid.NewGuid(), new DateOnly(2026, 7, 14), new DateOnly(2026, 7, 16),
-                sensitive, 2, "system:source-actor"),
+                2, "system:source-actor"),
             CancellationToken.None);
         await new ExternalReservationOperationAttentionNotificationHandler(projector).HandleAsync(
             new ExternalReservationOperationCompletedIntegrationEvent(

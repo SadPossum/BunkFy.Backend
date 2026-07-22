@@ -90,7 +90,7 @@ Executable guards cover every mapped `StaffMember` and `StaffPropertyAssignment`
 
 ## Workspaces Slice
 
-Status: implemented and locally verified; exact-commit CI pending
+Status: published; local and exact-commit production proof complete
 
 The Workspaces catalogue classifies copied onboarding profile data, verified
 account email, Auth subject correlation, onboarding/source/claim lifecycle,
@@ -109,7 +109,7 @@ inventory is deterministic.
 
 ## Operations Notifications Slice
 
-Status: implemented and locally verified; exact-commit CI pending
+Status: published; local and exact-commit production proof complete
 
 The Operations Notifications catalogue classifies the addressed notification
 envelope and all typed navigation payload members. Payloads retain only resource
@@ -125,14 +125,31 @@ identity/contact/free-text classifications, verify exact minimal JSON schemas,
 exercise actor exclusion and stale-membership denial, and keep the generated
 inventory deterministic.
 
+## Inventory Slice
+
+Status: implemented and locally verified; exact-commit CI pending
+
+The Inventory catalogue separates pure facility topology from person-linked
+operations. It classifies pseudonymous reservation/allocation relationships,
+stay and availability context, staff actor attribution, unstructured block and
+retirement reasons, topology-change processes, impact samples, projection
+exports, and the cross-module events needed by Reservations and Properties.
+
+Executable guards cover every non-shadow member of six protected persistence
+types and every selected API, application, admin, export, domain-event, and
+integration-event member. They also keep affected reservation samples bounded,
+prohibit free-text reasons from broad outputs, exclude pure topology from the
+personal-data catalogue, and prove deterministic rendering. Version 3 of the
+block-created event removes an unused free-text reason from durable messaging.
+
 ## Delivery Slices
 
 1. Add the shared catalogue model, strict parser, validator, and focused adversarial tests.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
 4. Continue one module at a time through Inventory and Properties. Operations
-   Notifications and Workspaces are published; Staff publication evidence
-   remains to be reconciled.
+   Notifications, Workspaces, and Staff are published; Inventory is locally
+   complete pending exact-commit CI, and Properties is next.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 

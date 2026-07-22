@@ -2,6 +2,14 @@
 
 Inventory owns BunkFy's tenant- and property-scoped sellable-unit model. Properties remains the source of physical property, room, and bed topology; Inventory consumes versioned events into local projections and can repair them through the Properties topology rebuild source.
 
+The module's executable personal-data contract is
+[`personal-data-catalog.v1.json`](personal-data-catalog.v1.json). Its generated
+[`personal-data-inventory.v1.md`](personal-data-inventory.v1.md) is checked by
+reflection-backed tests against person-linked persistence, commands, queries,
+APIs, admin output, projection exports, domain events, and integration events.
+Pure facility topology remains explicitly outside that catalogue. The policy
+values are engineering defaults until country, retention, and rights approval.
+
 ## Current Slice
 
 - durable room and bed inventory-unit identities;

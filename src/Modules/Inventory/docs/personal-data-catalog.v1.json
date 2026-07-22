@@ -1,0 +1,3612 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "inventory.personal-data",
+  "catalogVersion": 1,
+  "module": "inventory",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "inventory-guest-operations",
+      "scope": "tenant-property-authorized-reservation-operations",
+      "readers": [
+        "permission:inventory.read",
+        "system:authorized-module-consumer",
+        "system:authorized-projection-consumer",
+        "system:reservations-allocation-consumer"
+      ],
+      "writers": [
+        "system:inventory-allocation-runtime"
+      ]
+    },
+    {
+      "id": "inventory-staff-operations",
+      "scope": "tenant-property-authorized-inventory-operations",
+      "readers": [
+        "permission:inventory.configure",
+        "permission:inventory.read",
+        "system:authorized-module-consumer"
+      ],
+      "writers": [
+        "permission:inventory.blocks.manage",
+        "permission:inventory.configure"
+      ]
+    },
+    {
+      "id": "inventory-unstructured-reason",
+      "scope": "tenant-property-authorized-unstructured-operational-note",
+      "readers": [
+        "permission:inventory.configure",
+        "permission:inventory.read"
+      ],
+      "writers": [
+        "permission:inventory.blocks.manage",
+        "permission:inventory.configure"
+      ]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "integration-message-journal",
+      "approvalState": "engineering-default",
+      "startsAt": "message-created",
+      "endsAt": "message-journal-retention-completed",
+      "legalHoldBehavior": "no-payload-hold"
+    },
+    {
+      "id": "inventory-allocation-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "allocation-requested",
+      "endsAt": "approved-erasure-or-reservation-retention-completed",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "inventory-change-history",
+      "approvalState": "engineering-default",
+      "startsAt": "inventory-change-requested",
+      "endsAt": "approved-erasure-or-operational-retention-completed",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "projection-rebuild-transfer",
+      "approvalState": "engineering-default",
+      "startsAt": "projection-export-created",
+      "endsAt": "projection-rebuild-batch-completed",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "transient-domain-event",
+      "approvalState": "engineering-default",
+      "startsAt": "domain-event-raised",
+      "endsAt": "domain-event-dispatched",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "transient-request",
+      "approvalState": "engineering-default",
+      "startsAt": "request-accepted",
+      "endsAt": "request-completed",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "transient-response",
+      "approvalState": "engineering-default",
+      "startsAt": "response-created",
+      "endsAt": "response-completed",
+      "legalHoldBehavior": "not-applicable"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "guest-allocation-data",
+      "export": "include-in-authorized-reservation-export",
+      "correction": "correct-through-authoritative-reservation-allocation-workflow",
+      "restriction": "suppress-non-required-allocation-use",
+      "erasure": "delete-or-pseudonymize-after-approved-reservation-retention"
+    },
+    {
+      "id": "operational-free-text",
+      "export": "include-after-authorized-subject-review",
+      "correction": "replace-through-authorized-inventory-workflow",
+      "restriction": "restrict-and-manually-review-subject-references",
+      "erasure": "redact-subject-references-or-delete-after-approved-retention"
+    },
+    {
+      "id": "staff-audit-attribution",
+      "export": "include-in-authorized-staff-export",
+      "correction": "append-corrective-operational-action",
+      "restriction": "retain-minimum-required-audit-attribution",
+      "erasure": "pseudonymize-subject-to-minimum-audit-receipt"
+    }
+  ],
+  "fields": [
+    {
+      "id": "inventory.guest-allocation-operations",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "availability-calculation",
+        "reservation-allocation",
+        "topology-change-impact"
+      ],
+      "sources": [
+        "reservations-module",
+        "system-generated"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-guest-operations",
+      "countryPolicyKey": "inventory.guest-allocation",
+      "retentionPolicy": "inventory-allocation-lifecycle",
+      "rightsPolicy": "guest-allocation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "application-query",
+        "integration-event",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.BedRetirementImpactSnapshot",
+          "member": "ActiveAllocationCount",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.BedRetirementImpactSnapshot",
+          "member": "ActiveManualBlockCount",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "AllocationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "AllocationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "AmendmentRequestId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "Confirmed",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "DecidedAtUtc",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "RejectionReason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "RequestFingerprint",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "ScopeId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationUnitSnapshot",
+          "member": "InventoryUnitId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationUnitSnapshot",
+          "member": "IsSellable",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationUnitSnapshot",
+          "member": "IsTopologyActive",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAvailabilityConflictSnapshot",
+          "member": "HasActiveAllocationConflict",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAvailabilityConflictSnapshot",
+          "member": "HasManualBlockConflict",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAvailabilityContextSnapshot",
+          "member": "ConflictUnitIds",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAvailabilityContextSnapshot",
+          "member": "Units",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.RoomInventoryImpactSnapshot",
+          "member": "ActiveAllocationCount",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.RoomInventoryImpactSnapshot",
+          "member": "ActiveBedRetirementCount",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.RoomInventoryImpactSnapshot",
+          "member": "ActiveManualBlockCount",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.RoomInventoryImpactSnapshot",
+          "member": "ActiveRoomRetirementCount",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetInventoryAvailabilityQuery",
+          "member": "Arrival",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetInventoryAvailabilityQuery",
+          "member": "Departure",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetInventoryAvailabilityQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetRoomInventoryChangeImpactQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetRoomInventoryChangeImpactQuery",
+          "member": "RoomId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "AllocationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "AllocationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "AmendmentRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "Arrival",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "Departure",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "InventoryUnitIds",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "AllocationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "AmendmentRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "Reason",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "AllocationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "AmendmentRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "Arrival",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "Departure",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "ExpectedAllocationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "InventoryUnitIds",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "AllocationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "AllocationRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "AllocationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "Arrival",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "Departure",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "InventoryUnitIds",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationProjectionExport",
+          "member": "AllocationId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationProjectionExport",
+          "member": "Arrival",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationProjectionExport",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationProjectionExport",
+          "member": "Status",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationProjectionExport",
+          "member": "Version",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "AllocationRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "Reason",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "AllocationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "AllocationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "ReleaseRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "AllocationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "Reason",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "ReleaseRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "AllocationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "ExpectedAllocationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "ReleaseRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "AllocationRequestId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "Arrival",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "Departure",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "InventoryUnitIds",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAvailabilityProjectionExport",
+          "member": "PropertyId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAvailabilityProjectionExport",
+          "member": "TenantId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAvailabilityProjectionExport",
+          "member": "Units",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAvailabilityResponse",
+          "member": "Arrival",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAvailabilityResponse",
+          "member": "Departure",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAvailabilityResponse",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAvailabilityResponse",
+          "member": "Units",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitAvailabilityDto",
+          "member": "ActiveAllocationIds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitAvailabilityDto",
+          "member": "ActiveBlockIds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitAvailabilityDto",
+          "member": "IsAvailable",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitAvailabilityDto",
+          "member": "Unit",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "Allocations",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "BedId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "Blocks",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "ConfigurationVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "InventoryUnitId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "IsSellable",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "IsTopologyActive",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "Kind",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "Label",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "RoomId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryUnitProjectionExport",
+          "member": "UnitVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "ActiveAllocationCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "ActiveBedRetirementCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "ActiveManualBlockCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "ActiveRoomRetirementCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "CanChangeSalesMode",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "RoomId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "AllocationRequestId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "Arrival",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "CreatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "Departure",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "Rejection",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "ReleasedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "ReleaseRequestId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "Status",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Entities.InventoryAllocationUnit",
+          "member": "AllocationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Entities.InventoryAllocationUnit",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Entities.InventoryAllocationUnit",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "AllocationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "AllocationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "Confirmed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "DecidedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "RejectionReason",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "RequestFingerprint",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "inventory.guest-reservation-reference",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-allocation-correlation",
+        "topology-change-impact"
+      ],
+      "sources": [
+        "reservations-module",
+        "system-generated"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-guest-operations",
+      "countryPolicyKey": "inventory.guest-reservation-reference",
+      "retentionPolicy": "inventory-allocation-lifecycle",
+      "rightsPolicy": "guest-allocation-data",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "integration-event",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.BedRetirementImpactSnapshot",
+          "member": "AffectedReservationIds",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.BedRetirementImpactSnapshot",
+          "member": "AffectedReservationIdsTruncated",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.InventoryAllocationAmendmentDecisionRecord",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.RoomInventoryImpactSnapshot",
+          "member": "AffectedReservationIds",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Ports.RoomInventoryImpactSnapshot",
+          "member": "AffectedReservationIdsTruncated",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "AffectedReservationIds",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "AffectedReservationIds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "AffectedReservationIdsTruncated",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "AffectedReservationIdsTruncated",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentConfirmedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRejectedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAmendmentRequestedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationConfirmedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationProjectionExport",
+          "member": "ReservationId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRejectedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRejectedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "AffectedReservationIds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto",
+          "member": "AffectedReservationIdsTruncated",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "AffectedReservationIds",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "AffectedReservationIds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "AffectedReservationIdsTruncated",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "AffectedReservationIdsTruncated",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "ReservationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
+          "member": "ReservationId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "inventory.operational-reason",
+      "dataSubject": "staff",
+      "classification": "free-text",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "inventory-availability-explanation",
+        "topology-change-coordination"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-unstructured-reason",
+      "countryPolicyKey": "inventory.operational-reason",
+      "retentionPolicy": "inventory-change-history",
+      "rightsPolicy": "operational-free-text",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "domain-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockGroupRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+RequestBedRetirementRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+RequestRoomRetirementRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockGroupCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestBedRetirementCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestRoomRetirementCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "Reason",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "Reason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "Reason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "Reason",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "Reason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "Reason",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "Reason",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "Reason",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "Reason",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        }
+      ]
+    },
+    {
+      "id": "inventory.staff-actor-reference",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "audit-attribution",
+        "self-notification-suppression"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-staff-operations",
+      "countryPolicyKey": "inventory.staff-actor-reference",
+      "retentionPolicy": "inventory-change-history",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ConfigureRoomSalesModeCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockGroupCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ReleaseManualInventoryBlockCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ReleaseManualInventoryBlockGroupCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestBedRetirementCommand",
+          "member": "RequestedBy",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestRoomRetirementCommand",
+          "member": "RequestedBy",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "RequestedBy",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "RequestedBy",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "ActorId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "ActorId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "RequestedBy",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "RequestedBy",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "ActorId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "RequestedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "RequestedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        }
+      ]
+    },
+    {
+      "id": "inventory.staff-change-operations",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "inventory-availability-management",
+        "topology-change-coordination"
+      ],
+      "sources": [
+        "staff-workflow",
+        "system-generated"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-staff-operations",
+      "countryPolicyKey": "inventory.staff-change",
+      "retentionPolicy": "inventory-change-history",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "application-query",
+        "domain-event",
+        "integration-event",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockGroupRequest",
+          "member": "Arrival",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockGroupRequest",
+          "member": "Departure",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockGroupRequest",
+          "member": "Target",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockRequest",
+          "member": "Arrival",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockRequest",
+          "member": "Departure",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockRequest",
+          "member": "InventoryUnitId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ConfigureRoomSalesModeCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ConfigureRoomSalesModeCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ConfigureRoomSalesModeCommand",
+          "member": "RoomId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ConfigureRoomSalesModeCommand",
+          "member": "SalesMode",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockCommand",
+          "member": "Arrival",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockCommand",
+          "member": "Departure",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockCommand",
+          "member": "InventoryUnitId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockGroupCommand",
+          "member": "Arrival",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockGroupCommand",
+          "member": "Departure",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockGroupCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CreateManualInventoryBlockGroupCommand",
+          "member": "Target",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ReleaseManualInventoryBlockCommand",
+          "member": "BlockId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ReleaseManualInventoryBlockCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ReleaseManualInventoryBlockCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ReleaseManualInventoryBlockGroupCommand",
+          "member": "BlockGroupId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ReleaseManualInventoryBlockGroupCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestBedRetirementCommand",
+          "member": "BedId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestBedRetirementCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestBedRetirementCommand",
+          "member": "RoomId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestRoomRetirementCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RequestRoomRetirementCommand",
+          "member": "RoomId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RetryBedRetirementCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RetryBedRetirementCommand",
+          "member": "TopologyChangeId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RetryRoomRetirementCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RetryRoomRetirementCommand",
+          "member": "TopologyChangeId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetBedRetirementQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetBedRetirementQuery",
+          "member": "TopologyChangeId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetRoomRetirementQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.GetRoomRetirementQuery",
+          "member": "TopologyChangeId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery",
+          "member": "IncludeReleased",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery",
+          "member": "InventoryUnitId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery",
+          "member": "Page",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery",
+          "member": "PageSize",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "ActiveAllocationCount",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "ActiveAllocationCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "ActiveManualBlockCount",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "ActiveManualBlockCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "BedId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "BedId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CompletedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CreatedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CreatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "PropertyId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "RejectionReason",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "RejectionReason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "RoomId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "RoomId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "TopologyChangeId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "TopologyChangeId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "UpdatedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "UpdatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "Version",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "Version",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "Arrival",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "BlockGroupId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "BlockId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "BlockVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "Departure",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "InventoryUnitId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "Arrival",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "BlockGroupId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "BlockId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "CreatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "Departure",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "InventoryUnitId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "ReleasedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
+          "member": "Version",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockGroupDto",
+          "member": "BlockGroupId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockGroupDto",
+          "member": "Blocks",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockListResponse",
+          "member": "Blocks",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockProjectionExport",
+          "member": "Arrival",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockProjectionExport",
+          "member": "BlockId",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockProjectionExport",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockProjectionExport",
+          "member": "Status",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockProjectionExport",
+          "member": "Version",
+          "surface": "projection-export",
+          "retentionPolicy": "projection-rebuild-transfer"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "BlockGroupId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "BlockId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "BlockVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "InventoryUnitId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "ActiveAllocationCount",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "ActiveAllocationCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "ActiveBedRetirementCount",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "ActiveBedRetirementCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "ActiveManualBlockCount",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "ActiveManualBlockCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CompletedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CreatedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CreatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "PropertyId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "RejectionReason",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "RejectionReason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "RoomId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "RoomId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "TopologyChangeId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "TopologyChangeId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "UpdatedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "UpdatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "Version",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "Version",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "ConfigurationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "RoomId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "SalesMode",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomSalesModeChangedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "BedId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "CreatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "RejectionReasonCode",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "RoomId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "State",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "UpdatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "Arrival",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "BlockGroupId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "CreatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "Departure",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "InventoryUnitId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "ReleasedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "Status",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "CreatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "RejectionReasonCode",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "RoomId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "State",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "UpdatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.BedRetirementFinalizationRequestedDomainEvent",
+          "member": "BedId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.BedRetirementFinalizationRequestedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.BedRetirementFinalizationRequestedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.BedRetirementFinalizationRequestedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.BedRetirementFinalizationRequestedDomainEvent",
+          "member": "RoomId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.BedRetirementFinalizationRequestedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.BedRetirementFinalizationRequestedDomainEvent",
+          "member": "TopologyChangeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "Arrival",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "BlockGroupId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "BlockId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "BlockVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "Departure",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "InventoryUnitId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockCreatedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "BlockGroupId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "BlockId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "BlockVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "InventoryUnitId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.ManualInventoryBlockReleasedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomRetirementFinalizationRequestedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomRetirementFinalizationRequestedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomRetirementFinalizationRequestedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomRetirementFinalizationRequestedDomainEvent",
+          "member": "RoomId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomRetirementFinalizationRequestedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomRetirementFinalizationRequestedDomainEvent",
+          "member": "TopologyChangeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "ConfigurationVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "RoomId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "SalesMode",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Events.RoomSalesModeChangedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "BedId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "Reason",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "RoomId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRejectedIntegrationEvent",
+          "member": "TopologyChangeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "BedId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "RoomId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizationRequestedIntegrationEvent",
+          "member": "TopologyChangeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "BedId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "BedVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "RoomId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "RoomVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.BedRetirementFinalizedIntegrationEvent",
+          "member": "TopologyChangeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "Reason",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "RoomId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRejectedIntegrationEvent",
+          "member": "TopologyChangeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRequestedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRequestedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRequestedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRequestedIntegrationEvent",
+          "member": "RoomId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRequestedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRequestedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizationRequestedIntegrationEvent",
+          "member": "TopologyChangeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "RoomId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "RoomVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.RoomRetirementFinalizedIntegrationEvent",
+          "member": "TopologyChangeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        }
+      ]
+    }
+  ]
+}
