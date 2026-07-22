@@ -180,6 +180,12 @@ public sealed class StaffAuthorizationIntegrationTests
                 member = member with { Version = visible.Version };
             }
 
+            await WaitForWorkspaceAccessCompletionAsync(
+                api,
+                member.StaffMemberId,
+                member.Version,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+
             using (HttpResponseMessage resume = await SendAsync(client, HttpMethod.Post,
                        $"/api/staff/members/{member.StaffMemberId:D}/resume", managerTokens.AccessToken,
                        new { reason = "Returned", expectedVersion = member.Version }).ConfigureAwait(false))
