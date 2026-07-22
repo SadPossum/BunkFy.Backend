@@ -63,6 +63,7 @@
     <File Path="docs/planning/json-file-drop-adapter-task.md" />
     <File Path="docs/planning/json-file-drop-local-retention-task.md" />
     <File Path="docs/planning/json-file-drop-quarantine-task.md" />
+    <File Path="docs/planning/operations-notifications-personal-data-catalogue-task.md" />
     <File Path="docs/planning/pre-module-readiness.md" />
     <File Path="docs/planning/product-domain-map.md" />
     <File Path="docs/planning/production-authentication-admission-task.md" />
@@ -452,6 +453,11 @@
   <Folder Name="/src/Extensions/">
     <Project Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/BunkFy.Extensions.Operations.Notifications.csproj" />
     <Project Path="src/Extensions/BunkFy.Extensions.Workspaces/BunkFy.Extensions.Workspaces.csproj" />
+  </Folder>
+  <Folder Name="/src/Extensions/BunkFy.Extensions.Operations.Notifications/docs/">
+    <File Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/docs/README.md" />
+    <File Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Extensions/BunkFy.Extensions.Operations.Notifications/docs/personal-data-inventory.v1.md" />
   </Folder>
   <Folder Name="/src/Extensions/tests/">
     <Project Path="src/Extensions/tests/BunkFy.Extensions.Operations.Notifications.Tests/BunkFy.Extensions.Operations.Notifications.Tests.csproj" />

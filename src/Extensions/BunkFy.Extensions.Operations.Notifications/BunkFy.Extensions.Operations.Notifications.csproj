@@ -5,10 +5,10 @@
     <ProjectReference Include="..\..\Modules\Reservations\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
-    <ProjectReference Include="..\BunkFy.Extensions.Workspaces\BunkFy.Extensions.Workspaces.csproj" />
     <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Contracts\Gma.Modules.AccessControl.Contracts.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Application\Gma.Modules.Notifications.Application.csproj" />
     <ProjectReference Include="$(GmaModuleNotificationsRoot)Gma.Modules.Notifications.Contracts\Gma.Modules.Notifications.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Application\Gma.Modules.Organizations.Application.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.AccessControl\Gma.Framework.AccessControl.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Messaging\Gma.Framework.Messaging\Gma.Framework.Messaging.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Notifications\Gma.Framework.Notifications\Gma.Framework.Notifications.csproj" />

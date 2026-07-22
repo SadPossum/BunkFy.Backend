@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "operations-notifications.personal-data",
+  "catalogVersion": 1,
+  "module": "operations-notifications",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "operations-inbox",
+      "scope": "tenant-addressed-operational-inbox",
+      "readers": ["subject:self", "system:notifications-delivery", "system:approved-retention"],
+      "writers": ["system:bunk-fy-operations-notifications"]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "notification-inbox",
+      "approvalState": "engineering-default",
+      "startsAt": "notification-requested",
+      "endsAt": "approved-notification-retention-completed",
+      "legalHoldBehavior": "pause-approved-erasure"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "recipient-inbox",
+      "export": "include-in-authorized-account-notification-export",
+      "correction": "correct-authoritative-source-and-append-new-notification-if-required",
+      "restriction": "respect-recipient-preferences-and-approved-account-restrictions",
+      "erasure": "delete-or-pseudonymize-after-approved-notification-retention"
+    },
+    {
+      "id": "guest-operation-reference",
+      "export": "resolve-through-authorized-reservation-or-ingestion-export",
+      "correction": "correct-authoritative-source-record",
+      "restriction": "suppress-non-required-operational-delivery",
+      "erasure": "remove-notification-copy-with-approved-guest-rights-workflow"
+    },
+    {
+      "id": "staff-operation-reference",
+      "export": "include-in-authorized-staff-notification-export",
+      "correction": "correct-authoritative-staff-source",
+      "restriction": "suppress-non-required-operational-delivery",
+      "erasure": "remove-or-pseudonymize-after-approved-employment-retention"
+    }
+  ],
+  "fields": [
+    {
+      "id": "operations-notifications.notification-id",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["inbox-idempotency", "notification-correlation"],
+      "sources": ["source-event", "recipient-id", "system-derived"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.notification-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "EventId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.occurred-at",
+      "dataSubject": "account-holder",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["inbox-ordering", "operational-timeline"],
+      "sources": ["source-event"],
+      "authoritativeOwner": "source-module",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.occurred-at",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "OccurredAtUtc", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.workspace-scope-id",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["tenant-isolation", "workspace-inbox-routing"],
+      "sources": ["organizations", "source-event"],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.workspace-scope-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "ScopeId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.recipient-subject-id",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["addressed-delivery", "recipient-preferences", "inbox-authorization"],
+      "sources": ["auth", "organizations", "staff"],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.recipient-subject-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "UserId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.rendered-body",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["operational-awareness", "attention-routing"],
+      "sources": ["source-event", "system-template"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.rendered-body",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "Body", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.payload-envelope",
+      "dataSubject": "account-holder",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["safe-navigation", "resource-highlighting", "targeted-live-refresh"],
+      "sources": ["typed-navigation-payload"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.payload-envelope",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "PayloadJson", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.property-id",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["property-scoped-navigation", "tenant-resource-isolation"],
+      "sources": ["properties", "source-event"],
+      "authoritativeOwner": "properties",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.property-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationPayload", "member": "PropertyId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ProviderAttentionNotificationPayload", "member": "PropertyId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockCreatedNotificationPayload", "member": "PropertyId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockReleasedNotificationPayload", "member": "PropertyId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.RoomNotificationPayload", "member": "PropertyId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.PropertyNotificationPayload", "member": "PropertyId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.reservation-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["reservation-navigation", "reservation-live-refresh", "provider-conflict-resolution"],
+      "sources": ["reservations"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.reservation-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "guest-operation-reference",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationPayload", "member": "ReservationId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ProviderAttentionNotificationPayload", "member": "ReservationId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.receipt-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["source-evidence-navigation", "provider-conflict-resolution"],
+      "sources": ["ingestion", "reservations"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.receipt-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "guest-operation-reference",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ProviderAttentionNotificationPayload", "member": "ReceiptId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.connection-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["provider-connection-navigation", "provider-conflict-resolution"],
+      "sources": ["ingestion", "reservations"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.connection-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "guest-operation-reference",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ProviderAttentionNotificationPayload", "member": "ConnectionId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.block-group-id",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["inventory-block-navigation", "resource-highlighting"],
+      "sources": ["inventory"],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.block-group-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockCreatedNotificationPayload", "member": "BlockGroupId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockReleasedNotificationPayload", "member": "BlockGroupId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.block-arrival",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["inventory-block-navigation", "availability-context"],
+      "sources": ["inventory"],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.block-arrival",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockCreatedNotificationPayload", "member": "Arrival", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.block-departure",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["inventory-block-navigation", "availability-context"],
+      "sources": ["inventory"],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.block-departure",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockCreatedNotificationPayload", "member": "Departure", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.room-id",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["room-navigation", "resource-highlighting"],
+      "sources": ["properties", "inventory"],
+      "authoritativeOwner": "properties",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.room-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "recipient-inbox",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.RoomNotificationPayload", "member": "RoomId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.staff-member-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["staff-self-navigation", "profile-live-refresh"],
+      "sources": ["staff"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.staff-member-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "staff-operation-reference",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.StaffProfileNotificationPayload", "member": "StaffMemberId", "surface": "notification" }
+      ]
+    }
+  ]
+}

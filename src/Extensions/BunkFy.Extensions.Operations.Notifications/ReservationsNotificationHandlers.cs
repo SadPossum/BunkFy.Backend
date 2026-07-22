@@ -1,6 +1,5 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
-using System.Text.Json;
 using BunkFy.Modules.Reservations.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Modules.Notifications.Contracts;
@@ -37,13 +36,9 @@ internal sealed class ReservationConfirmedNotificationHandler(OperationalNotific
             title,
             body,
             severity,
-            JsonSerializer.Serialize(new
-            {
-                integrationEvent.ReservationId,
+            new ReservationNotificationPayload(
                 integrationEvent.PropertyId,
-                integrationEvent.AllocationId,
-                integrationEvent.ReservationVersion,
-            }),
+                integrationEvent.ReservationId),
             BunkFyNotificationTags.ReservationActivity,
             integrationEvent.ActorId);
 }
@@ -64,8 +59,6 @@ internal sealed class ReservationArrivalReminderNotificationHandler(OperationalN
             integrationEvent.ReservationId,
             integrationEvent.Arrival,
             integrationEvent.ExpectedArrivalTime,
-            integrationEvent.TimeZoneId,
-            integrationEvent.DetailsRevision,
             cancellationToken);
 }
 
@@ -85,8 +78,6 @@ internal sealed class ReservationArrivalReminderV2NotificationHandler(Operationa
             integrationEvent.ReservationId,
             integrationEvent.Arrival,
             integrationEvent.ExpectedArrivalTime,
-            integrationEvent.TimeZoneId,
-            integrationEvent.DetailsRevision,
             cancellationToken);
 }
 
@@ -101,8 +92,6 @@ internal static class ReservationArrivalReminderNotification
         Guid reservationId,
         DateOnly arrival,
         TimeOnly expectedArrivalTime,
-        string timeZoneId,
-        long detailsRevision,
         CancellationToken cancellationToken) =>
         projector.ProjectForPropertyAsync(
             eventId,
@@ -115,15 +104,7 @@ internal static class ReservationArrivalReminderNotification
                 "Expected arrival soon",
                 $"A reservation is expected at {expectedArrivalTime:HH\\:mm} on {arrival:MMM d}.",
                 NotificationSeverity.Info,
-                JsonSerializer.Serialize(new
-                {
-                    ReservationId = reservationId,
-                    PropertyId = propertyId,
-                    Arrival = arrival,
-                    ExpectedArrivalTime = expectedArrivalTime,
-                    TimeZoneId = timeZoneId,
-                    DetailsRevision = detailsRevision,
-                }),
+                new ReservationNotificationPayload(propertyId, reservationId),
                 BunkFyNotificationTags.ReservationActivity),
             cancellationToken);
 }
@@ -146,13 +127,9 @@ internal sealed class ReservationAllocationRejectedNotificationHandler(Operation
                 "Reservation needs attention",
                 $"Inventory allocation was rejected: {integrationEvent.Reason}.",
                 NotificationSeverity.Error,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.ReservationId,
+                new ReservationNotificationPayload(
                     integrationEvent.PropertyId,
-                    integrationEvent.Reason,
-                    integrationEvent.ReservationVersion,
-                }),
+                    integrationEvent.ReservationId),
                 BunkFyNotificationTags.ReservationActivity,
                 integrationEvent.ActorId),
             cancellationToken);
@@ -176,12 +153,9 @@ internal sealed class ReservationCancelledNotificationHandler(OperationalNotific
                 "Reservation cancelled",
                 "A reservation was cancelled and its inventory can be released.",
                 NotificationSeverity.Warning,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.ReservationId,
+                new ReservationNotificationPayload(
                     integrationEvent.PropertyId,
-                    integrationEvent.ReservationVersion,
-                }),
+                    integrationEvent.ReservationId),
                 BunkFyNotificationTags.ReservationActivity,
                 integrationEvent.ActorId),
             cancellationToken);
@@ -205,14 +179,9 @@ internal sealed class ReservationNoShowNotificationHandler(OperationalNotificati
                 "Reservation marked no-show",
                 $"A reservation was marked no-show for {integrationEvent.BusinessDate:yyyy-MM-dd}.",
                 NotificationSeverity.Warning,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.ReservationId,
+                new ReservationNotificationPayload(
                     integrationEvent.PropertyId,
-                    integrationEvent.BusinessDate,
-                    integrationEvent.ActorId,
-                    integrationEvent.ReservationVersion,
-                }),
+                    integrationEvent.ReservationId),
                 BunkFyNotificationTags.ReservationActivity,
                 integrationEvent.ActorId),
             cancellationToken);
@@ -245,17 +214,11 @@ internal sealed class ExternalReservationOperationAttentionNotificationHandler(
                 "Provider update needs attention",
                 $"A provider reservation {integrationEvent.OperationKind} operation ended as {integrationEvent.Outcome}.",
                 NotificationSeverity.Error,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.OperationId,
+                new ProviderAttentionNotificationPayload(
+                    integrationEvent.PropertyId,
                     integrationEvent.ReceiptId,
                     integrationEvent.ConnectionId,
-                    integrationEvent.PropertyId,
-                    integrationEvent.OperationKind,
-                    integrationEvent.Outcome,
-                    integrationEvent.ReservationId,
-                    integrationEvent.ErrorCode,
-                }),
+                    integrationEvent.ReservationId),
                 BunkFyNotificationTags.ProviderAttention),
             cancellationToken);
     }

@@ -11,6 +11,8 @@ Staff now applies the same control to employment profiles, assignment history, d
 Workspaces now applies the control to onboarding copies, account correlation,
 access-process history, join-source responses, and the Organizations and Staff
 events it consumes.
+Operations Notifications now applies the control to addressed inbox envelopes,
+typed navigation payloads, and authoritative active-member recipient filtering.
 
 ## Ownership
 
@@ -80,7 +82,7 @@ Executable guards prove every Ingestion-owned mapped persistence member and sele
 
 ## Staff Slice
 
-Status: implemented and locally verified; exact-commit CI pending
+Status: implemented and fully locally verified; exact-commit CI pending
 
 The Staff catalogue classifies employment identity and contact fields, Auth subject correlation, lifecycle and audit facts, current and historical property assignments, search copies, directory and sensitive profile responses, public/admin inputs, cross-module onboarding and identity reconciliation contracts, domain events, and integration events.
 
@@ -105,14 +107,32 @@ cannot enter operational outputs, terminal onboarding states redact copied
 applicant data, sensitive responses are non-cacheable, and the resolved
 inventory is deterministic.
 
+## Operations Notifications Slice
+
+Status: implemented and locally verified; exact-commit CI pending
+
+The Operations Notifications catalogue classifies the addressed notification
+envelope and all typed navigation payload members. Payloads retain only resource
+identifiers and bounded dates needed for navigation; guest identity, operator
+free text, actor ids, provider errors, versions, and duplicate audit details are
+not copied into recipient inboxes. Staff and workspace projections nominate
+candidates, while Organizations authoritatively removes inactive access in
+bounded batches immediately before projection.
+
+Executable guards discover every payload type and member, require a closed
+sealed payload set, prohibit string/object payload escape hatches and direct
+identity/contact/free-text classifications, verify exact minimal JSON schemas,
+exercise actor exclusion and stale-membership denial, and keep the generated
+inventory deterministic.
+
 ## Delivery Slices
 
 1. Add the shared catalogue model, strict parser, validator, and focused adversarial tests.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
-4. Continue one module at a time through Notifications extensions, Inventory,
-   and Properties. Workspaces, Staff, and Ingestion are implemented and locally
-   verified; exact-commit publication evidence remains required.
+4. Continue one module at a time through Inventory and Properties. Operations
+   Notifications is implemented and locally verified. Workspaces is published;
+   Staff publication evidence remains to be reconciled.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -167,7 +187,19 @@ Current Workspaces evidence:
   redaction tests and non-cacheable API/Admin API response tests pass.
 - The synchronized warning-free build, all migration drift checks, all 2,312
   non-Docker tests, and all 33 Docker integration tests are green locally.
-  Exact-commit CI remains required on publication.
+  Exact-commit CI passed for the published Workspaces slice.
+
+Current Operations Notifications evidence:
+
+- 15 field definitions resolve 22 concrete bindings across the addressed GMA
+  envelope and seven sealed BunkFy navigation payload types.
+- The generic Organizations candidate filter is published as `dec1732`; its
+  exact validation and PostgreSQL workflows pass, including real revocation
+  proof.
+- All 21 focused extension tests, 58 architecture tests, and the Worker
+  composition test pass locally. The synchronized warning-free build, every
+  migration drift check, all 2,323 non-Docker tests, and all 33 Docker tests are
+  green. Exact-commit BunkFy CI remains required on publication.
 
 ## Deferred Dependencies
 

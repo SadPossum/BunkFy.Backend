@@ -1,6 +1,6 @@
 # Workspaces Personal-Data Catalogue Task
 
-Status: local production proof complete; exact-commit CI pending
+Status: published; local and exact-commit production proof complete
 
 ## Goal
 
@@ -76,6 +76,8 @@ Local evidence:
   check, and all 2,312 non-Docker tests pass.
 - All 33 Docker integration tests pass against the durable PostgreSQL, NATS,
   API, and Worker composition, including onboarding restart/convergence proof.
+- The published backend commit `7bbbf034e27784a4cf7602c3145daa5db4a43cd0`
+  passed its exact-commit GitHub validation workflow.
 
 ## Deferred
 

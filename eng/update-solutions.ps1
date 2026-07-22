@@ -207,7 +207,10 @@ function Add-BackendGraph {
             continue
         }
         $normalizedRelative = $relative.Replace('\', '/')
-        if ($file.Extension -ne '.md' -and $normalizedRelative -notlike 'src/Modules/*/docs/*.json') {
+        $isDataGovernanceCatalog =
+            $normalizedRelative -like 'src/Modules/*/docs/*.json' -or
+            $normalizedRelative -like 'src/Extensions/*/docs/*.json'
+        if ($file.Extension -ne '.md' -and -not $isDataGovernanceCatalog) {
             continue
         }
 
@@ -225,7 +228,10 @@ $solutionArguments = @{
     RepositoryRoot = $repositoryRoot
     Solution = 'BunkFy.slnx'
     SourceFileExtensions = @('.md')
-    SourceFilePathPatterns = @('src/Modules/*/docs/*.json')
+    SourceFilePathPatterns = @(
+        'src/Modules/*/docs/*.json',
+        'src/Extensions/*/docs/*.json'
+    )
 }
 if ($Check) {
     $solutionArguments.Check = $true

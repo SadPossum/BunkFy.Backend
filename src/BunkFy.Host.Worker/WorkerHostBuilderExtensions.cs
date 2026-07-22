@@ -152,7 +152,7 @@ public static class WorkerHostBuilderExtensions
                 builder.Services.AddAuthNotificationsExtension();
             }
 
-            if (workerOptions.Modules.Staff)
+            if (workerOptions.Modules.Staff && workerOptions.Modules.Organizations)
             {
                 builder.Services.AddBunkFyOperationsNotifications();
                 if (workerOptions.Modules.AccessControl)

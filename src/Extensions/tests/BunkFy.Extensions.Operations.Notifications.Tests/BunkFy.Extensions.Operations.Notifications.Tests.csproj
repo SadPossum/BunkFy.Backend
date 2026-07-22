@@ -13,5 +13,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\BunkFy.Extensions.Operations.Notifications\BunkFy.Extensions.Operations.Notifications.csproj" />
     <ProjectReference Include="..\..\..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\BunkFy.Extensions.Operations.Notifications\docs\personal-data-catalog.v1.json"
+          Link="DataGovernance\personal-data-catalog.v1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\BunkFy.Extensions.Operations.Notifications\docs\personal-data-inventory.v1.md"
+          Link="DataGovernance\personal-data-inventory.v1.md"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

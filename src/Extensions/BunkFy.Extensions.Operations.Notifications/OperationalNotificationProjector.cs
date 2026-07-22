@@ -2,14 +2,17 @@ namespace BunkFy.Extensions.Operations.Notifications;
 
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
+using Gma.Modules.Organizations.Application.Ports;
 
 internal sealed class OperationalNotificationProjector(
     IStaffPropertyAudienceReader audienceReader,
     IWorkspaceOwnerNotificationAudienceReader workspaceOwnerAudienceReader,
+    IOrganizationAccessCandidateFilter organizationAccess,
     IUserNotificationRequestProjector notificationProjector)
 {
     public async Task ProjectForPropertyAsync(
@@ -27,12 +30,17 @@ internal sealed class OperationalNotificationProjector(
             .ListAuthSubjectIdsAsync(scopeId, cancellationToken)
             .ConfigureAwait(false);
 
-        string[] recipients = propertyStaffRecipients
+        string[] candidates = propertyStaffRecipients
             .Concat(workspaceOwnerRecipients)
             .Distinct(StringComparer.Ordinal)
             .Where(recipient => !IsInitiatingUser(recipient, notification.ActorId))
             .Order(StringComparer.Ordinal)
             .ToArray();
+        IReadOnlyList<string> recipients = await this.FilterActiveMembersAsync(
+                scopeId,
+                candidates,
+                cancellationToken)
+            .ConfigureAwait(false);
 
         foreach (string recipient in recipients)
         {
@@ -68,14 +76,52 @@ internal sealed class OperationalNotificationProjector(
             return;
         }
 
+        IReadOnlyList<string> recipients = await this.FilterActiveMembersAsync(
+                scopeId,
+                [recipient],
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
         await this.ProjectAsync(
                 sourceEventId,
                 scopeId,
                 occurredAtUtc,
-                recipient,
+                recipients[0],
                 notification,
                 cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyList<string>> FilterActiveMembersAsync(
+        string scopeId,
+        string[] candidates,
+        CancellationToken cancellationToken)
+    {
+        if (candidates.Length == 0)
+        {
+            return [];
+        }
+
+        if (!Guid.TryParse(scopeId, out Guid organizationId) || organizationId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "A BunkFy operational notification scope must be an organization id.");
+        }
+
+        List<string> allowed = new(candidates.Length);
+        foreach (string[] batch in candidates.Chunk(IOrganizationAccessCandidateFilter.MaximumCandidateCount))
+        {
+            IReadOnlyList<string> filtered = await organizationAccess
+                .FilterAllowedAsync(organizationId, batch, cancellationToken)
+                .ConfigureAwait(false);
+            allowed.AddRange(filtered);
+        }
+
+        return allowed;
     }
 
     private Task ProjectAsync(
@@ -97,7 +143,7 @@ internal sealed class OperationalNotificationProjector(
                 notification.Title,
                 notification.Body,
                 notification.Severity,
-                notification.PayloadJson,
+                JsonSerializer.Serialize(notification.Payload, notification.Payload.GetType()),
                 notification.Tags,
                 NotificationDeliveryPolicy.RespectPreferences),
             cancellationToken);

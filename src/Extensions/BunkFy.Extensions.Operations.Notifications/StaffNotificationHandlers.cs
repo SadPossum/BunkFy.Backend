@@ -1,6 +1,5 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
-using System.Text.Json;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Modules.Notifications.Contracts;
@@ -25,17 +24,7 @@ internal sealed class StaffPropertyAssignmentChangedNotificationHandler(Operatio
                     ? "You were assigned to a property."
                     : "Your property assignment ended.",
                 NotificationSeverity.Info,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.StaffMemberId,
-                    integrationEvent.AssignmentId,
-                    integrationEvent.PropertyId,
-                    integrationEvent.IsCurrent,
-                    integrationEvent.IsPrimary,
-                    integrationEvent.EffectiveFrom,
-                    integrationEvent.EffectiveTo,
-                    integrationEvent.StaffVersion,
-                }),
+                new StaffProfileNotificationPayload(integrationEvent.StaffMemberId),
                 BunkFyNotificationTags.StaffActivity,
                 integrationEvent.ActorId),
             cancellationToken);
@@ -61,13 +50,7 @@ internal sealed class StaffMemberLifecycleChangedNotificationHandler(Operational
                 integrationEvent.Status == StaffStatus.Active
                     ? NotificationSeverity.Success
                     : NotificationSeverity.Warning,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.StaffMemberId,
-                    integrationEvent.Status,
-                    integrationEvent.EffectiveOn,
-                    integrationEvent.StaffVersion,
-                }),
+                new StaffProfileNotificationPayload(integrationEvent.StaffMemberId),
                 BunkFyNotificationTags.StaffActivity,
                 integrationEvent.ActorId),
             cancellationToken);

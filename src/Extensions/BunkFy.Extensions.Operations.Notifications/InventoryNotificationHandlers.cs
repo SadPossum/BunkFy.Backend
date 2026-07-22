@@ -1,6 +1,5 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
-using System.Text.Json;
 using BunkFy.Modules.Inventory.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Modules.Notifications.Contracts;
@@ -23,17 +22,11 @@ internal sealed class ManualInventoryBlockCreatedNotificationHandler(Operational
                 "Inventory blocked",
                 $"Inventory was blocked from {integrationEvent.Arrival:yyyy-MM-dd} through {integrationEvent.Departure:yyyy-MM-dd}.",
                 NotificationSeverity.Info,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.BlockId,
-                    integrationEvent.BlockGroupId,
+                new InventoryBlockCreatedNotificationPayload(
                     integrationEvent.PropertyId,
-                    integrationEvent.InventoryUnitId,
+                    integrationEvent.BlockGroupId,
                     integrationEvent.Arrival,
-                    integrationEvent.Departure,
-                    integrationEvent.Reason,
-                    integrationEvent.BlockVersion,
-                }),
+                    integrationEvent.Departure),
                 BunkFyNotificationTags.InventoryActivity,
                 integrationEvent.ActorId),
             cancellationToken);
@@ -57,14 +50,9 @@ internal sealed class ManualInventoryBlockReleasedNotificationHandler(Operationa
                 "Inventory block released",
                 "A manual inventory block was released.",
                 NotificationSeverity.Info,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.BlockId,
-                    integrationEvent.BlockGroupId,
+                new InventoryBlockReleasedNotificationPayload(
                     integrationEvent.PropertyId,
-                    integrationEvent.InventoryUnitId,
-                    integrationEvent.BlockVersion,
-                }),
+                    integrationEvent.BlockGroupId),
                 BunkFyNotificationTags.InventoryActivity,
                 integrationEvent.ActorId),
             cancellationToken);
@@ -88,13 +76,9 @@ internal sealed class RoomSalesModeChangedNotificationHandler(OperationalNotific
                 "Room sales mode changed",
                 $"A room now sells at {integrationEvent.SalesMode} level.",
                 NotificationSeverity.Warning,
-                JsonSerializer.Serialize(new
-                {
+                new RoomNotificationPayload(
                     integrationEvent.PropertyId,
-                    integrationEvent.RoomId,
-                    integrationEvent.SalesMode,
-                    integrationEvent.ConfigurationVersion,
-                }),
+                    integrationEvent.RoomId),
                 BunkFyNotificationTags.InventoryActivity,
                 integrationEvent.ActorId),
             cancellationToken);

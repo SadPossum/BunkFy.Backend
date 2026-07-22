@@ -1,6 +1,5 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
-using System.Text.Json;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Modules.Notifications.Contracts;
@@ -21,11 +20,7 @@ internal sealed class PropertyRetiredNotificationHandler(OperationalNotification
                 "Property retired",
                 "A property was retired and is no longer available for normal operations.",
                 NotificationSeverity.Warning,
-                JsonSerializer.Serialize(new
-                {
-                    integrationEvent.PropertyId,
-                    integrationEvent.PropertyVersion,
-                }),
+                new PropertyNotificationPayload(integrationEvent.PropertyId),
                 BunkFyNotificationTags.PropertyActivity,
                 integrationEvent.ActorId),
             cancellationToken);

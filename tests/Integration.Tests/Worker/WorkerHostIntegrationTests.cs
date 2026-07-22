@@ -21,6 +21,8 @@ using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Persistence;
+using Gma.Modules.Organizations.Application.Ports;
+using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Contracts;
@@ -96,6 +98,7 @@ public sealed class WorkerHostIntegrationTests
         builder.Configuration["Tasks:Worker:Enabled"] = "false";
         builder.Configuration["Worker:Modules:Auth"] = "true";
         builder.Configuration["Worker:Modules:Notifications"] = "true";
+        builder.Configuration["Worker:Modules:Organizations"] = "true";
         builder.Configuration["Worker:Modules:Properties"] = "true";
         builder.Configuration["Worker:Modules:Inventory"] = "true";
         builder.Configuration["Worker:Modules:Reservations"] = "true";
@@ -112,7 +115,9 @@ public sealed class WorkerHostIntegrationTests
 
         Assert.True(result.IsValid, result.Report);
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<NotificationsDbContext>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUserNotificationRequestProjector>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOrganizationAccessCandidateFilter>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IStaffPropertyAudienceReader>());
         Assert.Contains(
             subscriptions.Subscriptions,

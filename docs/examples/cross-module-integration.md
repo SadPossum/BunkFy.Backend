@@ -57,11 +57,12 @@ flowchart LR
     B --> C["NATS JetStream"]
     C --> D["Consumer module"]
     D --> E["Consumer-owned projection"]
-    D --> F["Consumer recipient decision"]
-    F --> G["UserNotificationRequestedIntegrationEventV2"]
-    G --> H["Notifications projector"]
-    H --> I["Notifications unit of work and inbox"]
-    I --> J["notifications.user_notifications"]
+    D --> F["Consumer candidate decision"]
+    F --> G["Organizations active-access intersection"]
+    G --> H["UserNotificationRequestedIntegrationEventV2"]
+    H --> I["Notifications projector"]
+    I --> J["Notifications unit of work and inbox"]
+    J --> K["notifications.user_notifications"]
 ```
 
 This is the same shape a private chat or PMS policy module should use:
@@ -71,7 +72,7 @@ This is the same shape a private chat or PMS policy module should use:
 - inventory availability belongs to Inventory and property topology belongs to Properties;
 - Notifications receives explicit user targets only, never business-specific visibility rules.
 
-BunkFy's operational notification extension is the consumer in this flow. It intentionally joins public product-event contracts, Staff's audience-reader contract, and Notifications' projector seam. The source event remains durable through its producer outbox and NATS; the addressed notification and consumer inbox are committed by Notifications. Deterministic notification ids make retries idempotent for every recipient.
+BunkFy's operational notification extension is the consumer in this flow. It intentionally joins public product-event contracts, product candidate-audience readers, Organizations' bounded active-access filter, and Notifications' projector seam. Product projections nominate candidates; Organizations removes subjects whose organization or membership is no longer active immediately before addressing. The filter accepts only a caller-supplied bounded set and cannot enumerate membership, while BunkFy retains all product role, property, and recipient semantics. The source event remains durable through its producer outbox and NATS; the addressed notification and consumer inbox are committed by Notifications. Deterministic notification ids make retries idempotent for every recipient.
 
 ## Compatibility
 

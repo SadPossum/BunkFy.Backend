@@ -85,8 +85,15 @@ public sealed class CompositionToolingGuardTests
             "$relative -match '(^|[\\\\/])(\\.tmp|bin|obj)([\\\\/]|$)'",
             StringSplitOptions.None).Length - 1);
         Assert.Contains("SourceFileExtensions = @('.md')", source, StringComparison.Ordinal);
-        Assert.Contains("SourceFilePathPatterns = @('src/Modules/*/docs/*.json')", source, StringComparison.Ordinal);
-        Assert.Contains("$normalizedRelative -notlike 'src/Modules/*/docs/*.json'", source, StringComparison.Ordinal);
+        Assert.Contains("'src/Modules/*/docs/*.json'", source, StringComparison.Ordinal);
+        Assert.Contains("'src/Extensions/*/docs/*.json'", source, StringComparison.Ordinal);
+        Assert.Equal(2, source.Split(
+            "'src/Modules/*/docs/*.json'",
+            StringSplitOptions.None).Length - 1);
+        Assert.Equal(2, source.Split(
+            "'src/Extensions/*/docs/*.json'",
+            StringSplitOptions.None).Length - 1);
+        Assert.Contains("-not $isDataGovernanceCatalog", source, StringComparison.Ordinal);
         Assert.Contains("-Check:$Check", source, StringComparison.Ordinal);
         Assert.Contains("'SECURITY.md'", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Sort-Object", source, StringComparison.Ordinal);

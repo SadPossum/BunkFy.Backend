@@ -6,7 +6,9 @@ BunkFy mounts the published GMA Auth, Notifications, and Extensions `dev` source
 
 ## Product Notifications
 
-`BunkFy.Extensions.Operations.Notifications` owns BunkFy-specific recipient policy. It consumes public product integration events, asks Staff's narrow public audience reader for authenticated recipients, and projects V2 notification requests into Notifications. Product modules do not reference Notifications application or persistence projects.
+`BunkFy.Extensions.Operations.Notifications` owns BunkFy-specific recipient policy. It consumes public product integration events, asks Staff and workspace-owner readers for candidate authenticated recipients, excludes the initiating user, then intersects each bounded candidate batch with authoritative active Organizations access. Only that final set is projected as V2 notification requests into Notifications. Product modules do not reference Notifications application or persistence projects.
+
+Notification payloads are a closed set of typed navigation records. They carry only the resource identifiers and bounded dates needed to open or refresh the affected item; operator reasons, actor ids, provider errors, concurrency versions, guest identity, and duplicate audit facts are not copied into inbox records. The extension's executable personal-data catalogue and reflection guards make new payload members or unclassified notification data fail verification.
 
 Current web-inbox coverage is intentionally low-noise:
 
@@ -18,4 +20,4 @@ Current web-inbox coverage is intentionally low-noise:
 
 These notifications respect recipient preferences. Security notifications remain mandatory. Guest-profile edits, successful provider receipts, check-in/check-out, and other routine CRUD activity stay quiet; add coverage only when a durable source event and an unambiguous recipient policy exist.
 
-The worker composes Auth, Staff, Notifications, and the two extensions when their module switches are enabled. Notifications admin endpoints expose tag, routing, delivery, and retry operations. Retention is configured but disabled until an operations policy is approved.
+The worker composes Auth, Organizations, Staff, Notifications, and the two extensions when their module switches are enabled. Operations notifications are not registered without the authoritative Organizations filter. Notifications admin endpoints expose tag, routing, delivery, and retry operations. Retention is configured but disabled until an operations policy is approved.
