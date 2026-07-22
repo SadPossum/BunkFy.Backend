@@ -1,6 +1,6 @@
 # Inventory Personal-Data Catalogue Task
 
-Status: implemented and locally verified; exact-commit CI pending
+Status: published; local and exact-commit production proof complete
 
 ## Goal
 
@@ -139,7 +139,10 @@ Current evidence:
 - the direct and transitive package vulnerability audit reports no known
   vulnerable packages.
 
-Exact-commit GitHub validation remains required before publication.
+Published backend commit `c7db6b2e633e88442bad124c6c1f17b20589a2cd`
+passed exact Windows and Ubuntu validation in GitHub Actions run
+`29904293750`, and all 33 Docker integration tests passed in run
+`29904293838`.
 
 ## Deferred
 

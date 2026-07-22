@@ -127,7 +127,7 @@ inventory deterministic.
 
 ## Inventory Slice
 
-Status: implemented and locally verified; exact-commit CI pending
+Status: published; local and exact-commit production proof complete
 
 The Inventory catalogue separates pure facility topology from person-linked
 operations. It classifies pseudonymous reservation/allocation relationships,
@@ -148,8 +148,8 @@ block-created event removes an unused free-text reason from durable messaging.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
 4. Continue one module at a time through Inventory and Properties. Operations
-   Notifications, Workspaces, and Staff are published; Inventory is locally
-   complete pending exact-commit CI, and Properties is next.
+   Notifications, Workspaces, Staff, and Inventory are published; Properties is
+   next.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -218,6 +218,18 @@ Current Operations Notifications evidence:
   migration drift check, all 2,323 non-Docker tests, and all 33 Docker tests are
   green. Published backend commit `df3c26ff1a0aa21c346020e41c11f1e2bf78432b`
   passed exact Windows and Ubuntu validation plus the Docker workflow.
+
+Current Inventory evidence:
+
+- Five field definitions resolve 481 concrete bindings across Inventory-owned
+  persistence, application/API/admin boundaries, projection exports, domain
+  events, and produced or consumed integration events.
+- All eight catalogue guards, all 48 Inventory tests, all 53 Reservations
+  tests, all 21 Operations Notifications tests, all 58 architecture tests, all
+  2,331 non-Docker tests, and all 33 Docker integration tests pass.
+- Published backend commit `c7db6b2e633e88442bad124c6c1f17b20589a2cd`
+  passed exact Windows and Ubuntu validation in GitHub Actions run
+  `29904293750`; Docker run `29904293838` also passed.
 
 ## Deferred Dependencies
 
