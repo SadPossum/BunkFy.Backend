@@ -1,6 +1,6 @@
 # Operations Notifications Personal-Data Catalogue Task
 
-Status: implemented and fully locally verified; exact-commit CI pending
+Status: published; local and exact-commit production proof complete
 
 ## Goal
 
@@ -88,8 +88,9 @@ Current evidence:
   notification bridge together;
 - the synchronized warning-free build, all migration drift checks, all 2,323
   non-Docker tests, and all 33 Docker integration tests pass;
-- exact-commit BunkFy validation and Docker evidence remains required before
-  this slice is declared published.
+- published backend commit `df3c26ff1a0aa21c346020e41c11f1e2bf78432b`
+  passed exact Windows and Ubuntu validation plus Docker workflow
+  `29900396749`; validation workflow `29900396821` is also green.
 
 ## Deferred
 

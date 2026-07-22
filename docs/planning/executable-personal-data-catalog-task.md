@@ -82,7 +82,7 @@ Executable guards prove every Ingestion-owned mapped persistence member and sele
 
 ## Staff Slice
 
-Status: implemented and fully locally verified; exact-commit CI pending
+Status: published; local and exact-commit production proof complete
 
 The Staff catalogue classifies employment identity and contact fields, Auth subject correlation, lifecycle and audit facts, current and historical property assignments, search copies, directory and sensitive profile responses, public/admin inputs, cross-module onboarding and identity reconciliation contracts, domain events, and integration events.
 
@@ -131,8 +131,8 @@ inventory deterministic.
 2. Add and verify the Guests v1 catalogue and deterministic resolved inventory.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
 4. Continue one module at a time through Inventory and Properties. Operations
-   Notifications is implemented and locally verified. Workspaces is published;
-   Staff publication evidence remains to be reconciled.
+   Notifications and Workspaces are published; Staff publication evidence
+   remains to be reconciled.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -199,7 +199,8 @@ Current Operations Notifications evidence:
 - All 21 focused extension tests, 58 architecture tests, and the Worker
   composition test pass locally. The synchronized warning-free build, every
   migration drift check, all 2,323 non-Docker tests, and all 33 Docker tests are
-  green. Exact-commit BunkFy CI remains required on publication.
+  green. Published backend commit `df3c26ff1a0aa21c346020e41c11f1e2bf78432b`
+  passed exact Windows and Ubuntu validation plus the Docker workflow.
 
 ## Deferred Dependencies
 
