@@ -72,6 +72,18 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Worker_composes_properties_application_with_its_persistence()
+    {
+        string worker = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Worker",
+            "WorkerHostBuilderExtensions.cs");
+
+        Assert.Contains("builder.Services.AddPropertiesApplication();", worker, StringComparison.Ordinal);
+        Assert.Contains("builder.AddPropertiesPersistence();", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Public_api_does_not_expose_the_generic_files_front_door()
     {
         string program = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");

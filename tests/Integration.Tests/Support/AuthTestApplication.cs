@@ -1,15 +1,18 @@
 namespace Integration.Tests.Support;
 
+using System.Text.Json;
 using BunkFy.Host.Api;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Results;
 using Gma.Modules.Auth.Application.Ports;
+using Gma.Modules.Auth.Contracts;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Organizations.Domain.Aggregates;
 using Gma.Modules.Organizations.Domain.Enums;
 using Gma.Modules.Organizations.Persistence;
+using Gma.Modules.Notifications.Persistence;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Inventory.Persistence;
@@ -38,7 +41,8 @@ internal sealed class AuthTestApplication(
     string minioSecretKey = "minioadmin",
     string minioBucketName = "integration-test-files",
     bool minioCreateBucketIfMissing = false,
-    DbCommandInterceptor? inventoryCommandInterceptor = null)
+    DbCommandInterceptor? inventoryCommandInterceptor = null,
+    bool enableWorkspaceSelfService = false)
     : WebApplicationFactory<ApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -74,6 +78,15 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Auth:RefreshTokens:Pepper", RefreshTokenPepper);
         builder.UseSetting("Auth:SelfRegistration:PasswordEnabled", "true");
         builder.UseSetting("Auth:SelfRegistration:ExternalEnabled", "true");
+        if (enableWorkspaceSelfService)
+        {
+            builder.UseSetting("Organizations:SelfServiceCreationEnabled", "true");
+            builder.UseSetting("BunkFy:WorkspaceAdmission:AccountRegistration", "Public");
+            builder.UseSetting("BunkFy:WorkspaceAdmission:WorkspaceCreation", "SelfService");
+            builder.UseSetting("BunkFy:WorkspaceAdmission:RequireVerifiedEmailForWorkspaceCreation", "true");
+            builder.UseSetting("Http:RateLimiting:GlobalPermitLimit", "1000");
+            builder.UseSetting("Http:RateLimiting:SensitivePermitLimit", "1000");
+        }
 
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
@@ -104,6 +117,16 @@ internal sealed class AuthTestApplication(
                 ["FileManagement:AllowedContentTypes:0"] = "application/json",
                 ["FileManagement:AllowedContentTypes:1"] = "message/rfc822",
             };
+
+            if (enableWorkspaceSelfService)
+            {
+                values["Organizations:SelfServiceCreationEnabled"] = "true";
+                values["BunkFy:WorkspaceAdmission:AccountRegistration"] = "Public";
+                values["BunkFy:WorkspaceAdmission:WorkspaceCreation"] = "SelfService";
+                values["BunkFy:WorkspaceAdmission:RequireVerifiedEmailForWorkspaceCreation"] = "true";
+                values["Http:RateLimiting:GlobalPermitLimit"] = "1000";
+                values["Http:RateLimiting:SensitivePermitLimit"] = "1000";
+            }
 
             configuration.AddInMemoryCollection(values);
         });
@@ -204,6 +227,14 @@ internal sealed class AuthTestApplication(
         await scope.ServiceProvider.GetRequiredService<StaffDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateWorkspaceOnboardingDatabaseAsync()
+    {
+        await this.MigrateStaffAuthorizationDatabaseAsync().ConfigureAwait(false);
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<NotificationsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
     }
 
@@ -378,6 +409,39 @@ internal sealed class AuthTestApplication(
         return await this.CountProcessedOutboxMessagesAsync().ConfigureAwait(false);
     }
 
+    public async Task<string> WaitForEmailVerificationCodeAsync(Guid memberId, TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string memberIdText = memberId.ToString("D");
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using IServiceScope scope = this.Services.CreateScope();
+            AuthDbContext dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            string? payload = await dbContext.OutboxMessages
+                .AsNoTracking()
+                .Where(message =>
+                    message.EventType == typeof(MemberEmailVerificationRequestedIntegrationEvent).FullName &&
+                    message.Payload.Contains(memberIdText))
+                .OrderByDescending(message => message.CreatedAtUtc)
+                .Select(message => message.Payload)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+            if (payload is not null)
+            {
+                using JsonDocument document = JsonDocument.Parse(payload);
+                if (TryGetString(document.RootElement, "verificationCode", out string? code))
+                {
+                    return code!;
+                }
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+        }
+
+        throw new TimeoutException($"Auth did not publish an email verification code for member {memberId:D}.");
+    }
+
     public async Task<OutboxSnapshot> GetOutboxSnapshotAsync(Guid id)
     {
         using IServiceScope scope = this.Services.CreateScope();
@@ -406,5 +470,21 @@ internal sealed class AuthTestApplication(
         public bool IsEnabled => false;
         public string? ScopeId => null;
         public bool TryRestoreScope(string? scopeId) => true;
+    }
+
+    private static bool TryGetString(JsonElement element, string propertyName, out string? value)
+    {
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase) &&
+                property.Value.ValueKind == JsonValueKind.String)
+            {
+                value = property.Value.GetString();
+                return !string.IsNullOrWhiteSpace(value);
+            }
+        }
+
+        value = null;
+        return false;
     }
 }

@@ -32,6 +32,7 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IPropertiesReadRepository, PropertiesReadRepository>();
         builder.Services.TryAddScoped<IPropertiesTopologyProjectionExportSource, PropertiesTopologyProjectionExportSource>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, PropertiesUnitOfWork>());
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IInboxStore, PropertiesInboxStore>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxWriter, PropertiesOutboxWriter>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxStore, PropertiesOutboxStore>());
 

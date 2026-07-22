@@ -21,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Application;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Inventory.Application;
 using BunkFy.Modules.Inventory.Contracts;
@@ -196,6 +197,7 @@ public static class WorkerHostBuilderExtensions
         if (workerOptions.Modules.Properties)
         {
             builder.SelectModuleProfile(PropertiesProfiles.Default, "BunkFy.Host.Worker/Properties");
+            builder.Services.AddPropertiesApplication();
             builder.AddPropertiesPersistence();
         }
 

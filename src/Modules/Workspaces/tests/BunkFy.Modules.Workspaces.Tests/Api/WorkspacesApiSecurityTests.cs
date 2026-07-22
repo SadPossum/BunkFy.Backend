@@ -28,6 +28,7 @@ public sealed class WorkspacesApiSecurityTests
         builder.Services.AddSingleton<IWorkspaceStaffJoinSourceIssuer>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceStaffJoinSourceManager>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceStaffJoinSourceReplacementManager>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceStaffOnboardingSubmitter>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceAccessProfileManager>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceMemberAccessManager>(_ => null!);
         builder.Services.AddSingleton<IScopeContextAccessor>(_ => null!);
@@ -90,6 +91,7 @@ public sealed class WorkspacesApiSecurityTests
         builder.Services.AddSingleton<IWorkspaceStaffJoinSourceIssuer>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceStaffJoinSourceManager>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceStaffJoinSourceReplacementManager>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceStaffOnboardingSubmitter>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceAccessProfileManager>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceMemberAccessManager>(_ => null!);
         builder.Services.AddSingleton<IScopeContextAccessor>(_ => null!);

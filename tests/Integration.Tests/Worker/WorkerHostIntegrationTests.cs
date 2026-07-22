@@ -74,6 +74,12 @@ public sealed class WorkerHostIntegrationTests
         Assert.Contains(
             worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>().Subscriptions,
             subscription => subscription.ConsumerModule == InventoryModuleMetadata.Name);
+        Assert.Contains(
+            worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>().Subscriptions,
+            subscription =>
+                subscription.ConsumerModule == PropertiesModuleMetadata.Name &&
+                subscription.HandlerName ==
+                    PropertiesModuleMetadata.BedRetirementFinalizationHandlerName);
     }
 
     [Fact]

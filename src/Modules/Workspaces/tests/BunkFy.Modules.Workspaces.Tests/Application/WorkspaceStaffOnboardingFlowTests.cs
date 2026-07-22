@@ -8,6 +8,8 @@ using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
+using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -17,6 +19,7 @@ using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -108,10 +111,10 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             new FakeStaffProvisioner(),
             new FakeAccessControl(),
             tokens);
-        ICommandHandler<SubmitWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto> handler =
-            provider.GetRequiredService<ICommandHandler<SubmitWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto>>();
+        IWorkspaceStaffOnboardingSubmitter submitter = provider
+            .GetRequiredService<IWorkspaceStaffOnboardingSubmitter>();
 
-        Result<WorkspaceStaffOnboardingDto> result = await handler.HandleAsync(
+        Result<WorkspaceStaffOnboardingDto> result = await submitter.SubmitAsync(
             new SubmitWorkspaceStaffOnboardingCommand(
                 WorkspaceStaffOnboardingSourceKind.EnrollmentLink,
                 "secret-token",
@@ -199,7 +202,12 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         FakeJoinTokenInspector? tokens = null,
         FakeContactReader? contacts = null)
     {
-        ServiceCollection services = new();
+        HostApplicationBuilder builder = new(new HostApplicationBuilderSettings
+        {
+            DisableDefaults = true
+        });
+        builder.AddCqrsInfrastructure();
+        IServiceCollection services = builder.Services;
         FakeAccessProfiles profiles = new();
         FakeJoinTokenInspector tokenInspector = tokens ?? new FakeJoinTokenInspector(
             WorkspaceStaffOnboardingTests.OrganizationId,
@@ -232,8 +240,17 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IScopeContext>(provider => provider.GetRequiredService<IScopeContextAccessor>());
         services.AddSingleton<ISystemClock>(new FakeClock());
         services.AddSingleton<IIdGenerator>(new FakeIdGenerator());
+        services.AddSingleton<IUnitOfWork>(new TestUnitOfWork());
         services.AddWorkspacesApplication("global");
         return services.BuildServiceProvider();
+    }
+
+    private sealed class TestUnitOfWork : IUnitOfWork
+    {
+        public string ModuleName => WorkspacesModuleMetadata.Name;
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private static WorkspaceStaffAccessPlan CreateActivePlan(

@@ -32,7 +32,7 @@ internal static class WorkspaceStaffOnboardingEndpoints
             SubmitWorkspaceStaffOnboardingRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjects,
-            IRequestDispatcher dispatcher,
+            IWorkspaceStaffOnboardingSubmitter submitter,
             CancellationToken token) =>
         {
             WorkspacesApiEndpointSupport.SetNoStore(context);
@@ -42,7 +42,7 @@ internal static class WorkspaceStaffOnboardingEndpoints
                 return Results.Unauthorized();
             }
 
-            return (await dispatcher.SendAsync(
+            return (await submitter.SubmitAsync(
                 new SubmitWorkspaceStaffOnboardingCommand(
                     request.SourceKind,
                     request.Token,

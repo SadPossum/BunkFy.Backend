@@ -1,10 +1,15 @@
 namespace BunkFy.Modules.Workspaces.Application;
 
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Ingestion.Contracts;
+using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Tasks;
 using BunkFy.Modules.Workspaces.Contracts;
+using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
 using Gma.Framework.ProjectionRebuild.Tasks;
@@ -24,7 +29,13 @@ public static class DependencyInjection
 
         services.Configure<WorkspaceStaffOnboardingOptions>(
             options => options.GlobalAuthScopeId = globalAuthScopeId.Trim());
+        AddDelegatedPermissionPolicies(services);
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
+        services.TryAddScoped<IWorkspaceAuthoritativeScope, WorkspaceAuthoritativeScope>();
+        services.TryAddScoped<WorkspaceStaffJoinTokenAuthorityResolver>();
+        services.TryAddScoped<
+            IWorkspaceStaffOnboardingSubmitter,
+            WorkspaceStaffOnboardingSubmitter>();
         services.TryAddScoped<WorkspaceStaffOnboardingProcessor>();
         services.TryAddScoped<WorkspaceStaffAccessPlanPolicy>();
         services.TryAddScoped<
@@ -95,6 +106,16 @@ public static class DependencyInjection
             WorkspacesModuleMetadata.Name,
             PropertiesModuleMetadata.Name);
         return services;
+    }
+
+    private static void AddDelegatedPermissionPolicies(IServiceCollection services)
+    {
+        services.AddGmaAccessControlPermissionPolicies(PropertiesModuleMetadata.Descriptor);
+        services.AddGmaAccessControlPermissionPolicies(InventoryModuleMetadata.Descriptor);
+        services.AddGmaAccessControlPermissionPolicies(ReservationsModuleMetadata.Descriptor);
+        services.AddGmaAccessControlPermissionPolicies(GuestsModuleMetadata.Descriptor);
+        services.AddGmaAccessControlPermissionPolicies(StaffModuleMetadata.Descriptor);
+        services.AddGmaAccessControlPermissionPolicies(IngestionModuleMetadata.Descriptor);
     }
 
     public static IServiceCollection AddWorkspacesTaskHandlers(this IServiceCollection services)
