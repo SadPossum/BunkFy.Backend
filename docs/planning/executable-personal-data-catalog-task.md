@@ -144,7 +144,7 @@ block-created event removes an unused free-text reason from durable messaging.
 
 ## Properties Slice
 
-Status: implementation and local production proof complete; exact-commit proof pending
+Status: published; local and exact-commit production proof complete
 
 The Properties catalogue explicitly keeps physical property, room, bed,
 building, floor, label, status, version, lifecycle timestamp, and time-zone
@@ -168,7 +168,7 @@ bundles.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
 4. Continue one module at a time through Inventory and Properties. Operations
    Notifications, Workspaces, Staff, and Inventory are published; Properties is
-   locally production-proven and awaits exact-commit publication proof.
+   also published with local and exact-commit production proof.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -262,8 +262,10 @@ Current Properties evidence:
   integration tests pass. The synchronized build has zero warnings and errors,
   every BunkFy and mounted GMA migration model has zero drift, changed-file
   formatting and whitespace checks pass, and the package audit reports no known
-  vulnerable direct or transitive dependency. Exact-commit Windows, Ubuntu,
-  and Docker evidence remains required before this slice is marked published.
+  vulnerable direct or transitive dependency. Published backend commit
+  `db0cb45ad8c85bbdf86a788a1c1f5dcbf31b551b` passed exact Ubuntu and Windows
+  validation in GitHub Actions run `29908999551`; Docker run `29908999677`
+  also passed.
 
 ## Deferred Dependencies
 

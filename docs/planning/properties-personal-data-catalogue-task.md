@@ -1,6 +1,6 @@
 # Properties Personal-Data Boundary Catalogue Task
 
-Status: implementation and local production proof complete; exact-commit proof pending
+Status: published; local and exact-commit production proof complete
 
 ## Goal
 
@@ -129,8 +129,9 @@ Local production proof is complete:
 - the changed-file formatter and whitespace gates pass; and
 - the direct and transitive package audit reports no known vulnerable packages.
 
-The slice is not published until the exact backend commit passes Windows,
-Ubuntu, and Docker GitHub workflows.
+Published backend commit `db0cb45ad8c85bbdf86a788a1c1f5dcbf31b551b`
+passed exact Ubuntu and Windows validation in GitHub Actions run `29908999551`.
+Docker run `29908999677` also passed.
 
 ## Deferred
 
