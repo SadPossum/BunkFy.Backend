@@ -5,11 +5,35 @@ using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Results;
+using Gma.Modules.AccessControl.Contracts;
 using Microsoft.AspNetCore.Http;
 
 internal static class WorkspacesApiEndpointSupport
 {
     public static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+        new(AccessProfileManagementErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
+        new(ScopedAccessProfileManagementErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
+        new(ScopedAccessProfileManagementErrors.AssignmentRejected.Code, StatusCodes.Status403Forbidden),
+        new(ScopedAccessProfileManagementErrors.PermissionEscalation.Code, StatusCodes.Status403Forbidden),
+        new(ScopedAccessProfileManagementErrors.ScopeInvalid.Code, StatusCodes.Status400BadRequest),
+        new(ScopedAccessProfileManagementErrors.ProfileUnavailable.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.ScopeRequired.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceAccessManagementErrors.PermissionsInvalid.Code, StatusCodes.Status422UnprocessableEntity),
+        new(WorkspaceAccessManagementErrors.PermissionDependencyMissing.Code, StatusCodes.Status422UnprocessableEntity),
+        new(WorkspaceAccessManagementErrors.SeedProfileProtected.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.ProfileAssigned.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.RequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceAccessManagementErrors.RequestConflict.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.MemberInvalid.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceAccessManagementErrors.MemberUnavailable.Code, StatusCodes.Status404NotFound),
+        new(WorkspaceAccessManagementErrors.OwnerProtected.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.ProfileUnavailable.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.PropertiesInvalid.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceAccessManagementErrors.PropertyUnavailable.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.JoinSourceRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceAccessManagementErrors.JoinSourceManagementFailed.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceAccessManagementErrors.JoinSourcePlanUnavailable.Code, StatusCodes.Status404NotFound),
+        new(WorkspaceAccessManagementErrors.JoinSourceReplacementUnavailable.Code, StatusCodes.Status409Conflict),
         new(WorkspaceStaffOnboardingApplicationErrors.ScopeRequired.Code, StatusCodes.Status400BadRequest),
         new(WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired.Code, StatusCodes.Status403Forbidden),
         new(WorkspaceStaffOnboardingApplicationErrors.JoinTokenInvalid.Code, StatusCodes.Status404NotFound),

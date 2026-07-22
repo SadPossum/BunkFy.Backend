@@ -13,6 +13,24 @@ internal sealed class WorkspaceStaffAccessPlanRepository(WorkspacesDbContext dbC
         .Include(plan => plan.Properties)
         .SingleOrDefaultAsync(plan => plan.Id == sourceId, cancellationToken);
 
+    public async Task<IReadOnlyDictionary<Guid, WorkspaceStaffAccessPlan>> GetManyAsync(
+        IReadOnlyCollection<Guid> sourceIds,
+        CancellationToken cancellationToken)
+    {
+        Guid[] ids = sourceIds.Distinct().ToArray();
+        if (ids.Length == 0)
+        {
+            return new Dictionary<Guid, WorkspaceStaffAccessPlan>();
+        }
+
+        return await dbContext.StaffAccessPlans
+            .AsNoTracking()
+            .Include(plan => plan.Properties)
+            .Where(plan => ids.Contains(plan.Id))
+            .ToDictionaryAsync(plan => plan.Id, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public Task AddAsync(
         WorkspaceStaffAccessPlan plan,
         CancellationToken cancellationToken)

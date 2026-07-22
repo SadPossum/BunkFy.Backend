@@ -283,6 +283,14 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             CancellationToken cancellationToken) =>
             Task.FromResult(this.plans.SingleOrDefault(plan => plan.Id == sourceId));
 
+        public Task<IReadOnlyDictionary<Guid, WorkspaceStaffAccessPlan>> GetManyAsync(
+            IReadOnlyCollection<Guid> sourceIds,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyDictionary<
+                Guid,
+                WorkspaceStaffAccessPlan>>(this.plans
+                    .Where(plan => sourceIds.Contains(plan.Id))
+                    .ToDictionary(plan => plan.Id));
+
         public Task AddAsync(
             WorkspaceStaffAccessPlan plan,
             CancellationToken cancellationToken)

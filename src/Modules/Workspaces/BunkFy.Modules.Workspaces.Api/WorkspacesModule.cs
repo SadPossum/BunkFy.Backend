@@ -22,6 +22,9 @@ public sealed class WorkspacesModule : IModule
         builder.AddWorkspacesPersistence();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder endpoints) =>
+    public void MapEndpoints(IEndpointRouteBuilder endpoints)
+    {
+        WorkspaceAccessManagementEndpoints.Map(endpoints, this.Name);
         WorkspaceStaffOnboardingEndpoints.Map(endpoints, this.Name);
+    }
 }

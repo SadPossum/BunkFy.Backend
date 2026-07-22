@@ -117,6 +117,142 @@ internal static class WorkspaceStaffOnboardingEndpoints
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .Produces<WorkspaceStaffJoinSourceIssuanceDto>(StatusCodes.Status200OK);
 
+        group.MapGet("/sources", async (
+            WorkspaceStaffOnboardingSourceKind sourceKind,
+            int? page,
+            int? pageSize,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IWorkspaceStaffJoinSourceManager manager,
+            CancellationToken token) =>
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            AccessSubject? subject = WorkspacesApiEndpointSupport.ResolveUser(context, subjects);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await manager.ListAsync(
+                sourceKind,
+                page ?? PageRequest.DefaultPage,
+                pageSize ?? PageRequest.DefaultPageSize,
+                subject.Id,
+                token).ConfigureAwait(false)).ToHttpResult(
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .Produces<WorkspaceStaffJoinSourceListResponse>(StatusCodes.Status200OK);
+
+        group.MapPost("/sources/invitations/{sourceId:guid}/revoke", async (
+            Guid sourceId,
+            ManageWorkspaceJoinSourceRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IWorkspaceStaffJoinSourceManager manager,
+            CancellationToken token) =>
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            AccessSubject? subject = WorkspacesApiEndpointSupport.ResolveUser(context, subjects);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await manager.RevokeInvitationAsync(
+                sourceId,
+                request.ExpectedVersion,
+                subject.Id,
+                token).ConfigureAwait(false)).ToHttpResult(
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .Produces<WorkspaceStaffJoinSourceDto>(StatusCodes.Status200OK);
+
+        group.MapPost("/sources/enrollment-links/{sourceId:guid}/disable", async (
+            Guid sourceId,
+            ManageWorkspaceJoinSourceRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IWorkspaceStaffJoinSourceManager manager,
+            CancellationToken token) =>
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            AccessSubject? subject = WorkspacesApiEndpointSupport.ResolveUser(context, subjects);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await manager.DisableEnrollmentLinkAsync(
+                sourceId,
+                request.ExpectedVersion,
+                subject.Id,
+                token).ConfigureAwait(false)).ToHttpResult(
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .Produces<WorkspaceStaffJoinSourceDto>(StatusCodes.Status200OK);
+
+        group.MapPost("/sources/invitations/{sourceId:guid}/replace", async (
+            Guid sourceId,
+            ReplaceWorkspaceJoinSourceRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IWorkspaceStaffJoinSourceReplacementManager manager,
+            CancellationToken token) =>
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            AccessSubject? subject = WorkspacesApiEndpointSupport.ResolveUser(context, subjects);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await manager.ReplaceInvitationAsync(
+                sourceId,
+                request.ReplacementSourceId,
+                request.ExpectedVersion,
+                request.LifetimeHours,
+                subject.Id,
+                token).ConfigureAwait(false)).ToHttpResult(
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .Produces<WorkspaceStaffJoinSourceReplacementDto>(StatusCodes.Status200OK);
+
+        group.MapPost("/sources/enrollment-links/{sourceId:guid}/replace", async (
+            Guid sourceId,
+            ReplaceWorkspaceJoinSourceRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IWorkspaceStaffJoinSourceReplacementManager manager,
+            CancellationToken token) =>
+        {
+            WorkspacesApiEndpointSupport.SetNoStore(context);
+            AccessSubject? subject = WorkspacesApiEndpointSupport.ResolveUser(context, subjects);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await manager.ReplaceEnrollmentLinkAsync(
+                sourceId,
+                request.ReplacementSourceId,
+                request.ExpectedVersion,
+                request.LifetimeHours,
+                subject.Id,
+                token).ConfigureAwait(false)).ToHttpResult(
+                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .Produces<WorkspaceStaffJoinSourceReplacementDto>(StatusCodes.Status200OK);
+
         group.MapGet("/{organizationId:guid}/applications/current", async (
             Guid organizationId,
             WorkspaceStaffOnboardingSourceKind sourceKind,

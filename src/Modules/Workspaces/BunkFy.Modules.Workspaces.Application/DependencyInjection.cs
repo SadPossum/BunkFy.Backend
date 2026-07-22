@@ -30,6 +30,18 @@ public static class DependencyInjection
         services.TryAddScoped<
             IWorkspaceStaffJoinSourceIssuer,
             WorkspaceStaffJoinSourceIssuer>();
+        services.TryAddScoped<
+            IWorkspaceStaffJoinSourceManager,
+            WorkspaceStaffJoinSourceManager>();
+        services.TryAddScoped<
+            IWorkspaceStaffJoinSourceReplacementManager,
+            WorkspaceStaffJoinSourceReplacementManager>();
+        services.TryAddScoped<
+            IWorkspaceAccessProfileManager,
+            WorkspaceAccessProfileManager>();
+        services.TryAddScoped<
+            IWorkspaceMemberAccessManager,
+            WorkspaceMemberAccessManager>();
         services.TryAddScoped<WorkspaceAccessProvisioner>();
         services.TryAddScoped<WorkspaceStaffAccessDenier>();
         services.TryAddScoped<WorkspaceStaffAccessRestorer>();

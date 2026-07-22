@@ -8,6 +8,10 @@ public interface IWorkspaceStaffAccessPlanRepository
         Guid sourceId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyDictionary<Guid, WorkspaceStaffAccessPlan>> GetManyAsync(
+        IReadOnlyCollection<Guid> sourceIds,
+        CancellationToken cancellationToken);
+
     Task AddAsync(
         WorkspaceStaffAccessPlan plan,
         CancellationToken cancellationToken);

@@ -1,0 +1,57 @@
+# Workspace Access Management Facade Task
+
+Status: backend implemented; operator UX pending
+Date: 2026-07-22
+
+## Goal
+
+Give workspace owners one BunkFy API for operational access profiles, member assignments, and Staff join sources without exposing GMA module administration APIs or leaking BunkFy policy into reusable modules.
+
+## Ownership
+
+- GMA AccessControl owns generic profile state, optimistic versions, allowed permission registration, assignment history, anti-escalation, and exact-scope reconciliation.
+- GMA Organizations owns invitation and enrollment-link secrets, lifecycle, owner authorization, expiry, claim limits, and membership governance.
+- BunkFy Workspaces owns product role names, permission labels and dependencies, protected seeds, delegable permission policy, property plans, join-source summaries, and operator workflows.
+- Staff remains the employment authority. The facade may correlate existing public contracts but does not copy Staff profile state into Workspaces.
+
+## Invariants
+
+- The ambient workspace scope is authoritative. Route or body organization ids cannot select another tenant.
+- The authenticated subject is resolved on the server and passed to every generic management contract.
+- The product permission catalogue is the intersection of active GMA permissions and BunkFy's explicit delegable allowlist.
+- Profile writes reject unknown, non-delegable, or dependency-incomplete permission sets before dispatch.
+- Seed profile keys remain present and identifiable. Owners may tune their permissions, but cannot archive them through the product facade.
+- Assignment replacement is exact-scope and anti-escalating. The target must remain an ordinary member of the same workspace; owner governance access is never edited through this flow.
+- Join-source list responses contain lifecycle facts and sanitized BunkFy plan summaries, never token digests or plaintext secrets.
+- Revocation and replacement are deny-first. A replacement source is minted only after the previous source is denied or confirmed unusable, and uses a caller-supplied idempotency id through the existing issuance facade.
+- Plaintext join tokens are returned only by the successful creation call. Exact retries never mint another source and never replay the token; a lost token requires an explicit new replacement.
+- Organizations governance remains owner-only in this slice. Operational custom profiles do not silently grant invitation approval or ownership powers.
+
+## Delivery
+
+1. Add product DTOs and a grouped permission catalogue with labels, descriptions, risk hints, and dependencies.
+2. Add a Contracts-only Workspaces application facade for profile list/create/update/archive and exact member assignment reads/reconciliation.
+3. Add paged invitation/enrollment list, revoke/disable, and deny-first replacement operations composed from Organizations Contracts and Workspaces plans.
+4. Expose tenant-required BunkFy endpoints with server-derived actor and stable product error mapping.
+5. Generate OpenAPI contracts and replace raw Organizations/AccessControl usage in Workspace settings.
+6. Add owner-facing profile, assignment, invitation, QR, revoke, and replacement UX with mobile coverage.
+
+## Verification
+
+- two workspaces can use the same profile display name without cross-scope reads or writes;
+- a non-owner and an owner from another workspace are denied;
+- profile permissions cannot exceed the product catalogue or omit required dependencies;
+- protected seeds cannot be archived and assigned profiles obey generic concurrency checks;
+- member reconciliation cannot target owners, removed members, services, or another workspace;
+- list operations batch Workspaces plan reads and remain bounded by page size;
+- revoked/disabled sources cannot be replaced before denial succeeds;
+- retries cannot mint duplicate replacement sources or replay a previously returned one-time token;
+- unit, architecture, PostgreSQL, OpenAPI, web, and multi-account browser workflows pass.
+
+## Backend Checkpoint
+
+- BunkFy exposes product permission catalogue, profile lifecycle, exact member assignments, and paged join-source management without exposing raw GMA administration APIs.
+- Invitation and enrollment-link replacement reuses the source's BunkFy access plan, denies first, and resumes safely after a completed denial by using a caller-supplied replacement id.
+- GMA Organizations adds only owner-authorized exact source lookups; replacement policy and access-plan composition remain in BunkFy.
+- Focused Workspaces tests cover permission metadata, deny-before-inspect behavior, owner protection, exact assignment reconciliation, batched plan reads, replacement ordering, retry behavior, and one-time token semantics.
+- Remaining work in this task is generated-contract publication plus the owner-facing Workspace settings UX and multi-account browser proof.

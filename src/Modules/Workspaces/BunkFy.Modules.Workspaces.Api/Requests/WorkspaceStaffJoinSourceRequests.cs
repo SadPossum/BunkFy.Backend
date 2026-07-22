@@ -16,3 +16,10 @@ public sealed record IssueWorkspaceEnrollmentLinkRequest(
     OrganizationEnrollmentApprovalMode ApprovalMode,
     string ProfileKey,
     IReadOnlyCollection<Guid>? PropertyIds);
+
+public sealed record ManageWorkspaceJoinSourceRequest(long ExpectedVersion);
+
+public sealed record ReplaceWorkspaceJoinSourceRequest(
+    Guid ReplacementSourceId,
+    long ExpectedVersion,
+    int LifetimeHours);
