@@ -65,9 +65,8 @@ internal sealed class WorkspaceStaffAccessRestorer(
         {
             process.RecordFailure("Workspaces.StaffAccessRestoreFailed", clock.UtcNow);
             logger.LogWarning(
-                exception,
-                "Workspace staff access process {ProcessId} could not restore access.",
-                process.Id);
+                "A workspace Staff access process could not restore access because {ExceptionType} was raised.",
+                exception.GetType().Name);
             return WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
         }
     }

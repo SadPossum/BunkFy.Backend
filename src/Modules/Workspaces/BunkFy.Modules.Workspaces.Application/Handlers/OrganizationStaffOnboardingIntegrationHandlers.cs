@@ -69,8 +69,7 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
         if (result.IsFailure)
         {
             logger.LogWarning(
-                "Staff onboarding {ApplicationId} remains recoverable after {ErrorCode}.",
-                application.Id,
+                "Staff onboarding remains recoverable after {ErrorCode}.",
                 result.Error.Code);
         }
     }
@@ -95,9 +94,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
             cancellationToken).ConfigureAwait(false);
         if (application is null)
         {
-            logger.LogWarning(
-                "Organization enrollment claim {ClaimId} had no BunkFy Staff onboarding application.",
-                integrationEvent.ClaimId);
+            logger.LogWarning("An organization enrollment claim had no BunkFy Staff onboarding application.");
             return;
         }
 
@@ -135,8 +132,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
             if (processed.IsFailure)
             {
                 logger.LogWarning(
-                    "Staff onboarding {ApplicationId} remains recoverable after {ErrorCode}.",
-                    application.Id,
+                    "Staff onboarding remains recoverable after {ErrorCode}.",
                     processed.Error.Code);
             }
         }

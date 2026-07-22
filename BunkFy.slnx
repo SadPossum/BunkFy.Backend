@@ -65,6 +65,7 @@
     <File Path="docs/planning/json-file-drop-local-retention-task.md" />
     <File Path="docs/planning/json-file-drop-quarantine-task.md" />
     <File Path="docs/planning/operations-notifications-personal-data-catalogue-task.md" />
+    <File Path="docs/planning/personal-data-output-sink-enforcement-task.md" />
     <File Path="docs/planning/pre-module-readiness.md" />
     <File Path="docs/planning/product-domain-map.md" />
     <File Path="docs/planning/production-authentication-admission-task.md" />

@@ -95,8 +95,7 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
                     WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed.Code;
                 application.Fail(failureCode, clock.UtcNow);
                 logger.LogWarning(
-                    "Staff onboarding {ApplicationId} could not provision Staff: {ErrorCode}.",
-                    application.Id,
+                    "Staff onboarding could not provision Staff: {ErrorCode}.",
                     failureCode);
                 return Result.Failure(WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed);
             }
@@ -130,8 +129,7 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
                 WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed.Code;
             application.Fail(failureCode, clock.UtcNow);
             logger.LogWarning(
-                "Staff onboarding {ApplicationId} could not reconcile properties: {ErrorCode}.",
-                application.Id,
+                "Staff onboarding could not reconcile properties: {ErrorCode}.",
                 failureCode);
             return Result.Failure(WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed);
         }
@@ -150,9 +148,8 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
         {
             application.Fail("Workspaces.AccessProvisioningFailed", clock.UtcNow);
             logger.LogWarning(
-                exception,
-                "Staff onboarding {ApplicationId} could not provision workspace access.",
-                application.Id);
+                "Staff onboarding could not provision workspace access because {ExceptionType} was raised.",
+                exception.GetType().Name);
             return Result.Failure(WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed);
         }
 

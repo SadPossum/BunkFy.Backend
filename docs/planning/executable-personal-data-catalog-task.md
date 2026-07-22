@@ -269,6 +269,8 @@ Current Properties evidence:
 
 ## Deferred Dependencies
 
+- The product-wide log, trace, metric, notification, and support-diagnostic
+  boundary is implemented by [Personal-Data Output Sink Enforcement](personal-data-output-sink-enforcement-task.md).
 - Founder/counsel approval of controller/processor allocation, field purposes, legal bases, retention periods, country rules, and rights exceptions.
 - SP-002 rights orchestration across modules and deletion ledger.
 - SP-003 automatic retention provisioning, monitoring, legal holds, and backup consequences.

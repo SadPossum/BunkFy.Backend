@@ -64,9 +64,8 @@ internal sealed class WorkspaceStaffAccessDenier(
         {
             process.RecordFailure("Workspaces.StaffAccessDenialFailed", clock.UtcNow);
             logger.LogWarning(
-                exception,
-                "Workspace staff access process {ProcessId} could not deny access.",
-                process.Id);
+                "A workspace Staff access process could not deny access because {ExceptionType} was raised.",
+                exception.GetType().Name);
             return WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
         }
     }

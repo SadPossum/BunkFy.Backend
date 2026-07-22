@@ -28,8 +28,7 @@ internal sealed class WorkspaceStaffLifecyclePolicy(
             if (prepared.IsFailure)
             {
                 logger.LogWarning(
-                    "Workspace access preparation rejected Staff transition {TransitionId} with {ErrorCode}.",
-                    context.TransitionId,
+                    "Workspace access preparation rejected a Staff transition with {ErrorCode}.",
                     prepared.Error.Code);
                 return StaffLifecyclePolicyDecision.RetryRequired;
             }
@@ -45,17 +44,14 @@ internal sealed class WorkspaceStaffLifecyclePolicy(
             if (denied.IsFailure)
             {
                 logger.LogWarning(
-                    "Workspace access denial rejected Staff transition {TransitionId} with {ErrorCode}.",
-                    context.TransitionId,
+                    "Workspace access denial rejected a Staff transition with {ErrorCode}.",
                     denied.Error.Code);
                 return StaffLifecyclePolicyDecision.RetryRequired;
             }
 
             if (denied.Value == WorkspaceStaffAccessCoordinationOutcome.RetryRequired)
             {
-                logger.LogWarning(
-                    "Workspace access denial for Staff transition {TransitionId} requires retry.",
-                    context.TransitionId);
+                logger.LogWarning("Workspace access denial for a Staff transition requires retry.");
             }
 
             return denied.Value switch
@@ -69,9 +65,8 @@ internal sealed class WorkspaceStaffLifecyclePolicy(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogWarning(
-                exception,
-                "Workspace access could not prepare Staff transition {TransitionId}.",
-                context.TransitionId);
+                "Workspace access could not prepare a Staff transition because {ExceptionType} was raised.",
+                exception.GetType().Name);
             return StaffLifecyclePolicyDecision.RetryRequired;
         }
     }

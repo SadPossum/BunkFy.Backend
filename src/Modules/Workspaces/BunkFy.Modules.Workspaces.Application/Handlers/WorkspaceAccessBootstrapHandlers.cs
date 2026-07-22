@@ -33,7 +33,9 @@ internal sealed class BootstrapWorkspaceAccessCommandHandler(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger.LogError(exception, "Workspace access bootstrap failed.");
+            logger.LogError(
+                "Workspace access bootstrap failed because {ExceptionType} was raised.",
+                exception.GetType().Name);
             return Result.Failure<WorkspaceAccessBootstrapResult>(
                 WorkspaceAccessApplicationErrors.BootstrapFailed);
         }

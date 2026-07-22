@@ -62,9 +62,10 @@ public static class Extensions
             })
             .WithTracing(tracing =>
             {
-                tracing.AddAspNetCoreInstrumentation();
-                tracing.AddHttpClientInstrumentation();
+                tracing.AddAspNetCoreInstrumentation(options => options.RecordException = false);
+                tracing.AddHttpClientInstrumentation(options => options.RecordException = false);
                 tracing.AddSource($"{applicationNamespace}.*");
+                tracing.AddProcessor(new PrivacyPreservingActivityProcessor());
 
                 if (observability.Otlp.Enabled && observability.Otlp.ExportTraces)
                 {
@@ -74,15 +75,18 @@ public static class Extensions
 
         builder.Logging.AddOpenTelemetry(logging =>
         {
-            logging.IncludeFormattedMessage = true;
-            logging.IncludeScopes = true;
+            logging.IncludeFormattedMessage = false;
+            logging.IncludeScopes = false;
             logging.ParseStateValues = true;
+            logging.AddProcessor(new PrivacyPreservingLogProcessor());
 
             if (observability.Otlp.Enabled && observability.Otlp.ExportLogs)
             {
                 logging.AddOtlpExporter(exporter => ConfigureOtlpExporter(exporter, observability.Otlp));
             }
         });
+        builder.Logging.AddFilter<OpenTelemetryLoggerProvider>(static (category, _) =>
+            IsApplicationLogCategory(category));
 
         return builder;
     }
@@ -151,6 +155,10 @@ public static class Extensions
                 ]);
         }
     }
+
+    private static bool IsApplicationLogCategory(string? category) =>
+        category?.StartsWith("BunkFy.", StringComparison.Ordinal) == true
+        || category?.StartsWith("Gma.", StringComparison.Ordinal) == true;
 
     private sealed class ServiceDefaultsRegistrationMarker;
 }
