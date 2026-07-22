@@ -87,6 +87,25 @@ public sealed class PropertyAggregateTests
             property.Retire(property.Version, Guid.NewGuid(), DateTimeOffset.UtcNow).Error);
     }
 
+    [Fact]
+    public void Retire_rejects_invalid_actor_without_mutating_the_property()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+        property.ClearDomainEvents();
+
+        Result result = property.Retire(
+            property.Version,
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            new string('a', Property.ActorIdMaxLength + 1));
+
+        Assert.Equal(PropertiesDomainErrors.ActorIdInvalid, result.Error);
+        Assert.Equal(PropertyState.Active, property.Status);
+        Assert.Equal(1, property.Version);
+        Assert.Null(property.RetiredAtUtc);
+        Assert.Empty(property.DomainEvents);
+    }
+
     private static Result<Property> CreateProperty(
         string tenantId,
         string name = "Hostel One",

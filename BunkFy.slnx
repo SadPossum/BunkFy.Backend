@@ -71,6 +71,7 @@
     <File Path="docs/planning/production-file-surface-lockdown-task.md" />
     <File Path="docs/planning/properties-follow-up-notes.md" />
     <File Path="docs/planning/properties-module-task.md" />
+    <File Path="docs/planning/properties-personal-data-catalogue-task.md" />
     <File Path="docs/planning/properties-topology-lifecycle-task.md" />
     <File Path="docs/planning/remote-adapter-lease-task.md" />
     <File Path="docs/planning/reservations-module-task.md" />
@@ -559,6 +560,11 @@
   </Folder>
   <Folder Name="/src/Modules/Inventory/tests/">
     <Project Path="src/Modules/Inventory/tests/BunkFy.Modules.Inventory.Tests/BunkFy.Modules.Inventory.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Properties/docs/">
+    <File Path="src/Modules/Properties/docs/README.md" />
+    <File Path="src/Modules/Properties/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/Properties/docs/personal-data-inventory.v1.md" />
   </Folder>
   <Folder Name="/src/Modules/Properties/src/Admin/">
     <Project Path="src/Modules/Properties/BunkFy.Modules.Properties.Admin.Contracts/BunkFy.Modules.Properties.Admin.Contracts.csproj" />

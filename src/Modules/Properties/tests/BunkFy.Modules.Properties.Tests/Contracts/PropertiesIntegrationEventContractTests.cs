@@ -1,9 +1,9 @@
 namespace BunkFy.Modules.Properties.Tests;
 
+using System.Text.Json;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
 using Gma.Framework.Naming;
-using System.Text.Json;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -19,12 +19,41 @@ public sealed class PropertiesIntegrationEventContractTests
     [Fact]
     public void Contract_limits_match_domain_limits()
     {
+        Assert.Equal(Property.ActorIdMaxLength, PropertiesContractLimits.ActorIdMaxLength);
         Assert.Equal(Property.PropertyNameMaxLength, PropertiesContractLimits.PropertyNameMaxLength);
         Assert.Equal(Property.PropertyCodeMaxLength, PropertiesContractLimits.PropertyCodeMaxLength);
         Assert.Equal(Property.TimeZoneIdMaxLength, PropertiesContractLimits.TimeZoneIdMaxLength);
         Assert.Equal(Room.RoomNameMaxLength, PropertiesContractLimits.RoomNameMaxLength);
         Assert.Equal(Room.PhysicalLabelMaxLength, PropertiesContractLimits.PhysicalLabelMaxLength);
         Assert.Equal(Room.BedLabelMaxLength, PropertiesContractLimits.BedLabelMaxLength);
+    }
+
+    [Fact]
+    public void Property_retired_event_bounds_actor_at_the_contract_edge()
+    {
+        PropertyRetiredIntegrationEvent integrationEvent = new(
+            EventId,
+            "tenant-a",
+            OccurredAtUtc,
+            PropertyId,
+            2,
+            $"  {new string('a', PropertiesContractLimits.ActorIdMaxLength)}  ");
+
+        Assert.Equal(PropertiesContractLimits.ActorIdMaxLength, integrationEvent.ActorId!.Length);
+        Assert.Throws<ArgumentException>(() => new PropertyRetiredIntegrationEvent(
+            EventId,
+            "tenant-a",
+            OccurredAtUtc,
+            PropertyId,
+            2,
+            new string('a', PropertiesContractLimits.ActorIdMaxLength + 1)));
+        Assert.Throws<ArgumentException>(() => new PropertyRetiredIntegrationEvent(
+            EventId,
+            "tenant-a",
+            OccurredAtUtc,
+            PropertyId,
+            2,
+            "user:bad\0actor"));
     }
 
     [Fact]

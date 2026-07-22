@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Properties.Domain.Events;
 
+using BunkFy.Modules.Properties.Domain.Aggregates;
 using Gma.Framework.Domain;
 
 public sealed record PropertyRetiredDomainEvent : ScopedDomainEvent
@@ -17,7 +18,9 @@ public sealed record PropertyRetiredDomainEvent : ScopedDomainEvent
         this.PropertyVersion = propertyVersion > 0
             ? propertyVersion
             : throw new ArgumentOutOfRangeException(nameof(propertyVersion));
-        this.ActorId = string.IsNullOrWhiteSpace(actorId) ? null : actorId.Trim();
+        this.ActorId = string.IsNullOrWhiteSpace(actorId)
+            ? null
+            : DomainEventGuards.NormalizeRequiredText(actorId, Property.ActorIdMaxLength, nameof(actorId));
     }
 
     public Guid PropertyId { get; }

@@ -33,8 +33,11 @@ public sealed record PropertyRetiredIntegrationEvent : TenantIntegrationEvent
     private static string? OptionalActor(string? value)
     {
         string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        return normalized is null || normalized.Length <= 200
-            ? normalized
-            : throw new ArgumentException("Actor id is invalid.", nameof(value));
+        return normalized is null
+            ? null
+            : IntegrationEventContractGuards.NormalizeRequiredText(
+                normalized,
+                PropertiesContractLimits.ActorIdMaxLength,
+                nameof(value));
     }
 }

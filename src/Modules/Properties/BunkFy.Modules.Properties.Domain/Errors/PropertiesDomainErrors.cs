@@ -4,6 +4,9 @@ using Gma.Framework.Results;
 
 public static class PropertiesDomainErrors
 {
+    public static readonly Error ActorIdInvalid = new(
+        "Properties.ActorIdInvalid",
+        "The actor id is not valid.");
     public static readonly Error BedRetirementRequiresInventory = new(
         "Properties.BedRetirementRequiresInventory",
         "Bed retirement must be requested through Inventory so active reservations and blocks remain safe.");

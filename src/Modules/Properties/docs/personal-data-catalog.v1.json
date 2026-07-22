@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "properties.personal-data",
+  "catalogVersion": 1,
+  "module": "properties",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "properties-authorization",
+      "scope": "tenant-property-access-evaluation",
+      "readers": [
+        "system:properties-access-resolution"
+      ],
+      "writers": [
+        "system:authenticated-access-context"
+      ]
+    },
+    {
+      "id": "properties-lifecycle-audit",
+      "scope": "tenant-property-lifecycle-audit",
+      "readers": [
+        "permission:properties.properties.manage",
+        "system:authorized-audit-consumer",
+        "system:operations-notifications"
+      ],
+      "writers": [
+        "permission:properties.properties.manage"
+      ]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "integration-message-journal",
+      "approvalState": "engineering-default",
+      "startsAt": "message-created",
+      "endsAt": "message-journal-retention-completed",
+      "legalHoldBehavior": "no-payload-hold"
+    },
+    {
+      "id": "transient-domain-event",
+      "approvalState": "engineering-default",
+      "startsAt": "domain-event-raised",
+      "endsAt": "domain-event-dispatched",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "transient-request",
+      "approvalState": "engineering-default",
+      "startsAt": "request-accepted",
+      "endsAt": "request-completed",
+      "legalHoldBehavior": "not-applicable"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "authorization-subject",
+      "export": "not-retained-by-properties",
+      "correction": "correct-through-authoritative-auth-workflow",
+      "restriction": "deny-property-access-when-subject-access-is-restricted",
+      "erasure": "not-retained-by-properties"
+    },
+    {
+      "id": "staff-audit-attribution",
+      "export": "include-in-authorized-staff-audit-export",
+      "correction": "append-corrective-property-lifecycle-action",
+      "restriction": "retain-minimum-required-audit-and-notification-processing",
+      "erasure": "pseudonymize-subject-when-approved-retention-permits"
+    }
+  ],
+  "fields": [
+    {
+      "id": "properties.authorization-subject-reference",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "authorization-scope-resolution"
+      ],
+      "sources": [
+        "authenticated-access-subject"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "properties-authorization",
+      "countryPolicyKey": "properties.authorization-subject-reference",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "authorization-subject",
+      "allowedSurfaces": [
+        "application-query"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Properties.Application",
+          "type": "BunkFy.Modules.Properties.Application.Queries.ListVisiblePropertiesQuery",
+          "member": "Subject",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "properties.staff-actor-reference",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "property-lifecycle-audit-correlation",
+        "self-notification-suppression"
+      ],
+      "sources": [
+        "authenticated-access-subject"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "properties-lifecycle-audit",
+      "countryPolicyKey": "properties.staff-actor-reference",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "application-command",
+        "domain-event",
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Properties.Application",
+          "type": "BunkFy.Modules.Properties.Application.Commands.RetirePropertyCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Domain",
+          "type": "BunkFy.Modules.Properties.Domain.Events.PropertyRetiredDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Contracts",
+          "type": "BunkFy.Modules.Properties.Contracts.PropertyRetiredIntegrationEvent",
+          "member": "ActorId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        }
+      ]
+    }
+  ]
+}

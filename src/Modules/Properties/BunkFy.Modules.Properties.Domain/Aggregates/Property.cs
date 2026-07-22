@@ -9,6 +9,7 @@ using Gma.Framework.Results;
 
 public sealed class Property : ScopedAggregateRoot<Guid>
 {
+    public const int ActorIdMaxLength = 200;
     public const int PropertyNameMaxLength = 256;
     public const int PropertyCodeMaxLength = 64;
     public const int TimeZoneIdMaxLength = 128;
@@ -165,6 +166,11 @@ public sealed class Property : ScopedAggregateRoot<Guid>
             return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
         }
 
+        if (!TryNormalizeOptionalActor(actorId, out string? normalizedActorId))
+        {
+            return Result.Failure(PropertiesDomainErrors.ActorIdInvalid);
+        }
+
         this.Status = PropertyState.Retired;
         this.RetiredAtUtc = nowUtc;
         this.UpdatedAtUtc = nowUtc;
@@ -175,9 +181,16 @@ public sealed class Property : ScopedAggregateRoot<Guid>
             this.Id,
             this.ScopeId,
             this.Version,
-            actorId));
+            normalizedActorId));
 
         return Result.Success();
+    }
+
+    private static bool TryNormalizeOptionalActor(string? value, out string? normalized)
+    {
+        normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        return normalized is null ||
+               (normalized.Length <= ActorIdMaxLength && !normalized.Any(char.IsControl));
     }
 
     private Result EnsureActive() =>

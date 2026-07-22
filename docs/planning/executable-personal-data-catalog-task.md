@@ -142,6 +142,25 @@ prohibit free-text reasons from broad outputs, exclude pure topology from the
 personal-data catalogue, and prove deterministic rendering. Version 3 of the
 block-created event removes an unused free-text reason from durable messaging.
 
+## Properties Slice
+
+Status: implementation and local production proof complete; exact-commit proof pending
+
+The Properties catalogue explicitly keeps physical property, room, bed,
+building, floor, label, status, version, lifecycle timestamp, and time-zone
+topology outside personal-data classification. It identifies only the
+authenticated access subject used transiently for visible-scope resolution and
+the bounded actor coordinate propagated during property retirement for audit
+correlation and self-notification suppression.
+
+Executable guards discover public and admin requests, application commands and
+queries, API/admin responses, projection exports, domain events, and integration
+events from their owning assemblies. An EF-model scan proves that `Property`,
+`Room`, and owned `Bed` contain no person-linked persistence. Exact binding and
+surface guards prevent the subject or actor coordinates from entering topology,
+responses, exports, notifications, logs, metrics, traces, caches, or support
+bundles.
+
 ## Delivery Slices
 
 1. Add the shared catalogue model, strict parser, validator, and focused adversarial tests.
@@ -149,7 +168,7 @@ block-created event removes an unused free-text reason from durable messaging.
 3. Align Reservations with its existing PII-minimisation guard. Completed.
 4. Continue one module at a time through Inventory and Properties. Operations
    Notifications, Workspaces, Staff, and Inventory are published; Properties is
-   next.
+   locally production-proven and awaits exact-commit publication proof.
 5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
 6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
 
@@ -230,6 +249,21 @@ Current Inventory evidence:
 - Published backend commit `c7db6b2e633e88442bad124c6c1f17b20589a2cd`
   passed exact Windows and Ubuntu validation in GitHub Actions run
   `29904293750`; Docker run `29904293838` also passed.
+
+Current Properties evidence:
+
+- Two field definitions resolve four concrete bindings: the transient
+  authorization subject and the property-retirement actor coordinate.
+- Assembly-discovered boundary guards, EF topology inspection, exact binding and
+  prohibited-surface checks, deterministic rendering, and actor length/control
+  guards pass.
+- All 54 focused Properties tests, all 21 Operations Notifications tests, all
+  58 architecture tests, all 2,343 non-Docker tests, and all 33 Docker
+  integration tests pass. The synchronized build has zero warnings and errors,
+  every BunkFy and mounted GMA migration model has zero drift, changed-file
+  formatting and whitespace checks pass, and the package audit reports no known
+  vulnerable direct or transitive dependency. Exact-commit Windows, Ubuntu,
+  and Docker evidence remains required before this slice is marked published.
 
 ## Deferred Dependencies
 

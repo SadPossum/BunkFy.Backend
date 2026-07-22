@@ -5,7 +5,7 @@ Date: 2026-07-09
 
 Build `Properties` as the first real BunkFy product module. Keep the slice focused on the physical accommodation model that later modules can project from.
 
-The foundation, policy integration, topology lifecycle, producer contracts, and product-specific Docker authorization verification described here are complete. Later non-blocking product-model follow-ups remain in [Properties Follow-Up Notes](properties-follow-up-notes.md).
+The foundation, policy integration, topology lifecycle, producer contracts, and product-specific Docker authorization verification described here are complete. The executable privacy boundary is tracked in [Properties Personal-Data Boundary Catalogue Task](properties-personal-data-catalogue-task.md). Later non-blocking product-model follow-ups remain in [Properties Follow-Up Notes](properties-follow-up-notes.md).
 
 ## Goal
 

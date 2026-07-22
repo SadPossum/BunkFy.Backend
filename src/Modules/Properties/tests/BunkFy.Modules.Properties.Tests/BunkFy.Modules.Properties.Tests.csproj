@@ -4,7 +4,9 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
@@ -13,17 +15,29 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\BunkFy.Modules.Properties.AdminApi\BunkFy.Modules.Properties.AdminApi.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Properties.Api\BunkFy.Modules.Properties.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Properties.Application\BunkFy.Modules.Properties.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Properties.Domain\BunkFy.Modules.Properties.Domain.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Properties.Persistence\BunkFy.Modules.Properties.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Application\Gma.Framework.Application.Events\Gma.Framework.Application.Events.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs\Gma.Framework.Cqrs.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Messaging\Gma.Framework.Messaging\Gma.Framework.Messaging.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Modules\Gma.Framework.ModuleComposition\Gma.Framework.ModuleComposition.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Results\Gma.Framework.Results\Gma.Framework.Results.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Scoping\Gma.Framework.Scoping\Gma.Framework.Scoping.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.AccessControl\Gma.Framework.AccessControl.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.Permissions\Gma.Framework.Permissions.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tenancy\Gma.Framework.Tenancy\Gma.Framework.Tenancy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\docs\personal-data-catalog.v1.json"
+          Link="DataGovernance\personal-data-catalog.v1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\docs\personal-data-inventory.v1.md"
+          Link="DataGovernance\personal-data-inventory.v1.md"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
