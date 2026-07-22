@@ -11,6 +11,7 @@ using Gma.Modules.AccessControl.Contracts;
 public static class WorkspaceAccessRoles
 {
     public const string Owner = "bunkfy-workspace-owner";
+    public const string Provisioner = "bunkfy-workspace-access-provisioner";
     public const string MembershipMarker = "bunkfy-workspace-member-v2";
     public const string LegacyMember = "bunkfy-workspace-member";
 
@@ -76,4 +77,7 @@ public static class WorkspaceAccessRoles
         IngestionAdminPermissionCodes.LegalHoldsManage,
         IngestionAdminPermissionCodes.ProposalsDecide
     ];
+
+    public static IReadOnlyList<string> ProvisionerPermissions { get; } =
+        DelegablePermissions;
 }

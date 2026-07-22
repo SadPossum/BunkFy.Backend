@@ -1,6 +1,6 @@
 # Workspace Access Management Facade Task
 
-Status: backend implemented; operator UX pending
+Status: backend and owner-facing UX implemented; multi-account proof pending
 Date: 2026-07-22
 
 ## Goal
@@ -48,10 +48,13 @@ Give workspace owners one BunkFy API for operational access profiles, member ass
 - retries cannot mint duplicate replacement sources or replay a previously returned one-time token;
 - unit, architecture, PostgreSQL, OpenAPI, web, and multi-account browser workflows pass.
 
-## Backend Checkpoint
+## Implementation Checkpoint
 
 - BunkFy exposes product permission catalogue, profile lifecycle, exact member assignments, and paged join-source management without exposing raw GMA administration APIs.
 - Invitation and enrollment-link replacement reuses the source's BunkFy access plan, denies first, and resumes safely after a completed denial by using a caller-supplied replacement id.
 - GMA Organizations adds only owner-authorized exact source lookups; replacement policy and access-plan composition remain in BunkFy.
 - Focused Workspaces tests cover permission metadata, deny-before-inspect behavior, owner protection, exact assignment reconciliation, batched plan reads, replacement ordering, retry behavior, and one-time token semantics.
-- Remaining work in this task is generated-contract publication plus the owner-facing Workspace settings UX and multi-account browser proof.
+- Generated contracts and the owner-facing Workspace settings UX now cover protected/custom roles, member assignments, recipient-aware invitations, reusable team QR sources, lifecycle review, revoke, and deny-first replacement.
+- Desktop and 390px mobile preview checks pass. Legacy Organizations invitations without a BunkFy access plan render as lifecycle-only records instead of failing the page.
+- The local preview workspace was bootstrapped to seed version `1` with all four product profiles active, zero legacy assignments, and no remaining backfill.
+- Remaining work in this task is the real owner/applicant multi-account browser proof and deployment-by-deployment activation evidence.

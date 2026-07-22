@@ -1,4 +1,5 @@
 using Gma.Modules.AccessControl.AdminApi;
+using Gma.Modules.AccessControl.Application;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Administration.AdminApi;
 using Gma.Modules.Administration.Persistence;
@@ -24,6 +25,7 @@ using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Ingestion.AdminApi;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Workspaces.AdminApi;
+using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
@@ -68,6 +70,7 @@ builder.Services.AddFakeHttpAdapterDescriptor();
 builder.Services.AddImapReservationMailAdapterDescriptor();
 builder.Services.AddJsonFileDropAdapterDescriptor();
 builder.Services.AddReservationMailParserDescriptor();
+builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);
 
 builder.AddAdminApiModule<AdministrationAdminApiModule>();
 builder.AddAdminApiModule<AccessControlAdminApiModule>();

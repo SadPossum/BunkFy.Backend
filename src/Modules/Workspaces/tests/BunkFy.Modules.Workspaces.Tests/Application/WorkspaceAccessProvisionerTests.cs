@@ -35,6 +35,13 @@ public sealed class WorkspaceAccessProvisionerTests
         Assert.True(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
         Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
         Assert.Empty(roles.Definitions[WorkspaceAccessRoles.MembershipMarker]);
+        Assert.Equal(
+            WorkspaceAccessRoles.ProvisionerPermissions,
+            roles.Definitions[WorkspaceAccessRoles.Provisioner]);
+        Assert.True(roles.Has(
+            AccessSubject.System(WorkspaceAccessActors.Provisioner),
+            WorkspaceAccessRoles.Provisioner,
+            WorkspaceScope));
         AccessProfileDto frontDesk = Assert.Single(
             profiles.Profiles,
             profile => profile.Key == WorkspaceAccessProfileSeeds.FrontDeskKey);
@@ -44,8 +51,12 @@ public sealed class WorkspaceAccessProvisionerTests
         Assert.Equal([custom.Id], profiles.AssignedProfileIds(member, PropertyScope));
 
         int markerAssigned = operations.IndexOf("role:assign:bunkfy-workspace-member-v2:member-a");
+        int provisionerAssigned = operations.IndexOf(
+            "role:assign:bunkfy-workspace-access-provisioner:bunkfy-workspace-access-provisioner");
+        int profileEnsured = operations.IndexOf("profile:ensure:front-desk");
         int reconciled = operations.IndexOf("profile:reconcile:member-a");
         int legacyRemoved = operations.IndexOf("role:remove:bunkfy-workspace-member:member-a");
+        Assert.True(provisionerAssigned >= 0 && provisionerAssigned < profileEnsured);
         Assert.True(markerAssigned >= 0 && markerAssigned < reconciled);
         Assert.True(reconciled < legacyRemoved);
     }

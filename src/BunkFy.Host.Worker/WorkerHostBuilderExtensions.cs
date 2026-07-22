@@ -134,6 +134,7 @@ public static class WorkerHostBuilderExtensions
         if (workerOptions.Modules.AccessControl)
         {
             builder.SelectModuleProfile(AccessControlProfiles.Default, "BunkFy.Host.Worker/AccessControl");
+            builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);
             builder.Services.AddAccessControlApplication(builder.Configuration);
             builder.AddAccessControlPersistence();
         }

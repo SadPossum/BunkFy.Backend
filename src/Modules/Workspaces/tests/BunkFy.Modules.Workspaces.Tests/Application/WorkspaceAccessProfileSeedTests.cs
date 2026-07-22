@@ -14,6 +14,17 @@ public sealed class WorkspaceAccessProfileSeedTests
     }
 
     [Fact]
+    public void Internal_provisioner_has_exactly_the_delegable_product_permissions()
+    {
+        Assert.Equal(
+            WorkspaceAccessRoles.DelegablePermissions,
+            WorkspaceAccessRoles.ProvisionerPermissions);
+        Assert.DoesNotContain(
+            AccessControlPermissionGrants.OwnerWildcard,
+            WorkspaceAccessRoles.ProvisionerPermissions);
+    }
+
+    [Fact]
     public void Seed_profiles_are_unique_delegable_and_never_owner_profiles()
     {
         string[] keys = WorkspaceAccessProfileSeeds.All.Select(profile => profile.Key).ToArray();

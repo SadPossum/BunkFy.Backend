@@ -67,11 +67,32 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.True(first.IsFailure);
         Assert.True(retried.IsSuccess, retried.Error.Code);
         Assert.Equal(1, staff.CallCount);
-        Assert.Equal(2, access.AssignmentCallCount);
+        Assert.Collection(
+            access.AssignmentCalls,
+            call => AssertProvisionerAssignment(call),
+            call => AssertProvisionerAssignment(call),
+            call =>
+            {
+                Assert.Equal(AccessSubject.User(WorkspaceStaffOnboardingTests.SubjectId), call.Subject);
+                Assert.Equal(WorkspaceAccessRoles.MembershipMarker, call.RoleName);
+                Assert.Equal(
+                    WorkspaceAccessScopes.Create(WorkspaceStaffOnboardingTests.OrganizationId.ToString("D")),
+                    call.Scope);
+            });
         Assert.Equal(WorkspaceStaffOnboardingStatus.Completed, retried.Value.Status);
         Assert.Equal(staffMemberId, retried.Value.StaffMemberId);
         Assert.Null(retried.Value.VerifiedAccountEmail);
         Assert.Null(retried.Value.DisplayName);
+    }
+
+    private static void AssertProvisionerAssignment(
+        (AccessSubject Subject, string RoleName, AccessScope Scope) call)
+    {
+        Assert.Equal(AccessSubject.System(WorkspaceAccessActors.Provisioner), call.Subject);
+        Assert.Equal(WorkspaceAccessRoles.Provisioner, call.RoleName);
+        Assert.Equal(
+            WorkspaceAccessScopes.Create(WorkspaceStaffOnboardingTests.OrganizationId.ToString("D")),
+            call.Scope);
     }
 
     [Fact]
@@ -331,7 +352,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
     private sealed class FakeAccessControl : IAccessControlRoleProvisioner
     {
         public bool FailAssignments { get; set; }
-        public int AssignmentCallCount { get; private set; }
+        public List<(AccessSubject Subject, string RoleName, AccessScope Scope)> AssignmentCalls { get; } = [];
+        public int AssignmentCallCount => this.AssignmentCalls.Count;
 
         public Task EnsureRoleAsync(AccessControlRoleDefinition role, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -342,7 +364,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             AccessScope scope,
             CancellationToken cancellationToken = default)
         {
-            this.AssignmentCallCount++;
+            this.AssignmentCalls.Add((subject, roleName, scope));
             return this.FailAssignments
                 ? Task.FromException(new InvalidOperationException("Access unavailable."))
                 : Task.CompletedTask;

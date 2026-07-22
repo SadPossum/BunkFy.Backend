@@ -1,7 +1,7 @@
 # Workspace Access Profiles Task
 
-Status: backend least-privilege cutover implemented; deployed tenant migration and product UX remain
-Date: 2026-07-21
+Status: backend and owner-facing least-privilege cutover implemented; deployed-estate and multi-account proof remain
+Date: 2026-07-22
 
 ## Goal
 
@@ -24,13 +24,15 @@ The backend now implements the target least-privilege model:
 - A new BunkFy ordinary-member role is a permission-free membership marker used by assignment policy. The old role remains a temporary compatibility grant only for unmigrated tenants.
 - Workspace owners keep the protected owner wildcard assignment.
 - Every active ordinary member receives at least one tenant-scoped access profile. A versioned BunkFy Front desk seed is the onboarding default.
-- Effective permissions are the union of assigned profiles. The UI must make multiple-profile composition explicit and show the resulting capabilities.
+- Effective permissions are the union of assigned profiles. The current BunkFy operator workflow intentionally reconciles one operational profile per member; any future additive-profile workflow must show the resulting combined capabilities explicitly.
 - Profile replacement and offboarding are deny-first, transactional or durably recoverable. A partial failure may temporarily deny access, but must never retain broader authority than the requested result.
 - Existing member assignments require an explicit, idempotent backfill before their compatibility grant is removed.
 
 Seed version `1` is code-owned, but seed ensure is intentionally non-destructive: an existing tenant profile with the same key is never overwritten. Versions describe the shipped defaults; actual profile state and assignment state remain the migration truth.
 
 The Admin CLI and private Admin API expose tenant-required status and confirmation-gated bootstrap operations under the dedicated `workspaces.access.bootstrap` permission. Bootstrap drains the legacy assignment set in bounded pages, preserves every existing custom profile, adds Front desk, installs the permission-free marker, and removes the legacy assignment last. A failed profile reconciliation therefore retains prior access for a safe retry.
+
+The BunkFy provisioner has a tenant-scoped internal role containing exactly the product's delegable permissions. Bootstrap establishes that assignment before profile writes; GMA anti-escalation remains unchanged, and the internal principal never receives the owner wildcard.
 
 The global legacy role definition must not be changed or deleted until every deployed workspace reports zero legacy assignments. BunkFy deliberately has no unsafe global finalizer or inferred tenant enumeration.
 
@@ -77,18 +79,18 @@ BunkFy supplies the explicit front-desk permission allowlist. A profile target m
 - coordinate invitation profile selection and later access changes;
 - preserve access denial while assignments are provisioning or being removed.
 
-The backend allowlist, workspace/property-scoped assignment eligibility policy, versioned seeds, default onboarding assignment, per-workspace migration tool, membership-driven cleanup, Staff-driven offboarding orchestration, and invitation-time profile/property plans are complete. Role summaries/facade, workspace-admin UI, and deployed tenant migration evidence remain product work.
+The backend allowlist, workspace/property-scoped assignment eligibility policy, versioned seeds, default onboarding assignment, per-workspace migration tool, membership-driven cleanup, Staff-driven offboarding orchestration, invitation-time profile/property plans, product facade, and workspace-admin UI are complete. One local preview tenant has clean activation evidence; the deployed estate and multi-account workflow still need production proof.
 
 ## Delivery Order
 
 1. [Complete] Prepare and land the two generic Contracts facades in their owning GMA modules, with provider-neutral behavior, PostgreSQL/SQL Server coverage where applicable, concurrency tests, and no BunkFy vocabulary.
 2. [Complete] Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
-3. [Backend complete; deployment pending] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
-4. Add a BunkFy workspace-role facade and permission catalogue for the web. Reconciliation must be exact-scope, anti-escalating, and deny-first.
-5. [Backend complete; product reads pending] Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
+3. [Local preview complete; deployed estate pending] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
+4. [Complete] Add a BunkFy workspace-role facade and permission catalogue for the web. Reconciliation is exact-scope, anti-escalating, and deny-first.
+5. [Complete] Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
 6. [Complete] Add durable Staff suspension/departure orchestration that denies membership first, revokes profile assignments, preserves unrelated workspaces/global Auth, and supports explicit recovery.
-7. Build workspace-admin role/profile UI, effective-permission summaries, assignment controls, and invitation-time selection.
-8. Run real PostgreSQL/NATS concurrency and restart tests plus the deployed owner/applicant multi-account browser smoke.
+7. [Complete for the current single-role product workflow] Build workspace-admin role/profile UI, permission summaries, assignment controls, and invitation-time selection.
+8. [Pending] Run real PostgreSQL/NATS concurrency and restart tests plus the deployed owner/applicant multi-account browser smoke.
 
 ## Completion Proof
 

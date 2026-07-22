@@ -1,4 +1,5 @@
 using Gma.Modules.AccessControl.AdminCli;
+using Gma.Modules.AccessControl.Application;
 using Gma.Modules.Administration.AdminCli;
 using Gma.Modules.Auth.AdminCli;
 using Gma.Modules.Auth.Contracts;
@@ -11,6 +12,7 @@ using BunkFy.Modules.Guests.AdminCli;
 using BunkFy.Modules.Staff.AdminCli;
 using BunkFy.Modules.Ingestion.AdminCli;
 using BunkFy.Modules.Workspaces.AdminCli;
+using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
@@ -48,6 +50,7 @@ try
     builder.Services.AddImapReservationMailAdapterDescriptor();
     builder.Services.AddJsonFileDropAdapterDescriptor();
     builder.Services.AddReservationMailParserDescriptor();
+    builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);
     builder.AddMinioFileStorage();
     builder.AddTenantCaching();
     builder.AddMessagingInfrastructure();

@@ -35,6 +35,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessSubject subject = AccessSubject.User(subjectId);
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
 
+        await this.EnsureProvisionerAsync(scope, cancellationToken).ConfigureAwait(false);
         await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
         AccessProfileDto frontDesk = await profiles.EnsureProfileAsync(
                 scope,
@@ -71,6 +72,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessScope workspaceScope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject subject = AccessSubject.User(subjectId);
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
+        await this.EnsureProvisionerAsync(workspaceScope, cancellationToken).ConfigureAwait(false);
         await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
         await roles.EnsureAssignmentAsync(
             subject,
@@ -139,6 +141,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
 
+        await this.EnsureProvisionerAsync(scope, cancellationToken).ConfigureAwait(false);
         await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
         AccessProfileDto? frontDesk = null;
         foreach (AccessProfileDefinition seed in WorkspaceAccessProfileSeeds.All)
@@ -212,6 +215,7 @@ internal sealed class WorkspaceAccessProvisioner(
     {
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
+        await this.EnsureProvisionerAsync(scope, cancellationToken).ConfigureAwait(false);
         foreach (AccessProfileDefinition seed in WorkspaceAccessProfileSeeds.All)
         {
             await profiles.EnsureProfileAsync(scope, seed, actor, cancellationToken)
@@ -279,6 +283,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject subject = AccessSubject.User(subjectId);
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
+        await this.EnsureProvisionerAsync(scope, cancellationToken).ConfigureAwait(false);
         await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
         await roles.EnsureAssignmentAsync(
             subject,
@@ -350,6 +355,24 @@ internal sealed class WorkspaceAccessProvisioner(
                 WorkspaceAccessRoles.MembershipMarker,
                 WorkspaceAccessRoles.MembershipMarkerPermissions),
             cancellationToken);
+
+    private async Task EnsureProvisionerAsync(
+        AccessScope scope,
+        CancellationToken cancellationToken)
+    {
+        await roles.EnsureRoleAsync(
+                new AccessControlRoleDefinition(
+                    WorkspaceAccessRoles.Provisioner,
+                    WorkspaceAccessRoles.ProvisionerPermissions),
+                cancellationToken)
+            .ConfigureAwait(false);
+        await roles.EnsureAssignmentAsync(
+                AccessSubject.System(ProvisioningActorId),
+                WorkspaceAccessRoles.Provisioner,
+                scope,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     private async Task RemoveLegacyMemberAssignmentAsync(
         AccessSubject subject,

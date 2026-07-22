@@ -56,6 +56,22 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Workspace_profile_permission_allowlist_is_composed_in_every_provisioning_host()
+    {
+        const string registration =
+            "AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);";
+        string[] hosts =
+        [
+            RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs"),
+            RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs"),
+            RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs"),
+            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs")
+        ];
+
+        Assert.All(hosts, host => Assert.Contains(registration, host, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Public_api_does_not_expose_the_generic_files_front_door()
     {
         string program = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
