@@ -50,6 +50,7 @@ Useful entry points:
 - [Production File Surface Lockdown Task](planning/production-file-surface-lockdown-task.md)
 - [Production Authentication Admission And Assurance Task](planning/production-authentication-admission-task.md)
 - [International Market Gate Task](planning/international-market-gate-task.md)
+- [Guest Data Rights And Lifecycle Workflow Task](planning/guest-data-rights-and-lifecycle-workflow-task.md)
 - [Ingestion Module Task](planning/ingestion-module-task.md)
 - [Ingestion PII Minimization Task](planning/ingestion-pii-minimization-task.md)
 - [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)

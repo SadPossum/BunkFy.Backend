@@ -1,6 +1,6 @@
 # International Market Gate Task
 
-Status: implementation and local acceptance proof complete; exact-commit CI pending
+Status: published; local and exact-commit acceptance proof complete
 
 ## Objective
 
@@ -298,9 +298,19 @@ Local acceptance proof completed on 2026-07-23:
 - every mounted GMA checkout used by the backend is clean and its current,
   recorded and `origin/dev` commit match.
 
-Exact backend, frontend and root-composition CI remain publication gates; they
-must be attached to the published commits rather than inferred from this local
-proof.
+Published exact-commit evidence:
+
+- GMA Auth `435c8af`: [Validate](https://github.com/SadPossum/GMA-Module-Auth/actions/runs/29964152052);
+- GMA Framework `35bb8c0`: [Validate](https://github.com/SadPossum/GMA-Framework/actions/runs/29977049885);
+- GMA-Skeleton `8334f76`: [Validate](https://github.com/SadPossum/GMA-Skeleton/actions/runs/29977182530),
+  [Security Baseline](https://github.com/SadPossum/GMA-Skeleton/actions/runs/29977182537),
+  and [CodeQL](https://github.com/SadPossum/GMA-Skeleton/actions/runs/29977182553);
+- BunkFy Backend `c0fa553`: [Validate](https://github.com/SadPossum/BunkFy.Backend/actions/runs/29977301726)
+  and [Docker Tests](https://github.com/SadPossum/BunkFy.Backend/actions/runs/29977301671);
+- BunkFy Web `05d76af`: [Validate](https://github.com/SadPossum/BunkFy.Web/actions/runs/29977350530);
+- BunkFy root `0c06c15`: [Validate](https://github.com/SadPossum/BunkFy/actions/runs/29977823655),
+  [Security Baseline](https://github.com/SadPossum/BunkFy/actions/runs/29977823668),
+  and [CodeQL](https://github.com/SadPossum/BunkFy/actions/runs/29977823658).
 
 ## Non-Goals
 
