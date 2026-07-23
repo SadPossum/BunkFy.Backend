@@ -10,6 +10,7 @@ public sealed class PersonalDataOutputSinkGuardTests
 {
     private static readonly string[] ExpectedCatalogIds =
     [
+        "data-rights.personal-data",
         "guests.personal-data",
         "ingestion.personal-data",
         "inventory.personal-data",

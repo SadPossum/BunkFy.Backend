@@ -478,6 +478,35 @@
     <Project Path="src/BunkFy.Host.ServiceDefaults/BunkFy.Host.ServiceDefaults.csproj" />
     <Project Path="src/BunkFy.Host.Worker/BunkFy.Host.Worker.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/DataRights/docs/">
+    <File Path="src/Modules/DataRights/docs/README.md" />
+    <File Path="src/Modules/DataRights/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/DataRights/docs/personal-data-inventory.v1.md" />
+  </Folder>
+  <Folder Name="/src/Modules/DataRights/src/Admin/">
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.Admin.Contracts/BunkFy.Modules.DataRights.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.AdminApi/BunkFy.Modules.DataRights.AdminApi.csproj" />
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.AdminCli/BunkFy.Modules.DataRights.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/DataRights/src/Api/">
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.Api/BunkFy.Modules.DataRights.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/DataRights/src/Application/">
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.Application/BunkFy.Modules.DataRights.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/DataRights/src/Contracts/">
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.Contracts/BunkFy.Modules.DataRights.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/DataRights/src/Domain/">
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.Domain/BunkFy.Modules.DataRights.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/DataRights/src/Persistence/">
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations/BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/DataRights/BunkFy.Modules.DataRights.Persistence/BunkFy.Modules.DataRights.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/DataRights/tests/">
+    <Project Path="src/Modules/DataRights/tests/BunkFy.Modules.DataRights.Tests/BunkFy.Modules.DataRights.Tests.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Guests/docs/">
     <File Path="src/Modules/Guests/docs/README.md" />
     <File Path="src/Modules/Guests/docs/personal-data-catalog.v1.json" />

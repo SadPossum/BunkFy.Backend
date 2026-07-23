@@ -1,0 +1,38 @@
+namespace BunkFy.Modules.DataRights.Persistence;
+
+using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Persistence.Repositories;
+using Gma.Framework.Cqrs.UnitOfWork;
+using Gma.Framework.Messaging;
+using Gma.Framework.Persistence.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+
+public static class DependencyInjection
+{
+    public static IHostApplicationBuilder AddDataRightsPersistence(this IHostApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddPersistenceOptions(builder.Configuration);
+        builder.Services.TryAddModuleDbContext<DataRightsDbContext>(options =>
+            options.UseConfiguredProvider(
+                builder.Configuration,
+                DataRightsMigrations.SqlServerAssembly,
+                DataRightsMigrations.PostgreSqlAssembly,
+                DataRightsMigrations.Schema,
+                DataRightsMigrations.HistoryTable));
+        builder.Services.TryAddScoped<IDataRightsCaseRepository, DataRightsCaseRepository>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IUnitOfWork, DataRightsUnitOfWork>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IOutboxWriter, DataRightsOutboxWriter>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IOutboxStore, DataRightsOutboxStore>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IInboxStore, DataRightsInboxStore>());
+        return builder;
+    }
+}

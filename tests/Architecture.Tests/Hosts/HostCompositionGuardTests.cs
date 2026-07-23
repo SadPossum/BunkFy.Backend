@@ -81,6 +81,7 @@ public sealed class HostCompositionGuardTests
             "builder.AddModule<GuestsModule>();",
             "builder.AddModule<StaffModule>();",
             "builder.AddModule<IngestionModule>();",
+            "builder.AddModule<DataRightsModule>();",
             "builder.AddGmaProductionHttp();",
             "app.UseGmaProductionHttp();",
             "builder.ValidateModuleComposition();",
@@ -212,6 +213,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.Global(authScopeId));", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<NotificationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<OrganizationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<DataRightsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<InventoryAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<ReservationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
@@ -225,6 +227,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminModule<AccessControlAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAuthAdminModule(AuthProfile.Global(authScopeId));", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<OrganizationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<DataRightsAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<PropertiesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<InventoryAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<ReservationsAdminCliModule>();", adminCli, StringComparison.Ordinal);

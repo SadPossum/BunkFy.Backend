@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;
@@ -47,5 +48,23 @@ public sealed class WorkspaceAccessProfileSeedTests
         Assert.Equal(
             WorkspaceAccessRoles.LegacyMemberPermissions.ToArray(),
             WorkspaceAccessProfileSeeds.FrontDesk.Permissions.ToArray());
+    }
+
+    [Fact]
+    public void Data_rights_permissions_are_never_granted_to_operational_seed_profiles()
+    {
+        HashSet<string> dataRightsPermissions = WorkspaceAccessPermissionCatalogue.All
+            .Where(permission => permission.Code.StartsWith(
+                DataRightsModuleMetadata.Name + ".",
+                StringComparison.Ordinal))
+            .Select(permission => permission.Code)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Equal(12, dataRightsPermissions.Count);
+        Assert.DoesNotContain(
+            WorkspaceAccessRoles.LegacyMemberPermissions,
+            dataRightsPermissions.Contains);
+        Assert.All(WorkspaceAccessProfileSeeds.All, profile =>
+            Assert.DoesNotContain(profile.Permissions, dataRightsPermissions.Contains));
     }
 }

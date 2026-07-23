@@ -1,6 +1,6 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: architecture plan; implementation not started
+Status: implementation in progress; case-lifecycle foundation started
 
 ## Outcome
 

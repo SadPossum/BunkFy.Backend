@@ -30,6 +30,7 @@ Public API modules composed by `src/BunkFy.Host.Api`:
 - `Guests`
 - `Staff`
 - `Ingestion`
+- `DataRights`
 
 Admin API/CLI compose reusable administration, auth, and task-runtime modules plus the BunkFy product administration surfaces. The worker keeps product background module groups opt-in.
 

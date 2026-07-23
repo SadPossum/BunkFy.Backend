@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Contracts;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
@@ -75,7 +76,19 @@ public static class WorkspaceAccessRoles
         IngestionAdminPermissionCodes.RetentionManage,
         IngestionAdminPermissionCodes.ReprocessingManage,
         IngestionAdminPermissionCodes.LegalHoldsManage,
-        IngestionAdminPermissionCodes.ProposalsDecide
+        IngestionAdminPermissionCodes.ProposalsDecide,
+        DataRightsAdminPermissionCodes.Read,
+        DataRightsAdminPermissionCodes.Create,
+        DataRightsAdminPermissionCodes.Discover,
+        DataRightsAdminPermissionCodes.Review,
+        DataRightsAdminPermissionCodes.Decide,
+        DataRightsAdminPermissionCodes.Execute,
+        DataRightsAdminPermissionCodes.Export,
+        DataRightsAdminPermissionCodes.DownloadExport,
+        DataRightsAdminPermissionCodes.Restrict,
+        DataRightsAdminPermissionCodes.Erase,
+        DataRightsAdminPermissionCodes.TerminateTenant,
+        DataRightsAdminPermissionCodes.Manage
     ];
 
     public static IReadOnlyList<string> ProvisionerPermissions { get; } =

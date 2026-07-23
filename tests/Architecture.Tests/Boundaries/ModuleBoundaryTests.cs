@@ -162,6 +162,26 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void BunkFy_data_rights_model_does_not_leak_into_GMA()
+    {
+        string[] productSpecificTokens =
+        [
+            "DataRightsCase",
+            "DataRightsOperation",
+            "DataRightsRequesterRelationship",
+            "DataRightsAdminPermissionCodes"
+        ];
+
+        string[] offenders = RepositoryPaths.EnumerateFiles("gma", "*.cs")
+            .Where(path => productSpecificTokens.Any(token =>
+                File.ReadAllText(path).Contains(token, StringComparison.Ordinal)))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
     public void Remote_adapter_lease_protocol_stays_in_shared_runtime_transport_and_ingestion()
     {
         string[] allowedRoots =

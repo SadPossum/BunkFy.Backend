@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "data-rights.personal-data",
+  "catalogVersion": 1,
+  "module": "data-rights",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "data-rights-case-audit",
+      "scope": "tenant-property-data-rights-case",
+      "readers": [
+        "permission:data-rights.cases.manage",
+        "permission:data-rights.cases.read",
+        "system:authorized-audit-consumer"
+      ],
+      "writers": [
+        "permission:data-rights.cases.create",
+        "permission:data-rights.cases.discover",
+        "permission:data-rights.cases.manage",
+        "permission:data-rights.cases.review"
+      ]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "data-rights-case-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "data-rights-case-created",
+      "endsAt": "approved-case-retention-completed-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-required-audit-evidence"
+    },
+    {
+      "id": "transient-request",
+      "approvalState": "engineering-default",
+      "startsAt": "request-accepted",
+      "endsAt": "request-completed",
+      "legalHoldBehavior": "not-applicable"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "staff-audit-attribution",
+      "export": "include-in-authorized-staff-audit-export",
+      "correction": "append-corrective-case-action",
+      "restriction": "retain-minimum-required-audit-attribution",
+      "erasure": "pseudonymize-subject-when-approved-retention-permits"
+    }
+  ],
+  "fields": [
+    {
+      "id": "data-rights.staff-actor-reference",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "authorized-change-traceability",
+        "case-accountability"
+      ],
+      "sources": [
+        "authenticated-access-subject"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "data-rights-case-lifecycle",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.BeginDataRightsDiscoveryCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.CancelDataRightsCaseCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.CreateDataRightsCaseCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.RecordControllerRoutingCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.RecordRequesterVerificationCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.RequireDataRightsReviewCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
+          "member": "CreatedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
+          "member": "LastChangedBy",
+          "surface": "persistence"
+        }
+      ]
+    }
+  ]
+}

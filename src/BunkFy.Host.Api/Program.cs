@@ -1,3 +1,4 @@
+﻿using BunkFy.Modules.DataRights.Api;
 using Gma.Modules.Auth.Api;
 using Gma.Modules.Auth.Authenticators.Totp;
 using Gma.Modules.Auth.Contracts;
@@ -15,6 +16,7 @@ using Gma.Modules.Organizations.Api;
 using Gma.Modules.Organizations.Persistence;
 using BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Extensions.Workspaces;
+using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Inventory.Persistence;
@@ -126,6 +128,7 @@ builder.AddModule<GuestsModule>();
 builder.AddModule<StaffModule>();
 builder.AddModule<WorkspacesModule>();
 builder.AddModule<IngestionModule>();
+builder.AddModule<DataRightsModule>();
 // module-scaffold:public-api-modules
 
 builder.AddServiceDefaults();
@@ -141,6 +144,7 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<GuestsDbContext>("guests-da
 builder.Services.AddGmaEntityFrameworkReadinessCheck<StaffDbContext>("staff-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<WorkspacesDbContext>("workspaces-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingestion-database");
+builder.Services.AddGmaEntityFrameworkReadinessCheck<DataRightsDbContext>("data-rights-database");
 builder.AddGmaOpenApi();
 builder.ValidateModuleComposition();
 

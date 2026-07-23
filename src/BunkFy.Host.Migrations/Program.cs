@@ -1,3 +1,4 @@
+using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Inventory.Persistence;
@@ -39,6 +40,7 @@ builder.AddAuthPersistence(AuthProfile.Global(authScopeId));
 builder.AddNotificationsPersistence();
 builder.AddOrganizationsPersistence();
 builder.AddTaskRuntimePersistence();
+builder.AddDataRightsPersistence();
 builder.AddPropertiesPersistence();
 builder.AddInventoryPersistence();
 builder.AddReservationsPersistence();
@@ -60,6 +62,7 @@ ILogger logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
     ("notifications", typeof(NotificationsDbContext)),
     ("organizations", typeof(OrganizationsDbContext)),
     ("task-runtime", typeof(TaskRuntimeDbContext)),
+    ("data-rights", typeof(DataRightsDbContext)),
     ("properties", typeof(PropertiesDbContext)),
     ("inventory", typeof(InventoryDbContext)),
     ("reservations", typeof(ReservationsDbContext)),

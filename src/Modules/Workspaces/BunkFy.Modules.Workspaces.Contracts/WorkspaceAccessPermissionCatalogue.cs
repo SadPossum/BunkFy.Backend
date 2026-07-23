@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Contracts;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
@@ -50,7 +51,20 @@ public static class WorkspaceAccessPermissionCatalogue
         Permission(IngestionAdminPermissionCodes.RetentionManage, "Integrations", "Manage retention", "Run retention and redaction operations.", sensitive: true, requires: [IngestionAdminPermissionCodes.Read]),
         Permission(IngestionAdminPermissionCodes.ReprocessingManage, "Integrations", "Reprocess source data", "Replay retained observations through current parsers.", sensitive: true, requires: [IngestionAdminPermissionCodes.Read]),
         Permission(IngestionAdminPermissionCodes.LegalHoldsManage, "Integrations", "Manage legal holds", "Place and release retention legal holds.", sensitive: true, requires: [IngestionAdminPermissionCodes.Read]),
-        Permission(IngestionAdminPermissionCodes.ProposalsDecide, "Integrations", "Decide suggested changes", "Accept or reject adapter-proposed reservation changes.", requires: [IngestionAdminPermissionCodes.Read])
+        Permission(IngestionAdminPermissionCodes.ProposalsDecide, "Integrations", "Decide suggested changes", "Accept or reject adapter-proposed reservation changes.", requires: [IngestionAdminPermissionCodes.Read]),
+
+        Permission(DataRightsAdminPermissionCodes.Read, "Data rights", "View data-rights cases", "View scoped case status without exposing discovered personal data.", sensitive: true),
+        Permission(DataRightsAdminPermissionCodes.Create, "Data rights", "Create data-rights cases", "Open property-scoped data-rights cases.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read]),
+        Permission(DataRightsAdminPermissionCodes.Discover, "Data rights", "Discover subject records", "Run sensitive module-owned record discovery.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read]),
+        Permission(DataRightsAdminPermissionCodes.Review, "Data rights", "Review case scope", "Verify requesters, routing, and selected record scope.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read]),
+        Permission(DataRightsAdminPermissionCodes.Decide, "Data rights", "Decide cases", "Approve or deny requested operations.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Review]),
+        Permission(DataRightsAdminPermissionCodes.Execute, "Data rights", "Execute approved cases", "Run approved module-owned data-rights work.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide]),
+        Permission(DataRightsAdminPermissionCodes.Export, "Data rights", "Generate data exports", "Generate protected case export artifacts.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide]),
+        Permission(DataRightsAdminPermissionCodes.DownloadExport, "Data rights", "Download data exports", "Download a protected case export after fresh authorization.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Export]),
+        Permission(DataRightsAdminPermissionCodes.Restrict, "Data rights", "Manage processing restrictions", "Apply or release approved processing restrictions.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide]),
+        Permission(DataRightsAdminPermissionCodes.Erase, "Data rights", "Erase or anonymise data", "Execute approved irreversible erasure or anonymisation.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide, DataRightsAdminPermissionCodes.Execute]),
+        Permission(DataRightsAdminPermissionCodes.TerminateTenant, "Data rights", "Terminate tenant data", "Execute approved tenant export, revocation, and deletion.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide, DataRightsAdminPermissionCodes.Execute]),
+        Permission(DataRightsAdminPermissionCodes.Manage, "Data rights", "Manage case lifecycle", "Route, cancel, and recover data-rights cases.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read])
     ];
 
     public static IReadOnlyList<string> ProtectedSeedKeys { get; } =

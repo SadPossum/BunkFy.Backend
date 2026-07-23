@@ -305,15 +305,17 @@ Potential later domain:
 
 Guest-facing portals are out of scope for now, but staff may still record or send communications to guests.
 
-### Compliance And Retention
+### Data Rights, Compliance And Retention
 
-Potential later domain:
+The DataRights module now owns the controller-managed case lifecycle, explicit
+requester-verification and controller-routing gates, PII-minimal case state, and
+scoped operator permissions. It coordinates work without reading or mutating
+another module's records.
 
-- document retention;
-- data export/deletion;
-- consent records;
-- country-specific guest registration requirements;
-- access restrictions around sensitive guest/financial data.
+Owner-side discovery, protected export, correction, restriction, erasure or
+anonymisation, legal-hold/retention decisions, immutable receipts, and restore
+protection remain later slices. Consent records, document-retention schedules,
+and country-specific guest-registration obligations remain separate concerns.
 
 ### Integrations Marketplace
 
@@ -329,4 +331,9 @@ This overlaps with Data Providers/Ingestion but may become a separate management
 
 ## Suggested Next Slice
 
-Properties, Inventory, the provider-agnostic Ingestion platform milestone, the operational Reservations lifecycle, Guest Records, and the first Staff Profiles slice are complete. The next module should be chosen from a concrete operating need rather than precommitted here; Rates, Billing, business-day close/reopen, housekeeping, and temporary holds remain separate candidates.
+Properties, Inventory, the provider-agnostic Ingestion platform milestone, the
+operational Reservations lifecycle, Guest Records, and the first Staff Profiles
+slice are complete. DataRights is the one active new module: its case-lifecycle
+foundation is implemented, and the next slice adds one complete owner capability
+through Guests. Rates, Billing, business-day close/reopen, housekeeping, and
+temporary holds remain separate later candidates.
