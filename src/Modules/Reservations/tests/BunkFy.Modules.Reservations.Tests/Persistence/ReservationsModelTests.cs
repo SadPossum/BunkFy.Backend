@@ -121,7 +121,8 @@ public sealed class ReservationsModelTests
         IEntityType property = dbContext.Model.FindEntityType(typeof(ReservationPropertyProjection))!;
 
         Assert.True(reminder.FindProperty(nameof(ReservationArrivalReminder.Version))!.IsConcurrencyToken);
-        Assert.True(property.FindProperty(nameof(ReservationPropertyProjection.SourceVersion))!.IsConcurrencyToken);
+        Assert.True(property.FindProperty(nameof(ReservationPropertyProjection.TopologySourceVersion))!.IsConcurrencyToken);
+        Assert.True(property.FindProperty(nameof(ReservationPropertyProjection.PolicySourceVersion))!.IsConcurrencyToken);
         Assert.Contains(
             reminder.GetIndexes(),
             index => index.IsUnique && index.Properties.Select(item => item.Name).SequenceEqual([

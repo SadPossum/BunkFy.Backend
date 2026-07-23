@@ -530,6 +530,12 @@ public sealed class IngestionOperationsIntegrationTests
         await handler.HandleAsync(
             new(Guid.NewGuid(), TenantId, DateTimeOffset.UtcNow, PropertyId, "Operations House", "operations",
                 "UTC", PropertyStatus.Active, 1), CancellationToken.None).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            IngestionModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>().SaveChangesAsync().ConfigureAwait(false);
     }
 

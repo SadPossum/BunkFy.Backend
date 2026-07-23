@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Tests.Application;
 
+using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
@@ -33,7 +34,7 @@ public sealed class RemoteAdapterLeaseHandlerTests
             Guid.Parse("b0000000-0000-0000-0000-000000000004"));
         ClaimRemoteAdapterLeaseCommandHandler handler = new(
             new FakeConnectionRepository(connection),
-            new ActivePropertyProjection(),
+            new TestCountryPolicyAdmission(),
             runs,
             new DescriptorRegistry(),
             new TestScope(),
@@ -77,7 +78,7 @@ public sealed class RemoteAdapterLeaseHandlerTests
         MutableClock clock = new(Now);
         ClaimRemoteAdapterLeaseCommandHandler claimHandler = new(
             new FakeConnectionRepository(connection),
-            new ActivePropertyProjection(),
+            new TestCountryPolicyAdmission(),
             runs,
             new DescriptorRegistry(),
             new TestScope(),
@@ -93,12 +94,16 @@ public sealed class RemoteAdapterLeaseHandlerTests
             claim.Value.LeaseEpoch,
             WorkerId);
         RenewRemoteAdapterLeaseCommandHandler renewHandler = new(
-            new FakeConnectionRepository(connection), runs, clock);
+            new FakeConnectionRepository(connection), runs, new TestCountryPolicyAdmission(), clock);
+        RenewRemoteAdapterLeaseCommandHandler deniedRenewHandler = new(
+            new FakeConnectionRepository(connection), runs, new TestCountryPolicyAdmission(allowed: false), clock);
 
         var wrong = await renewHandler.HandleAsync(new(
             connection.Id,
             CredentialId,
             new(proof with { WorkerId = Guid.NewGuid() }, 60)), CancellationToken.None);
+        var denied = await deniedRenewHandler.HandleAsync(new(
+            connection.Id, CredentialId, new(proof, 60)), CancellationToken.None);
         clock.UtcNow = Now.AddSeconds(20);
         var renewed = await renewHandler.HandleAsync(new(
             connection.Id, CredentialId, new(proof, 60)), CancellationToken.None);
@@ -120,6 +125,9 @@ public sealed class RemoteAdapterLeaseHandlerTests
             new(connection.Id, CredentialId, completion), CancellationToken.None);
 
         Assert.Equal(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.RemoteLeaseMismatch, wrong.Error);
+        Assert.Equal(
+            IngestionApplicationErrors.CountryPolicyDenied(CountryPolicyDecisionReason.MissingBinding),
+            denied.Error);
         Assert.True(renewed.IsSuccess, renewed.Error.Code);
         Assert.True(completed.IsSuccess, completed.Error.Code);
         Assert.True(repeated.IsSuccess, repeated.Error.Code);
@@ -134,7 +142,7 @@ public sealed class RemoteAdapterLeaseHandlerTests
         QueueIds ids = new(Guid.NewGuid(), Guid.NewGuid());
         var result = await new ClaimRemoteAdapterLeaseCommandHandler(
             new FakeConnectionRepository(connection),
-            new ActivePropertyProjection(),
+            new TestCountryPolicyAdmission(),
             new FakeRunRepository(),
             new DescriptorRegistry(),
             new TestScope(),
@@ -188,16 +196,6 @@ public sealed class RemoteAdapterLeaseHandlerTests
             this.Items.Add(run);
             return Task.CompletedTask;
         }
-    }
-
-    private sealed class ActivePropertyProjection : IIngestionPropertyProjectionRepository
-    {
-        public Task<bool> IsActiveAsync(Guid propertyId, CancellationToken cancellationToken) =>
-            Task.FromResult(true);
-
-        public Task ApplyAsync(
-            IngestionPropertyProjectionWriteModel property, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
     }
 
     private sealed class DescriptorRegistry : IAdapterDescriptorRegistry

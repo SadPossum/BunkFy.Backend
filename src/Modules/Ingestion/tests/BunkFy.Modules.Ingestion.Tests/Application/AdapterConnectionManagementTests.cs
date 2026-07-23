@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Tests.Application;
 
+using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
@@ -32,15 +33,17 @@ public sealed class AdapterConnectionManagementTests
             null);
 
         var rejected = await new CreateAdapterConnectionCommandHandler(
-            connections, new FakePropertyProjection(active: false), new TestDescriptors(),
+            connections, new TestCountryPolicyAdmission(allowed: false), new TestDescriptors(),
             new TestScope(), new TestIds(), new TestClock())
             .HandleAsync(command, CancellationToken.None);
         var created = await new CreateAdapterConnectionCommandHandler(
-            connections, new FakePropertyProjection(active: true), new TestDescriptors(),
+            connections, new TestCountryPolicyAdmission(), new TestDescriptors(),
             new TestScope(), new TestIds(), new TestClock())
             .HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(IngestionApplicationErrors.PropertyNotActive, rejected.Error);
+        Assert.Equal(
+            IngestionApplicationErrors.CountryPolicyDenied(CountryPolicyDecisionReason.MissingBinding),
+            rejected.Error);
         Assert.True(created.IsSuccess, created.Error.Code);
         Assert.Equal(AdapterConnectionStatus.Enabled, created.Value.Status);
         Assert.Equal("fake.http", created.Value.AdapterType);
@@ -63,11 +66,14 @@ public sealed class AdapterConnectionManagementTests
                 "configuration://secondary", SecretReferenceUpdateMode.Replace, "secret://secondary", 1),
             CancellationToken.None);
         var wrongProperty = await new SetAdapterConnectionEnabledCommandHandler(
-            connections, new EmptyRunRepository(), new TestClock()).HandleAsync(
+            connections, new EmptyRunRepository(), new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
             new(Guid.NewGuid(), connection.Id, Enabled: false, ExpectedVersion: 2), CancellationToken.None);
         var disabled = await new SetAdapterConnectionEnabledCommandHandler(
-            connections, new EmptyRunRepository(), new TestClock()).HandleAsync(
+            connections, new EmptyRunRepository(), new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
             new(propertyId, connection.Id, Enabled: false, ExpectedVersion: 2), CancellationToken.None);
+        var deniedEnable = await new SetAdapterConnectionEnabledCommandHandler(
+            connections, new EmptyRunRepository(), new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
+            new(propertyId, connection.Id, Enabled: true, ExpectedVersion: 3), CancellationToken.None);
 
         Assert.True(updated.IsSuccess, updated.Error.Code);
         Assert.Equal(AdapterExecutionMode.Continuous, updated.Value.ExecutionMode);
@@ -75,6 +81,11 @@ public sealed class AdapterConnectionManagementTests
         Assert.Equal(IngestionApplicationErrors.ConnectionNotFound, wrongProperty.Error);
         Assert.Equal(AdapterConnectionStatus.Disabled, disabled.Value.Status);
         Assert.Equal(3, disabled.Value.Version);
+        Assert.Equal(
+            IngestionApplicationErrors.CountryPolicyDenied(CountryPolicyDecisionReason.MissingBinding),
+            deniedEnable.Error);
+        Assert.Equal(AdapterConnectionState.Disabled, connection.State);
+        Assert.Equal(3, connection.Version);
     }
 
     [Fact]
@@ -116,7 +127,7 @@ public sealed class AdapterConnectionManagementTests
         Guid propertyId = Guid.NewGuid();
         FakeConnectionRepository connections = new();
         CreateAdapterConnectionCommandHandler handler = new(
-            connections, new FakePropertyProjection(active: true), new TestDescriptors(),
+            connections, new TestCountryPolicyAdmission(), new TestDescriptors(),
             new TestScope(), new TestIds(), new TestClock());
 
         var unknown = await handler.HandleAsync(new(
@@ -179,14 +190,6 @@ public sealed class AdapterConnectionManagementTests
             this.Items.Add(connection);
             return Task.CompletedTask;
         }
-    }
-
-    private sealed class FakePropertyProjection(bool active) : IIngestionPropertyProjectionRepository
-    {
-        public Task ApplyAsync(IngestionPropertyProjectionWriteModel property, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> IsActiveAsync(Guid propertyId, CancellationToken cancellationToken) => Task.FromResult(active);
     }
 
     private sealed class TestScope : IScopeContext

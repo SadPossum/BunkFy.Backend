@@ -19,6 +19,7 @@ using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Auth.Domain.Services;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Persistence;
 using Gma.Modules.Organizations.Application.Ports;
@@ -103,6 +104,7 @@ public sealed class WorkerHostIntegrationTests
         builder.Configuration["Worker:Modules:Inventory"] = "true";
         builder.Configuration["Worker:Modules:Reservations"] = "true";
         builder.Configuration["Worker:Modules:Staff"] = "true";
+        AuthTestConfiguration.ConfigureTokenHashing(builder.Configuration);
         builder.Configuration["Notifications:Adapters:Email:Enabled"] = "false";
         builder.Logging.ClearProviders();
 
@@ -116,6 +118,7 @@ public sealed class WorkerHostIntegrationTests
         Assert.True(result.IsValid, result.Report);
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<NotificationsDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IRefreshTokenHashingService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUserNotificationRequestProjector>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IOrganizationAccessCandidateFilter>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IStaffPropertyAudienceReader>());
@@ -406,6 +409,7 @@ public sealed class WorkerHostIntegrationTests
         builder.Logging.ClearProviders();
 
         builder.AddWorkerHost();
+        CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
         ModuleCompositionValidationResult result = builder.ValidateModuleComposition();
         Assert.True(result.IsValid, result.Report);
         return builder.Build();
@@ -446,6 +450,12 @@ public sealed class WorkerHostIntegrationTests
                 PropertyStatus.Active,
                 1),
             CancellationToken.None).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            IngestionModuleMetadata.Name,
+            tenantId,
+            propertyId,
+            2).ConfigureAwait(false);
 
         IngestionDbContext dbContext = scope.ServiceProvider.GetRequiredService<IngestionDbContext>();
         dbContext.AdapterConnections.Add(AdapterConnection.Create(

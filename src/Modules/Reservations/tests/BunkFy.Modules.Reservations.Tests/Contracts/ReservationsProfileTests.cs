@@ -5,6 +5,7 @@ using Gma.Framework.Permissions;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Tasks;
 using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using Xunit;
 
@@ -34,7 +35,17 @@ public sealed class ReservationsProfileTests
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
         Assert.Equal(15, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
-        Assert.Equal(19, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(21, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType == PropertyProcessingPolicyActivatedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType == PropertyProcessingSuspendedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
             published => published.EventType == ExternalReservationOperationCompletedIntegrationEvent.EventType);

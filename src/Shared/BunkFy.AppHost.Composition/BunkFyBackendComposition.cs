@@ -43,12 +43,18 @@ public static class BunkFyBackendComposition
             .WithHttpEndpoint(targetPort: 9001, name: "console")
             .WithVolume("bunkfy-minio-data", "/data");
 
+        IResourceBuilder<ProjectResource> migrations = builder
+            .AddProject("bunkfy-host-migrations", projectPaths.Migrations)
+            .WithReference(postgreSql)
+            .WaitFor(postgreSql);
+
         bool workerEnabled = IsEnabled(builder, "AppHost:Worker:Enabled");
         IResourceBuilder<ProjectResource> api = builder
             .AddProject("bunkfy-host-api", projectPaths.Api)
             .WithReference(postgreSql)
             .WithReference(nats)
             .WaitFor(postgreSql)
+            .WaitForCompletion(migrations)
             .WaitFor(nats)
             .WaitFor(minio)
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
@@ -69,6 +75,7 @@ public static class BunkFyBackendComposition
             postgreSql,
             nats,
             minio,
+            migrations,
             sqlServer);
         IResourceBuilder<ProjectResource>? worker = AddWorker(
             builder,
@@ -77,6 +84,7 @@ public static class BunkFyBackendComposition
             postgreSql,
             nats,
             minio,
+            migrations,
             sqlServer);
 
         if (IsEnabled(builder, "AppHost:Redis:Enabled"))
@@ -97,6 +105,7 @@ public static class BunkFyBackendComposition
         IResourceBuilder<PostgresDatabaseResource> postgreSql,
         IResourceBuilder<NatsServerResource> nats,
         IResourceBuilder<ContainerResource> minio,
+        IResourceBuilder<ProjectResource> migrations,
         IResourceBuilder<SqlServerDatabaseResource>? sqlServer)
     {
         if (!IsEnabled(builder, "AppHost:AdminApi:Enabled"))
@@ -109,6 +118,7 @@ public static class BunkFyBackendComposition
             .WithReference(postgreSql)
             .WithReference(nats)
             .WaitFor(postgreSql)
+            .WaitForCompletion(migrations)
             .WaitFor(nats)
             .WaitFor(minio)
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
@@ -130,6 +140,7 @@ public static class BunkFyBackendComposition
         IResourceBuilder<PostgresDatabaseResource> postgreSql,
         IResourceBuilder<NatsServerResource> nats,
         IResourceBuilder<ContainerResource> minio,
+        IResourceBuilder<ProjectResource> migrations,
         IResourceBuilder<SqlServerDatabaseResource>? sqlServer)
     {
         if (!workerEnabled)
@@ -142,6 +153,7 @@ public static class BunkFyBackendComposition
             .WithReference(postgreSql)
             .WithReference(nats)
             .WaitFor(postgreSql)
+            .WaitForCompletion(migrations)
             .WaitFor(nats)
             .WaitFor(minio)
             .WithEnvironment("DOTNET_ENVIRONMENT", "Development")

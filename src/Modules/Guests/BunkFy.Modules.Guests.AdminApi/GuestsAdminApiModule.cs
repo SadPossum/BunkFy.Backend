@@ -190,10 +190,14 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
         return $"admin-api:{identity}";
     }
 
-    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(GuestsApplicationErrors.GuestNotFound.Code, StatusCodes.Status404NotFound),
-        new(GuestsApplicationErrors.PropertyUnavailable.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestArchived.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestAlreadyArchived.Code, StatusCodes.Status409Conflict));
+
+    private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>
+        ApiErrorStatusCodeMap.Create(entries.Concat(
+            GuestsApplicationErrors.CountryPolicyDenials.Select(error =>
+                new ApiErrorStatusCode(error.Code, StatusCodes.Status409Conflict))).ToArray());
 }

@@ -71,7 +71,9 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
             property.TimeZoneId.Value,
             MapStatus(property.Status),
             property.Version,
-            (rooms ?? []).Select(MapRoom).ToArray());
+            (rooms ?? []).Select(MapRoom).ToArray(),
+            MapProcessingStatus(property.ProcessingState),
+            MapGovernancePolicy(property));
     }
 
     private static RoomTopologyProjectionExport MapRoom(Room room) =>
@@ -112,6 +114,35 @@ internal sealed class PropertiesTopologyProjectionExportSource(PropertiesDbConte
             RoomState.Retired => RoomStatus.Retired,
             _ => RoomStatus.Unknown
         };
+
+    private static PropertyProcessingStatus MapProcessingStatus(PropertyProcessingState status) =>
+        status switch
+        {
+            PropertyProcessingState.Unconfigured => PropertyProcessingStatus.Unconfigured,
+            PropertyProcessingState.Enabled => PropertyProcessingStatus.Enabled,
+            PropertyProcessingState.Suspended => PropertyProcessingStatus.Suspended,
+            _ => PropertyProcessingStatus.Unknown
+        };
+
+    private static PropertyGovernancePolicyBinding? MapGovernancePolicy(Property property) =>
+        property.GovernanceBinding is not { } binding
+            ? null
+            : new PropertyGovernancePolicyBinding(
+                binding.OperatingCountryCode,
+                binding.PolicyId,
+                binding.PolicyVersion,
+                binding.DataRegionId,
+                binding.TransferProfileId,
+                binding.RetentionPolicyId,
+                binding.RetentionPolicyVersion,
+                binding.ContentSha256,
+                binding.PolicyEffectiveAtUtc,
+                binding.PolicyExpiresAtUtc,
+                binding.ActivatedAtUtc,
+                property.GovernanceAcknowledgements.Select(acknowledgement =>
+                    new PropertyGovernanceAcknowledgement(
+                        acknowledgement.AcknowledgementId,
+                        acknowledgement.AcknowledgementVersion)).ToArray());
 
     private static BedStatus MapStatus(BedState status) =>
         status switch

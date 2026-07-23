@@ -23,6 +23,8 @@ public static class IngestionModuleMetadata
     public const string PropertyCreatedHandlerName = "property-created-projection";
     public const string PropertyUpdatedHandlerName = "property-updated-projection";
     public const string PropertyRetiredHandlerName = "property-retired-projection";
+    public const string PropertyProcessingPolicyActivatedHandlerName = "property-processing-policy-activated-projection";
+    public const string PropertyProcessingSuspendedHandlerName = "property-processing-suspended-projection";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -45,6 +47,8 @@ public static class IngestionModuleMetadata
         .WithSubscription<PropertyCreatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyCreatedHandlerName)
         .WithSubscription<PropertyUpdatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyUpdatedHandlerName)
         .WithSubscription<PropertyRetiredIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyRetiredHandlerName)
+        .WithSubscription<PropertyProcessingPolicyActivatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyProcessingPolicyActivatedHandlerName)
+        .WithSubscription<PropertyProcessingSuspendedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyProcessingSuspendedHandlerName)
         .WithPublishedEvent<ObservationReceiptAcceptedIntegrationEvent>()
         .WithPublishedEvent<ExternalReservationCreateRequestedIntegrationEvent>()
         .WithPublishedEvent<ExternalReservationGuestDetailsChangeRequestedIntegrationEvent>()

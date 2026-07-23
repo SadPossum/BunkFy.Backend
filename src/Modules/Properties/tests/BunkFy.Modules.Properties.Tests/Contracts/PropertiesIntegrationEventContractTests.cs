@@ -66,6 +66,50 @@ public sealed class PropertiesIntegrationEventContractTests
         Assert.Equal("bunkfy.properties.room-retired.v2", PropertiesIntegrationSubjects.CreateRoomRetired("bunkfy"));
         Assert.Equal("bunkfy.properties.bed-added.v2", PropertiesIntegrationSubjects.CreateBedAdded("bunkfy"));
         Assert.Equal("bunkfy.properties.bed-retired.v2", PropertiesIntegrationSubjects.CreateBedRetired("bunkfy"));
+        Assert.Equal(
+            "bunkfy.properties.property-processing-policy-activated.v1",
+            PropertiesIntegrationSubjects.CreatePropertyProcessingPolicyActivated("bunkfy"));
+        Assert.Equal(
+            "bunkfy.properties.property-processing-suspended.v1",
+            PropertiesIntegrationSubjects.CreatePropertyProcessingSuspended("bunkfy"));
+    }
+
+    [Fact]
+    public void Processing_events_are_self_contained_even_without_acknowledgements()
+    {
+        PropertyGovernancePolicyBinding binding = new(
+            "GB",
+            "gb-hostel",
+            1,
+            "eu-west-2",
+            "uk-no-transfer",
+            "guest-operational",
+            1,
+            new string('a', PropertiesContractLimits.ContentSha256Length),
+            OccurredAtUtc.AddDays(-1),
+            OccurredAtUtc.AddDays(30),
+            OccurredAtUtc,
+            []);
+
+        PropertyProcessingPolicyActivatedIntegrationEvent activated = new(
+            EventId,
+            "tenant-a",
+            OccurredAtUtc,
+            PropertyId,
+            binding,
+            2);
+        PropertyProcessingSuspendedIntegrationEvent suspended = new(
+            EventId,
+            "tenant-a",
+            OccurredAtUtc.AddMinutes(1),
+            PropertyId,
+            binding,
+            3);
+
+        Assert.Same(binding, activated.Binding);
+        Assert.Empty(activated.Binding.Acknowledgements);
+        Assert.Same(binding, suspended.Binding);
+        Assert.Empty(suspended.Binding.Acknowledgements);
     }
 
     [Fact]

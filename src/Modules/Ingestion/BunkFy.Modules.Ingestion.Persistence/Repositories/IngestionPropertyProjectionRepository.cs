@@ -1,37 +1,72 @@
 namespace BunkFy.Modules.Ingestion.Persistence.Repositories;
 
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed class IngestionPropertyProjectionRepository(IngestionDbContext dbContext)
     : IIngestionPropertyProjectionRepository, IRetentionFenceRepository
 {
-    public async Task ApplyAsync(
+    public async Task ApplyTopologyAsync(
+        IngestionPropertyTopologyWriteModel property,
+        CancellationToken cancellationToken)
+    {
+        IngestionPropertyProjection projection = await this.GetOrCreateAsync(
+            property.ScopeId,
+            property.PropertyId,
+            cancellationToken).ConfigureAwait(false);
+
+        projection.ApplyTopology(property.Name, property.Code, property.IsActive, property.SourceVersion);
+    }
+
+    public async Task ApplyPolicyAsync(
+        IngestionPropertyPolicyWriteModel property,
+        CancellationToken cancellationToken)
+    {
+        IngestionPropertyProjection projection = await this.GetOrCreateAsync(
+            property.ScopeId,
+            property.PropertyId,
+            cancellationToken).ConfigureAwait(false);
+
+        projection.ApplyPolicy(property.ProcessingStatus, property.GovernancePolicy, property.SourceVersion);
+    }
+
+    public async Task ApplySnapshotAsync(
         IngestionPropertyProjectionWriteModel property,
         CancellationToken cancellationToken)
     {
-        IngestionPropertyProjection? projection = dbContext.PropertyProjections.Local.FirstOrDefault(
-            item => item.Id == property.PropertyId && item.ScopeId == property.ScopeId) ??
-            await dbContext.PropertyProjections.FirstOrDefaultAsync(
-                item => item.Id == property.PropertyId,
-                cancellationToken).ConfigureAwait(false);
-        if (projection is null)
-        {
-            projection = IngestionPropertyProjection.Create(property.PropertyId, property.ScopeId);
-            dbContext.PropertyProjections.Add(projection);
-        }
+        IngestionPropertyProjection projection = await this.GetOrCreateAsync(
+            property.ScopeId,
+            property.PropertyId,
+            cancellationToken).ConfigureAwait(false);
 
-        projection.Apply(
+        projection.ApplySnapshot(
             property.Name,
             property.Code,
             property.IsActive,
+            property.ProcessingStatus,
+            property.GovernancePolicy,
             property.SourceVersion);
     }
 
-    public Task<bool> IsActiveAsync(Guid propertyId, CancellationToken cancellationToken) =>
-        dbContext.PropertyProjections.AsNoTracking().AnyAsync(
-            property => property.Id == propertyId && property.IsKnown && property.IsActive,
-            cancellationToken);
+    public async Task<IngestionPropertyPolicySnapshot?> GetPolicyAsync(
+        Guid propertyId,
+        CancellationToken cancellationToken)
+    {
+        IngestionPropertyProjection? property = await dbContext.PropertyProjections
+            .AsNoTracking()
+            .Include(item => item.GovernancePolicy)
+            .ThenInclude(policy => policy!.Acknowledgements)
+            .FirstOrDefaultAsync(item => item.Id == propertyId, cancellationToken)
+            .ConfigureAwait(false);
+        return property is null
+            ? null
+            : new IngestionPropertyPolicySnapshot(
+                property.IsKnown,
+                property.IsActive,
+                property.ProcessingStatus,
+                MapPolicy(property.GovernancePolicy));
+    }
 
     public async Task<bool> TryAdvanceAsync(
         Guid propertyId,
@@ -49,4 +84,43 @@ internal sealed class IngestionPropertyProjectionRepository(IngestionDbContext d
         property.AdvanceRetentionFence();
         return true;
     }
+
+    private async Task<IngestionPropertyProjection> GetOrCreateAsync(
+        string scopeId,
+        Guid propertyId,
+        CancellationToken cancellationToken)
+    {
+        IngestionPropertyProjection? projection = dbContext.PropertyProjections.Local.FirstOrDefault(
+            item => item.Id == propertyId && item.ScopeId == scopeId) ??
+            await dbContext.PropertyProjections.FirstOrDefaultAsync(
+                item => item.Id == propertyId,
+                cancellationToken).ConfigureAwait(false);
+        if (projection is null)
+        {
+            projection = IngestionPropertyProjection.Create(propertyId, scopeId);
+            dbContext.PropertyProjections.Add(projection);
+        }
+
+        return projection;
+    }
+
+    private static PropertyGovernancePolicyBinding? MapPolicy(IngestionPropertyPolicyBinding? policy) =>
+        policy is null
+            ? null
+            : new PropertyGovernancePolicyBinding(
+                policy.OperatingCountryCode,
+                policy.PolicyId,
+                policy.PolicyVersion,
+                policy.DataRegionId,
+                policy.TransferProfileId,
+                policy.RetentionPolicyId,
+                policy.RetentionPolicyVersion,
+                policy.ContentSha256,
+                policy.PolicyEffectiveAtUtc,
+                policy.PolicyExpiresAtUtc,
+                policy.ActivatedAtUtc,
+                policy.Acknowledgements.Select(acknowledgement =>
+                    new PropertyGovernanceAcknowledgement(
+                        acknowledgement.AcknowledgementId,
+                        acknowledgement.AcknowledgementVersion)).ToArray());
 }

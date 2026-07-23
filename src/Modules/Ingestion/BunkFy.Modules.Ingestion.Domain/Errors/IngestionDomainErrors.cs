@@ -44,6 +44,9 @@ public static class IngestionDomainErrors
     public static readonly Error ErrorCodeInvalid = new("Ingestion.ErrorCodeInvalid", "The adapter error code is invalid.");
     public static readonly Error ReceiptIdentityInvalid = new("Ingestion.ReceiptIdentityInvalid", "The observation receipt identity is invalid.");
     public static readonly Error PayloadInvalid = new("Ingestion.PayloadInvalid", "The observation payload reference or hash is invalid.");
+    public static readonly Error CountryPolicyEvidenceInvalid = new(
+        "Ingestion.CountryPolicyEvidenceInvalid",
+        "Valid country-policy decision evidence is required for an accepted observation.");
     public static readonly Error RawPayloadRetentionInvalid = new("Ingestion.RawPayloadRetentionInvalid", "The raw payload retention deadline is invalid.");
     public static readonly Error RawPayloadNotPurgeable = new("Ingestion.RawPayloadNotPurgeable", "The raw payload is not terminal and due for purge.");
     public static readonly Error RawPayloadPurgeClaimInvalid = new("Ingestion.RawPayloadPurgeClaimInvalid", "The raw payload purge claim is invalid.");

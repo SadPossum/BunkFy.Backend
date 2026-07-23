@@ -35,7 +35,11 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IReservationExternalOperationRepository, ReservationExternalOperationRepository>();
         builder.Services.TryAddScoped<IInventoryProjectionRepository, InventoryProjectionRepository>();
         builder.Services.TryAddScoped<IReservationGuestProfileProjectionRepository, ReservationGuestProfileProjectionRepository>();
-        builder.Services.TryAddScoped<IReservationArrivalReminderRepository, ReservationArrivalReminderRepository>();
+        builder.Services.TryAddScoped<ReservationArrivalReminderRepository>();
+        builder.Services.TryAddScoped<IReservationArrivalReminderRepository>(services =>
+            services.GetRequiredService<ReservationArrivalReminderRepository>());
+        builder.Services.TryAddScoped<IReservationPropertyPolicyRepository>(services =>
+            services.GetRequiredService<ReservationArrivalReminderRepository>());
         builder.Services.TryAddScoped<IProjectionRebuildWriter<InventoryAvailabilityProjectionExport>, InventoryProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<GuestProfileEligibilityProjectionExport>, ReservationGuestProfilesProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, ReservationPropertyProjectionRebuildWriter>();

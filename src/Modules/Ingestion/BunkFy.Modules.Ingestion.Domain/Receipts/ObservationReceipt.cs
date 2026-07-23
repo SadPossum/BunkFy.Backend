@@ -31,6 +31,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
     public string? SourceRevision { get; private set; }
     public string DeduplicationKey { get; private set; } = string.Empty;
     public string ContentHash { get; private set; } = string.Empty;
+    public ObservationCountryPolicyEvidence? CountryPolicyEvidence { get; private set; }
     public Guid RawPayloadFileId { get; private set; }
     public RawPayloadRetentionState RawPayloadRetentionState { get; private set; } = RawPayloadRetentionState.Available;
     public DateTimeOffset RawPayloadRetainUntilUtc { get; private set; }
@@ -64,6 +65,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
         string? sourceRevision,
         string deduplicationKey,
         string contentHash,
+        ObservationCountryPolicyEvidence countryPolicyEvidence,
         Guid rawPayloadFileId,
         DateTimeOffset rawPayloadRetainUntilUtc,
         DateTimeOffset? sourceUpdatedAtUtc,
@@ -113,6 +115,11 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
             return Result.Failure<ObservationReceipt>(IngestionDomainErrors.PayloadInvalid);
         }
 
+        if (countryPolicyEvidence is null)
+        {
+            return Result.Failure<ObservationReceipt>(IngestionDomainErrors.CountryPolicyEvidenceInvalid);
+        }
+
         if (rawPayloadRetainUntilUtc <= receivedAtUtc)
         {
             return Result.Failure<ObservationReceipt>(IngestionDomainErrors.RawPayloadRetentionInvalid);
@@ -140,6 +147,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
             SourceRevision = normalizedRevision,
             DeduplicationKey = normalizedDeduplicationKey,
             ContentHash = normalizedHash,
+            CountryPolicyEvidence = countryPolicyEvidence,
             RawPayloadFileId = rawPayloadFileId,
             RawPayloadRetainUntilUtc = rawPayloadRetainUntilUtc,
             SourceUpdatedAtUtc = sourceUpdatedAtUtc,

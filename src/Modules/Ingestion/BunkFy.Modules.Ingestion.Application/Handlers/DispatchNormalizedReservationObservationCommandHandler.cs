@@ -1,11 +1,13 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
 using System.Text.Json;
+using BunkFy.DataGovernance;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Application.Reservations;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
@@ -18,6 +20,7 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
     IReservationSourceLinkRepository sourceLinks,
     IReservationDispatchRepository dispatches,
     IChangeProposalRepository proposals,
+    IIngestionCountryPolicyAdmission countryPolicy,
     ReservationExternalRequestPublisher requestPublisher,
     ISystemClock clock)
     : ICommandHandler<DispatchNormalizedReservationObservationCommand, ReservationObservationDispatchResult>
@@ -41,6 +44,18 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
         if (connection is null || connection.PropertyId != receipt.PropertyId)
         {
             return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ConnectionNotFound);
+        }
+
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            receipt.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.Import,
+            IngestionCountryPolicyAdmission.ApprovedParserProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
+        {
+            return Result.Failure<ReservationObservationDispatchResult>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
         ReservationSourceLink? link = await sourceLinks.FindBySourceAsync(

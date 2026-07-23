@@ -105,6 +105,7 @@ public sealed class OutboxPublisherIntegrationTests
         builder.Configuration["Outbox:PollIntervalMilliseconds"] = "100";
         builder.Configuration["Outbox:LockDurationMilliseconds"] = "1000";
         builder.Configuration["Worker:Modules:Auth"] = "true";
+        AuthTestConfiguration.ConfigureTokenHashing(builder.Configuration);
         builder.Logging.ClearProviders();
 
         builder.AddWorkerHost();

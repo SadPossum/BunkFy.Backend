@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Properties.Tests;
 using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Errors;
 using BunkFy.Modules.Properties.Domain.Events;
+using BunkFy.Modules.Properties.Domain.ValueObjects;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
 using Xunit;
@@ -105,6 +106,119 @@ public sealed class PropertyAggregateTests
         Assert.Null(property.RetiredAtUtc);
         Assert.Empty(property.DomainEvents);
     }
+
+    [Fact]
+    public void Processing_activation_supports_policies_without_acknowledgements()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+        PropertyGovernanceBinding binding = CreateGovernanceBinding();
+        property.ClearDomainEvents();
+
+        Result result = property.ActivateProcessing(
+            binding,
+            [],
+            property.Version,
+            Guid.NewGuid(),
+            GovernanceNow,
+            " user:owner ");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PropertyProcessingState.Enabled, property.ProcessingState);
+        Assert.Same(binding, property.GovernanceBinding);
+        Assert.Empty(property.GovernanceAcknowledgements);
+        Assert.Equal(2, property.Version);
+        PropertyProcessingPolicyActivatedDomainEvent domainEvent =
+            Assert.IsType<PropertyProcessingPolicyActivatedDomainEvent>(Assert.Single(property.DomainEvents));
+        Assert.Same(binding, domainEvent.Binding);
+        Assert.Empty(domainEvent.Acknowledgements);
+        Assert.Equal("user:owner", domainEvent.ActorId);
+        Assert.Equal(property.Version, domainEvent.PropertyVersion);
+    }
+
+    [Fact]
+    public void Processing_suspension_retains_the_complete_binding_for_projectors()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+        PropertyGovernanceBinding binding = CreateGovernanceBinding();
+        PropertyGovernanceAcknowledgement acknowledgement =
+            PropertyGovernanceAcknowledgement.Create("operator-notice", 1).Value;
+        Assert.True(property.ActivateProcessing(
+            binding,
+            [acknowledgement],
+            property.Version,
+            Guid.NewGuid(),
+            GovernanceNow,
+            "user:owner").IsSuccess);
+        property.ClearDomainEvents();
+
+        Result result = property.SuspendProcessing(
+            property.Version,
+            Guid.NewGuid(),
+            GovernanceNow.AddMinutes(1),
+            "user:owner");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PropertyProcessingState.Suspended, property.ProcessingState);
+        Assert.Same(binding, property.GovernanceBinding);
+        PropertyProcessingSuspendedDomainEvent domainEvent =
+            Assert.IsType<PropertyProcessingSuspendedDomainEvent>(Assert.Single(property.DomainEvents));
+        Assert.Same(binding, domainEvent.Binding);
+        Assert.Equal(acknowledgement, Assert.Single(domainEvent.Acknowledgements));
+        Assert.Equal(property.Version, domainEvent.PropertyVersion);
+    }
+
+    [Fact]
+    public void Processing_lifecycle_rejects_stale_versions_and_retired_properties_without_mutation()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+        PropertyGovernanceBinding binding = CreateGovernanceBinding();
+        property.ClearDomainEvents();
+
+        Result stale = property.ActivateProcessing(
+            binding,
+            [],
+            expectedVersion: 99,
+            Guid.NewGuid(),
+            GovernanceNow,
+            "user:owner");
+
+        Assert.Equal(PropertiesDomainErrors.VersionConflict, stale.Error);
+        Assert.Equal(PropertyProcessingState.Unconfigured, property.ProcessingState);
+        Assert.Null(property.GovernanceBinding);
+        Assert.Empty(property.DomainEvents);
+
+        Assert.True(property.Retire(property.Version, Guid.NewGuid(), GovernanceNow).IsSuccess);
+        property.ClearDomainEvents();
+        Result retired = property.ActivateProcessing(
+            binding,
+            [],
+            property.Version,
+            Guid.NewGuid(),
+            GovernanceNow.AddMinutes(1),
+            "user:owner");
+
+        Assert.Equal(PropertiesDomainErrors.PropertyRetired, retired.Error);
+        Assert.Equal(PropertyProcessingState.Unconfigured, property.ProcessingState);
+        Assert.Null(property.GovernanceBinding);
+        Assert.Empty(property.DomainEvents);
+    }
+
+    private static readonly DateTimeOffset GovernanceNow =
+        new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+
+    private static PropertyGovernanceBinding CreateGovernanceBinding() =>
+        PropertyGovernanceBinding.Create(
+            "GB",
+            "gb-hostel",
+            1,
+            "eu-west-2",
+            "uk-no-transfer",
+            "guest-operational",
+            1,
+            new string('a', Property.ContentSha256Length),
+            GovernanceNow.AddDays(-1),
+            GovernanceNow.AddDays(30),
+            GovernanceNow).Value;
 
     private static Result<Property> CreateProperty(
         string tenantId,

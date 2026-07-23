@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -8,6 +9,7 @@ using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Parsing;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
@@ -24,6 +26,7 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
     IObservationReprocessingAttemptRepository attempts,
     IAdapterConnectionRepository connections,
     IObservationParserDescriptorRegistry parsers,
+    IIngestionCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -75,6 +78,18 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
         if (connection is null || connection.PropertyId != source.PropertyId)
         {
             return Result.Failure<ObservationReprocessingPreparation>(IngestionApplicationErrors.ConnectionNotFound);
+        }
+
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            source.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.Import,
+            IngestionCountryPolicyAdmission.ApprovedParserProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
+        {
+            return Result.Failure<ObservationReprocessingPreparation>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
         if (!descriptor.Supports(connection.AdapterType, source.SourceRecordType))
@@ -173,6 +188,7 @@ internal sealed class StartObservationReprocessingCommandHandler(
     IObservationReceiptRepository receipts,
     IAdapterConnectionRepository connections,
     IObservationParserDescriptorRegistry parsers,
+    IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock)
     : ICommandHandler<StartObservationReprocessingCommand, ObservationReprocessingStart>
 {
@@ -198,6 +214,18 @@ internal sealed class StartObservationReprocessingCommandHandler(
         {
             return Result.Failure<ObservationReprocessingStart>(
                 IngestionApplicationErrors.ReprocessingRawPayloadInvalid);
+        }
+
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            attempt.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.Import,
+            IngestionCountryPolicyAdmission.ApprovedParserProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
+        {
+            return Result.Failure<ObservationReprocessingStart>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
         if (!parsers.TryGet(attempt.ParserType, attempt.ParserVersion, out var descriptor) || descriptor is null)

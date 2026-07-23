@@ -2,16 +2,21 @@ namespace BunkFy.Modules.Properties.Application;
 
 using BunkFy.Modules.Properties.Domain.Errors;
 using Gma.Framework.Results;
+using BunkFy.DataGovernance;
 
 public static class PropertiesApplicationErrors
 {
     public static readonly Error AccessDenied = new("Properties.AccessDenied", "The subject cannot access the requested property scope.");
+    public static readonly Error ConfirmationRequired = new(
+        "Properties.ConfirmationRequired",
+        "Confirmation is required.");
     public static readonly Error TenantRequired = PropertiesDomainErrors.TenantRequired;
     public static readonly Error PropertyNotFound = PropertiesDomainErrors.PropertyNotFound;
     public static readonly Error PropertyCodeAlreadyExists = PropertiesDomainErrors.PropertyCodeAlreadyExists;
     public static readonly Error PropertyStatusUnknown = PropertiesDomainErrors.PropertyStatusUnknown;
     public static readonly Error PropertyAlreadyRetired = PropertiesDomainErrors.PropertyAlreadyRetired;
     public static readonly Error PropertyRetired = PropertiesDomainErrors.PropertyRetired;
+    public static readonly Error PropertyProcessingNotEnabled = PropertiesDomainErrors.PropertyProcessingNotEnabled;
     public static readonly Error PropertyHasActiveRooms = PropertiesDomainErrors.PropertyHasActiveRooms;
     public static readonly Error VersionConflict = PropertiesDomainErrors.VersionConflict;
     public static readonly Error RoomAlreadyExists = PropertiesDomainErrors.RoomAlreadyExists;
@@ -25,4 +30,14 @@ public static class PropertiesApplicationErrors
     public static readonly Error BedAlreadyRetired = PropertiesDomainErrors.BedAlreadyRetired;
     public static readonly Error BedRetirementRequiresInventory = PropertiesDomainErrors.BedRetirementRequiresInventory;
     public static readonly Error RoomRetirementRequiresInventory = PropertiesDomainErrors.RoomRetirementRequiresInventory;
+
+    public static Error CountryPolicyDenied(CountryPolicyDecisionReason reason) =>
+        new(
+            $"Properties.CountryPolicy.{reason}",
+            "The selected country policy does not permit this operation.");
+    public static IReadOnlyList<Error> CountryPolicyDenials { get; } =
+        Enum.GetValues<CountryPolicyDecisionReason>()
+            .Where(reason => reason is not CountryPolicyDecisionReason.Unknown and not CountryPolicyDecisionReason.Allowed)
+            .Select(CountryPolicyDenied)
+            .ToArray();
 }

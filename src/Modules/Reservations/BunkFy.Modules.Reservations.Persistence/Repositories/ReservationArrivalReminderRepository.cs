@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 internal sealed class ReservationArrivalReminderRepository(
     ReservationsDbContext dbContext,
     IIdGenerator idGenerator)
-    : IReservationArrivalReminderRepository
+    : IReservationArrivalReminderRepository, IReservationPropertyPolicyRepository
 {
     public async Task ApplyPropertyAsync(
         ReservationReminderPropertyWriteModel property,
@@ -26,7 +27,7 @@ internal sealed class ReservationArrivalReminderRepository(
             dbContext.PropertyProjections.Add(projection);
         }
 
-        if (!projection.Apply(property.TimeZoneId, property.IsActive, property.SourceVersion))
+        if (!projection.ApplyTopology(property.TimeZoneId, property.IsActive, property.SourceVersion))
         {
             return;
         }
@@ -68,6 +69,36 @@ internal sealed class ReservationArrivalReminderRepository(
                 projection,
                 existing.Where(reminder => reminder.ReservationId == reservation.ReservationId).ToArray());
         }
+    }
+
+    public async Task ApplyPolicyAsync(
+        ReservationPropertyPolicyWriteModel property,
+        CancellationToken cancellationToken)
+    {
+        ReservationPropertyProjection projection = await this.GetOrCreatePropertyAsync(
+            property.ScopeId,
+            property.PropertyId,
+            cancellationToken).ConfigureAwait(false);
+        projection.ApplyPolicy(property.ProcessingStatus, property.GovernancePolicy, property.SourceVersion);
+    }
+
+    public async Task<ReservationPropertyPolicySnapshot?> GetPolicyAsync(
+        Guid propertyId,
+        CancellationToken cancellationToken)
+    {
+        ReservationPropertyProjection? property = await dbContext.PropertyProjections
+            .AsNoTracking()
+            .Include(item => item.GovernancePolicy)
+            .ThenInclude(policy => policy!.Acknowledgements)
+            .FirstOrDefaultAsync(item => item.Id == propertyId, cancellationToken)
+            .ConfigureAwait(false);
+        return property is null
+            ? null
+            : new ReservationPropertyPolicySnapshot(
+                property.IsKnown,
+                property.IsActive,
+                property.ProcessingStatus,
+                MapPolicy(property.GovernancePolicy));
     }
 
     public async Task RefreshReservationAsync(
@@ -218,6 +249,45 @@ internal sealed class ReservationArrivalReminderRepository(
             reminder.Supersede();
         }
     }
+
+    private async Task<ReservationPropertyProjection> GetOrCreatePropertyAsync(
+        string scopeId,
+        Guid propertyId,
+        CancellationToken cancellationToken)
+    {
+        ReservationPropertyProjection? projection = dbContext.PropertyProjections.Local.FirstOrDefault(
+            item => item.Id == propertyId && item.ScopeId == scopeId) ??
+            await dbContext.PropertyProjections.FirstOrDefaultAsync(
+                item => item.Id == propertyId,
+                cancellationToken).ConfigureAwait(false);
+        if (projection is null)
+        {
+            projection = ReservationPropertyProjection.Create(propertyId, scopeId);
+            dbContext.PropertyProjections.Add(projection);
+        }
+
+        return projection;
+    }
+
+    private static PropertyGovernancePolicyBinding? MapPolicy(ReservationPropertyPolicyBinding? policy) =>
+        policy is null
+            ? null
+            : new PropertyGovernancePolicyBinding(
+                policy.OperatingCountryCode,
+                policy.PolicyId,
+                policy.PolicyVersion,
+                policy.DataRegionId,
+                policy.TransferProfileId,
+                policy.RetentionPolicyId,
+                policy.RetentionPolicyVersion,
+                policy.ContentSha256,
+                policy.PolicyEffectiveAtUtc,
+                policy.PolicyExpiresAtUtc,
+                policy.ActivatedAtUtc,
+                policy.Acknowledgements.Select(acknowledgement =>
+                    new PropertyGovernanceAcknowledgement(
+                        acknowledgement.AcknowledgementId,
+                        acknowledgement.AcknowledgementVersion)).ToArray());
 
     private static bool TryResolveExpectedArrivalUtc(
         DateOnly arrival,

@@ -62,6 +62,7 @@
     <ProjectReference Include="..\..\src\Adapters\BunkFy.Parsers.ReservationMail\BunkFy.Parsers.ReservationMail.csproj" />
     <ProjectReference Include="..\..\src\Shared\BunkFy.Adapter.Abstractions\BunkFy.Adapter.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Shared\BunkFy.Adapter.Runtime\BunkFy.Adapter.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="..\..\src\Shared\BunkFy.Ingestion.Parsing.Abstractions\BunkFy.Ingestion.Parsing.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.Application\BunkFy.Modules.Ingestion.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.AdminCli\BunkFy.Modules.Ingestion.AdminCli.csproj" />

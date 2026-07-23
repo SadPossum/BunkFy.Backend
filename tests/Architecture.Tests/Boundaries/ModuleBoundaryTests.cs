@@ -130,7 +130,7 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
-    public void Data_governance_catalogue_model_stays_dependency_free()
+    public void Data_governance_engine_stays_dependency_free()
     {
         ProjectFile governance = Assert.Single(
             ProjectFile.All(),
@@ -138,6 +138,27 @@ public sealed class ModuleBoundaryTests
 
         Assert.Empty(governance.PackageReferences);
         Assert.Empty(governance.ProjectReferences);
+    }
+
+    [Fact]
+    public void BunkFy_country_policy_model_does_not_leak_into_GMA()
+    {
+        string[] productSpecificTokens =
+        [
+            "CountryPolicyPackDocument",
+            "CountryPolicyRegistry",
+            "OperatingCountryCode",
+            "JurisdictionPolicyId",
+            "TransferProfileId"
+        ];
+
+        string[] offenders = RepositoryPaths.EnumerateFiles("gma", "*.cs")
+            .Where(path => productSpecificTokens.Any(token =>
+                File.ReadAllText(path).Contains(token, StringComparison.Ordinal)))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]

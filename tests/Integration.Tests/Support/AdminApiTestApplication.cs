@@ -38,7 +38,6 @@ internal sealed class AdminApiTestApplication(
     private const string JwtIssuer = "BunkFy";
     private const string JwtAudience = "BunkFy";
     private const string JwtSigningKey = "integration-test-signing-key-change-me-000000000000000000";
-    private const string RefreshTokenPepper = "integration-test-refresh-token-pepper-change-me-000000000000000000";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -52,7 +51,7 @@ internal sealed class AdminApiTestApplication(
         builder.UseSetting("Outbox:PollIntervalMilliseconds", "100");
         builder.UseSetting("Outbox:LockDurationMilliseconds", "1000");
         builder.UseSetting("Auth:RefreshTokenLifetimeDays", "30");
-        builder.UseSetting("Auth:RefreshTokens:Pepper", RefreshTokenPepper);
+        builder.UseSetting("Auth:RefreshTokens:Pepper", AuthTestConfiguration.RefreshTokenPepper);
         builder.UseSetting("Auth:Jwt:Issuer", JwtIssuer);
         builder.UseSetting("Auth:Jwt:Audience", JwtAudience);
         builder.UseSetting("Auth:Jwt:SigningKey", JwtSigningKey);
@@ -87,7 +86,7 @@ internal sealed class AdminApiTestApplication(
                 ["Outbox:PollIntervalMilliseconds"] = "100",
                 ["Outbox:LockDurationMilliseconds"] = "1000",
                 ["Auth:RefreshTokenLifetimeDays"] = "30",
-                ["Auth:RefreshTokens:Pepper"] = RefreshTokenPepper,
+                ["Auth:RefreshTokens:Pepper"] = AuthTestConfiguration.RefreshTokenPepper,
                 ["Auth:Jwt:Issuer"] = JwtIssuer,
                 ["Auth:Jwt:Audience"] = JwtAudience,
                 ["Auth:Jwt:SigningKey"] = JwtSigningKey,

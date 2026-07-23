@@ -10323,7 +10323,14 @@
         {
           "assembly": "BunkFy.Modules.Ingestion.Persistence",
           "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyProjection",
-          "member": "SourceVersion",
+          "member": "TopologySourceVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyProjection",
+          "member": "PolicySourceVersion",
           "surface": "persistence",
           "retentionPolicy": null
         }
@@ -11533,6 +11540,232 @@
           "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
           "member": "TenantId",
           "surface": "integration-event",
+          "retentionPolicy": null
+        }
+      ]
+    },
+    {
+      "id": "ingestion.governance.policy-metadata",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "ingestion-processing",
+        "source-reconciliation",
+        "operational-audit"
+      ],
+      "sources": [
+        "ingestion-persistence",
+        "system-workflow"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyProjection",
+          "member": "ProcessingStatus",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "OperatingCountryCode",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "DataRegionId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "TransferProfileId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "RetentionPolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "RetentionPolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "ContentSha256",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyEffectiveAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyExpiresAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "ActivatedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyAcknowledgement",
+          "member": "AcknowledgementId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyAcknowledgement",
+          "member": "AcknowledgementVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "OperatingCountryCode",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "DataRegionId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "TransferProfileId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "RetentionPolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "RetentionPolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "ContentSha256",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PurposeCode",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "ProcessingSurface",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "SourceProvenance",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyEffectiveAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyExpiresAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "EvaluatedAtUtc",
+          "surface": "persistence",
           "retentionPolicy": null
         }
       ]

@@ -177,6 +177,7 @@ public sealed class ReceiptAndProposalTests
         "7",
         "reservation.changed|booking-123|7",
         new string('a', ObservationReceipt.ContentHashLength),
+        TestObservationCountryPolicyEvidence.Create(Now),
         Guid.NewGuid(),
         Now.AddDays(30),
         Now.AddMinutes(-2),

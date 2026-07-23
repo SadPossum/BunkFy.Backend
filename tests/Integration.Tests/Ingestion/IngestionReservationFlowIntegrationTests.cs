@@ -287,6 +287,7 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
             ["FileManagement:Minio:CreateBucketIfMissing"] = "true"
         });
         builder.AddWorkerHost();
+        CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
         builder.ValidateModuleComposition();
         return builder.Build();
     }
@@ -303,12 +304,27 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
             ResolveHandler<PropertyCreatedIntegrationEvent>(scope.ServiceProvider, InventoryModuleMetadata.Name);
         IIntegrationEventHandler<PropertyCreatedIntegrationEvent> ingestionPropertyHandler =
             ResolveHandler<PropertyCreatedIntegrationEvent>(scope.ServiceProvider, IngestionModuleMetadata.Name);
+        IIntegrationEventHandler<PropertyCreatedIntegrationEvent> reservationPropertyHandler =
+            ResolveHandler<PropertyCreatedIntegrationEvent>(scope.ServiceProvider, ReservationsModuleMetadata.Name);
         IIntegrationEventHandler<RoomCreatedIntegrationEvent> roomHandler =
             ResolveHandler<RoomCreatedIntegrationEvent>(scope.ServiceProvider, InventoryModuleMetadata.Name);
         PropertyCreatedIntegrationEvent propertyCreated = new(
             Guid.NewGuid(), TenantId, now, PropertyId, "Ingestion House", "ingestion", "UTC", PropertyStatus.Active, 1);
         await propertyHandler.HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
         await ingestionPropertyHandler.HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
+        await reservationPropertyHandler.HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            IngestionModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            ReservationsModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
         await roomHandler.HandleAsync(
             new(Guid.NewGuid(), TenantId, now, PropertyId, RoomId, "101", null, null, RoomStatus.Active, 1),
             CancellationToken.None).ConfigureAwait(false);
@@ -557,7 +573,7 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
                 inventoryMessages.Select(item =>
                     $"{item.EventType}/{item.Handler}:{item.Status}/{item.LastError ?? "no-error"}"));
             lastObservedState =
-                $"receipt={receipt?.State.ToString() ?? "missing"}; " +
+                $"receipt={receipt?.State.ToString() ?? "missing"}/{receipt?.RejectionReason ?? "no-error"}; " +
                 $"dispatch={dispatch?.State.ToString() ?? "missing"}/{dispatch?.Kind.ToString() ?? "none"}/{dispatch?.ErrorCode ?? "no-error"}; " +
                 $"link={link?.State.ToString() ?? "missing"}/revision={link?.LastAppliedReservationDetailsRevision?.ToString(CultureInfo.InvariantCulture) ?? "none"}; " +
                 $"reservation={reservation?.Status.ToString() ?? "missing"}/revision={reservation?.DetailsRevision.ToString(CultureInfo.InvariantCulture) ?? "none"}/departure={reservation?.Departure.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "none"}/pending-amendment={reservation?.PendingAllocationAmendmentId?.ToString() ?? "none"}; " +

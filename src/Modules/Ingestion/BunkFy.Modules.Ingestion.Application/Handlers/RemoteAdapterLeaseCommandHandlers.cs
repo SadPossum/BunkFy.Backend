@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -9,12 +10,13 @@ using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 
 internal sealed class ClaimRemoteAdapterLeaseCommandHandler(
     IAdapterConnectionRepository connections,
-    IIngestionPropertyProjectionRepository properties,
+    IIngestionCountryPolicyAdmission countryPolicy,
     IIngestionRunRepository runs,
     IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
@@ -48,9 +50,16 @@ internal sealed class ClaimRemoteAdapterLeaseCommandHandler(
                 BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.RemoteLeaseRequiresRemotePollingMode);
         }
 
-        if (!await properties.IsActiveAsync(connection.PropertyId, cancellationToken).ConfigureAwait(false))
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            connection.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.AdapterIngress,
+            IngestionCountryPolicyAdmission.ApprovedAdapterProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
         {
-            return Result.Failure<AdapterRemoteLeaseClaimResponse>(IngestionApplicationErrors.PropertyNotActive);
+            return Result.Failure<AdapterRemoteLeaseClaimResponse>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
         if (!descriptors.TryGet(connection.AdapterType, out AdapterDescriptor? descriptor) || descriptor is null ||
@@ -196,6 +205,7 @@ internal sealed class ClaimRemoteAdapterLeaseCommandHandler(
 internal sealed class RenewRemoteAdapterLeaseCommandHandler(
     IAdapterConnectionRepository connections,
     IIngestionRunRepository runs,
+    IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock)
     : ICommandHandler<RenewRemoteAdapterLeaseCommand, AdapterRemoteLeaseRenewResponse>
 {
@@ -219,6 +229,18 @@ internal sealed class RenewRemoteAdapterLeaseCommandHandler(
         {
             return Result.Failure<AdapterRemoteLeaseRenewResponse>(
                 BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.RemoteLeaseMismatch);
+        }
+
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            connection.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.AdapterIngress,
+            IngestionCountryPolicyAdmission.ApprovedAdapterProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
+        {
+            return Result.Failure<AdapterRemoteLeaseRenewResponse>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;

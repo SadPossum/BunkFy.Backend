@@ -14,8 +14,10 @@ public static class GuestsModuleMetadata
     public const string PropertyCreatedHandlerName = "property-created";
     public const string PropertyUpdatedHandlerName = "property-updated";
     public const string PropertyRetiredHandlerName = "property-retired";
+    public const string PropertyProcessingPolicyActivatedHandlerName = "property-processing-policy-activated";
+    public const string PropertyProcessingSuspendedHandlerName = "property-processing-suspended";
     public const string PropertiesProjectionName = "properties";
-    public const int PropertiesProjectionVersion = 1;
+    public const int PropertiesProjectionVersion = 2;
     public const string StayHistoryProjectionName = "reservation-stay-history";
     public const int StayHistoryProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
@@ -35,6 +37,12 @@ public static class GuestsModuleMetadata
         .WithSubscription<PropertyCreatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyCreatedHandlerName)
         .WithSubscription<PropertyUpdatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyUpdatedHandlerName)
         .WithSubscription<PropertyRetiredIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyRetiredHandlerName)
+        .WithSubscription<PropertyProcessingPolicyActivatedIntegrationEvent>(
+            PropertiesModuleMetadata.Name,
+            PropertyProcessingPolicyActivatedHandlerName)
+        .WithSubscription<PropertyProcessingSuspendedIntegrationEvent>(
+            PropertiesModuleMetadata.Name,
+            PropertyProcessingSuspendedHandlerName)
         .WithSubscription<ReservationGuestLinkedIntegrationEvent>(ReservationsProducerModuleName, ReservationGuestLinkedHandlerName)
         .WithSubscription<ReservationGuestStayChangedIntegrationEvent>(ReservationsProducerModuleName, ReservationGuestStayChangedHandlerName)
         .WithPublishedEvent<GuestProfileCreatedIntegrationEvent>()

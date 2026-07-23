@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Tests.Application;
 
+using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
@@ -34,7 +35,7 @@ public sealed class StartAdapterRunCommandHandlerTests
         FakeRunRepository runs = new();
         StartAdapterRunCommandHandler handler = new(
             new FakeConnectionRepository(connection),
-            new FakePropertyProjection(active: false),
+            new TestCountryPolicyAdmission(allowed: false),
             runs,
             new TestDescriptors(),
             new TestScope(),
@@ -45,7 +46,9 @@ public sealed class StartAdapterRunCommandHandlerTests
             new StartAdapterRunCommand(connection.Id, Guid.NewGuid(), 1),
             CancellationToken.None);
 
-        Assert.Equal(IngestionApplicationErrors.PropertyNotActive, result.Error);
+        Assert.Equal(
+            IngestionApplicationErrors.CountryPolicyDenied(CountryPolicyDecisionReason.MissingBinding),
+            result.Error);
         Assert.Empty(runs.Items);
     }
 
@@ -57,7 +60,7 @@ public sealed class StartAdapterRunCommandHandlerTests
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", null, Now).Value;
         FakeRunRepository runs = new();
         StartAdapterRunCommandHandler handler = new(
-            new FakeConnectionRepository(connection), new FakePropertyProjection(active: true), runs,
+            new FakeConnectionRepository(connection), new TestCountryPolicyAdmission(), runs,
             new TestDescriptors(), new TestScope(), new TestIds(), new TestClock());
 
         var result = await handler.HandleAsync(
@@ -78,7 +81,7 @@ public sealed class StartAdapterRunCommandHandlerTests
             Guid.NewGuid(), "tenant-a", connection.Id, connection.PropertyId,
             Guid.NewGuid(), 1, null, Now).Value);
         StartAdapterRunCommandHandler handler = new(
-            new FakeConnectionRepository(connection), new FakePropertyProjection(active: true), runs,
+            new FakeConnectionRepository(connection), new TestCountryPolicyAdmission(), runs,
             new TestDescriptors(), new TestScope(), new TestIds(), new TestClock());
 
         var result = await handler.HandleAsync(
@@ -98,15 +101,6 @@ public sealed class StartAdapterRunCommandHandlerTests
 
         public Task AddAsync(AdapterConnection added, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
-    }
-
-    private sealed class FakePropertyProjection(bool active) : IIngestionPropertyProjectionRepository
-    {
-        public Task ApplyAsync(IngestionPropertyProjectionWriteModel property, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> IsActiveAsync(Guid propertyId, CancellationToken cancellationToken) =>
-            Task.FromResult(active);
     }
 
     private sealed class FakeRunRepository : IIngestionRunRepository

@@ -155,14 +155,26 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IsKnown")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<long>("PolicySourceVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ProcessingStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<long>("Version")
+                    b.Property<long>("TopologySourceVersion")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
@@ -172,7 +184,11 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
 
                     b.ToTable("property_projection", "guests", t =>
                         {
-                            t.HasCheckConstraint("CK_guests_property_projection_version", "\"Version\" >= 1");
+                            t.HasCheckConstraint("CK_guests_property_projection_governance_policy", "(\"ProcessingStatus\" = 1 AND \"OperatingCountryCode\" IS NULL AND \"JurisdictionPolicyId\" IS NULL AND \"JurisdictionPolicyVersion\" IS NULL AND \"DataRegionId\" IS NULL AND \"TransferProfileId\" IS NULL AND \"RetentionPolicyId\" IS NULL AND \"RetentionPolicyVersion\" IS NULL AND \"PolicyContentSha256\" IS NULL AND \"PolicyEffectiveAtUtc\" IS NULL AND \"PolicyExpiresAtUtc\" IS NULL AND \"PolicyActivatedAtUtc\" IS NULL) OR (\"ProcessingStatus\" IN (2, 3) AND \"OperatingCountryCode\" IS NOT NULL AND \"JurisdictionPolicyId\" IS NOT NULL AND \"JurisdictionPolicyVersion\" IS NOT NULL AND \"DataRegionId\" IS NOT NULL AND \"TransferProfileId\" IS NOT NULL AND \"RetentionPolicyId\" IS NOT NULL AND \"RetentionPolicyVersion\" IS NOT NULL AND \"PolicyContentSha256\" IS NOT NULL AND \"PolicyEffectiveAtUtc\" IS NOT NULL AND \"PolicyExpiresAtUtc\" IS NOT NULL AND \"PolicyActivatedAtUtc\" IS NOT NULL AND \"JurisdictionPolicyVersion\" > 0 AND \"RetentionPolicyVersion\" > 0 AND char_length(\"OperatingCountryCode\") = 2 AND char_length(\"PolicyContentSha256\") = 64 AND \"PolicyEffectiveAtUtc\" < \"PolicyExpiresAtUtc\" AND \"PolicyActivatedAtUtc\" >= \"PolicyEffectiveAtUtc\" AND \"PolicyActivatedAtUtc\" < \"PolicyExpiresAtUtc\")");
+
+                            t.HasCheckConstraint("CK_guests_property_projection_processing_status", "\"ProcessingStatus\" BETWEEN 1 AND 3");
+
+                            t.HasCheckConstraint("CK_guests_property_projection_versions", "\"TopologySourceVersion\" >= 0 AND \"PolicySourceVersion\" >= 0");
                         });
                 });
 
@@ -399,6 +415,109 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ProcessedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc", "CreatedAtUtc");
 
                     b.ToTable("outbox_messages", "guests");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Guests.Persistence.GuestPropertyProjection", b =>
+                {
+                    b.OwnsOne("BunkFy.Modules.Guests.Persistence.GuestPropertyPolicyBinding", "GovernancePolicy", b1 =>
+                        {
+                            b1.Property<string>("GuestPropertyProjectionScopeId")
+                                .HasColumnType("character varying(128)");
+
+                            b1.Property<Guid>("GuestPropertyProjectionId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateTimeOffset>("ActivatedAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyActivatedAtUtc");
+
+                            b1.Property<string>("ContentSha256")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("PolicyContentSha256");
+
+                            b1.Property<string>("DataRegionId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("DataRegionId");
+
+                            b1.Property<string>("OperatingCountryCode")
+                                .IsRequired()
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)")
+                                .HasColumnName("OperatingCountryCode");
+
+                            b1.Property<DateTimeOffset>("PolicyEffectiveAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyEffectiveAtUtc");
+
+                            b1.Property<DateTimeOffset>("PolicyExpiresAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyExpiresAtUtc");
+
+                            b1.Property<string>("PolicyId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("JurisdictionPolicyId");
+
+                            b1.Property<int>("PolicyVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("JurisdictionPolicyVersion");
+
+                            b1.Property<string>("RetentionPolicyId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("RetentionPolicyId");
+
+                            b1.Property<int>("RetentionPolicyVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("RetentionPolicyVersion");
+
+                            b1.Property<string>("TransferProfileId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("TransferProfileId");
+
+                            b1.HasKey("GuestPropertyProjectionScopeId", "GuestPropertyProjectionId");
+
+                            b1.ToTable("property_projection", "guests");
+
+                            b1.WithOwner()
+                                .HasForeignKey("GuestPropertyProjectionScopeId", "GuestPropertyProjectionId");
+
+                            b1.OwnsMany("BunkFy.Modules.Guests.Persistence.GuestPropertyPolicyAcknowledgement", "Acknowledgements", b2 =>
+                                {
+                                    b2.Property<string>("ScopeId")
+                                        .HasMaxLength(128)
+                                        .HasColumnType("character varying(128)");
+
+                                    b2.Property<Guid>("PropertyId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<string>("AcknowledgementId")
+                                        .HasMaxLength(128)
+                                        .HasColumnType("character varying(128)");
+
+                                    b2.Property<int>("AcknowledgementVersion")
+                                        .HasColumnType("integer");
+
+                                    b2.HasKey("ScopeId", "PropertyId", "AcknowledgementId", "AcknowledgementVersion");
+
+                                    b2.ToTable("property_policy_acknowledgements", "guests");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("ScopeId", "PropertyId");
+                                });
+
+                            b1.Navigation("Acknowledgements");
+                        });
+
+                    b.Navigation("GovernancePolicy");
                 });
 #pragma warning restore 612, 618
         }

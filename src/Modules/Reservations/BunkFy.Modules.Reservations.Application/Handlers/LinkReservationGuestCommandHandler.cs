@@ -1,17 +1,20 @@
 namespace BunkFy.Modules.Reservations.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 internal sealed class LinkReservationGuestCommandHandler(
     IReservationRepository reservations,
     IReservationGuestProfileProjectionRepository guests,
+    IReservationCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
     IIdGenerator ids)
     : ICommandHandler<LinkReservationGuestCommand, ReservationDto>
@@ -20,6 +23,18 @@ internal sealed class LinkReservationGuestCommandHandler(
         LinkReservationGuestCommand command,
         CancellationToken cancellationToken)
     {
+        CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
+            command.PropertyId,
+            ReservationCountryPolicyAdmission.ReservationManagementPurpose,
+            CountryPolicySurface.ApiWrite,
+            ReservationCountryPolicyAdmission.AuthorizedOperatorProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!policyDecision.IsAllowed)
+        {
+            return Result.Failure<ReservationDto>(
+                ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
+        }
+
         Reservation? reservation = await reservations.GetAsync(
             command.PropertyId,
             command.ReservationId,

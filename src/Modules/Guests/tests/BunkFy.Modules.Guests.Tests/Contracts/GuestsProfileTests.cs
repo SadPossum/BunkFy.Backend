@@ -5,6 +5,7 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Permissions;
 using Gma.Framework.Tasks;
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -17,7 +18,17 @@ public sealed class GuestsProfileTests
 
         Assert.Equal(4, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
-        Assert.Equal(5, GuestsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(7, GuestsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Contains(
+            GuestsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType == PropertyProcessingPolicyActivatedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
+        Assert.Contains(
+            GuestsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType == PropertyProcessingSuspendedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
         Assert.Equal(3, GuestsModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Equal(2, GuestsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Single(GuestsModuleMetadata.Descriptor.GetCompositionProfiles());

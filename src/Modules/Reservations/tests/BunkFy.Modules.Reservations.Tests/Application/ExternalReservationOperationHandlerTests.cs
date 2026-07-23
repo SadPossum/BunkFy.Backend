@@ -19,6 +19,32 @@ public sealed class ExternalReservationOperationHandlerTests
     private static readonly DateTimeOffset Now = new(2026, 7, 12, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Country_policy_denial_completes_external_create_without_accepting_guest_data()
+    {
+        FakeReservationRepository reservations = new();
+        FakeOperationRepository operations = new();
+        RecordingOutbox outbox = new();
+        ExternalReservationCreateRequestedHandler handler = new(
+            reservations,
+            new ValidInventoryProjection(),
+            new TestReservationCountryPolicyAdmission(allowed: false),
+            CreateCoordinator(operations, outbox),
+            CreateDomainEventDispatcher(),
+            new TestClock(),
+            new TestIdGenerator());
+
+        await handler.HandleAsync(CreateRequest(Guid.NewGuid(), "Blocked Guest"), CancellationToken.None);
+
+        Assert.Empty(reservations.Items);
+        ReservationExternalOperationRecord operation = Assert.Single(operations.Items.Values);
+        Assert.Equal(ExternalReservationOperationOutcome.ValidationRejected, operation.Outcome);
+        Assert.Equal("Reservations.CountryPolicyDenied.MissingBinding", operation.ErrorCode);
+        ExternalReservationOperationCompletedIntegrationEvent outcome =
+            Assert.IsType<ExternalReservationOperationCompletedIntegrationEvent>(Assert.Single(outbox.Events));
+        Assert.Equal(operation.ErrorCode, outcome.ErrorCode);
+    }
+
+    [Fact]
     public async Task Create_is_idempotent_and_conflicting_operation_reuse_is_rejected()
     {
         FakeReservationRepository reservations = new();
@@ -28,6 +54,7 @@ public sealed class ExternalReservationOperationHandlerTests
         ExternalReservationCreateRequestedHandler handler = new(
             reservations,
             new ValidInventoryProjection(),
+            new TestReservationCountryPolicyAdmission(),
             coordinator,
             CreateDomainEventDispatcher(),
             new TestClock(),
@@ -77,6 +104,7 @@ public sealed class ExternalReservationOperationHandlerTests
         RecordingOutbox outbox = new();
         ExternalReservationGuestDetailsChangeRequestedHandler handler = new(
             new FakeReservationRepository(reservation),
+            new TestReservationCountryPolicyAdmission(),
             CreateCoordinator(operations, outbox),
             CreateDomainEventDispatcher(),
             new TestClock(),
@@ -218,6 +246,7 @@ public sealed class ExternalReservationOperationHandlerTests
         ExternalReservationAmendmentRequestedHandler handler = new(
             new FakeReservationRepository(reservation),
             new ValidInventoryProjection(),
+            new TestReservationCountryPolicyAdmission(),
             CreateCoordinator(operations, outbox),
             CreateDomainEventDispatcher(),
             new TestClock(),

@@ -7,12 +7,15 @@ using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
-public sealed class Property : ScopedAggregateRoot<Guid>
+public sealed partial class Property : ScopedAggregateRoot<Guid>
 {
     public const int ActorIdMaxLength = 200;
     public const int PropertyNameMaxLength = 256;
     public const int PropertyCodeMaxLength = 64;
     public const int TimeZoneIdMaxLength = 128;
+    public const int CountryCodeLength = 2;
+    public const int PolicyKeyMaxLength = 128;
+    public const int ContentSha256Length = 64;
 
     private Property() { }
 
@@ -25,6 +28,8 @@ public sealed class Property : ScopedAggregateRoot<Guid>
     public PropertyCode Code { get; private set; }
     public PropertyTimeZoneId TimeZoneId { get; private set; }
     public PropertyState Status { get; private set; } = PropertyState.Active;
+    public PropertyProcessingState ProcessingState { get; private set; } = PropertyProcessingState.Unconfigured;
+    public PropertyGovernanceBinding? GovernanceBinding { get; private set; }
     public long Version { get; private set; } = 1;
     public long ProjectionOrdinal { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }

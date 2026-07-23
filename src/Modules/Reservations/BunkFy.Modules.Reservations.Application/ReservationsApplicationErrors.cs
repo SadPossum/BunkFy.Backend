@@ -1,10 +1,19 @@
 namespace BunkFy.Modules.Reservations.Application;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Results;
 using BunkFy.Modules.Reservations.Domain.Errors;
 
 public static class ReservationsApplicationErrors
 {
+    public static Error CountryPolicyDenied(CountryPolicyDecisionReason reason) => new(
+        $"Reservations.CountryPolicyDenied.{reason}",
+        "The property is not enabled for this data-processing operation.");
+    public static IReadOnlyList<Error> CountryPolicyDenials { get; } =
+        Enum.GetValues<CountryPolicyDecisionReason>()
+            .Where(reason => reason is not CountryPolicyDecisionReason.Unknown and not CountryPolicyDecisionReason.Allowed)
+            .Select(CountryPolicyDenied)
+            .ToArray();
     public static readonly Error ReservationNotFound = new("Reservations.ReservationNotFound", "The reservation was not found.");
     public static readonly Error ExternalSourceAlreadyExists = new("Reservations.ExternalSourceAlreadyExists", "A reservation already exists for this external source reference.");
     public static readonly Error TenantRequired = new("Reservations.TenantRequired", "A tenant context is required.");

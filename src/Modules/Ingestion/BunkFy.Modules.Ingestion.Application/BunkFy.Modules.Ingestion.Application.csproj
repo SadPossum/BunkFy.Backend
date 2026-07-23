@@ -4,6 +4,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Shared\BunkFy.Adapter.Abstractions\BunkFy.Adapter.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="..\..\..\Shared\BunkFy.Ingestion.Parsing.Abstractions\BunkFy.Ingestion.Parsing.Abstractions.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Ingestion.Domain\BunkFy.Modules.Ingestion.Domain.csproj" />

@@ -37,6 +37,13 @@
       "legalHoldBehavior": "no-payload-hold"
     },
     {
+      "id": "property-governance-revision-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "property-governance-decision-recorded",
+      "endsAt": "tenant-termination-or-approved-pseudonymization",
+      "legalHoldBehavior": "retain-minimum-required-audit-evidence"
+    },
+    {
       "id": "transient-domain-event",
       "approvalState": "engineering-default",
       "startsAt": "domain-event-raised",
@@ -123,7 +130,8 @@
       "allowedSurfaces": [
         "application-command",
         "domain-event",
-        "integration-event"
+        "integration-event",
+        "persistence"
       ],
       "allowedBoundaries": [
         "cross-module",
@@ -133,10 +141,45 @@
       "bindings": [
         {
           "assembly": "BunkFy.Modules.Properties.Application",
+          "type": "BunkFy.Modules.Properties.Application.Commands.ActivatePropertyProcessingCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Application",
+          "type": "BunkFy.Modules.Properties.Application.Commands.SuspendPropertyProcessingCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Application",
           "type": "BunkFy.Modules.Properties.Application.Commands.RetirePropertyCommand",
           "member": "ActorId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Application",
+          "type": "BunkFy.Modules.Properties.Application.Ports.PropertyGovernanceRevisionWriteModel",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Domain",
+          "type": "BunkFy.Modules.Properties.Domain.Events.PropertyProcessingPolicyActivatedDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Domain",
+          "type": "BunkFy.Modules.Properties.Domain.Events.PropertyProcessingSuspendedDomainEvent",
+          "member": "ActorId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
         },
         {
           "assembly": "BunkFy.Modules.Properties.Domain",
@@ -151,6 +194,13 @@
           "member": "ActorId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Properties.Persistence",
+          "type": "BunkFy.Modules.Properties.Persistence.PropertyGovernanceRevision",
+          "member": "ActorId",
+          "surface": "persistence",
+          "retentionPolicy": "property-governance-revision-lifecycle"
         }
       ]
     }

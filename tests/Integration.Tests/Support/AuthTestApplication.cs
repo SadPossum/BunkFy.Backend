@@ -48,7 +48,6 @@ internal sealed class AuthTestApplication(
     private const string JwtIssuer = "BunkFy";
     private const string JwtAudience = "BunkFy";
     internal const string JwtSigningKey = "integration-test-signing-key-change-me-000000000000000000";
-    private const string RefreshTokenPepper = "integration-test-refresh-token-pepper-change-me-000000000000000000";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -75,7 +74,7 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Auth:Jwt:Audience", JwtAudience);
         builder.UseSetting("Auth:Jwt:SigningKey", JwtSigningKey);
         builder.UseSetting("Auth:Jwt:AccessTokenLifetimeMinutes", "15");
-        builder.UseSetting("Auth:RefreshTokens:Pepper", RefreshTokenPepper);
+        builder.UseSetting("Auth:RefreshTokens:Pepper", AuthTestConfiguration.RefreshTokenPepper);
         builder.UseSetting("Auth:SelfRegistration:PasswordEnabled", "true");
         builder.UseSetting("Auth:SelfRegistration:ExternalEnabled", "true");
         if (enableWorkspaceSelfService)
@@ -96,7 +95,7 @@ internal sealed class AuthTestApplication(
                 ["ConnectionStrings:SqlServer"] = provider == "SqlServer" ? providerConnectionString : string.Empty,
                 ["ConnectionStrings:PostgreSql"] = provider == "PostgreSql" ? providerConnectionString : string.Empty,
                 ["ConnectionStrings:nats"] = natsConnectionString,
-                ["Auth:RefreshTokens:Pepper"] = RefreshTokenPepper,
+                ["Auth:RefreshTokens:Pepper"] = AuthTestConfiguration.RefreshTokenPepper,
                 ["Auth:Jwt:Issuer"] = JwtIssuer,
                 ["Auth:Jwt:Audience"] = JwtAudience,
                 ["Auth:Jwt:SigningKey"] = JwtSigningKey,
@@ -133,6 +132,8 @@ internal sealed class AuthTestApplication(
 
         builder.ConfigureServices(services =>
         {
+            CountryPolicyIntegrationTestData.InstallRegistry(services);
+
             if (disableOutboxPublisher)
             {
                 ServiceDescriptor[] hostedServicesToRemove = services

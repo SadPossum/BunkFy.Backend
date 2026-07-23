@@ -10,7 +10,7 @@ internal sealed class GuestPropertyCreatedHandler(IGuestPropertyProjectionReposi
     : IIntegrationEventHandler<PropertyCreatedIntegrationEvent>
 {
     public Task HandleAsync(PropertyCreatedIntegrationEvent integrationEvent, CancellationToken cancellationToken) =>
-        properties.ApplyAsync(
+        properties.ApplyTopologyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
@@ -25,7 +25,7 @@ internal sealed class GuestPropertyUpdatedHandler(IGuestPropertyProjectionReposi
     : IIntegrationEventHandler<PropertyUpdatedIntegrationEvent>
 {
     public Task HandleAsync(PropertyUpdatedIntegrationEvent integrationEvent, CancellationToken cancellationToken) =>
-        properties.ApplyAsync(
+        properties.ApplyTopologyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
@@ -40,12 +40,46 @@ internal sealed class GuestPropertyRetiredHandler(IGuestPropertyProjectionReposi
     : IIntegrationEventHandler<PropertyRetiredIntegrationEvent>
 {
     public Task HandleAsync(PropertyRetiredIntegrationEvent integrationEvent, CancellationToken cancellationToken) =>
-        properties.ApplyAsync(
+        properties.ApplyTopologyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
                 string.Empty,
                 PropertyStatus.Retired,
+                integrationEvent.PropertyVersion),
+            cancellationToken);
+}
+
+[IntegrationEventHandler(GuestsModuleMetadata.PropertyProcessingPolicyActivatedHandlerName)]
+internal sealed class GuestPropertyProcessingPolicyActivatedHandler(IGuestPropertyProjectionRepository properties)
+    : IIntegrationEventHandler<PropertyProcessingPolicyActivatedIntegrationEvent>
+{
+    public Task HandleAsync(
+        PropertyProcessingPolicyActivatedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        properties.ApplyPolicyAsync(
+            new(
+                integrationEvent.ScopeId,
+                integrationEvent.PropertyId,
+                PropertyProcessingStatus.Enabled,
+                integrationEvent.Binding,
+                integrationEvent.PropertyVersion),
+            cancellationToken);
+}
+
+[IntegrationEventHandler(GuestsModuleMetadata.PropertyProcessingSuspendedHandlerName)]
+internal sealed class GuestPropertyProcessingSuspendedHandler(IGuestPropertyProjectionRepository properties)
+    : IIntegrationEventHandler<PropertyProcessingSuspendedIntegrationEvent>
+{
+    public Task HandleAsync(
+        PropertyProcessingSuspendedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        properties.ApplyPolicyAsync(
+            new(
+                integrationEvent.ScopeId,
+                integrationEvent.PropertyId,
+                PropertyProcessingStatus.Suspended,
+                integrationEvent.Binding,
                 integrationEvent.PropertyVersion),
             cancellationToken);
 }

@@ -5,6 +5,7 @@ using BunkFy.DataGovernance;
 using BunkFy.Modules.Properties.AdminApi;
 using BunkFy.Modules.Properties.Api;
 using BunkFy.Modules.Properties.Application.Commands;
+using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Application.Queries;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
@@ -98,9 +99,15 @@ public sealed class PropertiesPersonalDataCatalogTests
         string[] expectedBindings =
         [
             BindingKey(typeof(ListVisiblePropertiesQuery), nameof(ListVisiblePropertiesQuery.Subject), PersonalDataSurface.ApplicationQuery),
+            BindingKey(typeof(ActivatePropertyProcessingCommand), nameof(ActivatePropertyProcessingCommand.ActorId), PersonalDataSurface.ApplicationCommand),
+            BindingKey(typeof(SuspendPropertyProcessingCommand), nameof(SuspendPropertyProcessingCommand.ActorId), PersonalDataSurface.ApplicationCommand),
             BindingKey(typeof(RetirePropertyCommand), nameof(RetirePropertyCommand.ActorId), PersonalDataSurface.ApplicationCommand),
+            BindingKey(typeof(PropertyGovernanceRevisionWriteModel), nameof(PropertyGovernanceRevisionWriteModel.ActorId), PersonalDataSurface.ApplicationCommand),
+            BindingKey(typeof(PropertyProcessingPolicyActivatedDomainEvent), nameof(PropertyProcessingPolicyActivatedDomainEvent.ActorId), PersonalDataSurface.DomainEvent),
+            BindingKey(typeof(PropertyProcessingSuspendedDomainEvent), nameof(PropertyProcessingSuspendedDomainEvent.ActorId), PersonalDataSurface.DomainEvent),
             BindingKey(typeof(PropertyRetiredDomainEvent), nameof(PropertyRetiredDomainEvent.ActorId), PersonalDataSurface.DomainEvent),
-            BindingKey(typeof(PropertyRetiredIntegrationEvent), nameof(PropertyRetiredIntegrationEvent.ActorId), PersonalDataSurface.IntegrationEvent)
+            BindingKey(typeof(PropertyRetiredIntegrationEvent), nameof(PropertyRetiredIntegrationEvent.ActorId), PersonalDataSurface.IntegrationEvent),
+            BindingKey(typeof(PropertyGovernanceRevision), nameof(PropertyGovernanceRevision.ActorId), PersonalDataSurface.Persistence)
         ];
 
         Assert.Equal(
@@ -148,7 +155,11 @@ public sealed class PropertiesPersonalDataCatalogTests
         }
 
         Assert.True(candidates.Count == 0, string.Join(Environment.NewLine, candidates));
-        Assert.DoesNotContain(Bindings(), binding => binding.Surface == PersonalDataSurface.Persistence);
+        PersonalDataMemberBinding persistedActor = Assert.Single(
+            Bindings(),
+            binding => binding.Surface == PersonalDataSurface.Persistence);
+        Assert.Equal(typeof(PropertyGovernanceRevision).FullName, persistedActor.Type);
+        Assert.Equal(nameof(PropertyGovernanceRevision.ActorId), persistedActor.Member);
     }
 
     [Fact]
@@ -160,7 +171,6 @@ public sealed class PropertiesPersonalDataCatalogTests
             PersonalDataSurface.ApiResponse,
             PersonalDataSurface.AdminInput,
             PersonalDataSurface.AdminOutput,
-            PersonalDataSurface.Persistence,
             PersonalDataSurface.SearchIndex,
             PersonalDataSurface.ProjectionExport,
             PersonalDataSurface.IntegrationCommand,

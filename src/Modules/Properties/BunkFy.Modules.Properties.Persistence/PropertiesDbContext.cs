@@ -11,6 +11,7 @@ public sealed class PropertiesDbContext(DbContextOptions<PropertiesDbContext> op
 {
     public DbSet<Property> Properties => this.Set<Property>();
     public DbSet<Room> Rooms => this.Set<Room>();
+    public DbSet<PropertyGovernanceRevision> GovernanceRevisions => this.Set<PropertyGovernanceRevision>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
 

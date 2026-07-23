@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Guests.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -8,12 +9,13 @@ using Gma.Framework.Scoping;
 using BunkFy.Modules.Guests.Application.Commands;
 using BunkFy.Modules.Guests.Application.Mapping;
 using BunkFy.Modules.Guests.Application.Ports;
+using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 
 internal sealed class CreateGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
-    IGuestPropertyProjectionRepository properties,
+    IGuestCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<CreateGuestProfileCommand, GuestProfileDto>
@@ -27,9 +29,16 @@ internal sealed class CreateGuestProfileCommandHandler(
             return Result.Failure<GuestProfileDto>(GuestsApplicationErrors.TenantRequired);
         }
 
-        if (!await properties.IsActiveAsync(command.PropertyId, cancellationToken).ConfigureAwait(false))
+        CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
+            command.PropertyId,
+            GuestCountryPolicyAdmission.GuestProfileManagementPurpose,
+            CountryPolicySurface.ApiWrite,
+            GuestCountryPolicyAdmission.AuthorizedOperatorProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!policyDecision.IsAllowed)
         {
-            return Result.Failure<GuestProfileDto>(GuestsApplicationErrors.PropertyUnavailable);
+            return Result.Failure<GuestProfileDto>(
+                GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
         Result<GuestProfile> created = GuestProfile.Create(
@@ -59,6 +68,7 @@ internal sealed class CreateGuestProfileCommandHandler(
 
 internal sealed class UpdateGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
+    IGuestCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<UpdateGuestProfileCommand, GuestProfileDto>
 {
@@ -66,6 +76,18 @@ internal sealed class UpdateGuestProfileCommandHandler(
         UpdateGuestProfileCommand command,
         CancellationToken cancellationToken)
     {
+        CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
+            command.PropertyId,
+            GuestCountryPolicyAdmission.GuestProfileManagementPurpose,
+            CountryPolicySurface.ApiWrite,
+            GuestCountryPolicyAdmission.AuthorizedOperatorProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!policyDecision.IsAllowed)
+        {
+            return Result.Failure<GuestProfileDto>(
+                GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
+        }
+
         GuestProfile? profile = await profiles.GetVisibleAsync(
             command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
         if (profile is null)

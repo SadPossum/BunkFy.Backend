@@ -18,7 +18,7 @@ public static class ReservationsModuleMetadata
     public const string GuestProfilesProjectionName = "guest-profiles";
     public const int GuestProfilesProjectionVersion = 1;
     public const string PropertyProjectionName = "properties";
-    public const int PropertyProjectionVersion = 1;
+    public const int PropertyProjectionVersion = 2;
     public const string ProjectionWorkerGroup = "projection-workers";
     public const string ReminderWorkerGroup = "reminder-workers";
     public const int ArrivalReminderLeadTimeMinutes = 120;
@@ -42,6 +42,8 @@ public static class ReservationsModuleMetadata
     public const string PropertyCreatedHandlerName = "property-created";
     public const string PropertyUpdatedHandlerName = "property-updated";
     public const string PropertyRetiredHandlerName = "property-retired";
+    public const string PropertyProcessingPolicyActivatedHandlerName = "property-processing-policy-activated";
+    public const string PropertyProcessingSuspendedHandlerName = "property-processing-suspended";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -75,6 +77,12 @@ public static class ReservationsModuleMetadata
         .WithSubscription<PropertyCreatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyCreatedHandlerName)
         .WithSubscription<PropertyUpdatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyUpdatedHandlerName)
         .WithSubscription<PropertyRetiredIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyRetiredHandlerName)
+        .WithSubscription<PropertyProcessingPolicyActivatedIntegrationEvent>(
+            PropertiesModuleMetadata.Name,
+            PropertyProcessingPolicyActivatedHandlerName)
+        .WithSubscription<PropertyProcessingSuspendedIntegrationEvent>(
+            PropertiesModuleMetadata.Name,
+            PropertyProcessingSuspendedHandlerName)
         .WithPublishedEvent<ReservationCreatedIntegrationEvent>()
         .WithPublishedEvent<ReservationConfirmedIntegrationEvent>()
         .WithPublishedEvent<ReservationAllocationRejectedIntegrationEvent>()

@@ -35,7 +35,7 @@ public sealed class PropertiesApplicationRegistrationTests
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<GetRoomQuery, RoomDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListRoomsQuery, RoomListResponse>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListBedsQuery, BedListResponse>));
-        Assert.Equal(9, services.Count(descriptor => IsDomainEventHandler(descriptor.ServiceType)));
+        Assert.Equal(11, services.Count(descriptor => IsDomainEventHandler(descriptor.ServiceType)));
     }
 
     [Fact]

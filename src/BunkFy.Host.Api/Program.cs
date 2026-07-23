@@ -79,6 +79,7 @@ builder.AddRedisCaching();
 builder.AddCachingCqrs();
 builder.AddGmaInfrastructure();
 builder.AddBunkFyDataProtection();
+builder.AddBunkFyCountryPolicies();
 builder.AddTenantSerilogRequestLogging();
 builder.AddTenantCaching();
 builder.AddMinioFileStorage();

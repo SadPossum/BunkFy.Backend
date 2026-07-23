@@ -203,6 +203,12 @@ public sealed class IngestionRuntimeBaselineIntegrationTests(ITestOutputHelper o
                 PropertyStatus.Active,
                 1),
             CancellationToken.None).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            IngestionModuleMetadata.Name,
+            seed.TenantId,
+            seed.PropertyId,
+            2).ConfigureAwait(false);
         dbContext.AdapterConnections.Add(AdapterConnection.Create(
             seed.ConnectionId,
             seed.TenantId,

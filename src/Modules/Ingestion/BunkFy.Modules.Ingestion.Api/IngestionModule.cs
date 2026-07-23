@@ -982,7 +982,7 @@ public sealed class IngestionModule : IModule
         string Label,
         DateTimeOffset? ExpiresAtUtc = null);
 
-    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(IngestionApplicationErrors.AdapterTypeNotRegistered.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.AdapterExecutionModeUnsupported.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.PollingIntervalBelowAdapterMinimum.Code, StatusCodes.Status400BadRequest),
@@ -996,7 +996,6 @@ public sealed class IngestionModule : IModule
         new(IngestionApplicationErrors.RemoteLeaseClaimInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.RemoteLeaseDescriptorMismatch.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.RemoteLeaseUnavailable.Code, StatusCodes.Status409Conflict),
-        new(IngestionApplicationErrors.PropertyNotActive.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.ConnectionStatusInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.RunNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.RunStatusInvalid.Code, StatusCodes.Status400BadRequest),
@@ -1029,4 +1028,9 @@ public sealed class IngestionModule : IModule
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConnectionAlreadyDisabled.Code, StatusCodes.Status409Conflict),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConnectionMustBeDisabled.Code, StatusCodes.Status409Conflict),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.DecisionReasonInvalid.Code, StatusCodes.Status400BadRequest));
+
+    private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>
+        ApiErrorStatusCodeMap.Create(entries.Concat(
+            IngestionApplicationErrors.CountryPolicyDenials.Select(error =>
+                new ApiErrorStatusCode(error.Code, StatusCodes.Status409Conflict))).ToArray());
 }

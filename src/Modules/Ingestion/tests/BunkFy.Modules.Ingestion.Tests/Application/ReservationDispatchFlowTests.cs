@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Tests.Application;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Messaging;
 using Gma.Framework.Results;
@@ -137,6 +138,27 @@ public sealed class ReservationDispatchFlowTests
     }
 
     [Fact]
+    public async Task Normalized_dispatch_fails_closed_before_writing_product_state()
+    {
+        TestContext context = CreateContext(policyAllowed: false);
+        ObservationReceipt receipt = CreateReceipt(context.Connection, "1", 1, "Ada Guest");
+        context.Receipts.Items.Add(receipt);
+
+        Result<ReservationObservationDispatchResult> result = await context.Dispatcher.HandleAsync(
+            new DispatchNormalizedReservationObservationCommand(receipt.Id, Observation(1, "Ada Guest")),
+            CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.CountryPolicyDenied(CountryPolicyDecisionReason.MissingBinding),
+            result.Error);
+        Assert.Equal(ObservationReceiptState.Pending, receipt.State);
+        Assert.Empty(context.SourceLinks.Items);
+        Assert.Empty(context.Dispatches.Items);
+        Assert.Empty(context.Proposals.Items);
+        Assert.Empty(context.Outbox.Events);
+    }
+
+    [Fact]
     public async Task Accepted_proposal_becomes_stale_when_reservation_revision_races_again()
     {
         TestContext context = CreateContext();
@@ -252,7 +274,7 @@ public sealed class ReservationDispatchFlowTests
             ReservationObservationDispatchClassifier.Classify(link, Observation(2, "Guest Only")));
     }
 
-    private static TestContext CreateContext()
+    private static TestContext CreateContext(bool policyAllowed = true)
     {
         AdapterConnection connection = AdapterConnection.Create(
             Guid.NewGuid(),
@@ -277,6 +299,7 @@ public sealed class ReservationDispatchFlowTests
         services.AddSingleton<IReservationDispatchRepository>(dispatches);
         services.AddSingleton<IChangeProposalRepository>(proposals);
         services.AddSingleton<IIngestionRetentionPolicy>(new TestRetentionPolicy());
+        services.AddSingleton<IIngestionCountryPolicyAdmission>(new TestCountryPolicyAdmission(allowed: policyAllowed));
         services.AddSingleton<IRawPayloadStore>(rawPayloads);
         services.AddSingleton<IOutboxWriterRegistry>(new RecordingOutboxRegistry(outbox));
         services.AddSingleton<ISystemClock>(new TestClock());
@@ -318,6 +341,7 @@ public sealed class ReservationDispatchFlowTests
             revision,
             $"reservation.v1|booking-42|{revision}",
             AdapterPayloadHash.ComputeSha256(payload),
+            TestObservationCountryPolicyEvidence.Create(Now.AddMinutes(sequence)),
             receiptId,
             Now.AddDays(30),
             Now.AddMinutes(sequence),
@@ -355,7 +379,8 @@ public sealed class ReservationDispatchFlowTests
         ObservationReceipt receipt = ObservationReceipt.Create(
             receiptId, "tenant-a", context.Connection.PropertyId, context.Connection.Id, runId: null,
             Guid.NewGuid(), "reservation.v1", "booking-42", "2", "reservation.v1|booking-42|2",
-            hash, receiptId, Now.AddDays(30), Now.AddMinutes(1), Now.AddMinutes(1), Now.AddMinutes(1)).Value;
+            hash, TestObservationCountryPolicyEvidence.Create(Now.AddMinutes(1)), receiptId,
+            Now.AddDays(30), Now.AddMinutes(1), Now.AddMinutes(1), Now.AddMinutes(1)).Value;
         _ = link.Observe(receipt.Id, "2", 2, Now.AddMinutes(1), hash, Now.AddMinutes(1));
         _ = receipt.MarkProcessed(Now.AddMinutes(1));
         ChangeProposal proposal = ChangeProposal.Create(

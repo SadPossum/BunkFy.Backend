@@ -47,7 +47,7 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
             ["Tenancy:Enabled"] = "true",
             ["AccessControl:Bootstrap:AllowWhenAssignmentsExist"] = "false",
             ["Auth:RefreshTokenLifetimeDays"] = "30",
-            ["Auth:RefreshTokens:Pepper"] = "integration-test-refresh-token-pepper-change-me-000000000000000000",
+            ["Auth:RefreshTokens:Pepper"] = AuthTestConfiguration.RefreshTokenPepper,
             ["Auth:Jwt:Issuer"] = "BunkFy",
             ["Auth:Jwt:Audience"] = "BunkFy",
             ["Auth:Jwt:SigningKey"] = "integration-test-signing-key-change-me-000000000000000000",

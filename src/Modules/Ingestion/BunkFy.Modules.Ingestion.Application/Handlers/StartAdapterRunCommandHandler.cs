@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -8,12 +9,13 @@ using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 
 internal sealed class StartAdapterRunCommandHandler(
     IAdapterConnectionRepository connections,
-    IIngestionPropertyProjectionRepository properties,
+    IIngestionCountryPolicyAdmission countryPolicy,
     IIngestionRunRepository runs,
     IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
@@ -57,9 +59,16 @@ internal sealed class StartAdapterRunCommandHandler(
                 IngestionApplicationErrors.AdapterExecutionModeNotTaskRunnable);
         }
 
-        if (!await properties.IsActiveAsync(connection.PropertyId, cancellationToken).ConfigureAwait(false))
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            connection.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.AdapterIngress,
+            IngestionCountryPolicyAdmission.ApprovedAdapterProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
         {
-            return Result.Failure<AdapterRunStart>(IngestionApplicationErrors.PropertyNotActive);
+            return Result.Failure<AdapterRunStart>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
         IngestionRun? existing = await runs.FindByTaskExecutionAsync(

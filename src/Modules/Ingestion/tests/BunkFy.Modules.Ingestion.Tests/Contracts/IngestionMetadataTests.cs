@@ -113,7 +113,7 @@ public sealed class IngestionMetadataTests
     public void Descriptor_declares_the_receipt_and_reservation_handshake()
     {
         Assert.Equal(5, IngestionModuleMetadata.Descriptor.GetPublishedEvents().Count);
-        Assert.Equal(6, IngestionModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(8, IngestionModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             IngestionModuleMetadata.Descriptor.GetPublishedEvents(),
             published => published.EventType == ExternalReservationCreateRequestedIntegrationEvent.EventType);
@@ -128,5 +128,13 @@ public sealed class IngestionMetadataTests
             IngestionModuleMetadata.Descriptor.GetSubscriptions(),
             subscription => subscription.ProducerModule == PropertiesModuleMetadata.Name &&
                             subscription.EventType == PropertyCreatedIntegrationEvent.EventType);
+        Assert.Contains(
+            IngestionModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.ProducerModule == PropertiesModuleMetadata.Name &&
+                            subscription.EventType == PropertyProcessingPolicyActivatedIntegrationEvent.EventType);
+        Assert.Contains(
+            IngestionModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription => subscription.ProducerModule == PropertiesModuleMetadata.Name &&
+                            subscription.EventType == PropertyProcessingSuspendedIntegrationEvent.EventType);
     }
 }

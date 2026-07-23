@@ -14,6 +14,7 @@ using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Persistence.Repositories;
 using Gma.Framework.Pagination;
 using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
@@ -336,14 +337,75 @@ public sealed class IngestionModelTests
         IngestionPropertyProjectionRepository repository = new(dbContext);
         Guid propertyId = Guid.NewGuid();
 
-        await repository.ApplyAsync(new("tenant-a", propertyId, "Current", "current", true, 2), CancellationToken.None);
-        await repository.ApplyAsync(new("tenant-a", propertyId, "Stale", "stale", false, 1), CancellationToken.None);
+        await repository.ApplyTopologyAsync(
+            new("tenant-a", propertyId, "Current", "current", true, 2),
+            CancellationToken.None);
+        await repository.ApplyTopologyAsync(
+            new("tenant-a", propertyId, "Stale", "stale", false, 1),
+            CancellationToken.None);
         await dbContext.SaveChangesAsync();
 
         IngestionPropertyProjection property = await dbContext.PropertyProjections.SingleAsync();
         Assert.Equal("Current", property.Name);
         Assert.True(property.IsActive);
-        Assert.Equal(2, property.SourceVersion);
+        Assert.Equal(2, property.TopologySourceVersion);
+    }
+
+    [Fact]
+    public async Task Property_projection_orders_topology_and_policy_streams_independently()
+    {
+        await using IngestionDbContext dbContext = CreateDbContext();
+        IngestionPropertyProjectionRepository repository = new(dbContext);
+        Guid propertyId = Guid.NewGuid();
+        PropertyGovernancePolicyBinding binding = CreateGovernancePolicyBinding();
+
+        await repository.ApplyTopologyAsync(
+            new("tenant-a", propertyId, "Current", "current", true, 3),
+            CancellationToken.None);
+        await repository.ApplyPolicyAsync(
+            new("tenant-a", propertyId, PropertyProcessingStatus.Enabled, binding, 2),
+            CancellationToken.None);
+        await repository.ApplyTopologyAsync(
+            new("tenant-a", propertyId, "Stale", "stale", false, 2),
+            CancellationToken.None);
+        await repository.ApplyPolicyAsync(
+            new("tenant-a", propertyId, PropertyProcessingStatus.Suspended, binding, 1),
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+
+        IngestionPropertyProjection property = await dbContext.PropertyProjections
+            .Include(item => item.GovernancePolicy)
+            .SingleAsync();
+        Assert.Equal("Current", property.Name);
+        Assert.True(property.IsActive);
+        Assert.Equal(PropertyProcessingStatus.Enabled, property.ProcessingStatus);
+        Assert.NotNull(property.GovernancePolicy);
+        Assert.Equal(3, property.TopologySourceVersion);
+        Assert.Equal(2, property.PolicySourceVersion);
+    }
+
+    [Fact]
+    public async Task Newer_policy_event_does_not_suppress_an_older_topology_event()
+    {
+        await using IngestionDbContext dbContext = CreateDbContext();
+        IngestionPropertyProjectionRepository repository = new(dbContext);
+        Guid propertyId = Guid.NewGuid();
+        PropertyGovernancePolicyBinding binding = CreateGovernancePolicyBinding();
+
+        await repository.ApplyPolicyAsync(
+            new("tenant-a", propertyId, PropertyProcessingStatus.Enabled, binding, 4),
+            CancellationToken.None);
+        await repository.ApplyTopologyAsync(
+            new("tenant-a", propertyId, "Property", "property", true, 2),
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+
+        IngestionPropertyProjection property = await dbContext.PropertyProjections.SingleAsync();
+        Assert.Equal("Property", property.Name);
+        Assert.True(property.IsActive);
+        Assert.Equal(PropertyProcessingStatus.Enabled, property.ProcessingStatus);
+        Assert.Equal(2, property.TopologySourceVersion);
+        Assert.Equal(4, property.PolicySourceVersion);
     }
 
     [Fact]
@@ -370,7 +432,7 @@ public sealed class IngestionModelTests
         Assert.True(terminal.Reject(
             "staff:42", "Source is outdated", terminal.Version, now.AddDays(89), now.AddDays(-1)).IsSuccess);
         IngestionPropertyProjectionRepository properties = new(dbContext);
-        await properties.ApplyAsync(new(
+        await properties.ApplyTopologyAsync(new(
             "tenant-a", connection.PropertyId, "Held property", "held-property", true, 1),
             CancellationToken.None);
         dbContext.AddRange(connection, pendingReceipt, applyingReceipt, terminalReceipt, pending, applying, terminal);
@@ -430,7 +492,7 @@ public sealed class IngestionModelTests
             now.AddDays(1),
             now.AddHours(-1)).IsSuccess);
         IngestionPropertyProjectionRepository properties = new(dbContext);
-        await properties.ApplyAsync(new(
+        await properties.ApplyTopologyAsync(new(
             "tenant-a", propertyId, "Retention property", "retention-property", true, 1),
             CancellationToken.None);
         dbContext.AddRange(dueProposal, activeProposal, dueDispatch, futureDispatch);
@@ -491,7 +553,7 @@ public sealed class IngestionModelTests
         LegalHold secondHold = LegalHold.Place(
             Guid.NewGuid(), "tenant-a", propertyId, "Matter B", "user:legal", now.AddDays(-4)).Value;
         IngestionPropertyProjectionRepository properties = new(dbContext);
-        await properties.ApplyAsync(new(
+        await properties.ApplyTopologyAsync(new(
             "tenant-a", propertyId, "Held property", "held-property", true, 1),
             CancellationToken.None);
         dbContext.AddRange(connection, receipt, proposal, dispatch, firstHold, secondHold);
@@ -541,6 +603,24 @@ public sealed class IngestionModelTests
         return new IngestionDbContext(options, new TestScopeContext());
     }
 
+    private static PropertyGovernancePolicyBinding CreateGovernancePolicyBinding()
+    {
+        DateTimeOffset activatedAtUtc = new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        return new(
+            "GB",
+            "gb-hostel",
+            1,
+            "eu-west-2",
+            "uk-no-transfer",
+            "guest-operational",
+            1,
+            new string('a', PropertiesContractLimits.ContentSha256Length),
+            activatedAtUtc.AddDays(-1),
+            activatedAtUtc.AddDays(30),
+            activatedAtUtc,
+            []);
+    }
+
     private static IngestionDbContext CreateDbContext(string databaseName, string scopeId)
     {
         DbContextOptions<IngestionDbContext> options = new DbContextOptionsBuilder<IngestionDbContext>()
@@ -583,6 +663,7 @@ public sealed class IngestionModelTests
             id.ToString("N"),
             $"reservation.v1|booking-{id:N}|{id:N}",
             new string('a', ObservationReceipt.ContentHashLength),
+            TestObservationCountryPolicyEvidence.Create(receivedAtUtc),
             id,
             retainUntilUtc,
             receivedAtUtc,

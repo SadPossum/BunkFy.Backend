@@ -1,14 +1,18 @@
 namespace BunkFy.Modules.Guests.Application;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
 using Gma.Framework.ProjectionRebuild.Tasks;
 using Gma.Framework.Tasks;
 using BunkFy.Modules.Guests.Application.Handlers;
+using BunkFy.Modules.Guests.Application.Policies;
+using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Application.Tasks;
 using BunkFy.Modules.Guests.Contracts;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using BunkFy.Modules.Properties.Contracts;
 
 public static class DependencyInjection
@@ -19,6 +23,11 @@ public static class DependencyInjection
 
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(GuestsModuleMetadata.Descriptor);
+        services.TryAddSingleton(_ => CountryPolicyRegistry.Create(
+            [],
+            [],
+            CountryPolicyRuntimeMode.Engineering));
+        services.TryAddScoped<IGuestCountryPolicyAdmission, GuestCountryPolicyAdmission>();
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, GuestPropertyCreatedHandler>(
             GuestsModuleMetadata.Name,
             PropertiesModuleMetadata.Name);
@@ -28,6 +37,16 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<PropertyRetiredIntegrationEvent, GuestPropertyRetiredHandler>(
             GuestsModuleMetadata.Name,
             PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            PropertyProcessingPolicyActivatedIntegrationEvent,
+            GuestPropertyProcessingPolicyActivatedHandler>(
+                GuestsModuleMetadata.Name,
+                PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            PropertyProcessingSuspendedIntegrationEvent,
+            GuestPropertyProcessingSuspendedHandler>(
+                GuestsModuleMetadata.Name,
+                PropertiesModuleMetadata.Name);
         services.AddIntegrationEventHandler<ReservationGuestLinkedIntegrationEvent, ReservationGuestLinkedStayHandler>(
             GuestsModuleMetadata.Name,
             GuestsModuleMetadata.ReservationsProducerModuleName);

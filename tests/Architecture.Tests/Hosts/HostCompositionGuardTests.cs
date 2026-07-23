@@ -1,12 +1,51 @@
 namespace Architecture.Tests.Hosts;
 
 using Architecture.Tests.Support;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Xunit;
 
 [Trait("Category", "Architecture")]
 public sealed class HostCompositionGuardTests
 {
+    [Fact]
+    public void Development_country_policy_is_synthetic_and_identically_digest_pinned_across_api_and_worker()
+    {
+        string packPath = RepositoryPaths.Resolve(
+            "eng",
+            "country-policies",
+            "development",
+            "example-hostel-policy.v1.json");
+        string digest = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(packPath)));
+        using JsonDocument pack = JsonDocument.Parse(File.ReadAllText(packPath));
+        Assert.Equal("example", pack.RootElement.GetProperty("approvalState").GetString());
+
+        (string Host, string PackDirectory)[] hosts =
+        [
+            ("BunkFy.Host.Api", "../../eng/country-policies/development"),
+            ("BunkFy.Host.Worker", "../../../../../eng/country-policies/development")
+        ];
+
+        foreach ((string host, string packDirectory) in hosts)
+        {
+            using JsonDocument defaults = JsonDocument.Parse(RepositoryPaths.Read("src", host, "appsettings.json"));
+            JsonElement defaultPolicies = defaults.RootElement.GetProperty("BunkFy").GetProperty("CountryPolicies");
+            Assert.Equal(JsonValueKind.Null, defaultPolicies.GetProperty("PackDirectory").ValueKind);
+            Assert.Empty(defaultPolicies.GetProperty("Allowlist").EnumerateArray());
+
+            using JsonDocument development = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.Development.json"));
+            JsonElement policies = development.RootElement.GetProperty("BunkFy").GetProperty("CountryPolicies");
+            Assert.Equal(packDirectory, policies.GetProperty("PackDirectory").GetString());
+            JsonElement allowlist = Assert.Single(policies.GetProperty("Allowlist").EnumerateArray());
+            Assert.Equal("GB", allowlist.GetProperty("OperatingCountryCode").GetString());
+            Assert.Equal("development-hostel-example", allowlist.GetProperty("PolicyId").GetString());
+            Assert.Equal(1, allowlist.GetProperty("PolicyVersion").GetInt32());
+            Assert.Equal(digest, allowlist.GetProperty("ContentSha256").GetString());
+            Assert.Equal("Engineering", allowlist.GetProperty("LaunchStatus").GetString());
+        }
+    }
+
     [Fact]
     public void Public_api_composes_reusable_and_product_modules_explicitly()
     {
@@ -229,6 +268,8 @@ public sealed class HostCompositionGuardTests
     {
         string appsettings = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "appsettings.json");
         string options = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostOptions.cs");
+        string project = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "BunkFy.Host.Worker.csproj");
+        string composition = RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs");
 
         Assert.Contains("\"Auth\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"AccessControl\": false", appsettings, StringComparison.Ordinal);
@@ -244,11 +285,20 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("defaultValue: false", options, StringComparison.Ordinal);
         Assert.Contains(
             "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
-            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs"),
+            composition,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "builder.Services.AddAuthTokenHashingInfrastructure(builder.Configuration);",
+            composition,
+            StringComparison.Ordinal);
+        Assert.Contains("Gma.Modules.Auth.Infrastructure.TokenHashing.csproj", project, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Gma.Modules.Auth.Infrastructure\\Gma.Modules.Auth.Infrastructure.csproj",
+            project,
             StringComparison.Ordinal);
         Assert.Contains(
             "NotificationsProfiles.Default",
-            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs"),
+            composition,
             StringComparison.Ordinal);
     }
 
@@ -295,8 +345,10 @@ public sealed class HostCompositionGuardTests
             "builder.AddNats(\"nats\")",
             ".AddContainer(\"minio\", \"quay.io/minio/minio\", \"latest\")",
             "FileManagement__Minio__Endpoint",
+            ".AddProject(\"bunkfy-host-migrations\", projectPaths.Migrations)",
             ".AddProject(\"bunkfy-host-api\", projectPaths.Api)",
             ".WaitFor(postgreSql)",
+            ".WaitForCompletion(migrations)",
             "Tasks__Worker__Enabled",
             "Worker__Modules__TaskRuntime",
             "Worker__Modules__Notifications",

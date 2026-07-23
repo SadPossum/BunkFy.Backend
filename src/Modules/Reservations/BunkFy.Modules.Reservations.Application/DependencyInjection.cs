@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Reservations.Application;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
@@ -11,6 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using BunkFy.Modules.Reservations.Application.External;
 using BunkFy.Modules.Reservations.Application.Handlers;
+using BunkFy.Modules.Reservations.Application.Policies;
+using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Application.Tasks;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Properties.Contracts;
@@ -22,6 +25,11 @@ public static class DependencyInjection
 
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(ReservationsModuleMetadata.Descriptor);
+        services.TryAddSingleton(_ => CountryPolicyRegistry.Create(
+            [],
+            [],
+            CountryPolicyRuntimeMode.Engineering));
+        services.TryAddScoped<IReservationCountryPolicyAdmission, ReservationCountryPolicyAdmission>();
         services.AddIntegrationEventHandler<InventoryAllocationConfirmedIntegrationEvent, InventoryAllocationConfirmedHandler>(
             ReservationsModuleMetadata.Name,
             InventoryModuleMetadata.Name);
@@ -79,6 +87,16 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<PropertyRetiredIntegrationEvent, ReservationPropertyRetiredHandler>(
             ReservationsModuleMetadata.Name,
             PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            PropertyProcessingPolicyActivatedIntegrationEvent,
+            ReservationPropertyProcessingPolicyActivatedHandler>(
+                ReservationsModuleMetadata.Name,
+                PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            PropertyProcessingSuspendedIntegrationEvent,
+            ReservationPropertyProcessingSuspendedHandler>(
+                ReservationsModuleMetadata.Name,
+                PropertiesModuleMetadata.Name);
         services.TryAddScoped<ExternalReservationOperationCoordinator>();
         services.TryAddScoped<ReservationInboxDomainEventDispatcher>();
 

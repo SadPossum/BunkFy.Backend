@@ -6,6 +6,8 @@ using Gma.Framework.Messaging;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using BunkFy.DataGovernance;
 public static class DependencyInjection
 {
     public static IServiceCollection AddPropertiesApplication(this IServiceCollection services)
@@ -13,6 +15,10 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddGmaAccessControlPermissionPolicies(PropertiesModuleMetadata.Descriptor);
+        services.TryAddSingleton(_ => CountryPolicyRegistry.Create(
+            [],
+            [],
+            CountryPolicyRuntimeMode.Engineering));
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddIntegrationEventHandler<
             BedRetirementFinalizationRequestedIntegrationEvent,

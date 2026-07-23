@@ -34,3 +34,27 @@ internal sealed class ReservationPropertyRetiredHandler(IReservationArrivalRemin
             new(e.ScopeId, e.PropertyId, null, IsActive: false, e.PropertyVersion, e.OccurredAtUtc),
             cancellationToken);
 }
+
+[IntegrationEventHandler(ReservationsModuleMetadata.PropertyProcessingPolicyActivatedHandlerName)]
+internal sealed class ReservationPropertyProcessingPolicyActivatedHandler(IReservationPropertyPolicyRepository properties)
+    : IIntegrationEventHandler<PropertyProcessingPolicyActivatedIntegrationEvent>
+{
+    public Task HandleAsync(
+        PropertyProcessingPolicyActivatedIntegrationEvent e,
+        CancellationToken cancellationToken) =>
+        properties.ApplyPolicyAsync(
+            new(e.ScopeId, e.PropertyId, PropertyProcessingStatus.Enabled, e.Binding, e.PropertyVersion),
+            cancellationToken);
+}
+
+[IntegrationEventHandler(ReservationsModuleMetadata.PropertyProcessingSuspendedHandlerName)]
+internal sealed class ReservationPropertyProcessingSuspendedHandler(IReservationPropertyPolicyRepository properties)
+    : IIntegrationEventHandler<PropertyProcessingSuspendedIntegrationEvent>
+{
+    public Task HandleAsync(
+        PropertyProcessingSuspendedIntegrationEvent e,
+        CancellationToken cancellationToken) =>
+        properties.ApplyPolicyAsync(
+            new(e.ScopeId, e.PropertyId, PropertyProcessingStatus.Suspended, e.Binding, e.PropertyVersion),
+            cancellationToken);
+}

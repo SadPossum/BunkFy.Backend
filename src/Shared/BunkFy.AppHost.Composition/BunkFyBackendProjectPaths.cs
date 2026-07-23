@@ -3,13 +3,15 @@ namespace BunkFy.AppHost.Composition;
 public sealed record BunkFyBackendProjectPaths(
     string Api,
     string AdminApi,
-    string Worker)
+    string Worker,
+    string Migrations)
 {
     public BunkFyBackendProjectPaths Validate()
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(this.Api);
         ArgumentException.ThrowIfNullOrWhiteSpace(this.AdminApi);
         ArgumentException.ThrowIfNullOrWhiteSpace(this.Worker);
+        ArgumentException.ThrowIfNullOrWhiteSpace(this.Migrations);
         return this;
     }
 }

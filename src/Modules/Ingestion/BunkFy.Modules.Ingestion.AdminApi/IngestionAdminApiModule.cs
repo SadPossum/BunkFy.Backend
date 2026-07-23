@@ -814,7 +814,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
     public sealed record AcceptProposalRequest(long ExpectedProposalVersion, long ExpectedReservationDetailsRevision);
     public sealed record RejectProposalRequest(long ExpectedProposalVersion, string Reason);
 
-    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(IngestionApplicationErrors.AdapterTypeNotRegistered.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.AdapterExecutionModeUnsupported.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.AdapterExecutionModeNotTaskRunnable.Code, StatusCodes.Status400BadRequest),
@@ -823,7 +823,6 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         new(IngestionApplicationErrors.IngressCredentialNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.IngressCredentialLimitReached.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.IngressCredentialsRequirePushMode.Code, StatusCodes.Status409Conflict),
-        new(IngestionApplicationErrors.PropertyNotActive.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.ConnectionStatusInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.RunNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.RunStatusInvalid.Code, StatusCodes.Status400BadRequest),
@@ -867,4 +866,9 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.LegalHoldReleaseReasonInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.LegalHoldActorInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.LegalHoldAlreadyReleased.Code, StatusCodes.Status409Conflict));
+
+    private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>
+        ApiErrorStatusCodeMap.Create(entries.Concat(
+            IngestionApplicationErrors.CountryPolicyDenials.Select(error =>
+                new ApiErrorStatusCode(error.Code, StatusCodes.Status409Conflict))).ToArray());
 }

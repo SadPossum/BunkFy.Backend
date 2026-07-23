@@ -29,6 +29,15 @@ public static class PropertiesDomainErrors
     public static readonly Error PropertyStatusUnknown = new("Properties.PropertyStatusUnknown", "The property status is unknown.");
     public static readonly Error PropertyAlreadyRetired = new("Properties.PropertyAlreadyRetired", "The property is already retired.");
     public static readonly Error PropertyRetired = new("Properties.PropertyRetired", "The property is retired.");
+    public static readonly Error PropertyProcessingNotEnabled = new(
+        "Properties.PropertyProcessingNotEnabled",
+        "Data processing is not enabled for this property.");
+    public static readonly Error PolicyBindingInvalid = new(
+        "Properties.PolicyBindingInvalid",
+        "The property policy binding is invalid.");
+    public static readonly Error PolicyAcknowledgementsInvalid = new(
+        "Properties.PolicyAcknowledgementsInvalid",
+        "The property policy acknowledgements are invalid.");
     public static readonly Error PropertyHasActiveRooms = new("Properties.PropertyHasActiveRooms", "Retire all rooms before retiring the property.");
     public static readonly Error VersionConflict = new("Properties.VersionConflict", "The topology changed. Reload it and retry with the current version.");
     public static readonly Error TimeZoneRequired = new("Properties.TimeZoneRequired", "A property time zone is required.");

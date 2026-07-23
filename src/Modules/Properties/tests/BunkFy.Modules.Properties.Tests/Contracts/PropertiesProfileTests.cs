@@ -32,7 +32,7 @@ public sealed class PropertiesProfileTests
         Assert.Equal(4, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(13, PropertiesModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(15, PropertiesModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Equal(2, PropertiesModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             PropertiesModuleMetadata.Descriptor.GetPublishedEvents(),

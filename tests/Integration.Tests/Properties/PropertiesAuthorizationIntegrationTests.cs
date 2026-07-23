@@ -192,6 +192,33 @@ public sealed class PropertiesAuthorizationIntegrationTests
             await AssertStatusAsync(HttpStatusCode.OK, exactProperty).ConfigureAwait(false);
         }
 
+        CountryPolicyDescriptorDto countryPolicy;
+        using (HttpResponseMessage countryPolicies = await SendAsync(
+                   client,
+                   HttpMethod.Get,
+                   TenantA,
+                   $"/api/properties/{propertyA1.PropertyId:D}/country-policies",
+                   localOperator.AccessToken).ConfigureAwait(false))
+        {
+            CountryPolicyListResponse response =
+                await ReadSuccessAsync<CountryPolicyListResponse>(countryPolicies).ConfigureAwait(false);
+            countryPolicy = Assert.Single(response.Items);
+            Assert.Equal("GB", countryPolicy.OperatingCountryCode);
+        }
+
+        using (HttpResponseMessage processing = await SendAsync(
+                   client,
+                   HttpMethod.Get,
+                   TenantA,
+                   $"/api/properties/{propertyA1.PropertyId:D}/processing",
+                   localOperator.AccessToken).ConfigureAwait(false))
+        {
+            PropertyProcessingStateDto state =
+                await ReadSuccessAsync<PropertyProcessingStateDto>(processing).ConfigureAwait(false);
+            Assert.Equal(PropertyProcessingEffectiveStatus.Unconfigured, state.EffectiveStatus);
+            Assert.Null(state.GovernancePolicy);
+        }
+
         using (HttpResponseMessage otherProperty = await SendAsync(
                    client,
                    HttpMethod.Get,
@@ -200,6 +227,16 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken).ConfigureAwait(false))
         {
             await AssertStatusAsync(HttpStatusCode.Forbidden, otherProperty).ConfigureAwait(false);
+        }
+
+        using (HttpResponseMessage otherPropertyPolicies = await SendAsync(
+                   client,
+                   HttpMethod.Get,
+                   TenantA,
+                   $"/api/properties/{propertyA2.PropertyId:D}/country-policies",
+                   localOperator.AccessToken).ConfigureAwait(false))
+        {
+            await AssertStatusAsync(HttpStatusCode.Forbidden, otherPropertyPolicies).ConfigureAwait(false);
         }
 
         using (HttpResponseMessage rootCreateDenied = await SendAsync(
@@ -213,6 +250,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
             await AssertStatusAsync(HttpStatusCode.Forbidden, rootCreateDenied).ConfigureAwait(false);
         }
 
+        PropertyDto updatedProperty;
         using (HttpResponseMessage updateProperty = await SendAsync(
                    client,
                    HttpMethod.Put,
@@ -221,8 +259,82 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken,
                    new { name = "Alpha House Updated", code = "ALPHA", timeZoneId = "UTC", expectedVersion = 1 }).ConfigureAwait(false))
         {
-            PropertyDto updated = await ReadSuccessAsync<PropertyDto>(updateProperty).ConfigureAwait(false);
-            Assert.Equal(2, updated.Version);
+            updatedProperty = await ReadSuccessAsync<PropertyDto>(updateProperty).ConfigureAwait(false);
+            Assert.Equal(2, updatedProperty.Version);
+        }
+
+        CountryPolicyRetentionDescriptorDto retentionPolicy = Assert.Single(countryPolicy.RetentionPolicies);
+        object activationRequest = new
+        {
+            operatingCountryCode = countryPolicy.OperatingCountryCode,
+            policyId = countryPolicy.PolicyId,
+            policyVersion = countryPolicy.PolicyVersion,
+            dataRegionId = Assert.Single(countryPolicy.PermittedDataRegions),
+            transferProfileId = Assert.Single(countryPolicy.PermittedTransferProfiles),
+            retentionPolicyId = retentionPolicy.RetentionPolicyId,
+            retentionPolicyVersion = retentionPolicy.RetentionPolicyVersion,
+            acceptedAcknowledgements = countryPolicy.RequiredAcknowledgements.Select(acknowledgement => new
+            {
+                acknowledgementId = acknowledgement.AcknowledgementId,
+                acknowledgementVersion = acknowledgement.AcknowledgementVersion
+            }).ToArray(),
+            confirmed = false,
+            expectedVersion = updatedProperty.Version
+        };
+        using (HttpResponseMessage unconfirmedActivation = await SendAsync(
+                   client,
+                   HttpMethod.Post,
+                   TenantA,
+                   $"/api/properties/{propertyA1.PropertyId:D}/processing/activate",
+                   localOperator.AccessToken,
+                   activationRequest).ConfigureAwait(false))
+        {
+            string body = await unconfirmedActivation.Content.ReadAsStringAsync().ConfigureAwait(false);
+            Assert.Equal(HttpStatusCode.BadRequest, unconfirmedActivation.StatusCode);
+            Assert.Contains(PropertiesApplicationErrors.ConfirmationRequired.Code, body, StringComparison.Ordinal);
+        }
+
+        PropertyDto processingEnabledProperty;
+        using (HttpResponseMessage activateProcessing = await SendAsync(
+                   client,
+                   HttpMethod.Post,
+                   TenantA,
+                   $"/api/properties/{propertyA1.PropertyId:D}/processing/activate",
+                   localOperator.AccessToken,
+                   new
+                   {
+                       operatingCountryCode = countryPolicy.OperatingCountryCode,
+                       policyId = countryPolicy.PolicyId,
+                       policyVersion = countryPolicy.PolicyVersion,
+                       dataRegionId = Assert.Single(countryPolicy.PermittedDataRegions),
+                       transferProfileId = Assert.Single(countryPolicy.PermittedTransferProfiles),
+                       retentionPolicyId = retentionPolicy.RetentionPolicyId,
+                       retentionPolicyVersion = retentionPolicy.RetentionPolicyVersion,
+                       acceptedAcknowledgements = countryPolicy.RequiredAcknowledgements.Select(acknowledgement => new
+                       {
+                           acknowledgementId = acknowledgement.AcknowledgementId,
+                           acknowledgementVersion = acknowledgement.AcknowledgementVersion
+                       }).ToArray(),
+                       confirmed = true,
+                       expectedVersion = updatedProperty.Version
+                   }).ConfigureAwait(false))
+        {
+            processingEnabledProperty =
+                await ReadSuccessAsync<PropertyDto>(activateProcessing).ConfigureAwait(false);
+            Assert.Equal(PropertyProcessingStatus.Enabled, processingEnabledProperty.ProcessingStatus);
+        }
+
+        using (HttpResponseMessage processing = await SendAsync(
+                   client,
+                   HttpMethod.Get,
+                   TenantA,
+                   $"/api/properties/{propertyA1.PropertyId:D}/processing",
+                   localOperator.AccessToken).ConfigureAwait(false))
+        {
+            PropertyProcessingStateDto state =
+                await ReadSuccessAsync<PropertyProcessingStateDto>(processing).ConfigureAwait(false);
+            Assert.Equal(PropertyProcessingEffectiveStatus.Enabled, state.EffectiveStatus);
+            Assert.Equal(processingEnabledProperty.Version, state.PropertyVersion);
         }
 
         RoomDto room;
@@ -232,7 +344,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    $"/api/properties/{propertyA1.PropertyId:D}/rooms",
                    localOperator.AccessToken,
-                   new { name = "Room 101", expectedPropertyVersion = 2, buildingLabel = "Main", floorLabel = "1" }).ConfigureAwait(false))
+                   new { name = "Room 101", expectedPropertyVersion = processingEnabledProperty.Version, buildingLabel = "Main", floorLabel = "1" }).ConfigureAwait(false))
         {
             room = await ReadSuccessAsync<RoomDto>(createRoom).ConfigureAwait(false);
         }

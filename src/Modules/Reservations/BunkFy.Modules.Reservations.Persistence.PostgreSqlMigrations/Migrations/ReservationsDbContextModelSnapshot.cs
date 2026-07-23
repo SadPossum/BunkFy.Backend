@@ -745,18 +745,27 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<bool>("IsKnown")
                         .HasColumnType("boolean");
 
+                    b.Property<long>("PolicySourceVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ProcessingStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<string>("ScopeId")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<long>("SourceVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
                     b.Property<string>("TimeZoneId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<long>("TopologySourceVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
@@ -764,7 +773,12 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
 
                     b.HasIndex("ScopeId", "IsActive");
 
-                    b.ToTable("property_projection", "reservations");
+                    b.ToTable("property_projection", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservations_property_projection_governance_policy", "(\"ProcessingStatus\" = 1 AND \"OperatingCountryCode\" IS NULL AND \"JurisdictionPolicyId\" IS NULL AND \"JurisdictionPolicyVersion\" IS NULL AND \"DataRegionId\" IS NULL AND \"TransferProfileId\" IS NULL AND \"RetentionPolicyId\" IS NULL AND \"RetentionPolicyVersion\" IS NULL AND \"PolicyContentSha256\" IS NULL AND \"PolicyEffectiveAtUtc\" IS NULL AND \"PolicyExpiresAtUtc\" IS NULL AND \"PolicyActivatedAtUtc\" IS NULL) OR (\"ProcessingStatus\" IN (2, 3) AND \"OperatingCountryCode\" IS NOT NULL AND \"JurisdictionPolicyId\" IS NOT NULL AND \"JurisdictionPolicyVersion\" IS NOT NULL AND \"DataRegionId\" IS NOT NULL AND \"TransferProfileId\" IS NOT NULL AND \"RetentionPolicyId\" IS NOT NULL AND \"RetentionPolicyVersion\" IS NOT NULL AND \"PolicyContentSha256\" IS NOT NULL AND \"PolicyEffectiveAtUtc\" IS NOT NULL AND \"PolicyExpiresAtUtc\" IS NOT NULL AND \"PolicyActivatedAtUtc\" IS NOT NULL AND \"JurisdictionPolicyVersion\" > 0 AND \"RetentionPolicyVersion\" > 0 AND char_length(\"OperatingCountryCode\") = 2 AND char_length(\"PolicyContentSha256\") = 64 AND \"PolicyEffectiveAtUtc\" < \"PolicyExpiresAtUtc\" AND \"PolicyActivatedAtUtc\" >= \"PolicyEffectiveAtUtc\" AND \"PolicyActivatedAtUtc\" < \"PolicyExpiresAtUtc\")");
+
+                            t.HasCheckConstraint("CK_reservations_property_projection_processing_status", "\"ProcessingStatus\" BETWEEN 1 AND 3");
+                        });
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationsProjectionRebuildCheckpoint", b =>
@@ -963,6 +977,102 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationPropertyProjection", b =>
+                {
+                    b.OwnsOne("BunkFy.Modules.Reservations.Persistence.ReservationPropertyPolicyBinding", "GovernancePolicy", b1 =>
+                        {
+                            b1.Property<Guid>("ReservationPropertyProjectionId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateTimeOffset>("ActivatedAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyActivatedAtUtc");
+
+                            b1.Property<string>("ContentSha256")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("PolicyContentSha256");
+
+                            b1.Property<string>("DataRegionId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("DataRegionId");
+
+                            b1.Property<string>("OperatingCountryCode")
+                                .IsRequired()
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)")
+                                .HasColumnName("OperatingCountryCode");
+
+                            b1.Property<DateTimeOffset>("PolicyEffectiveAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyEffectiveAtUtc");
+
+                            b1.Property<DateTimeOffset>("PolicyExpiresAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyExpiresAtUtc");
+
+                            b1.Property<string>("PolicyId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("JurisdictionPolicyId");
+
+                            b1.Property<int>("PolicyVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("JurisdictionPolicyVersion");
+
+                            b1.Property<string>("RetentionPolicyId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("RetentionPolicyId");
+
+                            b1.Property<int>("RetentionPolicyVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("RetentionPolicyVersion");
+
+                            b1.Property<string>("TransferProfileId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("TransferProfileId");
+
+                            b1.HasKey("ReservationPropertyProjectionId");
+
+                            b1.ToTable("property_projection", "reservations");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ReservationPropertyProjectionId");
+
+                            b1.OwnsMany("BunkFy.Modules.Reservations.Persistence.ReservationPropertyPolicyAcknowledgement", "Acknowledgements", b2 =>
+                                {
+                                    b2.Property<Guid>("PropertyId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<string>("AcknowledgementId")
+                                        .HasMaxLength(128)
+                                        .HasColumnType("character varying(128)");
+
+                                    b2.Property<int>("AcknowledgementVersion")
+                                        .HasColumnType("integer");
+
+                                    b2.HasKey("PropertyId", "AcknowledgementId", "AcknowledgementVersion");
+
+                                    b2.ToTable("property_policy_acknowledgements", "reservations");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("PropertyId");
+                                });
+
+                            b1.Navigation("Acknowledgements");
+                        });
+
+                    b.Navigation("GovernancePolicy");
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Aggregates.Reservation", b =>

@@ -12,5 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\BunkFy.Host.ServiceDefaults\BunkFy.Host.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\src\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
   </ItemGroup>
 </Project>

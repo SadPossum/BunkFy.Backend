@@ -6,6 +6,8 @@ public sealed record PropertyDto(
     string Code,
     string TimeZoneId,
     PropertyStatus Status,
+    PropertyProcessingStatus ProcessingStatus,
+    PropertyGovernancePolicyBindingDto? GovernancePolicy,
     long Version,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,

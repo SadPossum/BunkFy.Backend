@@ -40,6 +40,7 @@ public sealed class ObservationReprocessingDomainTests
         var invalid = ObservationReceipt.Create(
             Guid.NewGuid(), "tenant-a", source.PropertyId, source.ConnectionId, null, Guid.NewGuid(),
             "reservation.v1", "booking-42", "1", "dedupe", AdapterPayloadHash.ComputeSha256(payload),
+            TestObservationCountryPolicyEvidence.Create(Now),
             Guid.NewGuid(), Now.AddDays(30), null, Now, Now,
             sourceReceiptId: source.Id);
         Assert.Equal(IngestionDomainErrors.ReprocessingIdentityInvalid, invalid.Error);
@@ -47,6 +48,7 @@ public sealed class ObservationReprocessingDomainTests
         var derived = ObservationReceipt.Create(
             Guid.NewGuid(), "tenant-a", source.PropertyId, source.ConnectionId, null, Guid.NewGuid(),
             "reservation.v1", "booking-42", "1", "dedupe", AdapterPayloadHash.ComputeSha256(payload),
+            TestObservationCountryPolicyEvidence.Create(Now),
             Guid.NewGuid(), Now.AddDays(30), null, Now, Now,
             source.Id, attemptId, "mail.reservation-json", 1, 0);
 
@@ -111,6 +113,7 @@ public sealed class ObservationReprocessingDomainTests
             "7",
             Guid.NewGuid().ToString("N"),
             AdapterPayloadHash.ComputeSha256(payload),
+            TestObservationCountryPolicyEvidence.Create(Now),
             Guid.NewGuid(),
             Now.AddMinutes(5),
             null,

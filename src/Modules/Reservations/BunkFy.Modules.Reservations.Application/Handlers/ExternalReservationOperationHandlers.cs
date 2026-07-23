@@ -1,11 +1,13 @@
 namespace BunkFy.Modules.Reservations.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Messaging;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Reservations.Application.External;
 using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 
@@ -13,6 +15,7 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 internal sealed class ExternalReservationCreateRequestedHandler(
     IReservationRepository reservations,
     IInventoryProjectionRepository inventoryProjection,
+    IReservationCountryPolicyAdmission countryPolicy,
     ExternalReservationOperationCoordinator coordinator,
     ReservationInboxDomainEventDispatcher domainEvents,
     ISystemClock clock,
@@ -31,6 +34,21 @@ internal sealed class ExternalReservationCreateRequestedHandler(
                 fingerprint,
                 cancellationToken).ConfigureAwait(false))
         {
+            return;
+        }
+
+        CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
+            request.PropertyId,
+            ReservationCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.Import,
+            ReservationCountryPolicyAdmission.ApprovedIngestionProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!policyDecision.IsAllowed)
+        {
+            await CompleteAsync(
+                ExternalReservationOperationOutcome.ValidationRejected,
+                null,
+                ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason).Code).ConfigureAwait(false);
             return;
         }
 
@@ -122,6 +140,7 @@ internal sealed class ExternalReservationCreateRequestedHandler(
 [IntegrationEventHandler(ReservationsModuleMetadata.ExternalGuestDetailsHandlerName)]
 internal sealed class ExternalReservationGuestDetailsChangeRequestedHandler(
     IReservationRepository reservations,
+    IReservationCountryPolicyAdmission countryPolicy,
     ExternalReservationOperationCoordinator coordinator,
     ReservationInboxDomainEventDispatcher domainEvents,
     ISystemClock clock,
@@ -145,6 +164,21 @@ internal sealed class ExternalReservationGuestDetailsChangeRequestedHandler(
                 fingerprint,
                 cancellationToken).ConfigureAwait(false))
         {
+            return;
+        }
+
+        CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
+            request.PropertyId,
+            ReservationCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.Import,
+            ReservationCountryPolicyAdmission.ApprovedIngestionProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!policyDecision.IsAllowed)
+        {
+            await CompleteAsync(
+                ExternalReservationOperationOutcome.ValidationRejected,
+                null,
+                ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason).Code).ConfigureAwait(false);
             return;
         }
 
@@ -224,6 +258,7 @@ internal sealed class ExternalReservationGuestDetailsChangeRequestedHandler(
 internal sealed class ExternalReservationAmendmentRequestedHandler(
     IReservationRepository reservations,
     IInventoryProjectionRepository inventoryProjection,
+    IReservationCountryPolicyAdmission countryPolicy,
     ExternalReservationOperationCoordinator coordinator,
     ReservationInboxDomainEventDispatcher domainEvents,
     ISystemClock clock,
@@ -247,6 +282,21 @@ internal sealed class ExternalReservationAmendmentRequestedHandler(
                 fingerprint,
                 cancellationToken).ConfigureAwait(false))
         {
+            return;
+        }
+
+        CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
+            request.PropertyId,
+            ReservationCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.Import,
+            ReservationCountryPolicyAdmission.ApprovedIngestionProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!policyDecision.IsAllowed)
+        {
+            await CompleteAsync(
+                ExternalReservationOperationOutcome.ValidationRejected,
+                null,
+                ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason).Code).ConfigureAwait(false);
             return;
         }
 

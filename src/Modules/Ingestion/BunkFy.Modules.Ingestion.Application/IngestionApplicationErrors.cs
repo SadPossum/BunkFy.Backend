@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Application;
 
+using BunkFy.DataGovernance;
 using Gma.Framework.Results;
 using BunkFy.Modules.Ingestion.Contracts.Adapters;
 using BunkFy.Modules.Ingestion.Domain.Errors;
@@ -8,8 +9,15 @@ public static class IngestionApplicationErrors
 {
     public static readonly Error ScopeRequired = new("Ingestion.ScopeRequired", "An active scope is required.");
     public static readonly Error ConnectionNotFound = new("Ingestion.ConnectionNotFound", "The adapter connection was not found.");
-    public static readonly Error PropertyNotActive = new("Ingestion.PropertyNotActive", "The property was not found or is not active in Ingestion's local projection.");
     public static readonly Error PropertyNotFound = new("Ingestion.PropertyNotFound", "The property was not found in Ingestion's local projection.");
+    public static Error CountryPolicyDenied(CountryPolicyDecisionReason reason) => new(
+        $"Ingestion.CountryPolicyDenied.{reason}",
+        "The property's current country policy does not permit this operation.");
+    public static IReadOnlyList<Error> CountryPolicyDenials { get; } =
+        Enum.GetValues<CountryPolicyDecisionReason>()
+            .Where(reason => reason is not CountryPolicyDecisionReason.Unknown and not CountryPolicyDecisionReason.Allowed)
+            .Select(CountryPolicyDenied)
+            .ToArray();
     public static readonly Error ConnectionStatusInvalid = new("Ingestion.ConnectionStatusInvalid", "The adapter connection status filter is invalid.");
     public static readonly Error RunNotFound = new("Ingestion.RunNotFound", "The ingestion run was not found.");
     public static readonly Error RunStatusInvalid = new("Ingestion.RunStatusInvalid", "The ingestion run status filter is invalid.");

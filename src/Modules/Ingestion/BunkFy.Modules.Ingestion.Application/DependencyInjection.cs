@@ -8,14 +8,15 @@ using BunkFy.Modules.Ingestion.Application.Tasks;
 using Gma.Framework.Tasks;
 using Gma.Framework.Messaging;
 using BunkFy.Modules.Ingestion.Application.Handlers;
+using BunkFy.Modules.Ingestion.Application.Policies;
+using BunkFy.Modules.Ingestion.Application.Ports;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using global::BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Ingestion.Application.Reservations;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.ProjectionRebuild.Tasks;
 using BunkFy.Modules.Ingestion.Application.Credentials;
-using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Application.Parsing;
 
 public static class DependencyInjection
@@ -26,6 +27,7 @@ public static class DependencyInjection
 
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(IngestionModuleMetadata.Descriptor);
+        services.TryAddScoped<IIngestionCountryPolicyAdmission, IngestionCountryPolicyAdmission>();
         services.TryAddScoped<IAdapterObservationSinkFactory, AdapterObservationSinkFactory>();
         services.TryAddScoped<IAdapterDescriptorRegistry, AdapterDescriptorRegistry>();
         services.TryAddScoped<IAdapterRunnerRegistry, AdapterRunnerRegistry>();
@@ -53,6 +55,16 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<PropertyRetiredIntegrationEvent, IngestionPropertyRetiredHandler>(
             IngestionModuleMetadata.Name,
             PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            PropertyProcessingPolicyActivatedIntegrationEvent,
+            IngestionPropertyProcessingPolicyActivatedHandler>(
+                IngestionModuleMetadata.Name,
+                PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            PropertyProcessingSuspendedIntegrationEvent,
+            IngestionPropertyProcessingSuspendedHandler>(
+                IngestionModuleMetadata.Name,
+                PropertiesModuleMetadata.Name);
 
         return services;
     }

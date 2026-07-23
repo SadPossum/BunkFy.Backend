@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Reservations.Tests;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Persistence.Repositories;
+using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +88,56 @@ public sealed class ReservationArrivalReminderTests
         await dbContext.SaveChangesAsync();
 
         Assert.Empty(dbContext.ArrivalReminders);
+    }
+
+    [Fact]
+    public async Task Property_policy_projection_is_independent_from_reminder_topology_ordering()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        ReservationArrivalReminderRepository repository = new(dbContext, new TestIdGenerator());
+        Guid propertyId = Guid.NewGuid();
+        PropertyGovernancePolicyBinding binding = CreateGovernanceBinding();
+
+        await repository.ApplyPropertyAsync(
+            new("tenant-a", propertyId, "UTC", true, 5, new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero)),
+            CancellationToken.None);
+        await repository.ApplyPolicyAsync(
+            new("tenant-a", propertyId, PropertyProcessingStatus.Enabled, binding, 3),
+            CancellationToken.None);
+        await repository.ApplyPropertyAsync(
+            new("tenant-a", propertyId, "Europe/Moscow", false, 4, new(2026, 7, 22, 12, 1, 0, TimeSpan.Zero)),
+            CancellationToken.None);
+        await repository.ApplyPolicyAsync(
+            new("tenant-a", propertyId, PropertyProcessingStatus.Suspended, binding, 2),
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+
+        ReservationPropertyPolicySnapshot snapshot = Assert.IsType<ReservationPropertyPolicySnapshot>(
+            await repository.GetPolicyAsync(propertyId, CancellationToken.None));
+        Assert.True(snapshot.IsActive);
+        Assert.Equal(PropertyProcessingStatus.Enabled, snapshot.ProcessingStatus);
+        ReservationPropertyProjection property = await dbContext.PropertyProjections.SingleAsync();
+        Assert.Equal("UTC", property.TimeZoneId);
+        Assert.Equal(5, property.TopologySourceVersion);
+        Assert.Equal(3, property.PolicySourceVersion);
+    }
+
+    private static PropertyGovernancePolicyBinding CreateGovernanceBinding()
+    {
+        DateTimeOffset now = new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        return new(
+            "GB",
+            "gb-hostel",
+            1,
+            "eu-west-2",
+            "uk-no-transfer",
+            "guest-operational",
+            1,
+            new string('a', PropertiesContractLimits.ContentSha256Length),
+            now.AddDays(-1),
+            now.AddDays(30),
+            now,
+            []);
     }
 
     private static ReservationsDbContext CreateDbContext()

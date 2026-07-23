@@ -69,6 +69,16 @@ public sealed class PropertiesModule : IModule
             .Produces<PropertyListResponse>(StatusCodes.Status200OK)
             .RequireTenant();
 
+        properties.MapGet("/{propertyId:guid}/country-policies", async (
+            Guid propertyId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(new ListCountryPoliciesQuery(), cancellationToken).ConfigureAwait(false))
+            .ToHttpResult(PublicErrorStatusCodes))
+            .Produces<CountryPolicyListResponse>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
+
         properties.MapGet("/{propertyId:guid}", async (
             Guid propertyId,
             IRequestDispatcher dispatcher,
@@ -76,6 +86,18 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.QueryAsync(new GetPropertyQuery(propertyId), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(PublicErrorStatusCodes))
             .Produces<PropertyDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.Read, PropertyAccessScopeResolver.ResolverName);
+
+        properties.MapGet("/{propertyId:guid}/processing", async (
+            Guid propertyId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new GetPropertyProcessingStateQuery(propertyId),
+                cancellationToken).ConfigureAwait(false))
+            .ToHttpResult(PublicErrorStatusCodes))
+            .Produces<PropertyProcessingStateDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.Read, PropertyAccessScopeResolver.ResolverName);
 
@@ -120,6 +142,65 @@ public sealed class PropertiesModule : IModule
                 : Result.Failure<Unit>(new("Properties.ConfirmationRequired", "Confirmation is required."));
 
             return result.IsSuccess ? Results.NoContent() : result.ToHttpResult(PublicErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
+
+        properties.MapPost("/{propertyId:guid}/processing/activate", async (
+            Guid propertyId,
+            ActivatePropertyProcessingRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actorId = ResolveActor(httpContext, subjectResolver);
+            if (actorId is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            Result<PropertyDto> result = await dispatcher.SendAsync(
+                new ActivatePropertyProcessingCommand(
+                    propertyId,
+                    request.OperatingCountryCode,
+                    request.PolicyId,
+                    request.PolicyVersion,
+                    request.DataRegionId,
+                    request.TransferProfileId,
+                    request.RetentionPolicyId,
+                    request.RetentionPolicyVersion,
+                    request.AcceptedAcknowledgements,
+                    request.Confirmed,
+                    request.ExpectedVersion,
+                    actorId),
+                cancellationToken).ConfigureAwait(false);
+            return result.ToHttpResult(PublicErrorStatusCodes);
+        })
+            .Produces<PropertyDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
+
+        properties.MapPost("/{propertyId:guid}/processing/suspend", async (
+            Guid propertyId,
+            SuspendPropertyProcessingRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actorId = ResolveActor(httpContext, subjectResolver);
+            if (actorId is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            Result<Unit> result = request.Confirmed
+                ? await dispatcher.SendAsync(
+                    new SuspendPropertyProcessingCommand(propertyId, request.ExpectedVersion, actorId),
+                    cancellationToken).ConfigureAwait(false)
+                : Result.Failure<Unit>(PropertiesApplicationErrors.ConfirmationRequired);
+            return result.ToHttpResult(PublicErrorStatusCodes);
         })
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
@@ -266,6 +347,18 @@ public sealed class PropertiesModule : IModule
     public sealed record PropertyCreateRequest(string Name, string Code, string TimeZoneId);
     public sealed record PropertyUpdateRequest(string Name, string Code, string TimeZoneId, long ExpectedVersion);
     public sealed record RetirePropertyRequest(bool Confirmed, long ExpectedVersion);
+    public sealed record ActivatePropertyProcessingRequest(
+        string OperatingCountryCode,
+        string PolicyId,
+        int PolicyVersion,
+        string DataRegionId,
+        string TransferProfileId,
+        string RetentionPolicyId,
+        int RetentionPolicyVersion,
+        IReadOnlyCollection<PropertyGovernanceAcknowledgementDto> AcceptedAcknowledgements,
+        bool Confirmed,
+        long ExpectedVersion);
+    public sealed record SuspendPropertyProcessingRequest(bool Confirmed, long ExpectedVersion);
     public sealed record RoomCreateRequest(
         string Name,
         long ExpectedPropertyVersion,
@@ -288,8 +381,9 @@ public sealed class PropertiesModule : IModule
             : $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
     }
 
-    private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+    private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = CreateErrorStatusCodes(
         new(PropertiesApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
+        new(PropertiesApplicationErrors.ConfirmationRequired.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.RoomNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.BedNotFound.Code, StatusCodes.Status404NotFound),
@@ -299,6 +393,7 @@ public sealed class PropertiesModule : IModule
         new(PropertiesApplicationErrors.PropertyStatusUnknown.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyAlreadyRetired.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyRetired.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.PropertyProcessingNotEnabled.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyHasActiveRooms.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomStatusUnknown.Code, StatusCodes.Status409Conflict),
@@ -308,4 +403,9 @@ public sealed class PropertiesModule : IModule
         new(PropertiesApplicationErrors.BedAlreadyRetired.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.BedRetirementRequiresInventory.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomRetirementRequiresInventory.Code, StatusCodes.Status409Conflict));
+
+    private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>
+        ApiErrorStatusCodeMap.Create(entries.Concat(
+            PropertiesApplicationErrors.CountryPolicyDenials.Select(error =>
+                new ApiErrorStatusCode(error.Code, StatusCodes.Status409Conflict))).ToArray());
 }

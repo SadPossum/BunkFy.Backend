@@ -25,6 +25,7 @@ internal sealed class ReservationGuestLinkedStayHandler(IGuestStayHistoryReposit
         integrationEvent.CheckedOutBusinessDate,
         IsCurrentParticipant: true,
         ReservationVersion: integrationEvent.ReservationVersion);
+
 }
 
 [IntegrationEventHandler(GuestsModuleMetadata.ReservationGuestStayChangedHandlerName)]

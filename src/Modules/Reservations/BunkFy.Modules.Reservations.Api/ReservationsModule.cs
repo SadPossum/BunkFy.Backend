@@ -355,7 +355,7 @@ public sealed class ReservationsModule : IModule
         IReadOnlyCollection<Guid> InventoryUnitIds,
         long ExpectedDetailsRevision);
 
-    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status409Conflict),
@@ -372,6 +372,11 @@ public sealed class ReservationsModule : IModule
         new(ReservationsApplicationErrors.ReservationGuestLinkInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.ReservationGuestRoleOccupied.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InvalidTransition.Code, StatusCodes.Status409Conflict));
+
+    private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>
+        ApiErrorStatusCodeMap.Create(entries.Concat(
+            ReservationsApplicationErrors.CountryPolicyDenials.Select(error =>
+                new ApiErrorStatusCode(error.Code, StatusCodes.Status409Conflict))).ToArray());
 
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
     {

@@ -24,12 +24,20 @@ internal sealed class GuestsPropertiesProjectionRebuildWriter(
 
         foreach (PropertyTopologyProjectionExport property in snapshots)
         {
-            await repository.ApplyAsync(
-                new GuestPropertyProjectionWriteModel(
+            await repository.ApplyTopologyAsync(
+                new GuestPropertyTopologyWriteModel(
                     property.TenantId,
                     property.PropertyId,
                     property.Name,
                     property.Status,
+                    property.Version),
+                cancellationToken).ConfigureAwait(false);
+            await repository.ApplyPolicyAsync(
+                new GuestPropertyPolicyWriteModel(
+                    property.TenantId,
+                    property.PropertyId,
+                    property.ProcessingStatus,
+                    property.GovernancePolicy,
                     property.Version),
                 cancellationToken).ConfigureAwait(false);
         }

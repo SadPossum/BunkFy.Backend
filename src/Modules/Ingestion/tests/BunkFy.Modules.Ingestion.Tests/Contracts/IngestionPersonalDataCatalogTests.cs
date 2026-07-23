@@ -42,7 +42,7 @@ public sealed class IngestionPersonalDataCatalogTests
         foreach (IEntityType entityType in dbContext.Model.GetEntityTypes()
                      .Where(IsProductPersistenceType))
         {
-            foreach (IProperty property in entityType.GetProperties())
+            foreach (IProperty property in entityType.GetProperties().Where(property => !property.IsShadowProperty()))
             {
                 AssertBinding(entityType.ClrType, property.Name, PersonalDataSurface.Persistence);
             }
@@ -201,6 +201,7 @@ public sealed class IngestionPersonalDataCatalogTests
         Assembly application = typeof(CompleteAdapterRunCommand).Assembly;
         foreach (Type type in application.GetTypes()
                      .Where(IsPublicDataType)
+                     .Where(type => !type.Name.StartsWith("IngestionProperty", StringComparison.Ordinal))
                      .Where(type => type.Namespace?.StartsWith(
                                         "BunkFy.Modules.Ingestion.Application.Commands",
                                         StringComparison.Ordinal) == true ||

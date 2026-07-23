@@ -3,6 +3,9 @@ namespace BunkFy.Modules.Guests.Tests;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.Guests.Persistence.Repositories;
+using BunkFy.Modules.Guests.Application.Ports;
+using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -37,6 +40,54 @@ public sealed class GuestsModelTests
                 nameof(GuestStayHistoryEntry.GuestId),
                 nameof(GuestStayHistoryEntry.Arrival)
             ]));
+    }
+
+    [Fact]
+    public async Task Property_projection_orders_topology_and_policy_streams_independently()
+    {
+        await using GuestsDbContext dbContext = CreateDbContext();
+        GuestPropertyProjectionRepository repository = new(dbContext);
+        Guid propertyId = Guid.NewGuid();
+        PropertyGovernancePolicyBinding binding = CreateGovernanceBinding();
+
+        await repository.ApplyPolicyAsync(
+            new("tenant-a", propertyId, PropertyProcessingStatus.Enabled, binding, 4),
+            CancellationToken.None);
+        await repository.ApplyTopologyAsync(
+            new("tenant-a", propertyId, "Property", PropertyStatus.Active, 2),
+            CancellationToken.None);
+        await repository.ApplyPolicyAsync(
+            new("tenant-a", propertyId, PropertyProcessingStatus.Suspended, binding, 3),
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+
+        GuestPropertyPolicySnapshot snapshot = Assert.IsType<GuestPropertyPolicySnapshot>(
+            await repository.GetPolicyAsync(propertyId, CancellationToken.None));
+        Assert.True(snapshot.IsKnown);
+        Assert.True(snapshot.IsActive);
+        Assert.Equal(PropertyProcessingStatus.Enabled, snapshot.ProcessingStatus);
+        Assert.Equal(binding.ContentSha256, snapshot.GovernancePolicy!.ContentSha256);
+        GuestPropertyProjection projection = await dbContext.PropertyProjections.SingleAsync();
+        Assert.Equal(2, projection.TopologySourceVersion);
+        Assert.Equal(4, projection.PolicySourceVersion);
+    }
+
+    private static PropertyGovernancePolicyBinding CreateGovernanceBinding()
+    {
+        DateTimeOffset now = new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        return new(
+            "GB",
+            "gb-hostel",
+            1,
+            "eu-west-2",
+            "uk-no-transfer",
+            "guest-operational",
+            1,
+            new string('a', PropertiesContractLimits.ContentSha256Length),
+            now.AddDays(-1),
+            now.AddDays(30),
+            now,
+            []);
     }
 
     private static GuestsDbContext CreateDbContext()

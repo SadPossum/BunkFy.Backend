@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -9,12 +10,13 @@ using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 
 internal sealed class CreateAdapterConnectionCommandHandler(
     IAdapterConnectionRepository connections,
-    IIngestionPropertyProjectionRepository properties,
+    IIngestionCountryPolicyAdmission countryPolicy,
     IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
     IIdGenerator idGenerator,
@@ -30,9 +32,16 @@ internal sealed class CreateAdapterConnectionCommandHandler(
             return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ScopeRequired);
         }
 
-        if (!await properties.IsActiveAsync(command.PropertyId, cancellationToken).ConfigureAwait(false))
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            command.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.ApiWrite,
+            IngestionCountryPolicyAdmission.AuthorizedOperatorProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
         {
-            return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.PropertyNotActive);
+            return Result.Failure<AdapterConnectionDto>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
         Result capability = AdapterCapabilityValidation.Validate(
@@ -135,6 +144,7 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
 internal sealed class SetAdapterConnectionEnabledCommandHandler(
     IAdapterConnectionRepository connections,
     IIngestionRunRepository runs,
+    IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock)
     : ICommandHandler<SetAdapterConnectionEnabledCommand, AdapterConnectionDto>
 {
@@ -149,6 +159,21 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
         if (connection is null)
         {
             return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ConnectionNotFound);
+        }
+
+        if (command.Enabled)
+        {
+            CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+                command.PropertyId,
+                IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+                CountryPolicySurface.ApiWrite,
+                IngestionCountryPolicyAdmission.AuthorizedOperatorProvenance,
+                cancellationToken).ConfigureAwait(false);
+            if (!countryPolicyDecision.IsAllowed)
+            {
+                return Result.Failure<AdapterConnectionDto>(
+                    IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
+            }
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;

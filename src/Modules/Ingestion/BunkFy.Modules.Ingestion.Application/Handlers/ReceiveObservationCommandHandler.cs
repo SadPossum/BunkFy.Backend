@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
+using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -9,6 +10,7 @@ using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Runs;
@@ -16,7 +18,7 @@ using BunkFy.Modules.Ingestion.Domain.Reprocessing;
 
 internal sealed class ReceiveObservationCommandHandler(
     IAdapterConnectionRepository connections,
-    IIngestionPropertyProjectionRepository properties,
+    IIngestionCountryPolicyAdmission countryPolicy,
     IIngestionRunRepository runs,
     IObservationReceiptRepository receipts,
     IObservationReprocessingAttemptRepository reprocessingAttempts,
@@ -66,9 +68,40 @@ internal sealed class ReceiveObservationCommandHandler(
             return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ConnectionNotEnabled);
         }
 
-        if (!await properties.IsActiveAsync(connection.PropertyId, cancellationToken).ConfigureAwait(false))
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            connection.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.AdapterIngress,
+            hasCompleteLineage
+                ? IngestionCountryPolicyAdmission.ApprovedParserProvenance
+                : IngestionCountryPolicyAdmission.ApprovedAdapterProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
         {
-            return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.PropertyNotActive);
+            return Result.Failure<AdapterObservationResult>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
+        }
+
+        CountryPolicyEvidence policyEvidence = countryPolicyDecision.Evidence ??
+            throw new InvalidOperationException("An allowed country-policy decision has no evidence.");
+        Result<ObservationCountryPolicyEvidence> receiptPolicyEvidence = ObservationCountryPolicyEvidence.Create(
+            policyEvidence.OperatingCountryCode,
+            policyEvidence.PolicyId,
+            policyEvidence.PolicyVersion,
+            policyEvidence.DataRegionId,
+            policyEvidence.TransferProfileId,
+            policyEvidence.RetentionPolicyId,
+            policyEvidence.RetentionPolicyVersion,
+            policyEvidence.ContentSha256,
+            policyEvidence.PurposeCode,
+            ToPolicySurface(policyEvidence.Surface),
+            policyEvidence.SourceProvenance,
+            policyEvidence.EffectiveAtUtc,
+            policyEvidence.ExpiresAtUtc,
+            policyEvidence.EvaluatedAtUtc);
+        if (receiptPolicyEvidence.IsFailure)
+        {
+            return Result.Failure<AdapterObservationResult>(receiptPolicyEvidence.Error);
         }
 
         if (hasCompleteLineage)
@@ -207,6 +240,7 @@ internal sealed class ReceiveObservationCommandHandler(
             observation.SourceRevision,
             deduplicationKey,
             observation.ContentSha256,
+            receiptPolicyEvidence.Value,
             receiptId,
             retentionPolicy.GetRawPayloadRetainUntilUtc(connection.PropertyId, connection.Id, receivedAtUtc),
             observation.SourceUpdatedAtUtc,
@@ -256,6 +290,21 @@ internal sealed class ReceiveObservationCommandHandler(
         string.Equals(receipt.ExternalId, observation.ExternalRecordId, StringComparison.Ordinal) &&
         string.Equals(receipt.SourceRevision, observation.SourceRevision, StringComparison.Ordinal) &&
         string.Equals(receipt.ContentHash, observation.ContentSha256, StringComparison.Ordinal);
+
+    private static string ToPolicySurface(CountryPolicySurface surface) => surface switch
+    {
+        CountryPolicySurface.PropertyActivation => "property-activation",
+        CountryPolicySurface.ApiWrite => "api-write",
+        CountryPolicySurface.AdapterIngress => "adapter-ingress",
+        CountryPolicySurface.Import => "import",
+        CountryPolicySurface.Retention => "retention",
+        CountryPolicySurface.Export => "export",
+        CountryPolicySurface.Correction => "correction",
+        CountryPolicySurface.Restriction => "restriction",
+        CountryPolicySurface.Erasure => "erasure",
+        CountryPolicySurface.Deletion => "deletion",
+        _ => throw new ArgumentOutOfRangeException(nameof(surface), surface, "Unsupported country-policy surface.")
+    };
 
     private static Result<AdapterObservationResult> Duplicate(Guid operationId, Guid receiptId) =>
         Result.Success(new AdapterObservationResult(

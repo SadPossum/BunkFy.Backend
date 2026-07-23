@@ -15,6 +15,35 @@ using Xunit;
 public sealed class UpdateReservationGuestDetailsCommandHandlerTests
 {
     [Fact]
+    public async Task Policy_denial_prevents_guest_detail_mutation()
+    {
+        Reservation reservation = CreateReservation();
+        UpdateReservationGuestDetailsCommandHandler handler = new(
+            new FakeReservationRepository(reservation),
+            new TestReservationCountryPolicyAdmission(allowed: false),
+            new TestClock(),
+            new TestIdGenerator());
+
+        Result<ReservationDto> result = await handler.HandleAsync(
+            new UpdateReservationGuestDetailsCommand(
+                reservation.PropertyId,
+                reservation.Id,
+                "Blocked Change",
+                reservation.Email,
+                reservation.Phone,
+                reservation.GuestCount,
+                reservation.Notes,
+                reservation.DetailsRevision,
+                ReservationDetailsChangeOriginKind.Staff,
+                "user:staff"),
+            CancellationToken.None);
+
+        Assert.Equal("Reservations.CountryPolicyDenied.MissingBinding", result.Error.Code);
+        Assert.Equal("Ada Guest", reservation.PrimaryGuestName);
+        Assert.Equal(1, reservation.DetailsRevision);
+    }
+
+    [Fact]
     public async Task Staff_update_changes_details_revision_without_using_lifecycle_version_as_authority()
     {
         Reservation reservation = CreateReservation();
@@ -29,6 +58,7 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
         FakeReservationRepository repository = new(reservation);
         UpdateReservationGuestDetailsCommandHandler handler = new(
             repository,
+            new TestReservationCountryPolicyAdmission(),
             new TestClock(),
             new TestIdGenerator());
 
@@ -58,6 +88,7 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
         Reservation reservation = CreateReservation();
         UpdateReservationGuestDetailsCommandHandler handler = new(
             new FakeReservationRepository(reservation),
+            new TestReservationCountryPolicyAdmission(),
             new TestClock(),
             new TestIdGenerator());
 

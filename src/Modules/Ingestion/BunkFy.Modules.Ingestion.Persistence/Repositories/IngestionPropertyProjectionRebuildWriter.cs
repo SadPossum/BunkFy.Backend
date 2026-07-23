@@ -23,12 +23,14 @@ internal sealed class IngestionPropertyProjectionRebuildWriter(
 
         foreach (PropertyTopologyProjectionExport property in snapshots)
         {
-            await properties.ApplyAsync(new(
+            await properties.ApplySnapshotAsync(new(
                 property.TenantId,
                 property.PropertyId,
                 property.Name,
                 property.Code,
                 property.Status == PropertyStatus.Active,
+                property.ProcessingStatus,
+                property.GovernancePolicy,
                 property.Version), cancellationToken).ConfigureAwait(false);
         }
 

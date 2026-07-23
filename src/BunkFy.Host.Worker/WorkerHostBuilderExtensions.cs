@@ -1,6 +1,7 @@
 namespace BunkFy.Host.Worker;
 
 using Gma.Modules.Auth.Contracts;
+using Gma.Modules.Auth.Infrastructure.TokenHashing;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.AccessControl.Application;
 using Gma.Modules.AccessControl.Contracts;
@@ -71,6 +72,7 @@ public static class WorkerHostBuilderExtensions
 
         WorkerHostOptions workerOptions = WorkerHostOptions.FromConfiguration(builder.Configuration);
         builder.Services.AddSingleton(workerOptions);
+        builder.AddBunkFyCountryPolicies();
 
         builder.AddRedisCaching();
         builder.AddCachingCqrs();
@@ -129,6 +131,7 @@ public static class WorkerHostBuilderExtensions
         if (workerOptions.Modules.Auth)
         {
             builder.SelectModuleProfile(authProfile.Descriptor, "BunkFy.Host.Worker/Auth");
+            builder.Services.AddAuthTokenHashingInfrastructure(builder.Configuration);
             builder.AddAuthPersistence(authProfile);
         }
 

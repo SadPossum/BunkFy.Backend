@@ -7,6 +7,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class ReservationPropertyProjectionRebuildWriter(
     IReservationArrivalReminderRepository reminders,
+    IReservationPropertyPolicyRepository policies,
     ReservationsDbContext dbContext,
     ISystemClock clock)
     : IProjectionRebuildWriter<PropertyTopologyProjectionExport>
@@ -34,6 +35,14 @@ internal sealed class ReservationPropertyProjectionRebuildWriter(
                     property.Status == PropertyStatus.Active,
                     property.Version,
                     nowUtc),
+                cancellationToken).ConfigureAwait(false);
+            await policies.ApplyPolicyAsync(
+                new(
+                    property.TenantId,
+                    property.PropertyId,
+                    property.ProcessingStatus,
+                    property.GovernancePolicy,
+                    property.Version),
                 cancellationToken).ConfigureAwait(false);
         }
 

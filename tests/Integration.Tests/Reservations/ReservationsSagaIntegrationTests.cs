@@ -68,7 +68,7 @@ public sealed class ReservationsSagaIntegrationTests
         try
         {
             await SeedInventoryAsync(api).ConfigureAwait(false);
-            await SeedGuestPropertyProjectionAsync(api).ConfigureAwait(false);
+            await SeedGovernedPropertyProjectionsAsync(api).ConfigureAwait(false);
             await WaitForSellableProjectionAsync(api, TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
             AuthTokensResponse tokens = await AuthApiClient.RegisterAsync(
@@ -366,6 +366,7 @@ public sealed class ReservationsSagaIntegrationTests
             ["Tasks:Worker:Enabled"] = "false"
         });
         builder.AddWorkerHost();
+        CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
         builder.ValidateModuleComposition();
         return builder.Build();
     }
@@ -412,33 +413,58 @@ public sealed class ReservationsSagaIntegrationTests
         return (IIntegrationEventHandler<TEvent>)services.GetRequiredService(subscription.HandlerType);
     }
 
-    private static async Task SeedGuestPropertyProjectionAsync(AuthTestApplication api)
+    private static async Task SeedGovernedPropertyProjectionsAsync(AuthTestApplication api)
     {
         using IServiceScope scope = api.Services.CreateScope();
         scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
-        IntegrationEventSubscription subscription = scope.ServiceProvider
-            .GetRequiredService<IIntegrationEventSubscriptionRegistry>()
-            .Subscriptions
-            .Single(item => item.ConsumerModule == GuestsModuleMetadata.Name &&
-                            item.EventType == typeof(PropertyCreatedIntegrationEvent));
-        IIntegrationEventHandler<PropertyCreatedIntegrationEvent> handler =
-            (IIntegrationEventHandler<PropertyCreatedIntegrationEvent>)scope.ServiceProvider
-                .GetRequiredService(subscription.HandlerType);
-        await handler.HandleAsync(
-            new(
-                Guid.NewGuid(),
-                TenantId,
-                DateTimeOffset.UtcNow,
-                PropertyId,
-                "Saga House",
-                "saga",
-                "UTC",
-                PropertyStatus.Active,
-                1),
-            CancellationToken.None).ConfigureAwait(false);
+        PropertyCreatedIntegrationEvent propertyCreated = new(
+            Guid.NewGuid(),
+            TenantId,
+            DateTimeOffset.UtcNow,
+            PropertyId,
+            "Saga House",
+            "saga",
+            "UTC",
+            PropertyStatus.Active,
+            1);
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                GuestsModuleMetadata.Name)
+            .HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                ReservationsModuleMetadata.Name)
+            .HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            GuestsModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            ReservationsModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
             .SaveChangesAsync()
             .ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+            .SaveChangesAsync()
+            .ConfigureAwait(false);
+    }
+
+    private static IIntegrationEventHandler<TEvent> ResolveHandler<TEvent>(
+        IServiceProvider services,
+        string consumerModule)
+        where TEvent : IIntegrationEvent
+    {
+        IntegrationEventSubscription subscription = services
+            .GetRequiredService<IIntegrationEventSubscriptionRegistry>()
+            .Subscriptions
+            .Single(item => item.ConsumerModule == consumerModule && item.EventType == typeof(TEvent));
+        return (IIntegrationEventHandler<TEvent>)services.GetRequiredService(subscription.HandlerType);
     }
 
     private static async Task<GuestProfileDto> CreateGuestAsync(

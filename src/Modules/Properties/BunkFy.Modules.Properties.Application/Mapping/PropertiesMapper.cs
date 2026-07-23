@@ -13,6 +13,8 @@ public static class PropertiesMapper
             property.Code.Value,
             property.TimeZoneId.Value,
             MapStatus(property.Status),
+            MapProcessingStatus(property.ProcessingState),
+            MapGovernanceBinding(property),
             property.Version,
             property.CreatedAtUtc,
             property.UpdatedAtUtc,
@@ -51,6 +53,35 @@ public static class PropertiesMapper
             PropertyState.Retired => PropertyStatus.Retired,
             _ => PropertyStatus.Unknown
         };
+
+    public static PropertyProcessingStatus MapProcessingStatus(PropertyProcessingState status) =>
+        status switch
+        {
+            PropertyProcessingState.Unconfigured => PropertyProcessingStatus.Unconfigured,
+            PropertyProcessingState.Enabled => PropertyProcessingStatus.Enabled,
+            PropertyProcessingState.Suspended => PropertyProcessingStatus.Suspended,
+            _ => PropertyProcessingStatus.Unknown
+        };
+
+    public static PropertyGovernancePolicyBindingDto? MapGovernanceBinding(Property property) =>
+        property.GovernanceBinding is not { } binding
+            ? null
+            : new PropertyGovernancePolicyBindingDto(
+                binding.OperatingCountryCode,
+                binding.PolicyId,
+                binding.PolicyVersion,
+                binding.DataRegionId,
+                binding.TransferProfileId,
+                binding.RetentionPolicyId,
+                binding.RetentionPolicyVersion,
+                binding.ContentSha256,
+                binding.PolicyEffectiveAtUtc,
+                binding.PolicyExpiresAtUtc,
+                binding.ActivatedAtUtc,
+                property.GovernanceAcknowledgements.Select(acknowledgement =>
+                    new PropertyGovernanceAcknowledgementDto(
+                        acknowledgement.AcknowledgementId,
+                        acknowledgement.AcknowledgementVersion)).ToArray());
 
     public static RoomStatus MapStatus(RoomState status) =>
         status switch

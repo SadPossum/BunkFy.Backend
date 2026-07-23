@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Ingestion.Tests.Application;
 
 using System.Text;
+using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -34,6 +35,14 @@ public sealed class ReceiveObservationCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(AdapterObservationDisposition.Accepted, result.Value.Disposition);
         Assert.Single(context.Receipts.Items);
+        ObservationCountryPolicyEvidence evidence = Assert.IsType<ObservationCountryPolicyEvidence>(
+            context.Receipts.Items[0].CountryPolicyEvidence);
+        Assert.Equal("GB", evidence.OperatingCountryCode);
+        Assert.Equal("gb-hostel", evidence.PolicyId);
+        Assert.Equal("reservation-ingestion", evidence.PurposeCode);
+        Assert.Equal("adapter-ingress", evidence.ProcessingSurface);
+        Assert.Equal("approved-adapter", evidence.SourceProvenance);
+        Assert.Equal(Now, evidence.EvaluatedAtUtc);
         Assert.Single(context.RawPayloads.Writes);
         Assert.Equal(result.Value.ReceiptId, context.RawPayloads.Writes[0].PayloadId);
         Assert.IsType<ObservationReceiptAcceptedIntegrationEvent>(Assert.Single(context.Outbox.Events));
@@ -121,7 +130,9 @@ public sealed class ReceiveObservationCommandHandlerTests
             CreateCommand(context.Connection.Id),
             CancellationToken.None);
 
-        Assert.Equal(IngestionApplicationErrors.PropertyNotActive, result.Error);
+        Assert.Equal(
+            IngestionApplicationErrors.CountryPolicyDenied(CountryPolicyDecisionReason.MissingBinding),
+            result.Error);
         Assert.Empty(context.Receipts.Items);
         Assert.Empty(context.RawPayloads.Writes);
         Assert.Empty(context.Outbox.Events);
@@ -144,7 +155,8 @@ public sealed class ReceiveObservationCommandHandlerTests
         RecordingOutbox outbox = new();
         ServiceCollection services = new();
         services.AddSingleton<IAdapterConnectionRepository>(new FakeConnectionRepository(connection));
-        services.AddSingleton<IIngestionPropertyProjectionRepository>(new FakePropertyProjection(propertyActive));
+        services.AddSingleton<IIngestionCountryPolicyAdmission>(
+            new TestCountryPolicyAdmission(allowed: propertyActive));
         services.AddSingleton<IIngestionRunRepository>(new FakeRunRepository(run));
         services.AddSingleton<IObservationReceiptRepository>(receipts);
         services.AddSingleton<IObservationReprocessingAttemptRepository>(new FakeReprocessingAttemptRepository());
@@ -220,15 +232,6 @@ public sealed class ReceiveObservationCommandHandlerTests
 
         public Task AddAsync(IngestionRun added, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
-    }
-
-    private sealed class FakePropertyProjection(bool active) : IIngestionPropertyProjectionRepository
-    {
-        public Task ApplyAsync(IngestionPropertyProjectionWriteModel property, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> IsActiveAsync(Guid propertyId, CancellationToken cancellationToken) =>
-            Task.FromResult(active);
     }
 
     private sealed class FakeReceiptRepository : IObservationReceiptRepository

@@ -7,6 +7,8 @@ public static class PropertiesIntegrationSubjects
     public static string PropertyCreated => CreatePropertyCreated();
     public static string PropertyUpdated => CreatePropertyUpdated();
     public static string PropertyRetired => CreatePropertyRetired();
+    public static string PropertyProcessingPolicyActivated => CreatePropertyProcessingPolicyActivated();
+    public static string PropertyProcessingSuspended => CreatePropertyProcessingSuspended();
     public static string RoomCreated => CreateRoomCreated();
     public static string RoomUpdated => CreateRoomUpdated();
     public static string RoomRetired => CreateRoomRetired();
@@ -26,6 +28,12 @@ public static class PropertiesIntegrationSubjects
 
     public static string CreatePropertyRetired(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, PropertyRetiredIntegrationEvent.EventType, PropertyRetiredIntegrationEvent.EventVersion);
+
+    public static string CreatePropertyProcessingPolicyActivated(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, PropertyProcessingPolicyActivatedIntegrationEvent.EventType, PropertyProcessingPolicyActivatedIntegrationEvent.EventVersion);
+
+    public static string CreatePropertyProcessingSuspended(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, PropertyProcessingSuspendedIntegrationEvent.EventType, PropertyProcessingSuspendedIntegrationEvent.EventVersion);
 
     public static string CreateRoomCreated(string subjectPrefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(subjectPrefix, PropertiesModuleMetadata.Name, RoomCreatedIntegrationEvent.EventType, RoomCreatedIntegrationEvent.EventVersion);

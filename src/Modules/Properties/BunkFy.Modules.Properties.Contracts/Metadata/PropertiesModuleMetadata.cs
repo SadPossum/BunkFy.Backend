@@ -25,6 +25,8 @@ public static class PropertiesModuleMetadata
         .WithPublishedEvent<PropertyCreatedIntegrationEvent>()
         .WithPublishedEvent<PropertyUpdatedIntegrationEvent>()
         .WithPublishedEvent<PropertyRetiredIntegrationEvent>()
+        .WithPublishedEvent<PropertyProcessingPolicyActivatedIntegrationEvent>()
+        .WithPublishedEvent<PropertyProcessingSuspendedIntegrationEvent>()
         .WithPublishedEvent<RoomCreatedIntegrationEvent>()
         .WithPublishedEvent<RoomUpdatedIntegrationEvent>()
         .WithPublishedEvent<RoomRetiredIntegrationEvent>()

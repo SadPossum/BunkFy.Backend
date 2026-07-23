@@ -17,6 +17,7 @@ Engineering metadata is not legal or country-launch approval.
 | Id | Approval | Starts | Ends or duration | Legal hold |
 |---|---|---|---|---|
 | integration-message-journal | engineering-default | message-created | message-journal-retention-completed | no-payload-hold |
+| property-governance-revision-lifecycle | engineering-default | property-governance-decision-recorded | tenant-termination-or-approved-pseudonymization | retain-minimum-required-audit-evidence |
 | transient-domain-event | engineering-default | domain-event-raised | domain-event-dispatched | not-applicable |
 | transient-request | engineering-default | request-accepted | request-completed | not-applicable |
 
@@ -32,13 +33,19 @@ Engineering metadata is not legal or country-launch approval.
 | Id | Subject | Class | Sensitivity | Purposes | Sources | Owner | Context | Access | Country | Retention | Rights | Surfaces | Boundaries | Approval |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | properties.authorization-subject-reference | account-holder | pseudonymous-identifier | elevated | authorization-scope-resolution | authenticated-access-subject | auth | customer-controller-bunk-fy-processor | properties-authorization | properties.authorization-subject-reference | transient-request | authorization-subject | application-query | intra-module | engineering-default |
-| properties.staff-actor-reference | staff | audit-attribution | standard | property-lifecycle-audit-correlation<br>self-notification-suppression | authenticated-access-subject | auth | customer-controller-bunk-fy-processor | properties-lifecycle-audit | properties.staff-actor-reference | integration-message-journal | staff-audit-attribution | application-command<br>domain-event<br>integration-event | cross-module<br>intra-module | engineering-default |
+| properties.staff-actor-reference | staff | audit-attribution | standard | property-lifecycle-audit-correlation<br>self-notification-suppression | authenticated-access-subject | auth | customer-controller-bunk-fy-processor | properties-lifecycle-audit | properties.staff-actor-reference | integration-message-journal | staff-audit-attribution | application-command<br>domain-event<br>integration-event<br>persistence | cross-module<br>intra-module | engineering-default |
 
 ## Code Bindings
 
 | Field | Assembly | Type | Member | Surface | Effective retention |
 |---|---|---|---|---|---|
 | properties.authorization-subject-reference | BunkFy.Modules.Properties.Application | BunkFy.Modules.Properties.Application.Queries.ListVisiblePropertiesQuery | Subject | application-query | transient-request |
+| properties.staff-actor-reference | BunkFy.Modules.Properties.Application | BunkFy.Modules.Properties.Application.Commands.ActivatePropertyProcessingCommand | ActorId | application-command | transient-request |
 | properties.staff-actor-reference | BunkFy.Modules.Properties.Application | BunkFy.Modules.Properties.Application.Commands.RetirePropertyCommand | ActorId | application-command | transient-request |
+| properties.staff-actor-reference | BunkFy.Modules.Properties.Application | BunkFy.Modules.Properties.Application.Commands.SuspendPropertyProcessingCommand | ActorId | application-command | transient-request |
+| properties.staff-actor-reference | BunkFy.Modules.Properties.Application | BunkFy.Modules.Properties.Application.Ports.PropertyGovernanceRevisionWriteModel | ActorId | application-command | transient-request |
 | properties.staff-actor-reference | BunkFy.Modules.Properties.Contracts | BunkFy.Modules.Properties.Contracts.PropertyRetiredIntegrationEvent | ActorId | integration-event | integration-message-journal |
+| properties.staff-actor-reference | BunkFy.Modules.Properties.Domain | BunkFy.Modules.Properties.Domain.Events.PropertyProcessingPolicyActivatedDomainEvent | ActorId | domain-event | transient-domain-event |
+| properties.staff-actor-reference | BunkFy.Modules.Properties.Domain | BunkFy.Modules.Properties.Domain.Events.PropertyProcessingSuspendedDomainEvent | ActorId | domain-event | transient-domain-event |
 | properties.staff-actor-reference | BunkFy.Modules.Properties.Domain | BunkFy.Modules.Properties.Domain.Events.PropertyRetiredDomainEvent | ActorId | domain-event | transient-domain-event |
+| properties.staff-actor-reference | BunkFy.Modules.Properties.Persistence | BunkFy.Modules.Properties.Persistence.PropertyGovernanceRevision | ActorId | persistence | property-governance-revision-lifecycle |

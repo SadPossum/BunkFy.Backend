@@ -281,6 +281,7 @@ public sealed class StaffAuthorizationIntegrationTests
             ["Worker:Modules:Staff"] = "true",
             ["Tasks:Worker:Enabled"] = "false"
         });
+        AuthTestConfiguration.ConfigureTokenHashing(builder.Configuration);
         builder.AddWorkerHost();
         builder.ValidateModuleComposition();
         return builder.Build();
