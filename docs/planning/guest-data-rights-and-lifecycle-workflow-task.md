@@ -377,8 +377,10 @@ identity hints.
   receipt replay and conflicting idempotency-key rejection.
 - Full Docker suite: 36 passed with no skips.
 
-Restriction, anonymisation, ledger receipts and restore replay are not yet
-implemented and must not be inferred from this foundation.
+Restriction enforcement is implemented. Anonymisation is limited to a verified
+approval and immutable prepared work item; owner mutation, anonymisation
+receipts, ledger completion and restore replay are not yet implemented and must
+not be inferred from this foundation.
 
 ### Completed Slice: DataRights Decision And Approval Gate
 
@@ -427,9 +429,9 @@ The owner-local Guests restriction projection and dependent Reservations gate
 are complete. Their detailed implementation and acceptance plan is
 `guest-data-rights-restriction-task.md`.
 
-The next increment implements approved Guests anonymisation, authoritative
-ledger entries and restore replay. Those capabilities remain closed until the
-prerequisites in
+The next increment implements Guests-owned destructive eligibility and holds.
+Owner anonymisation, authoritative ledger entries and restore replay remain
+closed until the prerequisites in
 `guest-data-rights-anonymisation-and-ledger-task.md` are delivered in order.
 
 ## Acceptance Evidence

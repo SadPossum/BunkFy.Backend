@@ -34,7 +34,14 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.SubjectNotSelected.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectSelectionLimitReached.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectSelectionRequired.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.DecisionInvalid.Code, StatusCodes.Status400BadRequest)
+            new(DataRightsApplicationErrors.DecisionInvalid.Code, StatusCodes.Status400BadRequest),
+            new(DataRightsApplicationErrors.ExecutionNotFound.Code, StatusCodes.Status404NotFound),
+            new(DataRightsApplicationErrors.ExecutionAlreadyStarted.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.AnonymisationExecutionDenied.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.AnonymisationApprovalInvalid.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.AnonymisationSubjectCountInvalid.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.DecisionActorCannotExecute.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.ExecutionCoordinateInvalid.Code, StatusCodes.Status409Conflict)
         ]);
 
     public static async Task<IResult> DispatchAsync<TCommand>(

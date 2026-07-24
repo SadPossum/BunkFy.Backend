@@ -5,6 +5,8 @@ using Microsoft.Extensions.Configuration;
 
 internal static class BunkFyAuthenticationAssurance
 {
+    public const string MultiFactorContextReference = "urn:gma:acr:mfa";
+    public const string TwoStepContextReference = "urn:gma:acr:two-step";
     public const string PrivilegedOperationFreshnessMinutesKey =
         "BunkFy:AuthenticationAssurance:PrivilegedOperationFreshnessMinutes";
 
@@ -13,6 +15,22 @@ internal static class BunkFyAuthenticationAssurance
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
+        return new AuthenticationAssuranceRequirement(
+            maxAuthenticationAge: ReadFreshness(configuration));
+    }
+
+    public static AuthenticationAssuranceRequirement CreateDestructiveOperationRequirement(
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        return new AuthenticationAssuranceRequirement(
+            [MultiFactorContextReference, TwoStepContextReference],
+            ReadFreshness(configuration));
+    }
+
+    private static TimeSpan ReadFreshness(IConfiguration configuration)
+    {
         string? configured = configuration[PrivilegedOperationFreshnessMinutesKey];
         if (!int.TryParse(configured, out int freshnessMinutes) || freshnessMinutes is < 1 or > 60)
         {
@@ -20,7 +38,6 @@ internal static class BunkFyAuthenticationAssurance
                 $"{PrivilegedOperationFreshnessMinutesKey} must be a whole number from 1 through 60.");
         }
 
-        return new AuthenticationAssuranceRequirement(
-            maxAuthenticationAge: TimeSpan.FromMinutes(freshnessMinutes));
+        return TimeSpan.FromMinutes(freshnessMinutes);
     }
 }

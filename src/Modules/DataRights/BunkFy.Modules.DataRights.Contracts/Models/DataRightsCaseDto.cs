@@ -14,6 +14,8 @@ public sealed record DataRightsCaseDto(
     DataRightsDecisionReason DecisionReason,
     long? DecisionRevision,
     DateTimeOffset? DecidedAtUtc,
+    long? ExecutionRevision,
+    DateTimeOffset? ExecutionStartedAtUtc,
     int SelectedSubjectCount,
     DateTimeOffset? DueAtUtc,
     long Version,

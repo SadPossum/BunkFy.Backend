@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -179,6 +179,13 @@
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.StartDataRightsAnonymisationExecutionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
           "type": "BunkFy.Modules.DataRights.Application.Commands.UnselectDataRightsSubjectCommand",
           "member": "ActorId",
           "surface": "application-command",
@@ -206,7 +213,19 @@
         {
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
+          "member": "ExecutionStartedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
           "member": "LastChangedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionWorkItem",
+          "member": "CreatedBy",
           "surface": "persistence"
         },
         {
@@ -293,10 +312,23 @@
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsExecutionWorkItemDto",
+          "member": "RecordId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinateKey",
           "member": "RecordId",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionWorkItem",
+          "member": "RecordId",
+          "surface": "persistence"
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Domain",

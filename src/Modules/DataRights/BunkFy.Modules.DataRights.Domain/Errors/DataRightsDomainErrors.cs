@@ -73,4 +73,16 @@ public static class DataRightsDomainErrors
     public static readonly Error ApprovalPolicyEvidenceInvalid = new(
         "DataRights.ApprovalPolicyEvidenceInvalid",
         "An anonymisation approval requires valid immutable policy evidence.");
+    public static readonly Error AnonymisationApprovalInvalid = new(
+        "DataRights.AnonymisationApprovalInvalid",
+        "The case does not contain an executable anonymisation approval.");
+    public static readonly Error AnonymisationSubjectCountInvalid = new(
+        "DataRights.AnonymisationSubjectCountInvalid",
+        "An anonymisation execution requires exactly one selected subject.");
+    public static readonly Error DecisionActorCannotExecute = new(
+        "DataRights.DecisionActorCannotExecute",
+        "The decision actor cannot execute this anonymisation.");
+    public static readonly Error ExecutionCoordinateInvalid = new(
+        "DataRights.ExecutionCoordinateInvalid",
+        "The data-rights execution coordinate is invalid.");
 }

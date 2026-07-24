@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 public sealed class DataRightsModule : IModule
 {
@@ -32,12 +33,16 @@ public sealed class DataRightsModule : IModule
         builder.SelectModuleProfile(DataRightsProfiles.Default, "BunkFy.Modules.DataRights.Api");
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, DataRightsPropertyAccessScopeResolver>());
+        builder.Services.AddOptions<DataRightsApiSecurityOptions>();
         builder.Services.AddDataRightsApplication();
         builder.AddDataRightsPersistence();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        DataRightsApiSecurityOptions security = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<DataRightsApiSecurityOptions>>()
+            .Value;
         RouteGroupBuilder group = endpoints
             .MapGroup("/api/data-rights/properties/{propertyId:guid}/cases")
             .WithModuleName(this.Name)
@@ -262,6 +267,7 @@ public sealed class DataRightsModule : IModule
                 DataRightsPropertyAccessScopeResolver.ResolverName);
 
         DataRightsDiscoveryEndpoints.Map(group);
+        DataRightsExecutionEndpoints.Map(group, security.AnonymisationExecutionAssurance);
     }
 
     public sealed record CreateDataRightsCaseRequest(

@@ -11,6 +11,8 @@ public sealed class DataRightsDbContext(
     IScopeContext scopeContext) : ScopeAwareDbContext<DataRightsDbContext>(options, scopeContext)
 {
     public DbSet<DataRightsCase> Cases => this.Set<DataRightsCase>();
+    public DbSet<DataRightsExecutionWorkItem> ExecutionWorkItems =>
+        this.Set<DataRightsExecutionWorkItem>();
     public DbSet<DataRightsPropertyProjection> PropertyProjections =>
         this.Set<DataRightsPropertyProjection>();
     public DbSet<DataRightsProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>

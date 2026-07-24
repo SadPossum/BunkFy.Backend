@@ -32,6 +32,15 @@ public static class DataRightsApplicationErrors
     public static readonly Error AnonymisationMustBeApprovedSeparately = new(
         "DataRights.AnonymisationMustBeApprovedSeparately",
         "Anonymisation must be reviewed and approved as the case's only operation.");
+    public static readonly Error AnonymisationExecutionDenied = new(
+        "DataRights.AnonymisationExecutionDenied",
+        "The approved anonymisation is not executable with the current evidence.");
+    public static readonly Error ExecutionNotFound = new(
+        "DataRights.ExecutionNotFound",
+        "The data-rights execution was not found.");
+    public static readonly Error ExecutionAlreadyStarted = new(
+        "DataRights.ExecutionAlreadyStarted",
+        "The data-rights execution was already started with different coordinates.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;
@@ -43,4 +52,12 @@ public static class DataRightsApplicationErrors
     public static Error SubjectSelectionLimitReached => DataRightsDomainErrors.SubjectSelectionLimitReached;
     public static Error SubjectSelectionRequired => DataRightsDomainErrors.SubjectSelectionRequired;
     public static Error DecisionInvalid => DataRightsDomainErrors.DecisionInvalid;
+    public static Error AnonymisationApprovalInvalid =>
+        DataRightsDomainErrors.AnonymisationApprovalInvalid;
+    public static Error AnonymisationSubjectCountInvalid =>
+        DataRightsDomainErrors.AnonymisationSubjectCountInvalid;
+    public static Error DecisionActorCannotExecute =>
+        DataRightsDomainErrors.DecisionActorCannotExecute;
+    public static Error ExecutionCoordinateInvalid =>
+        DataRightsDomainErrors.ExecutionCoordinateInvalid;
 }

@@ -21,6 +21,24 @@ public sealed class BunkFyAuthenticationAssuranceTests
         Assert.Empty(requirement.AcceptedContextReferences);
     }
 
+    [Fact]
+    public void Destructive_operations_require_recent_multi_factor_authentication()
+    {
+        ConfigurationManager configuration = new();
+        configuration[BunkFyAuthenticationAssurance.PrivilegedOperationFreshnessMinutesKey] = "10";
+
+        AuthenticationAssuranceRequirement requirement =
+            BunkFyAuthenticationAssurance.CreateDestructiveOperationRequirement(configuration);
+
+        Assert.Equal(TimeSpan.FromMinutes(10), requirement.MaxAuthenticationAge);
+        Assert.Equal(
+            [
+                BunkFyAuthenticationAssurance.MultiFactorContextReference,
+                BunkFyAuthenticationAssurance.TwoStepContextReference
+            ],
+            requirement.AcceptedContextReferences);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

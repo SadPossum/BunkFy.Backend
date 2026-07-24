@@ -280,6 +280,45 @@ public sealed class DataRightsCaseTests
     }
 
     [Fact]
+    public void Approved_anonymisation_can_begin_once_with_a_distinct_executor()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedAnonymisation();
+
+        Assert.True(dataRightsCase.BeginAnonymisationExecution(
+            6,
+            " user:executor ",
+            Now.AddMinutes(6)).IsSuccess);
+
+        Assert.Equal(DataRightsCaseState.Executing, dataRightsCase.Status);
+        Assert.Equal(7, dataRightsCase.ExecutionRevision);
+        Assert.Equal(7, dataRightsCase.Version);
+        Assert.Equal("user:executor", dataRightsCase.ExecutionStartedBy);
+        Assert.Equal(Now.AddMinutes(6), dataRightsCase.ExecutionStartedAtUtc);
+        Assert.Equal(
+            "DataRights.TransitionInvalid",
+            dataRightsCase.BeginAnonymisationExecution(
+                7,
+                "user:other-executor",
+                Now.AddMinutes(7)).Error.Code);
+    }
+
+    [Fact]
+    public void Anonymisation_decision_actor_cannot_execute_their_own_approval()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedAnonymisation();
+
+        Assert.Equal(
+            "DataRights.DecisionActorCannotExecute",
+            dataRightsCase.BeginAnonymisationExecution(
+                6,
+                "user:decision-maker",
+                Now.AddMinutes(6)).Error.Code);
+        Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
+        Assert.Null(dataRightsCase.ExecutionRevision);
+        Assert.Null(dataRightsCase.ExecutionStartedBy);
+    }
+
+    [Fact]
     public void Case_changes_reject_timestamp_regression()
     {
         DataRightsCase dataRightsCase = CreateReviewRequired();
@@ -466,6 +505,40 @@ public sealed class DataRightsCaseTests
             3,
             "user:operator-a",
             Now.AddMinutes(3)).IsSuccess);
+        return dataRightsCase;
+    }
+
+    private static DataRightsCase CreateApprovedAnonymisation()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateReviewRequired(
+            propertyId,
+            DataRightsCaseOperation.Anonymisation);
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            Now.AddMinutes(4)).IsSuccess);
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                propertyId,
+                9,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('a', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                Now.AddMinutes(5)).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            5,
+            "user:decision-maker",
+            Now.AddMinutes(5),
+            evidence).IsSuccess);
         return dataRightsCase;
     }
 }

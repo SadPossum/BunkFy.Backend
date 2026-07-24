@@ -43,6 +43,7 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(RecordRequesterVerificationCommand),
             typeof(RequireDataRightsReviewCommand),
             typeof(SelectDataRightsSubjectCommand),
+            typeof(StartDataRightsAnonymisationExecutionCommand),
             typeof(UnselectDataRightsSubjectCommand)
         ];
 
@@ -56,7 +57,15 @@ public sealed class DataRightsPersonalDataCatalogTests
             nameof(DataRightsOperationApprovalRequest.ExecutingActorId),
             PersonalDataSurface.ApplicationQuery);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.CreatedBy), PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsCase),
+            nameof(DataRightsCase.ExecutionStartedBy),
+            PersonalDataSurface.Persistence);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.LastChangedBy), PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsExecutionWorkItem),
+            nameof(DataRightsExecutionWorkItem.CreatedBy),
+            PersonalDataSurface.Persistence);
         AssertBinding(
             typeof(DomainSubjectCoordinate),
             nameof(DomainSubjectCoordinate.SelectedBy),
@@ -93,8 +102,16 @@ public sealed class DataRightsPersonalDataCatalogTests
             nameof(DomainSubjectCoordinate.RecordId),
             PersonalDataSurface.Persistence);
         AssertBinding(
+            typeof(DataRightsExecutionWorkItem),
+            nameof(DataRightsExecutionWorkItem.RecordId),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
             typeof(DataRightsSelectedSubjectDto),
             nameof(DataRightsSelectedSubjectDto.RecordId),
+            PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DataRightsExecutionWorkItemDto),
+            nameof(DataRightsExecutionWorkItemDto.RecordId),
             PersonalDataSurface.ApiResponse);
         AssertBinding(
             typeof(DataRightsSelectedSubjectDto),
@@ -184,7 +201,7 @@ public sealed class DataRightsPersonalDataCatalogTests
 
         Assert.Empty(offenders);
         Assert.Equal(
-            ["CreatedBy", "DecidedBy", "LastChangedBy", "ScopeId"],
+            ["CreatedBy", "DecidedBy", "ExecutionStartedBy", "LastChangedBy", "ScopeId"],
             typeof(DataRightsCase)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Where(property => property.PropertyType == typeof(string))

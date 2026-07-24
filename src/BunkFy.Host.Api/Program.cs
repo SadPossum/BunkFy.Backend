@@ -1,43 +1,33 @@
-﻿using BunkFy.Modules.DataRights.Api;
-using Gma.Modules.Auth.Api;
-using Gma.Modules.Auth.Authenticators.Totp;
-using Gma.Modules.Auth.Contracts;
-using Gma.Modules.AccessControl.Api;
-using Gma.Modules.AccessControl.Application;
-using Gma.Modules.AccessControl.Persistence;
-using Gma.Modules.Auth.Persistence;
-using Gma.Modules.Auth.Providers.OpenIdConnect;
-using Gma.Modules.Notifications.Adapters.Email;
-using Gma.Modules.Notifications.Persistence;
-using Gma.Extensions.Auth.Notifications;
-using Gma.Extensions.Auth.Organizations;
-using Gma.Extensions.Organizations.Tenancy;
-using Gma.Modules.Organizations.Api;
-using Gma.Modules.Organizations.Persistence;
-using BunkFy.Extensions.Operations.Notifications;
-using BunkFy.Extensions.Workspaces;
-using BunkFy.Modules.DataRights.Persistence;
-using BunkFy.Modules.Properties.Persistence;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Inventory.Persistence;
-using BunkFy.Modules.Reservations.Persistence;
-using BunkFy.Modules.Guests.Persistence;
-using BunkFy.Modules.Staff.Persistence;
-using BunkFy.Modules.Ingestion.Persistence;
-using BunkFy.Modules.Inventory.Api;
-using BunkFy.Modules.Reservations.Api;
-using BunkFy.Modules.Guests.Api;
-using BunkFy.Modules.Staff.Api;
-using BunkFy.Modules.Ingestion.Api;
-using BunkFy.Modules.Workspaces.Contracts;
-using BunkFy.Modules.Workspaces.Api;
-using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
-using BunkFy.Parsers.ReservationMail;
-using BunkFy.Modules.Properties.Api;
+using BunkFy.Extensions.Operations.Notifications;
+using BunkFy.Extensions.Workspaces;
+using BunkFy.Host.Api;
+using BunkFy.Host.Api.Security;
 using BunkFy.Host.ServiceDefaults;
+using BunkFy.Modules.DataRights.Api;
+using BunkFy.Modules.DataRights.Persistence;
+using BunkFy.Modules.Guests.Api;
+using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.Ingestion.Api;
+using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Inventory.Api;
+using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Properties.Api;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Reservations.Api;
+using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Staff.Api;
+using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Api;
+using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Persistence;
+using BunkFy.Parsers.ReservationMail;
+using Gma.Extensions.Auth.Notifications;
+using Gma.Extensions.Auth.Organizations;
+using Gma.Extensions.Organizations.Tenancy;
 using Gma.Framework.Api.Modules;
 using Gma.Framework.Api.OpenApi;
 using Gma.Framework.Api.Production;
@@ -56,15 +46,25 @@ using Gma.Framework.Notifications.Api;
 using Gma.Framework.Notifications.Cqrs;
 using Gma.Framework.Notifications.SignalR;
 using Gma.Framework.Realtime.Notifications;
+using Gma.Framework.Security;
+using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Gma.Framework.Tenancy.Api.Serilog;
 using Gma.Framework.Tenancy.Caching;
 using Gma.Framework.Tenancy.Messaging.Infrastructure;
-using Gma.Framework.Tenancy.AccessControl.AspNetCore;
+using Gma.Modules.AccessControl.Api;
+using Gma.Modules.AccessControl.Application;
+using Gma.Modules.AccessControl.Persistence;
+using Gma.Modules.Auth.Api;
+using Gma.Modules.Auth.Authenticators.Totp;
+using Gma.Modules.Auth.Contracts;
+using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Auth.Providers.OpenIdConnect;
+using Gma.Modules.Notifications.Adapters.Email;
 using Gma.Modules.Notifications.Api;
+using Gma.Modules.Notifications.Persistence;
+using Gma.Modules.Organizations.Api;
+using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.Tenancy.Api;
-using BunkFy.Host.Api;
-using BunkFy.Host.Api.Security;
-using Gma.Framework.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -72,6 +72,8 @@ string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.
 AuthProfile authProfile = AuthProfile.Global(authScopeId);
 AuthenticationAssuranceRequirement privilegedOperationAssurance =
     BunkFyAuthenticationAssurance.CreatePrivilegedOperationRequirement(builder.Configuration);
+AuthenticationAssuranceRequirement destructiveOperationAssurance =
+    BunkFyAuthenticationAssurance.CreateDestructiveOperationRequirement(builder.Configuration);
 
 builder.Host.UseConfiguredSerilog();
 
@@ -104,6 +106,8 @@ builder.Services.Configure<OrganizationsApiSecurityOptions>(
     options => options.GovernanceOperationsAssurance = privilegedOperationAssurance);
 builder.Services.Configure<IngestionApiSecurityOptions>(
     options => options.CredentialManagementAssurance = privilegedOperationAssurance);
+builder.Services.Configure<DataRightsApiSecurityOptions>(
+    options => options.AnonymisationExecutionAssurance = destructiveOperationAssurance);
 builder.AddModule<AccessControlApiModule>();
 
 builder.AddModule<TenancyModule>();

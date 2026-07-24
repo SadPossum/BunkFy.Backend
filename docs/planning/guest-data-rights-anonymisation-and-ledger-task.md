@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: in progress; approval-evidence foundation complete, execution closed
+Status: in progress; execution preparation complete, owner mutation closed
 
 ## Outcome
 
@@ -316,9 +316,10 @@ stable operational error without logging subject coordinates.
 
 ## Delivery Steps
 
-1. [In progress] Persist destructive approval evidence and add explicit
+1. [Complete] Persist destructive approval evidence and add explicit
    execution/work-item lifecycle without enabling owner mutation.
-2. Add Guest data holds, eligibility checks and exact stable blocker codes.
+2. [Next] Add Guest data holds, eligibility checks and exact stable blocker
+   codes.
 3. Add `Anonymised`, the aggregate mutation, owner receipt, local tombstone,
    event and ordinary-surface enforcement.
 4. Add the versioned owner contributor and retry-safe DataRights task
@@ -338,7 +339,7 @@ Only one numbered step is implemented at a time. Later steps may refine code
 from completed steps, but owner mutation remains closed until every prerequisite
 gate needed for that mutation is present.
 
-### Completed Slice: Verified Destructive Approval Evidence
+### Completed Slice: Verified Execution Preparation
 
 - Anonymisation can be approved only as the exact standalone operation.
 - DataRights resolves the routing property's governance binding from its own
@@ -351,12 +352,25 @@ gate needed for that mutation is present.
   would otherwise violate that invariant.
 - The approval gate requires a bounded executor identity and enforces
   approver/executor separation before returning the frozen evidence.
+- The authenticated start endpoint requires the tenant-scoped erase permission,
+  routing-property read permission and configured destructive-operation
+  assurance. Generic conjunctive permission composition lives in GMA; the
+  BunkFy permission and assurance policy remains product-owned.
+- An equivalent idempotent retry returns the same execution. A different key,
+  stale case version, conflicting concurrent start or failed approval gate
+  leaves no second work item and returns a stable conflict.
+- The case enters `Executing` and one immutable `Prepared` work item freezes the
+  exact approval revision, execution revision, selected owner coordinate and
+  record version, policy/retention evidence and initiating actor.
+- PostgreSQL uniqueness, foreign keys, optimistic concurrency and one bounded
+  retry protect concurrent starts. The migration refuses legacy execution-state
+  rows rather than inventing missing evidence.
 - Properties lifecycle and processing-policy events populate the local
   projection. A tenant-scoped, resumable worker task rebuilds it through the
   Properties export contract.
-- No execution endpoint, work item or Guests mutation is enabled by this
-  slice. Delivery step 1 remains open until the durable execution lifecycle is
-  implemented.
+- No task dispatch, owner mutation or completion transition is enabled by this
+  slice. The work item remains `Prepared` until Guest eligibility and hold
+  evaluation are implemented.
 
 ## Acceptance Evidence
 

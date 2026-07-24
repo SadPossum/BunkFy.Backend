@@ -19,6 +19,8 @@ public static class DataRightsCaseMappings
         (DataRightsDecisionReason)dataRightsCase.DecisionReason,
         dataRightsCase.DecisionRevision,
         dataRightsCase.DecidedAtUtc,
+        dataRightsCase.ExecutionRevision,
+        dataRightsCase.ExecutionStartedAtUtc,
         dataRightsCase.SelectedSubjects.Count,
         dataRightsCase.DueAtUtc,
         dataRightsCase.Version,

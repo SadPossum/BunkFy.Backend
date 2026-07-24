@@ -83,6 +83,48 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designSelectedSubject.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_selected_subjects_selected_by");
+        IEntityType workItem =
+            dbContext.Model.FindEntityType(typeof(DataRightsExecutionWorkItem))!;
+        IEntityType designWorkItem = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsExecutionWorkItem))!;
+        Assert.True(
+            workItem.FindProperty(nameof(DataRightsExecutionWorkItem.Version))!
+                .IsConcurrencyToken);
+        Assert.Equal(
+            DataRightsCase.ActorIdMaxLength,
+            workItem.FindProperty(nameof(DataRightsExecutionWorkItem.CreatedBy))!.GetMaxLength());
+        Assert.Contains(workItem.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsExecutionWorkItem.ScopeId),
+                nameof(DataRightsExecutionWorkItem.IdempotencyKey)
+            ]));
+        Assert.Contains(workItem.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsExecutionWorkItem.ScopeId),
+                nameof(DataRightsExecutionWorkItem.CaseId),
+                nameof(DataRightsExecutionWorkItem.ApprovalRevision),
+                nameof(DataRightsExecutionWorkItem.Operation),
+                nameof(DataRightsExecutionWorkItem.OwnerKey),
+                nameof(DataRightsExecutionWorkItem.RecordType),
+                nameof(DataRightsExecutionWorkItem.RecordId)
+            ]));
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_revisions");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_policy");
+        Assert.Contains(
+            designWorkItem.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                    nameof(DataRightsExecutionWorkItem.ScopeId),
+                    nameof(DataRightsExecutionWorkItem.CaseId)
+                ]));
     }
 
     [Fact]
@@ -319,6 +361,48 @@ public sealed class DataRightsModelTests
         Assert.True(restoredEvidence.RequiresDistinctExecutor);
     }
 
+    [Fact]
+    public async Task Prepared_anonymisation_execution_round_trips_and_is_tenant_isolated()
+    {
+        string databaseName = $"data-rights-execution-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        (DataRightsCase dataRightsCase, DataRightsExecutionWorkItem workItem) =
+            CreatePreparedExecution();
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            writer.ExecutionWorkItems.Add(workItem);
+            await writer.SaveChangesAsync();
+        }
+
+        await using (DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            DataRightsCase restoredCase = await reader.Cases.SingleAsync();
+            DataRightsExecutionWorkItem restoredWorkItem =
+                await reader.ExecutionWorkItems.SingleAsync();
+            Assert.Equal(DataRightsCaseState.Executing, restoredCase.Status);
+            Assert.Equal(7, restoredCase.ExecutionRevision);
+            Assert.Equal("user:executor", restoredCase.ExecutionStartedBy);
+            Assert.Equal(DataRightsExecutionWorkItemState.Prepared, restoredWorkItem.State);
+            Assert.Equal(restoredCase.Id, restoredWorkItem.CaseId);
+            Assert.Equal(restoredCase.ExecutionRevision, restoredWorkItem.ExecutionRevision);
+            Assert.Equal("approved-policy", restoredWorkItem.PolicyId);
+        }
+
+        await using DataRightsDbContext tenantB = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-b");
+        Assert.Empty(await tenantB.ExecutionWorkItems.ToArrayAsync());
+    }
+
     private static DataRightsCase CreateCase(string tenantId, Guid propertyId)
     {
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
@@ -332,6 +416,83 @@ public sealed class DataRightsModelTests
             request,
             "user:operator",
             new DateTimeOffset(2026, 7, 23, 12, 0, 0, TimeSpan.Zero)).Value;
+    }
+
+    private static (DataRightsCase Case, DataRightsExecutionWorkItem WorkItem)
+        CreatePreparedExecution()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DateTimeOffset now = new(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            now).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator",
+            now.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            4,
+            2,
+            "user:operator",
+            now.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            3,
+            "user:operator",
+            now.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            now.AddMinutes(4)).IsSuccess);
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                propertyId,
+                12,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('c', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                now.AddMinutes(5)).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            5,
+            "user:decision-maker",
+            now.AddMinutes(5),
+            evidence).IsSuccess);
+        Assert.True(dataRightsCase.BeginAnonymisationExecution(
+            6,
+            "user:executor",
+            now.AddMinutes(6)).IsSuccess);
+        DataRightsExecutionWorkItem workItem = DataRightsExecutionWorkItem.Prepare(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            dataRightsCase.Id,
+            propertyId,
+            6,
+            7,
+            DataRightsCaseOperation.Anonymisation,
+            Assert.Single(dataRightsCase.SelectedSubjects),
+            evidence,
+            "user:executor",
+            now.AddMinutes(6)).Value;
+        return (dataRightsCase, workItem);
     }
 
     private static DataRightsDbContext CreateDbContext(

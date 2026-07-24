@@ -33,6 +33,10 @@ public sealed class DataRightsPersistenceIntegrationTests
         Guid guestId = Guid.Parse("30000000-0000-0000-0000-000000000001");
         Guid anonymisationCaseId =
             Guid.Parse("10000000-0000-0000-0000-000000000003");
+        Guid executionWorkItemId =
+            Guid.Parse("40000000-0000-0000-0000-000000000001");
+        Guid executionIdempotencyKey =
+            Guid.Parse("50000000-0000-0000-0000-000000000001");
         DateTimeOffset createdAtUtc = new(2026, 7, 23, 6, 0, 0, TimeSpan.Zero);
         await using (DataRightsDbContext initial = CreateDbContext(postgreSql.GetConnectionString()))
         {
@@ -175,7 +179,26 @@ public sealed class DataRightsPersistenceIntegrationTests
                 "staff:decision-maker",
                 selectedAtUtc.AddMinutes(5),
                 evidence).IsSuccess);
+            Assert.True(anonymisationCase.BeginAnonymisationExecution(
+                6,
+                "staff:executor",
+                selectedAtUtc.AddMinutes(6)).IsSuccess);
+            DataRightsExecutionWorkItem executionWorkItem =
+                DataRightsExecutionWorkItem.Prepare(
+                    executionWorkItemId,
+                    "tenant-a",
+                    executionIdempotencyKey,
+                    anonymisationCase.Id,
+                    propertyId,
+                    approvalRevision: 6,
+                    executionRevision: 7,
+                    DataRightsCaseOperation.Anonymisation,
+                    Assert.Single(anonymisationCase.SelectedSubjects),
+                    evidence,
+                    "staff:executor",
+                    selectedAtUtc.AddMinutes(6)).Value;
             upgraded.Cases.Add(anonymisationCase);
+            upgraded.ExecutionWorkItems.Add(executionWorkItem);
 
             await upgraded.SaveChangesAsync();
         }
@@ -206,6 +229,18 @@ public sealed class DataRightsPersistenceIntegrationTests
             Assert.Equal("integration-hostel-baseline", evidence.PolicyId);
             Assert.Equal(8, evidence.PropertyVersion);
             Assert.True(evidence.RequiresDistinctExecutor);
+            Assert.Equal(DataRightsCaseState.Executing, anonymisationCase.Status);
+            Assert.Equal(7, anonymisationCase.ExecutionRevision);
+            Assert.Equal("staff:executor", anonymisationCase.ExecutionStartedBy);
+            DataRightsExecutionWorkItem executionWorkItem =
+                await reloaded.ExecutionWorkItems.SingleAsync(
+                    item => item.Id == executionWorkItemId);
+            Assert.Equal(DataRightsExecutionWorkItemState.Prepared, executionWorkItem.State);
+            Assert.Equal(anonymisationCase.Id, executionWorkItem.CaseId);
+            Assert.Equal(6, executionWorkItem.ApprovalRevision);
+            Assert.Equal(7, executionWorkItem.ExecutionRevision);
+            Assert.True(executionWorkItem.HasIdempotencyKey(executionIdempotencyKey));
+            Assert.Equal("integration-hostel-baseline", executionWorkItem.PolicyId);
             DataRightsPropertyProjection property = await reloaded.PropertyProjections
                 .Include(item => item.GovernancePolicy)
                 .ThenInclude(policy => policy!.Acknowledgements)
@@ -214,6 +249,7 @@ public sealed class DataRightsPersistenceIntegrationTests
             Assert.Equal("integration-hostel-baseline", property.GovernancePolicy?.PolicyId);
             Assert.Single(property.GovernancePolicy?.Acknowledgements ?? []);
 
+            reloaded.ExecutionWorkItems.Remove(executionWorkItem);
             reloaded.Cases.Remove(dataRightsCase);
             reloaded.Cases.Remove(anonymisationCase);
             await reloaded.SaveChangesAsync();

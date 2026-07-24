@@ -26,6 +26,12 @@ deterministically generated
   projection and the current country-policy pack to allow the erasure surface;
 - the executor identity is rechecked against the approval revision and must be
   distinct from the deciding actor;
+- starting anonymisation requires both the tenant-scoped erase permission and
+  routing-property read permission, plus the configured destructive-operation
+  authentication assurance;
+- an idempotent execution transition freezes the exact approval, operation,
+  selected owner coordinate, record version, policy digest and executor into a
+  PII-minimal work item before any owner module can be invoked;
 - a PII-free, fail-closed owner-module approval gate that matches the exact
   tenant, property, operation, approved revision and selected record version;
 - restriction approvals bind an explicit apply or release directive, so one
@@ -53,7 +59,8 @@ The case does not contain guest names, contacts, documents, search criteria,
 provider payloads or free text. It stores only the selected owner's opaque
 record coordinate and selection audit attribution. Guest data remains owned by
 its source module. The export contract prepares owner fragments only; DataRights
-does not yet execute cases, persist fragments or expose download artifacts.
-Protected export assembly, owner receipts, ledger/restore protection and
-destructive execution are later slices and must remain fail closed until
-implemented.
+does not persist fragments or expose download artifacts. An anonymisation case
+can now enter `Executing` and produce one immutable `Prepared` work item, but no
+task is dispatched and no owner mutation occurs. Owner eligibility, receipts,
+ledger/restore protection and completion remain later slices and stay fail
+closed until implemented.

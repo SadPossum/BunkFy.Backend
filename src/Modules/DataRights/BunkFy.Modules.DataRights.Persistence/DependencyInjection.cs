@@ -3,6 +3,8 @@ namespace BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Persistence.Repositories;
 using Gma.Framework.Cqrs.UnitOfWork;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
@@ -28,11 +30,18 @@ public static class DependencyInjection
                 DataRightsMigrations.HistoryTable));
         builder.Services.TryAddScoped<IDataRightsCaseRepository, DataRightsCaseRepository>();
         builder.Services.TryAddScoped<
+            IDataRightsExecutionWorkItemRepository,
+            DataRightsExecutionWorkItemRepository>();
+        builder.Services.TryAddScoped<
             IDataRightsPropertyProjectionRepository,
             DataRightsPropertyProjectionRepository>();
         builder.Services.TryAddScoped<
             IProjectionRebuildWriter<PropertyTopologyProjectionExport>,
             DataRightsPropertiesProjectionRebuildWriter>();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(DataRightsPersistenceRetryBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IUnitOfWork, DataRightsUnitOfWork>());
         builder.Services.TryAddEnumerable(
