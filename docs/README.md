@@ -51,6 +51,7 @@ Useful entry points:
 - [Production Authentication Admission And Assurance Task](planning/production-authentication-admission-task.md)
 - [International Market Gate Task](planning/international-market-gate-task.md)
 - [Guest Data Rights And Lifecycle Workflow Task](planning/guest-data-rights-and-lifecycle-workflow-task.md)
+- [Guest Data Rights Anonymisation And Ledger Task](planning/guest-data-rights-anonymisation-and-ledger-task.md)
 - [Guest Data Rights Restriction Task](planning/guest-data-rights-restriction-task.md)
 - [Data Rights Module](../src/Modules/DataRights/docs/README.md)
 - [Ingestion Module Task](planning/ingestion-module-task.md)
