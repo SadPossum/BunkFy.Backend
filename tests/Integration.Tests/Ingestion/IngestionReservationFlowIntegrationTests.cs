@@ -5,13 +5,6 @@ using System.Globalization;
 using System.Text.Json;
 using BunkFy.Adapter.Abstractions;
 using BunkFy.Host.Worker;
-using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Containers;
-using Gma.Framework.Cqrs;
-using Gma.Framework.Messaging;
-using Gma.Framework.ModuleComposition;
-using Gma.Framework.Results;
-using Gma.Framework.Tenancy;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
@@ -19,21 +12,28 @@ using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Persistence;
-using Integration.Tests.Support;
 using BunkFy.Modules.Inventory.Application.Commands;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Persistence;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Messaging;
+using Gma.Framework.ModuleComposition;
+using Gma.Framework.Results;
+using Gma.Framework.Tenancy;
+using Integration.Tests.Support;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Testcontainers.PostgreSql;
 using Xunit;
 using Xunit.Abstractions;
@@ -273,6 +273,7 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
             ["Worker:Modules:Properties"] = "true",
             ["Worker:Modules:Inventory"] = "true",
             ["Worker:Modules:Reservations"] = "true",
+            ["Worker:Modules:Guests"] = "true",
             ["Worker:Modules:Ingestion"] = "true",
             ["Tasks:Worker:Enabled"] = "false",
             ["FileManagement:Enabled"] = "true",
