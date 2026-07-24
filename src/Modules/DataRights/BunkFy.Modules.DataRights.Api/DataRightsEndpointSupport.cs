@@ -27,7 +27,8 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.SubjectAlreadySelected.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectNotSelected.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectSelectionLimitReached.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.SubjectSelectionRequired.Code, StatusCodes.Status409Conflict)
+            new(DataRightsApplicationErrors.SubjectSelectionRequired.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.DecisionInvalid.Code, StatusCodes.Status400BadRequest)
         ]);
 
     public static async Task<IResult> DispatchAsync<TCommand>(

@@ -58,6 +58,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.guest-discovery-phone | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCandidate | PhoneHint | api-response | transient-response |
 | data-rights.guest-discovery-phone | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup | Phone | application-query | transient-request |
 | data-rights.guest-subject-record-id | BunkFy.Modules.DataRights.Api | BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest | RecordId | api-input | transient-request |
+| data-rights.guest-subject-record-id | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.Authorization.DataRightsOperationApprovalRequest | RecordId | application-query | transient-request |
 | data-rights.guest-subject-record-id | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsSelectedSubjectDto | RecordId | api-response | transient-response |
 | data-rights.guest-subject-record-id | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinate | RecordId | api-input | transient-request |
 | data-rights.guest-subject-record-id | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinate | RecordId | api-response | transient-response |
@@ -72,14 +73,17 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.owner-export-envelope | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsExportRecord | RecordId | data-rights-export | transient-owner-export-fragment |
 | data-rights.owner-export-envelope | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsExportRecord | RecordType | data-rights-export | transient-owner-export-fragment |
 | data-rights.owner-export-envelope | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsExportRecord | RecordVersion | data-rights-export | transient-owner-export-fragment |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.BeginDataRightsDecisionCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.BeginDataRightsDiscoveryCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.CancelDataRightsCaseCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.CreateDataRightsCaseCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RecordControllerRoutingCommand | ActorId | application-command | transient-request |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RecordDataRightsDecisionCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RecordRequesterVerificationCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RequireDataRightsReviewCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.SelectDataRightsSubjectCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.UnselectDataRightsSubjectCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | CreatedBy | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | DecidedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | LastChangedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate | SelectedBy | persistence | data-rights-case-lifecycle |

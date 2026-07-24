@@ -121,6 +121,13 @@
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.BeginDataRightsDecisionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
           "type": "BunkFy.Modules.DataRights.Application.Commands.CancelDataRightsCaseCommand",
           "member": "ActorId",
           "surface": "application-command",
@@ -136,6 +143,13 @@
         {
           "assembly": "BunkFy.Modules.DataRights.Application",
           "type": "BunkFy.Modules.DataRights.Application.Commands.RecordControllerRoutingCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.RecordDataRightsDecisionCommand",
           "member": "ActorId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -172,6 +186,12 @@
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
           "member": "CreatedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
+          "member": "DecidedBy",
           "surface": "persistence"
         },
         {
@@ -230,6 +250,13 @@
         {
           "assembly": "BunkFy.Modules.DataRights.Contracts",
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup",
+          "member": "RecordId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.Authorization.DataRightsOperationApprovalRequest",
           "member": "RecordId",
           "surface": "application-query",
           "retentionPolicy": "transient-request"

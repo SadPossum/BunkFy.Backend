@@ -18,10 +18,10 @@ public sealed class DataRightsPersistenceIntegrationTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Subject_selection_migration_upgrades_existing_cases_and_round_trips_coordinates()
+    public async Task Latest_migrations_upgrade_existing_cases_and_round_trip_approved_revisions()
     {
         await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
-            .WithDatabase("bunkfy_data_rights_subject_selection_tests")
+            .WithDatabase("bunkfy_data_rights_decision_tests")
             .Build();
         await postgreSql.StartAsync();
 
@@ -29,23 +29,24 @@ public sealed class DataRightsPersistenceIntegrationTests
         Guid propertyId = Guid.Parse("20000000-0000-0000-0000-000000000001");
         Guid guestId = Guid.Parse("30000000-0000-0000-0000-000000000001");
         DateTimeOffset createdAtUtc = new(2026, 7, 23, 6, 0, 0, TimeSpan.Zero);
-        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
-            propertyId,
-            DataRightsCaseKind.GuestRights,
-            DataRightsCaseOperation.AccessExport,
-            DataRightsRequesterRelation.ControllerInitiated).Value;
-        DataRightsCase existingCase = DataRightsCase.Create(
-            caseId,
-            "tenant-a",
-            request,
-            "staff:privacy",
-            createdAtUtc).Value;
-
         await using (DataRightsDbContext initial = CreateDbContext(postgreSql.GetConnectionString()))
         {
             await initial.Database.GetService<IMigrator>().MigrateAsync(InitialMigration);
-            initial.Cases.Add(existingCase);
-            await initial.SaveChangesAsync();
+            await initial.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "data-rights"."cases"
+                    ("Id", "PropertyId", "Kind", "RequestedOperations",
+                     "RequesterRelationship", "VerificationStatus", "RoutingStatus",
+                     "Status", "DueAtUtc", "Version", "CreatedBy", "CreatedAtUtc",
+                     "LastChangedBy", "LastChangedAtUtc", "ScopeId")
+                VALUES
+                    ({caseId}, {propertyId}, {(int)DataRightsCaseKind.GuestRights},
+                     {(int)DataRightsCaseOperation.AccessExport},
+                     {(int)DataRightsRequesterRelation.ControllerInitiated},
+                     {(int)DataRightsVerificationState.NotRequired},
+                     {(int)DataRightsRoutingState.NotRequired},
+                     {(int)DataRightsCaseState.Draft}, NULL, 1, {"staff:privacy"},
+                     {createdAtUtc}, {"staff:privacy"}, {createdAtUtc}, {"tenant-a"})
+                """);
         }
 
         DateTimeOffset selectedAtUtc = createdAtUtc.AddMinutes(10);
@@ -66,6 +67,20 @@ public sealed class DataRightsPersistenceIntegrationTests
                 dataRightsCase.Version,
                 "staff:privacy",
                 selectedAtUtc).IsSuccess);
+            Assert.True(dataRightsCase.RequireReview(
+                dataRightsCase.Version,
+                "staff:privacy",
+                selectedAtUtc.AddMinutes(1)).IsSuccess);
+            Assert.True(dataRightsCase.BeginDecision(
+                dataRightsCase.Version,
+                "staff:decision-maker",
+                selectedAtUtc.AddMinutes(2)).IsSuccess);
+            Assert.True(dataRightsCase.RecordDecision(
+                DataRightsCaseDecision.Approved,
+                DataRightsCaseDecisionReason.RequestValidated,
+                dataRightsCase.Version,
+                "staff:decision-maker",
+                selectedAtUtc.AddMinutes(3)).IsSuccess);
 
             await upgraded.SaveChangesAsync();
         }
@@ -82,6 +97,12 @@ public sealed class DataRightsPersistenceIntegrationTests
             Assert.Equal(7, selected.RecordVersion);
             Assert.Equal("staff:privacy", selected.SelectedBy);
             Assert.Equal(selectedAtUtc, selected.SelectedAtUtc);
+            Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
+            Assert.Equal(DataRightsCaseDecision.Approved, dataRightsCase.Decision);
+            Assert.Equal(DataRightsCaseDecisionReason.RequestValidated, dataRightsCase.DecisionReason);
+            Assert.Equal(dataRightsCase.Version, dataRightsCase.DecisionRevision);
+            Assert.Equal("staff:decision-maker", dataRightsCase.DecidedBy);
+            Assert.Equal(selectedAtUtc.AddMinutes(3), dataRightsCase.DecidedAtUtc);
 
             reloaded.Cases.Remove(dataRightsCase);
             await reloaded.SaveChangesAsync();

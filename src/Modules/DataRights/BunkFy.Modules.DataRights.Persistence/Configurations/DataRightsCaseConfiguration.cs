@@ -33,6 +33,34 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "CK_data_rights_cases_status",
                 "\"Status\" BETWEEN 1 AND 11");
             table.HasCheckConstraint(
+                "CK_data_rights_cases_decision",
+                "\"Decision\" BETWEEN 0 AND 2");
+            table.HasCheckConstraint(
+                "CK_data_rights_cases_decision_reason",
+                "\"DecisionReason\" BETWEEN 0 AND 6");
+            table.HasCheckConstraint(
+                "CK_data_rights_cases_decision_reason_match",
+                "(\"Decision\" = 0 AND \"DecisionReason\" = 0) OR " +
+                "(\"Decision\" = 1 AND \"DecisionReason\" = 1) OR " +
+                "(\"Decision\" = 2 AND \"DecisionReason\" BETWEEN 2 AND 6)");
+            table.HasCheckConstraint(
+                "CK_data_rights_cases_decision_details",
+                "(\"Decision\" = 0 AND \"DecisionRevision\" IS NULL AND " +
+                "\"DecidedBy\" IS NULL AND \"DecidedAtUtc\" IS NULL) OR " +
+                "(\"Decision\" IN (1, 2) AND \"DecisionRevision\" IS NOT NULL AND " +
+                "\"DecisionRevision\" >= 1 AND \"DecisionRevision\" <= \"Version\" AND " +
+                "\"DecidedBy\" IS NOT NULL AND \"DecidedAtUtc\" IS NOT NULL)");
+            table.HasCheckConstraint(
+                "CK_data_rights_cases_decision_attribution",
+                "\"DecidedBy\" IS NULL OR (length(trim(\"DecidedBy\")) > 0 AND " +
+                "\"DecidedAtUtc\" >= \"CreatedAtUtc\" AND " +
+                "\"DecidedAtUtc\" <= \"LastChangedAtUtc\")");
+            table.HasCheckConstraint(
+                "CK_data_rights_cases_decision_state",
+                "(\"Decision\" = 0 AND \"Status\" IN (1, 2, 3, 4, 11)) OR " +
+                "(\"Decision\" = 1 AND \"Status\" IN (5, 7, 8, 9, 10)) OR " +
+                "(\"Decision\" = 2 AND \"Status\" = 6)");
+            table.HasCheckConstraint(
                 "CK_data_rights_cases_property_scope",
                 "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR " +
                 "(\"Kind\" = 2 AND \"PropertyId\" IS NULL)");
@@ -74,6 +102,14 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
         builder.Property(dataRightsCase => dataRightsCase.Status)
             .HasConversion<int>()
             .IsRequired();
+        builder.Property(dataRightsCase => dataRightsCase.Decision)
+            .HasConversion<int>()
+            .IsRequired();
+        builder.Property(dataRightsCase => dataRightsCase.DecisionReason)
+            .HasConversion<int>()
+            .IsRequired();
+        builder.Property(dataRightsCase => dataRightsCase.DecidedBy)
+            .HasMaxLength(DataRightsCase.ActorIdMaxLength);
         builder.Property(dataRightsCase => dataRightsCase.Version)
             .IsConcurrencyToken()
             .IsRequired();

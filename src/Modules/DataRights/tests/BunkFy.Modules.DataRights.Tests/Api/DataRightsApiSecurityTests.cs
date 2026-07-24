@@ -63,6 +63,16 @@ public sealed class DataRightsApiSecurityTests
         AssertPermission(
             endpoints,
             HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/decision",
+            DataRightsAdminPermissionCodes.Decide);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/decision/outcome",
+            DataRightsAdminPermissionCodes.Decide);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/cancel",
             DataRightsAdminPermissionCodes.Manage);
     }

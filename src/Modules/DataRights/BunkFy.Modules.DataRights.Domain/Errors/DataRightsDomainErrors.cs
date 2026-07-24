@@ -64,4 +64,7 @@ public static class DataRightsDomainErrors
     public static readonly Error SubjectSelectionRequired = new(
         "DataRights.SubjectSelectionRequired",
         "Select at least one subject coordinate before review.");
+    public static readonly Error DecisionInvalid = new(
+        "DataRights.DecisionInvalid",
+        "The data-rights decision and reason combination is invalid.");
 }

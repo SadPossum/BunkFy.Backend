@@ -48,6 +48,15 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_requester_scope");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_cases_decision_details");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_cases_decision_state");
+        Assert.Equal(
+            DataRightsCase.ActorIdMaxLength,
+            entity.FindProperty(nameof(DataRightsCase.DecidedBy))!.GetMaxLength());
         IEntityType selectedSubject =
             dbContext.Model.FindEntityType(typeof(DataRightsSubjectCoordinate))!;
         IEntityType designSelectedSubject = dbContext.GetService<IDesignTimeModel>()
@@ -132,6 +141,58 @@ public sealed class DataRightsModelTests
         Assert.Equal(guestId, coordinate.RecordId);
         Assert.Equal(7, coordinate.RecordVersion);
         Assert.Equal("user:operator", coordinate.SelectedBy);
+    }
+
+    [Fact]
+    public async Task Approved_decision_revision_and_attribution_round_trip_with_the_case()
+    {
+        string databaseName = $"data-rights-decision-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        DataRightsCase dataRightsCase = CreateCase("tenant-a", Guid.NewGuid());
+        DateTimeOffset discoveryAt = dataRightsCase.CreatedAtUtc.AddMinutes(1);
+        Assert.True(dataRightsCase.BeginDiscovery(1, "user:operator", discoveryAt).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            1,
+            2,
+            "user:operator",
+            discoveryAt.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            3,
+            "user:operator",
+            discoveryAt.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            discoveryAt.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            5,
+            "user:decision-maker",
+            discoveryAt.AddMinutes(4)).IsSuccess);
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        Assert.Equal(DataRightsCaseDecision.Approved, restored.Decision);
+        Assert.Equal(DataRightsCaseDecisionReason.RequestValidated, restored.DecisionReason);
+        Assert.Equal(6, restored.DecisionRevision);
+        Assert.Equal("user:decision-maker", restored.DecidedBy);
+        Assert.Equal(discoveryAt.AddMinutes(4), restored.DecidedAtUtc);
     }
 
     private static DataRightsCase CreateCase(string tenantId, Guid propertyId)

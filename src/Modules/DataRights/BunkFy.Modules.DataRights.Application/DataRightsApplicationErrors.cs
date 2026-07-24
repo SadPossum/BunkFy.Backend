@@ -36,4 +36,5 @@ public static class DataRightsApplicationErrors
     public static Error SubjectNotSelected => DataRightsDomainErrors.SubjectNotSelected;
     public static Error SubjectSelectionLimitReached => DataRightsDomainErrors.SubjectSelectionLimitReached;
     public static Error SubjectSelectionRequired => DataRightsDomainErrors.SubjectSelectionRequired;
+    public static Error DecisionInvalid => DataRightsDomainErrors.DecisionInvalid;
 }

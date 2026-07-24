@@ -8,7 +8,7 @@ using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
-public sealed class DataRightsCase : ScopedAggregateRoot<Guid>
+public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
 {
     public const int ActorIdMaxLength = 200;
     public const int MaxSelectedSubjects = 100;
@@ -26,6 +26,11 @@ public sealed class DataRightsCase : ScopedAggregateRoot<Guid>
     public DataRightsVerificationState VerificationStatus { get; private set; }
     public DataRightsRoutingState RoutingStatus { get; private set; }
     public DataRightsCaseState Status { get; private set; } = DataRightsCaseState.Draft;
+    public DataRightsCaseDecision Decision { get; private set; }
+    public DataRightsCaseDecisionReason DecisionReason { get; private set; }
+    public long? DecisionRevision { get; private set; }
+    public string? DecidedBy { get; private set; }
+    public DateTimeOffset? DecidedAtUtc { get; private set; }
     public DateTimeOffset? DueAtUtc { get; private set; }
     public long Version { get; private set; } = 1;
     public string CreatedBy { get; private set; } = string.Empty;
@@ -337,7 +342,7 @@ public sealed class DataRightsCase : ScopedAggregateRoot<Guid>
             return Result.Failure(actor.Error);
         }
 
-        return nowUtc == default || nowUtc < this.CreatedAtUtc
+        return nowUtc == default || nowUtc < this.LastChangedAtUtc
             ? Result.Failure(DataRightsDomainErrors.TimestampInvalid)
             : Result.Success();
     }
@@ -356,4 +361,5 @@ public sealed class DataRightsCase : ScopedAggregateRoot<Guid>
             ? Result.Success(normalized)
             : Result.Failure<string>(DataRightsDomainErrors.ActorInvalid);
     }
+
 }

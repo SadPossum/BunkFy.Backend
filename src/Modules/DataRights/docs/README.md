@@ -17,6 +17,10 @@ deterministically generated
   and owner revalidation before an opaque coordinate can be selected;
 - no-store discovery responses and no lookup criteria persisted in the case;
 - bounded subject selection that must be non-empty before review can begin;
+- explicit review, decision-pending, approved or denied transitions with
+  bounded reason codes and immutable decision revision/attribution;
+- a PII-free, fail-closed owner-module approval gate that matches the exact
+  tenant, property, operation, approved revision and selected record version;
 - resumable selected-coordinate reads behind the sensitive discovery
   permission, while ordinary case DTOs expose only a count;
 - a PII-carrying owner-export envelope that is explicitly catalogued as a
@@ -33,6 +37,6 @@ provider payloads or free text. It stores only the selected owner's opaque
 record coordinate and selection audit attribution. Guest data remains owned by
 its source module. The export contract prepares owner fragments only; DataRights
 does not yet execute cases, persist fragments or expose download artifacts.
-Decisions, protected export assembly, receipts, ledger/restore protection and
+Protected export assembly, owner receipts, ledger/restore protection and
 destructive execution are later slices and must remain fail closed until
 implemented.

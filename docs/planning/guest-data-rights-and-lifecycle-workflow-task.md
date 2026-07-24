@@ -1,6 +1,8 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: implementation in progress; Guests discovery, subject selection, export preparation and correction outcome preparation complete
+Status: implementation in progress; Guests discovery, subject selection,
+export preparation and correction outcome preparation complete; DataRights
+decision lifecycle and approval gate complete
 
 ## Outcome
 
@@ -275,7 +277,7 @@ needed, one owner capability at a time.
 8. Run full migration, architecture, Docker, browser, security and exact-commit
    publication gates before any real guest data is allowed.
 
-### Active Slice: Guests Discovery And Subject Selection
+### Completed Slice: Guests Discovery And Subject Selection
 
 The first internal increment of the Guests vertical slice is deliberately
 synchronous and non-durable because its request and response contain sensitive
@@ -354,9 +356,10 @@ identity hints.
 
 ### Current Verification Evidence
 
-- DataRights focused tests: 29 passed.
+- DataRights focused tests: 41 passed.
 - Guests focused tests: 22 passed.
 - Architecture tests: 64 passed.
+- Integration tests: 29 passed.
 - Fast repository verification: all composed projects built with zero warnings
   and all non-Docker tests passed.
 - Migration drift verification passed for every composed PostgreSQL and SQL
@@ -371,11 +374,38 @@ identity hints.
   history from the authorized property.
 - Full Docker suite: 35 passed with no skips.
 
-The next increment establishes the DataRights decision and approval-revision
-gate required before correction execution. Guests can then commit owner-local
-idempotent correction receipts through normal guest-profile domain commands.
-Restriction, anonymisation, ledger receipts and restore replay are not yet
-implemented and must not be inferred from this foundation.
+The next increment lets Guests commit owner-local idempotent correction
+receipts through normal guest-profile domain commands after revalidating the
+exact approved case revision. Restriction, anonymisation, ledger receipts and
+restore replay are not yet implemented and must not be inferred from this
+foundation.
+
+### Completed Slice: DataRights Decision And Approval Gate
+
+- Complete the explicit `ReviewRequired` to `DecisionPending` to `Approved` or
+  `Denied` lifecycle with optimistic concurrency and bounded reason codes.
+- Persist an immutable decision revision, actor and timestamp. The approval
+  revision identifies the exact case scope accepted for execution even after
+  later case-state changes.
+- Expose a PII-free in-process Contracts gate for owner modules. Authorization
+  requires an exact tenant, property, case, approval revision, single
+  operation, owner, record type, record id and selected record version match.
+- Keep correction execution closed. This slice neither changes a guest profile
+  nor creates an owner receipt; it only establishes the prerequisite decision
+  authority.
+
+### Next Slice: Guests Transactional Correction Receipt
+
+- Revalidate the exact DataRights approval revision and selected Guest profile
+  version immediately before mutation.
+- Apply the correction through the existing Guest aggregate path and commit an
+  owner-local, PII-free idempotency receipt in the same database transaction.
+- Bind the receipt to the case, approval revision, selected coordinate,
+  semantic field set, prior/current profile versions and guest domain-event
+  identity without storing old or new personal values.
+- Return the previously committed bounded outcome for an equivalent retry and
+  fail closed for a reused idempotency key with different coordinates or
+  correction intent.
 
 ## Acceptance Evidence
 

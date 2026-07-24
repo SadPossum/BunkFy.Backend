@@ -192,6 +192,52 @@ public sealed class DataRightsModule : IModule
                 DataRightsAdminPermissionCodes.Review,
                 DataRightsPropertyAccessScopeResolver.ResolverName);
 
+        group.MapPost("/{caseId:guid}/decision", async (
+            Guid propertyId,
+            Guid caseId,
+            VersionedDataRightsCaseRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+                context,
+                subjectResolver,
+                actor => new BeginDataRightsDecisionCommand(
+                    propertyId,
+                    caseId,
+                    request.ExpectedVersion,
+                    actor),
+                dispatcher,
+                cancellationToken).ConfigureAwait(false))
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                DataRightsAdminPermissionCodes.Decide,
+                DataRightsPropertyAccessScopeResolver.ResolverName);
+
+        group.MapPost("/{caseId:guid}/decision/outcome", async (
+            Guid propertyId,
+            Guid caseId,
+            RecordDataRightsDecisionRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+                context,
+                subjectResolver,
+                actor => new RecordDataRightsDecisionCommand(
+                    propertyId,
+                    caseId,
+                    request.Decision,
+                    request.Reason,
+                    request.ExpectedVersion,
+                    actor),
+                dispatcher,
+                cancellationToken).ConfigureAwait(false))
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                DataRightsAdminPermissionCodes.Decide,
+                DataRightsPropertyAccessScopeResolver.ResolverName);
+
         group.MapPost("/{caseId:guid}/cancel", async (
             Guid propertyId,
             Guid caseId,
@@ -223,6 +269,11 @@ public sealed class DataRightsModule : IModule
 
     public sealed record RecordRequesterVerificationRequest(
         bool Verified,
+        long ExpectedVersion);
+
+    public sealed record RecordDataRightsDecisionRequest(
+        DataRightsDecisionOutcome Decision,
+        DataRightsDecisionReason Reason,
         long ExpectedVersion);
 
     public sealed record VersionedDataRightsCaseRequest(long ExpectedVersion);

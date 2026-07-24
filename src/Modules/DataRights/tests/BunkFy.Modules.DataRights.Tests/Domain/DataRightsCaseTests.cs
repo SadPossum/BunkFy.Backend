@@ -127,6 +127,86 @@ public sealed class DataRightsCaseTests
     }
 
     [Fact]
+    public void Approval_is_an_explicit_attributable_and_immutable_revision()
+    {
+        DataRightsCase dataRightsCase = CreateReviewRequired();
+
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            Now.AddMinutes(4)).IsSuccess);
+        Assert.Equal(DataRightsCaseState.DecisionPending, dataRightsCase.Status);
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            5,
+            " user:decision-maker ",
+            Now.AddMinutes(5)).IsSuccess);
+
+        Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
+        Assert.Equal(DataRightsCaseDecision.Approved, dataRightsCase.Decision);
+        Assert.Equal(DataRightsCaseDecisionReason.RequestValidated, dataRightsCase.DecisionReason);
+        Assert.Equal(6, dataRightsCase.DecisionRevision);
+        Assert.Equal(dataRightsCase.Version, dataRightsCase.DecisionRevision);
+        Assert.Equal("user:decision-maker", dataRightsCase.DecidedBy);
+        Assert.Equal(Now.AddMinutes(5), dataRightsCase.DecidedAtUtc);
+        Assert.Equal(
+            "DataRights.TransitionInvalid",
+            dataRightsCase.RecordDecision(
+                DataRightsCaseDecision.Denied,
+                DataRightsCaseDecisionReason.RequestInvalid,
+                6,
+                "user:other",
+                Now.AddMinutes(6)).Error.Code);
+    }
+
+    [Fact]
+    public void Decision_reason_must_match_the_outcome()
+    {
+        DataRightsCase dataRightsCase = CreateReviewRequired();
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            Now.AddMinutes(4)).IsSuccess);
+
+        Assert.Equal(
+            "DataRights.DecisionInvalid",
+            dataRightsCase.RecordDecision(
+                DataRightsCaseDecision.Approved,
+                DataRightsCaseDecisionReason.LegalObligation,
+                5,
+                "user:decision-maker",
+                Now.AddMinutes(5)).Error.Code);
+        Assert.Equal(DataRightsCaseState.DecisionPending, dataRightsCase.Status);
+        Assert.Equal(5, dataRightsCase.Version);
+        Assert.Null(dataRightsCase.DecisionRevision);
+
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Denied,
+            DataRightsCaseDecisionReason.LegalObligation,
+            5,
+            "user:decision-maker",
+            Now.AddMinutes(5)).IsSuccess);
+        Assert.Equal(DataRightsCaseState.Denied, dataRightsCase.Status);
+        Assert.Equal(6, dataRightsCase.DecisionRevision);
+    }
+
+    [Fact]
+    public void Case_changes_reject_timestamp_regression()
+    {
+        DataRightsCase dataRightsCase = CreateReviewRequired();
+
+        Assert.Equal(
+            "DataRights.TimestampInvalid",
+            dataRightsCase.BeginDecision(
+                4,
+                "user:decision-maker",
+                Now.AddMinutes(2)).Error.Code);
+        Assert.Equal(DataRightsCaseState.ReviewRequired, dataRightsCase.Status);
+        Assert.Equal(4, dataRightsCase.Version);
+    }
+
+    [Fact]
     public void Subject_selection_is_bounded_deduplicated_and_removable()
     {
         DataRightsCase dataRightsCase = Create(
@@ -237,5 +317,29 @@ public sealed class DataRightsCaseTests
             request,
             "  user:operator-a  ",
             Now).Value;
+    }
+
+    private static DataRightsCase CreateReviewRequired()
+    {
+        DataRightsCase dataRightsCase = Create(
+            Guid.NewGuid(),
+            DataRightsRequesterRelation.ControllerInitiated);
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator-a",
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            1,
+            2,
+            "user:operator-a",
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            3,
+            "user:operator-a",
+            Now.AddMinutes(3)).IsSuccess);
+        return dataRightsCase;
     }
 }

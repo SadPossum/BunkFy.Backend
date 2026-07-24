@@ -137,12 +137,15 @@ public sealed class DataRightsPersonalDataCatalogTests
         Type[] boundaryTypes =
         [
             typeof(DataRightsModule.CreateDataRightsCaseRequest),
+            typeof(DataRightsModule.RecordDataRightsDecisionRequest),
             typeof(DataRightsModule.RecordRequesterVerificationRequest),
             typeof(DataRightsModule.VersionedDataRightsCaseRequest),
+            typeof(BeginDataRightsDecisionCommand),
             typeof(BeginDataRightsDiscoveryCommand),
             typeof(CancelDataRightsCaseCommand),
             typeof(CreateDataRightsCaseCommand),
             typeof(RecordControllerRoutingCommand),
+            typeof(RecordDataRightsDecisionCommand),
             typeof(RecordRequesterVerificationCommand),
             typeof(RequireDataRightsReviewCommand),
             typeof(SelectDataRightsSubjectCommand),
@@ -176,7 +179,7 @@ public sealed class DataRightsPersonalDataCatalogTests
 
         Assert.Empty(offenders);
         Assert.Equal(
-            ["CreatedBy", "LastChangedBy", "ScopeId"],
+            ["CreatedBy", "DecidedBy", "LastChangedBy", "ScopeId"],
             typeof(DataRightsCase)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Where(property => property.PropertyType == typeof(string))
