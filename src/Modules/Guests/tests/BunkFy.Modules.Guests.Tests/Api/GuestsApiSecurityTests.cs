@@ -45,4 +45,50 @@ public sealed class GuestsApiSecurityTests
             metadata => metadata.StatusCode == StatusCodes.Status200OK);
         Assert.Equal(typeof(GuestDataRightsCorrectionReceiptDto), response.Type);
     }
+
+    [Theory]
+    [InlineData(
+        "api/guests/properties/{propertyId:guid}/data-rights-restrictions",
+        "POST",
+        typeof(GuestProcessingRestrictionReceiptDto))]
+    [InlineData(
+        "api/guests/properties/{propertyId:guid}/data-rights-restrictions/{restrictionId:guid}/release",
+        "POST",
+        typeof(GuestProcessingRestrictionReceiptDto))]
+    [InlineData(
+        "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-rights-restrictions",
+        "GET",
+        typeof(GuestProcessingRestrictionListResponse))]
+    public async Task Data_rights_restrictions_require_restrict_at_guest_property_scope(
+        string route,
+        string method,
+        Type responseType)
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new GuestsModule().MapEndpoints(app);
+
+        RouteEndpoint endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>(), candidate =>
+                string.Equals(
+                    candidate.RoutePattern.RawText?.Trim('/'),
+                    route,
+                    StringComparison.Ordinal) &&
+                candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                    method,
+                    StringComparer.Ordinal) == true);
+        AccessPermissionMetadata permission =
+            Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
+        Assert.Equal(DataRightsAdminPermissionCodes.Restrict, permission.Permission.Value);
+        Assert.Equal("guests-property", permission.ScopeResolverName);
+
+        IProducesResponseTypeMetadata response = Assert.Single(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+        Assert.Equal(responseType, response.Type);
+    }
 }

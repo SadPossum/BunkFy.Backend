@@ -74,8 +74,19 @@ public sealed class GuestsPersonalDataCatalogTests
         AssertType(typeof(UpdateGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ArchiveGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ApplyGuestDataRightsCorrectionCommand), PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(ApplyGuestProcessingRestrictionCommand),
+            PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(ReleaseGuestProcessingRestrictionCommand),
+            PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(GetGuestProfileQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(typeof(GetGuestStayHistoryQuery), PersonalDataSurface.ApplicationQuery);
+        AssertType(
+            typeof(ListGuestProcessingRestrictionsQuery),
+            PersonalDataSurface.ApplicationQuery,
+            nameof(ListGuestProcessingRestrictionsQuery.Page),
+            nameof(ListGuestProcessingRestrictionsQuery.PageSize));
         AssertType(
             typeof(ListGuestProfilesQuery),
             PersonalDataSurface.ApplicationQuery,
@@ -87,12 +98,22 @@ public sealed class GuestsPersonalDataCatalogTests
         AssertType(typeof(GuestsModule.GuestProfileUpdateRequest), PersonalDataSurface.ApiInput);
         AssertType(typeof(GuestsModule.GuestDataRightsCorrectionRequest), PersonalDataSurface.ApiInput);
         AssertType(
+            typeof(GuestsModule.ApplyGuestProcessingRestrictionRequest),
+            PersonalDataSurface.ApiInput);
+        AssertType(
+            typeof(GuestsModule.ReleaseGuestProcessingRestrictionRequest),
+            PersonalDataSurface.ApiInput);
+        AssertType(
             typeof(GuestsModule.ArchiveGuestProfileRequest),
             PersonalDataSurface.ApiInput,
             nameof(GuestsModule.ArchiveGuestProfileRequest.Confirmed));
 
         AssertType(typeof(GuestProfileDto), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestDataRightsCorrectionReceiptDto), PersonalDataSurface.ApiResponse);
+        AssertType(typeof(GuestProcessingRestrictionDto), PersonalDataSurface.ApiResponse);
+        AssertType(
+            typeof(GuestProcessingRestrictionReceiptDto),
+            PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestStayHistoryItem), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestProfileEligibilityProjectionExport), PersonalDataSurface.ProjectionExport);
         AssertType(typeof(ReservationGuestStayProjectionExport), PersonalDataSurface.ProjectionExport);

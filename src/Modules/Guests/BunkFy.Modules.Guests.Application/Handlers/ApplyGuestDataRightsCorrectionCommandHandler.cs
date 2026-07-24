@@ -94,7 +94,7 @@ internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
                 GuestsApplicationErrors.DataRightsApprovalRequired);
         }
 
-        GuestProfile? profile = await profiles.GetVisibleAsync(
+        GuestProfile? profile = await profiles.GetForDataRightsAsync(
             command.PropertyId,
             command.GuestId,
             cancellationToken).ConfigureAwait(false);
@@ -173,7 +173,7 @@ internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
             return Result.Failure<GuestDataRightsCorrectionReceiptDto>(requested.Error);
         }
 
-        GuestProfile? profile = await profiles.GetVisibleAsync(
+        GuestProfile? profile = await profiles.GetForDataRightsAsync(
             command.PropertyId,
             command.GuestId,
             cancellationToken).ConfigureAwait(false);

@@ -14,6 +14,16 @@ internal sealed class GuestProcessingRestrictionProjectionRepository(
     IScopeContext scopeContext)
     : IGuestProcessingRestrictionProjectionRepository
 {
+    public Task<GuestProcessingRestrictionProjection?> GetAsync(
+        Guid propertyId,
+        Guid guestId,
+        CancellationToken cancellationToken) =>
+        dbContext.ProcessingRestrictionProjections.FirstOrDefaultAsync(
+            projection =>
+                projection.PropertyId == propertyId &&
+                projection.GuestId == guestId,
+            cancellationToken);
+
     public async Task EnsureAsync(
         string tenantId,
         Guid propertyId,

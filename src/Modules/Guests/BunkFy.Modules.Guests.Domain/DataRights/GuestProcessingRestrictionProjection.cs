@@ -62,18 +62,13 @@ public sealed class GuestProcessingRestrictionProjection : IScopedEntity
         int supportedContractVersion,
         DateTimeOffset occurredAtUtc)
     {
-        Result validation = this.ValidateTransition(
+        Result validation = this.ValidateApply(
             expectedRevision,
             supportedContractVersion,
             occurredAtUtc);
         if (validation.IsFailure)
         {
             return validation;
-        }
-
-        if (this.ActiveRestrictionCount == int.MaxValue)
-        {
-            return Result.Failure(GuestsDomainErrors.RestrictionProjectionStateInvalid);
         }
 
         this.ActiveRestrictionCount++;
@@ -88,6 +83,27 @@ public sealed class GuestProcessingRestrictionProjection : IScopedEntity
         int supportedContractVersion,
         DateTimeOffset occurredAtUtc)
     {
+        Result validation = this.ValidateRelease(
+            expectedRevision,
+            supportedContractVersion,
+            occurredAtUtc);
+        if (validation.IsFailure)
+        {
+            return validation;
+        }
+
+        this.ActiveRestrictionCount--;
+        this.IsRestricted = this.ActiveRestrictionCount > 0;
+        this.Revision++;
+        this.LastTransitionAtUtc = occurredAtUtc;
+        return Result.Success();
+    }
+
+    public Result ValidateApply(
+        long expectedRevision,
+        int supportedContractVersion,
+        DateTimeOffset occurredAtUtc)
+    {
         Result validation = this.ValidateTransition(
             expectedRevision,
             supportedContractVersion,
@@ -97,16 +113,28 @@ public sealed class GuestProcessingRestrictionProjection : IScopedEntity
             return validation;
         }
 
-        if (this.ActiveRestrictionCount < 1)
+        return this.ActiveRestrictionCount < int.MaxValue
+            ? Result.Success()
+            : Result.Failure(GuestsDomainErrors.RestrictionProjectionStateInvalid);
+    }
+
+    public Result ValidateRelease(
+        long expectedRevision,
+        int supportedContractVersion,
+        DateTimeOffset occurredAtUtc)
+    {
+        Result validation = this.ValidateTransition(
+            expectedRevision,
+            supportedContractVersion,
+            occurredAtUtc);
+        if (validation.IsFailure)
         {
-            return Result.Failure(GuestsDomainErrors.RestrictionProjectionStateInvalid);
+            return validation;
         }
 
-        this.ActiveRestrictionCount--;
-        this.IsRestricted = this.ActiveRestrictionCount > 0;
-        this.Revision++;
-        this.LastTransitionAtUtc = occurredAtUtc;
-        return Result.Success();
+        return this.ActiveRestrictionCount > 0
+            ? Result.Success()
+            : Result.Failure(GuestsDomainErrors.RestrictionProjectionStateInvalid);
     }
 
     private Result ValidateTransition(

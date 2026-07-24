@@ -1,8 +1,8 @@
 # Guest Data Rights Restriction Task
 
-Status: implementation in progress; DataRights approval-intent binding and
-Guests owner state foundation complete, transition commands and enforcement
-pending
+Status: implementation in progress; DataRights approval-intent binding, Guests
+owner state, transition commands and ordinary-surface enforcement complete;
+dependent-module contracts pending
 
 ## Outcome
 
@@ -224,8 +224,10 @@ not silently deleted or rewritten by this Guests slice.
    gate.
 2. [Complete] Add Guests restriction aggregates, projection, receipts,
    repositories, migration backfill and executable personal-data inventory.
-3. Add apply/release/list commands, typed API routes and permission metadata.
-4. Enforce the effective projection on every ordinary Guests surface.
+3. [Complete] Add apply/release/list commands, typed API routes and permission
+   metadata.
+4. [Complete] Enforce the effective projection on every ordinary Guests
+   surface.
 5. Add the versioned Guests gate, event and rebuild export, then update
    Reservations guest-link eligibility through contracts only.
 6. [Complete] Add PostgreSQL migrations, conservative backfill, indexes and

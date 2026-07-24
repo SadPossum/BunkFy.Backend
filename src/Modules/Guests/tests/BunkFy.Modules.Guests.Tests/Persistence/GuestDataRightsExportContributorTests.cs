@@ -54,7 +54,7 @@ public sealed class GuestDataRightsExportContributorTests
         Assert.Equal(2, result.RecordCount);
         Assert.Equal("guests.personal-data", contributor.Descriptor.CatalogId);
         Assert.Equal(1, contributor.Descriptor.CatalogSchemaVersion);
-        Assert.Equal(3, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(4, contributor.Descriptor.CatalogVersion);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaId, contributor.Descriptor.ExportSchemaId);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaVersion, contributor.Descriptor.ExportSchemaVersion);
         Assert.Equal(26, contributor.Descriptor.FieldIds.Count);

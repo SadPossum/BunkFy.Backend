@@ -157,6 +157,87 @@ public sealed class GuestsModule : IModule
                 DataRightsAdminPermissionCodes.Execute,
                 GuestsPropertyAccessScopeResolver.ResolverName);
 
+        group.MapPost("/data-rights-restrictions", async (
+            Guid propertyId,
+            ApplyGuestProcessingRestrictionRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actor = ResolveActor(context, subjectResolver);
+            return actor is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new ApplyGuestProcessingRestrictionCommand(
+                        request.IdempotencyKey,
+                        propertyId,
+                        request.CaseId,
+                        request.ApprovalRevision,
+                        request.GuestId,
+                        request.ExpectedGuestVersion,
+                        request.ExpectedProjectionRevision,
+                        actor),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<GuestProcessingRestrictionReceiptDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                DataRightsAdminPermissionCodes.Restrict,
+                GuestsPropertyAccessScopeResolver.ResolverName);
+
+        group.MapPost("/data-rights-restrictions/{restrictionId:guid}/release", async (
+            Guid propertyId,
+            Guid restrictionId,
+            ReleaseGuestProcessingRestrictionRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actor = ResolveActor(context, subjectResolver);
+            return actor is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new ReleaseGuestProcessingRestrictionCommand(
+                        request.IdempotencyKey,
+                        propertyId,
+                        restrictionId,
+                        request.CaseId,
+                        request.ApprovalRevision,
+                        request.GuestId,
+                        request.ExpectedGuestVersion,
+                        request.ExpectedRestrictionVersion,
+                        request.ExpectedProjectionRevision,
+                        actor),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<GuestProcessingRestrictionReceiptDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                DataRightsAdminPermissionCodes.Restrict,
+                GuestsPropertyAccessScopeResolver.ResolverName);
+
+        group.MapGet("/{guestId:guid}/data-rights-restrictions", async (
+            Guid propertyId,
+            Guid guestId,
+            int? page,
+            int? pageSize,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new ListGuestProcessingRestrictionsQuery(
+                    propertyId,
+                    guestId,
+                    page ?? PageRequest.DefaultPage,
+                    pageSize ?? PageRequest.DefaultPageSize),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<GuestProcessingRestrictionListResponse>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                DataRightsAdminPermissionCodes.Restrict,
+                GuestsPropertyAccessScopeResolver.ResolverName);
+
         group.MapPut("/{guestId:guid}", async (
             Guid propertyId,
             Guid guestId,
@@ -251,6 +332,23 @@ public sealed class GuestsModule : IModule
         string? PreferredLanguageTag,
         string? Notes);
 
+    public sealed record ApplyGuestProcessingRestrictionRequest(
+        Guid IdempotencyKey,
+        Guid CaseId,
+        long ApprovalRevision,
+        Guid GuestId,
+        long ExpectedGuestVersion,
+        long ExpectedProjectionRevision);
+
+    public sealed record ReleaseGuestProcessingRestrictionRequest(
+        Guid IdempotencyKey,
+        Guid CaseId,
+        long ApprovalRevision,
+        Guid GuestId,
+        long ExpectedGuestVersion,
+        long ExpectedRestrictionVersion,
+        long ExpectedProjectionRevision);
+
     public sealed record ArchiveGuestProfileRequest(long ExpectedVersion, bool Confirmed);
 
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
@@ -268,6 +366,17 @@ public sealed class GuestsModule : IModule
         new(GuestsApplicationErrors.CorrectionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.CorrectionNoChanges.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(GuestsApplicationErrors.RestrictionRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(GuestsApplicationErrors.RestrictionNotFound.Code, StatusCodes.Status404NotFound),
+        new(GuestsApplicationErrors.RestrictionProjectionUnavailable.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionGuestVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionApprovalAlreadyUsed.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionAlreadyReleased.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionProjectionVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionProjectionStateInvalid.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionProjectionTransitionInvalid.Code, StatusCodes.Status409Conflict),
         new("Guests.ConfirmationRequired", StatusCodes.Status400BadRequest));
 
     private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>

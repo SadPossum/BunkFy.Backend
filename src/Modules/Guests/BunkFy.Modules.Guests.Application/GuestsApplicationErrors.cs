@@ -28,7 +28,35 @@ public static class GuestsApplicationErrors
     public static readonly Error CorrectionRequestInvalid = new(
         "Guests.CorrectionRequestInvalid",
         "The correction request is invalid.");
+    public static readonly Error RestrictionRequestInvalid = new(
+        "Guests.RestrictionRequestInvalid",
+        "The processing-restriction request is invalid.");
+    public static readonly Error RestrictionNotFound = new(
+        "Guests.RestrictionNotFound",
+        "The processing restriction was not found.");
+    public static readonly Error RestrictionProjectionUnavailable = new(
+        "Guests.RestrictionProjectionUnavailable",
+        "The processing-restriction state is unavailable or unsupported.");
+    public static readonly Error RestrictionGuestVersionConflict = new(
+        "Guests.RestrictionGuestVersionConflict",
+        "The selected guest-profile version is stale.");
+    public static readonly Error RestrictionIdempotencyConflict = new(
+        "Guests.RestrictionIdempotencyConflict",
+        "The processing-restriction idempotency key was already used for a different request.");
+    public static readonly Error RestrictionApprovalAlreadyUsed = new(
+        "Guests.RestrictionApprovalAlreadyUsed",
+        "The approved processing-restriction decision was already used.");
     public static Error VersionConflict => GuestsDomainErrors.VersionConflict;
     public static Error GuestArchived => GuestsDomainErrors.GuestArchived;
     public static Error GuestAlreadyArchived => GuestsDomainErrors.GuestAlreadyArchived;
+    public static Error RestrictionVersionConflict =>
+        GuestsDomainErrors.RestrictionVersionConflict;
+    public static Error RestrictionAlreadyReleased =>
+        GuestsDomainErrors.RestrictionAlreadyReleased;
+    public static Error RestrictionProjectionVersionConflict =>
+        GuestsDomainErrors.RestrictionProjectionVersionConflict;
+    public static Error RestrictionProjectionStateInvalid =>
+        GuestsDomainErrors.RestrictionProjectionStateInvalid;
+    public static Error RestrictionProjectionTransitionInvalid =>
+        GuestsDomainErrors.RestrictionProjectionTransitionInvalid;
 }

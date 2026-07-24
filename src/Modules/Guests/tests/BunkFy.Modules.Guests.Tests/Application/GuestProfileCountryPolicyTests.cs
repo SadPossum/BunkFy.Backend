@@ -7,8 +7,8 @@ using BunkFy.Modules.Guests.Application.Handlers;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
-using Gma.Framework.Results;
 using Gma.Framework.Pagination;
+using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
@@ -68,6 +68,11 @@ public sealed class GuestProfileCountryPolicyTests
         }
 
         public Task<GuestProfile?> GetVisibleAsync(
+            Guid propertyId,
+            Guid guestId,
+            CancellationToken cancellationToken) => Task.FromResult<GuestProfile?>(null);
+
+        public Task<GuestProfile?> GetForDataRightsAsync(
             Guid propertyId,
             Guid guestId,
             CancellationToken cancellationToken) => Task.FromResult<GuestProfile?>(null);

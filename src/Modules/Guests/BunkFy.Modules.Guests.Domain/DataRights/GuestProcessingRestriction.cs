@@ -86,6 +86,36 @@ public sealed class GuestProcessingRestriction : ScopedAggregateRoot<Guid>
         string actorId,
         DateTimeOffset releasedAtUtc)
     {
+        Result validation = this.ValidateRelease(
+            releaseCaseId,
+            releaseApprovalRevision,
+            releaseSelectedGuestVersion,
+            expectedVersion,
+            actorId,
+            releasedAtUtc);
+        if (validation.IsFailure)
+        {
+            return validation;
+        }
+
+        this.ReleaseCaseId = releaseCaseId;
+        this.ReleaseApprovalRevision = releaseApprovalRevision;
+        this.ReleaseSelectedGuestVersion = releaseSelectedGuestVersion;
+        this.ReleasedBy = NormalizeActor(actorId)!;
+        this.ReleasedAtUtc = releasedAtUtc;
+        this.Status = GuestProcessingRestrictionState.Released;
+        this.Version++;
+        return Result.Success();
+    }
+
+    public Result ValidateRelease(
+        Guid releaseCaseId,
+        long releaseApprovalRevision,
+        long releaseSelectedGuestVersion,
+        long expectedVersion,
+        string actorId,
+        DateTimeOffset releasedAtUtc)
+    {
         if (expectedVersion != this.Version)
         {
             return Result.Failure(GuestsDomainErrors.RestrictionVersionConflict);
@@ -111,13 +141,6 @@ public sealed class GuestProcessingRestriction : ScopedAggregateRoot<Guid>
             return Result.Failure(GuestsDomainErrors.RestrictionTransitionInvalid);
         }
 
-        this.ReleaseCaseId = releaseCaseId;
-        this.ReleaseApprovalRevision = releaseApprovalRevision;
-        this.ReleaseSelectedGuestVersion = releaseSelectedGuestVersion;
-        this.ReleasedBy = normalizedActorId;
-        this.ReleasedAtUtc = releasedAtUtc;
-        this.Status = GuestProcessingRestrictionState.Released;
-        this.Version++;
         return Result.Success();
     }
 

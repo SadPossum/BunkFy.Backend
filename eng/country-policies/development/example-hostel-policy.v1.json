@@ -15,6 +15,7 @@
       "requirement": "required",
       "purposeCodes": [
         "data-rights-correction",
+        "data-rights-restriction",
         "guest-profile-management",
         "reservation-management",
         "reservation-ingestion"
@@ -30,6 +31,12 @@
     },
     {
       "purposeCode": "data-rights-correction",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "data-rights-restriction",
       "legalRuleReferenceKeys": [ "development-only-example" ],
       "allowedSurfaces": [ "api-write" ],
       "allowedSourceProvenance": [ "authorized-workspace-operator" ]

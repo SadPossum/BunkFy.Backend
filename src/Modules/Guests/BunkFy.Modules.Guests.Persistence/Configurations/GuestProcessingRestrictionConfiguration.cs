@@ -50,6 +50,14 @@ internal sealed class GuestProcessingRestrictionConfiguration
             restriction.ScopeId,
             restriction.PropertyId,
             restriction.GuestId,
+            restriction.ReleaseCaseId,
+            restriction.ReleaseApprovalRevision
+        }).IsUnique();
+        builder.HasIndex(restriction => new
+        {
+            restriction.ScopeId,
+            restriction.PropertyId,
+            restriction.GuestId,
             restriction.Status,
             restriction.AppliedAtUtc
         });

@@ -131,6 +131,7 @@ internal static class CountryPolicyIntegrationTestData
               "requirement": "required",
               "purposeCodes": [
                 "data-rights-correction",
+                "data-rights-restriction",
                 "guest-profile-management",
                 "reservation-management",
                 "reservation-ingestion"
@@ -150,6 +151,12 @@ internal static class CountryPolicyIntegrationTestData
             {
               "purposeCode": "data-rights-correction",
               "legalRuleReferenceKeys": [ "integration-correction" ],
+              "allowedSurfaces": [ "api-write" ],
+              "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+            },
+            {
+              "purposeCode": "data-rights-restriction",
+              "legalRuleReferenceKeys": [ "integration-restriction" ],
               "allowedSurfaces": [ "api-write" ],
               "allowedSourceProvenance": [ "authorized-workspace-operator" ]
             },

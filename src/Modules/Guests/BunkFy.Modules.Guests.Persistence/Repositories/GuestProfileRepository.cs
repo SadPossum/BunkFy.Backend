@@ -26,6 +26,12 @@ internal sealed class GuestProfileRepository(
     public Task<GuestProfile?> GetVisibleAsync(
         Guid propertyId,
         Guid guestId,
+        CancellationToken cancellationToken) => this.VisibleAt(propertyId)
+        .FirstOrDefaultAsync(profile => profile.Id == guestId, cancellationToken);
+
+    public Task<GuestProfile?> GetForDataRightsAsync(
+        Guid propertyId,
+        Guid guestId,
         CancellationToken cancellationToken) => dbContext.GuestProfiles.FirstOrDefaultAsync(
         profile => profile.Id == guestId &&
                    (profile.OriginPropertyId == propertyId || dbContext.StayHistory.Any(stay =>
@@ -39,10 +45,8 @@ internal sealed class GuestProfileRepository(
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
-        IQueryable<GuestProfile> query = dbContext.GuestProfiles
-            .AsNoTracking()
-            .Where(profile => profile.OriginPropertyId == propertyId || dbContext.StayHistory.Any(stay =>
-                stay.GuestId == profile.Id && stay.PropertyId == propertyId && stay.IsCurrentParticipant));
+        IQueryable<GuestProfile> query = this.VisibleAt(propertyId)
+            .AsNoTracking();
         if (status.HasValue)
         {
             GuestProfileState state = status.Value switch
@@ -73,4 +77,16 @@ internal sealed class GuestProfileRepository(
             .ConfigureAwait(false);
         return new(rows.Select(profile => profile.ToDto()).ToArray(), pageRequest.Page, pageRequest.PageSize);
     }
+
+    private IQueryable<GuestProfile> VisibleAt(Guid propertyId) =>
+        dbContext.GuestProfiles.Where(profile =>
+            (profile.OriginPropertyId == propertyId || dbContext.StayHistory.Any(stay =>
+                stay.GuestId == profile.Id &&
+                stay.PropertyId == propertyId &&
+                stay.IsCurrentParticipant)) &&
+            dbContext.ProcessingRestrictionProjections.Any(projection =>
+                projection.PropertyId == propertyId &&
+                projection.GuestId == profile.Id &&
+                projection.ContractVersion == GuestProcessingRestrictionContract.CurrentVersion &&
+                !projection.IsRestricted));
 }

@@ -248,6 +248,12 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
             Task.FromResult(
                 profile.OriginPropertyId == propertyId && profile.Id == guestId ? profile : null);
 
+        public Task<GuestProfile?> GetForDataRightsAsync(
+            Guid propertyId,
+            Guid guestId,
+            CancellationToken cancellationToken) =>
+            this.GetVisibleAsync(propertyId, guestId, cancellationToken);
+
         public Task<GuestListResponse> ListVisibleAsync(
             Guid propertyId,
             string? search,

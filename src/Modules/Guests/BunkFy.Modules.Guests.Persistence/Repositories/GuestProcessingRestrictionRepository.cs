@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Models;
+using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed class GuestProcessingRestrictionRepository(GuestsDbContext dbContext)
@@ -29,6 +30,20 @@ internal sealed class GuestProcessingRestrictionRepository(GuestsDbContext dbCon
                 restriction.ApplyApprovalRevision == approvalRevision,
             cancellationToken);
 
+    public Task<GuestProcessingRestriction?> FindByReleaseApprovalAsync(
+        Guid propertyId,
+        Guid guestId,
+        Guid caseId,
+        long approvalRevision,
+        CancellationToken cancellationToken) =>
+        dbContext.ProcessingRestrictions.AsNoTracking().FirstOrDefaultAsync(
+            restriction =>
+                restriction.PropertyId == propertyId &&
+                restriction.GuestId == guestId &&
+                restriction.ReleaseCaseId == caseId &&
+                restriction.ReleaseApprovalRevision == approvalRevision,
+            cancellationToken);
+
     public Task<GuestProcessingRestriction?> GetAsync(
         Guid propertyId,
         Guid restrictionId,
@@ -42,6 +57,7 @@ internal sealed class GuestProcessingRestrictionRepository(GuestsDbContext dbCon
     public async Task<IReadOnlyCollection<GuestProcessingRestriction>> ListActiveAsync(
         Guid propertyId,
         Guid guestId,
+        PageRequest pageRequest,
         CancellationToken cancellationToken) =>
         await dbContext.ProcessingRestrictions.AsNoTracking()
             .Where(restriction =>
@@ -50,6 +66,8 @@ internal sealed class GuestProcessingRestrictionRepository(GuestsDbContext dbCon
                 restriction.Status == GuestProcessingRestrictionState.Active)
             .OrderBy(restriction => restriction.AppliedAtUtc)
             .ThenBy(restriction => restriction.Id)
+            .Skip(pageRequest.SkipCount)
+            .Take(pageRequest.PageSize)
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
 

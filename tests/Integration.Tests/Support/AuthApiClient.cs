@@ -97,6 +97,23 @@ internal static class AuthApiClient
         return await client.SendAsync(request).ConfigureAwait(false);
     }
 
+    public static async Task<HttpResponseMessage> GetAsync(
+        HttpClient client,
+        string scopeId,
+        string path,
+        string? bearerToken = null)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Get, path);
+        request.Headers.Add(TenantHeader, scopeId);
+
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+        }
+
+        return await client.SendAsync(request).ConfigureAwait(false);
+    }
+
     private static async Task AssertSuccessAsync(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode)
