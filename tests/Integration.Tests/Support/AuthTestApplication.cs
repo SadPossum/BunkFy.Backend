@@ -2,20 +2,25 @@ namespace Integration.Tests.Support;
 
 using System.Text.Json;
 using BunkFy.Host.Api;
-using Gma.Framework.Messaging;
-using Gma.Framework.Persistence.EntityFrameworkCore;
-using Gma.Framework.Results;
-using Gma.Modules.Auth.Application.Ports;
-using Gma.Modules.Auth.Contracts;
-using Gma.Modules.AccessControl.Persistence;
-using Gma.Modules.Auth.Persistence;
-using Gma.Modules.Organizations.Domain.Aggregates;
-using Gma.Modules.Organizations.Domain.Enums;
-using Gma.Modules.Organizations.Persistence;
-using Gma.Modules.Notifications.Persistence;
+using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
+using Gma.Framework.Messaging;
+using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.Results;
+using Gma.Modules.AccessControl.Persistence;
+using Gma.Modules.Auth.Application.Ports;
+using Gma.Modules.Auth.Contracts;
+using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Notifications.Persistence;
+using Gma.Modules.Organizations.Domain.Aggregates;
+using Gma.Modules.Organizations.Domain.Enums;
+using Gma.Modules.Organizations.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -25,10 +30,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NATS.Client.Core;
-using BunkFy.Modules.Properties.Persistence;
-using BunkFy.Modules.Reservations.Persistence;
-using BunkFy.Modules.Staff.Persistence;
-using BunkFy.Modules.Workspaces.Persistence;
 
 internal sealed class AuthTestApplication(
     string provider,
@@ -218,6 +219,20 @@ internal sealed class AuthTestApplication(
         await this.MigrateReservationsAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateGuestDataRightsAuthorizationDatabaseAsync()
+    {
+        using (IServiceScope notificationScope = this.Services.CreateScope())
+        {
+            await notificationScope.ServiceProvider.GetRequiredService<NotificationsDbContext>()
+                .Database.MigrateAsync().ConfigureAwait(false);
+        }
+
+        await this.MigrateGuestRecordsAuthorizationDatabaseAsync().ConfigureAwait(false);
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<DataRightsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
     }
 

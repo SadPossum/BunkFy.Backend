@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Tests;
 
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Properties.Contracts;
@@ -46,6 +47,19 @@ public sealed class GuestsModelTests
                 nameof(GuestStayHistoryEntry.PropertyId),
                 nameof(GuestStayHistoryEntry.GuestId)
             ]));
+        IEntityType correctionReceipt =
+            dbContext.Model.FindEntityType(typeof(GuestDataRightsCorrectionReceipt))!;
+        Assert.Contains(correctionReceipt.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestDataRightsCorrectionReceipt.ScopeId),
+                nameof(GuestDataRightsCorrectionReceipt.IdempotencyKey)
+            ]));
+        IEntityType designReceipt = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(GuestDataRightsCorrectionReceipt))!;
+        Assert.Contains(
+            designReceipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guest_data_rights_correction_receipts_versions");
     }
 
     [Fact]

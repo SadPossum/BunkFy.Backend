@@ -7,6 +7,7 @@ using BunkFy.Modules.Guests.Application.Commands;
 using BunkFy.Modules.Guests.Application.Queries;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -37,7 +38,12 @@ public sealed class GuestsPersonalDataCatalogTests
     public void Every_guest_owned_persistence_member_is_classified()
     {
         using GuestsDbContext dbContext = CreateDbContext();
-        foreach (Type entityType in new[] { typeof(GuestProfile), typeof(GuestStayHistoryEntry) })
+        foreach (Type entityType in new[]
+                 {
+                     typeof(GuestProfile),
+                     typeof(GuestStayHistoryEntry),
+                     typeof(GuestDataRightsCorrectionReceipt)
+                 })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
             foreach (IProperty property in model.GetProperties())
@@ -64,6 +70,7 @@ public sealed class GuestsPersonalDataCatalogTests
         AssertType(typeof(CreateGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(UpdateGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ArchiveGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
+        AssertType(typeof(ApplyGuestDataRightsCorrectionCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(GetGuestProfileQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(typeof(GetGuestStayHistoryQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(
@@ -75,12 +82,14 @@ public sealed class GuestsPersonalDataCatalogTests
 
         AssertType(typeof(GuestsModule.GuestProfileWriteRequest), PersonalDataSurface.ApiInput);
         AssertType(typeof(GuestsModule.GuestProfileUpdateRequest), PersonalDataSurface.ApiInput);
+        AssertType(typeof(GuestsModule.GuestDataRightsCorrectionRequest), PersonalDataSurface.ApiInput);
         AssertType(
             typeof(GuestsModule.ArchiveGuestProfileRequest),
             PersonalDataSurface.ApiInput,
             nameof(GuestsModule.ArchiveGuestProfileRequest.Confirmed));
 
         AssertType(typeof(GuestProfileDto), PersonalDataSurface.ApiResponse);
+        AssertType(typeof(GuestDataRightsCorrectionReceiptDto), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestStayHistoryItem), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestProfileEligibilityProjectionExport), PersonalDataSurface.ProjectionExport);
         AssertType(typeof(ReservationGuestStayProjectionExport), PersonalDataSurface.ProjectionExport);

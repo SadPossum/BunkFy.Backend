@@ -1,5 +1,11 @@
 namespace BunkFy.Modules.Guests.Api;
 
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Application;
+using BunkFy.Modules.Guests.Application.Commands;
+using BunkFy.Modules.Guests.Application.Queries;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Persistence;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Modules;
@@ -11,11 +17,6 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
-using BunkFy.Modules.Guests.Application;
-using BunkFy.Modules.Guests.Application.Commands;
-using BunkFy.Modules.Guests.Application.Queries;
-using BunkFy.Modules.Guests.Contracts;
-using BunkFy.Modules.Guests.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -120,6 +121,41 @@ public sealed class GuestsModule : IModule
                 GuestsAdminPermissionCodes.Create,
                 GuestsPropertyAccessScopeResolver.ResolverName);
 
+        group.MapPost("/data-rights-corrections", async (
+            Guid propertyId,
+            GuestDataRightsCorrectionRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actor = ResolveActor(context, subjectResolver);
+            return actor is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new ApplyGuestDataRightsCorrectionCommand(
+                        request.IdempotencyKey,
+                        propertyId,
+                        request.CaseId,
+                        request.ApprovalRevision,
+                        request.GuestId,
+                        request.ExpectedVersion,
+                        request.DisplayName,
+                        request.LegalName,
+                        request.Email,
+                        request.Phone,
+                        request.DateOfBirth,
+                        request.NationalityCountryCode,
+                        request.PreferredLanguageTag,
+                        request.Notes,
+                        actor),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                DataRightsAdminPermissionCodes.Execute,
+                GuestsPropertyAccessScopeResolver.ResolverName);
+
         group.MapPut("/{guestId:guid}", async (
             Guid propertyId,
             Guid guestId,
@@ -199,6 +235,21 @@ public sealed class GuestsModule : IModule
         string? Notes,
         long ExpectedVersion);
 
+    public sealed record GuestDataRightsCorrectionRequest(
+        Guid IdempotencyKey,
+        Guid CaseId,
+        long ApprovalRevision,
+        Guid GuestId,
+        long ExpectedVersion,
+        string DisplayName,
+        string? LegalName,
+        string? Email,
+        string? Phone,
+        DateOnly? DateOfBirth,
+        string? NationalityCountryCode,
+        string? PreferredLanguageTag,
+        string? Notes);
+
     public sealed record ArchiveGuestProfileRequest(long ExpectedVersion, bool Confirmed);
 
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
@@ -212,6 +263,10 @@ public sealed class GuestsModule : IModule
         new(GuestsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestArchived.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestAlreadyArchived.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.DataRightsApprovalRequired.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.CorrectionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.CorrectionNoChanges.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new("Guests.ConfirmationRequired", StatusCodes.Status400BadRequest));
 
     private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>

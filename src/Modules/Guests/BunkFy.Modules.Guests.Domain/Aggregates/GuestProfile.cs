@@ -270,6 +270,26 @@ public sealed class GuestProfile : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
+    public bool HasValues(GuestProfileChange values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        return string.Equals(this.DisplayName, values.DisplayName, StringComparison.Ordinal) &&
+               string.Equals(this.LegalName, values.LegalName, StringComparison.Ordinal) &&
+               string.Equals(this.Email, values.Email, StringComparison.Ordinal) &&
+               string.Equals(this.Phone, values.Phone, StringComparison.Ordinal) &&
+               this.DateOfBirth == values.DateOfBirth &&
+               string.Equals(
+                   this.NationalityCountryCode,
+                   values.NationalityCountryCode,
+                   StringComparison.Ordinal) &&
+               string.Equals(
+                   this.PreferredLanguageTag,
+                   values.PreferredLanguageTag,
+                   StringComparison.Ordinal) &&
+               string.Equals(this.Notes, values.Notes, StringComparison.Ordinal);
+    }
+
     private Result EnsureMutable(long expectedVersion, Guid eventId)
     {
         if (expectedVersion != this.Version)

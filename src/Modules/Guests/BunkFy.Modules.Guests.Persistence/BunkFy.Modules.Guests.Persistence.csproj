@@ -11,6 +11,7 @@
     <ProjectReference Include="..\BunkFy.Modules.Guests.Application\BunkFy.Modules.Guests.Application.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Guests.Domain\BunkFy.Modules.Guests.Domain.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Application\Gma.Framework.Application.Events\Gma.Framework.Application.Events.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs.Infrastructure\Gma.Framework.Cqrs.Infrastructure.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Domain\Gma.Framework.Domain\Gma.Framework.Domain.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Persistence\Gma.Framework.Persistence.EntityFrameworkCore\Gma.Framework.Persistence.EntityFrameworkCore.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)ProjectionRebuild\Gma.Framework.ProjectionRebuild\Gma.Framework.ProjectionRebuild.csproj" />

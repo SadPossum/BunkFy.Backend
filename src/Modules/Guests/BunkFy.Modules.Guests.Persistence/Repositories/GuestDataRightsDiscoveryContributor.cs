@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Persistence.Repositories;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,8 @@ internal sealed class GuestDataRightsDiscoveryContributor(
     GuestsDbContext dbContext,
     IScopeContext scopeContext) : IDataRightsSubjectDiscoveryContributor
 {
-    public const string Owner = "guests";
-    public const string ProfileRecordType = "guest-profile";
+    public const string Owner = GuestsDataRightsCoordinates.Owner;
+    public const string ProfileRecordType = GuestsDataRightsCoordinates.GuestProfileRecordType;
 
     public string OwnerKey => Owner;
 

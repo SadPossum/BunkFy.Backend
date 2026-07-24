@@ -5,6 +5,8 @@ using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -29,6 +31,9 @@ public static class DependencyInjection
                 GuestsMigrations.Schema,
                 GuestsMigrations.HistoryTable));
         builder.Services.TryAddScoped<IGuestProfileRepository, GuestProfileRepository>();
+        builder.Services.TryAddScoped<
+            IGuestDataRightsCorrectionReceiptRepository,
+            GuestDataRightsCorrectionReceiptRepository>();
         builder.Services.TryAddScoped<IGuestProfileEligibilityProjectionExportSource, GuestProfileEligibilityProjectionExportSource>();
         builder.Services.TryAddScoped<IGuestPropertyProjectionRepository, GuestPropertyProjectionRepository>();
         builder.Services.TryAddScoped<IGuestStayHistoryRepository, GuestStayHistoryRepository>();
@@ -43,6 +48,10 @@ public static class DependencyInjection
                 GuestDataRightsExportContributor>());
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, GuestsPropertiesProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<ReservationGuestStayProjectionExport>, GuestStayHistoryProjectionRebuildWriter>();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(GuestsPersistenceRetryBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, GuestsUnitOfWork>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxWriter, GuestsOutboxWriter>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxStore, GuestsOutboxStore>());

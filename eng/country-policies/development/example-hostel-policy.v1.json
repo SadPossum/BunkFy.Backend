@@ -14,6 +14,7 @@
       "guestCategory": "ordinary-guest",
       "requirement": "required",
       "purposeCodes": [
+        "data-rights-correction",
         "guest-profile-management",
         "reservation-management",
         "reservation-ingestion"
@@ -25,6 +26,12 @@
       "purposeCode": "property-activation",
       "legalRuleReferenceKeys": [ "development-only-example" ],
       "allowedSurfaces": [ "property-activation" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "data-rights-correction",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
       "allowedSourceProvenance": [ "authorized-workspace-operator" ]
     },
     {

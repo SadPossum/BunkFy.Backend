@@ -21,4 +21,13 @@ public static class GuestsDomainErrors
     public static readonly Error GuestArchived = new("Guests.GuestArchived", "The guest profile is archived.");
     public static readonly Error GuestAlreadyArchived = new("Guests.GuestAlreadyArchived", "The guest profile is already archived.");
     public static readonly Error GuestStatusUnknown = new("Guests.GuestStatusUnknown", "The guest profile status is unknown.");
+    public static readonly Error CorrectionReceiptIdentityInvalid = new(
+        "Guests.CorrectionReceiptIdentityInvalid",
+        "The correction receipt identity is invalid.");
+    public static readonly Error CorrectionReceiptVersionInvalid = new(
+        "Guests.CorrectionReceiptVersionInvalid",
+        "The correction receipt version is invalid.");
+    public static readonly Error CorrectionReceiptFieldsInvalid = new(
+        "Guests.CorrectionReceiptFieldsInvalid",
+        "The correction receipt field set is invalid.");
 }

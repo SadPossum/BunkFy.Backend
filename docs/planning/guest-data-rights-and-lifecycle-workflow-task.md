@@ -1,8 +1,8 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
 Status: implementation in progress; Guests discovery, subject selection,
-export preparation and correction outcome preparation complete; DataRights
-decision lifecycle and approval gate complete
+export preparation, correction outcome preparation and transactional correction
+receipt complete; DataRights decision lifecycle and approval gate complete
 
 ## Outcome
 
@@ -357,7 +357,7 @@ identity hints.
 ### Current Verification Evidence
 
 - DataRights focused tests: 41 passed.
-- Guests focused tests: 22 passed.
+- Guests focused tests: 31 passed.
 - Architecture tests: 64 passed.
 - Integration tests: 29 passed.
 - Fast repository verification: all composed projects built with zero warnings
@@ -372,13 +372,13 @@ identity hints.
 - PostgreSQL Guests coverage resolves the export contributor through module
   composition, streams its catalogue-approved profile and includes only stay
   history from the authorized property.
-- Full Docker suite: 35 passed with no skips.
+- PostgreSQL Guests correction coverage exercises the permission-protected API,
+  exact approved revision, atomic profile/event/receipt commit, byte-stable
+  receipt replay and conflicting idempotency-key rejection.
+- Full Docker suite: 36 passed with no skips.
 
-The next increment lets Guests commit owner-local idempotent correction
-receipts through normal guest-profile domain commands after revalidating the
-exact approved case revision. Restriction, anonymisation, ledger receipts and
-restore replay are not yet implemented and must not be inferred from this
-foundation.
+Restriction, anonymisation, ledger receipts and restore replay are not yet
+implemented and must not be inferred from this foundation.
 
 ### Completed Slice: DataRights Decision And Approval Gate
 
@@ -394,18 +394,37 @@ foundation.
   nor creates an owner receipt; it only establishes the prerequisite decision
   authority.
 
-### Next Slice: Guests Transactional Correction Receipt
+### Completed Slice: Guests Transactional Correction Receipt
 
-- Revalidate the exact DataRights approval revision and selected Guest profile
-  version immediately before mutation.
-- Apply the correction through the existing Guest aggregate path and commit an
-  owner-local, PII-free idempotency receipt in the same database transaction.
-- Bind the receipt to the case, approval revision, selected coordinate,
-  semantic field set, prior/current profile versions and guest domain-event
-  identity without storing old or new personal values.
-- Return the previously committed bounded outcome for an equivalent retry and
-  fail closed for a reused idempotency key with different coordinates or
-  correction intent.
+- The property-scoped correction endpoint requires the DataRights execute
+  permission and derives its actor from the authenticated subject.
+- The Guests application revalidates country policy and the exact tenant,
+  property, case, immutable approval revision, correction operation, owner,
+  record type, Guest id and selected record version through the DataRights
+  Contracts gate immediately before mutation.
+- Corrections use the existing Guest aggregate normalization, validation,
+  optimistic-concurrency and domain-event path. DataRights never writes the
+  Guests schema.
+- An owner-local, PII-free receipt is committed in the same Guests transaction
+  as the profile update and outbox event. It binds the idempotency key, case,
+  approval revision, property, Guest coordinate, semantic field set,
+  prior/current profile versions, event id and completion time without storing
+  old or new personal values.
+- Equivalent retries return the previously committed receipt. Reusing the key
+  with changed coordinates or normalized final values fails closed with a
+  stable conflict.
+- A command-specific one-retry persistence behavior resolves optimistic races
+  and idempotency-key insert races without changing generic GMA behavior.
+- The executable personal-data catalogue is version 2 and classifies every new
+  request, command, response and persisted receipt member. The checked-in
+  inventory is generated deterministically from that catalogue.
+- PostgreSQL migration
+  `20260724141436_AddGuestDataRightsCorrectionReceipts` creates the scoped
+  receipt table, uniqueness/indexes and version/field-mask constraints.
+
+The next increment implements the owner-local Guests restriction projection
+and enforces it on every applicable read, write and processing surface.
+Anonymisation, authoritative ledger entries and restore replay remain closed.
 
 ## Acceptance Evidence
 

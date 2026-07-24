@@ -113,7 +113,7 @@ internal static class CountryPolicyIntegrationTestData
             propertyVersion);
     }
 
-    private const string PolicyJson = """
+    private const string PolicyJson = /*lang=json,strict*/ """
         {
           "schemaVersion": 1,
           "policyId": "integration-hostel-baseline",
@@ -130,6 +130,7 @@ internal static class CountryPolicyIntegrationTestData
               "guestCategory": "ordinary-guest",
               "requirement": "required",
               "purposeCodes": [
+                "data-rights-correction",
                 "guest-profile-management",
                 "reservation-management",
                 "reservation-ingestion"
@@ -145,6 +146,12 @@ internal static class CountryPolicyIntegrationTestData
                 "integration-test",
                 "authorized-workspace-operator"
               ]
+            },
+            {
+              "purposeCode": "data-rights-correction",
+              "legalRuleReferenceKeys": [ "integration-correction" ],
+              "allowedSurfaces": [ "api-write" ],
+              "allowedSourceProvenance": [ "authorized-workspace-operator" ]
             },
             {
               "purposeCode": "guest-profile-management",
