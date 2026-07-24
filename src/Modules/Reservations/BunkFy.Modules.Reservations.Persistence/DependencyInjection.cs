@@ -1,18 +1,18 @@
 namespace BunkFy.Modules.Reservations.Persistence;
 
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Persistence.Repositories;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
-using BunkFy.Modules.Guests.Contracts;
-using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using BunkFy.Modules.Reservations.Application.Ports;
-using BunkFy.Modules.Reservations.Persistence.Repositories;
 public static class DependencyInjection
 {
     public static IHostApplicationBuilder AddReservationsPersistence(this IHostApplicationBuilder builder)
@@ -42,6 +42,9 @@ public static class DependencyInjection
             services.GetRequiredService<ReservationArrivalReminderRepository>());
         builder.Services.TryAddScoped<IProjectionRebuildWriter<InventoryAvailabilityProjectionExport>, InventoryProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<GuestProfileEligibilityProjectionExport>, ReservationGuestProfilesProjectionRebuildWriter>();
+        builder.Services.TryAddScoped<
+            IProjectionRebuildWriter<GuestProcessingRestrictionProjectionExport>,
+            ReservationGuestRestrictionsProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, ReservationPropertyProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IReservationGuestStayProjectionExportSource, ReservationGuestStayProjectionExportSource>();
 

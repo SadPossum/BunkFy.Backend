@@ -25,6 +25,14 @@ public static class GuestsIntegrationSubjects
             GuestProfileArchivedIntegrationEvent.EventType,
             GuestProfileArchivedIntegrationEvent.EventVersion);
 
+    public static string CreateProcessingRestrictionChanged(
+        string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(
+            prefix,
+            GuestsModuleMetadata.Name,
+            GuestProcessingRestrictionChangedIntegrationEvent.EventType,
+            GuestProcessingRestrictionChangedIntegrationEvent.EventVersion);
+
     public static string CreateReservationGuestLinked(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(
             prefix,

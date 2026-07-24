@@ -1,12 +1,13 @@
 namespace Integration.Tests;
 
-using Gma.Framework.Scoping;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging.Infrastructure;
+using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using BunkFy.Modules.Reservations.Domain.Aggregates;
-using BunkFy.Modules.Reservations.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -15,6 +16,8 @@ public sealed class ReservationsMigrationIntegrationTests
     private const string InitialMigration = "20260710200251_InitialCreate";
     private const string CanonicalGuestLinksMigration = "20260712151534_AddCanonicalGuestLinks";
     private const string ArrivalRemindersMigration = "20260715123149_AddReservationArrivalReminders";
+    private const string PreviousRestrictionEligibilityMigration =
+        "20260722134132_AddInternationalMarketGate";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -101,7 +104,7 @@ public sealed class ReservationsMigrationIntegrationTests
         DateTimeOffset occurredAtUtc = new(2026, 7, 16, 10, 30, 0, TimeSpan.Zero);
         const string eventType =
             "BunkFy.Modules.Reservations.Contracts.ReservationArrivalReminderDueIntegrationEvent";
-        const string payload =
+        const string payload = /*lang=json,strict*/
             "{\"eventId\":\"60000000-0000-0000-0000-000000000001\",\"primaryGuestName\":\"Maya Chen\"}";
 
         await using (ReservationsDbContext previous = CreateDbContext(postgreSql.GetConnectionString()))
@@ -124,6 +127,39 @@ public sealed class ReservationsMigrationIntegrationTests
         Assert.DoesNotContain("Maya Chen", message.Payload, StringComparison.Ordinal);
         Assert.Contains("A guest", message.Payload, StringComparison.Ordinal);
         Assert.Equal(1, message.Version);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Guest_restriction_eligibility_migration_starts_empty_and_fail_closed()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_reservations_guest_restriction_migration_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        Guid propertyId = Guid.Parse("70000000-0000-0000-0000-000000000001");
+        Guid guestId = Guid.Parse("80000000-0000-0000-0000-000000000001");
+        await using (ReservationsDbContext previous = CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(PreviousRestrictionEligibilityMigration);
+            previous.GuestProfileProjections.Add(new ReservationGuestProfileProjection(
+                "tenant-a",
+                guestId,
+                propertyId,
+                GuestStatus.Active,
+                version: 1));
+            await previous.SaveChangesAsync();
+        }
+
+        await using ReservationsDbContext upgraded = CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        Assert.True(await upgraded.GuestProfileProjections.AnyAsync(
+            profile => profile.Id == guestId && profile.OriginPropertyId == propertyId));
+        Assert.Empty(await upgraded.GuestProcessingRestrictionProjections.ToArrayAsync());
     }
 
     private static ReservationsDbContext CreateDbContext(string connectionString)

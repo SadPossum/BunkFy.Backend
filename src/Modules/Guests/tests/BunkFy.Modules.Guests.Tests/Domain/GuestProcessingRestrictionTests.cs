@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Tests;
 
 using BunkFy.Modules.Guests.Domain.DataRights;
+using BunkFy.Modules.Guests.Domain.Events;
 using BunkFy.Modules.Guests.Domain.Models;
 using Gma.Framework.Results;
 using Xunit;
@@ -100,6 +101,7 @@ public sealed class GuestProcessingRestrictionTests
                 3,
                 5,
                 1,
+                1,
                 8,
                 effectiveRestricted: false,
                 "staff:privacy",
@@ -122,6 +124,7 @@ public sealed class GuestProcessingRestrictionTests
                 Guid.NewGuid(),
                 3,
                 5,
+                1,
                 2,
                 8,
                 effectiveRestricted: false,
@@ -132,5 +135,13 @@ public sealed class GuestProcessingRestrictionTests
         Assert.False(release.EffectiveRestricted);
         Assert.Equal(2, release.ResultingRestrictionVersion);
         Assert.Equal(8, release.ResultingProjectionRevision);
+        GuestProcessingRestrictionChangedDomainEvent domainEvent =
+            Assert.IsType<GuestProcessingRestrictionChangedDomainEvent>(
+                Assert.Single(release.DomainEvents));
+        Assert.Equal(release.PropertyId, domainEvent.PropertyId);
+        Assert.Equal(release.GuestId, domainEvent.GuestId);
+        Assert.Equal(1, domainEvent.ContractVersion);
+        Assert.Equal(8, domainEvent.ProjectionRevision);
+        Assert.False(domainEvent.IsRestricted);
     }
 }

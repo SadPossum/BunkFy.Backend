@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Domain.DataRights;
 
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.Errors;
+using BunkFy.Modules.Guests.Domain.Events;
 using BunkFy.Modules.Guests.Domain.Models;
 using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
@@ -42,6 +43,7 @@ public sealed class GuestProcessingRestrictionReceipt : ScopedAggregateRoot<Guid
         Guid caseId,
         long approvalRevision,
         long selectedGuestVersion,
+        int restrictionContractVersion,
         long resultingRestrictionVersion,
         long resultingProjectionRevision,
         bool effectiveRestricted,
@@ -70,6 +72,7 @@ public sealed class GuestProcessingRestrictionReceipt : ScopedAggregateRoot<Guid
         };
         if (approvalRevision < 1 ||
             selectedGuestVersion < 1 ||
+            restrictionContractVersion < 1 ||
             resultingProjectionRevision < 1 ||
             !restrictionVersionValid)
         {
@@ -87,7 +90,7 @@ public sealed class GuestProcessingRestrictionReceipt : ScopedAggregateRoot<Guid
                 GuestsDomainErrors.RestrictionReceiptTransitionInvalid);
         }
 
-        return Result.Success(new GuestProcessingRestrictionReceipt(receiptId, scopeId)
+        GuestProcessingRestrictionReceipt receipt = new(receiptId, scopeId)
         {
             IdempotencyKey = idempotencyKey,
             RestrictionId = restrictionId,
@@ -103,6 +106,16 @@ public sealed class GuestProcessingRestrictionReceipt : ScopedAggregateRoot<Guid
             ActorId = normalizedActorId,
             EventId = eventId,
             CompletedAtUtc = completedAtUtc
-        });
+        };
+        receipt.RaiseDomainEvent(new GuestProcessingRestrictionChangedDomainEvent(
+            eventId,
+            completedAtUtc,
+            scopeId,
+            propertyId,
+            guestId,
+            restrictionContractVersion,
+            resultingProjectionRevision,
+            effectiveRestricted));
+        return Result.Success(receipt);
     }
 }

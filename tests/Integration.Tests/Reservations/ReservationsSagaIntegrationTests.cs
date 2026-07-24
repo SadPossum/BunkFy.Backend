@@ -6,6 +6,15 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using BunkFy.Host.Worker;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Domain.DataRights;
+using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.Inventory.Application.Commands;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
@@ -15,19 +24,11 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Results;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Contracts;
-using BunkFy.Modules.Guests.Contracts;
-using BunkFy.Modules.Guests.Persistence;
 using Integration.Tests.Support;
-using BunkFy.Modules.Inventory.Application.Commands;
-using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Reservations.Contracts;
-using BunkFy.Modules.Reservations.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -155,6 +156,46 @@ public sealed class ReservationsSagaIntegrationTests
                 tokens.AccessToken,
                 replacement.ReservationId,
                 ReservationStatus.Confirmed,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+
+            await PublishGuestRestrictionTransitionAsync(
+                api,
+                canonicalGuest.GuestId,
+                expectedRevision: 0,
+                isRestricted: true).ConfigureAwait(false);
+            await WaitForGuestRestrictionProjectionAsync(
+                api,
+                canonicalGuest.GuestId,
+                expectedRevision: 1,
+                isRestricted: true,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+
+            using (HttpResponseMessage restrictedLink = await SendAsync(
+                       client,
+                       HttpMethod.Put,
+                       $"/api/reservations/properties/{PropertyId:D}/{replacement.ReservationId:D}/guests",
+                       tokens.AccessToken,
+                       new
+                       {
+                           guestId = canonicalGuest.GuestId,
+                           role = ReservationGuestRoleKind.Primary,
+                           replaceExistingRole = false,
+                           expectedVersion = replacementConfirmed.Version
+                       }).ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.Conflict, restrictedLink).ConfigureAwait(false);
+            }
+
+            await PublishGuestRestrictionTransitionAsync(
+                api,
+                canonicalGuest.GuestId,
+                expectedRevision: 1,
+                isRestricted: false).ConfigureAwait(false);
+            await WaitForGuestRestrictionProjectionAsync(
+                api,
+                canonicalGuest.GuestId,
+                expectedRevision: 2,
+                isRestricted: false,
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
             ReservationDto linked;
@@ -501,10 +542,95 @@ public sealed class ReservationsSagaIntegrationTests
         {
             using IServiceScope scope = api.Services.CreateScope();
             scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
-            bool ready = await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
-                .GuestProfileProjections
+            ReservationsDbContext reservations =
+                scope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+            bool profileReady = await reservations.GuestProfileProjections
                 .AsNoTracking()
                 .AnyAsync(profile => profile.Id == guestId && profile.Status == GuestStatus.Active)
+                .ConfigureAwait(false);
+            bool restrictionReady = await reservations.GuestProcessingRestrictionProjections
+                .AsNoTracking()
+                .AnyAsync(projection =>
+                    projection.PropertyId == PropertyId &&
+                    projection.GuestId == guestId &&
+                    projection.ContractVersion == GuestProcessingRestrictionContract.CurrentVersion &&
+                    projection.Revision == 0 &&
+                    !projection.IsRestricted)
+                .ConfigureAwait(false);
+            if (profileReady && restrictionReady)
+            {
+                return;
+            }
+
+            await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        throw new TimeoutException("Reservations did not receive the Guest eligibility projection.");
+    }
+
+    private static async Task PublishGuestRestrictionTransitionAsync(
+        AuthTestApplication api,
+        Guid guestId,
+        long expectedRevision,
+        bool isRestricted)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
+        GuestsDbContext guests = scope.ServiceProvider.GetRequiredService<GuestsDbContext>();
+        GuestProcessingRestrictionProjection projection = await guests
+            .ProcessingRestrictionProjections
+            .SingleAsync(item => item.PropertyId == PropertyId && item.GuestId == guestId)
+            .ConfigureAwait(false);
+        DateTimeOffset occurredAtUtc = DateTimeOffset.UtcNow;
+        Result transition = isRestricted
+            ? projection.Apply(
+                expectedRevision,
+                GuestProcessingRestrictionContract.CurrentVersion,
+                occurredAtUtc)
+            : projection.Release(
+                expectedRevision,
+                GuestProcessingRestrictionContract.CurrentVersion,
+                occurredAtUtc);
+        Assert.True(transition.IsSuccess, transition.Error.Code);
+
+        await scope.ServiceProvider.GetRequiredService<IOutboxWriterRegistry>()
+            .GetRequired(GuestsModuleMetadata.Name)
+            .EnqueueAsync(
+                new GuestProcessingRestrictionChangedIntegrationEvent(
+                    Guid.NewGuid(),
+                    TenantId,
+                    occurredAtUtc,
+                    PropertyId,
+                    guestId,
+                    GuestProcessingRestrictionContract.CurrentVersion,
+                    projection.Revision,
+                    projection.IsRestricted),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+        await guests.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    private static async Task WaitForGuestRestrictionProjectionAsync(
+        AuthTestApplication api,
+        Guid guestId,
+        long expectedRevision,
+        bool isRestricted,
+        TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using IServiceScope scope = api.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
+            bool ready = await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+                .GuestProcessingRestrictionProjections
+                .AsNoTracking()
+                .AnyAsync(projection =>
+                    projection.PropertyId == PropertyId &&
+                    projection.GuestId == guestId &&
+                    projection.ContractVersion == GuestProcessingRestrictionContract.CurrentVersion &&
+                    projection.Revision == expectedRevision &&
+                    projection.IsRestricted == isRestricted)
                 .ConfigureAwait(false);
             if (ready)
             {
@@ -514,7 +640,8 @@ public sealed class ReservationsSagaIntegrationTests
             await Task.Delay(100).ConfigureAwait(false);
         }
 
-        throw new TimeoutException("Reservations did not receive the Guest eligibility projection.");
+        throw new TimeoutException(
+            $"Reservations did not receive Guest restriction revision '{expectedRevision}'.");
     }
 
     private static async Task<GuestStayHistoryItem> WaitForGuestStayAsync(

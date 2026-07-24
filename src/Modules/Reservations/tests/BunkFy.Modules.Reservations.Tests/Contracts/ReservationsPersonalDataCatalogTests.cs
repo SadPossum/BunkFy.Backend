@@ -255,7 +255,8 @@ public sealed class ReservationsPersonalDataCatalogTests
                      typeof(ReservationArrivalReminderDispatch),
                      typeof(ReservationArrivalReminderClaimResult),
                      typeof(ReservationExternalOperationRecord),
-                     typeof(ReservationGuestProfileProjectionWriteModel)
+                     typeof(ReservationGuestProfileProjectionWriteModel),
+                     typeof(ReservationGuestProcessingRestrictionProjectionWriteModel)
                  })
         {
             yield return (PersonalDataSurface.ApplicationCommand, type);
@@ -312,6 +313,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationDetailsHistoryEntry),
         typeof(ReservationExternalOperation),
         typeof(ReservationGuestProfileProjection),
+        typeof(ReservationGuestProcessingRestrictionProjection),
         typeof(ReservationArrivalReminder),
         typeof(ReservationInventoryAllocationProjection),
         typeof(ReservationInventoryAllocationUnitProjection)

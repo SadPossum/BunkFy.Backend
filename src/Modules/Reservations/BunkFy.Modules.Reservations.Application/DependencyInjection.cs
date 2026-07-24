@@ -1,22 +1,22 @@
 namespace BunkFy.Modules.Reservations.Application;
 
 using BunkFy.DataGovernance;
-using Gma.Framework.AccessControl;
-using Gma.Framework.Application.Composition;
-using Gma.Framework.Messaging;
-using Gma.Framework.ProjectionRebuild.Tasks;
-using Gma.Framework.Tasks;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application.External;
 using BunkFy.Modules.Reservations.Application.Handlers;
 using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Application.Tasks;
 using BunkFy.Modules.Reservations.Contracts;
-using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.AccessControl;
+using Gma.Framework.Application.Composition;
+using Gma.Framework.Messaging;
+using Gma.Framework.ProjectionRebuild.Tasks;
+using Gma.Framework.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 public static class DependencyInjection
 {
     public static IServiceCollection AddReservationsApplication(this IServiceCollection services)
@@ -78,6 +78,11 @@ public static class DependencyInjection
         services.AddIntegrationEventHandler<GuestProfileArchivedIntegrationEvent, GuestProfileArchivedProjectionHandler>(
             ReservationsModuleMetadata.Name,
             GuestsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            GuestProcessingRestrictionChangedIntegrationEvent,
+            GuestProcessingRestrictionChangedProjectionHandler>(
+                ReservationsModuleMetadata.Name,
+                GuestsModuleMetadata.Name);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, ReservationPropertyCreatedHandler>(
             ReservationsModuleMetadata.Name,
             PropertiesModuleMetadata.Name);
@@ -112,6 +117,10 @@ public static class DependencyInjection
             ReservationsModuleMetadata.Name);
         services.AddTaskHandler<RebuildReservationGuestProfilesPayload, RebuildReservationGuestProfilesTaskHandler>(
             ReservationsModuleMetadata.Name);
+        services.AddTaskHandler<
+            RebuildReservationGuestRestrictionsPayload,
+            RebuildReservationGuestRestrictionsTaskHandler>(
+                ReservationsModuleMetadata.Name);
         services.AddTaskHandler<RebuildReservationPropertiesPayload, RebuildReservationPropertiesTaskHandler>(
             ReservationsModuleMetadata.Name);
         services.AddTaskHandler<DispatchReservationArrivalRemindersPayload, DispatchReservationArrivalRemindersTaskHandler>(

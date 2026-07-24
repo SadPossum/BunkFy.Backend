@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "guests.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "module": "guests",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -38,7 +38,12 @@
     {
       "id": "guest-processing-restrictions",
       "scope": "tenant-property-approved-data-rights-operation",
-      "readers": ["permission:data-rights.execute", "system:guests.processing-restriction"],
+      "readers": [
+        "permission:data-rights.execute",
+        "system:guests.processing-restriction",
+        "system:reservations.guest-restriction-gate",
+        "system:reservations.guest-restriction-projection"
+      ],
       "writers": ["permission:data-rights.execute", "system:guests.processing-restriction"]
     }
   ],
@@ -104,6 +109,13 @@
       "approvalState": "engineering-default",
       "startsAt": "projection-batch-created",
       "endsAt": "projection-batch-completed",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "transient-domain-event",
+      "approvalState": "engineering-default",
+      "startsAt": "domain-event-raised",
+      "endsAt": "outbox-projection-completed",
       "legalHoldBehavior": "not-applicable"
     },
     {
@@ -199,11 +211,16 @@
       "countryPolicyKey": "guest.processing-restriction-state",
       "retentionPolicy": "guest-processing-restriction-lifecycle",
       "rightsPolicy": "guest-processing-restriction-control",
-      "allowedSurfaces": ["persistence"],
-      "allowedBoundaries": ["intra-module"],
+      "allowedSurfaces": ["domain-event", "integration-command", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
-        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ContractVersion", "surface": "persistence" }
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ContractVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateRequest", "member": "ContractVersion", "surface": "integration-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateResult", "member": "ObservedContractVersion", "surface": "projection-export", "retentionPolicy": "transient-response" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionProjectionExport", "member": "ContractVersion", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "ContractVersion", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "ContractVersion", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
       ]
     },
     {
@@ -219,13 +236,16 @@
       "countryPolicyKey": "guest.processing-restriction-state",
       "retentionPolicy": "guest-processing-restriction-lifecycle",
       "rightsPolicy": "guest-processing-restriction-control",
-      "allowedSurfaces": ["api-response", "persistence"],
-      "allowedBoundaries": ["customer-api", "intra-module"],
+      "allowedSurfaces": ["api-response", "domain-event", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "IsRestricted", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "EffectiveRestricted", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" },
-        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "EffectiveRestricted", "surface": "api-response", "retentionPolicy": "transient-response" }
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "EffectiveRestricted", "surface": "api-response", "retentionPolicy": "transient-response" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionProjectionExport", "member": "IsRestricted", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "IsRestricted", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "IsRestricted", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
       ]
     },
     {
@@ -241,8 +261,8 @@
       "countryPolicyKey": "guest.processing-restriction-state",
       "retentionPolicy": "guest-processing-restriction-lifecycle",
       "rightsPolicy": "guest-processing-restriction-control",
-      "allowedSurfaces": ["api-input", "api-response", "application-command", "application-query", "persistence"],
-      "allowedBoundaries": ["customer-api", "intra-module"],
+      "allowedSurfaces": ["api-input", "api-response", "application-command", "application-query", "domain-event", "integration-command", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "GuestId", "surface": "persistence" },
@@ -254,7 +274,11 @@
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ReleaseGuestProcessingRestrictionCommand", "member": "GuestId", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Queries.ListGuestProcessingRestrictionsQuery", "member": "GuestId", "surface": "application-query", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionDto", "member": "GuestId", "surface": "api-response", "retentionPolicy": "transient-response" },
-        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "GuestId", "surface": "api-response", "retentionPolicy": "transient-response" }
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "GuestId", "surface": "api-response", "retentionPolicy": "transient-response" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateRequest", "member": "GuestId", "surface": "integration-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionProjectionExport", "member": "GuestId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "GuestId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "GuestId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
       ]
     },
     {
@@ -295,8 +319,8 @@
       "countryPolicyKey": "guest.processing-restriction-state",
       "retentionPolicy": "guest-processing-restriction-lifecycle",
       "rightsPolicy": "guest-processing-restriction-control",
-      "allowedSurfaces": ["api-input", "api-response", "application-command", "persistence"],
-      "allowedBoundaries": ["customer-api", "intra-module"],
+      "allowedSurfaces": ["api-input", "api-response", "application-command", "domain-event", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "Revision", "surface": "persistence" },
@@ -305,7 +329,31 @@
         { "assembly": "BunkFy.Modules.Guests.Api", "type": "BunkFy.Modules.Guests.Api.GuestsModule+ReleaseGuestProcessingRestrictionRequest", "member": "ExpectedProjectionRevision", "surface": "api-input", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestProcessingRestrictionCommand", "member": "ExpectedProjectionRevision", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ReleaseGuestProcessingRestrictionCommand", "member": "ExpectedProjectionRevision", "surface": "application-command", "retentionPolicy": "transient-request" },
-        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "ProjectionRevision", "surface": "api-response", "retentionPolicy": "transient-response" }
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "ProjectionRevision", "surface": "api-response", "retentionPolicy": "transient-response" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateResult", "member": "ProjectionRevision", "surface": "projection-export", "retentionPolicy": "transient-response" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionProjectionExport", "member": "ProjectionRevision", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "ProjectionRevision", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "ProjectionRevision", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.restriction.projection-ordinal",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["bounded-rebuild-ordering"],
+      "sources": ["database-sequence"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ProjectionOrdinal", "surface": "persistence" }
       ]
     },
     {
@@ -321,8 +369,8 @@
       "countryPolicyKey": "guest.processing-restriction-state",
       "retentionPolicy": "guest-processing-restriction-lifecycle",
       "rightsPolicy": "guest-processing-restriction-control",
-      "allowedSurfaces": ["api-response", "application-command", "application-query", "persistence"],
-      "allowedBoundaries": ["customer-api", "intra-module"],
+      "allowedSurfaces": ["api-response", "application-command", "application-query", "domain-event", "integration-command", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "PropertyId", "surface": "persistence" },
@@ -331,7 +379,11 @@
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestProcessingRestrictionCommand", "member": "PropertyId", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ReleaseGuestProcessingRestrictionCommand", "member": "PropertyId", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Queries.ListGuestProcessingRestrictionsQuery", "member": "PropertyId", "surface": "application-query", "retentionPolicy": "transient-request" },
-        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "PropertyId", "surface": "api-response", "retentionPolicy": "transient-response" }
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionReceiptDto", "member": "PropertyId", "surface": "api-response", "retentionPolicy": "transient-response" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateRequest", "member": "PropertyId", "surface": "integration-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionProjectionExport", "member": "PropertyId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "PropertyId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "PropertyId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
       ]
     },
     {
@@ -347,13 +399,39 @@
       "countryPolicyKey": "guest.processing-restriction-state",
       "retentionPolicy": "guest-processing-restriction-lifecycle",
       "rightsPolicy": "guest-processing-restriction-control",
-      "allowedSurfaces": ["persistence"],
-      "allowedBoundaries": ["intra-module"],
+      "allowedSurfaces": ["domain-event", "integration-command", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ScopeId", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ScopeId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-record" },
-        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "ScopeId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "ScopeId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateRequest", "member": "TenantId", "surface": "integration-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionProjectionExport", "member": "TenantId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "ScopeId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "TenantId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "ScopeId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.restriction.gate-decision",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["fail-closed-operational-admission"],
+      "sources": ["guests-restriction-gate"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "transient-response",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateResult", "member": "Decision", "surface": "projection-export" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateResult", "member": "IsAllowed", "surface": "projection-export" }
       ]
     },
     {
@@ -766,17 +844,19 @@
       "countryPolicyKey": "guest.event.metadata",
       "retentionPolicy": "integration-message-journal",
       "rightsPolicy": "guest-operational-history",
-      "allowedSurfaces": ["api-response", "integration-event", "persistence"],
+      "allowedSurfaces": ["api-response", "domain-event", "integration-event", "persistence"],
       "allowedBoundaries": ["cross-module", "customer-api", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileArchivedIntegrationEvent", "member": "EventId", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileCreatedIntegrationEvent", "member": "EventId", "surface": "integration-event" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "EventId", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileUpdatedIntegrationEvent", "member": "EventId", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.ReservationGuestLinkedIntegrationEvent", "member": "EventId", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.ReservationGuestStayChangedIntegrationEvent", "member": "EventId", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestDataRightsCorrectionReceiptDto", "member": "EventId", "surface": "api-response", "retentionPolicy": "transient-response" },
-        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt", "member": "EventId", "surface": "persistence", "retentionPolicy": "guest-data-rights-correction-receipt" }
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt", "member": "EventId", "surface": "persistence", "retentionPolicy": "guest-data-rights-correction-receipt" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "EventId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
       ]
     },
     {
@@ -792,17 +872,19 @@
       "countryPolicyKey": "guest.event.metadata",
       "retentionPolicy": "integration-message-journal",
       "rightsPolicy": "guest-operational-history",
-      "allowedSurfaces": ["api-response", "integration-event", "persistence"],
+      "allowedSurfaces": ["api-response", "domain-event", "integration-event", "persistence"],
       "allowedBoundaries": ["cross-module", "customer-api", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileArchivedIntegrationEvent", "member": "OccurredAtUtc", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileCreatedIntegrationEvent", "member": "OccurredAtUtc", "surface": "integration-event" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionChangedIntegrationEvent", "member": "OccurredAtUtc", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileUpdatedIntegrationEvent", "member": "OccurredAtUtc", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.ReservationGuestLinkedIntegrationEvent", "member": "OccurredAtUtc", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.ReservationGuestStayChangedIntegrationEvent", "member": "OccurredAtUtc", "surface": "integration-event" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestDataRightsCorrectionReceiptDto", "member": "CompletedAtUtc", "surface": "api-response", "retentionPolicy": "transient-response" },
-        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt", "member": "CompletedAtUtc", "surface": "persistence", "retentionPolicy": "guest-data-rights-correction-receipt" }
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt", "member": "CompletedAtUtc", "surface": "persistence", "retentionPolicy": "guest-data-rights-correction-receipt" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProcessingRestrictionChangedDomainEvent", "member": "OccurredAtUtc", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
       ]
     },
     {

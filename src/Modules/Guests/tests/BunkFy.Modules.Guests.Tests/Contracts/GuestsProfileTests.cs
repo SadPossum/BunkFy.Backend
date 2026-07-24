@@ -1,11 +1,11 @@
 namespace BunkFy.Modules.Guests.Tests;
 
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Permissions;
 using Gma.Framework.Tasks;
-using BunkFy.Modules.Guests.Contracts;
-using BunkFy.Modules.Properties.Contracts;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -29,7 +29,11 @@ public sealed class GuestsProfileTests
             subscription =>
                 subscription.EventType == PropertyProcessingSuspendedIntegrationEvent.EventType &&
                 subscription.ProducerModule == PropertiesModuleMetadata.Name);
-        Assert.Equal(3, GuestsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(4, GuestsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Contains(
+            GuestsModuleMetadata.Descriptor.GetPublishedEvents(),
+            published =>
+                published.EventType == GuestProcessingRestrictionChangedIntegrationEvent.EventType);
         Assert.Equal(2, GuestsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Single(GuestsModuleMetadata.Descriptor.GetCompositionProfiles());
 
@@ -43,6 +47,7 @@ public sealed class GuestsProfileTests
             typeof(GuestProfileCreatedIntegrationEvent),
             typeof(GuestProfileUpdatedIntegrationEvent),
             typeof(GuestProfileArchivedIntegrationEvent),
+            typeof(GuestProcessingRestrictionChangedIntegrationEvent),
             typeof(ReservationGuestLinkedIntegrationEvent),
             typeof(ReservationGuestStayChangedIntegrationEvent)
         ];
@@ -50,6 +55,10 @@ public sealed class GuestsProfileTests
             eventType.GetProperties(),
             property => forbiddenProperties.Contains(property.Name, StringComparer.Ordinal)));
         Assert.EndsWith(".guests.guest-profile-created.v1", GuestsIntegrationSubjects.CreateProfileCreated(), StringComparison.Ordinal);
+        Assert.EndsWith(
+            ".guests.guest-processing-restriction-changed.v1",
+            GuestsIntegrationSubjects.CreateProcessingRestrictionChanged(),
+            StringComparison.Ordinal);
         Assert.EndsWith(".reservations.reservation-guest-linked.v1", GuestsIntegrationSubjects.CreateReservationGuestLinked(), StringComparison.Ordinal);
     }
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -68,6 +68,17 @@
         "system:reservations.domain",
         "system:reservations.outbox"
       ]
+    },
+    {
+      "id": "reservation-guest-restriction-eligibility",
+      "scope": "tenant-property-internal-fail-closed",
+      "readers": [
+        "system:reservations.guest-link-admission"
+      ],
+      "writers": [
+        "system:reservations.guest-restriction-event-projection",
+        "system:reservations.guest-restriction-rebuild"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -98,6 +109,13 @@
       "startsAt": "arrival-reminder-scheduled",
       "endsAt": "approved-reminder-retention-completed",
       "legalHoldBehavior": "no-payload-hold"
+    },
+    {
+      "id": "reservation-guest-restriction-projection-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "guest-profile-created-or-restriction-state-received",
+      "endsAt": "approved-guest-erasure-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-erasure"
     },
     {
       "id": "integration-message-journal",
@@ -166,6 +184,258 @@
     }
   ],
   "fields": [
+    {
+      "id": "reservation.guest-restriction.contract-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "fail-closed-contract-versioning",
+        "reservation-guest-link-admission"
+      ],
+      "sources": [
+        "guests-restriction-contract"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-guest-restriction-eligibility",
+      "countryPolicyKey": "reservation.guest-link.restriction-eligibility",
+      "retentionPolicy": "reservation-guest-restriction-projection-lifecycle",
+      "rightsPolicy": "guest-reservation-link",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationGuestProcessingRestrictionProjectionWriteModel",
+          "member": "ContractVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProcessingRestrictionProjection",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.guest-restriction.effective-state",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "fail-closed-operational-admission",
+        "reservation-guest-link-admission"
+      ],
+      "sources": [
+        "guests-restriction-state"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-guest-restriction-eligibility",
+      "countryPolicyKey": "reservation.guest-link.restriction-eligibility",
+      "retentionPolicy": "reservation-guest-restriction-projection-lifecycle",
+      "rightsPolicy": "guest-reservation-link",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationGuestProcessingRestrictionProjectionWriteModel",
+          "member": "IsRestricted",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProcessingRestrictionProjection",
+          "member": "IsRestricted",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.guest-restriction.guest-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "guest-coordinate",
+        "reservation-guest-link-admission"
+      ],
+      "sources": [
+        "guest-profile"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-guest-restriction-eligibility",
+      "countryPolicyKey": "reservation.guest-link.restriction-eligibility",
+      "retentionPolicy": "reservation-guest-restriction-projection-lifecycle",
+      "rightsPolicy": "guest-reservation-link",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationGuestProcessingRestrictionProjectionWriteModel",
+          "member": "GuestId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProcessingRestrictionProjection",
+          "member": "GuestId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.guest-restriction.projection-revision",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "monotonic-projection-ordering",
+        "reservation-guest-link-admission"
+      ],
+      "sources": [
+        "guests-restriction-state"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-guest-restriction-eligibility",
+      "countryPolicyKey": "reservation.guest-link.restriction-eligibility",
+      "retentionPolicy": "reservation-guest-restriction-projection-lifecycle",
+      "rightsPolicy": "guest-reservation-link",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationGuestProcessingRestrictionProjectionWriteModel",
+          "member": "Revision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProcessingRestrictionProjection",
+          "member": "Revision",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.guest-restriction.property-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "property-authorization",
+        "reservation-guest-link-admission"
+      ],
+      "sources": [
+        "guest-property-visibility"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-guest-restriction-eligibility",
+      "countryPolicyKey": "reservation.guest-link.restriction-eligibility",
+      "retentionPolicy": "reservation-guest-restriction-projection-lifecycle",
+      "rightsPolicy": "guest-reservation-link",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationGuestProcessingRestrictionProjectionWriteModel",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProcessingRestrictionProjection",
+          "member": "PropertyId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.guest-restriction.tenant-scope-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "scope-enforcement",
+        "tenant-isolation"
+      ],
+      "sources": [
+        "authenticated-tenant-context"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-guest-restriction-eligibility",
+      "countryPolicyKey": "reservation.guest-link.restriction-eligibility",
+      "retentionPolicy": "reservation-guest-restriction-projection-lifecycle",
+      "rightsPolicy": "guest-reservation-link",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationGuestProcessingRestrictionProjectionWriteModel",
+          "member": "ScopeId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProcessingRestrictionProjection",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
     {
       "id": "reservation.adapter.completed-at-utc",
       "dataSubject": "guest",

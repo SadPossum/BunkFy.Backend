@@ -1,11 +1,11 @@
 namespace BunkFy.Modules.Guests.Contracts;
 
+using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Modules;
 using Gma.Framework.Permissions;
 using Gma.Framework.Tasks;
-using BunkFy.Modules.Properties.Contracts;
 
 public static class GuestsModuleMetadata
 {
@@ -48,6 +48,7 @@ public static class GuestsModuleMetadata
         .WithPublishedEvent<GuestProfileCreatedIntegrationEvent>()
         .WithPublishedEvent<GuestProfileUpdatedIntegrationEvent>()
         .WithPublishedEvent<GuestProfileArchivedIntegrationEvent>()
+        .WithPublishedEvent<GuestProcessingRestrictionChangedIntegrationEvent>()
         .WithTask<RebuildGuestsPropertiesPayload>()
         .WithTask<RebuildGuestStayHistoryPayload>()
         .WithProfile(GuestsProfiles.Default)

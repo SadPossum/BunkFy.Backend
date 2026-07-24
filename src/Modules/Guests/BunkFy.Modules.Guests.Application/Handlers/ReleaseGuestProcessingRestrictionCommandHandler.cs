@@ -194,6 +194,7 @@ internal sealed class ReleaseGuestProcessingRestrictionCommandHandler(
                 command.CaseId,
                 command.ApprovalRevision,
                 command.ExpectedGuestVersion,
+                GuestProcessingRestrictionContract.CurrentVersion,
                 restriction.Version,
                 projection.Revision,
                 projection.IsRestricted,

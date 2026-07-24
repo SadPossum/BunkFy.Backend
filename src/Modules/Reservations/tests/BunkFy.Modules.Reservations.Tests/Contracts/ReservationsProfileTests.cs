@@ -1,12 +1,13 @@
 namespace BunkFy.Modules.Reservations.Tests;
 
-using Gma.Framework.Messaging;
-using Gma.Framework.Permissions;
-using Gma.Framework.ModuleComposition;
-using Gma.Framework.Tasks;
+using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
+using Gma.Framework.Messaging;
+using Gma.Framework.ModuleComposition;
+using Gma.Framework.Permissions;
+using Gma.Framework.Tasks;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -24,6 +25,12 @@ public sealed class ReservationsProfileTests
         Assert.Contains(
             ReservationsProfiles.Default.RequiredModules,
             module => module.ModuleName == InventoryModuleMetadata.Name);
+        Assert.Contains(
+            ReservationsProfiles.Default.Requires,
+            feature => feature.Id == GuestsCompositionFeatures.Records);
+        Assert.Contains(
+            ReservationsProfiles.Default.RequiredModules,
+            module => module.ModuleName == GuestsModuleMetadata.Name);
     }
 
     [Fact]
@@ -35,7 +42,12 @@ public sealed class ReservationsProfileTests
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
         Assert.Equal(15, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
-        Assert.Equal(21, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(22, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType == GuestProcessingRestrictionChangedIntegrationEvent.EventType &&
+                subscription.ProducerModule == GuestsModuleMetadata.Name);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
@@ -65,7 +77,10 @@ public sealed class ReservationsProfileTests
             4,
             ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count(subscription =>
                 subscription.ProducerModule == ReservationsModuleMetadata.ExternalOperationSourceModuleName));
-        Assert.Equal(4, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Equal(5, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetTasks(),
+            task => task.Name == RebuildReservationGuestRestrictionsPayload.TaskName);
         Assert.Single(ReservationsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(6, (int)ReservationStatus.CheckedIn);
         Assert.Equal(7, (int)ReservationStatus.NoShowPending);

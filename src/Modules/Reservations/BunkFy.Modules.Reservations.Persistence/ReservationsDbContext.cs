@@ -1,11 +1,11 @@
 namespace BunkFy.Modules.Reservations.Persistence;
 
+using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.Entities;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
-using BunkFy.Modules.Reservations.Domain.Aggregates;
-using BunkFy.Modules.Reservations.Domain.Entities;
 public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext> options, IScopeContext scopeContext)
     : ScopeAwareDbContext<ReservationsDbContext>(options, scopeContext)
 {
@@ -15,6 +15,8 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
     public DbSet<RequestedInventoryUnit> RequestedInventoryUnits => this.Set<RequestedInventoryUnit>();
     public DbSet<ReservationGuest> ReservationGuests => this.Set<ReservationGuest>();
     public DbSet<ReservationGuestProfileProjection> GuestProfileProjections => this.Set<ReservationGuestProfileProjection>();
+    public DbSet<ReservationGuestProcessingRestrictionProjection> GuestProcessingRestrictionProjections =>
+        this.Set<ReservationGuestProcessingRestrictionProjection>();
     public DbSet<ReservationDetailsHistoryEntry> ReservationDetailsHistory => this.Set<ReservationDetailsHistoryEntry>();
     public DbSet<ReservationPropertyProjection> PropertyProjections => this.Set<ReservationPropertyProjection>();
     public DbSet<ReservationArrivalReminder> ArrivalReminders => this.Set<ReservationArrivalReminder>();

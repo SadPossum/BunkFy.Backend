@@ -29,7 +29,11 @@ internal sealed class GuestProcessingRestrictionProjectionConfiguration
             projection.GuestId
         });
         builder.Property(projection => projection.ScopeId).HasMaxLength(128).IsRequired();
+        builder.Property(projection => projection.ProjectionOrdinal)
+            .ValueGeneratedOnAdd()
+            .IsRequired();
         builder.Property(projection => projection.Revision).IsConcurrencyToken();
+        builder.HasIndex(projection => projection.ProjectionOrdinal).IsUnique();
         builder.HasIndex(projection => new
         {
             projection.ScopeId,

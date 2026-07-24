@@ -90,6 +90,10 @@ public sealed class GuestProcessingRestrictionPersistenceIntegrationTests
             Assert.Contains(
                 projections,
                 projection => projection.PropertyId == stayPropertyId);
+            Assert.All(projections, projection => Assert.True(projection.ProjectionOrdinal > 0));
+            Assert.Equal(
+                projections.Length,
+                projections.Select(projection => projection.ProjectionOrdinal).Distinct().Count());
         }
     }
 

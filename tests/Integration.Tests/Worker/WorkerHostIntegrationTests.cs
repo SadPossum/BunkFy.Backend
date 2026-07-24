@@ -6,6 +6,20 @@ using BunkFy.Adapter.Abstractions;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
 using BunkFy.Host.Worker;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Ingestion.Application.Commands;
+using BunkFy.Modules.Ingestion.Contracts;
+using BunkFy.Modules.Ingestion.Domain.Connections;
+using BunkFy.Modules.Ingestion.Domain.Receipts;
+using BunkFy.Modules.Ingestion.Domain.Reprocessing;
+using BunkFy.Modules.Ingestion.Domain.Runs;
+using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.ObservationParsing;
 using BunkFy.Parsers.ReservationMail;
 using DotNet.Testcontainers.Builders;
@@ -18,32 +32,19 @@ using Gma.Framework.Results;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
-using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Auth.Domain.Services;
+using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Persistence;
 using Gma.Modules.Organizations.Application.Ports;
 using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
-using BunkFy.Modules.Ingestion.Application.Commands;
-using BunkFy.Modules.Ingestion.Contracts;
-using BunkFy.Modules.Ingestion.Domain.Connections;
-using BunkFy.Modules.Ingestion.Domain.Receipts;
-using BunkFy.Modules.Ingestion.Domain.Reprocessing;
-using BunkFy.Modules.Ingestion.Domain.Runs;
-using BunkFy.Modules.Ingestion.Persistence;
 using Integration.Tests.Support;
-using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MimeKit;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Properties.Persistence;
-using BunkFy.Modules.Reservations.Contracts;
-using BunkFy.Modules.Staff.Contracts;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -103,6 +104,7 @@ public sealed class WorkerHostIntegrationTests
         builder.Configuration["Worker:Modules:Properties"] = "true";
         builder.Configuration["Worker:Modules:Inventory"] = "true";
         builder.Configuration["Worker:Modules:Reservations"] = "true";
+        builder.Configuration["Worker:Modules:Guests"] = "true";
         builder.Configuration["Worker:Modules:Staff"] = "true";
         AuthTestConfiguration.ConfigureTokenHashing(builder.Configuration);
         builder.Configuration["Notifications:Adapters:Email:Enabled"] = "false";
@@ -147,6 +149,7 @@ public sealed class WorkerHostIntegrationTests
         builder.Configuration["Worker:Modules:Properties"] = "true";
         builder.Configuration["Worker:Modules:Inventory"] = "true";
         builder.Configuration["Worker:Modules:Reservations"] = "true";
+        builder.Configuration["Worker:Modules:Guests"] = "true";
         builder.Configuration["Worker:Modules:Ingestion"] = "true";
         builder.Configuration["Worker:Modules:TaskRuntime"] = "true";
         builder.Configuration["FileManagement:Enabled"] = "true";
@@ -173,6 +176,10 @@ public sealed class WorkerHostIntegrationTests
             ReservationsModuleMetadata.Name,
             RebuildReservationInventoryProjectionPayload.TaskName,
             RebuildReservationInventoryProjectionPayload.PayloadVersion));
+        Assert.NotNull(registry.Find(
+            ReservationsModuleMetadata.Name,
+            RebuildReservationGuestRestrictionsPayload.TaskName,
+            RebuildReservationGuestRestrictionsPayload.PayloadVersion));
         Assert.NotNull(registry.Find(
             IngestionModuleMetadata.Name,
             RunAdapterTaskPayload.TaskName,

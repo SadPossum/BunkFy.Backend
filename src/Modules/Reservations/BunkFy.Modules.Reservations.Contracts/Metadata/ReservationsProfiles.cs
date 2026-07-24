@@ -1,9 +1,10 @@
 namespace BunkFy.Modules.Reservations.Contracts;
 
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Inventory.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Tenancy;
-using BunkFy.Modules.Inventory.Contracts;
 
 public static class ReservationsProfiles
 {
@@ -26,6 +27,10 @@ public static class ReservationsProfiles
                 InventoryCompositionFeatures.Availability,
                 Provider(DefaultName),
                 reason: "Inventory owns reservation allocation and no-overbooking."),
+            new RequiredCompositionFeature(
+                GuestsCompositionFeatures.Records,
+                Provider(DefaultName),
+                reason: "Guest links require Guests-owned profile and restriction eligibility."),
             MessagingCompositionFeatures.OutboxRequired(
                 Provider(DefaultName),
                 "Reservation lifecycle and Inventory requests use the module outbox."),
@@ -39,7 +44,11 @@ public static class ReservationsProfiles
             new RequiredCompositionModule(
                 InventoryModuleMetadata.Name,
                 Provider(DefaultName),
-                reason: "Reservations requests concrete claims from Inventory.")
+                reason: "Reservations requests concrete claims from Inventory."),
+            new RequiredCompositionModule(
+                GuestsModuleMetadata.Name,
+                Provider(DefaultName),
+                reason: "Reservations links canonical Guests through versioned contracts.")
         ],
         displayName: "Reservations default",
         description: "Staff-managed reservation lifecycle with Inventory-owned asynchronous allocation.");

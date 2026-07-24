@@ -1,8 +1,8 @@
 namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using BunkFy.Modules.Guests.Contracts;
-using Microsoft.EntityFrameworkCore;
 using BunkFy.Modules.Reservations.Application.Ports;
+using Microsoft.EntityFrameworkCore;
 
 internal sealed class ReservationGuestProfileProjectionRepository(ReservationsDbContext dbContext)
     : IReservationGuestProfileProjectionRepository
@@ -11,7 +11,13 @@ internal sealed class ReservationGuestProfileProjectionRepository(ReservationsDb
         dbContext.GuestProfileProjections.AsNoTracking().AnyAsync(
             profile => profile.Id == guestId &&
                        profile.OriginPropertyId == propertyId &&
-                       profile.Status == GuestStatus.Active,
+                       profile.Status == GuestStatus.Active &&
+                       dbContext.GuestProcessingRestrictionProjections.Any(restriction =>
+                           restriction.PropertyId == propertyId &&
+                           restriction.GuestId == guestId &&
+                           restriction.ContractVersion ==
+                               GuestProcessingRestrictionContract.CurrentVersion &&
+                           !restriction.IsRestricted),
             cancellationToken);
 
     public async Task ApplyAsync(
@@ -33,5 +39,33 @@ internal sealed class ReservationGuestProfileProjectionRepository(ReservationsDb
         }
 
         current.Apply(profile.OriginPropertyId, profile.Status, profile.Version);
+    }
+
+    public async Task ApplyRestrictionAsync(
+        ReservationGuestProcessingRestrictionProjectionWriteModel restriction,
+        CancellationToken cancellationToken)
+    {
+        ReservationGuestProcessingRestrictionProjection? current =
+            await dbContext.GuestProcessingRestrictionProjections.FirstOrDefaultAsync(
+                item => item.PropertyId == restriction.PropertyId &&
+                    item.GuestId == restriction.GuestId,
+                cancellationToken).ConfigureAwait(false);
+        if (current is null)
+        {
+            dbContext.GuestProcessingRestrictionProjections.Add(
+                new ReservationGuestProcessingRestrictionProjection(
+                    restriction.ScopeId,
+                    restriction.PropertyId,
+                    restriction.GuestId,
+                    restriction.ContractVersion,
+                    restriction.Revision,
+                    restriction.IsRestricted));
+            return;
+        }
+
+        current.Apply(
+            restriction.ContractVersion,
+            restriction.Revision,
+            restriction.IsRestricted);
     }
 }

@@ -37,6 +37,9 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - fail-closed ordinary detail, list, stay-history, update and archive
   enforcement while DataRights discovery, export, correction and restriction
   workflows retain explicit owner access;
+- a versioned fail-closed restriction gate, constant-size transition event and
+  bounded keyset rebuild export for dependent modules, with no direct identity,
+  contact or free-text values crossing the boundary;
 - PII-free profile and reservation/stay integration contracts;
 - monotonic stay history that retains inactive replaced links for audit without granting visibility;
 - local Properties projection plus task-driven rebuilds for Properties and Reservation stay history;
@@ -47,5 +50,5 @@ Reservations owns booking roles and current participant links. Guests owns profi
 Identity documents, consent and retention workflows, duplicate merge/split,
 entity resolution, guest flags, preferences, and guest accounts remain deferred.
 Protected export artifacts and download surfaces remain owned by DataRights.
-The versioned restriction gate, transition event, rebuild export and
-Reservations-owned eligibility projection are the next Guests slice.
+Reservations owns its local restriction-eligibility projection and rechecks
+this module's authoritative gate before every new canonical Guest link.

@@ -1,20 +1,24 @@
 namespace BunkFy.Modules.Reservations.Application.Handlers;
 
 using BunkFy.DataGovernance;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Reservations.Application.Commands;
+using BunkFy.Modules.Reservations.Application.Policies;
+using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Domain.Aggregates;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
-using BunkFy.Modules.Reservations.Application.Commands;
-using BunkFy.Modules.Reservations.Application.Ports;
-using BunkFy.Modules.Reservations.Application.Policies;
-using BunkFy.Modules.Reservations.Contracts;
-using BunkFy.Modules.Reservations.Domain.Aggregates;
+using Gma.Framework.Scoping;
 
 internal sealed class LinkReservationGuestCommandHandler(
     IReservationRepository reservations,
     IReservationGuestProfileProjectionRepository guests,
+    IGuestProcessingRestrictionGate restrictionGate,
     IReservationCountryPolicyAdmission countryPolicy,
+    IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
     : ICommandHandler<LinkReservationGuestCommand, ReservationDto>
@@ -51,12 +55,31 @@ internal sealed class LinkReservationGuestCommandHandler(
 
         bool alreadyLinked = reservation.Guests.Any(guest => guest.IsCurrent &&
             guest.GuestId == command.GuestId && (int)guest.Role == (int)command.Role);
-        if (!alreadyLinked && !await guests.IsLinkableAsync(
-                command.PropertyId,
-                command.GuestId,
-                cancellationToken).ConfigureAwait(false))
+        if (!alreadyLinked)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.GuestNotLinkable);
+            if (!scopeContext.IsEnabled ||
+                string.IsNullOrWhiteSpace(scopeContext.ScopeId) ||
+                !await guests.IsLinkableAsync(
+                    command.PropertyId,
+                    command.GuestId,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return Result.Failure<ReservationDto>(
+                    ReservationsApplicationErrors.GuestNotLinkable);
+            }
+
+            GuestProcessingRestrictionGateResult restriction =
+                await restrictionGate.EvaluateAsync(
+                    new(
+                        scopeContext.ScopeId,
+                        command.PropertyId,
+                        command.GuestId),
+                    cancellationToken).ConfigureAwait(false);
+            if (!restriction.IsAllowed)
+            {
+                return Result.Failure<ReservationDto>(
+                    ReservationsApplicationErrors.GuestNotLinkable);
+            }
         }
 
         Result<bool> linked = reservation.LinkGuest(

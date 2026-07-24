@@ -1,8 +1,6 @@
 # Guest Data Rights Restriction Task
 
-Status: implementation in progress; DataRights approval-intent binding, Guests
-owner state, transition commands and ordinary-surface enforcement complete;
-dependent-module contracts pending
+Status: complete
 
 ## Outcome
 
@@ -198,8 +196,9 @@ not silently deleted or rewritten by this Guests slice.
 - Restricted Guests do not appear in counts, pages or search results.
 - DataRights-only bypasses are explicit commands/contributors, not repository
   flags supplied by a caller.
-- Events, task payloads, logs, metrics and receipts contain no Guest identity
-  values or free text.
+- Events, task payloads, logs, metrics and receipts contain no direct identity,
+  contact or free-text values. Cross-module contracts carry only the
+  pseudonymous tenant/property/Guest coordinates required to enforce the gate.
 - Country-policy absence, digest mismatch, suspension or unsupported purpose
   denies both transitions.
 - Multiple active restrictions are reference-safe: one release cannot clear
@@ -228,14 +227,31 @@ not silently deleted or rewritten by this Guests slice.
    metadata.
 4. [Complete] Enforce the effective projection on every ordinary Guests
    surface.
-5. Add the versioned Guests gate, event and rebuild export, then update
-   Reservations guest-link eligibility through contracts only.
+5. [Complete] Add the versioned Guests gate, event and rebuild export, then
+   update Reservations guest-link eligibility through contracts only.
 6. [Complete] Add PostgreSQL migrations, conservative backfill, indexes and
    constraints.
 7. [Complete] Advance the executable personal-data catalogue and deterministic
    inventory.
-8. Run focused, architecture, migration-drift, Docker, generated-contract,
-   browser where applicable and exact-commit GitHub gates.
+8. [Complete] Run focused, architecture, migration-drift, Docker,
+   generated-contract, browser where applicable and exact-commit GitHub gates.
+
+## Deployment Sequence
+
+The Reservations restriction projection intentionally receives no permissive
+migration backfill. After deploying the Guests and Reservations migrations,
+keep the API and Worker on the same release, make sure the Reservations and
+Guests consumers are enabled, and enqueue this tenant-scoped task for every
+existing tenant before expecting new Guest links to succeed:
+
+```text
+tasks runs enqueue --tenant <tenant-id> --module reservations --task rebuild-reservation-guest-restrictions --worker-group projection-workers --payload-json "{\"projectionVersion\":1,\"batchSize\":100,\"dryRun\":false}"
+```
+
+Missing, stale or future local state denies a new link. Existing factual
+reservation links remain intact. Guests transition events keep the projection
+current after the rebuild, and the synchronous Guests gate still rechecks the
+authoritative state at every new link boundary.
 
 ## Acceptance Evidence
 

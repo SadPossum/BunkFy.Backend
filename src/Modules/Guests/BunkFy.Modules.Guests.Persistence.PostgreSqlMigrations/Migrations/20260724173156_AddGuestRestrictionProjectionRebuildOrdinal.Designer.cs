@@ -3,6 +3,7 @@ using System;
 using BunkFy.Modules.Guests.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
 {
     [DbContext(typeof(GuestsDbContext))]
-    partial class GuestsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724173156_AddGuestRestrictionProjectionRebuildOrdinal")]
+    partial class AddGuestRestrictionProjectionRebuildOrdinal
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

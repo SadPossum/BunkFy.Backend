@@ -8,6 +8,7 @@ using BunkFy.Modules.Guests.Application.Queries;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
+using BunkFy.Modules.Guests.Domain.Events;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -117,6 +118,18 @@ public sealed class GuestsPersonalDataCatalogTests
         AssertType(typeof(GuestStayHistoryItem), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestProfileEligibilityProjectionExport), PersonalDataSurface.ProjectionExport);
         AssertType(typeof(ReservationGuestStayProjectionExport), PersonalDataSurface.ProjectionExport);
+        AssertType(
+            typeof(GuestProcessingRestrictionProjectionExport),
+            PersonalDataSurface.ProjectionExport);
+        AssertType(
+            typeof(GuestProcessingRestrictionGateRequest),
+            PersonalDataSurface.IntegrationCommand);
+        AssertType(
+            typeof(GuestProcessingRestrictionGateResult),
+            PersonalDataSurface.ProjectionExport);
+        AssertType(
+            typeof(GuestProcessingRestrictionChangedDomainEvent),
+            PersonalDataSurface.DomainEvent);
         AssertType(typeof(GuestProfileDataRightsExport), PersonalDataSurface.DataRightsExport);
         AssertType(typeof(GuestStayDataRightsExport), PersonalDataSurface.DataRightsExport);
 
@@ -202,6 +215,7 @@ public sealed class GuestsPersonalDataCatalogTests
     [
         typeof(GuestProfileArchivedIntegrationEvent),
         typeof(GuestProfileCreatedIntegrationEvent),
+        typeof(GuestProcessingRestrictionChangedIntegrationEvent),
         typeof(GuestProfileUpdatedIntegrationEvent),
         typeof(ReservationGuestLinkedIntegrationEvent),
         typeof(ReservationGuestStayChangedIntegrationEvent)

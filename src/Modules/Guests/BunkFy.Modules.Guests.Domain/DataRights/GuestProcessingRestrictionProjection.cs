@@ -26,6 +26,7 @@ public sealed class GuestProcessingRestrictionProjection : IScopedEntity
     public string ScopeId { get; private set; } = string.Empty;
     public Guid PropertyId { get; private set; }
     public Guid GuestId { get; private set; }
+    public long ProjectionOrdinal { get; private set; }
     public int ContractVersion { get; private set; }
     public long Revision { get; private set; }
     public int ActiveRestrictionCount { get; private set; }
