@@ -47,6 +47,9 @@ public sealed class DataRightsModelTests
             constraint => constraint.Name == "CK_data_rights_cases_operations");
         Assert.Contains(
             designEntity.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_cases_restriction_directive");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_requester_scope");
         Assert.Contains(
             designEntity.GetCheckConstraints(),
@@ -193,6 +196,41 @@ public sealed class DataRightsModelTests
         Assert.Equal(6, restored.DecisionRevision);
         Assert.Equal("user:decision-maker", restored.DecidedBy);
         Assert.Equal(discoveryAt.AddMinutes(4), restored.DecidedAtUtc);
+    }
+
+    [Fact]
+    public async Task Restriction_directive_round_trips_with_the_case()
+    {
+        string databaseName = $"data-rights-restriction-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            Guid.NewGuid(),
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Restriction,
+            DataRightsRequesterRelation.ControllerInitiated,
+            DataRightsRestrictionAction.Release).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero)).Value;
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        Assert.Equal(DataRightsRestrictionAction.Release, restored.RestrictionAction);
     }
 
     private static DataRightsCase CreateCase(string tenantId, Guid propertyId)

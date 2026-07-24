@@ -16,7 +16,8 @@ public sealed record DataRightsOperationApprovalRequest(
     string OwnerKey,
     string RecordType,
     Guid RecordId,
-    long RecordVersion);
+    long RecordVersion,
+    DataRightsRestrictionDirective RestrictionDirective = DataRightsRestrictionDirective.Unknown);
 
 public sealed record DataRightsOperationApprovalResult(
     bool IsApproved,
@@ -37,5 +38,6 @@ public enum DataRightsOperationApprovalDenial
     CaseNotApproved = 3,
     ApprovalRevisionMismatch = 4,
     OperationNotApproved = 5,
-    SubjectNotApproved = 6
+    SubjectNotApproved = 6,
+    RestrictionDirectiveMismatch = 7
 }

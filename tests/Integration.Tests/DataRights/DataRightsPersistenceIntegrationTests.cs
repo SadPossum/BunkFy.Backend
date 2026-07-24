@@ -26,6 +26,8 @@ public sealed class DataRightsPersistenceIntegrationTests
         await postgreSql.StartAsync();
 
         Guid caseId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+        Guid legacyRestrictionCaseId =
+            Guid.Parse("10000000-0000-0000-0000-000000000002");
         Guid propertyId = Guid.Parse("20000000-0000-0000-0000-000000000001");
         Guid guestId = Guid.Parse("30000000-0000-0000-0000-000000000001");
         DateTimeOffset createdAtUtc = new(2026, 7, 23, 6, 0, 0, TimeSpan.Zero);
@@ -45,6 +47,14 @@ public sealed class DataRightsPersistenceIntegrationTests
                      {(int)DataRightsVerificationState.NotRequired},
                      {(int)DataRightsRoutingState.NotRequired},
                      {(int)DataRightsCaseState.Draft}, NULL, 1, {"staff:privacy"},
+                     {createdAtUtc}, {"staff:privacy"}, {createdAtUtc}, {"tenant-a"}),
+                    ({legacyRestrictionCaseId}, {propertyId},
+                     {(int)DataRightsCaseKind.GuestRights},
+                     {(int)DataRightsCaseOperation.Restriction},
+                     {(int)DataRightsRequesterRelation.ControllerInitiated},
+                     {(int)DataRightsVerificationState.NotRequired},
+                     {(int)DataRightsRoutingState.NotRequired},
+                     {(int)DataRightsCaseState.Draft}, NULL, 1, {"staff:privacy"},
                      {createdAtUtc}, {"staff:privacy"}, {createdAtUtc}, {"tenant-a"})
                 """);
         }
@@ -54,6 +64,9 @@ public sealed class DataRightsPersistenceIntegrationTests
         {
             await upgraded.Database.MigrateAsync();
             DataRightsCase dataRightsCase = await upgraded.Cases.SingleAsync(item => item.Id == caseId);
+            DataRightsCase legacyRestriction = await upgraded.Cases
+                .SingleAsync(item => item.Id == legacyRestrictionCaseId);
+            Assert.Equal(DataRightsRestrictionAction.None, legacyRestriction.RestrictionAction);
 
             Assert.True(dataRightsCase.BeginDiscovery(
                 dataRightsCase.Version,

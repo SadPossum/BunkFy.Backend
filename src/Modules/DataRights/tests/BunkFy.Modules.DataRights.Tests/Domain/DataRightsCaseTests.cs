@@ -3,6 +3,7 @@ namespace BunkFy.Modules.DataRights.Tests.Domain;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
+using Gma.Framework.Results;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -300,6 +301,35 @@ public sealed class DataRightsCaseTests
                 DataRightsCaseKind.GuestRights,
                 DataRightsCaseOperation.AccessExport,
                 DataRightsRequesterRelation.TenantOwner).Error.Code);
+    }
+
+    [Theory]
+    [InlineData(DataRightsCaseOperation.Restriction, DataRightsRestrictionAction.None, false)]
+    [InlineData(DataRightsCaseOperation.Restriction, DataRightsRestrictionAction.Apply, true)]
+    [InlineData(DataRightsCaseOperation.Restriction, DataRightsRestrictionAction.Release, true)]
+    [InlineData(DataRightsCaseOperation.AccessExport, DataRightsRestrictionAction.Apply, false)]
+    [InlineData(DataRightsCaseOperation.AccessExport, DataRightsRestrictionAction.Release, false)]
+    public void Case_request_requires_a_directive_only_for_restriction(
+        DataRightsCaseOperation operations,
+        DataRightsRestrictionAction restrictionAction,
+        bool expectedSuccess)
+    {
+        Result<DataRightsCaseRequest> result = DataRightsCaseRequest.Create(
+            Guid.NewGuid(),
+            DataRightsCaseKind.GuestRights,
+            operations,
+            DataRightsRequesterRelation.ControllerInitiated,
+            restrictionAction);
+
+        Assert.Equal(expectedSuccess, result.IsSuccess);
+        if (expectedSuccess)
+        {
+            Assert.Equal(restrictionAction, result.Value.RestrictionAction);
+        }
+        else
+        {
+            Assert.Equal("DataRights.RestrictionDirectiveInvalid", result.Error.Code);
+        }
     }
 
     private static DataRightsCase Create(

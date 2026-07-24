@@ -28,6 +28,17 @@ internal sealed class CreateDataRightsCaseCommandValidator
             yield return "RequestedOperations is invalid.";
         }
 
+        bool restrictionRequested =
+            (command.RequestedOperations & DataRightsOperation.Restriction) != DataRightsOperation.None;
+        if ((restrictionRequested &&
+                command.RestrictionDirective is not DataRightsRestrictionDirective.Apply
+                    and not DataRightsRestrictionDirective.Release) ||
+            (!restrictionRequested &&
+                command.RestrictionDirective != DataRightsRestrictionDirective.Unknown))
+        {
+            yield return "RestrictionDirective must match the requested operations.";
+        }
+
         if (command.RequesterRelationship == DataRightsRequesterRelationship.Unknown ||
             !Enum.IsDefined(command.RequesterRelationship) ||
             command.RequesterRelationship == DataRightsRequesterRelationship.TenantOwner)

@@ -22,6 +22,9 @@ public static class DataRightsDomainErrors
     public static readonly Error OperationsInvalid = new(
         "DataRights.OperationsInvalid",
         "The requested data-rights operations are invalid.");
+    public static readonly Error RestrictionDirectiveInvalid = new(
+        "DataRights.RestrictionDirectiveInvalid",
+        "A restriction request must declare exactly one supported directive.");
     public static readonly Error RequesterRelationshipInvalid = new(
         "DataRights.RequesterRelationshipInvalid",
         "The requester relationship is invalid.");

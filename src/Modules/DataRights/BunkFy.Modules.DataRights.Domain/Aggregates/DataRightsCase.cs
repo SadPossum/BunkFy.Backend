@@ -22,6 +22,7 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
     public Guid? PropertyId { get; private set; }
     public DataRightsCaseKind Kind { get; private set; }
     public DataRightsCaseOperation RequestedOperations { get; private set; }
+    public DataRightsRestrictionAction RestrictionAction { get; private set; }
     public DataRightsRequesterRelation RequesterRelationship { get; private set; }
     public DataRightsVerificationState VerificationStatus { get; private set; }
     public DataRightsRoutingState RoutingStatus { get; private set; }
@@ -78,6 +79,7 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
             PropertyId = request.PropertyId,
             Kind = request.Kind,
             RequestedOperations = request.RequestedOperations,
+            RestrictionAction = request.RestrictionAction,
             RequesterRelationship = request.RequesterRelationship,
             VerificationStatus = requesterNeedsVerification
                 ? DataRightsVerificationState.Pending

@@ -21,6 +21,8 @@ deterministically generated
   bounded reason codes and immutable decision revision/attribution;
 - a PII-free, fail-closed owner-module approval gate that matches the exact
   tenant, property, operation, approved revision and selected record version;
+- restriction approvals bind an explicit apply or release directive, so one
+  approved intent cannot authorize the opposite transition;
 - resumable selected-coordinate reads behind the sensitive discovery
   permission, while ordinary case DTOs expose only a count;
 - a PII-carrying owner-export envelope that is explicitly catalogued as a

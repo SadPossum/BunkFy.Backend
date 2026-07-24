@@ -10,6 +10,7 @@ public static class DataRightsCaseMappings
         dataRightsCase.PropertyId,
         (DataRightsCaseType)dataRightsCase.Kind,
         (DataRightsOperation)dataRightsCase.RequestedOperations,
+        (DataRightsRestrictionDirective)dataRightsCase.RestrictionAction,
         (DataRightsRequesterRelationship)dataRightsCase.RequesterRelationship,
         (DataRightsVerificationStatus)dataRightsCase.VerificationStatus,
         (DataRightsRoutingStatus)dataRightsCase.RoutingStatus,

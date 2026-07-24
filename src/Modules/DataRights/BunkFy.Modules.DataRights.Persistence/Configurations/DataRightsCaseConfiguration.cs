@@ -17,6 +17,10 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "CK_data_rights_cases_operations",
                 "\"RequestedOperations\" BETWEEN 1 AND 31");
             table.HasCheckConstraint(
+                "CK_data_rights_cases_restriction_directive",
+                "((\"RequestedOperations\" & 4) = 0 AND \"RestrictionDirective\" = 0) OR " +
+                "((\"RequestedOperations\" & 4) = 4 AND \"RestrictionDirective\" BETWEEN 0 AND 2)");
+            table.HasCheckConstraint(
                 "CK_data_rights_cases_requester",
                 "\"RequesterRelationship\" IN (1, 2, 3, 4)");
             table.HasCheckConstraint(
@@ -88,6 +92,10 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             .HasConversion<int>()
             .IsRequired();
         builder.Property(dataRightsCase => dataRightsCase.RequestedOperations)
+            .HasConversion<int>()
+            .IsRequired();
+        builder.Property(dataRightsCase => dataRightsCase.RestrictionAction)
+            .HasColumnName("RestrictionDirective")
             .HasConversion<int>()
             .IsRequired();
         builder.Property(dataRightsCase => dataRightsCase.RequesterRelationship)

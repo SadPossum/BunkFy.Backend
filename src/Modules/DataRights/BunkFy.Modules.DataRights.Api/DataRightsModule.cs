@@ -93,6 +93,7 @@ public sealed class DataRightsModule : IModule
                     new CreateDataRightsCaseCommand(
                         propertyId,
                         request.RequestedOperations,
+                        request.RestrictionDirective,
                         request.RequesterRelationship,
                         actor),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(
@@ -265,6 +266,7 @@ public sealed class DataRightsModule : IModule
 
     public sealed record CreateDataRightsCaseRequest(
         DataRightsOperation RequestedOperations,
+        DataRightsRestrictionDirective RestrictionDirective,
         DataRightsRequesterRelationship RequesterRelationship);
 
     public sealed record RecordRequesterVerificationRequest(

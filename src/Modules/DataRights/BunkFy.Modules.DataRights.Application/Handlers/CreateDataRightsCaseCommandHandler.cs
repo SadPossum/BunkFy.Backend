@@ -32,7 +32,8 @@ internal sealed class CreateDataRightsCaseCommandHandler(
             command.PropertyId,
             DataRightsCaseKind.GuestRights,
             (DataRightsCaseOperation)command.RequestedOperations,
-            (DataRightsRequesterRelation)command.RequesterRelationship);
+            (DataRightsRequesterRelation)command.RequesterRelationship,
+            (DataRightsRestrictionAction)command.RestrictionDirective);
         if (request.IsFailure)
         {
             return Result.Failure<DataRightsCaseDto>(request.Error);

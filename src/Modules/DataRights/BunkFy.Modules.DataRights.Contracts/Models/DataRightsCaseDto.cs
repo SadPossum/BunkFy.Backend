@@ -5,6 +5,7 @@ public sealed record DataRightsCaseDto(
     Guid? PropertyId,
     DataRightsCaseType Type,
     DataRightsOperation RequestedOperations,
+    DataRightsRestrictionDirective RestrictionDirective,
     DataRightsRequesterRelationship RequesterRelationship,
     DataRightsVerificationStatus VerificationStatus,
     DataRightsRoutingStatus RoutingStatus,

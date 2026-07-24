@@ -17,24 +17,28 @@ public sealed class DataRightsCaseRequest
         Guid? propertyId,
         DataRightsCaseKind kind,
         DataRightsCaseOperation requestedOperations,
+        DataRightsRestrictionAction restrictionAction,
         DataRightsRequesterRelation requesterRelationship)
     {
         this.PropertyId = propertyId;
         this.Kind = kind;
         this.RequestedOperations = requestedOperations;
+        this.RestrictionAction = restrictionAction;
         this.RequesterRelationship = requesterRelationship;
     }
 
     public Guid? PropertyId { get; }
     public DataRightsCaseKind Kind { get; }
     public DataRightsCaseOperation RequestedOperations { get; }
+    public DataRightsRestrictionAction RestrictionAction { get; }
     public DataRightsRequesterRelation RequesterRelationship { get; }
 
     public static Result<DataRightsCaseRequest> Create(
         Guid? propertyId,
         DataRightsCaseKind kind,
         DataRightsCaseOperation requestedOperations,
-        DataRightsRequesterRelation requesterRelationship)
+        DataRightsRequesterRelation requesterRelationship,
+        DataRightsRestrictionAction restrictionAction = DataRightsRestrictionAction.None)
     {
         if (kind is not DataRightsCaseKind.GuestRights and not DataRightsCaseKind.TenantTermination)
         {
@@ -45,6 +49,17 @@ public sealed class DataRightsCaseRequest
             (requestedOperations & ~KnownOperations) != DataRightsCaseOperation.None)
         {
             return Result.Failure<DataRightsCaseRequest>(DataRightsDomainErrors.OperationsInvalid);
+        }
+
+        bool restrictionRequested =
+            (requestedOperations & DataRightsCaseOperation.Restriction) != DataRightsCaseOperation.None;
+        if ((restrictionRequested &&
+                restrictionAction is not DataRightsRestrictionAction.Apply
+                    and not DataRightsRestrictionAction.Release) ||
+            (!restrictionRequested && restrictionAction != DataRightsRestrictionAction.None))
+        {
+            return Result.Failure<DataRightsCaseRequest>(
+                DataRightsDomainErrors.RestrictionDirectiveInvalid);
         }
 
         if (requesterRelationship is not DataRightsRequesterRelation.DataSubject
@@ -86,6 +101,7 @@ public sealed class DataRightsCaseRequest
             propertyId,
             kind,
             requestedOperations,
+            restrictionAction,
             requesterRelationship));
     }
 }

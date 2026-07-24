@@ -389,7 +389,8 @@ implemented and must not be inferred from this foundation.
   later case-state changes.
 - Expose a PII-free in-process Contracts gate for owner modules. Authorization
   requires an exact tenant, property, case, approval revision, single
-  operation, owner, record type, record id and selected record version match.
+  operation, restriction directive where applicable, owner, record type,
+  record id and selected record version match.
 - Keep correction execution closed. This slice neither changes a guest profile
   nor creates an owner receipt; it only establishes the prerequisite decision
   authority.
@@ -424,6 +425,8 @@ implemented and must not be inferred from this foundation.
 
 The next increment implements the owner-local Guests restriction projection
 and enforces it on every applicable read, write and processing surface.
+Its detailed implementation and acceptance plan is
+`guest-data-rights-restriction-task.md`.
 Anonymisation, authoritative ledger entries and restore replay remain closed.
 
 ## Acceptance Evidence

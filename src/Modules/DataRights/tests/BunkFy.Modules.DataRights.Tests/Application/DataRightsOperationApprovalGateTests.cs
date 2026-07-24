@@ -32,6 +32,43 @@ public sealed class DataRightsOperationApprovalGateTests
         Assert.Equal(DataRightsOperationApprovalDenial.None, result.Denial);
     }
 
+    [Fact]
+    public async Task Restriction_approval_authorizes_only_its_exact_directive()
+    {
+        Guid propertyId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateApprovedCase(
+            propertyId,
+            recordId,
+            DataRightsCaseOperation.Restriction,
+            DataRightsRestrictionAction.Apply);
+        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        DataRightsOperationApprovalRequest applyRequest = CreateRequest(
+            dataRightsCase,
+            propertyId,
+            recordId) with
+        {
+            Operation = DataRightsOperation.Restriction,
+            RestrictionDirective = DataRightsRestrictionDirective.Apply
+        };
+
+        DataRightsOperationApprovalResult approved = await gate.EvaluateAsync(
+            applyRequest,
+            CancellationToken.None);
+        DataRightsOperationApprovalResult mismatched = await gate.EvaluateAsync(
+            applyRequest with { RestrictionDirective = DataRightsRestrictionDirective.Release },
+            CancellationToken.None);
+        DataRightsOperationApprovalResult unknown = await gate.EvaluateAsync(
+            applyRequest with { RestrictionDirective = DataRightsRestrictionDirective.Unknown },
+            CancellationToken.None);
+
+        Assert.True(approved.IsApproved);
+        Assert.Equal(
+            DataRightsOperationApprovalDenial.RestrictionDirectiveMismatch,
+            mismatched.Denial);
+        Assert.Equal(DataRightsOperationApprovalDenial.InvalidRequest, unknown.Denial);
+    }
+
     [Theory]
     [InlineData("tenant-b", 6, DataRightsOperation.Correction, 3, DataRightsOperationApprovalDenial.CaseNotFound)]
     [InlineData("tenant-a", 5, DataRightsOperation.Correction, 3, DataRightsOperationApprovalDenial.ApprovalRevisionMismatch)]
@@ -112,9 +149,18 @@ public sealed class DataRightsOperationApprovalGateTests
         Assert.Equal(DataRightsOperationApprovalDenial.CaseNotApproved, result.Denial);
     }
 
-    private static DataRightsCase CreateApprovedCase(Guid propertyId, Guid recordId)
+    private static DataRightsCase CreateApprovedCase(
+        Guid propertyId,
+        Guid recordId,
+        DataRightsCaseOperation operations =
+            DataRightsCaseOperation.AccessExport | DataRightsCaseOperation.Correction,
+        DataRightsRestrictionAction restrictionAction = DataRightsRestrictionAction.None)
     {
-        DataRightsCase dataRightsCase = CreateDecisionPendingCase(propertyId, recordId);
+        DataRightsCase dataRightsCase = CreateDecisionPendingCase(
+            propertyId,
+            recordId,
+            operations,
+            restrictionAction);
         Assert.True(dataRightsCase.RecordDecision(
             DataRightsCaseDecision.Approved,
             DataRightsCaseDecisionReason.RequestValidated,
@@ -124,13 +170,19 @@ public sealed class DataRightsOperationApprovalGateTests
         return dataRightsCase;
     }
 
-    private static DataRightsCase CreateDecisionPendingCase(Guid propertyId, Guid recordId)
+    private static DataRightsCase CreateDecisionPendingCase(
+        Guid propertyId,
+        Guid recordId,
+        DataRightsCaseOperation operations =
+            DataRightsCaseOperation.AccessExport | DataRightsCaseOperation.Correction,
+        DataRightsRestrictionAction restrictionAction = DataRightsRestrictionAction.None)
     {
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
             propertyId,
             DataRightsCaseKind.GuestRights,
-            DataRightsCaseOperation.AccessExport | DataRightsCaseOperation.Correction,
-            DataRightsRequesterRelation.ControllerInitiated).Value;
+            operations,
+            DataRightsRequesterRelation.ControllerInitiated,
+            restrictionAction).Value;
         DataRightsCase dataRightsCase = DataRightsCase.Create(
             Guid.NewGuid(),
             "tenant-a",

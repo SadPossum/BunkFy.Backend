@@ -6,7 +6,7 @@ using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using Gma.Framework.Naming;
-using SelectedSubject = BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
+using SelectedSubject = Domain.Entities.DataRightsSubjectCoordinate;
 
 internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository cases)
     : IDataRightsOperationApprovalGate
@@ -55,6 +55,14 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
                 DataRightsOperationApprovalDenial.OperationNotApproved);
         }
 
+        if (request.Operation == DataRightsOperation.Restriction &&
+            (DataRightsRestrictionDirective)dataRightsCase.RestrictionAction !=
+                request.RestrictionDirective)
+        {
+            return DataRightsOperationApprovalResult.Denied(
+                DataRightsOperationApprovalDenial.RestrictionDirectiveMismatch);
+        }
+
         bool subjectApproved = dataRightsCase.SelectedSubjects.Any(subject =>
             string.Equals(subject.OwnerKey, ownerKey, StringComparison.Ordinal) &&
             string.Equals(subject.RecordType, recordType, StringComparison.Ordinal) &&
@@ -76,12 +84,17 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
         ownerKey = request.OwnerKey?.Trim().ToLowerInvariant();
         recordType = request.RecordType?.Trim().ToLowerInvariant();
         int operation = (int)request.Operation;
+        bool restrictionDirectiveValid = request.Operation == DataRightsOperation.Restriction
+            ? request.RestrictionDirective is DataRightsRestrictionDirective.Apply
+                or DataRightsRestrictionDirective.Release
+            : request.RestrictionDirective == DataRightsRestrictionDirective.Unknown;
         return tenantValid &&
             request.PropertyId != Guid.Empty &&
             request.CaseId != Guid.Empty &&
             request.ApprovalRevision > 0 &&
             operation is > 0 and <= (int)DataRightsOperation.Anonymisation &&
             (operation & (operation - 1)) == 0 &&
+            restrictionDirectiveValid &&
             ownerKey is not null &&
             ownerKey.Length is > 0 and <= SelectedSubject.OwnerKeyMaxLength &&
             recordType is not null &&
