@@ -114,6 +114,24 @@ public sealed class DataRightsPersonalDataCatalogTests
     }
 
     [Fact]
+    public void Owner_export_envelope_is_explicitly_classified()
+    {
+        foreach (string member in new[] { "RecordType", "RecordId", "RecordVersion", "Fields" })
+        {
+            AssertBinding(typeof(DataRightsExportRecord), member, PersonalDataSurface.DataRightsExport);
+        }
+
+        AssertBinding(
+            typeof(DataRightsExportField),
+            nameof(DataRightsExportField.FieldId),
+            PersonalDataSurface.DataRightsExport);
+        AssertBinding(
+            typeof(DataRightsExportField),
+            nameof(DataRightsExportField.Value),
+            PersonalDataSurface.DataRightsExport);
+    }
+
+    [Fact]
     public void Case_contracts_do_not_carry_direct_guest_payloads()
     {
         Type[] boundaryTypes =

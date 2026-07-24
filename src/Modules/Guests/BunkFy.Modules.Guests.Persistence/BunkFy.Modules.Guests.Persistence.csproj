@@ -5,6 +5,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Guests.Contracts\BunkFy.Modules.Guests.Contracts.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Guests.Application\BunkFy.Modules.Guests.Application.csproj" />
@@ -19,5 +20,10 @@
     <ProjectReference Include="$(GmaFrameworkRoot)Messaging\Gma.Framework.Messaging\Gma.Framework.Messaging.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Messaging\Gma.Framework.Messaging.Infrastructure\Gma.Framework.Messaging.Infrastructure.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Runtime\Gma.Framework.Runtime\Gma.Framework.Runtime.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource
+      Include="..\docs\personal-data-catalog.v1.json"
+      LogicalName="BunkFy.Modules.Guests.Persistence.DataGovernance.personal-data-catalog.v1.json" />
   </ItemGroup>
 </Project>

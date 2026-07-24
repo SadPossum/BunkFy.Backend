@@ -1,6 +1,6 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: implementation in progress; Guests discovery and subject-selection foundation complete
+Status: implementation in progress; Guests discovery, subject selection and export preparation complete
 
 ## Outcome
 
@@ -311,10 +311,36 @@ identity hints.
   deduplication, selection bounds, no-store headers and review-without-subject
   denial.
 
+### Active Slice: Guests Catalogue-Driven Export Preparation
+
+- `DataRights.Contracts` owns a neutral in-process contributor/sink contract.
+  It contains product rights vocabulary and remains outside GMA.
+- The export envelope is a subject-scoped, cross-module personal-data surface
+  in the DataRights catalogue. It is transient for one hour and is never placed
+  in tasks, inbox/outbox messages, notifications, logs, metrics or traces.
+- Guests embeds its checked personal-data catalogue and validates all export
+  bindings during composition. Missing, extra, non-exportable or wrongly
+  retained bindings prevent startup.
+- The contributor revalidates tenant, property, owner, record type and selected
+  profile version before writing. Unknown scope, invisible profiles and stale
+  coordinates write no records.
+- A successful fragment contains one canonical guest profile and only stay
+  history belonging to the authorized property. Staff audit attribution,
+  search-index copies, projection ordinals, tenant routing identifiers and
+  unrelated-property stays are excluded.
+- Records are streamed through a caller-owned sink with bounded field counts
+  and serialized values. A caller must discard every partial record when the
+  contributor throws or returns anything except success.
+- This increment does not persist fragments, run a case operation or expose an
+  export/download API. Protected artifact assembly and fresh-assurance download
+  remain later DataRights slices.
+- Tests cover catalogue/schema versions, exact export fields, property
+  isolation, stale and unavailable scope, and partial-sink failure.
+
 ### Current Verification Evidence
 
-- DataRights focused tests: 28 passed.
-- Guests focused tests: 16 passed.
+- DataRights focused tests: 29 passed.
+- Guests focused tests: 19 passed.
 - Architecture tests: 64 passed.
 - Fast repository verification: all composed projects built with zero warnings
   and all non-Docker tests passed.
@@ -325,11 +351,15 @@ identity hints.
 - PostgreSQL upgrade coverage starts at the initial DataRights migration,
   upgrades an existing case, round-trips a selected subject coordinate and
   proves cascade cleanup.
-- Full Docker suite: 34 passed with no skips.
+- PostgreSQL Guests coverage resolves the export contributor through module
+  composition, streams its catalogue-approved profile and includes only stay
+  history from the authorized property.
+- Full Docker suite: 35 passed with no skips.
 
-The next increment remains inside Guests: catalogue-driven export preparation.
-Correction, restriction, anonymisation, ledger receipts and restore replay are
-not yet implemented and must not be inferred from this foundation.
+The next increment remains inside Guests: correction receipt preparation
+through normal guest-profile domain commands. Restriction, anonymisation,
+ledger receipts and restore replay are not yet implemented and must not be
+inferred from this foundation.
 
 ## Acceptance Evidence
 

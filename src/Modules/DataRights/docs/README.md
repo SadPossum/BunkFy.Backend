@@ -19,6 +19,10 @@ deterministically generated
 - bounded subject selection that must be non-empty before review can begin;
 - resumable selected-coordinate reads behind the sensitive discovery
   permission, while ordinary case DTOs expose only a count;
+- a PII-carrying owner-export envelope that is explicitly catalogued as a
+  subject-scoped, cross-module, one-hour transient fragment;
+- a neutral streaming contributor/sink contract; callers must discard partial
+  fragments unless the owner returns success;
 - scoped permissions that are not granted to ordinary seeded roles;
 - public management API plus empty Admin API and Admin CLI composition shells;
 - PostgreSQL persistence, inbox/outbox infrastructure and focused architecture,
@@ -27,6 +31,8 @@ deterministically generated
 The case does not contain guest names, contacts, documents, search criteria,
 provider payloads or free text. It stores only the selected owner's opaque
 record coordinate and selection audit attribution. Guest data remains owned by
-its source module. Decisions, owner work contracts, protected exports, receipts,
-ledger/restore protection and destructive execution are later slices and must
-remain fail closed until implemented.
+its source module. The export contract prepares owner fragments only; DataRights
+does not yet execute cases, persist fragments or expose download artifacts.
+Decisions, protected export assembly, receipts, ledger/restore protection and
+destructive execution are later slices and must remain fail closed until
+implemented.

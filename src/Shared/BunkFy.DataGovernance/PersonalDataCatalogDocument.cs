@@ -164,7 +164,8 @@ public enum PersonalDataSubjectKind
     Unknown = 0,
     Guest = 1,
     Staff = 2,
-    AccountHolder = 3
+    AccountHolder = 3,
+    SubjectScoped = 4
 }
 
 public enum PersonalDataClassification
@@ -221,7 +222,8 @@ public enum PersonalDataSurface
     SupportBundle = 17,
     AdapterIngress = 18,
     FileIngress = 19,
-    DomainEvent = 20
+    DomainEvent = 20,
+    DataRightsExport = 21
 }
 
 public enum PersonalDataBoundary

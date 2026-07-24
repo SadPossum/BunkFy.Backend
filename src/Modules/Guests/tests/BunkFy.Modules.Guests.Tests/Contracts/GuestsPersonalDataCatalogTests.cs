@@ -8,6 +8,7 @@ using BunkFy.Modules.Guests.Application.Queries;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.Guests.Persistence.Repositories;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -83,6 +84,8 @@ public sealed class GuestsPersonalDataCatalogTests
         AssertType(typeof(GuestStayHistoryItem), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestProfileEligibilityProjectionExport), PersonalDataSurface.ProjectionExport);
         AssertType(typeof(ReservationGuestStayProjectionExport), PersonalDataSurface.ProjectionExport);
+        AssertType(typeof(GuestProfileDataRightsExport), PersonalDataSurface.DataRightsExport);
+        AssertType(typeof(GuestStayDataRightsExport), PersonalDataSurface.DataRightsExport);
 
         foreach (Type eventType in IntegrationEventTypes())
         {

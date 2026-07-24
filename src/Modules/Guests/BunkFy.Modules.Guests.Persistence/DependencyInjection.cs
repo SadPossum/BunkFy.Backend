@@ -36,6 +36,11 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectDiscoveryContributor,
                 GuestDataRightsDiscoveryContributor>());
+        GuestDataRightsExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                GuestDataRightsExportContributor>());
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, GuestsPropertiesProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<ReservationGuestStayProjectionExport>, GuestStayHistoryProjectionRebuildWriter>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, GuestsUnitOfWork>());
