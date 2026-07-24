@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Tests.Api;
 
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Api;
+using BunkFy.Modules.Guests.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Cqrs;
 using Microsoft.AspNetCore.Builder;
@@ -38,5 +39,10 @@ public sealed class GuestsApiSecurityTests
             Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
         Assert.Equal(DataRightsAdminPermissionCodes.Execute, permission.Permission.Value);
         Assert.Equal("guests-property", permission.ScopeResolverName);
+
+        IProducesResponseTypeMetadata response = Assert.Single(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+        Assert.Equal(typeof(GuestDataRightsCorrectionReceiptDto), response.Type);
     }
 }

@@ -151,6 +151,7 @@ public sealed class GuestsModule : IModule
                         actor),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<GuestDataRightsCorrectionReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Execute,
