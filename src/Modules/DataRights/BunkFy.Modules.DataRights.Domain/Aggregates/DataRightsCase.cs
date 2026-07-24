@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.DataRights.Domain.Aggregates;
 
+using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Errors;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
@@ -10,6 +11,9 @@ using Gma.Framework.Results;
 public sealed class DataRightsCase : ScopedAggregateRoot<Guid>
 {
     public const int ActorIdMaxLength = 200;
+    public const int MaxSelectedSubjects = 100;
+
+    private readonly List<DataRightsSubjectCoordinate> selectedSubjects = [];
 
     private DataRightsCase() { }
 
@@ -28,6 +32,8 @@ public sealed class DataRightsCase : ScopedAggregateRoot<Guid>
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public string LastChangedBy { get; private set; } = string.Empty;
     public DateTimeOffset LastChangedAtUtc { get; private set; }
+    public IReadOnlyCollection<DataRightsSubjectCoordinate> SelectedSubjects =>
+        this.selectedSubjects.AsReadOnly();
 
     public static Result<DataRightsCase> Create(
         Guid id,
@@ -176,7 +182,102 @@ public sealed class DataRightsCase : ScopedAggregateRoot<Guid>
             return ready;
         }
 
+        if (this.selectedSubjects.Count == 0)
+        {
+            return Result.Failure(DataRightsDomainErrors.SubjectSelectionRequired);
+        }
+
         this.Status = DataRightsCaseState.ReviewRequired;
+        this.CompleteChange(actorId, nowUtc);
+        return Result.Success();
+    }
+
+    public Result SelectSubject(
+        string ownerKey,
+        string recordType,
+        Guid recordId,
+        long recordVersion,
+        long expectedVersion,
+        string actorId,
+        DateTimeOffset nowUtc)
+    {
+        Result ready = this.EnsureTransition(
+            expectedVersion,
+            actorId,
+            nowUtc,
+            DataRightsCaseState.Discovery);
+        if (ready.IsFailure)
+        {
+            return ready;
+        }
+
+        Result<DataRightsSubjectCoordinate> coordinate = DataRightsSubjectCoordinate.Create(
+            ownerKey,
+            recordType,
+            recordId,
+            recordVersion,
+            actorId,
+            nowUtc);
+        if (coordinate.IsFailure)
+        {
+            return Result.Failure(coordinate.Error);
+        }
+
+        if (this.selectedSubjects.Any(selected =>
+            string.Equals(selected.OwnerKey, coordinate.Value.OwnerKey, StringComparison.Ordinal) &&
+            string.Equals(selected.RecordType, coordinate.Value.RecordType, StringComparison.Ordinal) &&
+            selected.RecordId == coordinate.Value.RecordId))
+        {
+            return Result.Failure(DataRightsDomainErrors.SubjectAlreadySelected);
+        }
+
+        if (this.selectedSubjects.Count >= MaxSelectedSubjects)
+        {
+            return Result.Failure(DataRightsDomainErrors.SubjectSelectionLimitReached);
+        }
+
+        this.selectedSubjects.Add(coordinate.Value);
+        this.CompleteChange(actorId, nowUtc);
+        return Result.Success();
+    }
+
+    public Result UnselectSubject(
+        string ownerKey,
+        string recordType,
+        Guid recordId,
+        long expectedVersion,
+        string actorId,
+        DateTimeOffset nowUtc)
+    {
+        Result ready = this.EnsureTransition(
+            expectedVersion,
+            actorId,
+            nowUtc,
+            DataRightsCaseState.Discovery);
+        if (ready.IsFailure)
+        {
+            return ready;
+        }
+
+        string normalizedOwner = ownerKey?.Trim().ToLowerInvariant() ?? string.Empty;
+        string normalizedType = recordType?.Trim().ToLowerInvariant() ?? string.Empty;
+        if (normalizedOwner.Length is 0 or > DataRightsSubjectCoordinate.OwnerKeyMaxLength ||
+            normalizedType.Length is 0 or > DataRightsSubjectCoordinate.RecordTypeMaxLength ||
+            recordId == Guid.Empty)
+        {
+            return Result.Failure(DataRightsDomainErrors.SubjectCoordinateInvalid);
+        }
+
+        DataRightsSubjectCoordinate? selected = this.selectedSubjects.SingleOrDefault(subject =>
+            string.Equals(subject.OwnerKey, normalizedOwner, StringComparison.Ordinal) &&
+            string.Equals(subject.RecordType, normalizedType, StringComparison.Ordinal) &&
+            subject.RecordId == recordId);
+        if (selected is null)
+        {
+            return Result.Failure(DataRightsDomainErrors.SubjectNotSelected);
+        }
+
+        this.selectedSubjects.Remove(selected);
         this.CompleteChange(actorId, nowUtc);
         return Result.Success();
     }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -35,6 +35,13 @@
       "startsAt": "request-accepted",
       "endsAt": "request-completed",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "transient-response",
+      "approvalState": "engineering-default",
+      "startsAt": "response-created",
+      "endsAt": "response-completed",
+      "legalHoldBehavior": "not-applicable"
     }
   ],
   "rightsPolicies": [
@@ -44,6 +51,13 @@
       "correction": "append-corrective-case-action",
       "restriction": "retain-minimum-required-audit-attribution",
       "erasure": "pseudonymize-subject-when-approved-retention-permits"
+    },
+    {
+      "id": "guest-subject-discovery",
+      "export": "include-selected-coordinates-in-authorized-case-export",
+      "correction": "re-run-discovery-against-authoritative-owner",
+      "restriction": "exclude-coordinate-from-selection-and-downstream-work",
+      "erasure": "remove-selected-coordinate-when-approved-case-retention-permits"
     }
   ],
   "fields": [
@@ -117,6 +131,20 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.SelectDataRightsSubjectCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.UnselectDataRightsSubjectCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
           "member": "CreatedBy",
@@ -126,6 +154,336 @@
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
           "member": "LastChangedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate",
+          "member": "SelectedBy",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-subject-record-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "authorized-subject-discovery",
+        "case-subject-selection"
+      ],
+      "sources": [
+        "request-input",
+        "guests-authoritative-owner"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "guest.profile.identifier",
+      "retentionPolicy": "data-rights-case-lifecycle",
+      "rightsPolicy": "guest-subject-discovery",
+      "allowedSurfaces": [
+        "api-input",
+        "application-query",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Api",
+          "type": "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest",
+          "member": "RecordId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup",
+          "member": "RecordId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinate",
+          "member": "RecordId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinate",
+          "member": "RecordId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSelectedSubjectDto",
+          "member": "RecordId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinateKey",
+          "member": "RecordId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate",
+          "member": "RecordId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-discovery-email",
+      "dataSubject": "guest",
+      "classification": "contact",
+      "sensitivity": "elevated",
+      "purposes": [
+        "authorized-subject-discovery",
+        "candidate-disambiguation"
+      ],
+      "sources": [
+        "request-input",
+        "guests-authoritative-owner"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "guest.profile.contact",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "guest-subject-discovery",
+      "allowedSurfaces": [
+        "api-input",
+        "application-query",
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Api",
+          "type": "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest",
+          "member": "Email",
+          "surface": "api-input"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup",
+          "member": "Email",
+          "surface": "application-query"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCandidate",
+          "member": "EmailHint",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-discovery-phone",
+      "dataSubject": "guest",
+      "classification": "contact",
+      "sensitivity": "elevated",
+      "purposes": [
+        "authorized-subject-discovery",
+        "candidate-disambiguation"
+      ],
+      "sources": [
+        "request-input",
+        "guests-authoritative-owner"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "guest.profile.contact",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "guest-subject-discovery",
+      "allowedSurfaces": [
+        "api-input",
+        "application-query",
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Api",
+          "type": "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest",
+          "member": "Phone",
+          "surface": "api-input"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup",
+          "member": "Phone",
+          "surface": "application-query"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCandidate",
+          "member": "PhoneHint",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-discovery-name",
+      "dataSubject": "guest",
+      "classification": "direct-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "authorized-subject-discovery",
+        "candidate-disambiguation"
+      ],
+      "sources": [
+        "request-input",
+        "guests-authoritative-owner"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "guest.profile.identity",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "guest-subject-discovery",
+      "allowedSurfaces": [
+        "api-input",
+        "application-query",
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Api",
+          "type": "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest",
+          "member": "Name",
+          "surface": "api-input"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup",
+          "member": "Name",
+          "surface": "application-query"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCandidate",
+          "member": "DisplayName",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-discovery-date-of-birth",
+      "dataSubject": "guest",
+      "classification": "demographic",
+      "sensitivity": "elevated",
+      "purposes": [
+        "authorized-subject-discovery",
+        "candidate-disambiguation"
+      ],
+      "sources": [
+        "request-input"
+      ],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "guest.profile.demographic",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "guest-subject-discovery",
+      "allowedSurfaces": [
+        "api-input",
+        "application-query"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Api",
+          "type": "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest",
+          "member": "DateOfBirth",
+          "surface": "api-input"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup",
+          "member": "DateOfBirth",
+          "surface": "application-query"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-subject-selected-at",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "case-subject-selection",
+        "authorized-change-traceability"
+      ],
+      "sources": [
+        "operator-selection"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "guest.profile.lifecycle",
+      "retentionPolicy": "data-rights-case-lifecycle",
+      "rightsPolicy": "guest-subject-discovery",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSelectedSubjectDto",
+          "member": "SelectedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate",
+          "member": "SelectedAtUtc",
           "surface": "persistence"
         }
       ]

@@ -18,6 +18,7 @@ internal sealed class GuestStayHistoryEntryConfiguration : IEntityTypeConfigurat
         builder.Property(stay => stay.Status).HasConversion<int>().IsRequired();
         builder.Property(stay => stay.ReservationVersion).IsConcurrencyToken().IsRequired();
         builder.HasIndex(stay => new { stay.ScopeId, stay.PropertyId, stay.IsCurrentParticipant, stay.GuestId, stay.Arrival });
+        builder.HasIndex(stay => new { stay.ScopeId, stay.PropertyId, stay.GuestId });
         builder.HasIndex(stay => new { stay.ScopeId, stay.ReservationId, stay.GuestId });
     }
 }

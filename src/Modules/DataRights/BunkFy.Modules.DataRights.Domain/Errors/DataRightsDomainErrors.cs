@@ -49,4 +49,19 @@ public static class DataRightsDomainErrors
     public static readonly Error ControllerRoutingRequired = new(
         "DataRights.ControllerRoutingRequired",
         "Controller routing must complete before sensitive discovery.");
+    public static readonly Error SubjectCoordinateInvalid = new(
+        "DataRights.SubjectCoordinateInvalid",
+        "The selected subject coordinate is invalid.");
+    public static readonly Error SubjectAlreadySelected = new(
+        "DataRights.SubjectAlreadySelected",
+        "The subject coordinate is already selected.");
+    public static readonly Error SubjectNotSelected = new(
+        "DataRights.SubjectNotSelected",
+        "The subject coordinate is not selected.");
+    public static readonly Error SubjectSelectionLimitReached = new(
+        "DataRights.SubjectSelectionLimitReached",
+        "The case has reached its selected-subject limit.");
+    public static readonly Error SubjectSelectionRequired = new(
+        "DataRights.SubjectSelectionRequired",
+        "Select at least one subject coordinate before review.");
 }

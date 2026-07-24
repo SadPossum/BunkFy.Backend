@@ -1,6 +1,6 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: implementation in progress; case-lifecycle foundation started
+Status: implementation in progress; Guests discovery and subject-selection foundation complete
 
 ## Outcome
 
@@ -274,6 +274,62 @@ needed, one owner capability at a time.
    and external ledger-delta restore gating.
 8. Run full migration, architecture, Docker, browser, security and exact-commit
    publication gates before any real guest data is allowed.
+
+### Active Slice: Guests Discovery And Subject Selection
+
+The first internal increment of the Guests vertical slice is deliberately
+synchronous and non-durable because its request and response contain sensitive
+identity hints.
+
+- `DataRights.Contracts` defines a bounded contributor contract shared with
+  owner modules. It contains product rights vocabulary and therefore remains
+  outside GMA.
+- Discovery requires exactly one strong coordinate: an exact Guest Record id,
+  normalized email or normalized phone. Name and date of birth may refine a
+  strong coordinate but never authorize a name-only scan.
+- A request is tenant- and property-scoped, capped at 20 candidates and
+  deterministically ordered. It returns no total count.
+- Guests searches only its own projection and includes profiles whose origin
+  property or any historical stay matches the requested property. Unknown or
+  unprojected properties fail closed.
+- Candidate previews contain an opaque owner coordinate, record version and
+  minimal masked contact hints. Raw criteria and candidate snapshots are never
+  persisted, logged, published, measured or placed in task/outbox payloads.
+- Discovery responses are non-cacheable. Selecting a candidate revalidates the
+  coordinate with the owner before the case stores it.
+- `DataRightsCase` owns a bounded collection of selected child coordinates,
+  deduplicated by owner, record type and record id. Selection records the actor
+  and time but no identity preview.
+- Selected coordinates can be resumed through a separate non-cacheable,
+  `Discover`-permission read surface; ordinary case readers receive only the
+  selection count.
+- Review cannot begin until at least one subject coordinate is selected.
+- Select and unselect operations use optimistic concurrency and the existing
+  property-scoped DataRights permissions.
+- Tests cover strong-criteria validation, candidate bounds, tenant/property
+  isolation, unknown-property denial, masked previews, selection revalidation,
+  deduplication, selection bounds, no-store headers and review-without-subject
+  denial.
+
+### Current Verification Evidence
+
+- DataRights focused tests: 28 passed.
+- Guests focused tests: 16 passed.
+- Architecture tests: 64 passed.
+- Fast repository verification: all composed projects built with zero warnings
+  and all non-Docker tests passed.
+- Migration drift verification passed for every composed PostgreSQL and SQL
+  Server model.
+- Scoped formatting verification passed for every C# file changed by this
+  slice.
+- PostgreSQL upgrade coverage starts at the initial DataRights migration,
+  upgrades an existing case, round-trips a selected subject coordinate and
+  proves cascade cleanup.
+- Full Docker suite: 34 passed with no skips.
+
+The next increment remains inside Guests: catalogue-driven export preparation.
+Correction, restriction, anonymisation, ledger receipts and restore replay are
+not yet implemented and must not be inferred from this foundation.
 
 ## Acceptance Evidence
 

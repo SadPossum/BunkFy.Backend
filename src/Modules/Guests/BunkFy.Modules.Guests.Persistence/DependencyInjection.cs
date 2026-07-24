@@ -1,17 +1,18 @@
 namespace BunkFy.Modules.Guests.Persistence;
 
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Application.Ports;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Persistence.Repositories;
+using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
-using BunkFy.Modules.Guests.Application.Ports;
-using BunkFy.Modules.Guests.Contracts;
-using BunkFy.Modules.Guests.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using BunkFy.Modules.Properties.Contracts;
 
 public static class DependencyInjection
 {
@@ -31,6 +32,10 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IGuestProfileEligibilityProjectionExportSource, GuestProfileEligibilityProjectionExportSource>();
         builder.Services.TryAddScoped<IGuestPropertyProjectionRepository, GuestPropertyProjectionRepository>();
         builder.Services.TryAddScoped<IGuestStayHistoryRepository, GuestStayHistoryRepository>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectDiscoveryContributor,
+                GuestDataRightsDiscoveryContributor>());
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, GuestsPropertiesProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<ReservationGuestStayProjectionExport>, GuestStayHistoryProjectionRebuildWriter>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, GuestsUnitOfWork>());

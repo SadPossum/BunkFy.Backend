@@ -37,6 +37,26 @@ public sealed class DataRightsApiSecurityTests
             DataRightsAdminPermissionCodes.Discover);
         AssertPermission(
             endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/subjects",
+            DataRightsAdminPermissionCodes.Discover);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/subjects/discover",
+            DataRightsAdminPermissionCodes.Discover);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/subjects/select",
+            DataRightsAdminPermissionCodes.Discover);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/subjects/unselect",
+            DataRightsAdminPermissionCodes.Discover);
+        AssertPermission(
+            endpoints,
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/review",
             DataRightsAdminPermissionCodes.Review);
@@ -45,6 +65,18 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/cancel",
             DataRightsAdminPermissionCodes.Manage);
+    }
+
+    [Fact]
+    public void Sensitive_discovery_responses_are_not_cacheable()
+    {
+        DefaultHttpContext context = new();
+
+        DataRightsSensitiveResponseHeaders.Apply(context.Response);
+
+        Assert.Equal("no-store, no-cache, max-age=0", context.Response.Headers.CacheControl);
+        Assert.Equal("no-cache", context.Response.Headers.Pragma);
+        Assert.Equal("0", context.Response.Headers.Expires);
     }
 
     private static void AssertPermission(

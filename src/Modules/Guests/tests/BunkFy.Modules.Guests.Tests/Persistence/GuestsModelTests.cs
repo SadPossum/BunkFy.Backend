@@ -1,11 +1,11 @@
 namespace BunkFy.Modules.Guests.Tests;
 
-using Gma.Framework.Scoping;
+using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
-using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -39,6 +39,12 @@ public sealed class GuestsModelTests
                 nameof(GuestStayHistoryEntry.IsCurrentParticipant),
                 nameof(GuestStayHistoryEntry.GuestId),
                 nameof(GuestStayHistoryEntry.Arrival)
+            ]));
+        Assert.Contains(stay.GetIndexes(), index => index.Properties.Select(item => item.Name)
+            .SequenceEqual([
+                nameof(GuestStayHistoryEntry.ScopeId),
+                nameof(GuestStayHistoryEntry.PropertyId),
+                nameof(GuestStayHistoryEntry.GuestId)
             ]));
     }
 

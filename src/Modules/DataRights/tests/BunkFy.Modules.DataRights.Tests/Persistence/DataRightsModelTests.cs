@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Tests.Persistence;
 
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
@@ -47,6 +48,26 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_requester_scope");
+        IEntityType selectedSubject =
+            dbContext.Model.FindEntityType(typeof(DataRightsSubjectCoordinate))!;
+        IEntityType designSelectedSubject = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsSubjectCoordinate))!;
+        Assert.Equal(
+            DataRightsSubjectCoordinate.OwnerKeyMaxLength,
+            selectedSubject.FindProperty(nameof(DataRightsSubjectCoordinate.OwnerKey))!.GetMaxLength());
+        Assert.Equal(
+            DataRightsCase.ActorIdMaxLength,
+            selectedSubject.FindProperty(nameof(DataRightsSubjectCoordinate.SelectedBy))!.GetMaxLength());
+        Assert.Equal(
+            ["CaseId", "OwnerKey", "RecordType", "RecordId"],
+            selectedSubject.FindPrimaryKey()!.Properties.Select(property => property.Name));
+        Assert.Contains(
+            designSelectedSubject.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_selected_subjects_record_version");
+        Assert.Contains(
+            designSelectedSubject.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_selected_subjects_selected_by");
     }
 
     [Fact]
@@ -71,6 +92,46 @@ public sealed class DataRightsModelTests
             root,
             "tenant-b");
         Assert.Empty(await tenantB.Cases.ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Selected_subject_coordinates_round_trip_with_the_case()
+    {
+        string databaseName = $"data-rights-subjects-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        DataRightsCase dataRightsCase = CreateCase("tenant-a", Guid.NewGuid());
+        DateTimeOffset discoveryAt = dataRightsCase.CreatedAtUtc.AddMinutes(1);
+        Assert.True(dataRightsCase.BeginDiscovery(1, "user:operator", discoveryAt).IsSuccess);
+        Guid guestId = Guid.NewGuid();
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            guestId,
+            7,
+            2,
+            "user:operator",
+            discoveryAt.AddMinutes(1)).IsSuccess);
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        DataRightsSubjectCoordinate coordinate = Assert.Single(restored.SelectedSubjects);
+        Assert.Equal("guests", coordinate.OwnerKey);
+        Assert.Equal("guest-profile", coordinate.RecordType);
+        Assert.Equal(guestId, coordinate.RecordId);
+        Assert.Equal(7, coordinate.RecordVersion);
+        Assert.Equal("user:operator", coordinate.SelectedBy);
     }
 
     private static DataRightsCase CreateCase(string tenantId, Guid propertyId)

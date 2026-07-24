@@ -5,6 +5,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Guests.Contracts\BunkFy.Modules.Guests.Contracts.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Guests.Application\BunkFy.Modules.Guests.Application.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Guests.Domain\BunkFy.Modules.Guests.Domain.csproj" />

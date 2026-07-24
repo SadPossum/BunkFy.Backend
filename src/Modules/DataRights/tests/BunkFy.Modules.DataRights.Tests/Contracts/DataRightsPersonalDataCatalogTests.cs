@@ -8,6 +8,7 @@ using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Persistence;
 using Xunit;
+using DomainSubjectCoordinate = DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsPersonalDataCatalogTests
@@ -39,7 +40,9 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(CreateDataRightsCaseCommand),
             typeof(RecordControllerRoutingCommand),
             typeof(RecordRequesterVerificationCommand),
-            typeof(RequireDataRightsReviewCommand)
+            typeof(RequireDataRightsReviewCommand),
+            typeof(SelectDataRightsSubjectCommand),
+            typeof(UnselectDataRightsSubjectCommand)
         ];
 
         foreach (Type command in commands)
@@ -49,6 +52,65 @@ public sealed class DataRightsPersonalDataCatalogTests
 
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.CreatedBy), PersonalDataSurface.Persistence);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.LastChangedBy), PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DomainSubjectCoordinate),
+            nameof(DomainSubjectCoordinate.SelectedBy),
+            PersonalDataSurface.Persistence);
+    }
+
+    [Fact]
+    public void Discovery_personal_data_is_explicitly_classified()
+    {
+        Type apiRequest = typeof(DataRightsModule).Assembly.GetType(
+            "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+" +
+            "DiscoverDataRightsSubjectsRequest",
+            throwOnError: true)!;
+        foreach (string member in new[] { "RecordId", "Email", "Phone", "Name", "DateOfBirth" })
+        {
+            AssertBinding(apiRequest, member, PersonalDataSurface.ApiInput);
+            AssertBinding(typeof(DataRightsSubjectLookup), member, PersonalDataSurface.ApplicationQuery);
+        }
+
+        AssertBinding(
+            typeof(DataRightsSubjectCoordinate),
+            nameof(DataRightsSubjectCoordinate.RecordId),
+            PersonalDataSurface.ApiInput);
+        AssertBinding(
+            typeof(DataRightsSubjectCoordinate),
+            nameof(DataRightsSubjectCoordinate.RecordId),
+            PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DataRightsSubjectCoordinateKey),
+            nameof(DataRightsSubjectCoordinateKey.RecordId),
+            PersonalDataSurface.ApiInput);
+        AssertBinding(
+            typeof(DomainSubjectCoordinate),
+            nameof(DomainSubjectCoordinate.RecordId),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsSelectedSubjectDto),
+            nameof(DataRightsSelectedSubjectDto.RecordId),
+            PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DataRightsSelectedSubjectDto),
+            nameof(DataRightsSelectedSubjectDto.SelectedAtUtc),
+            PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DomainSubjectCoordinate),
+            nameof(DomainSubjectCoordinate.SelectedAtUtc),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsSubjectCandidate),
+            nameof(DataRightsSubjectCandidate.DisplayName),
+            PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DataRightsSubjectCandidate),
+            nameof(DataRightsSubjectCandidate.EmailHint),
+            PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DataRightsSubjectCandidate),
+            nameof(DataRightsSubjectCandidate.PhoneHint),
+            PersonalDataSurface.ApiResponse);
     }
 
     [Fact]
@@ -65,6 +127,9 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(RecordControllerRoutingCommand),
             typeof(RecordRequesterVerificationCommand),
             typeof(RequireDataRightsReviewCommand),
+            typeof(SelectDataRightsSubjectCommand),
+            typeof(UnselectDataRightsSubjectCommand),
+            typeof(DataRightsSelectedSubjectDto),
             typeof(DataRightsCaseDto)
         ];
         string[] prohibitedNameParts =

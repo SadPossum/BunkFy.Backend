@@ -64,6 +64,8 @@
     <ProjectReference Include="..\..\src\Shared\BunkFy.Adapter.Runtime\BunkFy.Adapter.Runtime.csproj" />
     <ProjectReference Include="..\..\src\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="..\..\src\Shared\BunkFy.Ingestion.Parsing.Abstractions\BunkFy.Ingestion.Parsing.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Modules\DataRights\BunkFy.Modules.DataRights.Persistence\BunkFy.Modules.DataRights.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\Modules\DataRights\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.Application\BunkFy.Modules.Ingestion.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.AdminCli\BunkFy.Modules.Ingestion.AdminCli.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />

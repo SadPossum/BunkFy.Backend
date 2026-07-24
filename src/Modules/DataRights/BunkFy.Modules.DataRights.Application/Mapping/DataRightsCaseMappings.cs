@@ -14,6 +14,7 @@ public static class DataRightsCaseMappings
         (DataRightsVerificationStatus)dataRightsCase.VerificationStatus,
         (DataRightsRoutingStatus)dataRightsCase.RoutingStatus,
         (DataRightsCaseStatus)dataRightsCase.Status,
+        dataRightsCase.SelectedSubjects.Count,
         dataRightsCase.DueAtUtc,
         dataRightsCase.Version,
         dataRightsCase.CreatedAtUtc,

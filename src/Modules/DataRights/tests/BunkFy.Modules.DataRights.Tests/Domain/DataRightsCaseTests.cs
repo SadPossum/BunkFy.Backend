@@ -84,19 +84,109 @@ public sealed class DataRightsCaseTests
             1,
             "user:operator-a",
             Now.AddMinutes(1)).IsSuccess);
-        Assert.True(dataRightsCase.RequireReview(
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            1,
             2,
             "user:operator-b",
             Now.AddMinutes(2)).IsSuccess);
-        Assert.Equal(
-            "DataRights.VersionConflict",
-            dataRightsCase.Cancel(2, "user:operator-b", Now.AddMinutes(3)).Error.Code);
-        Assert.True(dataRightsCase.Cancel(
+        Assert.True(dataRightsCase.RequireReview(
             3,
             "user:operator-b",
             Now.AddMinutes(3)).IsSuccess);
+        Assert.Equal(
+            "DataRights.VersionConflict",
+            dataRightsCase.Cancel(3, "user:operator-b", Now.AddMinutes(4)).Error.Code);
+        Assert.True(dataRightsCase.Cancel(
+            4,
+            "user:operator-b",
+            Now.AddMinutes(4)).IsSuccess);
         Assert.Equal(DataRightsCaseState.Canceled, dataRightsCase.Status);
-        Assert.Equal(4, dataRightsCase.Version);
+        Assert.Equal(5, dataRightsCase.Version);
+    }
+
+    [Fact]
+    public void Review_requires_a_selected_subject_coordinate()
+    {
+        DataRightsCase dataRightsCase = Create(
+            Guid.NewGuid(),
+            DataRightsRequesterRelation.ControllerInitiated);
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator-a",
+            Now.AddMinutes(1)).IsSuccess);
+
+        Assert.Equal(
+            "DataRights.SubjectSelectionRequired",
+            dataRightsCase.RequireReview(
+                2,
+                "user:operator-a",
+                Now.AddMinutes(2)).Error.Code);
+    }
+
+    [Fact]
+    public void Subject_selection_is_bounded_deduplicated_and_removable()
+    {
+        DataRightsCase dataRightsCase = Create(
+            Guid.NewGuid(),
+            DataRightsRequesterRelation.ControllerInitiated);
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator-a",
+            Now.AddMinutes(1)).IsSuccess);
+        Guid firstRecordId = Guid.NewGuid();
+        Assert.True(dataRightsCase.SelectSubject(
+            " Guests ",
+            " Guest-Profile ",
+            firstRecordId,
+            4,
+            2,
+            "user:operator-a",
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.Equal(
+            "DataRights.SubjectAlreadySelected",
+            dataRightsCase.SelectSubject(
+                "guests",
+                "guest-profile",
+                firstRecordId,
+                5,
+                3,
+                "user:operator-a",
+                Now.AddMinutes(3)).Error.Code);
+        Assert.True(dataRightsCase.UnselectSubject(
+            "guests",
+            "guest-profile",
+            firstRecordId,
+            3,
+            "user:operator-a",
+            Now.AddMinutes(3)).IsSuccess);
+        Assert.Empty(dataRightsCase.SelectedSubjects);
+
+        long version = dataRightsCase.Version;
+        for (int index = 0; index < DataRightsCase.MaxSelectedSubjects; index++)
+        {
+            Assert.True(dataRightsCase.SelectSubject(
+                "guests",
+                "guest-profile",
+                Guid.NewGuid(),
+                1,
+                version++,
+                "user:operator-a",
+                Now.AddMinutes(4)).IsSuccess);
+        }
+
+        Assert.Equal(
+            "DataRights.SubjectSelectionLimitReached",
+            dataRightsCase.SelectSubject(
+                "guests",
+                "guest-profile",
+                Guid.NewGuid(),
+                1,
+                version,
+                "user:operator-a",
+                Now.AddMinutes(5)).Error.Code);
     }
 
     [Fact]

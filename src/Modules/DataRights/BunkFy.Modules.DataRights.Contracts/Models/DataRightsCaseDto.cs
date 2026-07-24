@@ -9,6 +9,7 @@ public sealed record DataRightsCaseDto(
     DataRightsVerificationStatus VerificationStatus,
     DataRightsRoutingStatus RoutingStatus,
     DataRightsCaseStatus Status,
+    int SelectedSubjectCount,
     DateTimeOffset? DueAtUtc,
     long Version,
     DateTimeOffset CreatedAtUtc,

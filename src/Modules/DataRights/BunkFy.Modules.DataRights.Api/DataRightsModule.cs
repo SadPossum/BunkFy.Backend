@@ -57,7 +57,8 @@ public sealed class DataRightsModule : IModule
                     status,
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
-                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(
+                    DataRightsEndpointSupport.ErrorStatusCodes))
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Read,
@@ -70,7 +71,8 @@ public sealed class DataRightsModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(
                 new GetDataRightsCaseQuery(propertyId, caseId),
-                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(
+                    DataRightsEndpointSupport.ErrorStatusCodes))
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Read,
@@ -84,7 +86,7 @@ public sealed class DataRightsModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
         {
-            string? actor = ResolveActor(context, subjectResolver);
+            string? actor = DataRightsEndpointSupport.ResolveActor(context, subjectResolver);
             return actor is null
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
@@ -93,7 +95,8 @@ public sealed class DataRightsModule : IModule
                         request.RequestedOperations,
                         request.RequesterRelationship,
                         actor),
-                    cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(
+                        DataRightsEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
             .RequireResolvedScopePermission(
@@ -107,7 +110,7 @@ public sealed class DataRightsModule : IModule
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DispatchAsync(
+            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new RecordRequesterVerificationCommand(
@@ -130,7 +133,7 @@ public sealed class DataRightsModule : IModule
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DispatchAsync(
+            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new RecordControllerRoutingCommand(
@@ -152,7 +155,7 @@ public sealed class DataRightsModule : IModule
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DispatchAsync(
+            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new BeginDataRightsDiscoveryCommand(
@@ -174,7 +177,7 @@ public sealed class DataRightsModule : IModule
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DispatchAsync(
+            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new RequireDataRightsReviewCommand(
@@ -196,7 +199,7 @@ public sealed class DataRightsModule : IModule
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DispatchAsync(
+            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new CancelDataRightsCaseCommand(
@@ -210,6 +213,8 @@ public sealed class DataRightsModule : IModule
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Manage,
                 DataRightsPropertyAccessScopeResolver.ResolverName);
+
+        DataRightsDiscoveryEndpoints.Map(group);
     }
 
     public sealed record CreateDataRightsCaseRequest(
@@ -222,38 +227,4 @@ public sealed class DataRightsModule : IModule
 
     public sealed record VersionedDataRightsCaseRequest(long ExpectedVersion);
 
-    private static async Task<IResult> DispatchAsync<TCommand>(
-        HttpContext context,
-        IAccessHttpSubjectResolver subjectResolver,
-        Func<string, TCommand> commandFactory,
-        IRequestDispatcher dispatcher,
-        CancellationToken cancellationToken)
-        where TCommand : ICommand<DataRightsCaseDto>
-    {
-        string? actor = ResolveActor(context, subjectResolver);
-        return actor is null
-            ? Results.Unauthorized()
-            : (await dispatcher.SendAsync(
-                commandFactory(actor),
-                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
-    }
-
-    private static string? ResolveActor(
-        HttpContext context,
-        IAccessHttpSubjectResolver subjectResolver)
-    {
-        AccessSubject? subject = subjectResolver.ResolveSubject(context);
-        return subject is null
-            ? null
-            : $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
-    }
-
-    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes =
-        ApiErrorStatusCodeMap.Create([
-            new(DataRightsApplicationErrors.CaseNotFound.Code, StatusCodes.Status404NotFound),
-            new(DataRightsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.TransitionInvalid.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.VerificationRequired.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.ControllerRoutingRequired.Code, StatusCodes.Status409Conflict)
-        ]);
 }

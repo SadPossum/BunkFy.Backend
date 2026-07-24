@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Persistence.Configurations;
 
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -90,6 +91,45 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             dataRightsCase.CreatedAtUtc,
             dataRightsCase.Id
         });
+        builder.OwnsMany(dataRightsCase => dataRightsCase.SelectedSubjects, subjects =>
+        {
+            subjects.ToTable("selected_subjects", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_data_rights_selected_subjects_owner",
+                    "length(trim(\"OwnerKey\")) > 0");
+                table.HasCheckConstraint(
+                    "CK_data_rights_selected_subjects_record_type",
+                    "length(trim(\"RecordType\")) > 0");
+                table.HasCheckConstraint(
+                    "CK_data_rights_selected_subjects_record_version",
+                    "\"RecordVersion\" >= 1");
+                table.HasCheckConstraint(
+                    "CK_data_rights_selected_subjects_selected_by",
+                    "length(trim(\"SelectedBy\")) > 0");
+            });
+            subjects.WithOwner().HasForeignKey("CaseId");
+            subjects.Property<Guid>("CaseId");
+            subjects.HasKey(
+                "CaseId",
+                nameof(DataRightsSubjectCoordinate.OwnerKey),
+                nameof(DataRightsSubjectCoordinate.RecordType),
+                nameof(DataRightsSubjectCoordinate.RecordId));
+            subjects.Property(subject => subject.OwnerKey)
+                .HasMaxLength(DataRightsSubjectCoordinate.OwnerKeyMaxLength)
+                .IsRequired();
+            subjects.Property(subject => subject.RecordType)
+                .HasMaxLength(DataRightsSubjectCoordinate.RecordTypeMaxLength)
+                .IsRequired();
+            subjects.Property(subject => subject.RecordId).ValueGeneratedNever();
+            subjects.Property(subject => subject.RecordVersion).IsRequired();
+            subjects.Property(subject => subject.SelectedBy)
+                .HasMaxLength(DataRightsCase.ActorIdMaxLength)
+                .IsRequired();
+            subjects.Property(subject => subject.SelectedAtUtc).IsRequired();
+        });
+        builder.Navigation(dataRightsCase => dataRightsCase.SelectedSubjects)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Ignore(dataRightsCase => dataRightsCase.DomainEvents);
     }
 }
