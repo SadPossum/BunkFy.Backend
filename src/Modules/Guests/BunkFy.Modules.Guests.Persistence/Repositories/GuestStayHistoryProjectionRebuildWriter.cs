@@ -1,12 +1,14 @@
 namespace BunkFy.Modules.Guests.Persistence.Repositories;
 
-using Gma.Framework.ProjectionRebuild;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
+using Gma.Framework.ProjectionRebuild;
+using Gma.Framework.Runtime.Time;
 
 internal sealed class GuestStayHistoryProjectionRebuildWriter(
     IGuestStayHistoryRepository stays,
-    GuestsDbContext dbContext)
+    GuestsDbContext dbContext,
+    ISystemClock clock)
     : IProjectionRebuildWriter<ReservationGuestStayProjectionExport>
 {
     public async Task<ProjectionWriteResult> WriteAsync(
@@ -37,7 +39,8 @@ internal sealed class GuestStayHistoryProjectionRebuildWriter(
                     stay.NoShowBusinessDate,
                     stay.CheckedOutBusinessDate,
                     stay.IsCurrentParticipant,
-                    stay.ReservationVersion),
+                    stay.ReservationVersion,
+                    clock.UtcNow),
                 cancellationToken).ConfigureAwait(false);
         }
 

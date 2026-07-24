@@ -1,8 +1,8 @@
 namespace BunkFy.Modules.Guests.Application.Handlers;
 
-using Gma.Framework.Messaging;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
+using Gma.Framework.Messaging;
 
 [IntegrationEventHandler(GuestsModuleMetadata.ReservationGuestLinkedHandlerName)]
 internal sealed class ReservationGuestLinkedStayHandler(IGuestStayHistoryRepository stays)
@@ -24,7 +24,8 @@ internal sealed class ReservationGuestLinkedStayHandler(IGuestStayHistoryReposit
         integrationEvent.NoShowBusinessDate,
         integrationEvent.CheckedOutBusinessDate,
         IsCurrentParticipant: true,
-        ReservationVersion: integrationEvent.ReservationVersion);
+        ReservationVersion: integrationEvent.ReservationVersion,
+        ObservedAtUtc: integrationEvent.OccurredAtUtc);
 
 }
 
@@ -47,6 +48,7 @@ internal sealed class ReservationGuestStayChangedHandler(IGuestStayHistoryReposi
                 integrationEvent.NoShowBusinessDate,
                 integrationEvent.CheckedOutBusinessDate,
                 integrationEvent.IsCurrentParticipant,
-                integrationEvent.ReservationVersion),
+                integrationEvent.ReservationVersion,
+                integrationEvent.OccurredAtUtc),
             cancellationToken);
 }

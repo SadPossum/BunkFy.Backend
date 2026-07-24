@@ -42,7 +42,10 @@ public sealed class GuestsPersonalDataCatalogTests
                  {
                      typeof(GuestProfile),
                      typeof(GuestStayHistoryEntry),
-                     typeof(GuestDataRightsCorrectionReceipt)
+                     typeof(GuestDataRightsCorrectionReceipt),
+                     typeof(GuestProcessingRestrictionProjection),
+                     typeof(GuestProcessingRestriction),
+                     typeof(GuestProcessingRestrictionReceipt)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;

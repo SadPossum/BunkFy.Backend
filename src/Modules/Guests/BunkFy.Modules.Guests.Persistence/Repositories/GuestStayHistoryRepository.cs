@@ -4,10 +4,23 @@ using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class GuestStayHistoryRepository(GuestsDbContext dbContext) : IGuestStayHistoryRepository
+internal sealed class GuestStayHistoryRepository(
+    GuestsDbContext dbContext,
+    IGuestProcessingRestrictionProjectionRepository restrictionProjections)
+    : IGuestStayHistoryRepository
 {
     public async Task ApplyAsync(GuestStayHistoryWriteModel stay, CancellationToken cancellationToken)
     {
+        if (stay.IsCurrentParticipant)
+        {
+            await restrictionProjections.EnsureAsync(
+                stay.ScopeId,
+                stay.PropertyId,
+                stay.GuestId,
+                stay.ObservedAtUtc,
+                cancellationToken).ConfigureAwait(false);
+        }
+
         GuestStayHistoryEntry? current = await dbContext.StayHistory.FirstOrDefaultAsync(
             item => item.GuestId == stay.GuestId && item.ReservationId == stay.ReservationId,
             cancellationToken).ConfigureAwait(false);

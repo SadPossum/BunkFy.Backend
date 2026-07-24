@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "guests.personal-data",
-  "catalogVersion": 2,
+  "catalogVersion": 3,
   "module": "guests",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -34,6 +34,12 @@
       "scope": "tenant-property-approved-data-rights-operation",
       "readers": ["permission:data-rights.execute", "system:guests.data-rights-correction"],
       "writers": ["permission:data-rights.execute", "system:guests.data-rights-correction"]
+    },
+    {
+      "id": "guest-processing-restrictions",
+      "scope": "tenant-property-approved-data-rights-operation",
+      "readers": ["permission:data-rights.execute", "system:guests.processing-restriction"],
+      "writers": ["permission:data-rights.execute", "system:guests.processing-restriction"]
     }
   ],
   "retentionPolicies": [
@@ -62,6 +68,27 @@
       "id": "guest-data-rights-correction-receipt",
       "approvalState": "engineering-default",
       "startsAt": "approved-guest-correction-completed",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
+      "id": "guest-processing-restriction-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "guest-property-visibility-created",
+      "endsAt": "approved-erasure-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "guest-processing-restriction-record",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-guest-restriction-applied",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
+      "id": "guest-processing-restriction-receipt",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-guest-restriction-transition-completed",
       "endsAt": "approved-audit-retention-expired-or-tenant-termination",
       "legalHoldBehavior": "pause-approved-disposal"
     },
@@ -117,6 +144,13 @@
       "erasure": "pseudonymize-subject-coordinate-while-preserving-operation-proof"
     },
     {
+      "id": "guest-processing-restriction-control",
+      "export": "include-current-state-in-authorized-guest-export",
+      "correction": "change-only-through-approved-restriction-workflow",
+      "restriction": "enforce-effective-processing-restriction",
+      "erasure": "remove-with-approved-subject-disposition"
+    },
+    {
       "id": "staff-audit-attribution",
       "export": "route-through-staff-subject-workflow",
       "correction": "correct-authoritative-account-source",
@@ -132,6 +166,407 @@
     }
   ],
   "fields": [
+    {
+      "id": "guest.restriction.active-count",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["effective-restriction", "reference-safe-release"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ActiveRestrictionCount", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.restriction.contract-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["fail-closed-contract-versioning"],
+      "sources": ["guests-restriction-contract"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ContractVersion", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.restriction.effective-state",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["effective-restriction", "operational-suppression"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "IsRestricted", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "EffectiveRestricted", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.guest-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["guest-coordinate", "effective-restriction"],
+      "sources": ["guest-profile"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "GuestId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "GuestId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-record" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "GuestId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.last-transition-at-utc",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["transition-ordering", "restriction-accountability"],
+      "sources": ["guests-restriction-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "LastTransitionAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "AppliedAtUtc", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-record" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ReleasedAtUtc", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-record" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "CompletedAtUtc", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.projection-revision",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["optimistic-concurrency", "transition-ordering"],
+      "sources": ["guests-restriction-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "Revision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "ResultingProjectionRevision", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.property-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["property-authorization", "effective-restriction"],
+      "sources": ["guest-property-visibility"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "PropertyId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "PropertyId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-record" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "PropertyId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.tenant-scope-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["tenant-isolation", "effective-restriction"],
+      "sources": ["authenticated-tenant-context"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-lifecycle",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ScopeId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-record" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "ScopeId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.action",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["restriction-accountability", "transition-disambiguation"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-receipt",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "Action", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.restriction.actor-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["operator-attribution", "restriction-accountability"],
+      "sources": ["authenticated-operator"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-record",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "AppliedBy", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ReleasedBy", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "ActorId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.approval-revision",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["approved-operation-binding", "restriction-accountability"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-record",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ApplyApprovalRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ReleaseApprovalRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "ApprovalRevision", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.case-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["approved-operation-binding", "case-traceability"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-record",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ApplyCaseId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ReleaseCaseId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "CaseId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.event-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["event-idempotency", "restriction-accountability"],
+      "sources": ["guests-restriction-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-receipt",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "EventId", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.restriction.id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["restriction-identity", "restriction-accountability"],
+      "sources": ["guests-restriction-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-record",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "RestrictionId", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.idempotency-key",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["duplicate-prevention", "idempotent-restriction-transition"],
+      "sources": ["authorized-request"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-receipt",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "IdempotencyKey", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.restriction.receipt-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["receipt-retrieval", "restriction-accountability"],
+      "sources": ["guests-restriction-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-receipt",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "Id", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.restriction.record-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["optimistic-concurrency", "restriction-accountability"],
+      "sources": ["guests-restriction-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-record",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "Version", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "ResultingRestrictionVersion", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.selected-guest-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["approved-operation-binding", "stale-decision-prevention"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-record",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ApplySelectedGuestVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "ReleaseSelectedGuestVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionReceipt", "member": "SelectedGuestVersion", "surface": "persistence", "retentionPolicy": "guest-processing-restriction-receipt" }
+      ]
+    },
+    {
+      "id": "guest.restriction.status",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["restriction-lifecycle", "effective-restriction"],
+      "sources": ["guests-restriction-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-processing-restrictions",
+      "countryPolicyKey": "guest.processing-restriction-state",
+      "retentionPolicy": "guest-processing-restriction-record",
+      "rightsPolicy": "guest-processing-restriction-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestriction", "member": "Status", "surface": "persistence" }
+      ]
+    },
     {
       "id": "guest.data-rights.approval-revision",
       "dataSubject": "guest",

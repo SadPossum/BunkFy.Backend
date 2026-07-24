@@ -1,7 +1,8 @@
 # Guest Data Rights Restriction Task
 
-Status: implementation in progress; DataRights approval-intent binding complete,
-Guests owner projection not started
+Status: implementation in progress; DataRights approval-intent binding and
+Guests owner state foundation complete, transition commands and enforcement
+pending
 
 ## Outcome
 
@@ -219,14 +220,18 @@ not silently deleted or rewritten by this Guests slice.
 
 ## Delivery Steps
 
-1. Bind Apply/Release intent into the DataRights case and approval gate.
-2. Add Guests restriction aggregates, projection, receipts and repositories.
+1. [Complete] Bind Apply/Release intent into the DataRights case and approval
+   gate.
+2. [Complete] Add Guests restriction aggregates, projection, receipts,
+   repositories, migration backfill and executable personal-data inventory.
 3. Add apply/release/list commands, typed API routes and permission metadata.
 4. Enforce the effective projection on every ordinary Guests surface.
 5. Add the versioned Guests gate, event and rebuild export, then update
    Reservations guest-link eligibility through contracts only.
-6. Add PostgreSQL migrations, conservative backfill, indexes and constraints.
-7. Advance the executable personal-data catalogue and deterministic inventory.
+6. [Complete] Add PostgreSQL migrations, conservative backfill, indexes and
+   constraints.
+7. [Complete] Advance the executable personal-data catalogue and deterministic
+   inventory.
 8. Run focused, architecture, migration-drift, Docker, generated-contract,
    browser where applicable and exact-commit GitHub gates.
 

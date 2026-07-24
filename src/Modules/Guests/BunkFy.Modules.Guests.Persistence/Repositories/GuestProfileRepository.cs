@@ -1,18 +1,26 @@
 namespace BunkFy.Modules.Guests.Persistence.Repositories;
 
-using Gma.Framework.Pagination;
 using BunkFy.Modules.Guests.Application.Mapping;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class GuestProfileRepository(GuestsDbContext dbContext) : IGuestProfileRepository
+internal sealed class GuestProfileRepository(
+    GuestsDbContext dbContext,
+    IGuestProcessingRestrictionProjectionRepository restrictionProjections)
+    : IGuestProfileRepository
 {
-    public Task AddAsync(GuestProfile profile, CancellationToken cancellationToken)
+    public async Task AddAsync(GuestProfile profile, CancellationToken cancellationToken)
     {
         dbContext.GuestProfiles.Add(profile);
-        return Task.CompletedTask;
+        await restrictionProjections.EnsureAsync(
+            profile.ScopeId,
+            profile.OriginPropertyId,
+            profile.Id,
+            profile.CreatedAtUtc,
+            cancellationToken).ConfigureAwait(false);
     }
 
     public Task<GuestProfile?> GetVisibleAsync(

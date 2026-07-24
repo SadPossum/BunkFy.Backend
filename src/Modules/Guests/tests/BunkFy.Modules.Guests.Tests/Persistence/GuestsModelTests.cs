@@ -60,6 +60,49 @@ public sealed class GuestsModelTests
             designReceipt.GetCheckConstraints(),
             constraint => constraint.Name ==
                 "CK_guest_data_rights_correction_receipts_versions");
+        IEntityType restrictionProjection =
+            dbContext.Model.FindEntityType(typeof(GuestProcessingRestrictionProjection))!;
+        Assert.True(
+            restrictionProjection.FindProperty(
+                nameof(GuestProcessingRestrictionProjection.Revision))!.IsConcurrencyToken);
+        Assert.Contains(restrictionProjection.GetIndexes(), index =>
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestProcessingRestrictionProjection.ScopeId),
+                nameof(GuestProcessingRestrictionProjection.PropertyId),
+                nameof(GuestProcessingRestrictionProjection.IsRestricted),
+                nameof(GuestProcessingRestrictionProjection.GuestId)
+            ]));
+        IEntityType designRestrictionProjection = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(GuestProcessingRestrictionProjection))!;
+        Assert.Contains(
+            designRestrictionProjection.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guest_processing_restrictions_effective_state");
+        IEntityType restriction =
+            dbContext.Model.FindEntityType(typeof(GuestProcessingRestriction))!;
+        Assert.True(
+            restriction.FindProperty(nameof(GuestProcessingRestriction.Version))!.IsConcurrencyToken);
+        Assert.Contains(restriction.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestProcessingRestriction.ScopeId),
+                nameof(GuestProcessingRestriction.PropertyId),
+                nameof(GuestProcessingRestriction.GuestId),
+                nameof(GuestProcessingRestriction.ApplyCaseId),
+                nameof(GuestProcessingRestriction.ApplyApprovalRevision)
+            ]));
+        IEntityType designRestriction = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(GuestProcessingRestriction))!;
+        Assert.Contains(
+            designRestriction.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guest_processing_restrictions_lifecycle");
+        IEntityType restrictionReceipt =
+            dbContext.Model.FindEntityType(typeof(GuestProcessingRestrictionReceipt))!;
+        Assert.Contains(restrictionReceipt.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestProcessingRestrictionReceipt.ScopeId),
+                nameof(GuestProcessingRestrictionReceipt.IdempotencyKey)
+            ]));
     }
 
     [Fact]

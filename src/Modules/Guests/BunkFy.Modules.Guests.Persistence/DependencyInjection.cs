@@ -34,6 +34,12 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IGuestDataRightsCorrectionReceiptRepository,
             GuestDataRightsCorrectionReceiptRepository>();
+        builder.Services.TryAddScoped<
+            IGuestProcessingRestrictionProjectionRepository,
+            GuestProcessingRestrictionProjectionRepository>();
+        builder.Services.TryAddScoped<
+            IGuestProcessingRestrictionRepository,
+            GuestProcessingRestrictionRepository>();
         builder.Services.TryAddScoped<IGuestProfileEligibilityProjectionExportSource, GuestProfileEligibilityProjectionExportSource>();
         builder.Services.TryAddScoped<IGuestPropertyProjectionRepository, GuestPropertyProjectionRepository>();
         builder.Services.TryAddScoped<IGuestStayHistoryRepository, GuestStayHistoryRepository>();

@@ -30,4 +30,43 @@ public static class GuestsDomainErrors
     public static readonly Error CorrectionReceiptFieldsInvalid = new(
         "Guests.CorrectionReceiptFieldsInvalid",
         "The correction receipt field set is invalid.");
+    public static readonly Error RestrictionProjectionIdentityInvalid = new(
+        "Guests.RestrictionProjectionIdentityInvalid",
+        "The processing-restriction projection identity is invalid.");
+    public static readonly Error RestrictionProjectionContractUnsupported = new(
+        "Guests.RestrictionProjectionContractUnsupported",
+        "The processing-restriction projection contract is unsupported.");
+    public static readonly Error RestrictionProjectionVersionConflict = new(
+        "Guests.RestrictionProjectionVersionConflict",
+        "The processing-restriction projection version has changed.");
+    public static readonly Error RestrictionProjectionTransitionInvalid = new(
+        "Guests.RestrictionProjectionTransitionInvalid",
+        "The processing-restriction transition is invalid.");
+    public static readonly Error RestrictionProjectionStateInvalid = new(
+        "Guests.RestrictionProjectionStateInvalid",
+        "The processing-restriction projection state is invalid.");
+    public static readonly Error RestrictionIdentityInvalid = new(
+        "Guests.RestrictionIdentityInvalid",
+        "The processing-restriction identity is invalid.");
+    public static readonly Error RestrictionApprovalInvalid = new(
+        "Guests.RestrictionApprovalInvalid",
+        "The processing-restriction approval coordinate is invalid.");
+    public static readonly Error RestrictionTransitionInvalid = new(
+        "Guests.RestrictionTransitionInvalid",
+        "The processing-restriction transition is invalid.");
+    public static readonly Error RestrictionVersionConflict = new(
+        "Guests.RestrictionVersionConflict",
+        "The processing-restriction version has changed.");
+    public static readonly Error RestrictionAlreadyReleased = new(
+        "Guests.RestrictionAlreadyReleased",
+        "The processing restriction is already released.");
+    public static readonly Error RestrictionReceiptIdentityInvalid = new(
+        "Guests.RestrictionReceiptIdentityInvalid",
+        "The processing-restriction receipt identity is invalid.");
+    public static readonly Error RestrictionReceiptVersionInvalid = new(
+        "Guests.RestrictionReceiptVersionInvalid",
+        "The processing-restriction receipt version is invalid.");
+    public static readonly Error RestrictionReceiptTransitionInvalid = new(
+        "Guests.RestrictionReceiptTransitionInvalid",
+        "The processing-restriction receipt transition is invalid.");
 }

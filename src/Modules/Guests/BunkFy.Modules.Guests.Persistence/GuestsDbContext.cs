@@ -13,6 +13,12 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
     public DbSet<GuestProfile> GuestProfiles => this.Set<GuestProfile>();
     public DbSet<GuestDataRightsCorrectionReceipt> DataRightsCorrectionReceipts =>
         this.Set<GuestDataRightsCorrectionReceipt>();
+    public DbSet<GuestProcessingRestriction> ProcessingRestrictions =>
+        this.Set<GuestProcessingRestriction>();
+    public DbSet<GuestProcessingRestrictionReceipt> ProcessingRestrictionReceipts =>
+        this.Set<GuestProcessingRestrictionReceipt>();
+    public DbSet<GuestProcessingRestrictionProjection> ProcessingRestrictionProjections =>
+        this.Set<GuestProcessingRestrictionProjection>();
     public DbSet<GuestPropertyProjection> PropertyProjections => this.Set<GuestPropertyProjection>();
     public DbSet<GuestStayHistoryEntry> StayHistory => this.Set<GuestStayHistoryEntry>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();

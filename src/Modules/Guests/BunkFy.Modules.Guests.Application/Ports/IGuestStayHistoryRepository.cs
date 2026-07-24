@@ -24,4 +24,5 @@ public sealed record GuestStayHistoryWriteModel(
     DateOnly? NoShowBusinessDate,
     DateOnly? CheckedOutBusinessDate,
     bool IsCurrentParticipant,
-    long ReservationVersion);
+    long ReservationVersion,
+    DateTimeOffset ObservedAtUtc);
