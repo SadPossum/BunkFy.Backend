@@ -91,3 +91,19 @@ function Invoke-GmaDotNet {
         exit $LASTEXITCODE
     }
 }
+
+function Invoke-GmaScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+
+        [hashtable] $Arguments = @{}
+    )
+
+    $global:LASTEXITCODE = 0
+    & $Path @Arguments
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        exit $exitCode
+    }
+}

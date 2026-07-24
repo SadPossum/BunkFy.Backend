@@ -48,11 +48,17 @@ public sealed class CompositionToolingGuardTests
     }
 
     [Fact]
-    public void Backend_verification_enforces_source_package_ownership()
+    public void Backend_verification_enforces_package_ownership_and_propagates_step_failures()
     {
         string source = RepositoryPaths.Read("eng", "verify.ps1");
+        string common = RepositoryPaths.Read("eng", "common.ps1");
 
-        Assert.Contains("check-source-packages.ps1') -SkipRestore -SkipBuild", source, StringComparison.Ordinal);
+        Assert.Contains("check-source-packages.ps1", source, StringComparison.Ordinal);
+        Assert.Contains("SkipRestore = $true; SkipBuild = $true", source, StringComparison.Ordinal);
+        Assert.Contains("Invoke-GmaScript", source, StringComparison.Ordinal);
+        Assert.Contains("$global:LASTEXITCODE = 0", common, StringComparison.Ordinal);
+        Assert.Contains("if ($exitCode -ne 0)", common, StringComparison.Ordinal);
+        Assert.Contains("exit $exitCode", common, StringComparison.Ordinal);
     }
 
     [Fact]

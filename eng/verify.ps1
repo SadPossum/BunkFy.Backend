@@ -7,12 +7,16 @@ param(
 
 . (Join-Path $PSScriptRoot 'common.ps1')
 
-& (Join-Path $PSScriptRoot 'update-solutions.ps1') -Check
+Invoke-GmaScript `
+    -Path (Join-Path $PSScriptRoot 'update-solutions.ps1') `
+    -Arguments @{ Check = $true }
 
-& (Join-Path $PSScriptRoot 'check-source-packages.ps1') -SkipRestore -SkipBuild
+Invoke-GmaScript `
+    -Path (Join-Path $PSScriptRoot 'check-source-packages.ps1') `
+    -Arguments @{ SkipRestore = $true; SkipBuild = $true }
 
 if (-not $SkipRestore) {
-    & (Join-Path $PSScriptRoot 'restore.ps1')
+    Invoke-GmaScript -Path (Join-Path $PSScriptRoot 'restore.ps1')
 }
 
 if (-not $SkipBuild) {
@@ -20,9 +24,13 @@ if (-not $SkipBuild) {
 }
 
 if (-not $SkipMigrationCheck) {
-    & (Join-Path $PSScriptRoot 'check-migrations.ps1') -NoBuild
+    Invoke-GmaScript `
+        -Path (Join-Path $PSScriptRoot 'check-migrations.ps1') `
+        -Arguments @{ NoBuild = $true }
 }
 
 if (-not $SkipTests) {
-    & (Join-Path $PSScriptRoot 'test-fast.ps1') -NoBuild
+    Invoke-GmaScript `
+        -Path (Join-Path $PSScriptRoot 'test-fast.ps1') `
+        -Arguments @{ NoBuild = $true }
 }
