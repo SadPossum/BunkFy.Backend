@@ -1,8 +1,8 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
 Status: implementation in progress; Guests discovery, subject selection,
-export preparation, correction outcome preparation and transactional correction
-receipt complete; DataRights decision lifecycle and approval gate complete
+export preparation, transactional correction and processing restriction
+complete; DataRights decision lifecycle and approval gate complete
 
 ## Outcome
 
@@ -423,11 +423,14 @@ implemented and must not be inferred from this foundation.
   `20260724141436_AddGuestDataRightsCorrectionReceipts` creates the scoped
   receipt table, uniqueness/indexes and version/field-mask constraints.
 
-The next increment implements the owner-local Guests restriction projection
-and enforces it on every applicable read, write and processing surface.
-Its detailed implementation and acceptance plan is
+The owner-local Guests restriction projection and dependent Reservations gate
+are complete. Their detailed implementation and acceptance plan is
 `guest-data-rights-restriction-task.md`.
-Anonymisation, authoritative ledger entries and restore replay remain closed.
+
+The next increment implements approved Guests anonymisation, authoritative
+ledger entries and restore replay. Those capabilities remain closed until the
+prerequisites in
+`guest-data-rights-anonymisation-and-ledger-task.md` are delivered in order.
 
 ## Acceptance Evidence
 

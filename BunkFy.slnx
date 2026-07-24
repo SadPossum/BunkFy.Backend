@@ -48,6 +48,7 @@
     <File Path="docs/planning/gma-access-control-properties-alignment.md" />
     <File Path="docs/planning/gma-durable-runtime-alignment.md" />
     <File Path="docs/planning/guest-data-rights-and-lifecycle-workflow-task.md" />
+    <File Path="docs/planning/guest-data-rights-anonymisation-and-ledger-task.md" />
     <File Path="docs/planning/guest-data-rights-restriction-task.md" />
     <File Path="docs/planning/guest-records-module-task.md" />
     <File Path="docs/planning/imap-reservation-mail-adapter-task.md" />
