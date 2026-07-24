@@ -1,11 +1,12 @@
 namespace BunkFy.Modules.Guests.Domain.Aggregates;
 
+using BunkFy.Modules.Guests.Domain.Errors;
+using BunkFy.Modules.Guests.Domain.Events;
+using BunkFy.Modules.Guests.Domain.Models;
+using BunkFy.Modules.Guests.Domain.ValueObjects;
 using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
-using BunkFy.Modules.Guests.Domain.Errors;
-using BunkFy.Modules.Guests.Domain.Events;
-using BunkFy.Modules.Guests.Domain.ValueObjects;
 
 public sealed class GuestProfile : ScopedAggregateRoot<Guid>
 {
@@ -141,10 +142,42 @@ public sealed class GuestProfile : ScopedAggregateRoot<Guid>
         Guid eventId,
         DateTimeOffset nowUtc)
     {
+        Result<GuestProfileUpdateOutcome> updated = this.UpdateWithOutcome(
+            displayName,
+            legalName,
+            email,
+            phone,
+            dateOfBirth,
+            nationalityCountryCode,
+            preferredLanguageTag,
+            notes,
+            expectedVersion,
+            actorId,
+            eventId,
+            nowUtc);
+        return updated.IsSuccess
+            ? Result.Success()
+            : Result.Failure(updated.Error);
+    }
+
+    public Result<GuestProfileUpdateOutcome> UpdateWithOutcome(
+        string displayName,
+        string? legalName,
+        string? email,
+        string? phone,
+        DateOnly? dateOfBirth,
+        string? nationalityCountryCode,
+        string? preferredLanguageTag,
+        string? notes,
+        long expectedVersion,
+        string actorId,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
         Result ready = this.EnsureMutable(expectedVersion, eventId);
         if (ready.IsFailure)
         {
-            return ready;
+            return Result.Failure<GuestProfileUpdateOutcome>(ready.Error);
         }
 
         Result<GuestProfileChange> values = GuestProfileChange.Create(
@@ -160,9 +193,11 @@ public sealed class GuestProfile : ScopedAggregateRoot<Guid>
             nowUtc);
         if (values.IsFailure)
         {
-            return Result.Failure(values.Error);
+            return Result.Failure<GuestProfileUpdateOutcome>(values.Error);
         }
 
+        GuestProfileField[] changedFields = this.GetChangedFields(values.Value);
+        long previousVersion = this.Version;
         this.DisplayName = values.Value.DisplayName;
         this.DisplayNameSearch = NormalizeRequiredSearch(values.Value.DisplayName);
         this.LegalName = values.Value.LegalName;
@@ -185,7 +220,12 @@ public sealed class GuestProfile : ScopedAggregateRoot<Guid>
             this.Id,
             this.Status,
             this.Version));
-        return Result.Success();
+        return Result.Success(new GuestProfileUpdateOutcome(
+            previousVersion,
+            this.Version,
+            eventId,
+            nowUtc,
+            changedFields));
     }
 
     public Result Archive(long expectedVersion, string actorId, Guid eventId, DateTimeOffset nowUtc)
@@ -264,4 +304,41 @@ public sealed class GuestProfile : ScopedAggregateRoot<Guid>
 
     private static string NormalizeRequiredSearch(string value) => value.ToUpperInvariant();
 
+    private GuestProfileField[] GetChangedFields(GuestProfileChange values)
+    {
+        List<GuestProfileField> changed = [];
+        AddIfChanged(changed, GuestProfileField.DisplayName, this.DisplayName, values.DisplayName);
+        AddIfChanged(changed, GuestProfileField.LegalName, this.LegalName, values.LegalName);
+        AddIfChanged(changed, GuestProfileField.Email, this.Email, values.Email);
+        AddIfChanged(changed, GuestProfileField.Phone, this.Phone, values.Phone);
+        if (this.DateOfBirth != values.DateOfBirth)
+        {
+            changed.Add(GuestProfileField.DateOfBirth);
+        }
+
+        AddIfChanged(
+            changed,
+            GuestProfileField.NationalityCountryCode,
+            this.NationalityCountryCode,
+            values.NationalityCountryCode);
+        AddIfChanged(
+            changed,
+            GuestProfileField.PreferredLanguageTag,
+            this.PreferredLanguageTag,
+            values.PreferredLanguageTag);
+        AddIfChanged(changed, GuestProfileField.Notes, this.Notes, values.Notes);
+        return changed.ToArray();
+    }
+
+    private static void AddIfChanged(
+        List<GuestProfileField> changed,
+        GuestProfileField field,
+        string? current,
+        string? requested)
+    {
+        if (!string.Equals(current, requested, StringComparison.Ordinal))
+        {
+            changed.Add(field);
+        }
+    }
 }

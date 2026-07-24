@@ -1,6 +1,9 @@
 namespace BunkFy.Modules.Guests.Tests;
 
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.Models;
+using BunkFy.Modules.Guests.Domain.ValueObjects;
+using Gma.Framework.Results;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -107,6 +110,109 @@ public sealed class GuestProfileTests
                 " ",
                 Guid.NewGuid(),
                 Now).Error.Code);
+    }
+
+    [Fact]
+    public void Update_outcome_reports_normalized_changed_fields_without_personal_values()
+    {
+        GuestProfile profile = Create("Ada Guest", "ada@example.test", "+1 555 0100");
+        Guid eventId = Guid.NewGuid();
+        DateTimeOffset changedAtUtc = Now.AddMinutes(1);
+
+        Result<GuestProfileUpdateOutcome> result = profile.UpdateWithOutcome(
+            "  Ada Guest  ",
+            null,
+            "NEW@example.test",
+            "  +1 555 0100  ",
+            profile.DateOfBirth,
+            "us",
+            "en-US",
+            "Returning guest",
+            profile.Version,
+            "user:operator-b",
+            eventId,
+            changedAtUtc);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.PreviousVersion);
+        Assert.Equal(2, result.Value.CurrentVersion);
+        Assert.Equal(eventId, result.Value.EventId);
+        Assert.Equal(changedAtUtc, result.Value.OccurredAtUtc);
+        Assert.Equal(
+            [GuestProfileField.Email, GuestProfileField.Notes],
+            result.Value.ChangedFields);
+        Assert.Equal("new@example.test", profile.Email);
+        Assert.DoesNotContain(
+            typeof(GuestProfileUpdateOutcome).GetProperties(),
+            property => property.Name is
+                "DisplayName" or
+                "LegalName" or
+                "Email" or
+                "Phone" or
+                "DateOfBirth" or
+                "NationalityCountryCode" or
+                "PreferredLanguageTag" or
+                "Notes");
+    }
+
+    [Fact]
+    public void Failed_outcome_does_not_change_the_profile()
+    {
+        GuestProfile profile = Create("Ada Guest", "ada@example.test", null);
+
+        Result<GuestProfileUpdateOutcome> result = profile.UpdateWithOutcome(
+            "Changed",
+            null,
+            "changed@example.test",
+            null,
+            profile.DateOfBirth,
+            profile.NationalityCountryCode,
+            profile.PreferredLanguageTag,
+            profile.Notes,
+            expectedVersion: profile.Version + 1,
+            "user:operator-b",
+            Guid.NewGuid(),
+            Now.AddMinutes(1));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Guests.VersionConflict", result.Error.Code);
+        Assert.Equal("Ada Guest", profile.DisplayName);
+        Assert.Equal("ada@example.test", profile.Email);
+        Assert.Equal(1, profile.Version);
+    }
+
+    [Fact]
+    public void Update_outcome_covers_every_correctable_profile_field()
+    {
+        GuestProfile profile = Create("Ada Guest", "ada@example.test", "+1 555 0100");
+
+        Result<GuestProfileUpdateOutcome> result = profile.UpdateWithOutcome(
+            "Ada Lovelace",
+            "Augusta Ada King",
+            "new@example.test",
+            "+44 20 1234 5678",
+            new DateOnly(1815, 12, 10),
+            "GB",
+            "en-GB",
+            "Returning guest",
+            profile.Version,
+            "user:operator-b",
+            Guid.NewGuid(),
+            Now.AddMinutes(1));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            [
+                GuestProfileField.DisplayName,
+                GuestProfileField.LegalName,
+                GuestProfileField.Email,
+                GuestProfileField.Phone,
+                GuestProfileField.DateOfBirth,
+                GuestProfileField.NationalityCountryCode,
+                GuestProfileField.PreferredLanguageTag,
+                GuestProfileField.Notes
+            ],
+            result.Value.ChangedFields);
     }
 
     private static GuestProfile Create(string displayName, string? email, string? phone) => GuestProfile.Create(

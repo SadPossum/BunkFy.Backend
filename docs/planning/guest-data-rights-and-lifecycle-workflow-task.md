@@ -1,6 +1,6 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: implementation in progress; Guests discovery, subject selection and export preparation complete
+Status: implementation in progress; Guests discovery, subject selection, export preparation and correction outcome preparation complete
 
 ## Outcome
 
@@ -311,7 +311,7 @@ identity hints.
   deduplication, selection bounds, no-store headers and review-without-subject
   denial.
 
-### Active Slice: Guests Catalogue-Driven Export Preparation
+### Completed Slice: Guests Catalogue-Driven Export Preparation
 
 - `DataRights.Contracts` owns a neutral in-process contributor/sink contract.
   It contains product rights vocabulary and remains outside GMA.
@@ -337,10 +337,25 @@ identity hints.
 - Tests cover catalogue/schema versions, exact export fields, property
   isolation, stale and unavailable scope, and partial-sink failure.
 
+### Completed Slice: Guests Correction Outcome Preparation
+
+- Guest profile correction continues to use the aggregate's existing
+  normalization, validation, optimistic-concurrency and domain-event path.
+- The update path also returns a bounded semantic field set, previous/current
+  record versions, event id and occurrence time. It contains no old or new
+  personal values.
+- Ordinary profile updates keep their existing contract and delegate to the
+  same outcome-producing mutation, preventing correction semantics from
+  drifting into a second patch implementation.
+- This increment does not expose a correction endpoint, accept generic patch
+  documents, persist a receipt or allow DataRights to mutate Guests. Execution
+  remains closed until an approved case revision can be validated and an
+  owner-local idempotent receipt can be committed with the profile update.
+
 ### Current Verification Evidence
 
 - DataRights focused tests: 29 passed.
-- Guests focused tests: 19 passed.
+- Guests focused tests: 22 passed.
 - Architecture tests: 64 passed.
 - Fast repository verification: all composed projects built with zero warnings
   and all non-Docker tests passed.
@@ -356,10 +371,11 @@ identity hints.
   history from the authorized property.
 - Full Docker suite: 35 passed with no skips.
 
-The next increment remains inside Guests: correction receipt preparation
-through normal guest-profile domain commands. Restriction, anonymisation,
-ledger receipts and restore replay are not yet implemented and must not be
-inferred from this foundation.
+The next increment establishes the DataRights decision and approval-revision
+gate required before correction execution. Guests can then commit owner-local
+idempotent correction receipts through normal guest-profile domain commands.
+Restriction, anonymisation, ledger receipts and restore replay are not yet
+implemented and must not be inferred from this foundation.
 
 ## Acceptance Evidence
 
