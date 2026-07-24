@@ -5,6 +5,7 @@ using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Persistence;
 using Xunit;
@@ -50,6 +51,10 @@ public sealed class DataRightsPersonalDataCatalogTests
             AssertBinding(command, "ActorId", PersonalDataSurface.ApplicationCommand);
         }
 
+        AssertBinding(
+            typeof(DataRightsOperationApprovalRequest),
+            nameof(DataRightsOperationApprovalRequest.ExecutingActorId),
+            PersonalDataSurface.ApplicationQuery);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.CreatedBy), PersonalDataSurface.Persistence);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.LastChangedBy), PersonalDataSurface.Persistence);
         AssertBinding(

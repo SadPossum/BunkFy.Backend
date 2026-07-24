@@ -19,6 +19,13 @@ deterministically generated
 - bounded subject selection that must be non-empty before review can begin;
 - explicit review, decision-pending, approved or denied transitions with
   bounded reason codes and immutable decision revision/attribution;
+- anonymisation approval is allowed only as a standalone operation and freezes
+  server-resolved property, country-policy, retention-policy and digest
+  evidence into the immutable decision revision;
+- destructive approval requires an active, processing-enabled local Properties
+  projection and the current country-policy pack to allow the erasure surface;
+- the executor identity is rechecked against the approval revision and must be
+  distinct from the deciding actor;
 - a PII-free, fail-closed owner-module approval gate that matches the exact
   tenant, property, operation, approved revision and selected record version;
 - restriction approvals bind an explicit apply or release directive, so one
@@ -31,8 +38,16 @@ deterministically generated
   fragments unless the owner returns success;
 - scoped permissions that are not granted to ordinary seeded roles;
 - public management API plus empty Admin API and Admin CLI composition shells;
+- a DataRights-owned Properties policy projection populated only through
+  versioned Properties events or the bounded projection-rebuild contract;
 - PostgreSQL persistence, inbox/outbox infrastructure and focused architecture,
-  privacy, domain, persistence and authorization tests.
+  privacy, domain, persistence, migration and authorization tests.
+
+The worker can rebuild the Properties policy projection for one tenant:
+
+```powershell
+tasks runs enqueue --tenant <tenant-id> --module data-rights --task rebuild-data-rights-properties --worker-group projection-workers --payload-json '{"projectionVersion":1,"batchSize":100,"dryRun":false}'
+```
 
 The case does not contain guest names, contacts, documents, search criteria,
 provider payloads or free text. It stores only the selected owner's opaque

@@ -2,6 +2,7 @@ namespace BunkFy.Modules.DataRights.Persistence.Configurations;
 
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Entities;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -64,6 +65,40 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "(\"Decision\" = 0 AND \"Status\" IN (1, 2, 3, 4, 11)) OR " +
                 "(\"Decision\" = 1 AND \"Status\" IN (5, 7, 8, 9, 10)) OR " +
                 "(\"Decision\" = 2 AND \"Status\" = 6)");
+            table.HasCheckConstraint(
+                "CK_data_rights_cases_approval_policy_evidence",
+                "(\"Decision\" = 1 AND \"RequestedOperations\" = 16 AND " +
+                "\"ApprovalEvidenceSchemaVersion\" = 1 AND " +
+                "\"ApprovalEvidencePropertyId\" = \"PropertyId\" AND " +
+                "\"ApprovalEvidencePropertyVersion\" > 0 AND " +
+                "\"ApprovalEvidenceOperatingCountryCode\" IS NOT NULL AND " +
+                "char_length(\"ApprovalEvidenceOperatingCountryCode\") = 2 AND " +
+                "\"ApprovalEvidencePolicyId\" IS NOT NULL AND " +
+                "\"ApprovalEvidencePolicyVersion\" > 0 AND " +
+                "\"ApprovalEvidenceRetentionPolicyId\" IS NOT NULL AND " +
+                "\"ApprovalEvidenceRetentionPolicyVersion\" > 0 AND " +
+                "\"ApprovalEvidenceContentSha256\" IS NOT NULL AND " +
+                "char_length(\"ApprovalEvidenceContentSha256\") = 64 AND " +
+                "\"ApprovalEvidencePurposeCode\" = 'data-rights-anonymisation' AND " +
+                "\"ApprovalEvidenceSurface\" = 'erasure' AND " +
+                "\"ApprovalEvidenceSourceProvenance\" = 'authorized-workspace-operator' AND " +
+                "\"ApprovalEvidenceEvaluatedAtUtc\" IS NOT NULL AND " +
+                "\"ApprovalEvidenceRequiresDistinctExecutor\" = TRUE) OR " +
+                "((\"Decision\" <> 1 OR \"RequestedOperations\" <> 16) AND " +
+                "\"ApprovalEvidenceSchemaVersion\" IS NULL AND " +
+                "\"ApprovalEvidencePropertyId\" IS NULL AND " +
+                "\"ApprovalEvidencePropertyVersion\" IS NULL AND " +
+                "\"ApprovalEvidenceOperatingCountryCode\" IS NULL AND " +
+                "\"ApprovalEvidencePolicyId\" IS NULL AND " +
+                "\"ApprovalEvidencePolicyVersion\" IS NULL AND " +
+                "\"ApprovalEvidenceRetentionPolicyId\" IS NULL AND " +
+                "\"ApprovalEvidenceRetentionPolicyVersion\" IS NULL AND " +
+                "\"ApprovalEvidenceContentSha256\" IS NULL AND " +
+                "\"ApprovalEvidencePurposeCode\" IS NULL AND " +
+                "\"ApprovalEvidenceSurface\" IS NULL AND " +
+                "\"ApprovalEvidenceSourceProvenance\" IS NULL AND " +
+                "\"ApprovalEvidenceEvaluatedAtUtc\" IS NULL AND " +
+                "\"ApprovalEvidenceRequiresDistinctExecutor\" IS NULL)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_property_scope",
                 "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR " +
@@ -134,6 +169,44 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             dataRightsCase.Status,
             dataRightsCase.CreatedAtUtc,
             dataRightsCase.Id
+        });
+        builder.OwnsOne(dataRightsCase => dataRightsCase.ApprovalPolicyEvidence, evidence =>
+        {
+            evidence.Property(value => value.SchemaVersion)
+                .HasColumnName("ApprovalEvidenceSchemaVersion");
+            evidence.Property(value => value.PropertyId)
+                .HasColumnName("ApprovalEvidencePropertyId");
+            evidence.Property(value => value.PropertyVersion)
+                .HasColumnName("ApprovalEvidencePropertyVersion");
+            evidence.Property(value => value.OperatingCountryCode)
+                .HasColumnName("ApprovalEvidenceOperatingCountryCode")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.CountryCodeLength);
+            evidence.Property(value => value.PolicyId)
+                .HasColumnName("ApprovalEvidencePolicyId")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.PolicyVersion)
+                .HasColumnName("ApprovalEvidencePolicyVersion");
+            evidence.Property(value => value.RetentionPolicyId)
+                .HasColumnName("ApprovalEvidenceRetentionPolicyId")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.RetentionPolicyVersion)
+                .HasColumnName("ApprovalEvidenceRetentionPolicyVersion");
+            evidence.Property(value => value.ContentSha256)
+                .HasColumnName("ApprovalEvidenceContentSha256")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.ContentSha256Length);
+            evidence.Property(value => value.PurposeCode)
+                .HasColumnName("ApprovalEvidencePurposeCode")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.Surface)
+                .HasColumnName("ApprovalEvidenceSurface")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.SourceProvenance)
+                .HasColumnName("ApprovalEvidenceSourceProvenance")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.EvaluatedAtUtc)
+                .HasColumnName("ApprovalEvidenceEvaluatedAtUtc");
+            evidence.Property(value => value.RequiresDistinctExecutor)
+                .HasColumnName("ApprovalEvidenceRequiresDistinctExecutor");
         });
         builder.OwnsMany(dataRightsCase => dataRightsCase.SelectedSubjects, subjects =>
         {

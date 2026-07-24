@@ -170,6 +170,7 @@ public static class BunkFyBackendComposition
             .WithEnvironment("Worker__Modules__Inventory", "true")
             .WithEnvironment("Worker__Modules__Reservations", "true")
             .WithEnvironment("Worker__Modules__Guests", "true")
+            .WithEnvironment("Worker__Modules__DataRights", "true")
             .WithEnvironment("Worker__Modules__Staff", "true")
             .WithEnvironment("Worker__Modules__Ingestion", "true")
             .WithEnvironment("Worker__Modules__TaskRuntime", "true")

@@ -1,8 +1,8 @@
 namespace Architecture.Tests.Hosts;
 
-using Architecture.Tests.Support;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Architecture.Tests.Support;
 using Xunit;
 
 [Trait("Category", "Architecture")]
@@ -358,6 +358,7 @@ public sealed class HostCompositionGuardTests
             "Worker__Modules__AccessControl",
             "Worker__Modules__Organizations",
             "Worker__Modules__Guests",
+            "Worker__Modules__DataRights",
             "Worker__Modules__Staff",
             "AppHost:AdminApi:Enabled",
             "AppHost:Worker:Enabled",

@@ -5,6 +5,8 @@ using BunkFy.Modules.DataRights.Persistence.Repositories;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.ProjectionRebuild;
+using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -25,6 +27,12 @@ public static class DependencyInjection
                 DataRightsMigrations.Schema,
                 DataRightsMigrations.HistoryTable));
         builder.Services.TryAddScoped<IDataRightsCaseRepository, DataRightsCaseRepository>();
+        builder.Services.TryAddScoped<
+            IDataRightsPropertyProjectionRepository,
+            DataRightsPropertyProjectionRepository>();
+        builder.Services.TryAddScoped<
+            IProjectionRebuildWriter<PropertyTopologyProjectionExport>,
+            DataRightsPropertiesProjectionRebuildWriter>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IUnitOfWork, DataRightsUnitOfWork>());
         builder.Services.TryAddEnumerable(
@@ -33,6 +41,14 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<IOutboxStore, DataRightsOutboxStore>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IInboxStore, DataRightsInboxStore>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IProjectionRebuildCheckpointStore,
+                DataRightsProjectionRebuildCheckpointStore>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IProjectionRebuildTransactionBoundary,
+                DataRightsProjectionRebuildTransactionBoundary>());
         return builder;
     }
 }

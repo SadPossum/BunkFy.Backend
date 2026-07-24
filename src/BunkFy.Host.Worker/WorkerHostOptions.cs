@@ -37,6 +37,7 @@ public sealed class WorkerHostOptions
             GetBoolean(modules, nameof(WorkerModuleOptions.Inventory), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Reservations), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Guests), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.DataRights), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Staff), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Ingestion), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.TaskRuntime), defaultValue: false));
@@ -92,6 +93,11 @@ public sealed class WorkerHostOptions
             modules.Add("guests");
         }
 
+        if (this.Modules.DataRights)
+        {
+            modules.Add("data-rights");
+        }
+
         if (this.Modules.Staff)
         {
             modules.Add("staff");
@@ -128,6 +134,7 @@ public sealed record WorkerModuleOptions(
     bool Inventory,
     bool Reservations,
     bool Guests,
+    bool DataRights,
     bool Staff,
     bool Ingestion,
     bool TaskRuntime);

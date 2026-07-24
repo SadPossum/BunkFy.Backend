@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 3,
+  "catalogVersion": 4,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -105,9 +105,11 @@
       "rightsPolicy": "staff-audit-attribution",
       "allowedSurfaces": [
         "application-command",
+        "application-query",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -180,6 +182,13 @@
           "type": "BunkFy.Modules.DataRights.Application.Commands.UnselectDataRightsSubjectCommand",
           "member": "ActorId",
           "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.Authorization.DataRightsOperationApprovalRequest",
+          "member": "ExecutingActorId",
+          "surface": "application-query",
           "retentionPolicy": "transient-request"
         },
         {

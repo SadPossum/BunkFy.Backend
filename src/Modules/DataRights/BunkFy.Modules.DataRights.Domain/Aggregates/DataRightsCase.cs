@@ -32,6 +32,7 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
     public long? DecisionRevision { get; private set; }
     public string? DecidedBy { get; private set; }
     public DateTimeOffset? DecidedAtUtc { get; private set; }
+    public DataRightsApprovalPolicyEvidence? ApprovalPolicyEvidence { get; private set; }
     public DateTimeOffset? DueAtUtc { get; private set; }
     public long Version { get; private set; } = 1;
     public string CreatedBy { get; private set; } = string.Empty;

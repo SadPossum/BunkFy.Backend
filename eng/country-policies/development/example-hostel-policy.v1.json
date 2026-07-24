@@ -15,6 +15,7 @@
       "requirement": "required",
       "purposeCodes": [
         "data-rights-correction",
+        "data-rights-anonymisation",
         "data-rights-restriction",
         "guest-profile-management",
         "reservation-management",
@@ -27,6 +28,12 @@
       "purposeCode": "property-activation",
       "legalRuleReferenceKeys": [ "development-only-example" ],
       "allowedSurfaces": [ "property-activation" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "data-rights-anonymisation",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "erasure" ],
       "allowedSourceProvenance": [ "authorized-workspace-operator" ]
     },
     {

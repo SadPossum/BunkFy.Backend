@@ -2,8 +2,11 @@ namespace BunkFy.Modules.DataRights.Tests.Contracts;
 
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Permissions;
+using Gma.Framework.Tasks;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -24,6 +27,20 @@ public sealed class DataRightsModuleMetadataTests
         ModuleProfileDescriptor profile = Assert.Single(
             DataRightsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(DataRightsProfiles.DefaultName, profile.ProfileName);
+        Assert.Equal(5, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    PropertyProcessingPolicyActivatedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    PropertyProcessingSuspendedIntegrationEvent.EventType &&
+                subscription.ProducerModule == PropertiesModuleMetadata.Name);
+        Assert.Single(DataRightsModuleMetadata.Descriptor.GetTasks());
     }
 
     [Fact]

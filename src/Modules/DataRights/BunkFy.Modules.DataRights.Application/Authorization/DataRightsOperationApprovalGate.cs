@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Application.Authorization;
 
 using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -63,13 +64,39 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
                 DataRightsOperationApprovalDenial.RestrictionDirectiveMismatch);
         }
 
+        if (request.Operation == DataRightsOperation.Anonymisation)
+        {
+            DataRightsApprovalEvidence? approvalEvidence = dataRightsCase.ToApprovalEvidence();
+            if (approvalEvidence is null)
+            {
+                return DataRightsOperationApprovalResult.Denied(
+                    DataRightsOperationApprovalDenial.ApprovalEvidenceMissing);
+            }
+
+            string executingActor = request.ExecutingActorId?.Trim() ?? string.Empty;
+            if (executingActor.Length is 0 or > DataRightsCase.ActorIdMaxLength)
+            {
+                return DataRightsOperationApprovalResult.Denied(
+                    DataRightsOperationApprovalDenial.ExecutionActorRequired);
+            }
+
+            if (approvalEvidence.RequiresDistinctExecutor &&
+                string.Equals(executingActor, dataRightsCase.DecidedBy, StringComparison.Ordinal))
+            {
+                return DataRightsOperationApprovalResult.Denied(
+                    DataRightsOperationApprovalDenial.DecisionActorCannotExecute);
+            }
+        }
+
         bool subjectApproved = dataRightsCase.SelectedSubjects.Any(subject =>
             string.Equals(subject.OwnerKey, ownerKey, StringComparison.Ordinal) &&
             string.Equals(subject.RecordType, recordType, StringComparison.Ordinal) &&
             subject.RecordId == request.RecordId &&
             subject.RecordVersion == request.RecordVersion);
         return subjectApproved
-            ? DataRightsOperationApprovalResult.Approved
+            ? dataRightsCase.ToApprovalEvidence() is { } evidence
+                ? DataRightsOperationApprovalResult.ApprovedWithEvidence(evidence)
+                : DataRightsOperationApprovalResult.Approved
             : DataRightsOperationApprovalResult.Denied(
                 DataRightsOperationApprovalDenial.SubjectNotApproved);
     }

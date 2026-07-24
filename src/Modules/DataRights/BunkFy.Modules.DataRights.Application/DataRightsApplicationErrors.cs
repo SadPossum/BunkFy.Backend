@@ -26,6 +26,12 @@ public static class DataRightsApplicationErrors
     public static readonly Error SubjectStale = new(
         "DataRights.SubjectStale",
         "The selected subject changed and must be rediscovered.");
+    public static readonly Error AnonymisationApprovalPolicyDenied = new(
+        "DataRights.AnonymisationApprovalPolicyDenied",
+        "The property policy does not authorize anonymisation.");
+    public static readonly Error AnonymisationMustBeApprovedSeparately = new(
+        "DataRights.AnonymisationMustBeApprovedSeparately",
+        "Anonymisation must be reviewed and approved as the case's only operation.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;

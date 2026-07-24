@@ -23,6 +23,12 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.SubjectOwnerUnavailable.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectNotFound.Code, StatusCodes.Status404NotFound),
             new(DataRightsApplicationErrors.SubjectStale.Code, StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied.Code,
+                StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.AnonymisationMustBeApprovedSeparately.Code,
+                StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectCoordinateInvalid.Code, StatusCodes.Status400BadRequest),
             new(DataRightsApplicationErrors.SubjectAlreadySelected.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectNotSelected.Code, StatusCodes.Status409Conflict),

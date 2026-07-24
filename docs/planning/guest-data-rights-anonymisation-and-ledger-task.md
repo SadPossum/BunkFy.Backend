@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: planned
+Status: in progress; approval-evidence foundation complete, execution closed
 
 ## Outcome
 
@@ -316,8 +316,8 @@ stable operational error without logging subject coordinates.
 
 ## Delivery Steps
 
-1. Persist destructive approval evidence and add explicit execution/work-item
-   lifecycle without enabling owner mutation.
+1. [In progress] Persist destructive approval evidence and add explicit
+   execution/work-item lifecycle without enabling owner mutation.
 2. Add Guest data holds, eligibility checks and exact stable blocker codes.
 3. Add `Anonymised`, the aggregate mutation, owner receipt, local tombstone,
    event and ordinary-surface enforcement.
@@ -337,6 +337,26 @@ stable operational error without logging subject coordinates.
 Only one numbered step is implemented at a time. Later steps may refine code
 from completed steps, but owner mutation remains closed until every prerequisite
 gate needed for that mutation is present.
+
+### Completed Slice: Verified Destructive Approval Evidence
+
+- Anonymisation can be approved only as the exact standalone operation.
+- DataRights resolves the routing property's governance binding from its own
+  event-fed projection; clients cannot submit trusted policy coordinates.
+- Approval re-evaluates the current country-policy pack for the erasure surface
+  and freezes the property revision, policy and retention versions, content
+  digest, purpose, surface, provenance and evaluation time into the case.
+- A PostgreSQL constraint rejects approved standalone anonymisation without the
+  complete evidence set. The migration stops for manual review if legacy rows
+  would otherwise violate that invariant.
+- The approval gate requires a bounded executor identity and enforces
+  approver/executor separation before returning the frozen evidence.
+- Properties lifecycle and processing-policy events populate the local
+  projection. A tenant-scoped, resumable worker task rebuilds it through the
+  Properties export contract.
+- No execution endpoint, work item or Guests mutation is enabled by this
+  slice. Delivery step 1 remains open until the durable execution lifecycle is
+  implemented.
 
 ## Acceptance Evidence
 

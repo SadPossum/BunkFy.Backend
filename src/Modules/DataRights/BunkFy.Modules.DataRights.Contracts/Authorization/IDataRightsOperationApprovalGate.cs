@@ -17,14 +17,20 @@ public sealed record DataRightsOperationApprovalRequest(
     string RecordType,
     Guid RecordId,
     long RecordVersion,
-    DataRightsRestrictionDirective RestrictionDirective = DataRightsRestrictionDirective.Unknown);
+    DataRightsRestrictionDirective RestrictionDirective = DataRightsRestrictionDirective.Unknown,
+    string? ExecutingActorId = null);
 
 public sealed record DataRightsOperationApprovalResult(
     bool IsApproved,
-    DataRightsOperationApprovalDenial Denial)
+    DataRightsOperationApprovalDenial Denial,
+    DataRightsApprovalEvidence? ApprovalEvidence = null)
 {
     public static DataRightsOperationApprovalResult Approved { get; } =
         new(true, DataRightsOperationApprovalDenial.None);
+
+    public static DataRightsOperationApprovalResult ApprovedWithEvidence(
+        DataRightsApprovalEvidence evidence) =>
+        new(true, DataRightsOperationApprovalDenial.None, evidence);
 
     public static DataRightsOperationApprovalResult Denied(
         DataRightsOperationApprovalDenial denial) => new(false, denial);
@@ -39,5 +45,8 @@ public enum DataRightsOperationApprovalDenial
     ApprovalRevisionMismatch = 4,
     OperationNotApproved = 5,
     SubjectNotApproved = 6,
-    RestrictionDirectiveMismatch = 7
+    RestrictionDirectiveMismatch = 7,
+    ApprovalEvidenceMissing = 8,
+    ExecutionActorRequired = 9,
+    DecisionActorCannotExecute = 10
 }

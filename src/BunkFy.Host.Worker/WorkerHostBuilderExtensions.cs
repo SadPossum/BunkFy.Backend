@@ -33,6 +33,9 @@ using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Guests.Application;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.DataRights.Application;
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Staff.Application;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Persistence;
@@ -235,6 +238,19 @@ public static class WorkerHostBuilderExtensions
                 builder.Services.AddGuestsTaskHandlers();
             }
             builder.AddGuestsPersistence();
+        }
+
+        if (workerOptions.Modules.DataRights)
+        {
+            builder.SelectModuleProfile(
+                DataRightsProfiles.Default,
+                "BunkFy.Host.Worker/DataRights");
+            builder.Services.AddDataRightsApplication();
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddDataRightsTaskHandlers();
+            }
+            builder.AddDataRightsPersistence();
         }
 
         if (workerOptions.Modules.Staff)

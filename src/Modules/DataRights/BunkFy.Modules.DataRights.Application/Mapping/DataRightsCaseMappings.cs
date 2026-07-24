@@ -23,5 +23,26 @@ public static class DataRightsCaseMappings
         dataRightsCase.DueAtUtc,
         dataRightsCase.Version,
         dataRightsCase.CreatedAtUtc,
-        dataRightsCase.LastChangedAtUtc);
+        dataRightsCase.LastChangedAtUtc,
+        dataRightsCase.ToApprovalEvidence());
+
+    public static DataRightsApprovalEvidence? ToApprovalEvidence(
+        this DataRightsCase dataRightsCase) =>
+        dataRightsCase.ApprovalPolicyEvidence is null
+            ? null
+            : new DataRightsApprovalEvidence(
+                dataRightsCase.ApprovalPolicyEvidence.SchemaVersion,
+                dataRightsCase.ApprovalPolicyEvidence.PropertyId,
+                dataRightsCase.ApprovalPolicyEvidence.PropertyVersion,
+                dataRightsCase.ApprovalPolicyEvidence.OperatingCountryCode,
+                dataRightsCase.ApprovalPolicyEvidence.PolicyId,
+                dataRightsCase.ApprovalPolicyEvidence.PolicyVersion,
+                dataRightsCase.ApprovalPolicyEvidence.RetentionPolicyId,
+                dataRightsCase.ApprovalPolicyEvidence.RetentionPolicyVersion,
+                dataRightsCase.ApprovalPolicyEvidence.ContentSha256,
+                dataRightsCase.ApprovalPolicyEvidence.PurposeCode,
+                dataRightsCase.ApprovalPolicyEvidence.Surface,
+                dataRightsCase.ApprovalPolicyEvidence.SourceProvenance,
+                dataRightsCase.ApprovalPolicyEvidence.EvaluatedAtUtc,
+                dataRightsCase.ApprovalPolicyEvidence.RequiresDistinctExecutor);
 }

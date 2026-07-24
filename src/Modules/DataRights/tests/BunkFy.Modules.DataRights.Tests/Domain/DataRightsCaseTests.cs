@@ -193,6 +193,93 @@ public sealed class DataRightsCaseTests
     }
 
     [Fact]
+    public void Anonymisation_approval_requires_exact_immutable_policy_evidence()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateReviewRequired(
+            propertyId,
+            DataRightsCaseOperation.Anonymisation);
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            Now.AddMinutes(4)).IsSuccess);
+
+        Assert.Equal(
+            "DataRights.ApprovalPolicyEvidenceInvalid",
+            dataRightsCase.RecordDecision(
+                DataRightsCaseDecision.Approved,
+                DataRightsCaseDecisionReason.RequestValidated,
+                5,
+                "user:decision-maker",
+                Now.AddMinutes(5)).Error.Code);
+
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                propertyId,
+                9,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('a', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                Now.AddMinutes(5)).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            5,
+            "user:decision-maker",
+            Now.AddMinutes(5),
+            evidence).IsSuccess);
+
+        DataRightsApprovalPolicyEvidence persisted =
+            Assert.IsType<DataRightsApprovalPolicyEvidence>(
+                dataRightsCase.ApprovalPolicyEvidence);
+        Assert.Same(evidence, persisted);
+        Assert.True(persisted.RequiresDistinctExecutor);
+    }
+
+    [Fact]
+    public void Anonymisation_cannot_share_an_approval_with_other_operations()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateReviewRequired(
+            propertyId,
+            DataRightsCaseOperation.Anonymisation | DataRightsCaseOperation.Correction);
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            Now.AddMinutes(4)).IsSuccess);
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                propertyId,
+                9,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('a', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                Now.AddMinutes(5)).Value;
+
+        Assert.Equal(
+            "DataRights.ApprovalPolicyEvidenceInvalid",
+            dataRightsCase.RecordDecision(
+                DataRightsCaseDecision.Approved,
+                DataRightsCaseDecisionReason.RequestValidated,
+                5,
+                "user:decision-maker",
+                Now.AddMinutes(5),
+                evidence).Error.Code);
+    }
+
+    [Fact]
     public void Case_changes_reject_timestamp_regression()
     {
         DataRightsCase dataRightsCase = CreateReviewRequired();
@@ -334,12 +421,13 @@ public sealed class DataRightsCaseTests
 
     private static DataRightsCase Create(
         Guid propertyId,
-        DataRightsRequesterRelation requesterRelationship)
+        DataRightsRequesterRelation requesterRelationship,
+        DataRightsCaseOperation operations = DataRightsCaseOperation.AccessExport)
     {
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
             propertyId,
             DataRightsCaseKind.GuestRights,
-            DataRightsCaseOperation.AccessExport,
+            operations,
             requesterRelationship).Value;
         return DataRightsCase.Create(
             Guid.NewGuid(),
@@ -350,10 +438,18 @@ public sealed class DataRightsCaseTests
     }
 
     private static DataRightsCase CreateReviewRequired()
+        => CreateReviewRequired(
+            Guid.NewGuid(),
+            DataRightsCaseOperation.AccessExport | DataRightsCaseOperation.Correction);
+
+    private static DataRightsCase CreateReviewRequired(
+        Guid propertyId,
+        DataRightsCaseOperation operations)
     {
         DataRightsCase dataRightsCase = Create(
-            Guid.NewGuid(),
-            DataRightsRequesterRelation.ControllerInitiated);
+            propertyId,
+            DataRightsRequesterRelation.ControllerInitiated,
+            operations);
         Assert.True(dataRightsCase.BeginDiscovery(
             1,
             "user:operator-a",

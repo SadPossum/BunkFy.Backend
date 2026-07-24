@@ -2,6 +2,7 @@ namespace BunkFy.Modules.DataRights.Domain.Aggregates;
 
 using BunkFy.Modules.DataRights.Domain.Errors;
 using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Results;
 
 public sealed partial class DataRightsCase
@@ -28,7 +29,8 @@ public sealed partial class DataRightsCase
         DataRightsCaseDecisionReason reason,
         long expectedVersion,
         string actorId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        DataRightsApprovalPolicyEvidence? approvalPolicyEvidence = null)
     {
         Result ready = this.EnsureTransition(
             expectedVersion,
@@ -45,6 +47,18 @@ public sealed partial class DataRightsCase
             return Result.Failure(DataRightsDomainErrors.DecisionInvalid);
         }
 
+        bool approvesAnonymisation = decision == DataRightsCaseDecision.Approved &&
+            this.RequestedOperations == DataRightsCaseOperation.Anonymisation;
+        bool requestsAnonymisation = (this.RequestedOperations & DataRightsCaseOperation.Anonymisation) != 0;
+        if ((approvesAnonymisation && approvalPolicyEvidence is null) ||
+            (!approvesAnonymisation && approvalPolicyEvidence is not null) ||
+            (decision == DataRightsCaseDecision.Approved &&
+             requestsAnonymisation &&
+             this.RequestedOperations != DataRightsCaseOperation.Anonymisation))
+        {
+            return Result.Failure(DataRightsDomainErrors.ApprovalPolicyEvidenceInvalid);
+        }
+
         this.Status = decision == DataRightsCaseDecision.Approved
             ? DataRightsCaseState.Approved
             : DataRightsCaseState.Denied;
@@ -52,6 +66,7 @@ public sealed partial class DataRightsCase
         this.DecisionReason = reason;
         this.DecidedBy = actorId.Trim();
         this.DecidedAtUtc = nowUtc;
+        this.ApprovalPolicyEvidence = approvalPolicyEvidence;
         this.CompleteChange(actorId, nowUtc);
         this.DecisionRevision = this.Version;
         return Result.Success();

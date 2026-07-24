@@ -1,4 +1,4 @@
-# data-rights Personal-Data Inventory v3
+# data-rights Personal-Data Inventory v4
 
 Generated from `data-rights.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -40,7 +40,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.guest-subject-record-id | guest | linked-operational | standard | authorized-subject-discovery<br>case-subject-selection | guests-authoritative-owner<br>request-input | guests | customer-controller-bunk-fy-processor | data-rights-case-audit | guest.profile.identifier | data-rights-case-lifecycle | guest-subject-discovery | api-input<br>api-response<br>application-query<br>persistence | cross-module<br>customer-api<br>intra-module | engineering-default |
 | data-rights.guest-subject-selected-at | guest | lifecycle | standard | authorized-change-traceability<br>case-subject-selection | operator-selection | data-rights | customer-controller-bunk-fy-processor | data-rights-case-audit | guest.profile.lifecycle | data-rights-case-lifecycle | guest-subject-discovery | api-response<br>persistence | customer-api<br>intra-module | engineering-default |
 | data-rights.owner-export-envelope | subject-scoped | structured-payload | unstructured | authorized-subject-export<br>protected-export-assembly | authorized-owner-export | selected-owner-module | customer-controller-bunk-fy-processor | data-rights-owner-export | data-rights.owner-export | transient-owner-export-fragment | selected-owner-export | data-rights-export | cross-module | engineering-default |
-| data-rights.staff-actor-reference | staff | audit-attribution | standard | authorized-change-traceability<br>case-accountability | authenticated-access-subject | auth | customer-controller-bunk-fy-processor | data-rights-case-audit | staff.audit-attribution | data-rights-case-lifecycle | staff-audit-attribution | application-command<br>persistence | intra-module | engineering-default |
+| data-rights.staff-actor-reference | staff | audit-attribution | standard | authorized-change-traceability<br>case-accountability | authenticated-access-subject | auth | customer-controller-bunk-fy-processor | data-rights-case-audit | staff.audit-attribution | data-rights-case-lifecycle | staff-audit-attribution | application-command<br>application-query<br>persistence | cross-module<br>intra-module | engineering-default |
 
 ## Code Bindings
 
@@ -83,6 +83,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RequireDataRightsReviewCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.SelectDataRightsSubjectCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.UnselectDataRightsSubjectCommand | ActorId | application-command | transient-request |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.Authorization.DataRightsOperationApprovalRequest | ExecutingActorId | application-query | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | CreatedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | DecidedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | LastChangedBy | persistence | data-rights-case-lifecycle |

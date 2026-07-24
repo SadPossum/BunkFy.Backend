@@ -57,6 +57,9 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_decision_state");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_cases_approval_policy_evidence");
         Assert.Equal(
             DataRightsCase.ActorIdMaxLength,
             entity.FindProperty(nameof(DataRightsCase.DecidedBy))!.GetMaxLength());
@@ -231,6 +234,89 @@ public sealed class DataRightsModelTests
             "tenant-a");
         DataRightsCase restored = await reader.Cases.SingleAsync();
         Assert.Equal(DataRightsRestrictionAction.Release, restored.RestrictionAction);
+    }
+
+    [Fact]
+    public async Task Anonymisation_approval_evidence_round_trips_with_the_case()
+    {
+        string databaseName = $"data-rights-evidence-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DateTimeOffset now = new(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            now).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator",
+            now.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            4,
+            2,
+            "user:operator",
+            now.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            3,
+            "user:operator",
+            now.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            now.AddMinutes(4)).IsSuccess);
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                propertyId,
+                12,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('c', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                now.AddMinutes(5)).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            5,
+            "user:decision-maker",
+            now.AddMinutes(5),
+            evidence).IsSuccess);
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        DataRightsApprovalPolicyEvidence restoredEvidence =
+            Assert.IsType<DataRightsApprovalPolicyEvidence>(
+                restored.ApprovalPolicyEvidence);
+        Assert.Equal("approved-policy", restoredEvidence.PolicyId);
+        Assert.Equal(12, restoredEvidence.PropertyVersion);
+        Assert.Equal(new string('c', 64), restoredEvidence.ContentSha256);
+        Assert.True(restoredEvidence.RequiresDistinctExecutor);
     }
 
     private static DataRightsCase CreateCase(string tenantId, Guid propertyId)

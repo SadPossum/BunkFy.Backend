@@ -131,6 +131,7 @@ internal static class CountryPolicyIntegrationTestData
               "requirement": "required",
               "purposeCodes": [
                 "data-rights-correction",
+                "data-rights-anonymisation",
                 "data-rights-restriction",
                 "guest-profile-management",
                 "reservation-management",
@@ -147,6 +148,12 @@ internal static class CountryPolicyIntegrationTestData
                 "integration-test",
                 "authorized-workspace-operator"
               ]
+            },
+            {
+              "purposeCode": "data-rights-anonymisation",
+              "legalRuleReferenceKeys": [ "integration-erasure" ],
+              "allowedSurfaces": [ "erasure" ],
+              "allowedSourceProvenance": [ "authorized-workspace-operator" ]
             },
             {
               "purposeCode": "data-rights-correction",

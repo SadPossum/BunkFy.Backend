@@ -70,4 +70,7 @@ public static class DataRightsDomainErrors
     public static readonly Error DecisionInvalid = new(
         "DataRights.DecisionInvalid",
         "The data-rights decision and reason combination is invalid.");
+    public static readonly Error ApprovalPolicyEvidenceInvalid = new(
+        "DataRights.ApprovalPolicyEvidenceInvalid",
+        "An anonymisation approval requires valid immutable policy evidence.");
 }

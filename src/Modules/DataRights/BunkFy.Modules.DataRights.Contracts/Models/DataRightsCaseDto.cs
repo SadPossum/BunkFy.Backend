@@ -18,4 +18,5 @@ public sealed record DataRightsCaseDto(
     DateTimeOffset? DueAtUtc,
     long Version,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset LastChangedAtUtc);
+    DateTimeOffset LastChangedAtUtc,
+    DataRightsApprovalEvidence? ApprovalEvidence);

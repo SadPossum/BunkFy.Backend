@@ -149,6 +149,46 @@ public sealed class DataRightsOperationApprovalGateTests
         Assert.Equal(DataRightsOperationApprovalDenial.CaseNotApproved, result.Denial);
     }
 
+    [Fact]
+    public async Task Anonymisation_returns_frozen_evidence_only_to_a_distinct_executor()
+    {
+        Guid propertyId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateApprovedCase(
+            propertyId,
+            recordId,
+            DataRightsCaseOperation.Anonymisation);
+        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        DataRightsOperationApprovalRequest request = CreateRequest(
+            dataRightsCase,
+            propertyId,
+            recordId) with
+        {
+            Operation = DataRightsOperation.Anonymisation,
+            ExecutingActorId = "user:executor"
+        };
+
+        DataRightsOperationApprovalResult approved = await gate.EvaluateAsync(
+            request,
+            CancellationToken.None);
+        DataRightsOperationApprovalResult sameActor = await gate.EvaluateAsync(
+            request with { ExecutingActorId = "user:operator-b" },
+            CancellationToken.None);
+        DataRightsOperationApprovalResult missingActor = await gate.EvaluateAsync(
+            request with { ExecutingActorId = null },
+            CancellationToken.None);
+
+        Assert.True(approved.IsApproved);
+        Assert.NotNull(approved.ApprovalEvidence);
+        Assert.Equal("approved-policy", approved.ApprovalEvidence.PolicyId);
+        Assert.Equal(
+            DataRightsOperationApprovalDenial.DecisionActorCannotExecute,
+            sameActor.Denial);
+        Assert.Equal(
+            DataRightsOperationApprovalDenial.ExecutionActorRequired,
+            missingActor.Denial);
+    }
+
     private static DataRightsCase CreateApprovedCase(
         Guid propertyId,
         Guid recordId,
@@ -161,12 +201,29 @@ public sealed class DataRightsOperationApprovalGateTests
             recordId,
             operations,
             restrictionAction);
+        DataRightsApprovalPolicyEvidence? evidence =
+            operations == DataRightsCaseOperation.Anonymisation
+                ? DataRightsApprovalPolicyEvidence.Create(
+                    propertyId,
+                    9,
+                    "GB",
+                    "approved-policy",
+                    3,
+                    "guest-retention",
+                    2,
+                    new string('a', 64),
+                    "data-rights-anonymisation",
+                    "erasure",
+                    "authorized-workspace-operator",
+                    Now.AddMinutes(5)).Value
+                : null;
         Assert.True(dataRightsCase.RecordDecision(
             DataRightsCaseDecision.Approved,
             DataRightsCaseDecisionReason.RequestValidated,
             5,
             "user:operator-b",
-            Now.AddMinutes(5)).IsSuccess);
+            Now.AddMinutes(5),
+            evidence).IsSuccess);
         return dataRightsCase;
     }
 

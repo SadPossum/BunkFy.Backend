@@ -11,6 +11,10 @@ public sealed class DataRightsDbContext(
     IScopeContext scopeContext) : ScopeAwareDbContext<DataRightsDbContext>(options, scopeContext)
 {
     public DbSet<DataRightsCase> Cases => this.Set<DataRightsCase>();
+    public DbSet<DataRightsPropertyProjection> PropertyProjections =>
+        this.Set<DataRightsPropertyProjection>();
+    public DbSet<DataRightsProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>
+        this.Set<DataRightsProjectionRebuildCheckpoint>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
 
