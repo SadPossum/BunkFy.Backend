@@ -420,6 +420,7 @@ public sealed partial class DeveloperExperienceGuardTests
         [
             "Notifications__Delivery__Enabled",
             "Notifications__Retention__Enabled",
+            "Notifications__DurableStreams__MonitorEnabled",
             "Auth__Retention__Enabled",
             "Organizations__Retention__Enabled",
             "MessageJournalCleanup__Enabled",
@@ -432,6 +433,8 @@ public sealed partial class DeveloperExperienceGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+        Assert.Contains("AddSeconds(60)", exporter, StringComparison.Ordinal);
+        Assert.Contains("-TimeoutSec 15", exporter, StringComparison.Ordinal);
         Assert.Contains("SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')", exporter, StringComparison.Ordinal);
     }
 

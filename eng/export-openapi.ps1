@@ -33,6 +33,7 @@ $oldUrls = $env:ASPNETCORE_URLS
 $exportEnvironment = @{
     'Notifications__Delivery__Enabled' = $env:Notifications__Delivery__Enabled
     'Notifications__Retention__Enabled' = $env:Notifications__Retention__Enabled
+    'Notifications__DurableStreams__MonitorEnabled' = $env:Notifications__DurableStreams__MonitorEnabled
     'Auth__Retention__Enabled' = $env:Auth__Retention__Enabled
     'Organizations__Retention__Enabled' = $env:Organizations__Retention__Enabled
     'MessageJournalCleanup__Enabled' = $env:MessageJournalCleanup__Enabled
@@ -46,6 +47,7 @@ try {
     $env:ASPNETCORE_URLS = $url
     $env:Notifications__Delivery__Enabled = 'false'
     $env:Notifications__Retention__Enabled = 'false'
+    $env:Notifications__DurableStreams__MonitorEnabled = 'false'
     $env:Auth__Retention__Enabled = 'false'
     $env:Organizations__Retention__Enabled = 'false'
     $env:MessageJournalCleanup__Enabled = 'false'
@@ -58,7 +60,7 @@ try {
         -WindowStyle Hidden `
         -PassThru
 
-    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    $deadline = [DateTime]::UtcNow.AddSeconds(60)
     $response = $null
     $lastFailure = $null
     do {
@@ -67,7 +69,7 @@ try {
         }
 
         try {
-            $response = Invoke-WebRequest -UseBasicParsing -Uri $swaggerUrl -TimeoutSec 2
+            $response = Invoke-WebRequest -UseBasicParsing -Uri $swaggerUrl -TimeoutSec 15
         }
         catch {
             $lastFailure = $_.Exception.Message
@@ -82,7 +84,7 @@ try {
         else {
             "Last request failure: $lastFailure"
         }
-        throw "OpenAPI endpoint '$swaggerUrl' did not become ready within 30 seconds. $failureContext"
+        throw "OpenAPI endpoint '$swaggerUrl' did not become ready within 60 seconds. $failureContext"
     }
 
     $expected = $response.Content.TrimEnd() + "`n"
