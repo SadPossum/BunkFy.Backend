@@ -22,6 +22,8 @@ public sealed class ReservationsMigrationIntegrationTests
         "20260722134132_AddInternationalMarketGate";
     private const string PreviousProcessingRestrictionMigration =
         "20260725190654_AddReservationDataRightsCorrectionReceipts";
+    private const string PreviousDataHoldMigration =
+        "20260725210703_AddReservationProcessingRestrictions";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -231,6 +233,78 @@ public sealed class ReservationsMigrationIntegrationTests
         Assert.False(projection.IsRestricted);
         Assert.Equal(createdAtUtc, projection.LastTransitionAtUtc);
         Assert.True(projection.ProjectionOrdinal > 0);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Data_hold_migration_preserves_reservations_and_starts_empty()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_data_hold_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        await using (ReservationsDbContext previous =
+            CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(PreviousDataHoldMigration);
+            Reservation reservation = Reservation.Create(
+                reservationId,
+                "tenant-a",
+                propertyId,
+                Guid.NewGuid(),
+                new DateOnly(2026, 8, 1),
+                new DateOnly(2026, 8, 3),
+                [Guid.NewGuid()],
+                "Existing Guest",
+                "existing@example.test",
+                "+44 20 1234 5678",
+                guestCount: 1,
+                ReservationSource.Direct,
+                sourceSystem: null,
+                sourceReference: null,
+                notes: null,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                ReservationDetailsChangeOrigin.Staff,
+                initialDetailsActorId: "user:migration-seed",
+                initialAdapterConnectionId: null,
+                initialExternalOperationId: null,
+                Guid.NewGuid(),
+                new DateTimeOffset(
+                    2026,
+                    7,
+                    25,
+                    21,
+                    0,
+                    0,
+                    TimeSpan.Zero)).Value;
+            previous.Reservations.Add(reservation);
+            await previous.SaveChangesAsync();
+        }
+
+        await using ReservationsDbContext upgraded =
+            CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        Assert.True(await upgraded.Reservations
+            .AsNoTracking()
+            .AnyAsync(reservation => reservation.Id == reservationId));
+        Assert.Empty(await upgraded.DataHolds.AsNoTracking().ToArrayAsync());
+        Assert.Empty(await upgraded.DataHoldReceipts
+            .AsNoTracking()
+            .ToArrayAsync());
+        int operationLockCount = await upgraded.Database
+            .SqlQueryRaw<int>(
+                "SELECT COUNT(*)::int AS \"Value\" " +
+                "FROM reservations.reservation_operation_locks")
+            .SingleAsync();
+        Assert.Equal(0, operationLockCount);
     }
 
     private static ReservationsDbContext CreateDbContext(string connectionString)

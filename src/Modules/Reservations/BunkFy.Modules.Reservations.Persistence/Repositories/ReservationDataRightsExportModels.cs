@@ -3,6 +3,8 @@ namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.Models;
+using DomainDataHoldAction =
+    BunkFy.Modules.Reservations.Domain.Models.ReservationDataHoldAction;
 
 internal sealed record ReservationDataRightsExport(
     Guid ReservationId,
@@ -180,4 +182,26 @@ internal sealed record ReservationProcessingRestrictionReceiptDataRightsExport(
     long ResultingProjectionRevision,
     bool EffectiveRestricted,
     Guid EventId,
+    DateTimeOffset CompletedAtUtc);
+
+internal sealed record ReservationDataHoldDataRightsExport(
+    Guid HoldId,
+    Guid PropertyId,
+    Guid ReservationId,
+    string ReasonCode,
+    ReservationDataHoldState State,
+    DateTimeOffset PlacedAtUtc,
+    DateTimeOffset? ReleasedAtUtc,
+    long Version);
+
+internal sealed record ReservationDataHoldReceiptDataRightsExport(
+    Guid ReceiptId,
+    Guid HoldId,
+    DomainDataHoldAction Action,
+    Guid PropertyId,
+    Guid ReservationId,
+    string ReasonCode,
+    long SelectedReservationVersion,
+    long SelectedDetailsRevision,
+    long ResultingHoldVersion,
     DateTimeOffset CompletedAtUtc);

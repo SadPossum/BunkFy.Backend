@@ -30,6 +30,9 @@ public static class DependencyInjection
             [],
             CountryPolicyRuntimeMode.Engineering));
         services.TryAddScoped<IReservationCountryPolicyAdmission, ReservationCountryPolicyAdmission>();
+        services.TryAddScoped<
+            IReservationAnonymisationEligibilityEvaluator,
+            ReservationAnonymisationEligibilityEvaluator>();
         services.AddIntegrationEventHandler<InventoryAllocationConfirmedIntegrationEvent, InventoryAllocationConfirmedHandler>(
             ReservationsModuleMetadata.Name,
             InventoryModuleMetadata.Name);

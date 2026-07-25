@@ -268,6 +268,102 @@ public sealed class ReservationsModelTests
     }
 
     [Fact]
+    public void Model_has_scoped_hold_receipt_and_operation_lock_invariants()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType hold = dbContext.Model.FindEntityType(
+            typeof(ReservationDataHold))!;
+        IEntityType designHold = designModel.FindEntityType(
+            typeof(ReservationDataHold))!;
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(ReservationDataHoldReceipt))!;
+        IEntityType designReceipt = designModel.FindEntityType(
+            typeof(ReservationDataHoldReceipt))!;
+        IEntityType operationLock = dbContext.Model.FindEntityType(
+            typeof(ReservationOperationLock))!;
+        IEntityType designOperationLock = designModel.FindEntityType(
+            typeof(ReservationOperationLock))!;
+
+        Assert.True(hold.FindProperty(
+            nameof(ReservationDataHold.Version))!.IsConcurrencyToken);
+        Assert.True(operationLock.FindProperty(
+            nameof(ReservationOperationLock.Revision))!.IsConcurrencyToken);
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name).SequenceEqual([
+                    nameof(ReservationDataHoldReceipt.ScopeId),
+                    nameof(ReservationDataHoldReceipt.IdempotencyKey)
+                ]));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name).SequenceEqual([
+                    nameof(ReservationDataHoldReceipt.ScopeId),
+                    nameof(ReservationDataHoldReceipt.HoldId),
+                    nameof(ReservationDataHoldReceipt.Action)
+                ]));
+        Assert.Contains(
+            operationLock.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name).SequenceEqual([
+                    nameof(ReservationOperationLock.ScopeId),
+                    nameof(ReservationOperationLock.ReservationId)
+                ]));
+        Assert.Contains(
+            designHold.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_data_holds_lifecycle");
+        Assert.Contains(
+            designReceipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_data_hold_receipts_versions");
+        Assert.Contains(
+            designOperationLock.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_operation_locks_revision");
+    }
+
+    [Fact]
+    public async Task Data_hold_receipts_are_append_only_after_insertion()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        DateTimeOffset now =
+            new(2026, 7, 25, 20, 0, 0, TimeSpan.Zero);
+        ReservationDataHold hold = ReservationDataHold.Place(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "regulatory-request",
+            "user:privacy",
+            now).Value;
+        ReservationDataHoldReceipt receipt =
+            ReservationDataHoldReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                hold,
+                ReservationDataHoldAction.Place,
+                selectedReservationVersion: 3,
+                selectedDetailsRevision: 2,
+                now).Value;
+        dbContext.DataHolds.Add(hold);
+        dbContext.DataHoldReceipts.Add(receipt);
+        await dbContext.SaveChangesAsync();
+
+        dbContext.DataHoldReceipts.Remove(receipt);
+
+        InvalidOperationException exception =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dbContext.SaveChangesAsync());
+        Assert.Equal(
+            "Reservation data-hold receipts are append-only.",
+            exception.Message);
+    }
+
+    [Fact]
     public void Model_has_scoped_inventory_projection_children_and_versions()
     {
         using ReservationsDbContext dbContext = CreateDbContext();

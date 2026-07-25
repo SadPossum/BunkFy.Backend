@@ -44,6 +44,15 @@ public static class DependencyInjection
             IReservationProcessingRestrictionProjectionRepository,
             ReservationProcessingRestrictionProjectionRepository>();
         builder.Services.TryAddScoped<
+            IReservationDataHoldRepository,
+            ReservationDataHoldRepository>();
+        builder.Services.TryAddScoped<
+            IReservationOperationLock,
+            ReservationOperationLockRepository>();
+        builder.Services.TryAddScoped<
+            IReservationAnonymisationEligibilityRepository,
+            ReservationAnonymisationEligibilityRepository>();
+        builder.Services.TryAddScoped<
             IReservationProcessingRestrictionProjectionRebuildSource,
             ReservationProcessingRestrictionProjectionRebuildSource>();
         builder.Services.TryAddScoped<IReservationDetailsHistoryWriter, ReservationDetailsHistoryWriter>();

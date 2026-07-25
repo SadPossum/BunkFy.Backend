@@ -16,6 +16,8 @@ internal sealed class ReservationCountryPolicyAdmission(
     public const string ReservationIngestionPurpose = "reservation-ingestion";
     public const string DataRightsCorrectionPurpose = "data-rights-correction";
     public const string DataRightsRestrictionPurpose = "data-rights-restriction";
+    public const string DataRightsAnonymisationPurpose =
+        "data-rights-anonymisation";
     public const string AuthorizedOperatorProvenance = "authorized-workspace-operator";
     public const string ApprovedIngestionProvenance = "approved-ingestion";
 
@@ -37,6 +39,10 @@ internal sealed class ReservationCountryPolicyAdmission(
             string.Equals(
                 purposeCode,
                 DataRightsRestrictionPurpose,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                purposeCode,
+                DataRightsAnonymisationPurpose,
                 StringComparison.Ordinal);
         if (property is not { IsKnown: true, ProcessingStatus: PropertyProcessingStatus.Enabled } ||
             (!permitsRetiredProperty && !property.IsActive) ||

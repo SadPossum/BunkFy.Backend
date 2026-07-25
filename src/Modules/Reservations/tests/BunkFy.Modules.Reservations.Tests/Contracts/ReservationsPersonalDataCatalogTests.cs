@@ -44,6 +44,18 @@ public sealed class ReservationsPersonalDataCatalogTests
             StringComparer.Ordinal),
         [typeof(ReservationArrivalReminderClaimResult)] = new(
             [nameof(ReservationArrivalReminderClaimResult.ProcessedCount)],
+            StringComparer.Ordinal),
+        [typeof(ListReservationDataHoldsQuery)] = new(
+            [
+                nameof(ListReservationDataHoldsQuery.Page),
+                nameof(ListReservationDataHoldsQuery.PageSize)
+            ],
+            StringComparer.Ordinal),
+        [typeof(ReservationDataHoldListResponse)] = new(
+            [
+                nameof(ReservationDataHoldListResponse.Page),
+                nameof(ReservationDataHoldListResponse.PageSize)
+            ],
             StringComparer.Ordinal)
     };
 
@@ -263,6 +275,25 @@ public sealed class ReservationsPersonalDataCatalogTests
             yield return (PersonalDataSurface.ApplicationCommand, type);
         }
 
+        foreach ((PersonalDataSurface surface, Type type) in new[]
+                 {
+                     (
+                         PersonalDataSurface.ApiResponse,
+                         typeof(ReservationDataHoldListResponse)),
+                     (
+                         PersonalDataSurface.IntegrationCommand,
+                         typeof(ReservationAnonymisationEligibilityRequest)),
+                     (
+                         PersonalDataSurface.IntegrationCommand,
+                         typeof(ReservationAnonymisationRoutingPolicyEvidence)),
+                     (
+                         PersonalDataSurface.ProjectionExport,
+                         typeof(ReservationAnonymisationEligibilityResult))
+                 })
+        {
+            yield return (surface, type);
+        }
+
         foreach (Type type in typeof(ReservationsModule).GetNestedTypes(BindingFlags.Public)
                      .Where(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Length > 0))
         {
@@ -310,6 +341,8 @@ public sealed class ReservationsPersonalDataCatalogTests
     [
         typeof(Reservation),
         typeof(ReservationDataRightsCorrectionReceipt),
+        typeof(ReservationDataHold),
+        typeof(ReservationDataHoldReceipt),
         typeof(ReservationProcessingRestriction),
         typeof(ReservationProcessingRestrictionProjection),
         typeof(ReservationProcessingRestrictionReceipt),

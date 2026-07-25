@@ -37,7 +37,9 @@ internal sealed class ReservationsPersistenceRetryBehavior<TCommand, TResponse>
 
         if (command is not ApplyReservationDataRightsCorrectionCommand and
             not ApplyReservationProcessingRestrictionCommand and
-            not ReleaseReservationProcessingRestrictionCommand)
+            not ReleaseReservationProcessingRestrictionCommand and
+            not PlaceReservationDataHoldCommand and
+            not ReleaseReservationDataHoldCommand)
         {
             return await next().ConfigureAwait(false);
         }

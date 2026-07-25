@@ -61,6 +61,52 @@ public sealed class ReservationsPersistenceRetryBehaviorTests
             result.Error);
     }
 
+    [Fact]
+    public async Task Data_hold_unique_conflict_reexecutes_once()
+    {
+        DbContextOptions<ReservationsDbContext> options =
+            new DbContextOptionsBuilder<ReservationsDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using ReservationsDbContext dbContext =
+            new(options, new TestScopeContext());
+        ReservationsPersistenceRetryBehavior<
+            PlaceReservationDataHoldCommand,
+            ReservationDataHoldReceiptDto> behavior =
+            new(dbContext, _ => true);
+        PlaceReservationDataHoldCommand command = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ExpectedReservationVersion: 2,
+            ExpectedDetailsRevision: 1,
+            ReservationDataHoldReasonCodes.Dispute,
+            "user:privacy");
+        int attempts = 0;
+
+        Task<Result<ReservationDataHoldReceiptDto>> Next()
+        {
+            attempts++;
+            return attempts == 1
+                ? throw new DbUpdateException("simulated unique conflict")
+                : Task.FromResult(
+                    Result.Failure<ReservationDataHoldReceiptDto>(
+                        ReservationsApplicationErrors
+                            .DataHoldIdempotencyConflict));
+        }
+
+        Result<ReservationDataHoldReceiptDto> result =
+            await behavior.HandleAsync(
+                command,
+                Next,
+                CancellationToken.None);
+
+        Assert.Equal(2, attempts);
+        Assert.Equal(
+            ReservationsApplicationErrors.DataHoldIdempotencyConflict,
+            result.Error);
+    }
+
     private sealed class TestScopeContext : IScopeContext
     {
         public bool IsEnabled => true;

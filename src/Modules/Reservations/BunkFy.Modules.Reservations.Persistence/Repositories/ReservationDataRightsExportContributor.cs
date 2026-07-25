@@ -23,6 +23,9 @@ internal sealed class ReservationDataRightsExportContributor(
         "reservation-processing-restriction-state";
     public const string ProcessingRestrictionReceiptRecordType =
         "reservation-processing-restriction-receipt";
+    public const string DataHoldRecordType = "reservation-data-hold";
+    public const string DataHoldReceiptRecordType =
+        "reservation-data-hold-receipt";
 
     public string OwnerKey => ReservationDataRightsDiscoveryContributor.Owner;
 
@@ -350,6 +353,68 @@ internal sealed class ReservationDataRightsExportContributor(
             await sink.WriteAsync(
                 ReservationDataRightsExportSchema
                     .CreateProcessingRestrictionReceiptRecord(export),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        IQueryable<ReservationDataHoldDataRightsExport> dataHolds =
+            dbContext.DataHolds
+                .AsNoTracking()
+                .Where(hold =>
+                    hold.PropertyId == request.PropertyId &&
+                    hold.ReservationId == reservation.Id)
+                .OrderBy(hold => hold.PlacedAtUtc)
+                .ThenBy(hold => hold.Id)
+                .Select(hold => new ReservationDataHoldDataRightsExport(
+                    hold.Id,
+                    hold.PropertyId,
+                    hold.ReservationId,
+                    hold.ReasonCode,
+                    hold.State,
+                    hold.PlacedAtUtc,
+                    hold.ReleasedAtUtc,
+                    hold.Version));
+        await foreach (ReservationDataHoldDataRightsExport hold in dataHolds
+                           .AsAsyncEnumerable()
+                           .WithCancellation(cancellationToken)
+                           .ConfigureAwait(false))
+        {
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema.CreateDataHoldRecord(hold),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        IQueryable<ReservationDataHoldReceiptDataRightsExport> dataHoldReceipts =
+            dbContext.DataHoldReceipts
+                .AsNoTracking()
+                .Where(receipt =>
+                    receipt.PropertyId == request.PropertyId &&
+                    receipt.ReservationId == reservation.Id)
+                .OrderBy(receipt => receipt.CompletedAtUtc)
+                .ThenBy(receipt => receipt.Id)
+                .Select(receipt =>
+                    new ReservationDataHoldReceiptDataRightsExport(
+                        receipt.Id,
+                        receipt.HoldId,
+                        receipt.Action,
+                        receipt.PropertyId,
+                        receipt.ReservationId,
+                        receipt.ReasonCode,
+                        receipt.SelectedReservationVersion,
+                        receipt.SelectedDetailsRevision,
+                        receipt.ResultingHoldVersion,
+                        receipt.CompletedAtUtc));
+        await foreach (
+            ReservationDataHoldReceiptDataRightsExport receipt in
+            dataHoldReceipts
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema
+                    .CreateDataHoldReceiptRecord(receipt),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
         }

@@ -10,7 +10,7 @@ using BunkFy.Modules.DataRights.Contracts;
 internal static class ReservationDataRightsExportSchema
 {
     public const string ExportSchemaId = "reservations.subject-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 2;
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Reservations.Persistence.DataGovernance.personal-data-catalog.v1.json";
@@ -25,7 +25,9 @@ internal static class ReservationDataRightsExportSchema
             ["reservation-data-rights-correction-accountability"] =
                 "include-minimum-coordinate-in-authorized-case-ledger",
             ["reservation-processing-restriction-accountability"] =
-                "include-minimum-restriction-state-in-authorized-case-ledger"
+                "include-minimum-restriction-state-in-authorized-case-ledger",
+            ["reservation-data-hold-accountability"] =
+                "include-minimum-hold-state-in-authorized-case-ledger"
         };
 
     private static readonly Type[] SourceTypes =
@@ -38,6 +40,8 @@ internal static class ReservationDataRightsExportSchema
         typeof(ReservationProcessingRestrictionDataRightsExport),
         typeof(ReservationProcessingRestrictionStateDataRightsExport),
         typeof(ReservationProcessingRestrictionReceiptDataRightsExport),
+        typeof(ReservationDataHoldDataRightsExport),
+        typeof(ReservationDataHoldReceiptDataRightsExport),
         typeof(ReservationExternalOperationDataRightsExport),
         typeof(ReservationArrivalReminderDataRightsExport)
     ];
@@ -129,6 +133,22 @@ internal static class ReservationDataRightsExportSchema
                 .ProcessingRestrictionReceiptRecordType,
             receipt.ReceiptId,
             receipt.ResultingProjectionRevision,
+            receipt);
+
+    public static DataRightsExportRecord CreateDataHoldRecord(
+        ReservationDataHoldDataRightsExport hold) =>
+        CreateRecord(
+            ReservationDataRightsExportContributor.DataHoldRecordType,
+            hold.HoldId,
+            hold.Version,
+            hold);
+
+    public static DataRightsExportRecord CreateDataHoldReceiptRecord(
+        ReservationDataHoldReceiptDataRightsExport receipt) =>
+        CreateRecord(
+            ReservationDataRightsExportContributor.DataHoldReceiptRecordType,
+            receipt.ReceiptId,
+            receipt.ResultingHoldVersion,
             receipt);
 
     private static DataRightsExportRecord CreateRecord(

@@ -23,6 +23,10 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
     public DbSet<ReservationProcessingRestrictionProjection>
         ProcessingRestrictionProjections =>
         this.Set<ReservationProcessingRestrictionProjection>();
+    public DbSet<ReservationDataHold> DataHolds =>
+        this.Set<ReservationDataHold>();
+    public DbSet<ReservationDataHoldReceipt> DataHoldReceipts =>
+        this.Set<ReservationDataHoldReceipt>();
     public DbSet<RequestedInventoryUnit> RequestedInventoryUnits => this.Set<RequestedInventoryUnit>();
     public DbSet<ReservationGuest> ReservationGuests => this.Set<ReservationGuest>();
     public DbSet<ReservationGuestProfileProjection> GuestProfileProjections => this.Set<ReservationGuestProfileProjection>();
@@ -77,6 +81,16 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         {
             throw new InvalidOperationException(
                 "Reservation processing-restriction receipts are append-only.");
+        }
+
+        bool holdReceiptMutationRequested = this.ChangeTracker
+            .Entries<ReservationDataHoldReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        if (holdReceiptMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Reservation data-hold receipts are append-only.");
         }
     }
 }

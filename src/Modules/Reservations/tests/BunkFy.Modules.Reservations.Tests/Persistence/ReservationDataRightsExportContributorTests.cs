@@ -137,6 +137,28 @@ public sealed class ReservationDataRightsExportContributorTests
         dbContext.ProcessingRestrictionProjections.Add(restrictionState);
         dbContext.ProcessingRestrictionReceipts.Add(restrictionReceipt);
 
+        ReservationDataHold dataHold = ReservationDataHold.Place(
+            Guid.NewGuid(),
+            "tenant-a",
+            propertyId,
+            reservation.Id,
+            ReservationDataHoldReasonCodes.RegulatoryRequest,
+            "user:privacy-operator",
+            Now.AddMinutes(5)).Value;
+        ReservationDataHoldReceipt dataHoldReceipt =
+            ReservationDataHoldReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                dataHold,
+                BunkFy.Modules.Reservations.Domain.Models
+                    .ReservationDataHoldAction.Place,
+                reservation.Version,
+                reservation.DetailsRevision,
+                Now.AddMinutes(5)).Value;
+        dbContext.DataHolds.Add(dataHold);
+        dbContext.DataHoldReceipts.Add(dataHoldReceipt);
+
         dbContext.ExternalOperations.Add(new ReservationExternalOperation(
             new ReservationExternalOperationRecord(
                 externalOperationId,
@@ -204,8 +226,8 @@ public sealed class ReservationDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(11, result.RecordCount);
-        Assert.Equal(11, sink.Records.Count);
+        Assert.Equal(13, result.RecordCount);
+        Assert.Equal(13, sink.Records.Count);
         Assert.Equal(
             [
                 ReservationDataRightsDiscoveryContributor.ReservationRecordType,
@@ -217,6 +239,8 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationDataRightsExportContributor.ProcessingRestrictionRecordType,
                 ReservationDataRightsExportContributor.ProcessingRestrictionStateRecordType,
                 ReservationDataRightsExportContributor.ProcessingRestrictionReceiptRecordType,
+                ReservationDataRightsExportContributor.DataHoldRecordType,
+                ReservationDataRightsExportContributor.DataHoldReceiptRecordType,
                 ReservationDataRightsExportContributor.ExternalOperationRecordType,
                 ReservationDataRightsExportContributor.ArrivalReminderRecordType
             ],
@@ -247,6 +271,23 @@ public sealed class ReservationDataRightsExportContributorTests
             field => field.FieldId is
                 "reservation.processing-restriction.actor-id" or
                 "reservation.processing-restriction.idempotency-key" or
+                "reservation.guest.primary-name" or
+                "reservation.guest.email" or
+                "reservation.guest.phone" or
+                "reservation.guest.notes");
+        DataRightsExportRecord dataHoldExport = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor.DataHoldRecordType);
+        DataRightsExportRecord dataHoldReceiptExport = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor.DataHoldReceiptRecordType);
+        Assert.DoesNotContain(
+            dataHoldExport.Fields.Concat(dataHoldReceiptExport.Fields),
+            field => field.FieldId is
+                "reservation.data-hold.actor-id" or
+                "reservation.data-hold.idempotency-key" or
                 "reservation.guest.primary-name" or
                 "reservation.guest.email" or
                 "reservation.guest.phone" or
@@ -335,8 +376,9 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(5, descriptor.CatalogVersion);
+        Assert.Equal(6, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
+        Assert.Equal(2, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);
     }
 

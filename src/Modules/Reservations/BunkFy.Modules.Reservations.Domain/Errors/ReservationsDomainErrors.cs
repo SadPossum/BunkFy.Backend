@@ -39,6 +39,15 @@ public static class ReservationsDomainErrors
     public static readonly Error ProcessingRestrictionReceiptIdentityInvalid = new("Reservations.ProcessingRestrictionReceiptIdentityInvalid", "The processing-restriction receipt identity is invalid.");
     public static readonly Error ProcessingRestrictionReceiptVersionInvalid = new("Reservations.ProcessingRestrictionReceiptVersionInvalid", "The processing-restriction receipt version is invalid.");
     public static readonly Error ProcessingRestrictionReceiptTransitionInvalid = new("Reservations.ProcessingRestrictionReceiptTransitionInvalid", "The processing-restriction receipt transition is invalid.");
+    public static readonly Error DataHoldIdentityInvalid = new("Reservations.DataHoldIdentityInvalid", "The reservation data-hold identity is invalid.");
+    public static readonly Error DataHoldReasonCodeInvalid = new("Reservations.DataHoldReasonCodeInvalid", "The reservation data-hold reason code is invalid.");
+    public static readonly Error DataHoldActorInvalid = new("Reservations.DataHoldActorInvalid", "The reservation data-hold actor is invalid.");
+    public static readonly Error DataHoldLifecycleInvalid = new("Reservations.DataHoldLifecycleInvalid", "The reservation data-hold lifecycle is invalid.");
+    public static readonly Error DataHoldVersionConflict = new("Reservations.DataHoldVersionConflict", "The reservation data hold has changed.");
+    public static readonly Error DataHoldAlreadyReleased = new("Reservations.DataHoldAlreadyReleased", "The reservation data hold is already released.");
+    public static readonly Error DataHoldReceiptIdentityInvalid = new("Reservations.DataHoldReceiptIdentityInvalid", "The reservation data-hold receipt identity is invalid.");
+    public static readonly Error DataHoldReceiptVersionInvalid = new("Reservations.DataHoldReceiptVersionInvalid", "The reservation data-hold receipt version is invalid.");
+    public static readonly Error DataHoldReceiptLifecycleInvalid = new("Reservations.DataHoldReceiptLifecycleInvalid", "The reservation data-hold receipt lifecycle is invalid.");
     public static readonly Error AllocationAmendmentInProgress = new("Reservations.AllocationAmendmentInProgress", "An allocation-affecting reservation amendment is already in progress.");
     public static readonly Error AllocationAmendmentInvalid = new("Reservations.AllocationAmendmentInvalid", "The allocation-affecting reservation amendment is invalid.");
     public static readonly Error StayBusinessDateInvalid = new("Reservations.StayBusinessDateInvalid", "The business date is not valid for this stay transition.");

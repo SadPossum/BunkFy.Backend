@@ -1,5 +1,6 @@
 namespace Integration.Tests;
 
+using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
@@ -423,6 +424,141 @@ public sealed class ReservationDataRightsIntegrationTests
             });
     }
 
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Data_hold_blocks_then_released_hold_allows_exact_anonymisation_eligibility()
+    {
+        await using IContainer nats = AuthTestContainers.CreateNatsContainer();
+        await nats.StartAsync();
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_data_hold_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        await using AuthTestApplication api = new(
+            "PostgreSql",
+            postgreSql.GetConnectionString(),
+            AuthTestContainers.GetNatsConnectionString(nats));
+        await MigrateCorrectionDatabasesAsync(api).ConfigureAwait(false);
+
+        Guid propertyId = Guid.NewGuid();
+        Reservation reservation = await SeedEligibleReservationAsync(
+            api,
+            propertyId).ConfigureAwait(false);
+        using IServiceScope commandScope = api.Services.CreateScope();
+        commandScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        IRequestDispatcher dispatcher =
+            commandScope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        PlaceReservationDataHoldCommand place = new(
+            Guid.NewGuid(),
+            propertyId,
+            reservation.Id,
+            reservation.Version,
+            reservation.DetailsRevision,
+            ReservationDataHoldReasonCodes.RegulatoryRequest,
+            "user:privacy-operator");
+
+        Result<ReservationDataHoldReceiptDto> placed =
+            await dispatcher.SendAsync(place, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(placed.IsSuccess, placed.Error.Code);
+        Assert.Equal(
+            BunkFy.Modules.Reservations.Contracts.ReservationDataHoldAction.Place,
+            placed.Value.Action);
+        Result<ReservationDataHoldReceiptDto> placeReplay =
+            await dispatcher.SendAsync(place, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(placeReplay.IsSuccess, placeReplay.Error.Code);
+        Assert.Equal(placed.Value.ReceiptId, placeReplay.Value.ReceiptId);
+
+        ReservationAnonymisationEligibilityRequest eligibilityRequest =
+            await CreateEligibilityRequestAsync(
+                commandScope.ServiceProvider,
+                propertyId,
+                reservation).ConfigureAwait(false);
+        IReservationAnonymisationEligibilityEvaluator evaluator =
+            commandScope.ServiceProvider.GetRequiredService<
+                IReservationAnonymisationEligibilityEvaluator>();
+        ReservationAnonymisationEligibilityResult blocked =
+            await evaluator.EvaluateAsync(
+                eligibilityRequest,
+                CancellationToken.None).ConfigureAwait(false);
+        Assert.Equal(
+            ReservationAnonymisationEligibilityStatus.Blocked,
+            blocked.Status);
+        Assert.Equal(
+            ReservationAnonymisationBlockerCode.ActiveDataHold,
+            blocked.BlockerCode);
+        Assert.Equal(1, blocked.ActiveHoldCount);
+
+        ReleaseReservationDataHoldCommand release = new(
+            Guid.NewGuid(),
+            propertyId,
+            reservation.Id,
+            placed.Value.HoldId,
+            reservation.Version,
+            reservation.DetailsRevision,
+            placed.Value.ResultingHoldVersion,
+            "user:decision-maker");
+        Result<ReservationDataHoldReceiptDto> released =
+            await dispatcher.SendAsync(release, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(released.IsSuccess, released.Error.Code);
+        Assert.Equal(
+            BunkFy.Modules.Reservations.Contracts.ReservationDataHoldAction.Release,
+            released.Value.Action);
+        Result<ReservationDataHoldReceiptDto> releaseReplay =
+            await dispatcher.SendAsync(release, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(releaseReplay.IsSuccess, releaseReplay.Error.Code);
+        Assert.Equal(released.Value.ReceiptId, releaseReplay.Value.ReceiptId);
+
+        ReservationAnonymisationEligibilityResult eligible =
+            await evaluator.EvaluateAsync(
+                eligibilityRequest,
+                CancellationToken.None).ConfigureAwait(false);
+        Assert.Equal(
+            ReservationAnonymisationEligibilityStatus.Eligible,
+            eligible.Status);
+        Assert.Equal(
+            ReservationAnonymisationBlockerCode.None,
+            eligible.BlockerCode);
+        Assert.Equal(0, eligible.ActiveHoldCount);
+        Assert.Equal(64, eligible.PolicyEvidenceSha256?.Length);
+
+        using IServiceScope verificationScope = api.Services.CreateScope();
+        verificationScope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        ReservationsDbContext reservations =
+            verificationScope.ServiceProvider
+                .GetRequiredService<ReservationsDbContext>();
+        ReservationDataHold hold = await reservations.DataHolds
+            .AsNoTracking()
+            .SingleAsync()
+            .ConfigureAwait(false);
+        ReservationDataHoldReceipt[] receipts =
+            await reservations.DataHoldReceipts
+                .AsNoTracking()
+                .OrderBy(receipt => receipt.CompletedAtUtc)
+                .ToArrayAsync()
+                .ConfigureAwait(false);
+
+        Assert.Equal(ReservationDataHoldState.Released, hold.State);
+        Assert.Equal(2, hold.Version);
+        Assert.Equal("user:privacy-operator", hold.PlacedBy);
+        Assert.Equal("user:decision-maker", hold.ReleasedBy);
+        Assert.Equal(2, receipts.Length);
+        Assert.Equal(2, receipts.Select(receipt => receipt.IdempotencyKey)
+            .Distinct().Count());
+        Assert.Null(typeof(ReservationDataHoldReceipt).GetProperty("ActorId"));
+        Assert.Null(typeof(ReservationDataHoldReceipt).GetProperty("PlacedBy"));
+        Assert.Null(typeof(ReservationDataHoldReceipt).GetProperty("ReleasedBy"));
+    }
+
     private static async Task MigrateCorrectionDatabasesAsync(AuthTestApplication api)
     {
         using IServiceScope scope = api.Services.CreateScope();
@@ -652,6 +788,131 @@ public sealed class ReservationDataRightsIntegrationTests
             "user:decision-maker",
             startedAtUtc.AddMinutes(5)).IsSuccess);
         return dataRightsCase;
+    }
+
+    private static async Task<Reservation> SeedEligibleReservationAsync(
+        AuthTestApplication api,
+        Guid propertyId)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                ReservationsModuleMetadata.Name)
+            .HandleAsync(
+                new(
+                    Guid.NewGuid(),
+                    TenantId,
+                    Now.AddDays(-2),
+                    propertyId,
+                    "Data Hold House",
+                    "data-hold-house",
+                    "UTC",
+                    PropertyStatus.Active,
+                    1),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            ReservationsModuleMetadata.Name,
+            TenantId,
+            propertyId,
+            2).ConfigureAwait(false);
+        await ResolveHandler<PropertyRetiredIntegrationEvent>(
+                scope.ServiceProvider,
+                ReservationsModuleMetadata.Name)
+            .HandleAsync(
+                new(
+                    Guid.NewGuid(),
+                    TenantId,
+                    Now.AddDays(-1),
+                    propertyId,
+                    3,
+                    "user:property-admin"),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        Reservation reservation = CreateReservation(propertyId, TenantId);
+        Assert.True(reservation.RejectAllocation(
+            reservation.AllocationRequestId,
+            ReservationAllocationRejection.AllocationConflict,
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
+            .AddAsync(reservation, CancellationToken.None)
+            .ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+            .SaveChangesAsync()
+            .ConfigureAwait(false);
+        return reservation;
+    }
+
+    private static async Task<ReservationAnonymisationEligibilityRequest>
+        CreateEligibilityRequestAsync(
+            IServiceProvider services,
+            Guid propertyId,
+            Reservation reservation)
+    {
+        ReservationsDbContext reservations =
+            services.GetRequiredService<ReservationsDbContext>();
+        ReservationPropertyProjection property =
+            await reservations.PropertyProjections
+                .AsNoTracking()
+                .SingleAsync(projection => projection.Id == propertyId)
+                .ConfigureAwait(false);
+        ReservationPropertyPolicyBinding policy =
+            Assert.IsType<ReservationPropertyPolicyBinding>(
+                property.GovernancePolicy);
+        DateTimeOffset evaluatedAtUtc = DateTimeOffset.UtcNow;
+        CountryPolicyDecision decision =
+            CountryPolicyIntegrationTestData.Registry.EvaluateOperation(
+                new(
+                    new(
+                        policy.OperatingCountryCode,
+                        policy.PolicyId,
+                        policy.PolicyVersion,
+                        policy.DataRegionId,
+                        policy.TransferProfileId,
+                        policy.RetentionPolicyId,
+                        policy.RetentionPolicyVersion,
+                        policy.ContentSha256,
+                        policy.Acknowledgements
+                            .Select(acknowledgement =>
+                                new CountryPolicyAcknowledgement(
+                                    acknowledgement.AcknowledgementId,
+                                    acknowledgement.AcknowledgementVersion))
+                            .ToArray()),
+                    "hostel",
+                    "data-rights-anonymisation",
+                    CountryPolicySurface.Erasure,
+                    "authorized-workspace-operator",
+                    evaluatedAtUtc));
+        Assert.True(decision.IsAllowed, decision.Reason.ToString());
+        CountryPolicyEvidence evidence =
+            Assert.IsType<CountryPolicyEvidence>(decision.Evidence);
+        return new(
+            ReservationAnonymisationEligibilityContract.CurrentVersion,
+            TenantId,
+            Guid.NewGuid(),
+            ApprovalRevision: 4,
+            OperationRevision: 5,
+            propertyId,
+            reservation.Id,
+            reservation.Version,
+            reservation.DetailsRevision,
+            new(
+                property.PolicySourceVersion,
+                evidence.OperatingCountryCode,
+                evidence.PolicyId,
+                evidence.PolicyVersion,
+                evidence.RetentionPolicyId,
+                evidence.RetentionPolicyVersion,
+                evidence.ContentSha256,
+                evidence.PurposeCode,
+                "erasure",
+                evidence.SourceProvenance,
+                evidence.EvaluatedAtUtc));
     }
 
     private static IIntegrationEventHandler<TEvent> ResolveHandler<TEvent>(

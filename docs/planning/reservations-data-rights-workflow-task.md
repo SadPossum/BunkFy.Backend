@@ -246,7 +246,7 @@ ungated.
    receipts through existing aggregate/history semantics.
 3. [Complete] Add Reservations-owned processing restriction, enforcement
    and rebuildable PII-free state.
-4. Add holds and fail-closed destructive eligibility.
+4. [Implemented] Add holds and fail-closed destructive eligibility.
 5. Add irreversible aggregate/history/link/receipt redaction, owner proof and
    terminal ordinary-surface enforcement.
 6. Add DataRights work-item dispatch, protected ledger completion,
@@ -257,6 +257,73 @@ ungated.
 Only one numbered slice is implemented at a time. Existing modules may be
 touched through contracts, projections and tests, but Reservations remains the
 only owner of its data.
+
+## Fourth-Slice Design
+
+- Reservations owns independently releasable, tenant/property/reservation
+  holds. Each hold stores one stable reason code, lifecycle actor/timestamps,
+  state and optimistic version; free-form legal or investigation text is
+  rejected by construction.
+- Hold placement and release use exact reservation/details/hold versions,
+  idempotency receipts and one reservation operation lock. Multiple active
+  holds compose by existence; releasing one hold cannot release another.
+- Hold receipts are append-only and PII-free. Actors remain on the
+  Reservations-owned hold lifecycle for authorized operational audit, but are
+  excluded from receipts, events and reservation-subject export records.
+- Reservations exposes a versioned owner-local anonymisation eligibility
+  contract. The evaluator reads only the Reservations aggregate, hold store,
+  property/policy projection and processing-restriction projection.
+- Eligibility requires exact selected aggregate and details revisions, a known
+  current restriction projection contract, a terminal operational state, no
+  pending allocation/amendment/release work and no active hold.
+- `PendingAllocation`, `CancellationPending`, `NoShowPending`,
+  `CheckoutPending` or a pending allocation amendment report a stable
+  unresolved-work blocker. `Confirmed` and `CheckedIn` report an active-stay
+  blocker. Only `AllocationRejected`, `Cancelled`, `NoShow` and `CheckedOut`
+  can continue to policy evaluation.
+- The current property policy must be known, processing-enabled, current and
+  permit `data-rights-anonymisation` on the erasure surface. Retired known
+  properties remain eligible for rights handling when that policy remains
+  enabled; ordinary property management remains unchanged.
+- The routing approval evidence must match the current property projection
+  version, country policy, retention policy, content digest, purpose, surface,
+  provenance and evaluation window. Missing, stale, future or changed evidence
+  fails closed with a stable blocker code.
+- External reservations with a direct source reference remain blocked in this
+  slice. No provider-specific reconciliation-retention contract exists yet, so
+  assuming that the reference may be removed would fail open. Direct bookings
+  and external records without a direct reference can proceed when every other
+  check passes.
+- The future destructive command will acquire the same reservation operation
+  lock before re-evaluating eligibility. A reserved
+  `DestructiveOperationInProgress` blocker becomes observable when slice 5 adds
+  owner execution state; slice 4 does not invent a dormant operation table.
+- Rights export adds subject-linked hold lifecycle and minimum hold receipts.
+  Staff actors, idempotency keys and legal advice are excluded. GMA remains
+  unchanged.
+
+## Fourth-Slice Acceptance Plan
+
+- Domain tests cover coded hold placement/release, overlapping holds, actor and
+  time validation, optimistic conflicts and terminal release behavior.
+- Handler tests cover tenant scope, exact reservation/details/hold versions,
+  exact idempotency replay, changed-request conflict and independent release.
+- Eligibility tests cover every reservation state, pending amendment, missing
+  and future restriction state, active holds, stale aggregate/details
+  revisions, retired known property policy, stale/changed routing evidence and
+  provider-reference denial.
+- Persistence tests cover scoped indexes, hold concurrency, receipt uniqueness,
+  append-only enforcement, operation-lock registration and bounded eligibility
+  queries.
+- Export and catalogue tests prove hold records are complete for the selected
+  reservation while actors, idempotency material and unrelated holds remain
+  absent.
+- PostgreSQL integration proves real country-policy evaluation, transaction
+  locking, hold placement/release, exact replay, eligibility transitions and
+  tenant/property isolation.
+- Full architecture, migration-drift, non-Docker, Docker, generated-contract,
+  vulnerability, security and exact-commit publication gates must pass before
+  slice completion.
 
 ## Third-Slice Design
 
@@ -462,6 +529,34 @@ only owner of its data.
   strengthened required-continuation assertion also passes in a focused rerun.
 - Recursive submodule status confirms every mounted GMA repository is clean;
   no GMA source or pointer changes are part of this slice.
+
+## Fourth-Slice Acceptance Evidence
+
+- Reservations owns coded, independently releasable holds, append-only
+  PII-free lifecycle receipts and a shared per-reservation operation lock.
+  Exact reservation, details and hold versions protect every transition;
+  unchanged retries replay and changed payloads conflict.
+- Destructive eligibility fails closed for active holds, non-terminal or
+  pending reservation work, missing/current-policy mismatches and external
+  provider records without a direct source reference. Terminal records at
+  known retired properties can proceed when current policy evidence allows it.
+- Rights export schema version 2 includes subject-linked hold lifecycle and
+  minimum receipts without staff actors or idempotency keys. Personal-data
+  catalogue version 6 and its generated inventory bind the new contracts,
+  commands, persistence, policy evidence, eligibility result and export data.
+- Migration `20260725224526_AddReservationDataHoldsAndEligibility` preserves
+  existing reservations and creates empty hold, receipt and operation-lock
+  stores with database lifecycle and append-only constraints. Migration drift
+  is clean.
+- The complete Reservations suite passes 111 tests. Six Reservations Docker
+  integration tests pass, including upgrade from the preceding migration and
+  a real PostgreSQL/NATS hold, replay, eligibility and release workflow.
+- `eng/verify.ps1 -SkipRestore` passes solution synchronization,
+  source-package ownership, a zero-warning full build, every GMA and BunkFy
+  migration-drift check, 64 architecture tests and all non-Docker suites.
+- `eng/test-docker.ps1 -NoBuild` passes all 48 Docker integration tests.
+  Recursive submodule status confirms no GMA source or pointer change belongs
+  to this slice.
 
 ## Non-Goals
 

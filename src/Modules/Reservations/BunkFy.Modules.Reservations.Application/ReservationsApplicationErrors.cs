@@ -62,6 +62,24 @@ public static class ReservationsApplicationErrors
     public static readonly Error ProcessingRestrictionProjectionUnavailable = new(
         "Reservations.ProcessingRestrictionProjectionUnavailable",
         "The reservation processing-restriction state is unavailable or unsupported.");
+    public static readonly Error DataHoldRequestInvalid = new(
+        "Reservations.DataHoldRequestInvalid",
+        "The reservation data-hold request is invalid.");
+    public static readonly Error DataHoldIdempotencyConflict = new(
+        "Reservations.DataHoldIdempotencyConflict",
+        "The reservation data-hold idempotency key is bound to a different request.");
+    public static readonly Error DataHoldReservationVersionConflict = new(
+        "Reservations.DataHoldReservationVersionConflict",
+        "The selected reservation version has changed.");
+    public static readonly Error DataHoldDetailsRevisionConflict = new(
+        "Reservations.DataHoldDetailsRevisionConflict",
+        "The selected reservation details revision has changed.");
+    public static readonly Error DataHoldNotFound = new(
+        "Reservations.DataHoldNotFound",
+        "The reservation data hold was not found.");
+    public static readonly Error DataHoldProofUnavailable = new(
+        "Reservations.DataHoldProofUnavailable",
+        "The committed reservation data-hold result cannot be proven.");
     public static Error ReservationGuestLinkInvalid => ReservationsDomainErrors.ReservationGuestLinkInvalid;
     public static Error ReservationGuestRoleOccupied => ReservationsDomainErrors.ReservationGuestRoleOccupied;
 }
