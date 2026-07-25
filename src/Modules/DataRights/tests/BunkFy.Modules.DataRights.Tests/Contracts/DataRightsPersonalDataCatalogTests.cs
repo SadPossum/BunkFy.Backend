@@ -4,6 +4,7 @@ using System.Reflection;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -13,6 +14,8 @@ using Xunit;
 using DomainSubjectCoordinate = DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 using ProcessingLedgerEntry =
     DataRights.Domain.Entities.DataRightsProcessingLedgerEntry;
+using ProcessingLedgerSnapshot =
+    DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsPersonalDataCatalogTests
@@ -230,6 +233,14 @@ public sealed class DataRightsPersonalDataCatalogTests
         AssertBinding(
             typeof(ProcessingLedgerEntry),
             nameof(ProcessingLedgerEntry.RecordPseudonymSha256),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(ProcessingLedgerSnapshot),
+            nameof(ProcessingLedgerSnapshot.RecordPseudonymSha256),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsProtectedReplayEnvelope),
+            nameof(DataRightsProtectedReplayEnvelope.CiphertextBase64),
             PersonalDataSurface.Persistence);
     }
 

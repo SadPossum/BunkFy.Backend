@@ -142,12 +142,5 @@ internal sealed class DataRightsProcessingLedgerEntryConfiguration
             entry.Id
         });
 
-        builder.HasOne<DataRightsExecutionWorkItem>()
-            .WithOne()
-            .HasForeignKey<DataRightsProcessingLedgerEntry>(
-                entry => new { entry.ScopeId, entry.WorkItemId })
-            .HasPrincipalKey<DataRightsExecutionWorkItem>(
-                workItem => new { workItem.ScopeId, workItem.Id })
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

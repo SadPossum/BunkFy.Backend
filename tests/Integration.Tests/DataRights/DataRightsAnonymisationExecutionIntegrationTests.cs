@@ -2,8 +2,10 @@ namespace Integration.Tests;
 
 using BunkFy.Host.Worker;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
@@ -50,6 +52,9 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
 
         string connectionString = postgreSql.GetConnectionString();
         string natsConnectionString = AuthTestContainers.GetNatsConnectionString(nats);
+        string ledgerDeltaPath = Path.Combine(
+            Path.GetTempPath(),
+            $"bunkfy-data-rights-delta-{Guid.NewGuid():N}");
         await using AuthTestApplication api = new(
             "PostgreSql",
             connectionString,
@@ -59,7 +64,10 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         using HttpClient client = api.CreateClient();
         _ = client;
 
-        using IHost worker = CreateWorker(connectionString, natsConnectionString);
+        using IHost worker = CreateWorker(
+            connectionString,
+            natsConnectionString,
+            ledgerDeltaPath);
         await MigrateTaskRuntimeAsync(worker).ConfigureAwait(false);
         (GuestProfile guest, DataRightsCase dataRightsCase) =
             await SeedExecutionCandidateAsync(api).ConfigureAwait(false);
@@ -114,6 +122,24 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
                 .AsNoTracking()
                 .SingleAsync(item => item.Id == dataRightsCase.Id)
                 .ConfigureAwait(false);
+            DataRightsProcessingLedgerEntry ledger =
+                await dataRights.ProcessingLedgerEntries
+                    .AsNoTracking()
+                    .SingleAsync(item => item.WorkItemId == workItem.Id)
+                    .ConfigureAwait(false);
+            IDataRightsLedgerDeltaStore deltaStore =
+                scope.ServiceProvider.GetRequiredService<
+                    IDataRightsLedgerDeltaStore>();
+            DataRightsLedgerDeltaCheckpoint checkpoint =
+                await deltaStore.ReadTrustedCheckpointAsync(
+                    TenantId,
+                    CancellationToken.None).ConfigureAwait(false);
+            DataRightsLedgerDeltaPage deltaPage =
+                await deltaStore.ReadAfterAsync(
+                    TenantId,
+                    DataRightsLedgerDeltaCursor.Genesis,
+                    pageSize: 10,
+                    CancellationToken.None).ConfigureAwait(false);
 
             Assert.Equal(GuestProfileState.Anonymised, anonymised.Status);
             Assert.True(tombstone.Matches(receipt));
@@ -124,17 +150,39 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
             Assert.Equal(receipt.Id, workItem.OwnerReceiptId);
             Assert.Equal(receipt.ResultingGuestVersion, workItem.ResultingRecordVersion);
             Assert.Equal(receipt.CanonicalSha256, workItem.OwnerReceiptSha256);
+            Assert.Equal(receipt.Id, ledger.OwnerReceiptId);
+            Assert.Equal(ledger.EntrySha256, checkpoint.Cursor.EntrySha256);
+            Assert.Equal(1, checkpoint.Cursor.TenantSequence);
+            DataRightsLedgerDelta delta = Assert.Single(deltaPage.Deltas);
+            Assert.Equal(ledger.Id, delta.Ledger.EntryId);
+            Assert.False(deltaPage.HasMore);
+            string protectedFiles = string.Join(
+                '\n',
+                Directory.GetFiles(
+                        ledgerDeltaPath,
+                        "*",
+                        SearchOption.AllDirectories)
+                    .Select(File.ReadAllText));
+            Assert.DoesNotContain(
+                guest.Id.ToString("N"),
+                protectedFiles,
+                StringComparison.OrdinalIgnoreCase);
             Assert.Equal(DataRightsCaseState.Executing, persistedCase.Status);
         }
         finally
         {
             await worker.StopAsync().ConfigureAwait(false);
+            if (Directory.Exists(ledgerDeltaPath))
+            {
+                Directory.Delete(ledgerDeltaPath, recursive: true);
+            }
         }
     }
 
     private static IHost CreateWorker(
         string connectionString,
-        string natsConnectionString)
+        string natsConnectionString,
+        string ledgerDeltaPath)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder(
             new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
@@ -145,6 +193,11 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
             ["Persistence:Provider"] = "PostgreSql",
             ["ConnectionStrings:PostgreSql"] = connectionString,
             ["ConnectionStrings:nats"] = natsConnectionString,
+            ["DataRights:LedgerDelta:Provider"] = "LocalFile",
+            ["DataRights:LedgerDelta:LocalFilePath"] = ledgerDeltaPath,
+            ["DataRights:LedgerDelta:ActiveIntegrityKeyVersion"] = "1",
+            ["DataRights:LedgerDelta:IntegrityKeys:1"] =
+                "aWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWk=",
             ["Tenancy:Enabled"] = "true",
             ["Caching:Enabled"] = "false",
             ["NatsJetStream:Enabled"] = "true",

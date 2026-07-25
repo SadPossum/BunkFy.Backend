@@ -8,6 +8,7 @@ using BunkFy.Modules.DataRights.Domain.Errors;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Domain.Models;
+using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
 public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
@@ -160,19 +161,134 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             this.ComputeCanonicalSha256(),
             StringComparison.Ordinal);
 
+    public DataRightsProcessingLedgerSnapshot Freeze() =>
+        new(
+            this.ContractVersion,
+            this.Id,
+            this.ScopeId,
+            this.TenantSequence,
+            this.WorkItemId,
+            this.CaseId,
+            this.ApprovalRevision,
+            this.OperationRevision,
+            this.Operation,
+            this.RoutingPropertyId,
+            this.OwnerKey,
+            this.RecordType,
+            this.RecordPseudonymKeyVersion,
+            this.RecordPseudonymSha256,
+            this.DispositionCode,
+            this.ReasonCode,
+            this.CompletedAtUtc,
+            this.PolicyEvidenceSchemaVersion,
+            this.PolicyId,
+            this.PolicyVersion,
+            this.PolicyContentSha256,
+            this.RetentionPolicyId,
+            this.RetentionPolicyVersion,
+            this.OwnerReceiptContractVersion,
+            this.OwnerReceiptId,
+            this.OwnerReceiptSha256,
+            this.PreviousEntrySha256,
+            this.EntrySha256,
+            this.ReplayOfLedgerEntryId,
+            this.SupersedesLedgerEntryId);
+
+    public static Result<DataRightsProcessingLedgerEntry> Restore(
+        DataRightsProcessingLedgerSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        DataRightsProcessingLedgerEntry entry = new(snapshot.EntryId, snapshot.ScopeId)
+        {
+            ContractVersion = snapshot.ContractVersion,
+            TenantSequence = snapshot.TenantSequence,
+            WorkItemId = snapshot.WorkItemId,
+            CaseId = snapshot.CaseId,
+            ApprovalRevision = snapshot.ApprovalRevision,
+            OperationRevision = snapshot.OperationRevision,
+            Operation = snapshot.Operation,
+            RoutingPropertyId = snapshot.RoutingPropertyId,
+            OwnerKey = snapshot.OwnerKey,
+            RecordType = snapshot.RecordType,
+            RecordPseudonymKeyVersion = snapshot.RecordPseudonymKeyVersion,
+            RecordPseudonymSha256 = snapshot.RecordPseudonymSha256,
+            DispositionCode = snapshot.DispositionCode,
+            ReasonCode = snapshot.ReasonCode,
+            CompletedAtUtc = snapshot.CompletedAtUtc,
+            PolicyEvidenceSchemaVersion = snapshot.PolicyEvidenceSchemaVersion,
+            PolicyId = snapshot.PolicyId,
+            PolicyVersion = snapshot.PolicyVersion,
+            PolicyContentSha256 = snapshot.PolicyContentSha256,
+            RetentionPolicyId = snapshot.RetentionPolicyId,
+            RetentionPolicyVersion = snapshot.RetentionPolicyVersion,
+            OwnerReceiptContractVersion = snapshot.OwnerReceiptContractVersion,
+            OwnerReceiptId = snapshot.OwnerReceiptId,
+            OwnerReceiptSha256 = snapshot.OwnerReceiptSha256,
+            PreviousEntrySha256 = snapshot.PreviousEntrySha256,
+            EntrySha256 = snapshot.EntrySha256,
+            ReplayOfLedgerEntryId = snapshot.ReplayOfLedgerEntryId,
+            SupersedesLedgerEntryId = snapshot.SupersedesLedgerEntryId
+        };
+
+        return entry.HasValidCoordinates() && entry.HasValidCanonicalDigest()
+            ? Result.Success(entry)
+            : Invalid();
+    }
+
     private bool HasValidCoordinates() =>
         this.ContractVersion == CurrentContractVersion &&
+        this.Id != Guid.Empty &&
+        TenantIds.TryNormalize(this.ScopeId, out string? normalizedScopeId) &&
+        string.Equals(this.ScopeId, normalizedScopeId, StringComparison.Ordinal) &&
+        this.TenantSequence > 0 &&
+        this.WorkItemId != Guid.Empty &&
+        this.CaseId != Guid.Empty &&
+        this.ApprovalRevision > 0 &&
+        this.OperationRevision > this.ApprovalRevision &&
+        this.Operation == DataRightsCaseOperation.Anonymisation &&
+        this.RoutingPropertyId != Guid.Empty &&
+        HasCanonicalCode(
+            this.OwnerKey,
+            DataRightsSubjectCoordinate.OwnerKeyMaxLength) &&
+        HasCanonicalCode(
+            this.RecordType,
+            DataRightsSubjectCoordinate.RecordTypeMaxLength) &&
         this.RecordPseudonymKeyVersion > 0 &&
         IsSha256(this.RecordPseudonymSha256) &&
+        HasCanonicalCode(this.DispositionCode, CodeMaxLength) &&
+        HasCanonicalCode(this.ReasonCode, CodeMaxLength) &&
+        this.CompletedAtUtc != default &&
+        this.CompletedAtUtc.Offset == TimeSpan.Zero &&
         this.PolicyEvidenceSchemaVersion ==
             DataRightsApprovalPolicyEvidence.CurrentSchemaVersion &&
         this.PolicyVersion > 0 &&
         this.RetentionPolicyVersion > 0 &&
-        !string.IsNullOrWhiteSpace(this.PolicyId) &&
-        this.PolicyId.Length <= DataRightsApprovalPolicyEvidence.KeyMaxLength &&
-        !string.IsNullOrWhiteSpace(this.RetentionPolicyId) &&
-        this.RetentionPolicyId.Length <= DataRightsApprovalPolicyEvidence.KeyMaxLength &&
-        IsSha256(this.PolicyContentSha256);
+        HasCanonicalCode(
+            this.PolicyId,
+            DataRightsApprovalPolicyEvidence.KeyMaxLength) &&
+        HasCanonicalCode(
+            this.RetentionPolicyId,
+            DataRightsApprovalPolicyEvidence.KeyMaxLength) &&
+        IsSha256(this.PolicyContentSha256) &&
+        this.OwnerReceiptContractVersion > 0 &&
+        this.OwnerReceiptId != Guid.Empty &&
+        IsSha256(this.OwnerReceiptSha256) &&
+        IsSha256(this.PreviousEntrySha256) &&
+        (this.TenantSequence == 1
+            ? string.Equals(
+                this.PreviousEntrySha256,
+                GenesisEntrySha256,
+                StringComparison.Ordinal)
+            : !string.Equals(
+                this.PreviousEntrySha256,
+                GenesisEntrySha256,
+                StringComparison.Ordinal)) &&
+        this.ReplayOfLedgerEntryId != this.Id &&
+        this.SupersedesLedgerEntryId != this.Id &&
+        (!this.ReplayOfLedgerEntryId.HasValue ||
+         !this.SupersedesLedgerEntryId.HasValue ||
+         this.ReplayOfLedgerEntryId != this.SupersedesLedgerEntryId);
 
     private string ComputeCanonicalSha256()
     {
@@ -233,10 +349,16 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
     private static string NormalizeSha256(string? value) =>
         value?.Trim().ToLowerInvariant() ?? string.Empty;
 
-    private static bool IsSha256(string value) =>
+    private static bool IsSha256(string? value) =>
+        value is not null &&
         value.Length == Sha256Length &&
         value.All(character =>
             character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
+
+    private static bool HasCanonicalCode(string? value, int maxLength) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Length <= maxLength &&
+        string.Equals(value, value.Trim(), StringComparison.Ordinal);
 
     private static Result<DataRightsProcessingLedgerEntry> Invalid() =>
         Result.Failure<DataRightsProcessingLedgerEntry>(

@@ -50,6 +50,31 @@ public sealed class DataRightsProcessingLedgerEntryTests
     }
 
     [Fact]
+    public void Frozen_entry_restores_without_a_case_or_work_item_and_rejects_tampering()
+    {
+        DataRightsExecutionWorkItem workItem = CreateOwnerProofWorkItem();
+        DataRightsProcessingLedgerEntry original =
+            DataRightsProcessingLedgerEntry.Create(
+                Guid.NewGuid(),
+                tenantSequence: 1,
+                workItem,
+                DataRightsRecordPseudonym.Create(1, new string('c', 64)).Value,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256).Value;
+        DataRightsProcessingLedgerSnapshot snapshot = original.Freeze();
+
+        DataRightsProcessingLedgerEntry restored =
+            DataRightsProcessingLedgerEntry.Restore(snapshot).Value;
+
+        Assert.Equal(snapshot, restored.Freeze());
+        Assert.True(restored.HasValidCanonicalDigest());
+        Assert.Equal(
+            "DataRights.ProcessingLedgerEntryInvalid",
+            DataRightsProcessingLedgerEntry.Restore(
+                snapshot with { OwnerReceiptSha256 = new string('d', 64) })
+                .Error.Code);
+    }
+
+    [Fact]
     public void Entry_rejects_non_terminal_owner_proof_and_invalid_chain_coordinate()
     {
         DataRightsExecutionWorkItem prepared = CreatePreparedWorkItem();

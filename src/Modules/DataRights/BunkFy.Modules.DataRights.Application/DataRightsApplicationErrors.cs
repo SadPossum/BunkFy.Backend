@@ -44,6 +44,12 @@ public static class DataRightsApplicationErrors
     public static readonly Error ExecutionOwnerResultInvalid = new(
         "DataRights.ExecutionOwnerResultInvalid",
         "The owner result is invalid or conflicts with the durable execution state.");
+    public static readonly Error ProcessingLedgerConflict = new(
+        "DataRights.ProcessingLedgerConflict",
+        "The processing ledger conflicts with the durable owner proof.");
+    public static readonly Error ProcessingLedgerDurabilityInvalid = new(
+        "DataRights.ProcessingLedgerDurabilityInvalid",
+        "The external processing-ledger durability proof is invalid.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;

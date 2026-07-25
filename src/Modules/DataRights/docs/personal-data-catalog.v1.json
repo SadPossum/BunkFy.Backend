@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 7,
+  "catalogVersion": 8,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -309,6 +309,47 @@
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsProcessingLedgerEntry",
           "member": "RecordPseudonymSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot",
+          "member": "RecordPseudonymSha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-processing-replay-envelope",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "restore-owner-location",
+        "restore-integrity"
+      ],
+      "sources": [
+        "authenticated-encryption-of-selected-owner-coordinate"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-processing-ledger",
+      "countryPolicyKey": "guest.profile.identifier",
+      "retentionPolicy": "data-rights-processing-ledger",
+      "rightsPolicy": "processing-ledger-proof",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "processor"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Ports.DataRightsProtectedReplayEnvelope",
+          "member": "CiphertextBase64",
           "surface": "persistence"
         }
       ]

@@ -510,6 +510,7 @@ public sealed class DataRightsModelTests
                 designEntity.GetCheckConstraints(),
                 constraint =>
                     constraint.Name == "CK_data_rights_processing_ledger_chain");
+            Assert.Empty(entity.GetForeignKeys());
 
             writer.Cases.Add(dataRightsCase);
             writer.ExecutionWorkItems.Add(workItem);
@@ -521,6 +522,19 @@ public sealed class DataRightsModelTests
                 await Assert.ThrowsAsync<InvalidOperationException>(
                     () => writer.SaveChangesAsync());
             Assert.Contains("append-only", updateFailure.Message);
+        }
+
+        await using (DataRightsDbContext cleanup = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            cleanup.ExecutionWorkItems.Remove(
+                await cleanup.ExecutionWorkItems.SingleAsync());
+            await cleanup.SaveChangesAsync();
+            Assert.Empty(await cleanup.ExecutionWorkItems.ToArrayAsync());
+            Assert.Single(
+                await cleanup.ProcessingLedgerEntries.ToArrayAsync());
         }
 
         await using DataRightsDbContext tenantB = CreateDbContext(

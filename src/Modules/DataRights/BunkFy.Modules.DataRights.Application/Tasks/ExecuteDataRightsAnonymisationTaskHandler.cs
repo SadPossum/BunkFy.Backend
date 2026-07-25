@@ -39,13 +39,42 @@ internal sealed class ExecuteDataRightsAnonymisationTaskHandler(
             throw Failure(started.Error);
         }
 
-        if (!started.Value.DispatchRequired)
+        if (started.Value.DispatchRequired)
         {
-            return;
+            await this.DispatchOwnerAsync(
+                payload,
+                context,
+                started.Value,
+                cancellationToken).ConfigureAwait(false);
         }
 
+        Result<Unit> finalized =
+            await commandDispatcher.DispatchAsync<
+                FinalizeDataRightsAnonymisationLedgerCommand,
+                Unit>(
+                context,
+                new FinalizeDataRightsAnonymisationLedgerCommand(
+                    payload.WorkItemId,
+                    payload.CaseId,
+                    payload.PropertyId,
+                    payload.ApprovalRevision,
+                    payload.ExecutionRevision,
+                    context.RunId),
+                cancellationToken).ConfigureAwait(false);
+        if (finalized.IsFailure)
+        {
+            throw Failure(finalized.Error);
+        }
+    }
+
+    private async Task DispatchOwnerAsync(
+        ExecuteDataRightsAnonymisationPayload payload,
+        TaskExecutionContext context,
+        DataRightsAnonymisationWorkItemStart started,
+        CancellationToken cancellationToken)
+    {
         DataRightsAnonymisationContributionRequest request =
-            started.Value.Request ?? throw new InvalidOperationException(
+            started.Request ?? throw new InvalidOperationException(
                 "DataRights.AnonymisationRequestUnavailable");
         IDataRightsAnonymisationContributor contributor = this.ResolveContributor(request);
 
@@ -90,7 +119,7 @@ internal sealed class ExecuteDataRightsAnonymisationTaskHandler(
                     payload.ExecutionRevision,
                     context.RunId,
                     context.Attempt,
-                    started.Value.WorkItemVersion,
+                    started.WorkItemVersion,
                     result),
                 cancellationToken).ConfigureAwait(false);
         if (recorded.IsFailure)

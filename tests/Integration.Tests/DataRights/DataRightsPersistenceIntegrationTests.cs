@@ -282,6 +282,17 @@ public sealed class DataRightsPersistenceIntegrationTests
             await reloaded.SaveChangesAsync();
             Assert.True(ledgerEntry.HasValidCanonicalDigest());
 
+            reloaded.ExecutionWorkItems.Remove(executionWorkItem);
+            await reloaded.SaveChangesAsync();
+            Assert.Empty(
+                await reloaded.ExecutionWorkItems
+                    .Where(item => item.Id == executionWorkItemId)
+                    .ToArrayAsync());
+            Assert.Single(
+                await reloaded.ProcessingLedgerEntries
+                    .Where(item => item.Id == ledgerEntry.Id)
+                    .ToArrayAsync());
+
             reloaded.Cases.Remove(dataRightsCase);
             await reloaded.SaveChangesAsync();
             Assert.Empty(await reloaded.Database.SqlQuery<Guid>(

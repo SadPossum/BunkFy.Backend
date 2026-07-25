@@ -37,32 +37,7 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IDataRightsProcessingLedgerRepository,
             DataRightsProcessingLedgerRepository>();
-        IConfigurationSection pseudonymisationSection =
-            builder.Configuration.GetSection(
-                DataRightsPseudonymisationOptions.SectionName);
-        bool useDevelopmentPseudonymisationKey =
-            !builder.Environment.IsProduction() &&
-            !pseudonymisationSection.Exists();
-        builder.Services
-            .AddOptions<DataRightsPseudonymisationOptions>()
-            .Bind(pseudonymisationSection)
-            .PostConfigure(options =>
-            {
-                if (useDevelopmentPseudonymisationKey)
-                {
-                    options.ActiveKeyVersion = 1;
-                    options.Keys[1] =
-                        DataRightsPseudonymisationOptions.DevelopmentKeyBase64;
-                }
-            })
-            .ValidateOnStart();
-        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
-            IValidateOptions<DataRightsPseudonymisationOptions>>(
-            new DataRightsPseudonymisationOptionsValidator(
-                builder.Environment.IsProduction())));
-        builder.Services.TryAddSingleton<
-            IDataRightsRecordPseudonymizer,
-            HmacDataRightsRecordPseudonymizer>();
+        AddProtectedLedgerServices(builder);
         builder.Services.TryAddScoped<
             IDataRightsPropertyProjectionRepository,
             DataRightsPropertyProjectionRepository>();
@@ -91,4 +66,112 @@ public static class DependencyInjection
                 DataRightsProjectionRebuildTransactionBoundary>());
         return builder;
     }
+
+    private static void AddProtectedLedgerServices(
+        IHostApplicationBuilder builder)
+    {
+        bool isProduction = builder.Environment.IsProduction();
+        IConfigurationSection pseudonymisationSection =
+            builder.Configuration.GetSection(
+                DataRightsPseudonymisationOptions.SectionName);
+        bool useDevelopmentPseudonymisationKey =
+            !isProduction && !pseudonymisationSection.Exists();
+        builder.Services
+            .AddOptions<DataRightsPseudonymisationOptions>()
+            .Bind(pseudonymisationSection)
+            .PostConfigure(options =>
+            {
+                if (useDevelopmentPseudonymisationKey)
+                {
+                    options.ActiveKeyVersion = 1;
+                    options.Keys[1] =
+                        DataRightsPseudonymisationOptions.DevelopmentKeyBase64;
+                }
+            })
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<DataRightsPseudonymisationOptions>>(
+            new DataRightsPseudonymisationOptionsValidator(isProduction)));
+        builder.Services.TryAddSingleton<
+            IDataRightsRecordPseudonymizer,
+            HmacDataRightsRecordPseudonymizer>();
+
+        IConfigurationSection replayEnvelopeSection =
+            builder.Configuration.GetSection(
+                DataRightsReplayEnvelopeOptions.SectionName);
+        bool useDevelopmentReplayEnvelopeKey =
+            !isProduction && !replayEnvelopeSection.Exists();
+        builder.Services
+            .AddOptions<DataRightsReplayEnvelopeOptions>()
+            .Bind(replayEnvelopeSection)
+            .PostConfigure(options =>
+            {
+                if (useDevelopmentReplayEnvelopeKey)
+                {
+                    options.ActiveKeyVersion = 1;
+                    options.Keys[1] =
+                        DataRightsReplayEnvelopeOptions.DevelopmentKeyBase64;
+                }
+            })
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<DataRightsReplayEnvelopeOptions>>(
+            new DataRightsReplayEnvelopeOptionsValidator(isProduction)));
+        builder.Services.TryAddSingleton<
+            IDataRightsReplayEnvelopeProtector,
+            AesGcmDataRightsReplayEnvelopeProtector>();
+
+        IConfigurationSection ledgerDeltaSection =
+            builder.Configuration.GetSection(
+                DataRightsLedgerDeltaOptions.SectionName);
+        bool useDevelopmentLedgerDelta =
+            !isProduction && !ledgerDeltaSection.Exists();
+        builder.Services
+            .AddOptions<DataRightsLedgerDeltaOptions>()
+            .Bind(ledgerDeltaSection)
+            .PostConfigure(options =>
+            {
+                if (useDevelopmentLedgerDelta)
+                {
+                    options.Provider = DataRightsLedgerDeltaProvider.LocalFile;
+                    options.LocalFilePath = Path.Combine(
+                        builder.Environment.ContentRootPath,
+                        ".data",
+                        "data-rights-ledger-delta");
+                    options.ActiveIntegrityKeyVersion = 1;
+                    options.IntegrityKeys[1] =
+                        DataRightsLedgerDeltaOptions
+                            .DevelopmentIntegrityKeyBase64;
+                }
+            })
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<DataRightsLedgerDeltaOptions>>(
+            new DataRightsLedgerDeltaOptionsValidator(isProduction)));
+        builder.Services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+
+        DataRightsLedgerDeltaProvider configuredProvider =
+            useDevelopmentLedgerDelta
+                ? DataRightsLedgerDeltaProvider.LocalFile
+                : ParseLedgerDeltaProvider(
+                    ledgerDeltaSection[nameof(
+                        DataRightsLedgerDeltaOptions.Provider)]);
+        if (configuredProvider == DataRightsLedgerDeltaProvider.LocalFile)
+        {
+            builder.Services.TryAddSingleton<
+                IDataRightsLedgerDeltaStore,
+                LocalFileDataRightsLedgerDeltaStore>();
+        }
+
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IHostedService,
+                DataRightsLedgerDeltaStartupValidator>());
+    }
+
+    private static DataRightsLedgerDeltaProvider ParseLedgerDeltaProvider(
+        string? value) =>
+        Enum.TryParse(value, ignoreCase: true, out DataRightsLedgerDeltaProvider provider)
+            ? provider
+            : DataRightsLedgerDeltaProvider.Unknown;
 }

@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: in progress; append-only ledger complete, external delta next
+Status: in progress; external protected delta complete, restore gate next
 
 ## Outcome
 
@@ -326,9 +326,9 @@ stable operational error without logging subject coordinates.
    orchestration.
 5. [Complete] Add the append-only in-database ledger, keyed pseudonym and canonical
    receipt/entry digests.
-6. [Next] Add the external delta port, local protected-file test adapter and
+6. [Complete] Add the external delta port, local protected-file test adapter and
    production configuration denial.
-7. Add the startup restore gate and Guests restore contributor.
+7. [Next] Add the startup restore gate and Guests restore contributor.
 8. Update Reservations eligibility from the versioned Guests event and rebuild
    export through contracts only.
 9. Advance executable personal-data catalogues and generated OpenAPI contracts.
@@ -519,6 +519,41 @@ durability and restore gate in the remaining steps is present.
   `eng/verify.ps1 -SkipRestore` with the complete GMA/BunkFy build, architecture,
   non-Docker and migration-drift matrix, and all 42 Docker integration
   scenarios including PostgreSQL upgrade, chain and raw-mutation enforcement.
+
+### Completed Slice: External Protected Ledger Delta
+
+- DataRights now owns a tenant-only `IDataRightsLedgerDeltaStore` port with no
+  tenant-enumeration surface. It supports idempotent append, trusted
+  checkpoints, bounded ordered reads and explicit durable-flush receipts.
+- A versioned deterministic AES-256-GCM replay envelope protects the direct
+  owner coordinate. Tenant, ledger entry, sequence, digest, owner, record type
+  and keyed pseudonym are authenticated as associated data; deployment keys
+  remain versioned and rotatable.
+- The development adapter stores one immutable, HMAC-chained record per tenant
+  sequence, signs its checkpoint, uses atomic write-through flushes, rejects
+  gaps, rollback mismatches, reparse paths and unknown JSON members, and applies
+  restrictive Unix permissions where supported.
+- Development receives isolated code-owned keys only when the entire option
+  section is absent. Partial configuration never falls back. Production rejects
+  the local adapter, development keys and any external provider that is absent,
+  unavailable or does not report production-grade durability.
+- The worker finalizes owner proof through a separate retryable command. A
+  stable ledger identity is derived from the tenant, work item and owner
+  receipt; the protected external delta is flushed and verified before the
+  database ledger entry joins the DataRights unit of work.
+- A crash after external flush is retry-safe: the same entry, sequence, digest
+  and envelope are re-acknowledged. A crash before database commit cannot let a
+  later task skip ledger finalization, because terminal owner retries continue
+  into the ledger stage.
+- The in-database ledger no longer has a foreign key to disposable work items.
+  A forward migration removes only that dependency, and PostgreSQL verification
+  proves the immutable proof survives work-item deletion.
+- The executable DataRights personal-data catalogue is version 8 and covers the
+  externally persisted pseudonym snapshot and encrypted replay coordinate.
+- Focused verification passes 107 DataRights tests plus real PostgreSQL/NATS
+  migration and worker scenarios. The worker scenario proves Guest
+  anonymisation, external checkpoint durability, database ledger append and
+  absence of the direct Guest id from protected files.
 
 ## Acceptance Evidence
 

@@ -100,4 +100,10 @@ public static class DataRightsDomainErrors
     public static readonly Error ProcessingLedgerEntryInvalid = new(
         "DataRights.ProcessingLedgerEntryInvalid",
         "The data-rights processing ledger entry is invalid.");
+    public static readonly Error ReplayEnvelopeInvalid = new(
+        "DataRights.ReplayEnvelopeInvalid",
+        "The data-rights replay envelope is invalid.");
+    public static readonly Error ReplayEnvelopeKeyUnavailable = new(
+        "DataRights.ReplayEnvelopeKeyUnavailable",
+        "The requested data-rights replay-envelope key is unavailable.");
 }

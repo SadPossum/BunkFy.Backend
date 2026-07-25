@@ -54,6 +54,10 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
         Assert.Equal(context.Attempt, recorded.TaskAttempt);
         Assert.Equal(2, recorded.ExpectedWorkItemVersion);
         Assert.Same(contribution, recorded.Result);
+        FinalizeDataRightsAnonymisationLedgerCommand finalized =
+            Assert.IsType<FinalizeDataRightsAnonymisationLedgerCommand>(
+                dispatcher.Finalized);
+        Assert.Equal(context.RunId, finalized.TaskRunId);
     }
 
     [Fact]
@@ -76,6 +80,8 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
 
         Assert.Null(contributor.Request);
         Assert.Null(dispatcher.Recorded);
+        Assert.IsType<FinalizeDataRightsAnonymisationLedgerCommand>(
+            dispatcher.Finalized);
     }
 
     [Fact]
@@ -164,6 +170,7 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
         : ITaskCommandDispatcher
     {
         public object? Recorded { get; private set; }
+        public object? Finalized { get; private set; }
 
         public Task<Result<TResponse>> DispatchAsync<TCommand, TResponse>(
             TaskExecutionContext context,
@@ -177,6 +184,8 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
                     Result.Success(start),
                 RecordDataRightsAnonymisationOwnerResultCommand recorded =>
                     this.Record(recorded),
+                FinalizeDataRightsAnonymisationLedgerCommand finalized =>
+                    this.Finalize(finalized),
                 _ => throw new InvalidOperationException(
                     $"Unexpected command {command.GetType().Name}.")
             };
@@ -187,6 +196,13 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
             RecordDataRightsAnonymisationOwnerResultCommand command)
         {
             this.Recorded = command;
+            return Result.Success(Unit.Value);
+        }
+
+        private Result<Unit> Finalize(
+            FinalizeDataRightsAnonymisationLedgerCommand command)
+        {
+            this.Finalized = command;
             return Result.Success(Unit.Value);
         }
     }
