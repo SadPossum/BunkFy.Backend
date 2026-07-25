@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: in progress; contributor dispatch complete, append-only ledger next
+Status: in progress; append-only ledger complete, external delta next
 
 ## Outcome
 
@@ -324,9 +324,9 @@ stable operational error without logging subject coordinates.
    event and ordinary-surface enforcement.
 4. [Complete] Add the versioned owner contributor and retry-safe DataRights task
    orchestration.
-5. [Next] Add the append-only in-database ledger, keyed pseudonym and canonical
+5. [Complete] Add the append-only in-database ledger, keyed pseudonym and canonical
    receipt/entry digests.
-6. Add the external delta port, local protected-file test adapter and
+6. [Next] Add the external delta port, local protected-file test adapter and
    production configuration denial.
 7. Add the startup restore gate and Guests restore contributor.
 8. Update Reservations eligibility from the versioned Guests event and rebuild
@@ -480,6 +480,45 @@ durability and restore gate in the remaining steps is present.
   added process-boundary scenario publishes before a worker exists, then proves
   durable task creation, Guests owner mutation and DataRights owner-proof
   recording after the worker starts.
+
+### Completed Slice: Append-Only Processing Ledger And Keyed Pseudonym
+
+- DataRights owns a separate tenant-scoped processing-ledger entity rather than
+  growing the case aggregate. One entry freezes the work item, approval and
+  operation revisions, routing property, owner and record type, versioned
+  opaque record pseudonym, owner disposition and reason, policy/retention
+  evidence, owner receipt, completion time and replay/supersession coordinates.
+- A length-prefixed canonical representation binds every ledger field to the
+  previous-entry digest. Sequence 1 requires the fixed genesis digest; every
+  later sequence rejects it. Equivalent construction is byte-stable and any
+  chain or replay-coordinate change produces another entry digest.
+- The HMAC-SHA-256 pseudonymisation port is module-owned, domain separated by
+  tenant, owner, record type, record id and key version, and returns only the
+  key version plus lowercase digest. Key bytes and intermediate buffers are
+  cleared after use.
+- Development receives a code-owned test key only outside Production.
+  Production options fail closed when no deployment key is supplied, when the
+  development key is reused, when key material is malformed or duplicated, or
+  when the active version is unavailable. Old configured versions remain
+  addressable for rotation and restore comparison.
+- The persistence port exposes append and bounded tenant reads only. It has no
+  update or delete operation. `DataRightsDbContext` rejects tracked mutations,
+  and PostgreSQL independently rejects raw `UPDATE` and `DELETE` through an
+  append-only trigger.
+- PostgreSQL uniquely binds tenant sequence, work item, owner receipt,
+  case-operation-owner-record pseudonym and entry digest. Lowercase digest
+  checks, a restrictive work-item foreign key and a downgrade guard protect the
+  proof schema.
+- The executable DataRights personal-data catalogue is version 7 and classifies
+  the opaque Guest pseudonym, its retention, access and rights behavior. No
+  direct record id is added to the ledger.
+- The worker does not append entries yet and the case remains `Executing`.
+  Step 6 must durably flush the externally protected delta first, then append
+  this exact in-database entry and only later permit completion.
+- Full verification passes 95 DataRights unit/model/catalogue tests,
+  `eng/verify.ps1 -SkipRestore` with the complete GMA/BunkFy build, architecture,
+  non-Docker and migration-drift matrix, and all 42 Docker integration
+  scenarios including PostgreSQL upgrade, chain and raw-mutation enforcement.
 
 ## Acceptance Evidence
 

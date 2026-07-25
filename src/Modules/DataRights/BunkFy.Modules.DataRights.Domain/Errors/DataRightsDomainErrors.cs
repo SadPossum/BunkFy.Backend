@@ -91,4 +91,13 @@ public static class DataRightsDomainErrors
     public static readonly Error ExecutionOwnerResultInvalid = new(
         "DataRights.ExecutionOwnerResultInvalid",
         "The data-rights owner result is invalid or conflicts with durable proof.");
+    public static readonly Error RecordPseudonymInvalid = new(
+        "DataRights.RecordPseudonymInvalid",
+        "The data-rights record pseudonym is invalid.");
+    public static readonly Error RecordPseudonymKeyUnavailable = new(
+        "DataRights.RecordPseudonymKeyUnavailable",
+        "The requested data-rights record pseudonym key is unavailable.");
+    public static readonly Error ProcessingLedgerEntryInvalid = new(
+        "DataRights.ProcessingLedgerEntryInvalid",
+        "The data-rights processing ledger entry is invalid.");
 }

@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
@@ -9,6 +10,7 @@ using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -249,13 +251,71 @@ public sealed class DataRightsPersistenceIntegrationTests
             Assert.Equal("integration-hostel-baseline", property.GovernancePolicy?.PolicyId);
             Assert.Single(property.GovernancePolicy?.Acknowledgements ?? []);
 
-            reloaded.ExecutionWorkItems.Remove(executionWorkItem);
-            reloaded.Cases.Remove(dataRightsCase);
-            reloaded.Cases.Remove(anonymisationCase);
+            Guid taskRunId = Guid.NewGuid();
+            DateTimeOffset ownerCompletedAt = selectedAtUtc.AddMinutes(8);
+            Assert.True(executionWorkItem.BeginProcessing(
+                taskRunId,
+                taskAttempt: 1,
+                selectedAtUtc.AddMinutes(7)).IsSuccess);
+            Assert.True(executionWorkItem.RecordOwnerProof(
+                executionWorkItem.Version,
+                taskRunId,
+                taskAttempt: 1,
+                receiptContractVersion: 1,
+                Guid.NewGuid(),
+                resultingRecordVersion: executionWorkItem.SelectedRecordVersion + 1,
+                "guests.completed",
+                "guests.profile-anonymised",
+                new string('e', 64),
+                ownerCompletedAt,
+                ownerCompletedAt.AddMinutes(1)).IsSuccess);
+            DataRightsProcessingLedgerEntry ledgerEntry =
+                DataRightsProcessingLedgerEntry.Create(
+                    Guid.NewGuid(),
+                    tenantSequence: 1,
+                    executionWorkItem,
+                    DataRightsRecordPseudonym.Create(
+                        1,
+                        new string('f', 64)).Value,
+                    DataRightsProcessingLedgerEntry.GenesisEntrySha256).Value;
+            reloaded.ProcessingLedgerEntries.Add(ledgerEntry);
             await reloaded.SaveChangesAsync();
-            Assert.Empty(await reloaded.Database.SqlQueryRaw<Guid>(
-                """SELECT "RecordId" AS "Value" FROM "data-rights"."selected_subjects" """)
+            Assert.True(ledgerEntry.HasValidCanonicalDigest());
+
+            reloaded.Cases.Remove(dataRightsCase);
+            await reloaded.SaveChangesAsync();
+            Assert.Empty(await reloaded.Database.SqlQuery<Guid>(
+                $"""
+                SELECT "RecordId" AS "Value"
+                FROM "data-rights"."selected_subjects"
+                WHERE "CaseId" = {caseId}
+                """)
                 .ToListAsync());
+        }
+
+        await using (DataRightsDbContext directUpdate = CreateDbContext(
+            postgreSql.GetConnectionString()))
+        {
+            PostgresException failure = await Assert.ThrowsAsync<PostgresException>(
+                () => directUpdate.Database.ExecuteSqlRawAsync(
+                    """
+                    UPDATE "data-rights"."processing_ledger_entries"
+                    SET "ReasonCode" = 'tampered'
+                    """));
+            Assert.Equal("P0001", failure.SqlState);
+            Assert.Contains("append-only", failure.MessageText);
+        }
+
+        await using (DataRightsDbContext directDelete = CreateDbContext(
+            postgreSql.GetConnectionString()))
+        {
+            PostgresException failure = await Assert.ThrowsAsync<PostgresException>(
+                () => directDelete.Database.ExecuteSqlRawAsync(
+                    """
+                    DELETE FROM "data-rights"."processing_ledger_entries"
+                    """));
+            Assert.Equal("P0001", failure.SqlState);
+            Assert.Contains("append-only", failure.MessageText);
         }
     }
 

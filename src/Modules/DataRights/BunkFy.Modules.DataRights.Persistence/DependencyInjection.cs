@@ -10,9 +10,11 @@ using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
 using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 public static class DependencyInjection
 {
@@ -32,6 +34,35 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IDataRightsExecutionWorkItemRepository,
             DataRightsExecutionWorkItemRepository>();
+        builder.Services.TryAddScoped<
+            IDataRightsProcessingLedgerRepository,
+            DataRightsProcessingLedgerRepository>();
+        IConfigurationSection pseudonymisationSection =
+            builder.Configuration.GetSection(
+                DataRightsPseudonymisationOptions.SectionName);
+        bool useDevelopmentPseudonymisationKey =
+            !builder.Environment.IsProduction() &&
+            !pseudonymisationSection.Exists();
+        builder.Services
+            .AddOptions<DataRightsPseudonymisationOptions>()
+            .Bind(pseudonymisationSection)
+            .PostConfigure(options =>
+            {
+                if (useDevelopmentPseudonymisationKey)
+                {
+                    options.ActiveKeyVersion = 1;
+                    options.Keys[1] =
+                        DataRightsPseudonymisationOptions.DevelopmentKeyBase64;
+                }
+            })
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<DataRightsPseudonymisationOptions>>(
+            new DataRightsPseudonymisationOptionsValidator(
+                builder.Environment.IsProduction())));
+        builder.Services.TryAddSingleton<
+            IDataRightsRecordPseudonymizer,
+            HmacDataRightsRecordPseudonymizer>();
         builder.Services.TryAddScoped<
             IDataRightsPropertyProjectionRepository,
             DataRightsPropertyProjectionRepository>();

@@ -443,6 +443,93 @@ public sealed class DataRightsModelTests
         Assert.Empty(await tenantB.ExecutionWorkItems.ToArrayAsync());
     }
 
+    [Fact]
+    public async Task Processing_ledger_model_is_scoped_unique_and_append_only()
+    {
+        string databaseName = $"data-rights-ledger-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        (DataRightsCase dataRightsCase, DataRightsExecutionWorkItem workItem) =
+            CreatePreparedExecution();
+        Guid taskRunId = Guid.NewGuid();
+        DateTimeOffset proofAt = workItem.CreatedAtUtc.AddMinutes(2);
+        Assert.True(workItem.BeginProcessing(
+            taskRunId,
+            taskAttempt: 1,
+            proofAt.AddMinutes(-1)).IsSuccess);
+        Assert.True(workItem.RecordOwnerProof(
+            workItem.Version,
+            taskRunId,
+            taskAttempt: 1,
+            receiptContractVersion: 1,
+            Guid.NewGuid(),
+            resultingRecordVersion: workItem.SelectedRecordVersion + 1,
+            "guests.completed",
+            "guests.profile-anonymised",
+            new string('d', 64),
+            proofAt,
+            proofAt.AddMinutes(1)).IsSuccess);
+        DataRightsProcessingLedgerEntry ledgerEntry =
+            DataRightsProcessingLedgerEntry.Create(
+                Guid.NewGuid(),
+                tenantSequence: 1,
+                workItem,
+                DataRightsRecordPseudonym.Create(
+                    1,
+                    new string('e', 64)).Value,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256).Value;
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            IEntityType entity = writer.Model.FindEntityType(
+                typeof(DataRightsProcessingLedgerEntry))!;
+            IEntityType designEntity = writer.GetService<IDesignTimeModel>()
+                .Model
+                .FindEntityType(typeof(DataRightsProcessingLedgerEntry))!;
+            Assert.Contains(entity.GetIndexes(), index =>
+                index.IsUnique &&
+                index.Properties.Select(item => item.Name).SequenceEqual([
+                    nameof(DataRightsProcessingLedgerEntry.ScopeId),
+                    nameof(DataRightsProcessingLedgerEntry.TenantSequence)
+                ]));
+            Assert.Contains(entity.GetIndexes(), index =>
+                index.IsUnique &&
+                index.Properties.Select(item => item.Name).SequenceEqual([
+                    nameof(DataRightsProcessingLedgerEntry.ScopeId),
+                    nameof(DataRightsProcessingLedgerEntry.WorkItemId)
+                ]));
+            Assert.Contains(entity.GetIndexes(), index =>
+                index.IsUnique &&
+                index.Properties.Select(item => item.Name).SequenceEqual([
+                    nameof(DataRightsProcessingLedgerEntry.ScopeId),
+                    nameof(DataRightsProcessingLedgerEntry.OwnerReceiptId)
+                ]));
+            Assert.Contains(
+                designEntity.GetCheckConstraints(),
+                constraint =>
+                    constraint.Name == "CK_data_rights_processing_ledger_chain");
+
+            writer.Cases.Add(dataRightsCase);
+            writer.ExecutionWorkItems.Add(workItem);
+            writer.ProcessingLedgerEntries.Add(ledgerEntry);
+            await writer.SaveChangesAsync();
+
+            writer.Entry(ledgerEntry).State = EntityState.Modified;
+            InvalidOperationException updateFailure =
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => writer.SaveChangesAsync());
+            Assert.Contains("append-only", updateFailure.Message);
+        }
+
+        await using DataRightsDbContext tenantB = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-b");
+        Assert.Empty(await tenantB.ProcessingLedgerEntries.ToArrayAsync());
+    }
+
     private static DataRightsCase CreateCase(string tenantId, Guid propertyId)
     {
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(

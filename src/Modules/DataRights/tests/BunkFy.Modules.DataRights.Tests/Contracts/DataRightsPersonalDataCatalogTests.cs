@@ -7,9 +7,12 @@ using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
 using Xunit;
 using DomainSubjectCoordinate = DataRights.Domain.Entities.DataRightsSubjectCoordinate;
+using ProcessingLedgerEntry =
+    DataRights.Domain.Entities.DataRightsProcessingLedgerEntry;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsPersonalDataCatalogTests
@@ -215,6 +218,19 @@ public sealed class DataRightsPersonalDataCatalogTests
                 .Where(property => property.PropertyType == typeof(string))
                 .Select(property => property.Name)
                 .Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void Processing_ledger_pseudonym_is_explicitly_classified()
+    {
+        AssertBinding(
+            typeof(DataRightsRecordPseudonym),
+            nameof(DataRightsRecordPseudonym.Sha256),
+            PersonalDataSurface.ApplicationQuery);
+        AssertBinding(
+            typeof(ProcessingLedgerEntry),
+            nameof(ProcessingLedgerEntry.RecordPseudonymSha256),
+            PersonalDataSurface.Persistence);
     }
 
     [Fact]

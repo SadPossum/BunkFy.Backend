@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 6,
+  "catalogVersion": 7,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -29,6 +29,19 @@
       "writers": [
         "system:authorized-owner-export"
       ]
+    },
+    {
+      "id": "data-rights-processing-ledger",
+      "scope": "tenant-data-rights-processing-proof",
+      "readers": [
+        "permission:data-rights.cases.manage",
+        "system:authorized-audit-consumer",
+        "system:data-rights-restore-gate"
+      ],
+      "writers": [
+        "system:data-rights-ledger-writer",
+        "system:data-rights-restore-gate"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -38,6 +51,13 @@
       "startsAt": "data-rights-case-created",
       "endsAt": "approved-case-retention-completed-or-tenant-termination",
       "legalHoldBehavior": "retain-minimum-required-audit-evidence"
+    },
+    {
+      "id": "data-rights-processing-ledger",
+      "approvalState": "engineering-default",
+      "startsAt": "owner-processing-proof-confirmed",
+      "endsAt": "approved-proof-retention-completed-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-required-processing-proof"
     },
     {
       "id": "transient-request",
@@ -75,6 +95,13 @@
       "correction": "re-run-discovery-against-authoritative-owner",
       "restriction": "exclude-coordinate-from-selection-and-downstream-work",
       "erasure": "remove-selected-coordinate-when-approved-case-retention-permits"
+    },
+    {
+      "id": "processing-ledger-proof",
+      "export": "exclude-opaque-internal-pseudonym-from-subject-export",
+      "correction": "append-superseding-processing-proof",
+      "restriction": "retain-minimum-required-processing-proof",
+      "erasure": "retain-keyed-pseudonym-as-minimum-required-deletion-proof"
     },
     {
       "id": "selected-owner-export",
@@ -240,6 +267,48 @@
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate",
           "member": "SelectedBy",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.guest-processing-pseudonym",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "anonymisation-proof-correlation",
+        "restore-integrity"
+      ],
+      "sources": [
+        "keyed-pseudonymisation-of-selected-owner-coordinate"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-processing-ledger",
+      "countryPolicyKey": "guest.profile.identifier",
+      "retentionPolicy": "data-rights-processing-ledger",
+      "rightsPolicy": "processing-ledger-proof",
+      "allowedSurfaces": [
+        "application-query",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRecordPseudonym",
+          "member": "Sha256",
+          "surface": "application-query",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsProcessingLedgerEntry",
+          "member": "RecordPseudonymSha256",
           "surface": "persistence"
         }
       ]
