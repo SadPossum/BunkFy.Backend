@@ -2,8 +2,11 @@ namespace Integration.Tests.Support;
 
 using System.Text;
 using BunkFy.DataGovernance;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Messaging;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -48,6 +51,46 @@ internal static class CountryPolicyIntegrationTestData
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(services);
+        GuestsDbContext? guests = consumerModule == GuestsModuleMetadata.Name
+            ? services.GetRequiredService<GuestsDbContext>()
+            : null;
+        IDbContextTransaction? ownedTransaction = guests is not null &&
+                                                   guests.Database.CurrentTransaction is null
+            ? await guests.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+
+        try
+        {
+            await ApplyActivationCoreAsync(
+                services,
+                consumerModule,
+                tenantId,
+                propertyId,
+                propertyVersion,
+                cancellationToken).ConfigureAwait(false);
+            if (ownedTransaction is not null)
+            {
+                await guests!.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await ownedTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            if (ownedTransaction is not null)
+            {
+                await ownedTransaction.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static async Task ApplyActivationCoreAsync(
+        IServiceProvider services,
+        string consumerModule,
+        string tenantId,
+        Guid propertyId,
+        long propertyVersion,
+        CancellationToken cancellationToken)
+    {
         IntegrationEventSubscription subscription = services
             .GetRequiredService<IIntegrationEventSubscriptionRegistry>()
             .Subscriptions

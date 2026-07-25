@@ -6,11 +6,17 @@ using Microsoft.EntityFrameworkCore;
 
 internal sealed class GuestStayHistoryRepository(
     GuestsDbContext dbContext,
-    IGuestProcessingRestrictionProjectionRepository restrictionProjections)
+    IGuestProcessingRestrictionProjectionRepository restrictionProjections,
+    IGuestOperationLock operationLock)
     : IGuestStayHistoryRepository
 {
     public async Task ApplyAsync(GuestStayHistoryWriteModel stay, CancellationToken cancellationToken)
     {
+        await operationLock.AcquireGuestAsync(
+            stay.ScopeId,
+            stay.GuestId,
+            cancellationToken).ConfigureAwait(false);
+
         if (stay.IsCurrentParticipant)
         {
             await restrictionProjections.EnsureAsync(

@@ -468,29 +468,34 @@ public sealed class ReservationsSagaIntegrationTests
             "UTC",
             PropertyStatus.Active,
             1);
-        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+        GuestsDbContext guests = scope.ServiceProvider.GetRequiredService<GuestsDbContext>();
+        await using (var guestsTransaction = await guests.Database.BeginTransactionAsync()
+                         .ConfigureAwait(false))
+        {
+            await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                    scope.ServiceProvider,
+                    GuestsModuleMetadata.Name)
+                .HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
+            await CountryPolicyIntegrationTestData.ApplyActivationAsync(
                 scope.ServiceProvider,
-                GuestsModuleMetadata.Name)
-            .HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
+                GuestsModuleMetadata.Name,
+                TenantId,
+                PropertyId,
+                2).ConfigureAwait(false);
+            await guests.SaveChangesAsync().ConfigureAwait(false);
+            await guestsTransaction.CommitAsync().ConfigureAwait(false);
+        }
+
         await ResolveHandler<PropertyCreatedIntegrationEvent>(
                 scope.ServiceProvider,
                 ReservationsModuleMetadata.Name)
             .HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
         await CountryPolicyIntegrationTestData.ApplyActivationAsync(
             scope.ServiceProvider,
-            GuestsModuleMetadata.Name,
-            TenantId,
-            PropertyId,
-            2).ConfigureAwait(false);
-        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
-            scope.ServiceProvider,
             ReservationsModuleMetadata.Name,
             TenantId,
             PropertyId,
             2).ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
-            .SaveChangesAsync()
-            .ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
             .SaveChangesAsync()
             .ConfigureAwait(false);
@@ -716,6 +721,9 @@ public sealed class ReservationsSagaIntegrationTests
         IIntegrationEventHandler<ReservationGuestStayChangedIntegrationEvent> handler =
             (IIntegrationEventHandler<ReservationGuestStayChangedIntegrationEvent>)scope.ServiceProvider
                 .GetRequiredService(subscription.HandlerType);
+        GuestsDbContext guests = scope.ServiceProvider.GetRequiredService<GuestsDbContext>();
+        await using var transaction = await guests.Database.BeginTransactionAsync()
+            .ConfigureAwait(false);
         await handler.HandleAsync(
             new(
                 Guid.NewGuid(),
@@ -734,9 +742,8 @@ public sealed class ReservationsSagaIntegrationTests
                 true,
                 staleVersion),
             CancellationToken.None).ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
-            .SaveChangesAsync()
-            .ConfigureAwait(false);
+        await guests.SaveChangesAsync().ConfigureAwait(false);
+        await transaction.CommitAsync().ConfigureAwait(false);
     }
 
     private static async Task WaitForSellableProjectionAsync(AuthTestApplication api, TimeSpan timeout)

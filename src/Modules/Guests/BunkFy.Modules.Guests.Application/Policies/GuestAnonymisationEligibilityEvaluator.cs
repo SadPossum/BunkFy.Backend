@@ -239,45 +239,7 @@ internal sealed class GuestAnonymisationEligibilityEvaluator(
         request.RoutingPropertyId != Guid.Empty &&
         request.GuestId != Guid.Empty &&
         request.SelectedGuestVersion > 0 &&
-        IsRoutingEvidenceValid(request.RoutingPolicy);
-
-    private static bool IsRoutingEvidenceValid(GuestAnonymisationRoutingPolicyEvidence? evidence)
-    {
-        if (evidence is null)
-        {
-            return false;
-        }
-
-        string country = evidence.OperatingCountryCode?.Trim().ToUpperInvariant() ?? string.Empty;
-        string policyId = evidence.PolicyId?.Trim().ToLowerInvariant() ?? string.Empty;
-        string retentionPolicyId =
-            evidence.RetentionPolicyId?.Trim().ToLowerInvariant() ?? string.Empty;
-        string digest = evidence.ContentSha256?.Trim().ToLowerInvariant() ?? string.Empty;
-        string purposeCode = evidence.PurposeCode?.Trim().ToLowerInvariant() ?? string.Empty;
-        string surface = evidence.Surface?.Trim().ToLowerInvariant() ?? string.Empty;
-        string sourceProvenance =
-            evidence.SourceProvenance?.Trim().ToLowerInvariant() ?? string.Empty;
-        return evidence.PropertyPolicySourceVersion > 0 &&
-               country.Length == 2 &&
-               country.All(character => character is >= 'A' and <= 'Z') &&
-               IsKey(policyId) &&
-               evidence.PolicyVersion > 0 &&
-               IsKey(retentionPolicyId) &&
-               evidence.RetentionPolicyVersion > 0 &&
-               digest.Length == GuestAnonymisationEligibilityContract.Sha256Length &&
-               digest.All(character =>
-                   character is (>= '0' and <= '9') or (>= 'a' and <= 'f')) &&
-               IsKey(purposeCode) &&
-               IsKey(surface) &&
-               IsKey(sourceProvenance) &&
-               evidence.EvaluatedAtUtc != default;
-    }
-
-    private static bool IsKey(string value) =>
-        value.Length is > 0 and <= 128 &&
-        value[0] is >= 'a' and <= 'z' &&
-        value.All(character =>
-            character is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '.' or '-' or '_');
+        GuestAnonymisationPolicyEvidence.IsValid(request.RoutingPolicy);
 
     private static bool IsSupported(GuestAnonymisationStaySnapshot stay) =>
         stay.PropertyId != Guid.Empty &&

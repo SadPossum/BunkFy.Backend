@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: in progress; execution preparation complete, owner mutation closed
+Status: in progress; owner mutation complete, contributor dispatch closed
 
 ## Outcome
 
@@ -320,9 +320,9 @@ stable operational error without logging subject coordinates.
    execution/work-item lifecycle without enabling owner mutation.
 2. [Complete] Add Guest data holds, eligibility checks and exact stable blocker
    codes.
-3. [Next] Add `Anonymised`, the aggregate mutation, owner receipt, local tombstone,
+3. [Complete] Add `Anonymised`, the aggregate mutation, owner receipt, local tombstone,
    event and ordinary-surface enforcement.
-4. Add the versioned owner contributor and retry-safe DataRights task
+4. [Next] Add the versioned owner contributor and retry-safe DataRights task
    orchestration.
 5. Add the append-only in-database ledger, keyed pseudonym and canonical
    receipt/entry digests.
@@ -336,8 +336,8 @@ stable operational error without logging subject coordinates.
     restore replay, architecture boundaries and exact-commit GitHub gates.
 
 Only one numbered step is implemented at a time. Later steps may refine code
-from completed steps, but owner mutation remains closed until every prerequisite
-gate needed for that mutation is present.
+from completed steps, but cross-module dispatch remains closed until its
+prepared-work-item and owner-contributor gates are present.
 
 ### Completed Slice: Verified Execution Preparation
 
@@ -406,6 +406,43 @@ gate needed for that mutation is present.
   integration tests. `eng/test-docker.ps1 -NoBuild` then passed all 39
   real-infrastructure scenarios, including the historical Guests migration
   backfill.
+
+### Completed Slice: Guest Owner Mutation And Proof
+
+- `GuestProfile` has a terminal `Anonymised` lifecycle state. The aggregate
+  clears every profile and normalized-search personal-data field, records the
+  actor and completion time, advances the version once and raises one PII-free
+  domain event.
+- Ordinary profile detail, list, discovery and export queries exclude
+  anonymised profiles in database predicates. The internal data-rights lookup
+  remains available only for proof and replay workflows.
+- Execution revalidates the exact DataRights approval, frozen routing-policy
+  evidence, current Guest version and current bounded eligibility result while
+  holding tenant/Guest and affected-property operation locks.
+- The mutation, immutable owner receipt, canonical SHA-256 receipt digest,
+  monotonic local tombstone and PII-free outbox event commit in one Guests
+  transaction.
+- An equivalent retry verifies the committed terminal profile, receipt and
+  tombstone and returns the same receipt without another mutation. Reusing the
+  key or approval coordinates for different input fails closed.
+- New holds and stay/property projection changes serialize against owner
+  execution. A new hold cannot be placed on a terminal anonymised profile.
+- PostgreSQL constraints enforce lifecycle, proof, digest and uniqueness
+  invariants. Downgrade refuses to remove the proof schema while any
+  anonymised profile exists.
+- The execution command is internal to Guests Application, with a narrow
+  friend-assembly grant to Guests Persistence for retry classification. No API,
+  task or cross-module contributor can dispatch it in this slice.
+- The executable Guests personal-data catalogue is version 7 and covers the
+  terminal profile state, owner command, receipt, tombstone and PII-free
+  events.
+- `eng/verify.ps1 -SkipRestore` passes solution synchronization, package
+  boundaries, a zero-warning build, every migration-drift check, all module
+  suites, 64 architecture tests and 30 non-Docker integration tests.
+- `eng/test-docker.ps1 -NoBuild` passes all 41 PostgreSQL/NATS scenarios,
+  including owner-proof persistence, malformed-digest rejection, unsafe
+  downgrade denial, operation-lock serialization and the real worker-driven
+  reservation/stay lifecycle.
 
 ## Acceptance Evidence
 

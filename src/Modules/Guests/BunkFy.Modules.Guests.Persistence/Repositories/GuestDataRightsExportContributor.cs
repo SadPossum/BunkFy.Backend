@@ -119,10 +119,11 @@ internal sealed class GuestDataRightsExportContributor(
         dbContext.GuestProfiles
             .AsNoTracking()
             .Where(profile =>
-                profile.OriginPropertyId == propertyId ||
-                dbContext.StayHistory.Any(stay =>
-                    stay.GuestId == profile.Id &&
-                    stay.PropertyId == propertyId));
+                profile.Status != GuestProfileState.Anonymised &&
+                (profile.OriginPropertyId == propertyId ||
+                 dbContext.StayHistory.Any(stay =>
+                     stay.GuestId == profile.Id &&
+                     stay.PropertyId == propertyId)));
 
     private Task<bool> IsKnownPropertyAsync(
         Guid propertyId,

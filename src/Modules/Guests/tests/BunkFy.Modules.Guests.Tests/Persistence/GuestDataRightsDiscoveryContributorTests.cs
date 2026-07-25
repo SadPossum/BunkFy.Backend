@@ -195,6 +195,59 @@ public sealed class GuestDataRightsDiscoveryContributorTests
             anotherProperty.Status);
     }
 
+    [Fact]
+    public async Task Anonymised_guest_is_absent_from_discovery_and_selection_revalidation()
+    {
+        await using GuestsDbContext dbContext = CreateDbContext("tenant-a");
+        Guid propertyId = Guid.NewGuid();
+        GuestProfile profile = CreateProfile(
+            "tenant-a",
+            propertyId,
+            "Guest",
+            "guest@example.test",
+            null);
+        Assert.True(profile.Anonymise(
+            profile.Version,
+            "user:privacy",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        dbContext.PropertyProjections.Add(new GuestPropertyProjection(
+            "tenant-a",
+            propertyId,
+            "Property",
+            PropertyStatus.Active,
+            1));
+        dbContext.GuestProfiles.Add(profile);
+        await dbContext.SaveChangesAsync();
+        GuestDataRightsDiscoveryContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+
+        DataRightsSubjectDiscoveryResult discovery = await contributor.DiscoverAsync(
+            new(
+                "tenant-a",
+                propertyId,
+                new(profile.Id, null, null, null, null),
+                DataRightsSubjectDiscoveryLimits.MaxCandidates),
+            CancellationToken.None);
+        DataRightsSubjectSelectionValidation selection =
+            await contributor.ValidateSelectionAsync(
+                new(
+                    "tenant-a",
+                    propertyId,
+                    new(
+                        GuestDataRightsDiscoveryContributor.Owner,
+                        GuestDataRightsDiscoveryContributor.ProfileRecordType,
+                        profile.Id,
+                        profile.Version)),
+                CancellationToken.None);
+
+        Assert.Equal(DataRightsSubjectDiscoveryStatus.Succeeded, discovery.Status);
+        Assert.Empty(discovery.Candidates);
+        Assert.Equal(
+            DataRightsSubjectSelectionValidationStatus.NotFound,
+            selection.Status);
+    }
+
     private static GuestProfile CreateProfile(
         string tenantId,
         Guid originPropertyId,

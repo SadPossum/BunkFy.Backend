@@ -37,6 +37,7 @@ internal sealed class GuestsPersistenceRetryBehavior<TCommand, TResponse>
         ArgumentNullException.ThrowIfNull(next);
 
         if (command is not (
+            ApplyGuestAnonymisationCommand or
             ApplyGuestDataRightsCorrectionCommand or
             ApplyGuestProcessingRestrictionCommand or
             ReleaseGuestProcessingRestrictionCommand or

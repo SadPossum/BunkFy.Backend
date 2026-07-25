@@ -50,3 +50,19 @@ internal sealed class GuestProfileArchivedOutboxProjector(IOutboxWriterRegistry 
                 domainEvent.GuestVersion),
             cancellationToken);
 }
+
+internal sealed class GuestProfileAnonymisedOutboxProjector(IOutboxWriterRegistry outboxWriters)
+    : IDomainEventHandler<GuestProfileAnonymisedDomainEvent>
+{
+    public Task HandleAsync(
+        GuestProfileAnonymisedDomainEvent domainEvent,
+        CancellationToken cancellationToken) =>
+        outboxWriters.GetRequired(GuestsModuleMetadata.Name).EnqueueAsync(
+            new GuestProfileAnonymisedIntegrationEvent(
+                domainEvent.EventId,
+                domainEvent.ScopeId,
+                domainEvent.OccurredAtUtc,
+                domainEvent.GuestId,
+                domainEvent.GuestVersion),
+            cancellationToken);
+}

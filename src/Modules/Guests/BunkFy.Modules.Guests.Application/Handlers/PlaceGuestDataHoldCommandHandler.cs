@@ -17,6 +17,7 @@ using DomainGuestDataHoldAction = Domain.Models.GuestDataHoldAction;
 internal sealed class PlaceGuestDataHoldCommandHandler(
     IGuestProfileRepository profiles,
     IGuestDataHoldRepository holds,
+    IGuestOperationLock operationLock,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
@@ -53,6 +54,11 @@ internal sealed class PlaceGuestDataHoldCommandHandler(
             return Replay(existing, command, actorId, reasonCode);
         }
 
+        await operationLock.AcquireGuestAsync(
+            scopeContext.ScopeId,
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
+
         GuestProfile? profile = await profiles.GetForDataRightsAsync(
             command.PropertyId,
             command.GuestId,
@@ -67,6 +73,12 @@ internal sealed class PlaceGuestDataHoldCommandHandler(
         {
             return Result.Failure<GuestDataHoldReceiptDto>(
                 GuestsApplicationErrors.DataHoldGuestVersionConflict);
+        }
+
+        if (profile.Status is not (GuestProfileState.Active or GuestProfileState.Archived))
+        {
+            return Result.Failure<GuestDataHoldReceiptDto>(
+                GuestsApplicationErrors.DataHoldGuestNotEligible);
         }
 
         DateTimeOffset nowUtc = ToPersistencePrecision(clock.UtcNow);

@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Tests;
 
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.Events;
 using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Domain.ValueObjects;
 using Gma.Framework.Results;
@@ -213,6 +214,113 @@ public sealed class GuestProfileTests
                 GuestProfileField.Notes
             ],
             result.Value.ChangedFields);
+    }
+
+    [Fact]
+    public void Anonymise_clears_every_guest_and_search_value_and_preserves_staff_attribution()
+    {
+        GuestProfile profile = GuestProfile.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            "Ada Guest",
+            "Augusta Ada King",
+            "ada@example.test",
+            "+44 20 1234 5678",
+            new DateOnly(1815, 12, 10),
+            "GB",
+            "en-GB",
+            "Returning guest",
+            "user:creator",
+            Guid.NewGuid(),
+            Now.AddDays(-1)).Value;
+        profile.ClearDomainEvents();
+        Guid eventId = Guid.NewGuid();
+        DateTimeOffset completedAtUtc = Now.AddMinutes(1);
+
+        Result<GuestProfileAnonymisationOutcome> result = profile.Anonymise(
+            profile.Version,
+            "user:privacy-executor",
+            eventId,
+            completedAtUtc);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.PreviousVersion);
+        Assert.Equal(2, result.Value.CurrentVersion);
+        Assert.Equal(GuestProfileState.Anonymised, profile.Status);
+        Assert.Equal(GuestProfile.AnonymisedDisplayName, profile.DisplayName);
+        Assert.Equal("ANONYMISED GUEST", profile.DisplayNameSearch);
+        Assert.Null(profile.LegalName);
+        Assert.Null(profile.LegalNameSearch);
+        Assert.Null(profile.Email);
+        Assert.Null(profile.EmailSearch);
+        Assert.Null(profile.Phone);
+        Assert.Null(profile.PhoneSearch);
+        Assert.Null(profile.DateOfBirth);
+        Assert.Null(profile.NationalityCountryCode);
+        Assert.Null(profile.PreferredLanguageTag);
+        Assert.Null(profile.Notes);
+        Assert.Null(profile.ArchivedAtUtc);
+        Assert.Equal(completedAtUtc, profile.AnonymisedAtUtc);
+        Assert.Equal("user:creator", profile.CreatedBy);
+        Assert.Equal("user:privacy-executor", profile.LastChangedBy);
+        Assert.True(profile.MatchesAnonymisedState(2, completedAtUtc));
+        GuestProfileAnonymisedDomainEvent domainEvent =
+            Assert.IsType<GuestProfileAnonymisedDomainEvent>(Assert.Single(profile.DomainEvents));
+        Assert.Equal(eventId, domainEvent.EventId);
+        Assert.Equal(profile.Id, domainEvent.GuestId);
+        Assert.Equal(2, domainEvent.GuestVersion);
+        Assert.DoesNotContain(
+            typeof(GuestProfileAnonymisedDomainEvent).GetProperties(),
+            property => property.Name is
+                nameof(GuestProfile.DisplayName) or
+                nameof(GuestProfile.LegalName) or
+                nameof(GuestProfile.Email) or
+                nameof(GuestProfile.Phone) or
+                nameof(GuestProfile.Notes));
+    }
+
+    [Fact]
+    public void Anonymise_rejects_stale_archived_and_repeated_transitions()
+    {
+        GuestProfile stale = Create("Guest", "guest@example.test", null);
+        Assert.Equal(
+            "Guests.VersionConflict",
+            stale.Anonymise(
+                stale.Version + 1,
+                "user:privacy",
+                Guid.NewGuid(),
+                Now).Error.Code);
+        Assert.Equal(GuestProfileState.Active, stale.Status);
+        Assert.Equal("guest@example.test", stale.Email);
+
+        GuestProfile archived = Create("Archived", null, null);
+        Assert.True(archived.Archive(
+            archived.Version,
+            "user:operator",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        Assert.Equal(
+            "Guests.GuestNotActiveForAnonymisation",
+            archived.Anonymise(
+                archived.Version,
+                "user:privacy",
+                Guid.NewGuid(),
+                Now.AddMinutes(1)).Error.Code);
+
+        GuestProfile anonymised = Create("Anonymised", null, null);
+        Assert.True(anonymised.Anonymise(
+            anonymised.Version,
+            "user:privacy",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        Assert.Equal(
+            "Guests.GuestAlreadyAnonymised",
+            anonymised.Anonymise(
+                anonymised.Version,
+                "user:privacy",
+                Guid.NewGuid(),
+                Now.AddMinutes(1)).Error.Code);
     }
 
     private static GuestProfile Create(string displayName, string? email, string? phone) => GuestProfile.Create(

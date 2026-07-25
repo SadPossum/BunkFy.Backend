@@ -5,6 +5,7 @@ using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Persistence;
+using BunkFy.Modules.Guests.Persistence.Models;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Scoping;
@@ -26,6 +27,7 @@ public sealed class GuestsModelTests
         Assert.True(profile.FindProperty(nameof(GuestProfile.Version))!.IsConcurrencyToken);
         Assert.Equal(ValueGenerated.OnAdd, profile.FindProperty(nameof(GuestProfile.ProjectionOrdinal))!.ValueGenerated);
         Assert.Equal(GuestProfile.ActorIdMaxLength, profile.FindProperty(nameof(GuestProfile.CreatedBy))!.GetMaxLength());
+        Assert.NotNull(profile.FindProperty(nameof(GuestProfile.AnonymisedAtUtc)));
         Assert.Contains(profile.GetIndexes(), index => !index.IsUnique && index.Properties.Select(item => item.Name)
             .SequenceEqual([nameof(GuestProfile.ScopeId), nameof(GuestProfile.EmailSearch)]));
         Assert.Contains(profile.GetIndexes(), index => !index.IsUnique && index.Properties.Select(item => item.Name)
@@ -154,13 +156,50 @@ public sealed class GuestsModelTests
                 nameof(GuestProcessingRestrictionReceipt.ScopeId),
                 nameof(GuestProcessingRestrictionReceipt.IdempotencyKey)
             ]));
+        IEntityType anonymisationReceipt =
+            dbContext.Model.FindEntityType(typeof(GuestAnonymisationReceipt))!;
+        Assert.Contains(anonymisationReceipt.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestAnonymisationReceipt.ScopeId),
+                nameof(GuestAnonymisationReceipt.IdempotencyKey)
+            ]));
+        Assert.Contains(anonymisationReceipt.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestAnonymisationReceipt.ScopeId),
+                nameof(GuestAnonymisationReceipt.CaseId),
+                nameof(GuestAnonymisationReceipt.ApprovalRevision),
+                nameof(GuestAnonymisationReceipt.OperationRevision),
+                nameof(GuestAnonymisationReceipt.GuestId)
+            ]));
+        IEntityType anonymisationTombstone =
+            dbContext.Model.FindEntityType(typeof(GuestAnonymisationTombstone))!;
+        Assert.True(anonymisationTombstone.FindProperty(
+            nameof(GuestAnonymisationTombstone.Revision))!.IsConcurrencyToken);
+        IEntityType operationLock =
+            dbContext.Model.FindEntityType(typeof(GuestOperationLock))!;
+        Assert.True(operationLock.FindProperty(
+            nameof(GuestOperationLock.Revision))!.IsConcurrencyToken);
+        Assert.Contains(operationLock.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestOperationLock.ScopeId),
+                nameof(GuestOperationLock.ResourceKind),
+                nameof(GuestOperationLock.ResourceId)
+            ]));
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        Assert.Contains(
+            designModel.FindEntityType(typeof(GuestAnonymisationReceipt))!.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_guest_anonymisation_receipts_versions");
+        Assert.Contains(
+            designModel.FindEntityType(typeof(GuestAnonymisationTombstone))!.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_guest_anonymisation_tombstones_contract");
     }
 
     [Fact]
     public async Task Property_projection_orders_topology_and_policy_streams_independently()
     {
         await using GuestsDbContext dbContext = CreateDbContext();
-        GuestPropertyProjectionRepository repository = new(dbContext);
+        GuestPropertyProjectionRepository repository =
+            new(dbContext, new NoopGuestOperationLock());
         Guid propertyId = Guid.NewGuid();
         PropertyGovernancePolicyBinding binding = CreateGovernanceBinding();
 

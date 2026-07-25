@@ -4,13 +4,19 @@ using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class GuestPropertyProjectionRepository(GuestsDbContext dbContext)
+internal sealed class GuestPropertyProjectionRepository(
+    GuestsDbContext dbContext,
+    IGuestOperationLock operationLock)
     : IGuestPropertyProjectionRepository
 {
     public async Task ApplyTopologyAsync(
         GuestPropertyTopologyWriteModel property,
         CancellationToken cancellationToken)
     {
+        await operationLock.AcquirePropertiesAsync(
+            property.ScopeId,
+            [property.PropertyId],
+            cancellationToken).ConfigureAwait(false);
         GuestPropertyProjection current = await this.GetOrCreateAsync(
             property.ScopeId,
             property.PropertyId,
@@ -22,6 +28,10 @@ internal sealed class GuestPropertyProjectionRepository(GuestsDbContext dbContex
         GuestPropertyPolicyWriteModel property,
         CancellationToken cancellationToken)
     {
+        await operationLock.AcquirePropertiesAsync(
+            property.ScopeId,
+            [property.PropertyId],
+            cancellationToken).ConfigureAwait(false);
         GuestPropertyProjection current = await this.GetOrCreateAsync(
             property.ScopeId,
             property.PropertyId,

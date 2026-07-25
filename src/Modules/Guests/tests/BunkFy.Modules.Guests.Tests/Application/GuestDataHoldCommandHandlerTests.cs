@@ -29,6 +29,7 @@ public sealed class GuestDataHoldCommandHandlerTests
         PlaceGuestDataHoldCommandHandler handler = new(
             new StubGuestRepository(profile),
             holds,
+            new NoopGuestOperationLock(),
             new TestScopeContext(),
             new TestClock(),
             new TestIdGenerator());
@@ -59,6 +60,7 @@ public sealed class GuestDataHoldCommandHandlerTests
         PlaceGuestDataHoldCommandHandler handler = new(
             new StubGuestRepository(profile),
             holds,
+            new NoopGuestOperationLock(),
             new TestScopeContext(),
             new TestClock(),
             new TestIdGenerator());
@@ -88,6 +90,39 @@ public sealed class GuestDataHoldCommandHandlerTests
     }
 
     [Fact]
+    public async Task Place_rejects_anonymised_guest_even_at_the_current_version()
+    {
+        GuestProfile profile = CreateProfile();
+        Assert.True(profile.Anonymise(
+            profile.Version,
+            "user:privacy",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        RecordingHoldRepository holds = new();
+        PlaceGuestDataHoldCommandHandler handler = new(
+            new StubGuestRepository(profile),
+            holds,
+            new NoopGuestOperationLock(),
+            new TestScopeContext(),
+            new TestClock(),
+            new TestIdGenerator());
+        PlaceGuestDataHoldCommand command = new(
+            Guid.NewGuid(),
+            profile.OriginPropertyId,
+            profile.Id,
+            profile.Version,
+            GuestDataHoldReasonCodes.RegulatoryRequest,
+            "user:privacy");
+
+        Result<GuestDataHoldReceiptDto> result =
+            await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(GuestsApplicationErrors.DataHoldGuestNotEligible, result.Error);
+        Assert.Empty(holds.Holds);
+        Assert.Empty(holds.Receipts);
+    }
+
+    [Fact]
     public async Task Release_requires_exact_hold_version_and_replays_exactly()
     {
         GuestProfile profile = CreateProfile();
@@ -103,6 +138,7 @@ public sealed class GuestDataHoldCommandHandlerTests
         ReleaseGuestDataHoldCommandHandler handler = new(
             new StubGuestRepository(profile),
             holds,
+            new NoopGuestOperationLock(),
             new TestScopeContext(),
             new TestClock(),
             new TestIdGenerator());

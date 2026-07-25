@@ -29,6 +29,9 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("ArchivedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -121,8 +124,6 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("ScopeId", "Id");
-
                     b.HasIndex("ProjectionOrdinal")
                         .IsUnique();
 
@@ -140,9 +141,172 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_guest_profiles_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
 
-                            t.HasCheckConstraint("CK_guest_profiles_lifecycle", "(\"Status\" = 1 AND \"ArchivedAtUtc\" IS NULL) OR (\"Status\" = 2 AND \"ArchivedAtUtc\" IS NOT NULL AND \"ArchivedAtUtc\" >= \"CreatedAtUtc\")");
+                            t.HasCheckConstraint("CK_guest_profiles_lifecycle", "(\"Status\" = 1 AND \"ArchivedAtUtc\" IS NULL AND \"AnonymisedAtUtc\" IS NULL) OR (\"Status\" = 2 AND \"ArchivedAtUtc\" IS NOT NULL AND \"ArchivedAtUtc\" >= \"CreatedAtUtc\" AND \"AnonymisedAtUtc\" IS NULL) OR (\"Status\" = 3 AND \"ArchivedAtUtc\" IS NULL AND \"AnonymisedAtUtc\" IS NOT NULL AND \"AnonymisedAtUtc\" >= \"CreatedAtUtc\")");
 
                             t.HasCheckConstraint("CK_guest_profiles_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("AffectedPropertyCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ApprovalEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Disposition")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("GuestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("OperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PolicySetSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ResultingGuestVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("RoutingPropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedGuestVersion")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "GuestId", "ResultingGuestVersion")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CaseId", "ApprovalRevision", "OperationRevision", "GuestId")
+                        .IsUnique();
+
+                    b.ToTable("guest_anonymisation_receipts", "guests", t =>
+                        {
+                            t.HasCheckConstraint("CK_guest_anonymisation_receipts_actor", "length(trim(\"ActorId\")) > 0");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_receipts_digests", "char_length(\"ApprovalEvidenceSha256\") = 64 AND char_length(\"PolicySetSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_receipts_outcome", "\"Disposition\" = 1 AND \"Reason\" = 1");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_receipts_property_count", "\"AffectedPropertyCount\" BETWEEN 1 AND 256");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_receipts_revisions", "\"ApprovalRevision\" >= 1 AND \"OperationRevision\" > \"ApprovalRevision\"");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_receipts_versions", "\"SelectedGuestVersion\" >= 1 AND \"ResultingGuestVersion\" = \"SelectedGuestVersion\" + 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "OwnerReceiptSha256")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CompletedAtUtc", "Id");
+
+                    b.ToTable("guest_anonymisation_tombstones", "guests", t =>
+                        {
+                            t.HasCheckConstraint("CK_guest_anonymisation_tombstones_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_tombstones_receipt_digest", "char_length(\"OwnerReceiptSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_tombstones_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_tombstones_state", "\"State\" = 1");
                         });
                 });
 
@@ -682,6 +846,42 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                     b.ToTable("projection_rebuild_checkpoints", "guests");
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Guests.Persistence.Models.GuestOperationLock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ResourceKind")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "ResourceKind", "ResourceId")
+                        .IsUnique();
+
+                    b.ToTable("guest_operation_locks", "guests", t =>
+                        {
+                            t.HasCheckConstraint("CK_guest_operation_locks_resource_kind", "\"ResourceKind\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_guest_operation_locks_revision", "\"Revision\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Gma.Framework.Messaging.Infrastructure.InboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -805,6 +1005,33 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ProcessedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc", "CreatedAtUtc");
 
                     b.ToTable("outbox_messages", "guests");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "GuestId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "ScopeId", "Id")
+                        .HasPrincipalKey("BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "ScopeId", "OwnerReceiptSha256")
+                        .HasPrincipalKey("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "ScopeId", "CanonicalSha256")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestDataHoldReceipt", b =>

@@ -16,8 +16,11 @@ internal sealed class GuestProfileConfiguration : IEntityTypeConfiguration<Guest
             table.HasCheckConstraint("CK_guest_profiles_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
             table.HasCheckConstraint(
                 "CK_guest_profiles_lifecycle",
-                "(\"Status\" = 1 AND \"ArchivedAtUtc\" IS NULL) OR " +
-                "(\"Status\" = 2 AND \"ArchivedAtUtc\" IS NOT NULL AND \"ArchivedAtUtc\" >= \"CreatedAtUtc\")");
+                "(\"Status\" = 1 AND \"ArchivedAtUtc\" IS NULL AND \"AnonymisedAtUtc\" IS NULL) OR " +
+                "(\"Status\" = 2 AND \"ArchivedAtUtc\" IS NOT NULL AND " +
+                "\"ArchivedAtUtc\" >= \"CreatedAtUtc\" AND \"AnonymisedAtUtc\" IS NULL) OR " +
+                "(\"Status\" = 3 AND \"ArchivedAtUtc\" IS NULL AND " +
+                "\"AnonymisedAtUtc\" IS NOT NULL AND \"AnonymisedAtUtc\" >= \"CreatedAtUtc\")");
         });
         builder.HasKey(profile => profile.Id);
         builder.HasAlternateKey(profile => new { profile.ScopeId, profile.Id });

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "guests.personal-data",
-  "catalogVersion": 6,
+  "catalogVersion": 7,
   "module": "guests",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -57,6 +57,12 @@
       "scope": "tenant-internal-approved-data-rights-operation",
       "readers": ["permission:data-rights.erase", "system:data-rights.anonymisation"],
       "writers": ["system:data-rights.anonymisation", "system:guests.anonymisation-eligibility"]
+    },
+    {
+      "id": "guest-anonymisation-proof",
+      "scope": "tenant-internal-approved-data-rights-operation",
+      "readers": ["permission:data-rights.erase", "system:data-rights.anonymisation", "system:guests.restore"],
+      "writers": ["system:guests.anonymisation"]
     }
   ],
   "retentionPolicies": [
@@ -129,6 +135,13 @@
       "startsAt": "eligibility-evaluation-requested",
       "endsAt": "eligibility-evaluation-completed",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "guest-anonymisation-owner-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-guest-anonymisation-completed",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-irreversible-operation-proof"
     },
     {
       "id": "integration-message-journal",
@@ -208,6 +221,13 @@
       "correction": "re-evaluate-from-current-owner-projections",
       "restriction": "fail-closed-on-missing-stale-or-unsupported-evidence",
       "erasure": "authorize-only-the-exact-approved-current-record-version"
+    },
+    {
+      "id": "guest-anonymisation-proof-control",
+      "export": "include-minimum-proof-in-authorized-case-ledger",
+      "correction": "immutable-owner-receipt-and-monotonic-tombstone-only",
+      "restriction": "exclude-terminal-record-from-ordinary-surfaces",
+      "erasure": "retain-pii-free-proof-and-reapply-after-restore"
     },
     {
       "id": "staff-audit-attribution",
@@ -435,6 +455,550 @@
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationEligibilityRequest", "member": "TenantId", "surface": "integration-command" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "authorized-execution-attribution"],
+      "sources": ["authenticated-subject"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": ["application-command", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "ActorId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "ActorId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "ActorId", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.affected-property-count",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "bounded-owner-scope-proof"],
+      "sources": ["guests-anonymisation-eligibility"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "AffectedPropertyCount", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "AffectedPropertyCount", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.approval-evidence-digest",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-accountability", "immutable-approval-proof"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "ApprovalEvidenceSha256", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "ApprovalEvidenceSha256", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.approval-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "approved-decision-versioning"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "ApprovalRevision", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "ApprovalRevision", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "ApprovalRevision", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.canonical-receipt-digest",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "tamper-evident-owner-proof"],
+      "sources": ["guests-owner-receipt"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "CanonicalSha256", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "CanonicalSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "OwnerReceiptSha256", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.case-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-accountability", "approved-case-correlation"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "CaseId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "CaseId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "CaseId", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.completed-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "terminal-state-ordering"],
+      "sources": ["guests-system-clock"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["domain-event", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "CompletedAtUtc", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileAnonymisedIntegrationEvent", "member": "OccurredAtUtc", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile", "member": "AnonymisedAtUtc", "surface": "persistence", "retentionPolicy": "guest-profile-lifecycle" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "CompletedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "CompletedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProfileAnonymisedDomainEvent", "member": "OccurredAtUtc", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.contract-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["fail-closed-contract-versioning", "restore-compatibility"],
+      "sources": ["guests-owner-contract"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "ContractVersion", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "ContractVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "ContractVersion", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.disposition",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-accountability", "stable-owner-outcome"],
+      "sources": ["guests-anonymisation-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "Disposition", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "Disposition", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.event-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "idempotent-event-processing"],
+      "sources": ["system-generated"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["domain-event", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "EventId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileAnonymisedIntegrationEvent", "member": "EventId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "EventId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProfileAnonymisedDomainEvent", "member": "EventId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.guest-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-accountability", "owner-record-correlation"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command", "domain-event", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "GuestId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "GuestId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileAnonymisedIntegrationEvent", "member": "GuestId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "GuestId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProfileAnonymisedDomainEvent", "member": "GuestId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.idempotency-key",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "retry-safety"],
+      "sources": ["data-rights-execution-work-item"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "IdempotencyKey", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "IdempotencyKey", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "IdempotencyKey", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.operation-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "execution-versioning"],
+      "sources": ["data-rights-execution-work-item"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "OperationRevision", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "OperationRevision", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "OperationRevision", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.policy-set-digest",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "affected-policy-proof"],
+      "sources": ["guests-current-property-projections"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "PolicySetSha256", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "PolicySetSha256", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.reason",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-accountability", "stable-owner-reason"],
+      "sources": ["guests-anonymisation-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "Reason", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "Reason", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.receipt-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "owner-receipt-correlation"],
+      "sources": ["system-generated"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "ReceiptId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "Id", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.resulting-guest-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "terminal-version-proof"],
+      "sources": ["guest-profile"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["domain-event", "integration-event", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "ResultingGuestVersion", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileAnonymisedIntegrationEvent", "member": "GuestVersion", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "ResultingGuestVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProfileAnonymisedDomainEvent", "member": "GuestVersion", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.routing-policy-evidence",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-authorization", "immutable-policy-proof"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "RoutingPolicy", "surface": "application-command" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.routing-property-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "property-authorization"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "properties",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "RoutingPropertyId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "RoutingPropertyId", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "RoutingPropertyId", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.selected-guest-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "stale-operation-prevention"],
+      "sources": ["approved-data-rights-operation", "guest-profile"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["application-command", "persistence", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestAnonymisationCommand", "member": "ExpectedGuestVersion", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestAnonymisationReceiptDto", "member": "SelectedGuestVersion", "surface": "projection-export", "retentionPolicy": "projection-transfer" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "SelectedGuestVersion", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.execution.tenant-scope-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-accountability", "tenant-isolation"],
+      "sources": ["authenticated-tenant-context"],
+      "authoritativeOwner": "tenancy",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["domain-event", "integration-event", "persistence"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileAnonymisedIntegrationEvent", "member": "ScopeId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProfileAnonymisedIntegrationEvent", "member": "TenantId", "surface": "integration-event", "retentionPolicy": "integration-message-journal" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestProfileAnonymisedDomainEvent", "member": "ScopeId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.tombstone.last-replayed-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["restore-accountability", "replay-ordering"],
+      "sources": ["guests-restore-gate"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "LastReplayedAtUtc", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.tombstone.ledger-entry-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["restore-accountability", "authoritative-ledger-correlation"],
+      "sources": ["data-rights-processing-ledger"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "LedgerEntryId", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.tombstone.revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["restore-accountability", "monotonic-tombstone-versioning"],
+      "sources": ["guests-anonymisation-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "Revision", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.anonymisation.tombstone.state",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "elevated",
+      "purposes": ["restore-accountability", "terminal-owner-state"],
+      "sources": ["guests-anonymisation-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-anonymisation-proof",
+      "countryPolicyKey": "guest.data-rights-anonymisation",
+      "retentionPolicy": "guest-anonymisation-owner-proof",
+      "rightsPolicy": "guest-anonymisation-proof-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "member": "State", "surface": "persistence" }
       ]
     },
     {

@@ -1,7 +1,6 @@
 namespace Integration.Tests;
 
 using BunkFy.Modules.Guests.Contracts;
-using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Persistence;
 using Gma.Framework.Scoping;
@@ -33,23 +32,54 @@ public sealed class GuestProcessingRestrictionPersistenceIntegrationTests
         await using (GuestsDbContext initial = CreateDbContext(postgreSql.GetConnectionString()))
         {
             await initial.Database.GetService<IMigrator>().MigrateAsync(PreviousMigration);
-            GuestProfile profile = GuestProfile.Create(
-                guestId,
-                "tenant-a",
-                originPropertyId,
-                "Legacy Guest",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                "staff:migration-test",
-                Guid.NewGuid(),
-                createdAtUtc).Value;
-            initial.GuestProfiles.Add(profile);
-            await initial.SaveChangesAsync();
+            await initial.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO guests.guest_profiles (
+                    "Id",
+                    "ArchivedAtUtc",
+                    "CreatedAtUtc",
+                    "CreatedBy",
+                    "DateOfBirth",
+                    "DisplayName",
+                    "DisplayNameSearch",
+                    "Email",
+                    "EmailSearch",
+                    "LastChangedAtUtc",
+                    "LastChangedBy",
+                    "LegalName",
+                    "LegalNameSearch",
+                    "NationalityCountryCode",
+                    "Notes",
+                    "OriginPropertyId",
+                    "Phone",
+                    "PhoneSearch",
+                    "PreferredLanguageTag",
+                    "ScopeId",
+                    "Status",
+                    "Version")
+                VALUES (
+                    {guestId},
+                    NULL,
+                    {createdAtUtc},
+                    {"staff:migration-test"},
+                    NULL,
+                    {"Legacy Guest"},
+                    {"LEGACY GUEST"},
+                    NULL,
+                    NULL,
+                    {createdAtUtc},
+                    {"staff:migration-test"},
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    {originPropertyId},
+                    NULL,
+                    NULL,
+                    NULL,
+                    {"tenant-a"},
+                    {1},
+                    {1L})
+                """);
 
             Guid reservationId = Guid.NewGuid();
             await initial.Database.ExecuteSqlInterpolatedAsync($"""

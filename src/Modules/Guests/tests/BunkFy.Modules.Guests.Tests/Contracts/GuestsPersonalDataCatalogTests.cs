@@ -48,7 +48,9 @@ public sealed class GuestsPersonalDataCatalogTests
                      typeof(GuestProcessingRestriction),
                      typeof(GuestProcessingRestrictionReceipt),
                      typeof(GuestDataHold),
-                     typeof(GuestDataHoldReceipt)
+                     typeof(GuestDataHoldReceipt),
+                     typeof(GuestAnonymisationReceipt),
+                     typeof(GuestAnonymisationTombstone)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
@@ -85,6 +87,7 @@ public sealed class GuestsPersonalDataCatalogTests
             PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(PlaceGuestDataHoldCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ReleaseGuestDataHoldCommand), PersonalDataSurface.ApplicationCommand);
+        AssertType(typeof(ApplyGuestAnonymisationCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(GetGuestProfileQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(typeof(GetGuestStayHistoryQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(
@@ -132,6 +135,7 @@ public sealed class GuestsPersonalDataCatalogTests
             PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestDataHoldDto), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestDataHoldReceiptDto), PersonalDataSurface.ApiResponse);
+        AssertType(typeof(GuestAnonymisationReceiptDto), PersonalDataSurface.ProjectionExport);
         AssertType(typeof(GuestStayHistoryItem), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestProfileEligibilityProjectionExport), PersonalDataSurface.ProjectionExport);
         AssertType(typeof(ReservationGuestStayProjectionExport), PersonalDataSurface.ProjectionExport);
@@ -161,6 +165,9 @@ public sealed class GuestsPersonalDataCatalogTests
             nameof(GuestAnonymisationEligibilityResult.AffectedPropertyCount));
         AssertType(
             typeof(GuestProcessingRestrictionChangedDomainEvent),
+            PersonalDataSurface.DomainEvent);
+        AssertType(
+            typeof(GuestProfileAnonymisedDomainEvent),
             PersonalDataSurface.DomainEvent);
         AssertType(typeof(GuestProfileDataRightsExport), PersonalDataSurface.DataRightsExport);
         AssertType(typeof(GuestStayDataRightsExport), PersonalDataSurface.DataRightsExport);
@@ -246,6 +253,7 @@ public sealed class GuestsPersonalDataCatalogTests
     private static Type[] IntegrationEventTypes() =>
     [
         typeof(GuestProfileArchivedIntegrationEvent),
+        typeof(GuestProfileAnonymisedIntegrationEvent),
         typeof(GuestProfileCreatedIntegrationEvent),
         typeof(GuestProcessingRestrictionChangedIntegrationEvent),
         typeof(GuestProfileUpdatedIntegrationEvent),

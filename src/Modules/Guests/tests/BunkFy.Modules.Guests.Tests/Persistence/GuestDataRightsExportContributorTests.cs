@@ -54,7 +54,7 @@ public sealed class GuestDataRightsExportContributorTests
         Assert.Equal(2, result.RecordCount);
         Assert.Equal("guests.personal-data", contributor.Descriptor.CatalogId);
         Assert.Equal(1, contributor.Descriptor.CatalogSchemaVersion);
-        Assert.Equal(6, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(7, contributor.Descriptor.CatalogVersion);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaId, contributor.Descriptor.ExportSchemaId);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaVersion, contributor.Descriptor.ExportSchemaVersion);
         Assert.Equal(26, contributor.Descriptor.FieldIds.Count);
@@ -169,6 +169,44 @@ public sealed class GuestDataRightsExportContributorTests
             Request("tenant-a", propertyId, profile.Id, profile.Version),
             sink,
             CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Anonymised_guest_cannot_be_exported_from_the_ordinary_rights_surface()
+    {
+        await using GuestsDbContext dbContext = CreateDbContext("tenant-a");
+        Guid propertyId = Guid.NewGuid();
+        GuestProfile profile = CreateProfile(
+            "tenant-a",
+            propertyId,
+            "Guest",
+            null,
+            "guest@example.test",
+            null);
+        Assert.True(profile.Anonymise(
+            profile.Version,
+            "user:privacy",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        dbContext.PropertyProjections.Add(new GuestPropertyProjection(
+            "tenant-a",
+            propertyId,
+            "Property",
+            PropertyStatus.Active,
+            1));
+        dbContext.GuestProfiles.Add(profile);
+        await dbContext.SaveChangesAsync();
+        GuestDataRightsExportContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result = await contributor.ExportAsync(
+            Request("tenant-a", propertyId, profile.Id, profile.Version),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsSubjectExportStatus.NotFound, result.Status);
+        Assert.Empty(sink.Records);
     }
 
     private static DataRightsSubjectExportRequest Request(

@@ -22,7 +22,8 @@ public sealed class GuestProcessingRestrictionProjectionRepositoryTests
         GuestProcessingRestrictionProjectionRepository projections =
             new(dbContext, scopeContext);
         GuestProfileRepository profiles = new(dbContext, projections);
-        GuestStayHistoryRepository stays = new(dbContext, projections);
+        GuestStayHistoryRepository stays =
+            new(dbContext, projections, new NoopGuestOperationLock());
         Guid guestId = Guid.NewGuid();
         Guid originPropertyId = Guid.NewGuid();
         Guid stayPropertyId = Guid.NewGuid();

@@ -8,7 +8,7 @@ using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
-public sealed class GuestProfile : ScopedAggregateRoot<Guid>
+public sealed partial class GuestProfile : ScopedAggregateRoot<Guid>
 {
     public const int DisplayNameMaxLength = 256;
     public const int LegalNameMaxLength = 256;
@@ -44,6 +44,7 @@ public sealed class GuestProfile : ScopedAggregateRoot<Guid>
     public string LastChangedBy { get; private set; } = string.Empty;
     public DateTimeOffset LastChangedAtUtc { get; private set; }
     public DateTimeOffset? ArchivedAtUtc { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
 
     public static Result<GuestProfile> Create(
         Guid id,

@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Application;
 
 using BunkFy.DataGovernance;
+using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Errors;
 using Gma.Framework.Results;
 
@@ -68,6 +69,9 @@ public static class GuestsApplicationErrors
     public static readonly Error DataHoldGuestVersionConflict = new(
         "Guests.DataHoldGuestVersionConflict",
         "The selected guest-profile version is stale.");
+    public static readonly Error DataHoldGuestNotEligible = new(
+        "Guests.DataHoldGuestNotEligible",
+        "A data hold cannot be placed on this guest-profile lifecycle state.");
     public static readonly Error DataHoldIdempotencyConflict = new(
         "Guests.DataHoldIdempotencyConflict",
         "The Guest data-hold idempotency key was already used for a different request.");
@@ -75,4 +79,16 @@ public static class GuestsApplicationErrors
         GuestsDomainErrors.DataHoldVersionConflict;
     public static Error DataHoldAlreadyReleased =>
         GuestsDomainErrors.DataHoldAlreadyReleased;
+    public static readonly Error AnonymisationRequestInvalid = new(
+        "Guests.AnonymisationRequestInvalid",
+        "The Guest anonymisation request is invalid.");
+    public static readonly Error AnonymisationIdempotencyConflict = new(
+        "Guests.AnonymisationIdempotencyConflict",
+        "The Guest anonymisation idempotency key was already used for a different request.");
+    public static readonly Error AnonymisationProofUnavailable = new(
+        "Guests.AnonymisationProofUnavailable",
+        "The committed Guest anonymisation proof is unavailable or inconsistent.");
+    public static Error AnonymisationBlocked(GuestAnonymisationBlockerCode blocker) => new(
+        $"Guests.AnonymisationBlocked.{blocker}",
+        "The Guest anonymisation is blocked by current owner state or policy.");
 }

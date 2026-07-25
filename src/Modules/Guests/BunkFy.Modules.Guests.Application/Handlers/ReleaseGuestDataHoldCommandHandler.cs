@@ -17,6 +17,7 @@ using DomainGuestDataHoldAction = Domain.Models.GuestDataHoldAction;
 internal sealed class ReleaseGuestDataHoldCommandHandler(
     IGuestProfileRepository profiles,
     IGuestDataHoldRepository holds,
+    IGuestOperationLock operationLock,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
@@ -52,6 +53,11 @@ internal sealed class ReleaseGuestDataHoldCommandHandler(
         {
             return Replay(existing, command, actorId);
         }
+
+        await operationLock.AcquireGuestAsync(
+            scopeContext.ScopeId,
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
 
         GuestProfile? profile = await profiles.GetForDataRightsAsync(
             command.PropertyId,

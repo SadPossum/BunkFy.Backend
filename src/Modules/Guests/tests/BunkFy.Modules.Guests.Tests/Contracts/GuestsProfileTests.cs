@@ -29,7 +29,7 @@ public sealed class GuestsProfileTests
             subscription =>
                 subscription.EventType == PropertyProcessingSuspendedIntegrationEvent.EventType &&
                 subscription.ProducerModule == PropertiesModuleMetadata.Name);
-        Assert.Equal(4, GuestsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(5, GuestsModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Contains(
             GuestsModuleMetadata.Descriptor.GetPublishedEvents(),
             published =>
@@ -47,6 +47,7 @@ public sealed class GuestsProfileTests
             typeof(GuestProfileCreatedIntegrationEvent),
             typeof(GuestProfileUpdatedIntegrationEvent),
             typeof(GuestProfileArchivedIntegrationEvent),
+            typeof(GuestProfileAnonymisedIntegrationEvent),
             typeof(GuestProcessingRestrictionChangedIntegrationEvent),
             typeof(ReservationGuestLinkedIntegrationEvent),
             typeof(ReservationGuestStayChangedIntegrationEvent)
@@ -55,6 +56,10 @@ public sealed class GuestsProfileTests
             eventType.GetProperties(),
             property => forbiddenProperties.Contains(property.Name, StringComparer.Ordinal)));
         Assert.EndsWith(".guests.guest-profile-created.v1", GuestsIntegrationSubjects.CreateProfileCreated(), StringComparison.Ordinal);
+        Assert.EndsWith(
+            ".guests.guest-profile-anonymised.v1",
+            GuestsIntegrationSubjects.CreateProfileAnonymised(),
+            StringComparison.Ordinal);
         Assert.EndsWith(
             ".guests.guest-processing-restriction-changed.v1",
             GuestsIntegrationSubjects.CreateProcessingRestrictionChanged(),

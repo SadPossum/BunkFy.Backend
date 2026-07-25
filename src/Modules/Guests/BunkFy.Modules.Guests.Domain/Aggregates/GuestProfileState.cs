@@ -4,5 +4,6 @@ public enum GuestProfileState
 {
     Unknown = 0,
     Active = 1,
-    Archived = 2
+    Archived = 2,
+    Anonymised = 3
 }

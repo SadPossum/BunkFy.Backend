@@ -145,6 +145,56 @@ public sealed class GuestsPersistenceRetryBehaviorTests
         Assert.Equal(GuestsApplicationErrors.DataHoldIdempotencyConflict, result.Error);
     }
 
+    [Fact]
+    public async Task Anonymisation_persistence_conflict_reexecutes_once()
+    {
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using GuestsDbContext dbContext = new(options, new TestScopeContext());
+        GuestsPersistenceRetryBehavior<
+            ApplyGuestAnonymisationCommand,
+            GuestAnonymisationReceiptDto> behavior = new(dbContext, _ => true);
+        ApplyGuestAnonymisationCommand command = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            2,
+            3,
+            Guid.NewGuid(),
+            1,
+            new(
+                PropertyPolicySourceVersion: 1,
+                OperatingCountryCode: "GB",
+                PolicyId: "policy",
+                PolicyVersion: 1,
+                RetentionPolicyId: "retention",
+                RetentionPolicyVersion: 1,
+                ContentSha256: new string('a', 64),
+                PurposeCode: "data-rights-anonymisation",
+                Surface: "erasure",
+                SourceProvenance: "authorized-workspace-operator",
+                EvaluatedAtUtc: DateTimeOffset.UtcNow),
+            "user:operator");
+        int attempts = 0;
+
+        Task<Result<GuestAnonymisationReceiptDto>> Next()
+        {
+            attempts++;
+            return attempts == 1
+                ? throw new DbUpdateConcurrencyException("simulated lock conflict")
+                : Task.FromResult(Result.Failure<GuestAnonymisationReceiptDto>(
+                    GuestsApplicationErrors.AnonymisationIdempotencyConflict));
+        }
+
+        Result<GuestAnonymisationReceiptDto> result =
+            await behavior.HandleAsync(command, Next, CancellationToken.None);
+
+        Assert.Equal(2, attempts);
+        Assert.Equal(GuestsApplicationErrors.AnonymisationIdempotencyConflict, result.Error);
+    }
+
     private sealed class TestScopeContext : IScopeContext
     {
         public bool IsEnabled => true;

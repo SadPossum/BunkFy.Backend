@@ -21,6 +21,21 @@ public static class GuestsDomainErrors
     public static readonly Error GuestArchived = new("Guests.GuestArchived", "The guest profile is archived.");
     public static readonly Error GuestAlreadyArchived = new("Guests.GuestAlreadyArchived", "The guest profile is already archived.");
     public static readonly Error GuestStatusUnknown = new("Guests.GuestStatusUnknown", "The guest profile status is unknown.");
+    public static readonly Error GuestAlreadyAnonymised = new(
+        "Guests.GuestAlreadyAnonymised",
+        "The guest profile is already anonymised.");
+    public static readonly Error GuestNotActiveForAnonymisation = new(
+        "Guests.GuestNotActiveForAnonymisation",
+        "Only an active guest profile can be anonymised.");
+    public static readonly Error AnonymisationTimestampInvalid = new(
+        "Guests.AnonymisationTimestampInvalid",
+        "The anonymisation timestamp is invalid.");
+    public static readonly Error AnonymisationReceiptInvalid = new(
+        "Guests.AnonymisationReceiptInvalid",
+        "The Guest anonymisation receipt is invalid.");
+    public static readonly Error AnonymisationTombstoneInvalid = new(
+        "Guests.AnonymisationTombstoneInvalid",
+        "The Guest anonymisation tombstone is invalid.");
     public static readonly Error CorrectionReceiptIdentityInvalid = new(
         "Guests.CorrectionReceiptIdentityInvalid",
         "The correction receipt identity is invalid.");

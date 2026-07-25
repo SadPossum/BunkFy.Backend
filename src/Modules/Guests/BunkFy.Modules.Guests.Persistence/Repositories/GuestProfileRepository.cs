@@ -35,7 +35,7 @@ internal sealed class GuestProfileRepository(
         CancellationToken cancellationToken) => dbContext.GuestProfiles.FirstOrDefaultAsync(
         profile => profile.Id == guestId &&
                    (profile.OriginPropertyId == propertyId || dbContext.StayHistory.Any(stay =>
-                       stay.GuestId == profile.Id && stay.PropertyId == propertyId && stay.IsCurrentParticipant)),
+                       stay.GuestId == profile.Id && stay.PropertyId == propertyId)),
         cancellationToken);
 
     public async Task<GuestListResponse> ListVisibleAsync(
@@ -80,6 +80,7 @@ internal sealed class GuestProfileRepository(
 
     private IQueryable<GuestProfile> VisibleAt(Guid propertyId) =>
         dbContext.GuestProfiles.Where(profile =>
+            profile.Status != GuestProfileState.Anonymised &&
             (profile.OriginPropertyId == propertyId || dbContext.StayHistory.Any(stay =>
                 stay.GuestId == profile.Id &&
                 stay.PropertyId == propertyId &&

@@ -25,6 +25,13 @@ public static class GuestsIntegrationSubjects
             GuestProfileArchivedIntegrationEvent.EventType,
             GuestProfileArchivedIntegrationEvent.EventVersion);
 
+    public static string CreateProfileAnonymised(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(
+            prefix,
+            GuestsModuleMetadata.Name,
+            GuestProfileAnonymisedIntegrationEvent.EventType,
+            GuestProfileAnonymisedIntegrationEvent.EventVersion);
+
     public static string CreateProcessingRestrictionChanged(
         string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(

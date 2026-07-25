@@ -49,6 +49,7 @@ public static class GuestsModuleMetadata
         .WithPublishedEvent<GuestProfileCreatedIntegrationEvent>()
         .WithPublishedEvent<GuestProfileUpdatedIntegrationEvent>()
         .WithPublishedEvent<GuestProfileArchivedIntegrationEvent>()
+        .WithPublishedEvent<GuestProfileAnonymisedIntegrationEvent>()
         .WithPublishedEvent<GuestProcessingRestrictionChangedIntegrationEvent>()
         .WithTask<RebuildGuestsPropertiesPayload>()
         .WithTask<RebuildGuestStayHistoryPayload>()
