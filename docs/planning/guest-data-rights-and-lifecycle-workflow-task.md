@@ -1,8 +1,8 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: implementation in progress; Guests discovery, subject selection,
-export preparation, transactional correction and processing restriction
-complete; DataRights decision lifecycle and approval gate complete
+Status: implementation in progress; Guests owner workflow through protected
+ledger and restore replay complete; Reservations discovery and catalogue-driven
+export complete
 
 ## Outcome
 
@@ -429,10 +429,11 @@ The owner-local Guests restriction projection and dependent Reservations gate
 are complete. Their detailed implementation and acceptance plan is
 `guest-data-rights-restriction-task.md`.
 
-The next increment implements Guests-owned destructive eligibility and holds.
-Owner anonymisation, authoritative ledger entries and restore replay remain
-closed until the prerequisites in
-`guest-data-rights-anonymisation-and-ledger-task.md` are delivered in order.
+Guests-owned destructive eligibility, anonymisation, authoritative ledger
+completion and pre-ready restore replay are complete. Reservations now owns the
+next domain slice. Its scoped discovery and catalogue-driven export are
+complete; transactional correction is next under
+`reservations-data-rights-workflow-task.md`.
 
 ## Acceptance Evidence
 

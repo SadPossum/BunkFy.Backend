@@ -36,8 +36,11 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.HasAlternateKey(reservation => new { reservation.ScopeId, reservation.Id });
         builder.Property(reservation => reservation.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(reservation => reservation.PrimaryGuestName).HasMaxLength(Reservation.PrimaryGuestNameMaxLength).IsRequired();
+        builder.Property(reservation => reservation.PrimaryGuestNameSearch).HasMaxLength(Reservation.PrimaryGuestNameMaxLength).IsRequired();
         builder.Property(reservation => reservation.Email).HasMaxLength(Reservation.EmailMaxLength);
+        builder.Property(reservation => reservation.EmailSearch).HasMaxLength(Reservation.EmailMaxLength);
         builder.Property(reservation => reservation.Phone).HasMaxLength(Reservation.PhoneMaxLength);
+        builder.Property(reservation => reservation.PhoneSearch).HasMaxLength(Reservation.PhoneMaxLength);
         builder.Property(reservation => reservation.ExpectedArrivalTime).HasColumnType("time(0) without time zone");
         builder.Property(reservation => reservation.ExpectedDepartureTime).HasColumnType("time(0) without time zone");
         builder.Property(reservation => reservation.SourceSystem).HasMaxLength(Reservation.SourceSystemMaxLength);
@@ -46,8 +49,11 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.Property(reservation => reservation.PendingAllocationAmendmentRequestFingerprint).HasMaxLength(Reservation.RequestFingerprintLength).IsFixedLength();
         builder.Property(reservation => reservation.PendingInventoryUnitIds).HasMaxLength(Reservation.PendingInventoryUnitIdsMaxLength);
         builder.Property(reservation => reservation.PendingPrimaryGuestName).HasMaxLength(Reservation.PrimaryGuestNameMaxLength);
+        builder.Property(reservation => reservation.PendingPrimaryGuestNameSearch).HasMaxLength(Reservation.PrimaryGuestNameMaxLength);
         builder.Property(reservation => reservation.PendingEmail).HasMaxLength(Reservation.EmailMaxLength);
+        builder.Property(reservation => reservation.PendingEmailSearch).HasMaxLength(Reservation.EmailMaxLength);
         builder.Property(reservation => reservation.PendingPhone).HasMaxLength(Reservation.PhoneMaxLength);
+        builder.Property(reservation => reservation.PendingPhoneSearch).HasMaxLength(Reservation.PhoneMaxLength);
         builder.Property(reservation => reservation.PendingExpectedArrivalTime).HasColumnType("time(0) without time zone");
         builder.Property(reservation => reservation.PendingExpectedDepartureTime).HasColumnType("time(0) without time zone");
         builder.Property(reservation => reservation.PendingNotes).HasMaxLength(Reservation.NotesMaxLength);
@@ -69,6 +75,34 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.HasIndex(reservation => new { reservation.ScopeId, reservation.AllocationRequestId }).IsUnique();
         builder.HasIndex(reservation => new { reservation.ScopeId, reservation.SourceSystem, reservation.SourceReference }).IsUnique();
         builder.HasIndex(reservation => reservation.ProjectionOrdinal).IsUnique();
+        builder.HasIndex(reservation => new
+        {
+            reservation.ScopeId,
+            reservation.PropertyId,
+            reservation.EmailSearch,
+            reservation.Id
+        });
+        builder.HasIndex(reservation => new
+        {
+            reservation.ScopeId,
+            reservation.PropertyId,
+            reservation.PhoneSearch,
+            reservation.Id
+        });
+        builder.HasIndex(reservation => new
+        {
+            reservation.ScopeId,
+            reservation.PropertyId,
+            reservation.PendingEmailSearch,
+            reservation.Id
+        });
+        builder.HasIndex(reservation => new
+        {
+            reservation.ScopeId,
+            reservation.PropertyId,
+            reservation.PendingPhoneSearch,
+            reservation.Id
+        });
         builder.HasIndex(reservation => new
         {
             reservation.ScopeId,

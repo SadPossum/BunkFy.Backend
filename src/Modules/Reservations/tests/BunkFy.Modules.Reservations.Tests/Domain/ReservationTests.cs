@@ -345,6 +345,9 @@ public sealed class ReservationTests
         Assert.Equal(ReservationDetailsChangeOrigin.Adapter, reservation.LastDetailsChangeOrigin);
         Assert.Equal(connectionId, reservation.LastDetailsAdapterConnectionId);
         Assert.Equal(operationId, reservation.LastDetailsExternalOperationId);
+        Assert.Equal("GRACE GUEST", reservation.PrimaryGuestNameSearch);
+        Assert.Equal("GRACE@EXAMPLE.TEST", reservation.EmailSearch);
+        Assert.Null(reservation.PhoneSearch);
         ReservationDetailsChangedDomainEvent details =
             Assert.IsType<ReservationDetailsChangedDomainEvent>(Assert.Single(reservation.DomainEvents));
         Assert.Equal(1, details.FromRevision);
@@ -429,6 +432,9 @@ public sealed class ReservationTests
         Assert.Equal(ReservationDetailsChangeOutcome.Changed, begun.Value);
         Assert.Equal(new DateOnly(2026, 8, 1), reservation.Arrival);
         Assert.Equal(UnitId, Assert.Single(reservation.RequestedUnits).InventoryUnitId);
+        Assert.Equal("ADA GUEST", reservation.PrimaryGuestNameSearch);
+        Assert.Equal("ADAPTER UPDATED", reservation.PendingPrimaryGuestNameSearch);
+        Assert.Equal("UPDATED@EXAMPLE.TEST", reservation.PendingEmailSearch);
         Assert.Equal(
             ReservationsDomainErrors.AllocationAmendmentInProgress,
             reservation.UpdateGuestDetails(
@@ -453,9 +459,14 @@ public sealed class ReservationTests
         Assert.Equal(new DateOnly(2026, 8, 5), reservation.Departure);
         Assert.Equal(replacementUnit, Assert.Single(reservation.RequestedUnits).InventoryUnitId);
         Assert.Equal("Adapter Updated", reservation.PrimaryGuestName);
+        Assert.Equal("ADAPTER UPDATED", reservation.PrimaryGuestNameSearch);
+        Assert.Equal("UPDATED@EXAMPLE.TEST", reservation.EmailSearch);
         Assert.Equal(2, reservation.DetailsRevision);
         Assert.Equal(2, reservation.AllocationVersion);
         Assert.Null(reservation.PendingAllocationAmendmentId);
+        Assert.Null(reservation.PendingPrimaryGuestNameSearch);
+        Assert.Null(reservation.PendingEmailSearch);
+        Assert.Null(reservation.PendingPhoneSearch);
         Assert.IsType<ReservationDetailsChangedDomainEvent>(Assert.Single(reservation.DomainEvents));
     }
 

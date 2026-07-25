@@ -107,8 +107,11 @@ public sealed partial class Reservation
         this.PendingExpectedDepartureTime = expectedDepartureTime;
         this.PendingInventoryUnitIds = string.Join(',', units.Order().Select(id => id.ToString("N")));
         this.PendingPrimaryGuestName = normalizedGuestName;
+        this.PendingPrimaryGuestNameSearch = NormalizeSearch(normalizedGuestName);
         this.PendingEmail = normalizedEmail;
+        this.PendingEmailSearch = NormalizeSearch(normalizedEmail);
         this.PendingPhone = normalizedPhone;
+        this.PendingPhoneSearch = NormalizeSearch(normalizedPhone);
         this.PendingGuestCount = guestCount;
         this.PendingNotes = normalizedNotes;
         this.PendingDetailsChangeOrigin = origin;
@@ -185,8 +188,11 @@ public sealed partial class Reservation
         this.requestedUnits.Clear();
         this.requestedUnits.AddRange(units.Select(unitId => new RequestedInventoryUnit(unitId, this.ScopeId, this.Id)));
         this.PrimaryGuestName = this.PendingPrimaryGuestName!;
+        this.PrimaryGuestNameSearch = this.PendingPrimaryGuestNameSearch!;
         this.Email = this.PendingEmail;
+        this.EmailSearch = this.PendingEmailSearch;
         this.Phone = this.PendingPhone;
+        this.PhoneSearch = this.PendingPhoneSearch;
         this.GuestCount = this.PendingGuestCount.Value;
         this.Notes = this.PendingNotes;
         this.AllocationVersion = allocationVersion;

@@ -32,6 +32,12 @@ retention, and rights policies receive production approval.
 - adapter operations protected by source-identity and details-revision checks, including non-terminal cancellation acceptance.
 - pending allocation amendments that retain current booking truth until Inventory atomically confirms or rejects the candidate;
 - inbox-transaction domain-event dispatch so external operations persist allocation/cancellation requests and details history atomically.
+- DataRights discovery through exact reservation id or indexed normalized
+  current/pending contact values, with bounded masked previews and exact-version
+  selection revalidation;
+- catalogue-driven, transient DataRights export of Reservations-owned booking,
+  pending amendment, Guest-link, details-history, adapter-receipt, and reminder
+  records without staff actor attribution;
 
 The local Inventory projection validates unit/property relationships and supports management reads, but it is advisory for availability. Only an Inventory allocation outcome can confirm a reservation.
 

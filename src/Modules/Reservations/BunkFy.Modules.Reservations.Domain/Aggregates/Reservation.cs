@@ -52,8 +52,11 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
         this.ExpectedArrivalTime = expectedArrivalTime;
         this.ExpectedDepartureTime = expectedDepartureTime;
         this.PrimaryGuestName = primaryGuestName;
+        this.PrimaryGuestNameSearch = NormalizeSearch(primaryGuestName)!;
         this.Email = email;
+        this.EmailSearch = NormalizeSearch(email);
         this.Phone = phone;
+        this.PhoneSearch = NormalizeSearch(phone);
         this.GuestCount = guestCount;
         this.Source = source;
         this.SourceSystem = sourceSystem;
@@ -97,8 +100,11 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     public TimeOnly? PendingExpectedDepartureTime { get; private set; }
     public string? PendingInventoryUnitIds { get; private set; }
     public string? PendingPrimaryGuestName { get; private set; }
+    public string? PendingPrimaryGuestNameSearch { get; private set; }
     public string? PendingEmail { get; private set; }
+    public string? PendingEmailSearch { get; private set; }
     public string? PendingPhone { get; private set; }
+    public string? PendingPhoneSearch { get; private set; }
     public int? PendingGuestCount { get; private set; }
     public string? PendingNotes { get; private set; }
     public ReservationDetailsChangeOrigin PendingDetailsChangeOrigin { get; private set; }
@@ -108,8 +114,11 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     public Guid? PendingDetailsCorrelationId { get; private set; }
     public int? LastAllocationAmendmentRejectionCode { get; private set; }
     public string PrimaryGuestName { get; private set; } = string.Empty;
+    public string PrimaryGuestNameSearch { get; private set; } = string.Empty;
     public string? Email { get; private set; }
+    public string? EmailSearch { get; private set; }
     public string? Phone { get; private set; }
+    public string? PhoneSearch { get; private set; }
     public int GuestCount { get; private set; }
     public ReservationSource Source { get; private set; }
     public string? SourceSystem { get; private set; }
@@ -150,6 +159,9 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static string? NormalizeSearch(string? value) =>
+        NormalizeOptional(value)?.ToUpperInvariant();
+
     private void ClearPendingAllocationAmendment()
     {
         this.PendingAllocationAmendmentId = null;
@@ -160,8 +172,11 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
         this.PendingExpectedDepartureTime = null;
         this.PendingInventoryUnitIds = null;
         this.PendingPrimaryGuestName = null;
+        this.PendingPrimaryGuestNameSearch = null;
         this.PendingEmail = null;
+        this.PendingEmailSearch = null;
         this.PendingPhone = null;
+        this.PendingPhoneSearch = null;
         this.PendingGuestCount = null;
         this.PendingNotes = null;
         this.PendingDetailsChangeOrigin = ReservationDetailsChangeOrigin.Unknown;

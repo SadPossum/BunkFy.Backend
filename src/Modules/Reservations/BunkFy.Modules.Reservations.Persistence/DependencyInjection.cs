@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Reservations.Persistence;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
@@ -47,6 +48,15 @@ public static class DependencyInjection
             ReservationGuestRestrictionsProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, ReservationPropertyProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IReservationGuestStayProjectionExportSource, ReservationGuestStayProjectionExportSource>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectDiscoveryContributor,
+                ReservationDataRightsDiscoveryContributor>());
+        ReservationDataRightsExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                ReservationDataRightsExportContributor>());
 
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, ReservationsUnitOfWork>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxWriter, ReservationsOutboxWriter>());

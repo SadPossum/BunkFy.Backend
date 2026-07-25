@@ -96,8 +96,11 @@ public sealed partial class Reservation
         ReservationDetailsSnapshot before = this.CaptureDetails();
         long fromRevision = this.DetailsRevision;
         this.PrimaryGuestName = normalizedGuestName;
+        this.PrimaryGuestNameSearch = NormalizeSearch(normalizedGuestName)!;
         this.Email = normalizedEmail;
+        this.EmailSearch = NormalizeSearch(normalizedEmail);
         this.Phone = normalizedPhone;
+        this.PhoneSearch = NormalizeSearch(normalizedPhone);
         this.GuestCount = guestCount;
         this.Notes = normalizedNotes;
         this.ExpectedArrivalTime = expectedArrivalTime;

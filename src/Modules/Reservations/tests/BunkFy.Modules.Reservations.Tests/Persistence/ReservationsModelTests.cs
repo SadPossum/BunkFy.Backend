@@ -53,6 +53,18 @@ public sealed class ReservationsModelTests
             reservationEntity.GetIndexes(),
             index => index.IsUnique && index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(Reservation.ScopeId), nameof(Reservation.AllocationRequestId)]));
+        string[][] subjectLookupIndexes =
+        [
+            [nameof(Reservation.ScopeId), nameof(Reservation.PropertyId), nameof(Reservation.EmailSearch), nameof(Reservation.Id)],
+            [nameof(Reservation.ScopeId), nameof(Reservation.PropertyId), nameof(Reservation.PhoneSearch), nameof(Reservation.Id)],
+            [nameof(Reservation.ScopeId), nameof(Reservation.PropertyId), nameof(Reservation.PendingEmailSearch), nameof(Reservation.Id)],
+            [nameof(Reservation.ScopeId), nameof(Reservation.PropertyId), nameof(Reservation.PendingPhoneSearch), nameof(Reservation.Id)]
+        ];
+        Assert.All(
+            subjectLookupIndexes,
+            expected => Assert.Contains(
+                reservationEntity.GetIndexes(),
+                index => index.Properties.Select(property => property.Name).SequenceEqual(expected)));
         Assert.Equal(["ScopeId", "ReservationId"], parent.Properties.Select(property => property.Name));
         Assert.Equal(["ScopeId", "Id"], parent.PrincipalKey.Properties.Select(property => property.Name));
         Assert.Equal(DeleteBehavior.Cascade, parent.DeleteBehavior);

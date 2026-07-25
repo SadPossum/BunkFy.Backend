@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 2,
+  "catalogVersion": 3,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -143,6 +143,13 @@
       "approvalState": "engineering-default",
       "startsAt": "response-created",
       "endsAt": "response-completed",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "reservation-data-rights-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "authorized-data-rights-export-started",
+      "endsAt": "one-hour-or-protected-artifact-assembly-completed",
       "legalHoldBehavior": "not-applicable"
     }
   ],
@@ -457,9 +464,11 @@
       "rightsPolicy": "adapter-provenance",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -476,6 +485,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "CompletedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -502,6 +518,7 @@
         "adapter-ingress",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -593,6 +610,34 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "ConnectionId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "LastDetailsAdapterConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "AdapterConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "AdapterConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "ConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -617,10 +662,12 @@
       "rightsPolicy": "adapter-provenance",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -651,6 +698,20 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "CorrelationId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "CorrelationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "CorrelationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -674,9 +735,11 @@
       "retentionPolicy": "reservation-adapter-operation-receipt",
       "rightsPolicy": "adapter-provenance",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -686,6 +749,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "OperationDeduplicationKey",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "OperationDeduplicationKey",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -710,6 +780,7 @@
       "rightsPolicy": "adapter-provenance",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "integration-event",
         "persistence"
       ],
@@ -738,6 +809,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "ErrorCode",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "ErrorCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -764,6 +842,7 @@
         "adapter-ingress",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -855,6 +934,34 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "Id",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "LastDetailsExternalOperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "ExternalOperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "ExternalOperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -879,6 +986,7 @@
       "rightsPolicy": "adapter-provenance",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "integration-event",
         "persistence"
       ],
@@ -907,6 +1015,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "Kind",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "Kind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -931,6 +1046,7 @@
       "rightsPolicy": "adapter-provenance",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "integration-event",
         "persistence"
       ],
@@ -959,6 +1075,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "Outcome",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "Outcome",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -984,6 +1107,7 @@
       "allowedSurfaces": [
         "adapter-ingress",
         "application-command",
+        "data-rights-export",
         "integration-event",
         "persistence"
       ],
@@ -1041,6 +1165,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "ReceiptId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1065,9 +1196,11 @@
       "rightsPolicy": "adapter-provenance",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -1090,6 +1223,20 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "RequestFingerprint",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "RequestFingerprint",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "RequestFingerprint",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1115,6 +1262,7 @@
       "allowedSurfaces": [
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -1192,6 +1340,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationInventoryAllocationUnitProjection",
           "member": "AllocationId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "AllocationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1286,6 +1441,7 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "integration-event",
         "persistence"
       ],
@@ -1334,6 +1490,27 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "LastReleaseRejectionCode",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "AllocationRejection",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "LastReleaseRejectionCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "LastAllocationAmendmentRejectionCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1360,10 +1537,12 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -1449,6 +1628,27 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "ReleaseRequestId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "AllocationRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "ReleaseRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "AmendmentRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1515,12 +1715,14 @@
       "retentionPolicy": "reservation-record-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
-        "application-command",
         "api-response",
+        "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -1579,6 +1781,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationInventoryAllocationProjection",
           "member": "Version",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "AllocationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1866,9 +2075,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -1886,6 +2097,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "Id",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "ChangeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1912,10 +2130,12 @@
       "allowedSurfaces": [
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -1966,6 +2186,27 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "Origin",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "LastDetailsChangeOrigin",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "ChangeOrigin",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "Origin",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -1990,9 +2231,11 @@
       "retentionPolicy": "reservation-details-history-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2002,6 +2245,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "LastDetailsChangedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "LastDetailsChangedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2027,10 +2277,12 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -2055,6 +2307,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "ChangedFieldsJson",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "ChangedFieldsJson",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2083,6 +2342,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -2250,6 +2510,41 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "DetailsRevision",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "DetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "FromRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "ToRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "DetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "DetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2275,10 +2570,12 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -2323,6 +2620,20 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "BeforeSnapshotJson",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "BeforeSnapshotJson",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "AfterSnapshotJson",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2347,9 +2658,11 @@
       "retentionPolicy": "reservation-details-history-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2359,6 +2672,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "AfterSnapshotHash",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "AfterSnapshotHash",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2599,6 +2919,7 @@
       "allowedSurfaces": [
         "adapter-ingress",
         "api-response",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -2805,6 +3126,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "OccurredAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "OccurredAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2832,10 +3160,12 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -2894,6 +3224,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProfileProjection",
           "member": "Id",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "GuestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2918,10 +3255,12 @@
       "retentionPolicy": "reservation-record-lifecycle",
       "rightsPolicy": "guest-reservation-link",
       "allowedSurfaces": [
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2938,6 +3277,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Entities.ReservationGuest",
           "member": "IsCurrent",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "IsCurrent",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -2962,9 +3308,11 @@
       "retentionPolicy": "reservation-record-lifecycle",
       "rightsPolicy": "guest-reservation-link",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2974,6 +3322,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Entities.ReservationGuest",
           "member": "LinkedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "LinkedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -3043,10 +3398,12 @@
       "rightsPolicy": "guest-reservation-link",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -3083,6 +3440,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationGuestProfileProjection",
           "member": "Status",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "UnlinkedReservationStatus",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -3110,10 +3474,12 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -3173,6 +3539,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Entities.ReservationGuest",
           "member": "Role",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "Role",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -3197,9 +3570,11 @@
       "retentionPolicy": "reservation-record-lifecycle",
       "rightsPolicy": "guest-reservation-link",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -3209,6 +3584,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Entities.ReservationGuest",
           "member": "UnlinkedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "UnlinkedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -3233,9 +3615,11 @@
       "retentionPolicy": "reservation-record-lifecycle",
       "rightsPolicy": "guest-reservation-link",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -3245,6 +3629,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Entities.ReservationGuest",
           "member": "LinkVersion",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "LinkVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -3273,6 +3664,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
@@ -3365,6 +3757,20 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "PendingGuestCount",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "GuestCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "GuestCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -3393,8 +3799,10 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
-        "persistence"
+        "persistence",
+        "search-index"
       ],
       "allowedBoundaries": [
         "adapter",
@@ -3485,6 +3893,44 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "PendingEmail",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Email",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "Email",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "EmailSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "EmailSearch",
+          "surface": "search-index"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PendingEmailSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PendingEmailSearch",
+          "surface": "search-index"
         }
       ]
     },
@@ -3513,6 +3959,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
@@ -3605,6 +4052,20 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "PendingNotes",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Notes",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "Notes",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -3633,8 +4094,10 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
-        "persistence"
+        "persistence",
+        "search-index"
       ],
       "allowedBoundaries": [
         "adapter",
@@ -3725,6 +4188,44 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "Phone",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Phone",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "Phone",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PhoneSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PhoneSearch",
+          "surface": "search-index"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PendingPhoneSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PendingPhoneSearch",
+          "surface": "search-index"
         }
       ]
     },
@@ -3753,8 +4254,10 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
-        "persistence"
+        "persistence",
+        "search-index"
       ],
       "allowedBoundaries": [
         "adapter",
@@ -3845,6 +4348,44 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "PrimaryGuestName",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "PrimaryGuestName",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "PrimaryGuestName",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PrimaryGuestNameSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PrimaryGuestNameSearch",
+          "surface": "search-index"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PendingPrimaryGuestNameSearch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PendingPrimaryGuestNameSearch",
+          "surface": "search-index"
         }
       ]
     },
@@ -3872,6 +4413,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
@@ -3984,6 +4526,20 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationInventoryAllocationUnitProjection",
           "member": "Id",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "RequestedInventoryUnitIds",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "RequestedInventoryUnitIds",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4008,9 +4564,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -4028,6 +4586,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "CreatedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4055,6 +4620,7 @@
         "api-response",
         "application-command",
         "application-query",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -4388,6 +4954,48 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationInventoryAllocationProjection",
           "member": "ReservationId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4412,9 +5020,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -4432,6 +5042,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "Status",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4456,9 +5073,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -4476,6 +5095,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "UpdatedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "UpdatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4502,6 +5128,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -4699,6 +5326,27 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationExternalOperation",
           "member": "ReservationVersion",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "ReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "ReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4722,9 +5370,11 @@
       "retentionPolicy": "reservation-reminder-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4734,6 +5384,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "DispatchedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "DispatchedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4793,9 +5450,11 @@
       "retentionPolicy": "reservation-reminder-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4805,6 +5464,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "DueAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "DueAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4828,9 +5494,11 @@
       "retentionPolicy": "reservation-reminder-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4840,6 +5508,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "ExpectedArrivalAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "ExpectedArrivalAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4864,9 +5539,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4883,6 +5560,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "Id",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "ReminderId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4906,9 +5590,11 @@
       "retentionPolicy": "reservation-reminder-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4918,6 +5604,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "LeadTimeMinutes",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "LeadTimeMinutes",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4941,9 +5634,11 @@
       "retentionPolicy": "reservation-reminder-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4953,6 +5648,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "State",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "State",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -4977,6 +5679,7 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "integration-event",
         "persistence"
       ],
@@ -5012,6 +5715,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "TimeZoneId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "TimeZoneId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -5035,9 +5745,11 @@
       "retentionPolicy": "reservation-reminder-lifecycle",
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5047,6 +5759,13 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "Version",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -5181,6 +5900,7 @@
         "api-response",
         "application-command",
         "application-query",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -5536,6 +6256,41 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationInventoryAllocationProjection",
           "member": "PropertyId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDetailsHistoryDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationExternalOperationDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -5966,9 +6721,11 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -6000,6 +6757,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "Source",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Source",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6027,6 +6791,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
@@ -6091,6 +6856,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "SourceReference",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "SourceReference",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6118,6 +6890,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
@@ -6182,6 +6955,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "SourceSystem",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "SourceSystem",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6210,6 +6990,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -6370,6 +7151,34 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationInventoryAllocationProjection",
           "member": "Arrival",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Arrival",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "Arrival",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "UnlinkedArrival",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "Arrival",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6397,6 +7206,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -6589,6 +7399,55 @@
           "type": "BunkFy.Modules.Reservations.Domain.Entities.ReservationGuest",
           "member": "UnlinkedNoShowBusinessDate",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "PendingStayBusinessDate",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "CheckedInBusinessDate",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "NoShowBusinessDate",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "CheckedOutBusinessDate",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "UnlinkedCheckedInBusinessDate",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "UnlinkedNoShowBusinessDate",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "UnlinkedCheckedOutBusinessDate",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6614,9 +7473,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -6634,6 +7495,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "CheckedInAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "CheckedInAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6659,9 +7527,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -6679,6 +7549,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "CheckedOutAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "CheckedOutAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6707,6 +7584,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -6833,6 +7711,27 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationInventoryAllocationProjection",
           "member": "Departure",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "Departure",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "Departure",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestLinkDataRightsExport",
+          "member": "UnlinkedDeparture",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -6861,6 +7760,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "integration-event",
         "persistence"
@@ -6988,6 +7888,27 @@
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder",
           "member": "ExpectedArrivalTime",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "ExpectedArrivalTime",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "ExpectedArrivalTime",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationArrivalReminderDataRightsExport",
+          "member": "ExpectedArrivalTime",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -7016,6 +7937,7 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
@@ -7108,6 +8030,20 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "PendingExpectedDepartureTime",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "ExpectedDepartureTime",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationPendingAmendmentDataRightsExport",
+          "member": "ExpectedDepartureTime",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     },
@@ -7133,9 +8069,11 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module"
       ],
@@ -7153,6 +8091,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
           "member": "NoShowAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "NoShowAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     }
