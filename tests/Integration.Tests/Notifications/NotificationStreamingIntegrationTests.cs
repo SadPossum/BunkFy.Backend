@@ -115,6 +115,7 @@ public sealed class NotificationStreamingIntegrationTests
             message => received.TrySetResult(message));
 
         await connection.StartAsync();
+        await application.WaitForSignalRConnectionAsync().WaitAsync(TimeSpan.FromSeconds(5));
         await application.PublishAsync(
             "tenant-a",
             "user-a",
@@ -172,6 +173,7 @@ public sealed class NotificationStreamingIntegrationTests
             message => received.TrySetResult(message));
 
         await connection.StartAsync();
+        await application.WaitForSignalRConnectionAsync().WaitAsync(TimeSpan.FromSeconds(5));
         await application.PublishAsync("default", "user-a", "Default tenant SignalR message");
 
         UserNotificationMessage message = await received.Task.WaitAsync(TimeSpan.FromSeconds(5));

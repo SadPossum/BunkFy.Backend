@@ -9,6 +9,7 @@ using Gma.Framework.Security;
 using Gma.Framework.Tenancy;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,7 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
     private const string JwtAudience = "BunkFy";
     private const string JwtSigningKey = "notification-streaming-test-signing-key-change-me-0000000000";
     private const string RefreshTokenPepper = "notification-streaming-test-refresh-token-pepper-change-me-000000";
+    private readonly SignalRConnectionReadiness signalRConnectionReadiness = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -86,6 +88,9 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
             services.RemoveAll<IUserNotificationHistoryWriter>();
             services.RemoveAll<IUserNotificationDeliveryPolicyEvaluator>();
             services.AddSingleton<IUserNotificationDeliveryPolicyEvaluator, AllowAllDeliveryPolicyEvaluator>();
+            services.AddSingleton(this.signalRConnectionReadiness);
+            services.AddSingleton<SignalRConnectionReadyFilter>();
+            services.Configure<HubOptions>(options => options.AddFilter<SignalRConnectionReadyFilter>());
 
             if (!tenancyEnabled)
             {
@@ -101,6 +106,27 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
             string deliveryTag,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(true);
+    }
+
+    private sealed class SignalRConnectionReadyFilter(SignalRConnectionReadiness readiness) : IHubFilter
+    {
+        public async Task OnConnectedAsync(
+            HubLifetimeContext context,
+            Func<HubLifetimeContext, Task> next)
+        {
+            await next(context).ConfigureAwait(false);
+            readiness.MarkReady();
+        }
+    }
+
+    private sealed class SignalRConnectionReadiness
+    {
+        private readonly TaskCompletionSource ready =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Ready => this.ready.Task;
+
+        public void MarkReady() => this.ready.TrySetResult();
     }
 
     public static string CreateAccessToken(string? scopeId, string userId)
@@ -145,6 +171,9 @@ internal sealed class NotificationStreamingTestApplication(bool tenancyEnabled =
                 cancellationToken)
             .ConfigureAwait(false);
     }
+
+    public Task WaitForSignalRConnectionAsync(CancellationToken cancellationToken = default) =>
+        this.signalRConnectionReadiness.Ready.WaitAsync(cancellationToken);
 
     [NotificationName(Name)]
     [NotificationVersion(Version)]
