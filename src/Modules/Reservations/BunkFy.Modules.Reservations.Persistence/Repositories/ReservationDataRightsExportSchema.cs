@@ -21,7 +21,9 @@ internal static class ReservationDataRightsExportSchema
         {
             ["guest-reservation-data"] = "include-in-authorized-guest-export",
             ["guest-reservation-link"] = "include-in-authorized-guest-export",
-            ["adapter-provenance"] = "include-subject-linked-provider-provenance"
+            ["adapter-provenance"] = "include-subject-linked-provider-provenance",
+            ["reservation-data-rights-correction-accountability"] =
+                "include-minimum-coordinate-in-authorized-case-ledger"
         };
 
     private static readonly Type[] SourceTypes =
@@ -30,6 +32,7 @@ internal static class ReservationDataRightsExportSchema
         typeof(ReservationPendingAmendmentDataRightsExport),
         typeof(ReservationGuestLinkDataRightsExport),
         typeof(ReservationDetailsHistoryDataRightsExport),
+        typeof(ReservationDataRightsCorrectionReceiptDataRightsExport),
         typeof(ReservationExternalOperationDataRightsExport),
         typeof(ReservationArrivalReminderDataRightsExport)
     ];
@@ -80,6 +83,14 @@ internal static class ReservationDataRightsExportSchema
             operation.OperationId,
             recordVersion: 1,
             operation);
+
+    public static DataRightsExportRecord CreateDataRightsCorrectionReceiptRecord(
+        ReservationDataRightsCorrectionReceiptDataRightsExport receipt) =>
+        CreateRecord(
+            ReservationDataRightsExportContributor.DataRightsCorrectionReceiptRecordType,
+            receipt.ReceiptId,
+            receipt.CurrentVersion,
+            receipt);
 
     public static DataRightsExportRecord CreateArrivalReminderRecord(
         ReservationArrivalReminderDataRightsExport reminder) =>

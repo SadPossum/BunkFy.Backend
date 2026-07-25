@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
 using BunkFy.Modules.Reservations.Persistence;
 using Xunit;
@@ -106,6 +107,74 @@ public sealed class ReservationsModelTests
                     nameof(ReservationExternalOperation.ConnectionId),
                     nameof(ReservationExternalOperation.CompletedAtUtc)
                 ]));
+    }
+
+    [Fact]
+    public void Model_has_immutable_scoped_correction_receipt_constraints()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(ReservationDataRightsCorrectionReceipt))!;
+        IEntityType designReceipt = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(ReservationDataRightsCorrectionReceipt))!;
+
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(ReservationDataRightsCorrectionReceipt.ScopeId),
+                    nameof(ReservationDataRightsCorrectionReceipt.IdempotencyKey)
+                ]));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(ReservationDataRightsCorrectionReceipt.ScopeId),
+                    nameof(ReservationDataRightsCorrectionReceipt.DetailsChangeEventId)
+                ]));
+        Assert.Contains(
+            designReceipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_data_rights_correction_receipts_versions");
+        Assert.Contains(
+            designReceipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_data_rights_correction_receipts_contract");
+    }
+
+    [Fact]
+    public async Task Correction_receipts_are_append_only_after_insertion()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        ReservationDataRightsCorrectionReceipt receipt =
+            ReservationDataRightsCorrectionReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 2,
+                Guid.NewGuid(),
+                new(
+                    PreviousRecordVersion: 3,
+                    CurrentRecordVersion: 4,
+                    PreviousDetailsRevision: 1,
+                    CurrentDetailsRevision: 2,
+                    [ReservationDetailsField.PrimaryGuestName],
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    new DateTimeOffset(2026, 7, 25, 12, 0, 0, TimeSpan.Zero)),
+                Guid.NewGuid()).Value;
+        dbContext.DataRightsCorrectionReceipts.Add(receipt);
+        await dbContext.SaveChangesAsync();
+
+        dbContext.DataRightsCorrectionReceipts.Remove(receipt);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => dbContext.SaveChangesAsync());
+        Assert.Equal(
+            "Reservation data-rights correction receipts are append-only.",
+            exception.Message);
     }
 
     [Fact]

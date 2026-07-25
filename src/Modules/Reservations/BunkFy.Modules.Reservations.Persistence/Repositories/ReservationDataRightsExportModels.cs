@@ -124,3 +124,19 @@ internal sealed record ReservationArrivalReminderDataRightsExport(
     ReservationArrivalReminderState State,
     DateTimeOffset? DispatchedAtUtc,
     long Version);
+
+internal sealed record ReservationDataRightsCorrectionReceiptDataRightsExport(
+    int ContractVersion,
+    Guid ReceiptId,
+    Guid PropertyId,
+    Guid CaseId,
+    long ApprovalRevision,
+    Guid ReservationId,
+    long PreviousVersion,
+    long CurrentVersion,
+    long PreviousDetailsRevision,
+    long CurrentDetailsRevision,
+    IReadOnlyCollection<ReservationDetailsField> ChangedFields,
+    Guid DetailsChangeEventId,
+    Guid EventId,
+    DateTimeOffset CompletedAtUtc);

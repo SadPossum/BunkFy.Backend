@@ -33,4 +33,12 @@ public static class ReservationsIntegrationSubjects
 
     public static string CreateReservationArrivalReminderDue(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(prefix, ReservationsModuleMetadata.Name, ReservationArrivalReminderDueIntegrationEventV2.EventType, ReservationArrivalReminderDueIntegrationEventV2.EventVersion);
+
+    public static string CreateReservationDataRightsCorrectionApplied(
+        string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(
+            prefix,
+            ReservationsModuleMetadata.Name,
+            ReservationDataRightsCorrectionAppliedIntegrationEvent.EventType,
+            ReservationDataRightsCorrectionAppliedIntegrationEvent.EventVersion);
 }

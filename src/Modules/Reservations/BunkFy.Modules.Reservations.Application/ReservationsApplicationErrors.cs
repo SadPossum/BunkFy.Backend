@@ -32,6 +32,18 @@ public static class ReservationsApplicationErrors
     public static Error StayProvenanceInvalid => ReservationsDomainErrors.StayProvenanceInvalid;
     public static readonly Error GuestNotLinkable = new("Reservations.GuestNotLinkable", "The guest is not active and visible at this property.");
     public static readonly Error ReminderTaskOptionsInvalid = new("Reservations.ReminderTaskOptionsInvalid", "Reservation reminder task options are invalid.");
+    public static readonly Error CorrectionRequestInvalid = new(
+        "Reservations.CorrectionRequestInvalid",
+        "The reservation correction request is invalid.");
+    public static readonly Error CorrectionIdempotencyConflict = new(
+        "Reservations.CorrectionIdempotencyConflict",
+        "The correction idempotency key is already bound to a different request or result.");
+    public static readonly Error CorrectionNoChanges = new(
+        "Reservations.CorrectionNoChanges",
+        "The correction does not change the selected reservation details.");
+    public static readonly Error DataRightsApprovalRequired = new(
+        "Reservations.DataRightsApprovalRequired",
+        "The reservation correction requires a current approved data-rights case.");
     public static Error ReservationGuestLinkInvalid => ReservationsDomainErrors.ReservationGuestLinkInvalid;
     public static Error ReservationGuestRoleOccupied => ReservationsDomainErrors.ReservationGuestRoleOccupied;
 }

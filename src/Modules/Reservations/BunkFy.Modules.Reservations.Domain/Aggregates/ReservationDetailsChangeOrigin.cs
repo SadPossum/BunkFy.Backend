@@ -6,5 +6,6 @@ public enum ReservationDetailsChangeOrigin
     Staff = 1,
     Adapter = 2,
     Admin = 3,
-    System = 4
+    System = 4,
+    DataRightsCorrection = 5
 }

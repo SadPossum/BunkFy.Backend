@@ -9,6 +9,7 @@ using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Application.Queries;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
 using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging;
@@ -308,6 +309,7 @@ public sealed class ReservationsPersonalDataCatalogTests
     private static HashSet<Type> PersonalPersistenceTypes() =>
     [
         typeof(Reservation),
+        typeof(ReservationDataRightsCorrectionReceipt),
         typeof(RequestedInventoryUnit),
         typeof(ReservationGuest),
         typeof(ReservationDetailsHistoryEntry),

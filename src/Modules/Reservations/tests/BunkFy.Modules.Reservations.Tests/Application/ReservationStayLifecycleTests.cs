@@ -183,6 +183,12 @@ public sealed class ReservationStayLifecycleTests
             Task.FromResult<Reservation?>(
                 reservation.PropertyId == propertyId && reservation.Id == reservationId ? reservation : null);
 
+        public Task<Reservation?> GetForDataRightsAsync(
+            Guid propertyId,
+            Guid reservationId,
+            CancellationToken cancellationToken) =>
+            this.GetAsync(propertyId, reservationId, cancellationToken);
+
         public Task<Reservation?> GetAsyncByReservationId(Guid reservationId, CancellationToken cancellationToken) =>
             Task.FromResult<Reservation?>(reservation.Id == reservationId ? reservation : null);
 

@@ -6,6 +6,8 @@ using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Persistence.Repositories;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -14,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+
 public static class DependencyInjection
 {
     public static IHostApplicationBuilder AddReservationsPersistence(this IHostApplicationBuilder builder)
@@ -31,6 +34,9 @@ public static class DependencyInjection
                 ReservationsMigrations.HistoryTable));
 
         builder.Services.TryAddScoped<IReservationRepository, ReservationRepository>();
+        builder.Services.TryAddScoped<
+            IReservationDataRightsCorrectionReceiptRepository,
+            ReservationDataRightsCorrectionReceiptRepository>();
         builder.Services.TryAddScoped<IReservationDetailsHistoryWriter, ReservationDetailsHistoryWriter>();
         builder.Services.TryAddScoped<IReservationDetailsHistoryReader, ReservationDetailsHistoryReader>();
         builder.Services.TryAddScoped<IReservationExternalOperationRepository, ReservationExternalOperationRepository>();
@@ -58,6 +64,10 @@ public static class DependencyInjection
                 IDataRightsSubjectExportContributor,
                 ReservationDataRightsExportContributor>());
 
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(ReservationsPersistenceRetryBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, ReservationsUnitOfWork>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxWriter, ReservationsOutboxWriter>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxStore, ReservationsOutboxStore>());

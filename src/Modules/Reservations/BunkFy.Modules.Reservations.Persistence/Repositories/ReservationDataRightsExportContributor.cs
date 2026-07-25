@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.DataRights;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +15,8 @@ internal sealed class ReservationDataRightsExportContributor(
     public const string DetailsHistoryRecordType = "reservation-details-history";
     public const string ExternalOperationRecordType = "reservation-external-operation";
     public const string ArrivalReminderRecordType = "reservation-arrival-reminder";
+    public const string DataRightsCorrectionReceiptRecordType =
+        "reservation-data-rights-correction-receipt";
 
     public string OwnerKey => ReservationDataRightsDiscoveryContributor.Owner;
 
@@ -207,6 +210,41 @@ internal sealed class ReservationDataRightsExportContributor(
         {
             await sink.WriteAsync(
                 ReservationDataRightsExportSchema.CreateDetailsHistoryRecord(history),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        IQueryable<ReservationDataRightsCorrectionReceipt> correctionReceipts =
+            dbContext.DataRightsCorrectionReceipts
+                .AsNoTracking()
+                .Where(receipt =>
+                    receipt.PropertyId == request.PropertyId &&
+                    receipt.ReservationId == reservation.Id)
+                .OrderBy(receipt => receipt.CompletedAtUtc)
+                .ThenBy(receipt => receipt.Id);
+        await foreach (ReservationDataRightsCorrectionReceipt receipt in
+                           correctionReceipts
+                               .AsAsyncEnumerable()
+                               .WithCancellation(cancellationToken)
+                               .ConfigureAwait(false))
+        {
+            ReservationDataRightsCorrectionReceiptDataRightsExport export = new(
+                receipt.ContractVersion,
+                receipt.Id,
+                receipt.PropertyId,
+                receipt.CaseId,
+                receipt.ApprovalRevision,
+                receipt.ReservationId,
+                receipt.SelectedRecordVersion,
+                receipt.CurrentRecordVersion,
+                receipt.SelectedDetailsRevision,
+                receipt.CurrentDetailsRevision,
+                receipt.ChangedFields,
+                receipt.DetailsChangeEventId,
+                receipt.EventId,
+                receipt.CompletedAtUtc);
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema.CreateDataRightsCorrectionReceiptRecord(export),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
         }

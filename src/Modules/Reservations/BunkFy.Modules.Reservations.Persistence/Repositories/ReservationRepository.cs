@@ -26,6 +26,19 @@ internal sealed class ReservationRepository(ReservationsDbContext dbContext) : I
                 reservation => reservation.Id == reservationId && reservation.PropertyId == propertyId,
                 cancellationToken);
 
+    public Task<Reservation?> GetForDataRightsAsync(
+        Guid propertyId,
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        dbContext.Reservations
+            .Include(reservation => reservation.RequestedUnits)
+            .Include(reservation => reservation.Guests)
+            .FirstOrDefaultAsync(
+                reservation =>
+                    reservation.Id == reservationId &&
+                    reservation.PropertyId == propertyId,
+                cancellationToken);
+
     public Task<Reservation?> GetAsyncByReservationId(Guid reservationId, CancellationToken cancellationToken) =>
         dbContext.Reservations
             .Include(reservation => reservation.RequestedUnits)

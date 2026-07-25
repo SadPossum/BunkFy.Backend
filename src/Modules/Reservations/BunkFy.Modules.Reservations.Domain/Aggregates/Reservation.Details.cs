@@ -24,14 +24,137 @@ public sealed partial class Reservation
         TimeOnly? expectedArrivalTime = null,
         TimeOnly? expectedDepartureTime = null)
     {
+        Result<ReservationDetailsMutation> mutation = this.ChangeGuestDetails(
+            primaryGuestName,
+            email,
+            phone,
+            guestCount,
+            notes,
+            expectedDetailsRevision,
+            origin,
+            actorId,
+            adapterConnectionId,
+            externalOperationId,
+            correlationId,
+            eventId,
+            nowUtc,
+            expectedArrivalTime,
+            expectedDepartureTime);
+        if (mutation.IsFailure)
+        {
+            return Result.Failure<ReservationDetailsChangeOutcome>(mutation.Error);
+        }
+
+        return Result.Success(mutation.Value.IsChanged
+            ? ReservationDetailsChangeOutcome.Changed
+            : ReservationDetailsChangeOutcome.Unchanged);
+    }
+
+    public Result<ReservationDataRightsCorrectionOutcome> CorrectGuestDetails(
+        string primaryGuestName,
+        string? email,
+        string? phone,
+        int guestCount,
+        string? notes,
+        long expectedRecordVersion,
+        long expectedDetailsRevision,
+        string actorId,
+        Guid correlationId,
+        Guid eventId,
+        DateTimeOffset nowUtc,
+        TimeOnly? expectedArrivalTime = null,
+        TimeOnly? expectedDepartureTime = null)
+    {
+        if (expectedRecordVersion != this.Version)
+        {
+            return Result.Failure<ReservationDataRightsCorrectionOutcome>(
+                ReservationsDomainErrors.VersionConflict);
+        }
+
+        Result<ReservationDetailsMutation> mutation = this.ChangeGuestDetails(
+            primaryGuestName,
+            email,
+            phone,
+            guestCount,
+            notes,
+            expectedDetailsRevision,
+            ReservationDetailsChangeOrigin.DataRightsCorrection,
+            actorId,
+            adapterConnectionId: null,
+            externalOperationId: null,
+            correlationId,
+            eventId,
+            nowUtc,
+            expectedArrivalTime,
+            expectedDepartureTime);
+        if (mutation.IsFailure)
+        {
+            return Result.Failure<ReservationDataRightsCorrectionOutcome>(mutation.Error);
+        }
+
+        if (!mutation.Value.IsChanged)
+        {
+            return Result.Failure<ReservationDataRightsCorrectionOutcome>(
+                ReservationsDomainErrors.DataRightsCorrectionNoChanges);
+        }
+
+        return Result.Success(new ReservationDataRightsCorrectionOutcome(
+            mutation.Value.PreviousRecordVersion,
+            mutation.Value.CurrentRecordVersion,
+            mutation.Value.PreviousDetailsRevision,
+            mutation.Value.CurrentDetailsRevision,
+            mutation.Value.ChangedFields.Select(ToDetailsField).ToArray(),
+            eventId,
+            correlationId,
+            nowUtc));
+    }
+
+    public bool HasGuestDetails(
+        string primaryGuestName,
+        string? email,
+        string? phone,
+        int guestCount,
+        string? notes,
+        TimeOnly? expectedArrivalTime,
+        TimeOnly? expectedDepartureTime) =>
+        string.Equals(
+            this.PrimaryGuestName,
+            NormalizeRequired(primaryGuestName),
+            StringComparison.Ordinal) &&
+        string.Equals(this.Email, NormalizeOptional(email), StringComparison.Ordinal) &&
+        string.Equals(this.Phone, NormalizeOptional(phone), StringComparison.Ordinal) &&
+        this.GuestCount == guestCount &&
+        string.Equals(this.Notes, NormalizeOptional(notes), StringComparison.Ordinal) &&
+        this.ExpectedArrivalTime == expectedArrivalTime &&
+        this.ExpectedDepartureTime == expectedDepartureTime;
+
+    private Result<ReservationDetailsMutation> ChangeGuestDetails(
+        string primaryGuestName,
+        string? email,
+        string? phone,
+        int guestCount,
+        string? notes,
+        long expectedDetailsRevision,
+        ReservationDetailsChangeOrigin origin,
+        string actorId,
+        Guid? adapterConnectionId,
+        Guid? externalOperationId,
+        Guid correlationId,
+        Guid eventId,
+        DateTimeOffset nowUtc,
+        TimeOnly? expectedArrivalTime,
+        TimeOnly? expectedDepartureTime)
+    {
         if (this.PendingAllocationAmendmentId.HasValue)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.AllocationAmendmentInProgress);
+            return Result.Failure<ReservationDetailsMutation>(
+                ReservationsDomainErrors.AllocationAmendmentInProgress);
         }
 
         if (expectedDetailsRevision != this.DetailsRevision)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.DetailsRevisionConflict);
+            return Result.Failure<ReservationDetailsMutation>(
+                ReservationsDomainErrors.DetailsRevisionConflict);
         }
 
         string normalizedActorId = actorId?.Trim() ?? string.Empty;
@@ -43,7 +166,8 @@ public sealed partial class Reservation
             adapterOrigin != externalOperationId.HasValue ||
             adapterConnectionId == Guid.Empty || externalOperationId == Guid.Empty)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.DetailsChangeProvenanceInvalid);
+            return Result.Failure<ReservationDetailsMutation>(
+                ReservationsDomainErrors.DetailsChangeProvenanceInvalid);
         }
 
         string normalizedGuestName = NormalizeRequired(primaryGuestName);
@@ -52,32 +176,35 @@ public sealed partial class Reservation
         string? normalizedNotes = NormalizeOptional(notes);
         if (normalizedGuestName.Length is 0 or > PrimaryGuestNameMaxLength)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.PrimaryGuestNameInvalid);
+            return Result.Failure<ReservationDetailsMutation>(
+                ReservationsDomainErrors.PrimaryGuestNameInvalid);
         }
 
         if (normalizedEmail?.Length > EmailMaxLength)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.EmailInvalid);
+            return Result.Failure<ReservationDetailsMutation>(ReservationsDomainErrors.EmailInvalid);
         }
 
         if (normalizedPhone?.Length > PhoneMaxLength)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.PhoneInvalid);
+            return Result.Failure<ReservationDetailsMutation>(ReservationsDomainErrors.PhoneInvalid);
         }
 
         if (normalizedNotes?.Length > NotesMaxLength)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.NotesInvalid);
+            return Result.Failure<ReservationDetailsMutation>(ReservationsDomainErrors.NotesInvalid);
         }
 
         if (!HasMinutePrecision(expectedArrivalTime) || !HasMinutePrecision(expectedDepartureTime))
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.ExpectedStayTimeInvalid);
+            return Result.Failure<ReservationDetailsMutation>(
+                ReservationsDomainErrors.ExpectedStayTimeInvalid);
         }
 
         if (guestCount <= 0)
         {
-            return Result.Failure<ReservationDetailsChangeOutcome>(ReservationsDomainErrors.GuestCountInvalid);
+            return Result.Failure<ReservationDetailsMutation>(
+                ReservationsDomainErrors.GuestCountInvalid);
         }
 
         List<string> changedFields = [];
@@ -90,10 +217,17 @@ public sealed partial class Reservation
         AddChanged(changedFields, nameof(this.ExpectedDepartureTime), this.ExpectedDepartureTime, expectedDepartureTime);
         if (changedFields.Count == 0)
         {
-            return Result.Success(ReservationDetailsChangeOutcome.Unchanged);
+            return Result.Success(new ReservationDetailsMutation(
+                IsChanged: false,
+                this.Version,
+                this.Version,
+                this.DetailsRevision,
+                this.DetailsRevision,
+                []));
         }
 
         ReservationDetailsSnapshot before = this.CaptureDetails();
+        long previousRecordVersion = this.Version;
         long fromRevision = this.DetailsRevision;
         this.PrimaryGuestName = normalizedGuestName;
         this.PrimaryGuestNameSearch = NormalizeSearch(normalizedGuestName)!;
@@ -130,7 +264,33 @@ public sealed partial class Reservation
             before,
             this.CaptureDetails()));
         this.RaiseGuestStayChanged(eventId, nowUtc);
-        return Result.Success(ReservationDetailsChangeOutcome.Changed);
+        return Result.Success(new ReservationDetailsMutation(
+            IsChanged: true,
+            previousRecordVersion,
+            this.Version,
+            fromRevision,
+            this.DetailsRevision,
+            changedFields));
     }
 
+    private static ReservationDetailsField ToDetailsField(string field) => field switch
+    {
+        nameof(PrimaryGuestName) => ReservationDetailsField.PrimaryGuestName,
+        nameof(Email) => ReservationDetailsField.Email,
+        nameof(Phone) => ReservationDetailsField.Phone,
+        nameof(GuestCount) => ReservationDetailsField.GuestCount,
+        nameof(Notes) => ReservationDetailsField.Notes,
+        nameof(ExpectedArrivalTime) => ReservationDetailsField.ExpectedArrivalTime,
+        nameof(ExpectedDepartureTime) => ReservationDetailsField.ExpectedDepartureTime,
+        _ => throw new InvalidOperationException(
+            $"Reservation details field '{field}' is not correctable.")
+    };
+
+    private sealed record ReservationDetailsMutation(
+        bool IsChanged,
+        long PreviousRecordVersion,
+        long CurrentRecordVersion,
+        long PreviousDetailsRevision,
+        long CurrentDetailsRevision,
+        IReadOnlyCollection<string> ChangedFields);
 }

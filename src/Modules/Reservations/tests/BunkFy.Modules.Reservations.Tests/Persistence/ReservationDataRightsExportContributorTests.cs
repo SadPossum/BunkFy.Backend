@@ -4,6 +4,7 @@ using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -70,6 +71,26 @@ public sealed class ReservationDataRightsExportContributorTests
                 fromRevision: 0,
                 toRevision: 1,
                 Now));
+        ReservationDataRightsCorrectionReceipt correctionReceipt =
+            ReservationDataRightsCorrectionReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                propertyId,
+                Guid.NewGuid(),
+                approvalRevision: 1,
+                reservation.Id,
+                new(
+                    PreviousRecordVersion: 1,
+                    CurrentRecordVersion: 2,
+                    PreviousDetailsRevision: 0,
+                    CurrentDetailsRevision: 1,
+                    [ReservationDetailsField.Email],
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Now.AddMinutes(3)),
+                Guid.NewGuid()).Value;
+        dbContext.DataRightsCorrectionReceipts.Add(correctionReceipt);
 
         dbContext.ExternalOperations.Add(new ReservationExternalOperation(
             new ReservationExternalOperationRecord(
@@ -138,8 +159,8 @@ public sealed class ReservationDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(7, result.RecordCount);
-        Assert.Equal(7, sink.Records.Count);
+        Assert.Equal(8, result.RecordCount);
+        Assert.Equal(8, sink.Records.Count);
         Assert.Equal(
             [
                 ReservationDataRightsDiscoveryContributor.ReservationRecordType,
@@ -147,6 +168,7 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationDataRightsExportContributor.GuestLinkRecordType,
                 ReservationDataRightsExportContributor.DetailsHistoryRecordType,
                 ReservationDataRightsExportContributor.DetailsHistoryRecordType,
+                ReservationDataRightsExportContributor.DataRightsCorrectionReceiptRecordType,
                 ReservationDataRightsExportContributor.ExternalOperationRecordType,
                 ReservationDataRightsExportContributor.ArrivalReminderRecordType
             ],
@@ -154,6 +176,15 @@ public sealed class ReservationDataRightsExportContributorTests
         Assert.DoesNotContain(
             sink.Records.SelectMany(record => record.Fields),
             field => field.FieldId == "reservation.audit.actor-id");
+        DataRightsExportRecord correctionExport = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor.DataRightsCorrectionReceiptRecordType);
+        Assert.DoesNotContain(
+            correctionExport.Fields,
+            field => field.FieldId is
+                "reservation.data-rights.idempotency-key" or
+                "reservation.data-rights.correlation-id");
         Assert.All(
             sink.Records,
             record => Assert.InRange(
@@ -238,7 +269,7 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(3, descriptor.CatalogVersion);
+        Assert.Equal(4, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
         Assert.NotEmpty(descriptor.FieldIds);
     }

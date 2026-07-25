@@ -192,6 +192,12 @@ public sealed class LinkReservationGuestRestrictionTests
                 ? reservation
                 : null);
 
+        public Task<Reservation?> GetForDataRightsAsync(
+            Guid propertyId,
+            Guid reservationId,
+            CancellationToken cancellationToken) =>
+            this.GetAsync(propertyId, reservationId, cancellationToken);
+
         public Task<Reservation?> GetAsyncByReservationId(
             Guid reservationId,
             CancellationToken cancellationToken) => throw new NotSupportedException();

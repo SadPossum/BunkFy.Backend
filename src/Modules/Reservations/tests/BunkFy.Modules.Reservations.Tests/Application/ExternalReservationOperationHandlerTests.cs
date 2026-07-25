@@ -367,6 +367,12 @@ public sealed class ExternalReservationOperationHandlerTests
         public Task<Reservation?> GetAsync(Guid propertyId, Guid reservationId, CancellationToken cancellationToken) =>
             Task.FromResult(this.Items.SingleOrDefault(item => item.PropertyId == propertyId && item.Id == reservationId));
 
+        public Task<Reservation?> GetForDataRightsAsync(
+            Guid propertyId,
+            Guid reservationId,
+            CancellationToken cancellationToken) =>
+            this.GetAsync(propertyId, reservationId, cancellationToken);
+
         public Task<Reservation?> GetAsyncByReservationId(Guid reservationId, CancellationToken cancellationToken) =>
             Task.FromResult(this.Items.SingleOrDefault(item => item.Id == reservationId));
 

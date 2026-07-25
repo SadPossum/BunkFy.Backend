@@ -1,7 +1,7 @@
 # Reservations Data Rights Workflow Task
 
-Status: implementation in progress; scoped discovery and catalogue-driven
-export complete, transactional correction next
+Status: implementation in progress; scoped discovery, catalogue-driven export
+and transactional correction complete, processing restriction next
 
 ## Outcome
 
@@ -91,6 +91,7 @@ One selected reservation can produce:
   and lifecycle facts;
 - one record per active or historical Guest link;
 - one record per details-history revision;
+- one record per data-rights correction receipt;
 - one record per subject-linked adapter operation receipt;
 - one record per arrival-reminder state.
 
@@ -241,9 +242,9 @@ ungated.
 
 1. [Complete] Add scoped discovery, exact selection revalidation and
    catalogue-driven export for current and historical Reservations-owned data.
-2. [Next] Add approved transactional correction and immutable owner receipts through
-   existing aggregate/history semantics.
-3. Add Reservations-owned processing restriction, enforcement and rebuildable
+2. [Complete] Add approved transactional correction and immutable owner
+   receipts through existing aggregate/history semantics.
+3. [Next] Add Reservations-owned processing restriction, enforcement and rebuildable
    PII-free state.
 4. Add holds and fail-closed destructive eligibility.
 5. Add irreversible aggregate/history/link/receipt redaction, owner proof and
@@ -302,6 +303,60 @@ only owner of its data.
   logs, metrics, traces and support bundles.
 - Architecture tests preserve contracts-only module dependencies and GMA
   remains unchanged.
+
+## Completed Second Slice
+
+- Reservations exposes one transactional correction command for an exact
+  approved DataRights case coordinate. DataRights remains the approval
+  authority; no generic patch or premature public HTTP endpoint was added.
+- The aggregate requires both the selected record `Version` and current
+  `DetailsRevision`, rejects pending allocation amendments and records a full
+  superseding details snapshot with `DataRightsCorrection` provenance.
+- The reservation mutation, details-history row, PII-free immutable owner
+  receipt and PII-free outbox event share the Reservations unit of work.
+- Receipt uniqueness is tenant scoped across idempotency, details event and
+  owner event coordinates. Database checks enforce contract, revision and
+  changed-field-mask invariants; application code prevents receipt update or
+  deletion.
+- Exact retries return the committed receipt. Reusing the key with a different
+  coordinate, revision or normalized correction payload fails closed. One
+  bounded persistence retry resolves optimistic-concurrency and unique-key
+  races through the generic GMA exception classifier.
+- Known retired properties remain correctable only while their processing
+  policy and governance binding remain current and enabled. Ordinary
+  reservation management still requires an active property.
+- Reservations export now includes minimum correction-accountability receipts
+  without idempotency keys, correlation ids, actors or corrected values.
+- Personal-data catalogue version 4 binds correction inputs, owner receipt,
+  retention and rights behavior. Generated inventory and schema composition
+  tests are current.
+- Migration
+  `20260725190654_AddReservationDataRightsCorrectionReceipts` creates the
+  append-only receipt store and scoped indexes.
+- Unit coverage proves aggregate revision semantics, approval binding,
+  fail-closed replay, PII-free outbox projection, retry behavior, model
+  constraints and append-only enforcement.
+- A PostgreSQL container test proves the real DataRights approval gate,
+  retired-property policy exception, GMA command pipeline, transactional
+  persistence, exact replay, conflict rejection and PII-free owner event.
+- GMA remains unchanged.
+
+## Second-Slice Acceptance Evidence
+
+- A correction cannot run without an exact approved case, selected reservation
+  version, expected details revision and executing actor.
+- No-change, stale, wrong-scope, changed-idempotency-payload and missing-policy
+  requests fail without a committed receipt.
+- One successful correction advances record and details revisions exactly once
+  and creates exactly one details-history row, receipt and owner outbox event.
+- Replay does not mutate the aggregate or duplicate history, receipt or outbox
+  state.
+- Receipt and owner event payloads contain coordinates and changed field ids,
+  never corrected name, contact details, notes, actor or idempotency material.
+- Ordinary management remains denied after property retirement while the
+  narrowly named, policy-bound correction path remains available.
+- GMA transaction, CQRS, scoping and EF classification primitives are reused
+  unchanged; Reservations-specific policy and receipt semantics remain local.
 
 ## Non-Goals
 

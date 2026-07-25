@@ -22,6 +22,10 @@ public static class ReservationsDomainErrors
     public static readonly Error InvalidTransition = new("Reservations.InvalidTransition", "The reservation cannot perform this lifecycle transition.");
     public static readonly Error DetailsRevisionConflict = new("Reservations.DetailsRevisionConflict", "The editable reservation details have changed. Refresh and retry.");
     public static readonly Error DetailsChangeProvenanceInvalid = new("Reservations.DetailsChangeProvenanceInvalid", "Reservation details change provenance is invalid.");
+    public static readonly Error DataRightsCorrectionNoChanges = new("Reservations.DataRightsCorrectionNoChanges", "The correction does not change the selected reservation details.");
+    public static readonly Error DataRightsCorrectionReceiptIdentityInvalid = new("Reservations.DataRightsCorrectionReceiptIdentityInvalid", "The correction receipt identity is invalid.");
+    public static readonly Error DataRightsCorrectionReceiptVersionInvalid = new("Reservations.DataRightsCorrectionReceiptVersionInvalid", "The correction receipt version binding is invalid.");
+    public static readonly Error DataRightsCorrectionReceiptFieldsInvalid = new("Reservations.DataRightsCorrectionReceiptFieldsInvalid", "The correction receipt field set is invalid.");
     public static readonly Error AllocationAmendmentInProgress = new("Reservations.AllocationAmendmentInProgress", "An allocation-affecting reservation amendment is already in progress.");
     public static readonly Error AllocationAmendmentInvalid = new("Reservations.AllocationAmendmentInvalid", "The allocation-affecting reservation amendment is invalid.");
     public static readonly Error StayBusinessDateInvalid = new("Reservations.StayBusinessDateInvalid", "The business date is not valid for this stay transition.");
