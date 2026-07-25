@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: implementation complete; exact-commit publication gate pending
+Status: complete; locally and exactly published verification passed
 
 ## Outcome
 
@@ -366,9 +366,9 @@ reconciliation mode cannot accidentally weaken the barrier.
    and rebuild export through contracts only.
 9. [Complete] Advance executable personal-data catalogues. No public API
    contract changed, so this slice has no generated OpenAPI delta.
-10. [Current] Prove PostgreSQL migrations, concurrency, Docker task recovery,
+10. [Complete] Prove PostgreSQL migrations, concurrency, Docker task recovery,
     pre-ready restore replay, architecture boundaries and exact-commit GitHub
-    gates. Local verification is complete; publication validation remains.
+    gates.
 
 Only one numbered step is implemented at a time. Later steps may refine code
 from completed steps, but a case remains incomplete until every required
@@ -621,6 +621,11 @@ durability and restore gate in the remaining steps is present.
   a fresh pre-anonymisation database, then proves the protected delta
   re-scrubs the Guest and persists ledger, tombstone, receipt and checkpoint
   proof before the replacement worker becomes ready.
+- Backend commit `70123ef568dfabc209ebd33932b23ff2ceaf62bd` passes the
+  exact-commit Windows and Ubuntu validation jobs plus the Docker Tests
+  workflow. Superproject commit
+  `d1f6565ba393ef9896bfeeba3518388d3d79dc8a` passes product validation,
+  Security Baseline and JavaScript/TypeScript and C# CodeQL analysis.
 
 ## Acceptance Evidence
 
