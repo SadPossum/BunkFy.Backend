@@ -26,6 +26,9 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
         this.Set<GuestAnonymisationReceipt>();
     public DbSet<GuestAnonymisationTombstone> AnonymisationTombstones =>
         this.Set<GuestAnonymisationTombstone>();
+    public DbSet<GuestAnonymisationRestoreReceipt>
+        AnonymisationRestoreReceipts =>
+            this.Set<GuestAnonymisationRestoreReceipt>();
     internal DbSet<GuestOperationLock> OperationLocks => this.Set<GuestOperationLock>();
     public DbSet<GuestPropertyProjection> PropertyProjections => this.Set<GuestPropertyProjection>();
     public DbSet<GuestStayHistoryEntry> StayHistory => this.Set<GuestStayHistoryEntry>();
@@ -33,10 +36,40 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
     public DbSet<GuestsProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints => this.Set<GuestsProjectionRebuildCheckpoint>();
 
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        this.EnsureRestoreReceiptsAreAppendOnly();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        this.EnsureRestoreReceiptsAreAppendOnly();
+        return base.SaveChangesAsync(
+            acceptAllChangesOnSuccess,
+            cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(GuestsMigrations.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(GuestsDbContext).Assembly);
         this.ApplyScopeConventions(modelBuilder);
+    }
+
+    private void EnsureRestoreReceiptsAreAppendOnly()
+    {
+        bool mutationRequested = this.ChangeTracker
+            .Entries<GuestAnonymisationRestoreReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or
+                    EntityState.Deleted);
+        if (mutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Guest anonymisation restore receipts are append-only.");
+        }
     }
 }

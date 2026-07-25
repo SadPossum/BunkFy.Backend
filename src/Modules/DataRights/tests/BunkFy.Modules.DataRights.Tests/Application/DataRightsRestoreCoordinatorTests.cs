@@ -1,0 +1,233 @@
+namespace BunkFy.Modules.DataRights.Tests.Application;
+
+using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application;
+using BunkFy.Modules.DataRights.Application.Models;
+using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Application.Queries;
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.DataRights.Domain.Entities;
+using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Persistence;
+using BunkFy.Modules.DataRights.Tests.Persistence;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Results;
+using Gma.Framework.Scoping;
+using Xunit;
+
+[Trait("Category", "Unit")]
+public sealed class DataRightsRestoreCoordinatorTests
+{
+    [Fact]
+    public async Task Coordinator_advances_only_after_owner_proof_then_confirms()
+    {
+        HmacDataRightsRecordPseudonymizer pseudonymizer =
+            ProtectedLedgerTestData.CreatePseudonymizer((1, 'a'));
+        AesGcmDataRightsReplayEnvelopeProtector protector =
+            ProtectedLedgerTestData.CreateProtector(
+                pseudonymizer,
+                activeKeyVersion: 1,
+                (1, 'r'));
+        Guid recordId = Guid.NewGuid();
+        DataRightsProcessingLedgerEntry ledger =
+            ProtectedLedgerTestData.CreateLedger(
+                pseudonymizer,
+                "tenant-a",
+                sequence: 1,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+                recordId);
+        DataRightsLedgerDelta delta =
+            ProtectedLedgerTestData.CreateDelta(
+                protector,
+                ledger,
+                recordId);
+        DataRightsLedgerDeltaCursor targetCursor = new(
+            TenantSequence: 1,
+            ledger.EntrySha256,
+            StorageMacSha256: new string('c', 64));
+        List<string> calls = [];
+        RecordingDispatcher dispatcher =
+            new(targetCursor, calls);
+        StubDeltaStore deltaStore =
+            new(delta, targetCursor, calls);
+        StubContributor contributor =
+            new(ledger, calls);
+        DataRightsRestoreCoordinator coordinator = new(
+            dispatcher,
+            deltaStore,
+            new StubReplayProtector(recordId),
+            [contributor],
+            new TestScopeContext(),
+            new FixedTimeProvider(
+                ProtectedLedgerTestData.Now.AddHours(2)));
+        DataRightsRestoreScope scope = new(
+            DataRightsRestoreScope.CurrentContractVersion,
+            "tenant-a",
+            new DataRightsLedgerDeltaCheckpoint(
+                DataRightsLedgerDeltaCheckpoint.CurrentContractVersion,
+                targetCursor,
+                IntegrityKeyVersion: 1,
+                CheckpointMacSha256: new string('d', 64)));
+
+        Result<Unit> result = await coordinator.ReconcileAsync(
+            scope,
+            scopeSnapshotSha256: new string('e', 64),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            ["query", "read", "prepare", "owner", "advance", "confirm"],
+            calls);
+        Assert.Equal(recordId, contributor.RecordId);
+    }
+
+    private sealed class RecordingDispatcher(
+        DataRightsLedgerDeltaCursor target,
+        List<string> calls)
+        : IRequestDispatcher
+    {
+        private DataRightsRestoreCheckpointState state = new(
+            Version: 0,
+            DataRightsRestoreCursor.Genesis,
+            DataRightsProcessingLedgerEntry.GenesisEntrySha256);
+
+        public Task<Result<TResponse>> SendAsync<TResponse>(
+            ICommand<TResponse> command,
+            CancellationToken cancellationToken = default)
+        {
+            switch (command)
+            {
+                case PrepareDataRightsRestoreBatchCommand:
+                    calls.Add("prepare");
+                    return Reply<TResponse, Unit>(
+                        Result.Success(Unit.Value));
+                case AdvanceDataRightsRestoreCheckpointCommand:
+                    calls.Add("advance");
+                    this.state = new(
+                        Version: 1,
+                        new DataRightsRestoreCursor(
+                            target.TenantSequence,
+                            target.EntrySha256),
+                        target.StorageMacSha256);
+                    return Reply<TResponse, DataRightsRestoreCheckpointState>(
+                        Result.Success(this.state));
+                case ConfirmDataRightsRestoreCheckpointCommand:
+                    calls.Add("confirm");
+                    this.state = this.state with
+                    {
+                        Version = this.state.Version + 1
+                    };
+                    return Reply<TResponse, DataRightsRestoreCheckpointState>(
+                        Result.Success(this.state));
+                default:
+                    throw new NotSupportedException(
+                        command.GetType().FullName);
+            }
+        }
+
+        public Task<Result<TResponse>> QueryAsync<TResponse>(
+            IQuery<TResponse> query,
+            CancellationToken cancellationToken = default)
+        {
+            Assert.IsType<GetDataRightsRestoreCheckpointQuery>(query);
+            calls.Add("query");
+            return Reply<TResponse, DataRightsRestoreCheckpointState>(
+                Result.Success(this.state));
+        }
+
+        private static Task<Result<TResponse>> Reply<TResponse, TValue>(
+            Result<TValue> result) =>
+            Task.FromResult((Result<TResponse>)(object)result);
+    }
+
+    private sealed class StubDeltaStore(
+        DataRightsLedgerDelta delta,
+        DataRightsLedgerDeltaCursor target,
+        List<string> calls)
+        : IDataRightsLedgerDeltaStore
+    {
+        public Task<DataRightsLedgerDeltaPage> ReadAfterAsync(
+            string tenantId,
+            DataRightsLedgerDeltaCursor cursor,
+            int pageSize,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("read");
+            return Task.FromResult(new DataRightsLedgerDeltaPage(
+                DataRightsLedgerDeltaPage.CurrentContractVersion,
+                [delta],
+                target,
+                HasMore: false));
+        }
+
+        public Task<DataRightsLedgerDeltaStoreReadiness> CheckReadinessAsync(
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<DataRightsLedgerDeltaAppendReceipt> AppendAsync(
+            DataRightsLedgerDelta appended,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<DataRightsLedgerDeltaCheckpoint>
+            ReadTrustedCheckpointAsync(
+                string tenantId,
+                CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class StubReplayProtector(Guid recordId)
+        : IDataRightsReplayEnvelopeProtector
+    {
+        public Result<Guid> Unprotect(
+            DataRightsProcessingLedgerSnapshot ledger,
+            DataRightsProtectedReplayEnvelope envelope) =>
+            Result.Success(recordId);
+
+        public Result<DataRightsProtectedReplayEnvelope> Protect(
+            DataRightsProcessingLedgerSnapshot ledger,
+            Guid protectedRecordId) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class StubContributor(
+        DataRightsProcessingLedgerEntry ledger,
+        List<string> calls)
+        : IDataRightsAnonymisationRestoreContributor
+    {
+        public string OwnerKey => ledger.OwnerKey;
+        public string RecordType => ledger.RecordType;
+        public int ContractVersion =>
+            DataRightsAnonymisationRestoreContract.CurrentVersion;
+        public Guid RecordId { get; private set; }
+
+        public Task<DataRightsAnonymisationRestoreResult> RestoreAsync(
+            DataRightsAnonymisationRestoreRequest request,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("owner");
+            this.RecordId = request.RecordId;
+            return Task.FromResult(
+                DataRightsAnonymisationRestoreResult.Completed(
+                    new(
+                        ledger.Id,
+                        ledger.OwnerReceiptId,
+                        ledger.OwnerReceiptSha256,
+                        ResultingRecordVersion: 5,
+                        TombstoneRevision: 1,
+                        ProtectedLedgerTestData.Now.AddHours(1))));
+        }
+    }
+
+    private sealed class TestScopeContext : IScopeContext
+    {
+        public bool IsEnabled => true;
+        public string ScopeId => "tenant-a";
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow)
+        : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+}

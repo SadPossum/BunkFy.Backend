@@ -38,6 +38,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IGuestAnonymisationRepository,
             GuestAnonymisationRepository>();
+        builder.Services.TryAddScoped<
+            IGuestAnonymisationRestoreRepository,
+            GuestAnonymisationRestoreRepository>();
         builder.Services.TryAddScoped<IGuestOperationLock, GuestOperationLockRepository>();
         builder.Services.TryAddScoped<
             IGuestAnonymisationExecutionBoundary,

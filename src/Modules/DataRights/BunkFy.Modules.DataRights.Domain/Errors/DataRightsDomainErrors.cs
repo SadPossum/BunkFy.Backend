@@ -106,4 +106,10 @@ public static class DataRightsDomainErrors
     public static readonly Error ReplayEnvelopeKeyUnavailable = new(
         "DataRights.ReplayEnvelopeKeyUnavailable",
         "The requested data-rights replay-envelope key is unavailable.");
+    public static readonly Error RestoreCheckpointInvalid = new(
+        "DataRights.RestoreCheckpointInvalid",
+        "The data-rights restore checkpoint is invalid.");
+    public static readonly Error RestoreCheckpointConflict = new(
+        "DataRights.RestoreCheckpointConflict",
+        "The data-rights restore checkpoint changed during reconciliation.");
 }

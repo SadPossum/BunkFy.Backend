@@ -36,6 +36,12 @@ public static class GuestsDomainErrors
     public static readonly Error AnonymisationTombstoneInvalid = new(
         "Guests.AnonymisationTombstoneInvalid",
         "The Guest anonymisation tombstone is invalid.");
+    public static readonly Error AnonymisationRestoreTransitionInvalid = new(
+        "Guests.AnonymisationRestoreTransitionInvalid",
+        "The Guest profile cannot be restored to anonymised state.");
+    public static readonly Error AnonymisationRestoreReceiptInvalid = new(
+        "Guests.AnonymisationRestoreReceiptInvalid",
+        "The Guest anonymisation restore receipt is invalid.");
     public static readonly Error CorrectionReceiptIdentityInvalid = new(
         "Guests.CorrectionReceiptIdentityInvalid",
         "The correction receipt identity is invalid.");

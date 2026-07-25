@@ -19,4 +19,8 @@ public interface IDataRightsProcessingLedgerRepository
 
     Task<DataRightsProcessingLedgerEntry?> GetLatestAsync(
         CancellationToken cancellationToken);
+
+    Task<DataRightsProcessingLedgerEntry?> GetBySequenceAsync(
+        long tenantSequence,
+        CancellationToken cancellationToken);
 }

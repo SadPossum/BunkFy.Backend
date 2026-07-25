@@ -53,6 +53,96 @@ public sealed class GuestAnonymisationTombstone : ScopedAggregateRoot<Guid>
         });
     }
 
+    public static Result<GuestAnonymisationTombstone> Restore(
+        string tenantId,
+        Guid guestId,
+        DateTimeOffset originallyCompletedAtUtc,
+        string ownerReceiptSha256,
+        Guid ledgerEntryId,
+        DateTimeOffset replayedAtUtc)
+    {
+        Result<GuestAnonymisationTombstone> created = Create(
+            tenantId,
+            guestId,
+            originallyCompletedAtUtc.ToUniversalTime(),
+            ownerReceiptSha256);
+        if (created.IsFailure)
+        {
+            return created;
+        }
+
+        if (ledgerEntryId == Guid.Empty ||
+            replayedAtUtc == default ||
+            replayedAtUtc.ToUniversalTime() <
+                originallyCompletedAtUtc.ToUniversalTime())
+        {
+            return Result.Failure<GuestAnonymisationTombstone>(
+                GuestsDomainErrors.AnonymisationTombstoneInvalid);
+        }
+
+        created.Value.LedgerEntryId = ledgerEntryId;
+        created.Value.LastReplayedAtUtc =
+            replayedAtUtc.ToUniversalTime();
+        return created;
+    }
+
+    public Result AttachRestoreProof(
+        Guid ledgerEntryId,
+        DateTimeOffset originallyCompletedAtUtc,
+        string ownerReceiptSha256,
+        DateTimeOffset replayedAtUtc)
+    {
+        string receiptDigest =
+            ownerReceiptSha256?.Trim().ToLowerInvariant() ?? string.Empty;
+        DateTimeOffset completedAtUtc =
+            originallyCompletedAtUtc.ToUniversalTime();
+        DateTimeOffset timestamp = replayedAtUtc.ToUniversalTime();
+        if (ledgerEntryId == Guid.Empty ||
+            timestamp == default ||
+            timestamp < completedAtUtc ||
+            this.CompletedAtUtc != completedAtUtc ||
+            !string.Equals(
+                this.OwnerReceiptSha256,
+                receiptDigest,
+                StringComparison.Ordinal))
+        {
+            return Result.Failure(
+                GuestsDomainErrors.AnonymisationTombstoneInvalid);
+        }
+
+        if (this.LedgerEntryId.HasValue)
+        {
+            return this.LedgerEntryId == ledgerEntryId &&
+                this.LastReplayedAtUtc.HasValue
+                ? Result.Success()
+                : Result.Failure(
+                    GuestsDomainErrors.AnonymisationTombstoneInvalid);
+        }
+
+        this.LedgerEntryId = ledgerEntryId;
+        this.LastReplayedAtUtc = timestamp;
+        this.Revision++;
+        return Result.Success();
+    }
+
+    public bool MatchesRestore(
+        Guid guestId,
+        Guid ledgerEntryId,
+        DateTimeOffset originallyCompletedAtUtc,
+        string ownerReceiptSha256) =>
+        this.ContractVersion == CurrentContractVersion &&
+        this.Revision >= 1 &&
+        this.State == GuestAnonymisationTombstoneState.Anonymised &&
+        this.Id == guestId &&
+        this.LedgerEntryId == ledgerEntryId &&
+        this.CompletedAtUtc ==
+            originallyCompletedAtUtc.ToUniversalTime() &&
+        string.Equals(
+            this.OwnerReceiptSha256,
+            ownerReceiptSha256?.Trim().ToLowerInvariant(),
+            StringComparison.Ordinal) &&
+        this.LastReplayedAtUtc.HasValue;
+
     public bool Matches(GuestAnonymisationReceipt receipt) =>
         receipt is not null &&
         this.ContractVersion == CurrentContractVersion &&

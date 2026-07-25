@@ -225,6 +225,8 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("ScopeId", "CanonicalSha256");
+
                     b.HasAlternateKey("ScopeId", "Id");
 
                     b.HasIndex("ScopeId", "IdempotencyKey")
@@ -251,6 +253,71 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                             t.HasCheckConstraint("CK_guest_anonymisation_receipts_revisions", "\"ApprovalRevision\" >= 1 AND \"OperationRevision\" > \"ApprovalRevision\"");
 
                             t.HasCheckConstraint("CK_guest_anonymisation_receipts_versions", "\"SelectedGuestVersion\" >= 1 AND \"ResultingGuestVersion\" = \"SelectedGuestVersion\" + 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationRestoreReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("GuestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OwnerReceiptContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OwnerReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("ReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ResultingGuestVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("TombstoneRevision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "GuestId", "LedgerEntryId")
+                        .IsUnique();
+
+                    b.ToTable("guest_anonymisation_restore_receipts", "guests", t =>
+                        {
+                            t.HasCheckConstraint("CK_guest_anonymisation_restore_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_restore_receipts_digests", "char_length(\"OwnerReceiptSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_restore_receipts_identity", "\"LedgerEntryId\" = \"Id\"");
+
+                            t.HasCheckConstraint("CK_guest_anonymisation_restore_receipts_versions", "\"OwnerReceiptContractVersion\" >= 1 AND \"ResultingGuestVersion\" >= 1 AND \"TombstoneRevision\" >= 1");
                         });
                 });
 
@@ -290,11 +357,6 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasAlternateKey("ScopeId", "Id");
-
-                    b.HasIndex("ScopeId", "OwnerReceiptSha256")
-                        .IsUnique();
 
                     b.HasIndex("ScopeId", "CompletedAtUtc", "Id");
 
@@ -1017,19 +1079,22 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationRestoreReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "GuestId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", b =>
                 {
                     b.HasOne("BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile", null)
                         .WithOne()
                         .HasForeignKey("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "ScopeId", "Id")
                         .HasPrincipalKey("BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile", "ScopeId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", null)
-                        .WithOne()
-                        .HasForeignKey("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationTombstone", "ScopeId", "OwnerReceiptSha256")
-                        .HasPrincipalKey("BunkFy.Modules.Guests.Domain.DataRights.GuestAnonymisationReceipt", "ScopeId", "CanonicalSha256")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

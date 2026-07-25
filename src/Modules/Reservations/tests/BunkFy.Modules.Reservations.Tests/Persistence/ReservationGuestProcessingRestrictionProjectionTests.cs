@@ -146,6 +146,36 @@ public sealed class ReservationGuestProcessingRestrictionProjectionTests
         Assert.True(changed.IsRestricted);
     }
 
+    [Fact]
+    public async Task Guest_anonymisation_closes_the_local_linkability_projection()
+    {
+        RecordingProjectionRepository repository = new();
+        Guid guestId = Guid.NewGuid();
+        GuestProfileAnonymisedProjectionHandler handler = new(repository);
+
+        await handler.HandleAsync(
+            new GuestProfileAnonymisedIntegrationEvent(
+                Guid.NewGuid(),
+                "tenant-a",
+                new DateTimeOffset(
+                    2026,
+                    7,
+                    25,
+                    18,
+                    0,
+                    0,
+                    TimeSpan.Zero),
+                guestId,
+                guestVersion: 4),
+            CancellationToken.None);
+
+        ReservationGuestProfileProjectionWriteModel projected =
+            Assert.Single(repository.Profiles);
+        Assert.Equal(guestId, projected.GuestId);
+        Assert.Equal(GuestStatus.Archived, projected.Status);
+        Assert.Equal(4, projected.Version);
+    }
+
     private static ReservationsDbContext CreateDbContext(IScopeContext scope)
     {
         DbContextOptions<ReservationsDbContext> options =
@@ -157,6 +187,7 @@ public sealed class ReservationGuestProcessingRestrictionProjectionTests
 
     private sealed class RecordingProjectionRepository : IReservationGuestProfileProjectionRepository
     {
+        public List<ReservationGuestProfileProjectionWriteModel> Profiles { get; } = [];
         public List<ReservationGuestProcessingRestrictionProjectionWriteModel> Restrictions { get; } = [];
 
         public Task<bool> IsLinkableAsync(
@@ -166,7 +197,11 @@ public sealed class ReservationGuestProcessingRestrictionProjectionTests
 
         public Task ApplyAsync(
             ReservationGuestProfileProjectionWriteModel profile,
-            CancellationToken cancellationToken) => Task.CompletedTask;
+            CancellationToken cancellationToken)
+        {
+            this.Profiles.Add(profile);
+            return Task.CompletedTask;
+        }
 
         public Task ApplyRestrictionAsync(
             ReservationGuestProcessingRestrictionProjectionWriteModel restriction,

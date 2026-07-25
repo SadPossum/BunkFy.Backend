@@ -16,6 +16,7 @@ public sealed class DataRightsAdminCliModule : IAdminCliModule
     {
         builder.Services.AddDataRightsApplication();
         builder.AddDataRightsPersistence();
+        builder.AddDataRightsRestoreReadinessGate();
     }
 
     public void MapCommands(IAdminCliCommandRegistry commands)

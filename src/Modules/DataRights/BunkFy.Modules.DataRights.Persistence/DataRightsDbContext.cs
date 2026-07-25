@@ -16,6 +16,8 @@ public sealed class DataRightsDbContext(
         this.Set<DataRightsExecutionWorkItem>();
     public DbSet<DataRightsProcessingLedgerEntry> ProcessingLedgerEntries =>
         this.Set<DataRightsProcessingLedgerEntry>();
+    public DbSet<DataRightsRestoreCheckpoint> RestoreCheckpoints =>
+        this.Set<DataRightsRestoreCheckpoint>();
     public DbSet<DataRightsPropertyProjection> PropertyProjections =>
         this.Set<DataRightsPropertyProjection>();
     public DbSet<DataRightsProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>

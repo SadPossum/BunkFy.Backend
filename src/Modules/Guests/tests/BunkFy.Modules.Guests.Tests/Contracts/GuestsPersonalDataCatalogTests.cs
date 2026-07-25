@@ -50,7 +50,8 @@ public sealed class GuestsPersonalDataCatalogTests
                      typeof(GuestDataHold),
                      typeof(GuestDataHoldReceipt),
                      typeof(GuestAnonymisationReceipt),
-                     typeof(GuestAnonymisationTombstone)
+                     typeof(GuestAnonymisationTombstone),
+                     typeof(GuestAnonymisationRestoreReceipt)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
@@ -88,6 +89,7 @@ public sealed class GuestsPersonalDataCatalogTests
         AssertType(typeof(PlaceGuestDataHoldCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ReleaseGuestDataHoldCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ApplyGuestAnonymisationCommand), PersonalDataSurface.ApplicationCommand);
+        AssertType(typeof(RestoreGuestAnonymisationCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(GetGuestProfileQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(typeof(GetGuestStayHistoryQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(

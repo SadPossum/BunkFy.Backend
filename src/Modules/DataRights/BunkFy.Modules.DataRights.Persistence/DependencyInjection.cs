@@ -37,6 +37,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IDataRightsProcessingLedgerRepository,
             DataRightsProcessingLedgerRepository>();
+        builder.Services.TryAddScoped<
+            IDataRightsRestoreCheckpointRepository,
+            DataRightsRestoreCheckpointRepository>();
         AddProtectedLedgerServices(builder);
         builder.Services.TryAddScoped<
             IDataRightsPropertyProjectionRepository,
@@ -64,6 +67,29 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IProjectionRebuildTransactionBoundary,
                 DataRightsProjectionRebuildTransactionBoundary>());
+        return builder;
+    }
+
+    public static IHostApplicationBuilder AddDataRightsRestoreReadinessGate(
+        this IHostApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.TryAddSingleton<
+            DataRightsRestoreReadinessState>();
+        builder.Services.TryAddSingleton<IDataRightsRestoreReadiness>(
+            services => services.GetRequiredService<
+                DataRightsRestoreReadinessState>());
+        builder.Services.TryAddSingleton<
+            DataRightsRestoreReadinessHealthCheck>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckServiceOptions>,
+                DataRightsRestoreHealthCheckOptionsSetup>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IHostedService,
+                DataRightsRestoreStartupGate>());
         return builder;
     }
 
@@ -159,10 +185,18 @@ public static class DependencyInjection
         if (configuredProvider == DataRightsLedgerDeltaProvider.LocalFile)
         {
             builder.Services.TryAddSingleton<
-                IDataRightsLedgerDeltaStore,
                 LocalFileDataRightsLedgerDeltaStore>();
+            builder.Services.TryAddSingleton<IDataRightsLedgerDeltaStore>(
+                services => services.GetRequiredService<
+                    LocalFileDataRightsLedgerDeltaStore>());
+            builder.Services.TryAddSingleton<IDataRightsRestoreScopeSource>(
+                services => services.GetRequiredService<
+                    LocalFileDataRightsLedgerDeltaStore>());
         }
 
+        builder.Services.TryAddSingleton<
+            IDataRightsRestoreScopeSource,
+            MissingDataRightsRestoreScopeSource>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IHostedService,

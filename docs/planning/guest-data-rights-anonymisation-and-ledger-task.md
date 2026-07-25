@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: in progress; external protected delta complete, restore gate next
+Status: implementation complete; exact-commit publication gate pending
 
 ## Outcome
 
@@ -284,21 +284,54 @@ records.
 
 API and Worker readiness must remain false until the restore gate has:
 
-1. loaded and verified the trusted external checkpoint;
-2. read every bounded ledger delta newer than the database checkpoint;
-3. appended any missing DataRights ledger entries idempotently;
-4. invoked the matching owner restore contributor for every missing tombstone;
-5. re-anonymised restored Guest identity and search fields transactionally;
-6. confirmed the Guests local tombstone and owner receipt digest;
-7. advanced the database checkpoint only after all owners succeed.
+1. opened a snapshot-consistent recovery-scope manifest and verified the
+   external provider readiness;
+2. loaded and verified each trusted tenant checkpoint;
+3. read every bounded ledger delta newer than the database checkpoint;
+4. appended any missing DataRights ledger entries idempotently;
+5. invoked the matching owner restore contributor for every missing tombstone;
+6. re-anonymised restored Guest identity and search fields transactionally;
+7. confirmed the Guests local tombstone and owner receipt digest;
+8. advanced the database checkpoint only after every owner in the bounded page
+   succeeds;
+9. confirmed that the recovery-scope snapshot is still current before the host
+   becomes ready.
+
+The delta store still has no list-all-tenants operation. A separate
+`IDataRightsRestoreScopeSource` exposes only scopes that have protected
+DataRights recovery proof. Its paged snapshot token changes when a scope is
+added or a trusted tenant checkpoint advances. Production requires a private,
+production-grade implementation of both ports; the public local-file adapter
+implements the same contract only for development and restore tests.
+
+The database checkpoint records the reconciled external cursor and the trusted
+checkpoint/scope-snapshot proof. Missing ledger rows are restored before owner
+replay. The cursor advances only after all owner contributors for that page
+confirm the exact ledger entry, original owner receipt id and receipt digest.
+Crashes before cursor advancement replay safely from immutable owner and ledger
+proof.
+
+Guests does not fabricate the original owner receipt after a historical
+database restore. It writes an immutable restore receipt that binds the
+authoritative ledger entry and original owner receipt digest, re-applies the
+anonymised profile state when necessary, and attaches the ledger entry to the
+local tombstone in one Guests transaction. An already anonymised profile is
+accepted only when its complete scrubbed state, original receipt when present,
+and tombstone proof all match.
 
 Restore replay is not a normal anonymisation command. It is authorized by the
-verified external ledger proof, runs through an internal contract, and does not
-depend on a restored case approval that may be older than the delta.
+verified external ledger proof, runs through an internal owner-contributor
+contract, and does not depend on a restored case approval that may be older
+than the delta.
 
-Unknown owner, unsupported contract/key version, invalid chain, missing delta,
-digest mismatch or owner replay failure keeps readiness false and surfaces a
-stable operational error without logging subject coordinates.
+Unknown scope source, owner, record type, contributor, contract/key version,
+invalid chain, missing delta, digest mismatch, inconsistent restored owner
+state or owner replay failure keeps readiness false and surfaces a stable
+operational error without logging tenant or subject coordinates.
+
+The startup gate runs before web and worker hosted services. API health also
+retains an explicit DataRights restore-readiness check so a future asynchronous
+reconciliation mode cannot accidentally weaken the barrier.
 
 ## Efficiency
 
@@ -328,12 +361,14 @@ stable operational error without logging subject coordinates.
    receipt/entry digests.
 6. [Complete] Add the external delta port, local protected-file test adapter and
    production configuration denial.
-7. [Next] Add the startup restore gate and Guests restore contributor.
-8. Update Reservations eligibility from the versioned Guests event and rebuild
-   export through contracts only.
-9. Advance executable personal-data catalogues and generated OpenAPI contracts.
-10. Prove PostgreSQL migrations, concurrency, Docker task recovery, pre-ready
-    restore replay, architecture boundaries and exact-commit GitHub gates.
+7. [Complete] Add the startup restore gate and Guests restore contributor.
+8. [Complete] Update Reservations eligibility from the versioned Guests event
+   and rebuild export through contracts only.
+9. [Complete] Advance executable personal-data catalogues. No public API
+   contract changed, so this slice has no generated OpenAPI delta.
+10. [Current] Prove PostgreSQL migrations, concurrency, Docker task recovery,
+    pre-ready restore replay, architecture boundaries and exact-commit GitHub
+    gates. Local verification is complete; publication validation remains.
 
 Only one numbered step is implemented at a time. Later steps may refine code
 from completed steps, but a case remains incomplete until every required
@@ -554,6 +589,38 @@ durability and restore gate in the remaining steps is present.
   migration and worker scenarios. The worker scenario proves Guest
   anonymisation, external checkpoint durability, database ledger append and
   absence of the direct Guest id from protected files.
+
+### Completed Slice: Pre-Ready Restore Reconciliation
+
+- Every operational API, Admin API, Admin CLI and Worker host runs the
+  DataRights restore gate before becoming ready. The migrations host remains
+  deliberately ungated so operators can repair or upgrade the database.
+- The gate reads bounded recovery-scope snapshots, restores missing
+  in-database ledger entries, invokes the matching versioned owner contributor,
+  verifies owner proof and advances the tenant checkpoint only after the whole
+  page succeeds.
+- Scope-manifest changes use a provider-neutral stable error and bounded
+  snapshot retry. Unknown providers, contributors, contracts, owner state,
+  ledger proof or exhausted retries keep readiness false.
+- Guests re-scrubs restored active or archived profiles, reconstructs a
+  PII-free terminal profile when the historical row is absent, attaches the
+  authoritative tombstone and writes an immutable restore receipt in one
+  transaction.
+- Reservations consumes the PII-free Guest anonymisation event into its local
+  eligibility projection, denying new Guest links without reading Guests or
+  DataRights persistence.
+- The executable DataRights personal-data catalogue is version 9 and covers
+  restore requests, proof, results and checkpoints. The Guests catalogue is
+  version 8 and covers the internal restore command and immutable restore
+  receipt.
+- `eng/verify.ps1 -SkipRestore` passes synchronized solutions, package and
+  architecture guards, a zero-warning build, every migration-drift check and
+  all non-Docker suites.
+- `eng/test-docker.ps1 -NoBuild` passes all 42 PostgreSQL/NATS scenarios. The
+  expanded restore drill anonymises a Guest through the real worker, restores
+  a fresh pre-anonymisation database, then proves the protected delta
+  re-scrubs the Guest and persists ledger, tombstone, receipt and checkpoint
+  proof before the replacement worker becomes ready.
 
 ## Acceptance Evidence
 

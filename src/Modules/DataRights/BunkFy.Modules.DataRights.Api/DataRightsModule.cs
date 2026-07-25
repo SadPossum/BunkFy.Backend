@@ -36,6 +36,7 @@ public sealed class DataRightsModule : IModule
         builder.Services.AddOptions<DataRightsApiSecurityOptions>();
         builder.Services.AddDataRightsApplication();
         builder.AddDataRightsPersistence();
+        builder.AddDataRightsRestoreReadinessGate();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

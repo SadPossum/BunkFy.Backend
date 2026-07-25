@@ -42,7 +42,13 @@ public sealed class ReservationsProfileTests
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
         Assert.Equal(15, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
-        Assert.Equal(22, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(23, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    GuestProfileAnonymisedIntegrationEvent.EventType &&
+                subscription.ProducerModule == GuestsModuleMetadata.Name);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>

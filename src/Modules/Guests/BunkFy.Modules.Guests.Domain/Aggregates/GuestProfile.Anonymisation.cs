@@ -9,6 +9,47 @@ public sealed partial class GuestProfile
 {
     public const string AnonymisedDisplayName = "Anonymised guest";
 
+    public static Result<GuestProfile> RestoreMissingAnonymised(
+        Guid id,
+        string tenantId,
+        Guid originPropertyId,
+        string actorId,
+        Guid eventId,
+        DateTimeOffset originallyCompletedAtUtc,
+        DateTimeOffset replayedAtUtc)
+    {
+        Result<GuestProfile> created = Create(
+            id,
+            tenantId,
+            originPropertyId,
+            AnonymisedDisplayName,
+            legalName: null,
+            email: null,
+            phone: null,
+            dateOfBirth: null,
+            nationalityCountryCode: null,
+            preferredLanguageTag: null,
+            notes: null,
+            actorId,
+            eventId,
+            originallyCompletedAtUtc.ToUniversalTime());
+        if (created.IsFailure)
+        {
+            return created;
+        }
+
+        created.Value.ClearDomainEvents();
+        Result<GuestProfileAnonymisationOutcome> anonymised =
+            created.Value.RestoreAnonymisation(
+                actorId,
+                eventId,
+                originallyCompletedAtUtc,
+                replayedAtUtc);
+        return anonymised.IsFailure
+            ? Result.Failure<GuestProfile>(anonymised.Error)
+            : Result.Success(created.Value);
+    }
+
     public Result<GuestProfileAnonymisationOutcome> Anonymise(
         long expectedVersion,
         string actorId,
@@ -51,6 +92,73 @@ public sealed partial class GuestProfile
                 GuestsDomainErrors.AnonymisationTimestampInvalid);
         }
 
+        return this.ApplyAnonymisedState(
+            actor.Value,
+            eventId,
+            nowUtc,
+            nowUtc);
+    }
+
+    public Result<GuestProfileAnonymisationOutcome> RestoreAnonymisation(
+        string actorId,
+        Guid eventId,
+        DateTimeOffset originallyCompletedAtUtc,
+        DateTimeOffset replayedAtUtc)
+    {
+        if (this.Status is not (
+                GuestProfileState.Active or
+                GuestProfileState.Archived))
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.AnonymisationRestoreTransitionInvalid);
+        }
+
+        Result<string> actor = NormalizeActor(actorId);
+        if (actor.IsFailure)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                actor.Error);
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.EventIdRequired);
+        }
+
+        DateTimeOffset completedAtUtc =
+            originallyCompletedAtUtc.ToUniversalTime();
+        DateTimeOffset occurredAtUtc = replayedAtUtc.ToUniversalTime();
+        if (completedAtUtc == default ||
+            occurredAtUtc == default ||
+            occurredAtUtc < completedAtUtc)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.AnonymisationTimestampInvalid);
+        }
+
+        return this.ApplyAnonymisedState(
+            actor.Value,
+            eventId,
+            completedAtUtc,
+            occurredAtUtc);
+    }
+
+    public bool MatchesAnonymisedState(DateTimeOffset completedAtUtc) =>
+        this.Status == GuestProfileState.Anonymised &&
+        this.AnonymisedAtUtc == completedAtUtc.ToUniversalTime() &&
+        this.HasScrubbedPersonalData();
+
+    public bool MatchesAnonymisedState(long version, DateTimeOffset completedAtUtc) =>
+        this.Version == version &&
+        this.MatchesAnonymisedState(completedAtUtc);
+
+    private Result<GuestProfileAnonymisationOutcome> ApplyAnonymisedState(
+        string actorId,
+        Guid eventId,
+        DateTimeOffset completedAtUtc,
+        DateTimeOffset occurredAtUtc)
+    {
         long previousVersion = this.Version;
         this.DisplayName = AnonymisedDisplayName;
         this.DisplayNameSearch = NormalizeRequiredSearch(AnonymisedDisplayName);
@@ -65,13 +173,14 @@ public sealed partial class GuestProfile
         this.PreferredLanguageTag = null;
         this.Notes = null;
         this.Status = GuestProfileState.Anonymised;
-        this.AnonymisedAtUtc = nowUtc;
-        this.LastChangedBy = actor.Value;
-        this.LastChangedAtUtc = nowUtc;
+        this.ArchivedAtUtc = null;
+        this.AnonymisedAtUtc = completedAtUtc;
+        this.LastChangedBy = actorId;
+        this.LastChangedAtUtc = occurredAtUtc;
         this.Version++;
         this.RaiseDomainEvent(new GuestProfileAnonymisedDomainEvent(
             eventId,
-            nowUtc,
+            occurredAtUtc,
             this.ScopeId,
             this.Id,
             this.Version));
@@ -79,13 +188,10 @@ public sealed partial class GuestProfile
             previousVersion,
             this.Version,
             eventId,
-            nowUtc));
+            occurredAtUtc));
     }
 
-    public bool MatchesAnonymisedState(long version, DateTimeOffset completedAtUtc) =>
-        this.Status == GuestProfileState.Anonymised &&
-        this.Version == version &&
-        this.AnonymisedAtUtc == completedAtUtc &&
+    private bool HasScrubbedPersonalData() =>
         string.Equals(this.DisplayName, AnonymisedDisplayName, StringComparison.Ordinal) &&
         string.Equals(
             this.DisplayNameSearch,

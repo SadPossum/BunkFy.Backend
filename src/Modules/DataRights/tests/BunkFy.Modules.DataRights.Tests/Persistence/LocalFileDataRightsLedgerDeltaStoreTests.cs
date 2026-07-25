@@ -192,6 +192,71 @@ public sealed class LocalFileDataRightsLedgerDeltaStoreTests
     }
 
     [Fact]
+    public async Task Restore_scope_snapshot_is_bounded_and_detects_later_appends()
+    {
+        await using TestDirectory directory = new();
+        StoreFixture fixture = CreateFixture(directory.Path);
+        Guid firstRecordId = Guid.NewGuid();
+        DataRightsProcessingLedgerEntry firstLedger =
+            ProtectedLedgerTestData.CreateLedger(
+                fixture.Pseudonymizer,
+                "tenant-a",
+                sequence: 1,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+                firstRecordId);
+        _ = await fixture.Store.AppendAsync(
+            ProtectedLedgerTestData.CreateDelta(
+                fixture.Protector,
+                firstLedger,
+                firstRecordId),
+            CancellationToken.None);
+        DataRightsRestoreScopeSnapshot snapshot =
+            await fixture.Store.OpenSnapshotAsync(CancellationToken.None);
+        DataRightsRestoreScopePage page = await fixture.Store.ReadScopesAsync(
+            snapshot,
+            afterScopeId: null,
+            pageSize: 1,
+            CancellationToken.None);
+
+        DataRightsRestoreScope scope = Assert.Single(page.Scopes);
+        Assert.Equal("tenant-a", scope.ScopeId);
+        Assert.Equal(1, scope.TrustedCheckpoint.Cursor.TenantSequence);
+        Assert.False(page.HasMore);
+        Assert.True(await fixture.Store.IsCurrentAsync(
+            snapshot,
+            CancellationToken.None));
+
+        Guid secondRecordId = Guid.NewGuid();
+        DataRightsProcessingLedgerEntry secondLedger =
+            ProtectedLedgerTestData.CreateLedger(
+                fixture.Pseudonymizer,
+                "tenant-b",
+                sequence: 1,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+                secondRecordId);
+        _ = await fixture.Store.AppendAsync(
+            ProtectedLedgerTestData.CreateDelta(
+                fixture.Protector,
+                secondLedger,
+                secondRecordId),
+            CancellationToken.None);
+
+        Assert.False(await fixture.Store.IsCurrentAsync(
+            snapshot,
+            CancellationToken.None));
+        DataRightsRestoreScopeSourceException changed =
+            await Assert.ThrowsAsync<DataRightsRestoreScopeSourceException>(
+                () => fixture.Store.ReadScopesAsync(
+                    snapshot,
+                    afterScopeId: null,
+                    pageSize: 1,
+                    CancellationToken.None));
+        Assert.Equal(
+            DataRightsRestoreScopeSourceException.SnapshotChangedCode,
+            changed.Code);
+    }
+
+    [Fact]
     public async Task Startup_gate_requires_an_external_production_grade_store()
     {
         DataRightsLedgerDeltaOptions options = new()
@@ -220,6 +285,62 @@ public sealed class LocalFileDataRightsLedgerDeltaStoreTests
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => weak.StartAsync(
                 CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Restore_startup_gate_marks_an_empty_stable_snapshot_ready()
+    {
+        ServiceCollection services = new();
+        await using ServiceProvider provider =
+            services.BuildServiceProvider();
+        DateTimeOffset now =
+            ProtectedLedgerTestData.Now.AddHours(1);
+        DataRightsRestoreReadinessState state = new();
+        DataRightsRestoreStartupGate gate = new(
+            new EmptyRestoreScopeSource(),
+            new ReadinessStore(isProductionGrade: true),
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            state,
+            new TestHostEnvironment(
+                Path.GetTempPath(),
+                Environments.Production),
+            new FixedTimeProvider(now));
+
+        await gate.StartAsync(CancellationToken.None);
+
+        Assert.True(state.Snapshot.IsReady);
+        Assert.Equal(
+            "data-rights.restore.ready",
+            state.Snapshot.StatusCode);
+        Assert.Equal(now, state.Snapshot.LastVerifiedAtUtc);
+        Assert.Equal(new string('a', 64), state.Snapshot.SnapshotSha256);
+    }
+
+    [Fact]
+    public async Task Restore_startup_gate_retries_a_changed_scope_snapshot()
+    {
+        ServiceCollection services = new();
+        await using ServiceProvider provider =
+            services.BuildServiceProvider();
+        DataRightsRestoreReadinessState state = new();
+        ChangingRestoreScopeSource source = new();
+        DataRightsRestoreStartupGate gate = new(
+            source,
+            new ReadinessStore(isProductionGrade: true),
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            state,
+            new TestHostEnvironment(
+                Path.GetTempPath(),
+                Environments.Production),
+            new FixedTimeProvider(ProtectedLedgerTestData.Now));
+
+        await gate.StartAsync(CancellationToken.None);
+
+        Assert.Equal(2, source.OpenCount);
+        Assert.True(state.Snapshot.IsReady);
+        Assert.Equal(
+            "data-rights.restore.ready",
+            state.Snapshot.StatusCode);
     }
 
     [Fact]
@@ -320,6 +441,95 @@ public sealed class LocalFileDataRightsLedgerDeltaStoreTests
             int pageSize,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class EmptyRestoreScopeSource
+        : IDataRightsRestoreScopeSource
+    {
+        private static readonly DataRightsRestoreScopeSnapshot Snapshot =
+            new(
+                DataRightsRestoreScopeSnapshot.CurrentContractVersion,
+                new string('a', 64),
+                ProtectedLedgerTestData.Now);
+
+        public Task<DataRightsRestoreScopeSourceReadiness>
+            CheckReadinessAsync(
+                CancellationToken cancellationToken) =>
+            Task.FromResult(new DataRightsRestoreScopeSourceReadiness(
+                "external-test",
+                IsReady: true,
+                IsProductionGrade: true,
+                FailureCode: null));
+
+        public Task<DataRightsRestoreScopeSnapshot> OpenSnapshotAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Snapshot);
+
+        public Task<DataRightsRestoreScopePage> ReadScopesAsync(
+            DataRightsRestoreScopeSnapshot snapshot,
+            string? afterScopeId,
+            int pageSize,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new DataRightsRestoreScopePage(
+                DataRightsRestoreScopePage.CurrentContractVersion,
+                Scopes: [],
+                NextScopeId: null,
+                HasMore: false));
+
+        public Task<bool> IsCurrentAsync(
+            DataRightsRestoreScopeSnapshot snapshot,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(snapshot == Snapshot);
+    }
+
+    private sealed class ChangingRestoreScopeSource
+        : IDataRightsRestoreScopeSource
+    {
+        private static readonly DataRightsRestoreScopeSnapshot Snapshot =
+            new(
+                DataRightsRestoreScopeSnapshot.CurrentContractVersion,
+                new string('a', 64),
+                ProtectedLedgerTestData.Now);
+
+        public int OpenCount { get; private set; }
+
+        public Task<DataRightsRestoreScopeSourceReadiness>
+            CheckReadinessAsync(
+                CancellationToken cancellationToken) =>
+            Task.FromResult(new DataRightsRestoreScopeSourceReadiness(
+                "external-test",
+                IsReady: true,
+                IsProductionGrade: true,
+                FailureCode: null));
+
+        public Task<DataRightsRestoreScopeSnapshot> OpenSnapshotAsync(
+            CancellationToken cancellationToken)
+        {
+            this.OpenCount++;
+            return Task.FromResult(Snapshot);
+        }
+
+        public Task<DataRightsRestoreScopePage> ReadScopesAsync(
+            DataRightsRestoreScopeSnapshot snapshot,
+            string? afterScopeId,
+            int pageSize,
+            CancellationToken cancellationToken) =>
+            this.OpenCount == 1
+                ? Task.FromException<DataRightsRestoreScopePage>(
+                    new DataRightsRestoreScopeSourceException(
+                        DataRightsRestoreScopeSourceException
+                            .SnapshotChangedCode,
+                        "The restore scope changed."))
+                : Task.FromResult(new DataRightsRestoreScopePage(
+                    DataRightsRestoreScopePage.CurrentContractVersion,
+                    Scopes: [],
+                    NextScopeId: null,
+                    HasMore: false));
+
+        public Task<bool> IsCurrentAsync(
+            DataRightsRestoreScopeSnapshot snapshot,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(this.OpenCount > 1);
     }
 
     private sealed class TestDirectory : IAsyncDisposable

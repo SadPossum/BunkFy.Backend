@@ -48,6 +48,24 @@ internal sealed class GuestProfileArchivedProjectionHandler(IReservationGuestPro
             cancellationToken);
 }
 
+[IntegrationEventHandler(ReservationsModuleMetadata.GuestAnonymisedHandlerName)]
+internal sealed class GuestProfileAnonymisedProjectionHandler(
+    IReservationGuestProfileProjectionRepository profiles)
+    : IIntegrationEventHandler<GuestProfileAnonymisedIntegrationEvent>
+{
+    public Task HandleAsync(
+        GuestProfileAnonymisedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        profiles.ApplyAsync(
+            new(
+                integrationEvent.ScopeId,
+                integrationEvent.GuestId,
+                OriginPropertyId: null,
+                GuestStatus.Archived,
+                integrationEvent.GuestVersion),
+            cancellationToken);
+}
+
 [IntegrationEventHandler(ReservationsModuleMetadata.GuestRestrictionChangedHandlerName)]
 internal sealed class GuestProcessingRestrictionChangedProjectionHandler(
     IReservationGuestProfileProjectionRepository profiles)

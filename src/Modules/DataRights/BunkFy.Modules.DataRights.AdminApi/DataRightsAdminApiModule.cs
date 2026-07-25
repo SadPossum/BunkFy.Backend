@@ -18,6 +18,7 @@ public sealed class DataRightsAdminApiModule : IAdminApiModule
     {
         builder.Services.AddDataRightsApplication();
         builder.AddDataRightsPersistence();
+        builder.AddDataRightsRestoreReadinessGate();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

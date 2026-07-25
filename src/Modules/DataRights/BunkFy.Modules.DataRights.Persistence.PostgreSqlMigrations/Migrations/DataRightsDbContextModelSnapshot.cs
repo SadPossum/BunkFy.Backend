@@ -496,6 +496,68 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Entities.DataRightsRestoreCheckpoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CheckpointMacSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("EntrySha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("IntegrityKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("LastReconciledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ScopeSnapshotSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("StorageMacSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("TenantSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId")
+                        .IsUnique();
+
+                    b.ToTable("restore_checkpoints", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_data_rights_restore_checkpoint_confirmation", "\"IntegrityKeyVersion\" >= 0 AND \"LastReconciledAtUtc\" <> '-infinity'");
+
+                            t.HasCheckConstraint("CK_data_rights_restore_checkpoint_digests", "char_length(\"EntrySha256\") = 64 AND char_length(\"StorageMacSha256\") = 64 AND char_length(\"CheckpointMacSha256\") = 64 AND char_length(\"ScopeSnapshotSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_data_rights_restore_checkpoint_sequence", "\"TenantSequence\" >= 0 AND \"Version\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.DataRights.Persistence.DataRightsProjectionRebuildCheckpoint", b =>
                 {
                     b.Property<string>("ScopeId")

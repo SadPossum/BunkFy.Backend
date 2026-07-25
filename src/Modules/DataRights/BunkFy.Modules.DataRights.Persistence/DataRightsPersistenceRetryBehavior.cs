@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Persistence;
 
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Ports;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Results;
@@ -35,7 +36,9 @@ internal sealed class DataRightsPersistenceRetryBehavior<TCommand, TResponse>
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(next);
 
-        if (command is not StartDataRightsAnonymisationExecutionCommand)
+        if (command is not (
+                StartDataRightsAnonymisationExecutionCommand or
+                IDataRightsPersistenceRetryableCommand))
         {
             return await next().ConfigureAwait(false);
         }

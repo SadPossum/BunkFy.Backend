@@ -48,7 +48,15 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
             .WithDatabase("bunkfy_data_rights_anonymisation_execution_tests")
             .Build();
-        await Task.WhenAll(nats.StartAsync(), postgreSql.StartAsync()).ConfigureAwait(false);
+        await using PostgreSqlContainer restoredPostgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_data_rights_restore_gate_tests")
+                .Build();
+        await Task.WhenAll(
+                nats.StartAsync(),
+                postgreSql.StartAsync(),
+                restoredPostgreSql.StartAsync())
+            .ConfigureAwait(false);
 
         string connectionString = postgreSql.GetConnectionString();
         string natsConnectionString = AuthTestContainers.GetNatsConnectionString(nats);
@@ -77,7 +85,9 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         await WaitForDataRightsOutboxAsync(api, TimeSpan.FromSeconds(20)).ConfigureAwait(false);
         await AssertNoTaskRunAsync(worker, dataRightsCase.Id).ConfigureAwait(false);
 
+        bool workerStarted = false;
         await worker.StartAsync().ConfigureAwait(false);
+        workerStarted = true;
         try
         {
             TaskRun taskRun = await WaitForTaskRunAsync(
@@ -168,10 +178,92 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
                 protectedFiles,
                 StringComparison.OrdinalIgnoreCase);
             Assert.Equal(DataRightsCaseState.Executing, persistedCase.Status);
+
+            await worker.StopAsync().ConfigureAwait(false);
+            workerStarted = false;
+
+            using IHost restoredWorker = CreateWorker(
+                restoredPostgreSql.GetConnectionString(),
+                natsConnectionString,
+                ledgerDeltaPath);
+            await MigrateRestoreDatabasesAsync(restoredWorker)
+                .ConfigureAwait(false);
+            await SeedPreAnonymisationSnapshotAsync(restoredWorker, guest.Id)
+                .ConfigureAwait(false);
+
+            await restoredWorker.StartAsync().ConfigureAwait(false);
+            try
+            {
+                using IServiceScope restoredScope =
+                    restoredWorker.Services.CreateScope();
+                restoredScope.ServiceProvider
+                    .GetRequiredService<ITenantContextAccessor>()
+                    .SetTenant(TenantId);
+                GuestsDbContext restoredGuests = restoredScope.ServiceProvider
+                    .GetRequiredService<GuestsDbContext>();
+                DataRightsDbContext restoredDataRights =
+                    restoredScope.ServiceProvider
+                        .GetRequiredService<DataRightsDbContext>();
+
+                GuestProfile restoredProfile =
+                    await restoredGuests.GuestProfiles
+                        .AsNoTracking()
+                        .SingleAsync(item => item.Id == guest.Id)
+                        .ConfigureAwait(false);
+                GuestAnonymisationRestoreReceipt restoreReceipt =
+                    await restoredGuests.AnonymisationRestoreReceipts
+                        .AsNoTracking()
+                        .SingleAsync()
+                        .ConfigureAwait(false);
+                GuestAnonymisationTombstone restoredTombstone =
+                    await restoredGuests.AnonymisationTombstones
+                        .AsNoTracking()
+                        .SingleAsync(item => item.Id == guest.Id)
+                        .ConfigureAwait(false);
+                DataRightsRestoreCheckpoint restoreCheckpoint =
+                    await restoredDataRights.RestoreCheckpoints
+                        .AsNoTracking()
+                        .SingleAsync()
+                        .ConfigureAwait(false);
+                DataRightsRestoreReadinessSnapshot readiness =
+                    restoredScope.ServiceProvider
+                        .GetRequiredService<IDataRightsRestoreReadiness>()
+                        .Snapshot;
+
+                Assert.True(
+                    restoredProfile.MatchesAnonymisedState(
+                        receipt.CompletedAtUtc));
+                Assert.Equal(ledger.Id, restoreReceipt.LedgerEntryId);
+                Assert.Equal(receipt.Id, restoreReceipt.OwnerReceiptId);
+                Assert.Equal(
+                    receipt.CanonicalSha256,
+                    restoreReceipt.OwnerReceiptSha256);
+                Assert.True(restoredTombstone.MatchesRestore(
+                    guest.Id,
+                    ledger.Id,
+                    receipt.CompletedAtUtc,
+                    receipt.CanonicalSha256));
+                Assert.Equal(1, restoreCheckpoint.TenantSequence);
+                Assert.Equal(
+                    ledger.EntrySha256,
+                    restoreCheckpoint.EntrySha256);
+                Assert.True(readiness.IsReady);
+                Assert.Equal(
+                    "data-rights.restore.ready",
+                    readiness.StatusCode);
+            }
+            finally
+            {
+                await restoredWorker.StopAsync().ConfigureAwait(false);
+            }
         }
         finally
         {
-            await worker.StopAsync().ConfigureAwait(false);
+            if (workerStarted)
+            {
+                await worker.StopAsync().ConfigureAwait(false);
+            }
+
             if (Directory.Exists(ledgerDeltaPath))
             {
                 Directory.Delete(ledgerDeltaPath, recursive: true);
@@ -245,6 +337,48 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         await scope.ServiceProvider.GetRequiredService<TaskRuntimeDbContext>()
             .Database.MigrateAsync()
             .ConfigureAwait(false);
+    }
+
+    private static async Task MigrateRestoreDatabasesAsync(IHost worker)
+    {
+        using IServiceScope scope = worker.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<DataRightsDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<TaskRuntimeDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+    }
+
+    private static async Task SeedPreAnonymisationSnapshotAsync(
+        IHost worker,
+        Guid guestId)
+    {
+        using IServiceScope scope = worker.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        GuestsDbContext guests =
+            scope.ServiceProvider.GetRequiredService<GuestsDbContext>();
+        GuestProfile profile = GuestProfile.Create(
+            guestId,
+            TenantId,
+            PropertyId,
+            "Restored Guest",
+            "Restored Legal Name",
+            "restored-guest@example.test",
+            "+44 20 7946 0958",
+            new DateOnly(1990, 1, 1),
+            "GB",
+            "en-GB",
+            "This data must be scrubbed before readiness",
+            "user:restore-test",
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow.AddHours(-1)).Value;
+        guests.GuestProfiles.Add(profile);
+        await guests.SaveChangesAsync().ConfigureAwait(false);
     }
 
     private static async Task<(GuestProfile Guest, DataRightsCase Case)>

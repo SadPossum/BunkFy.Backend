@@ -40,4 +40,11 @@ internal sealed class DataRightsProcessingLedgerRepository(DataRightsDbContext d
         dbContext.ProcessingLedgerEntries
             .OrderByDescending(entry => entry.TenantSequence)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<DataRightsProcessingLedgerEntry?> GetBySequenceAsync(
+        long tenantSequence,
+        CancellationToken cancellationToken) =>
+        dbContext.ProcessingLedgerEntries.SingleOrDefaultAsync(
+            entry => entry.TenantSequence == tenantSequence,
+            cancellationToken);
 }

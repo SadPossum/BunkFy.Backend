@@ -323,6 +323,54 @@ public sealed class GuestProfileTests
                 Now.AddMinutes(1)).Error.Code);
     }
 
+    [Fact]
+    public void Restore_anonymisation_re_scrubs_archived_and_missing_profiles()
+    {
+        GuestProfile archived = Create(
+            "Archived guest",
+            "archived@example.test",
+            "+1 555 0199");
+        Assert.True(archived.Archive(
+            archived.Version,
+            "user:operator",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        archived.ClearDomainEvents();
+        DateTimeOffset originallyCompletedAtUtc = Now.AddMinutes(2);
+        DateTimeOffset replayedAtUtc = Now.AddHours(1);
+
+        Assert.True(archived.RestoreAnonymisation(
+            "data-rights-restore",
+            Guid.NewGuid(),
+            originallyCompletedAtUtc,
+            replayedAtUtc).IsSuccess);
+        Assert.True(archived.MatchesAnonymisedState(
+            originallyCompletedAtUtc));
+        Assert.Null(archived.ArchivedAtUtc);
+        Assert.Equal(replayedAtUtc, archived.LastChangedAtUtc);
+
+        Guid missingGuestId = Guid.NewGuid();
+        Guid originPropertyId = Guid.NewGuid();
+        GuestProfile restored = GuestProfile.RestoreMissingAnonymised(
+            missingGuestId,
+            "tenant-a",
+            originPropertyId,
+            "data-rights-restore",
+            Guid.NewGuid(),
+            originallyCompletedAtUtc,
+            replayedAtUtc).Value;
+
+        Assert.Equal(missingGuestId, restored.Id);
+        Assert.Equal(originPropertyId, restored.OriginPropertyId);
+        Assert.Equal(2, restored.Version);
+        Assert.True(restored.MatchesAnonymisedState(
+            originallyCompletedAtUtc));
+        GuestProfileAnonymisedDomainEvent domainEvent =
+            Assert.IsType<GuestProfileAnonymisedDomainEvent>(
+                Assert.Single(restored.DomainEvents));
+        Assert.Equal(replayedAtUtc, domainEvent.OccurredAtUtc);
+    }
+
     private static GuestProfile Create(string displayName, string? email, string? phone) => GuestProfile.Create(
         Guid.NewGuid(),
         "tenant-a",

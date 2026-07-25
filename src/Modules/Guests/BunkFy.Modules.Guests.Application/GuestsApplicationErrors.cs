@@ -88,6 +88,12 @@ public static class GuestsApplicationErrors
     public static readonly Error AnonymisationProofUnavailable = new(
         "Guests.AnonymisationProofUnavailable",
         "The committed Guest anonymisation proof is unavailable or inconsistent.");
+    public static readonly Error AnonymisationRestoreRequestInvalid = new(
+        "Guests.AnonymisationRestoreRequestInvalid",
+        "The Guest anonymisation restore request is invalid.");
+    public static readonly Error AnonymisationRestoreProofConflict = new(
+        "Guests.AnonymisationRestoreProofConflict",
+        "The Guest anonymisation restore proof is unavailable or inconsistent.");
     public static Error AnonymisationBlocked(GuestAnonymisationBlockerCode blocker) => new(
         $"Guests.AnonymisationBlocked.{blocker}",
         "The Guest anonymisation is blocked by current owner state or policy.");

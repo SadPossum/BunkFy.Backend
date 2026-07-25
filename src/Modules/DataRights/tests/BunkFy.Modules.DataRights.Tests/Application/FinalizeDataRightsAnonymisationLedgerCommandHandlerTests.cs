@@ -309,6 +309,14 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
         public Task<DataRightsProcessingLedgerEntry?> GetLatestAsync(
             CancellationToken cancellationToken) =>
             Task.FromResult(this.Entry);
+
+        public Task<DataRightsProcessingLedgerEntry?> GetBySequenceAsync(
+            long tenantSequence,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                this.Entry?.TenantSequence == tenantSequence
+                    ? this.Entry
+                    : null);
     }
 
     private sealed class StubPseudonymizer

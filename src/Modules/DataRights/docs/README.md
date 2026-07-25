@@ -32,6 +32,16 @@ deterministically generated
 - an idempotent execution transition freezes the exact approval, operation,
   selected owner coordinate, record version, policy digest and executor into a
   PII-minimal work item before any owner module can be invoked;
+- durable, retry-safe worker dispatch invokes a versioned owner contributor,
+  records the immutable owner proof and resumes safely after process failure;
+- an append-only, HMAC-pseudonymised processing ledger plus an externally
+  protected encrypted replay delta preserve deletion proof outside the
+  application database;
+- bounded restore reconciliation recreates missing ledger entries, invokes
+  owner tombstone replay and advances a tenant checkpoint only after exact
+  owner proof succeeds;
+- API, Admin API, Admin CLI and Worker startup remain blocked until the
+  protected recovery-scope snapshot is stable and fully reconciled;
 - a PII-free, fail-closed owner-module approval gate that matches the exact
   tenant, property, operation, approved revision and selected record version;
 - restriction approvals bind an explicit apply or release directive, so one
@@ -59,8 +69,8 @@ The case does not contain guest names, contacts, documents, search criteria,
 provider payloads or free text. It stores only the selected owner's opaque
 record coordinate and selection audit attribution. Guest data remains owned by
 its source module. The export contract prepares owner fragments only; DataRights
-does not persist fragments or expose download artifacts. An anonymisation case
-can now enter `Executing` and produce one immutable `Prepared` work item, but no
-task is dispatched and no owner mutation occurs. Owner eligibility, receipts,
-ledger/restore protection and completion remain later slices and stay fail
-closed until implemented.
+does not persist fragments or expose download artifacts. Guest anonymisation
+now reaches immutable owner and processing-ledger proof, with protected
+pre-readiness replay after database restore. Existing reservation facts remain
+owned by Reservations; only its local Guest-link eligibility projection is
+updated from the PII-free Guests event.

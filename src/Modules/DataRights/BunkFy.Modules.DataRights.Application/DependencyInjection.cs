@@ -32,6 +32,9 @@ public static class DependencyInjection
         services.TryAddScoped<
             IDataRightsAnonymisationApprovalPolicy,
             DataRightsAnonymisationApprovalPolicy>();
+        services.TryAddScoped<
+            IDataRightsRestoreCoordinator,
+            DataRightsRestoreCoordinator>();
         services.AddIntegrationEventHandler<
             PropertyCreatedIntegrationEvent,
             DataRightsPropertyCreatedHandler>(

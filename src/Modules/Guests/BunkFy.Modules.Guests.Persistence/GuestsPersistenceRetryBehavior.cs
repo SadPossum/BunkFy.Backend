@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Persistence;
 
 using BunkFy.Modules.Guests.Application.Commands;
+using BunkFy.Modules.Guests.Application.Ports;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Microsoft.Data.SqlClient;
@@ -42,7 +43,8 @@ internal sealed class GuestsPersistenceRetryBehavior<TCommand, TResponse>
             ApplyGuestProcessingRestrictionCommand or
             ReleaseGuestProcessingRestrictionCommand or
             PlaceGuestDataHoldCommand or
-            ReleaseGuestDataHoldCommand))
+            ReleaseGuestDataHoldCommand or
+            IGuestsPersistenceRetryableCommand))
         {
             return await next().ConfigureAwait(false);
         }

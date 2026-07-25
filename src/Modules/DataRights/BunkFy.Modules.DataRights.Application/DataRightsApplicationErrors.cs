@@ -50,6 +50,18 @@ public static class DataRightsApplicationErrors
     public static readonly Error ProcessingLedgerDurabilityInvalid = new(
         "DataRights.ProcessingLedgerDurabilityInvalid",
         "The external processing-ledger durability proof is invalid.");
+    public static readonly Error RestoreEvidenceInvalid = new(
+        "DataRights.RestoreEvidenceInvalid",
+        "The data-rights restore evidence is invalid.");
+    public static readonly Error RestoreOwnerUnavailable = new(
+        "DataRights.RestoreOwnerUnavailable",
+        "A required data-rights restore owner is unavailable.");
+    public static readonly Error RestoreOwnerProofInvalid = new(
+        "DataRights.RestoreOwnerProofInvalid",
+        "A data-rights restore owner returned invalid proof.");
+    public static readonly Error RestoreStorageConflict = new(
+        "DataRights.RestoreStorageConflict",
+        "The external and database data-rights restore state conflict.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;
@@ -69,4 +81,8 @@ public static class DataRightsApplicationErrors
         DataRightsDomainErrors.DecisionActorCannotExecute;
     public static Error ExecutionCoordinateInvalid =>
         DataRightsDomainErrors.ExecutionCoordinateInvalid;
+    public static Error RestoreCheckpointInvalid =>
+        DataRightsDomainErrors.RestoreCheckpointInvalid;
+    public static Error RestoreCheckpointConflict =>
+        DataRightsDomainErrors.RestoreCheckpointConflict;
 }

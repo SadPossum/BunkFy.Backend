@@ -79,6 +79,11 @@ public static class DependencyInjection
             ReservationsModuleMetadata.Name,
             GuestsModuleMetadata.Name);
         services.AddIntegrationEventHandler<
+            GuestProfileAnonymisedIntegrationEvent,
+            GuestProfileAnonymisedProjectionHandler>(
+                ReservationsModuleMetadata.Name,
+                GuestsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
             GuestProcessingRestrictionChangedIntegrationEvent,
             GuestProcessingRestrictionChangedProjectionHandler>(
                 ReservationsModuleMetadata.Name,

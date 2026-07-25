@@ -56,21 +56,6 @@ internal sealed class GuestAnonymisationTombstoneConfiguration
             .HasPrincipalKey<GuestProfile>(
                 profile => new { profile.ScopeId, profile.Id })
             .OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<GuestAnonymisationReceipt>()
-            .WithOne()
-            .HasForeignKey<GuestAnonymisationTombstone>(
-                tombstone => new
-                {
-                    tombstone.ScopeId,
-                    tombstone.OwnerReceiptSha256
-                })
-            .HasPrincipalKey<GuestAnonymisationReceipt>(
-                receipt => new
-                {
-                    receipt.ScopeId,
-                    receipt.CanonicalSha256
-                })
-            .OnDelete(DeleteBehavior.Restrict);
         builder.Ignore(tombstone => tombstone.DomainEvents);
     }
 }

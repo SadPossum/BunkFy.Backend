@@ -251,6 +251,7 @@ public static class WorkerHostBuilderExtensions
                 builder.Services.AddDataRightsTaskHandlers();
             }
             builder.AddDataRightsPersistence();
+            builder.AddDataRightsRestoreReadinessGate();
         }
 
         if (workerOptions.Modules.Staff)

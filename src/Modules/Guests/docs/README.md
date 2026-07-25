@@ -52,12 +52,15 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
   personal-data field in one owner transaction, persists an immutable
   canonical-digest receipt and monotonic tombstone, and emits one PII-free
   event;
+- a versioned restore contributor that accepts only verified DataRights ledger
+  proof, re-scrubs restored profiles or recreates a PII-free terminal profile,
+  and persists an immutable restore receipt plus attached tombstone proof;
 - database-level exclusion of anonymised Guests from ordinary detail, list,
   discovery and export surfaces, plus operation locks that serialize new
   holds and owner projection changes against destructive eligibility;
-- an internal-only owner execution command that revalidates the exact approved
-  operation and current eligibility, while cross-module contributor and task
-  dispatch remain deliberately deferred;
+- internal-only owner execution and restore commands exposed only through
+  versioned DataRights contributor contracts; no public Guest surface can
+  dispatch either command;
 - explicit stay-projection contract versions so unknown future projection
   semantics block destructive eligibility instead of being interpreted
   optimistically;

@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.DataRights.Persistence;
 
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -13,7 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 internal sealed class LocalFileDataRightsLedgerDeltaStore
-    : IDataRightsLedgerDeltaStore
+    : IDataRightsLedgerDeltaStore, IDataRightsRestoreScopeSource
 {
     internal const string ProviderName = "local-file";
     internal const string InvalidCode = "data-rights.ledger-delta.invalid";
@@ -32,6 +33,8 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
         "bunkfy.data-rights.local-ledger-delta.record.v1";
     private const string CheckpointMacDomain =
         "bunkfy.data-rights.local-ledger-delta.checkpoint.v1";
+    private const string RestoreScopeSnapshotDomain =
+        "bunkfy.data-rights.local-ledger-delta.restore-scopes.v1";
     private static readonly ConcurrentDictionary<string, SemaphoreSlim>
         TenantGates = new(StringComparer.Ordinal);
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -100,6 +103,101 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
                 IsProductionGrade: false,
                 UnavailableCode);
         }
+    }
+
+    async Task<DataRightsRestoreScopeSourceReadiness>
+        IDataRightsRestoreScopeSource.CheckReadinessAsync(
+            CancellationToken cancellationToken)
+    {
+        DataRightsLedgerDeltaStoreReadiness readiness =
+            await this.CheckReadinessAsync(cancellationToken)
+                .ConfigureAwait(false);
+        return new(
+            readiness.Provider,
+            readiness.IsReady,
+            readiness.IsProductionGrade,
+            readiness.FailureCode);
+    }
+
+    public async Task<DataRightsRestoreScopeSnapshot> OpenSnapshotAsync(
+        CancellationToken cancellationToken)
+    {
+        RestoreScopeManifest manifest =
+            await this.BuildRestoreScopeManifestAsync(cancellationToken)
+                .ConfigureAwait(false);
+        return new(
+            DataRightsRestoreScopeSnapshot.CurrentContractVersion,
+            manifest.SnapshotSha256,
+            this.timeProvider.GetUtcNow());
+    }
+
+    public async Task<DataRightsRestoreScopePage> ReadScopesAsync(
+        DataRightsRestoreScopeSnapshot snapshot,
+        string? afterScopeId,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (!HasValidRestoreScopeSnapshot(snapshot) ||
+            pageSize <= 0 ||
+            pageSize > this.options.MaximumPageSize)
+        {
+            throw Invalid(
+                "The restore-scope snapshot or page size is invalid.");
+        }
+
+        RestoreScopeManifest manifest =
+            await this.BuildRestoreScopeManifestAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (!FixedTimeHexEquals(
+                manifest.SnapshotSha256,
+                snapshot.SnapshotSha256))
+        {
+            throw new DataRightsRestoreScopeSourceException(
+                DataRightsRestoreScopeSourceException.SnapshotChangedCode,
+                "The restore-scope snapshot changed during reconciliation.");
+        }
+
+        int start = 0;
+        if (!string.IsNullOrWhiteSpace(afterScopeId))
+        {
+            string cursor = NormalizeScope(afterScopeId);
+            while (start < manifest.Scopes.Count &&
+                   string.CompareOrdinal(
+                       manifest.Scopes[start].ScopeId,
+                       cursor) <= 0)
+            {
+                start++;
+            }
+        }
+
+        DataRightsRestoreScope[] page = manifest.Scopes
+            .Skip(start)
+            .Take(pageSize)
+            .ToArray();
+        int nextIndex = start + page.Length;
+        bool hasMore = nextIndex < manifest.Scopes.Count;
+        return new(
+            DataRightsRestoreScopePage.CurrentContractVersion,
+            page,
+            hasMore ? page[^1].ScopeId : null,
+            hasMore);
+    }
+
+    public async Task<bool> IsCurrentAsync(
+        DataRightsRestoreScopeSnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
+        if (!HasValidRestoreScopeSnapshot(snapshot))
+        {
+            return false;
+        }
+
+        RestoreScopeManifest manifest =
+            await this.BuildRestoreScopeManifestAsync(cancellationToken)
+                .ConfigureAwait(false);
+        return FixedTimeHexEquals(
+            manifest.SnapshotSha256,
+            snapshot.SnapshotSha256);
     }
 
     public async Task<DataRightsLedgerDeltaAppendReceipt> AppendAsync(
@@ -343,6 +441,74 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
             gate.Release();
             throw;
         }
+    }
+
+    private async Task<RestoreScopeManifest> BuildRestoreScopeManifestAsync(
+        CancellationToken cancellationToken)
+    {
+        EnsureSecureDirectory(this.rootPath);
+        List<DataRightsRestoreScope> scopes = [];
+        HashSet<string> seenScopes = new(StringComparer.Ordinal);
+        foreach (string directoryPath in Directory.EnumerateDirectories(
+                     this.rootPath,
+                     "*",
+                     SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            RejectReparsePointIfPresent(
+                directoryPath,
+                "ledger delta tenant directory");
+            string directoryName = Path.GetFileName(directoryPath);
+            if (!IsSha256(directoryName))
+            {
+                throw Integrity(
+                    "A local ledger delta tenant directory is invalid.");
+            }
+
+            SortedSet<long> sequences =
+                EnumerateRecordSequences(directoryPath);
+            if (sequences.Count == 0)
+            {
+                continue;
+            }
+
+            if (sequences.Min != 1)
+            {
+                throw Integrity(
+                    "A local ledger delta tenant sequence is invalid.");
+            }
+
+            LocalLedgerDeltaRecord first = await ReadJsonAsync<
+                LocalLedgerDeltaRecord>(
+                    RecordPath(directoryPath, sequence: 1),
+                    MaximumRecordBytes,
+                    cancellationToken).ConfigureAwait(false);
+            string scopeId = NormalizeScope(first.Delta?.Ledger.ScopeId);
+            if (!string.Equals(
+                    ScopeDigest(scopeId),
+                    directoryName,
+                    StringComparison.Ordinal) ||
+                !seenScopes.Add(scopeId))
+            {
+                throw Integrity(
+                    "A local ledger delta tenant directory conflicts with its proof.");
+            }
+
+            DataRightsLedgerDeltaCheckpoint checkpoint =
+                await this.ReadTrustedCheckpointAsync(
+                    scopeId,
+                    cancellationToken).ConfigureAwait(false);
+            scopes.Add(new(
+                DataRightsRestoreScope.CurrentContractVersion,
+                scopeId,
+                checkpoint));
+        }
+
+        scopes.Sort(static (left, right) =>
+            string.CompareOrdinal(left.ScopeId, right.ScopeId));
+        return new(
+            scopes,
+            ComputeRestoreScopeSnapshotSha256(scopes));
     }
 
     private async Task<LocalLedgerCheckpointRecord>
@@ -829,6 +995,63 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
                 StringComparison.Ordinal));
     }
 
+    private static bool HasValidRestoreScopeSnapshot(
+        DataRightsRestoreScopeSnapshot? snapshot) =>
+        snapshot is not null &&
+        snapshot.ContractVersion ==
+            DataRightsRestoreScopeSnapshot.CurrentContractVersion &&
+        IsSha256(snapshot.SnapshotSha256) &&
+        snapshot.OpenedAtUtc != default &&
+        snapshot.OpenedAtUtc.Offset == TimeSpan.Zero;
+
+    private static string ComputeRestoreScopeSnapshotSha256(
+        List<DataRightsRestoreScope> scopes)
+    {
+        using IncrementalHash hash =
+            IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        AppendHash(hash, RestoreScopeSnapshotDomain);
+        AppendHash(
+            hash,
+            scopes.Count.ToString(CultureInfo.InvariantCulture));
+        foreach (DataRightsRestoreScope scope in scopes)
+        {
+            DataRightsLedgerDeltaCheckpoint checkpoint =
+                scope.TrustedCheckpoint;
+            AppendHash(hash, scope.ScopeId);
+            AppendHash(
+                hash,
+                checkpoint.Cursor.TenantSequence.ToString(
+                    CultureInfo.InvariantCulture));
+            AppendHash(hash, checkpoint.Cursor.EntrySha256);
+            AppendHash(hash, checkpoint.Cursor.StorageMacSha256);
+            AppendHash(
+                hash,
+                checkpoint.IntegrityKeyVersion.ToString(
+                    CultureInfo.InvariantCulture));
+            AppendHash(hash, checkpoint.CheckpointMacSha256);
+        }
+
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
+    }
+
+    private static void AppendHash(
+        IncrementalHash hash,
+        string value)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(value);
+        Span<byte> length = stackalloc byte[sizeof(int)];
+        try
+        {
+            BinaryPrimitives.WriteInt32BigEndian(length, bytes.Length);
+            hash.AppendData(length);
+            hash.AppendData(bytes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(bytes);
+        }
+    }
+
     private static string NormalizeScope(string? tenantId)
     {
         if (!TenantIds.TryNormalize(tenantId, out string? scopeId))
@@ -972,6 +1195,10 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
             gate.Release();
         }
     }
+
+    private sealed record RestoreScopeManifest(
+        IReadOnlyList<DataRightsRestoreScope> Scopes,
+        string SnapshotSha256);
 }
 
 internal sealed record LocalLedgerDeltaRecord(

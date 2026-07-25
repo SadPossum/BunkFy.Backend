@@ -41,6 +41,7 @@ public static class ReservationsModuleMetadata
     public const string GuestCreatedHandlerName = "guest-created";
     public const string GuestUpdatedHandlerName = "guest-updated";
     public const string GuestArchivedHandlerName = "guest-archived";
+    public const string GuestAnonymisedHandlerName = "guest-anonymised";
     public const string GuestRestrictionChangedHandlerName = "guest-processing-restriction-changed";
     public const string PropertyCreatedHandlerName = "property-created";
     public const string PropertyUpdatedHandlerName = "property-updated";
@@ -77,6 +78,9 @@ public static class ReservationsModuleMetadata
         .WithSubscription<GuestProfileCreatedIntegrationEvent>(GuestsModuleMetadata.Name, GuestCreatedHandlerName)
         .WithSubscription<GuestProfileUpdatedIntegrationEvent>(GuestsModuleMetadata.Name, GuestUpdatedHandlerName)
         .WithSubscription<GuestProfileArchivedIntegrationEvent>(GuestsModuleMetadata.Name, GuestArchivedHandlerName)
+        .WithSubscription<GuestProfileAnonymisedIntegrationEvent>(
+            GuestsModuleMetadata.Name,
+            GuestAnonymisedHandlerName)
         .WithSubscription<GuestProcessingRestrictionChangedIntegrationEvent>(
             GuestsModuleMetadata.Name,
             GuestRestrictionChangedHandlerName)

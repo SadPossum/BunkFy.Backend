@@ -12,6 +12,7 @@ using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
 using Xunit;
 using DomainSubjectCoordinate = DataRights.Domain.Entities.DataRightsSubjectCoordinate;
+using RestoreCheckpoint = DataRights.Domain.Entities.DataRightsRestoreCheckpoint;
 using ProcessingLedgerEntry =
     DataRights.Domain.Entities.DataRightsProcessingLedgerEntry;
 using ProcessingLedgerSnapshot =
@@ -242,6 +243,49 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsProtectedReplayEnvelope),
             nameof(DataRightsProtectedReplayEnvelope.CiphertextBase64),
             PersonalDataSurface.Persistence);
+    }
+
+    [Fact]
+    public void Restore_contracts_and_checkpoint_are_explicitly_classified()
+    {
+        AssertBinding(
+            typeof(DataRightsAnonymisationRestoreRequest),
+            nameof(DataRightsAnonymisationRestoreRequest.RecordId),
+            PersonalDataSurface.IntegrationCommand);
+
+        foreach (PropertyInfo property in typeof(DataRightsAnonymisationRestoreRequest)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(property => property.Name != nameof(DataRightsAnonymisationRestoreRequest.RecordId)))
+        {
+            AssertBinding(
+                typeof(DataRightsAnonymisationRestoreRequest),
+                property.Name,
+                PersonalDataSurface.IntegrationCommand);
+        }
+
+        foreach (PropertyInfo property in typeof(DataRightsAnonymisationRestoreProof)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            AssertBinding(
+                typeof(DataRightsAnonymisationRestoreProof),
+                property.Name,
+                PersonalDataSurface.ProjectionExport);
+        }
+
+        AssertBinding(
+            typeof(DataRightsAnonymisationRestoreResult),
+            nameof(DataRightsAnonymisationRestoreResult.Proof),
+            PersonalDataSurface.ProjectionExport);
+
+        foreach (PropertyInfo property in typeof(RestoreCheckpoint)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(property => property.Name != nameof(RestoreCheckpoint.Cursor)))
+        {
+            AssertBinding(
+                typeof(RestoreCheckpoint),
+                property.Name,
+                PersonalDataSurface.Persistence);
+        }
     }
 
     [Fact]
