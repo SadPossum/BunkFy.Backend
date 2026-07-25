@@ -59,4 +59,20 @@ public static class GuestsApplicationErrors
         GuestsDomainErrors.RestrictionProjectionStateInvalid;
     public static Error RestrictionProjectionTransitionInvalid =>
         GuestsDomainErrors.RestrictionProjectionTransitionInvalid;
+    public static readonly Error DataHoldRequestInvalid = new(
+        "Guests.DataHoldRequestInvalid",
+        "The Guest data-hold request is invalid.");
+    public static readonly Error DataHoldNotFound = new(
+        "Guests.DataHoldNotFound",
+        "The Guest data hold was not found.");
+    public static readonly Error DataHoldGuestVersionConflict = new(
+        "Guests.DataHoldGuestVersionConflict",
+        "The selected guest-profile version is stale.");
+    public static readonly Error DataHoldIdempotencyConflict = new(
+        "Guests.DataHoldIdempotencyConflict",
+        "The Guest data-hold idempotency key was already used for a different request.");
+    public static Error DataHoldVersionConflict =>
+        GuestsDomainErrors.DataHoldVersionConflict;
+    public static Error DataHoldAlreadyReleased =>
+        GuestsDomainErrors.DataHoldAlreadyReleased;
 }

@@ -69,4 +69,25 @@ public static class GuestsDomainErrors
     public static readonly Error RestrictionReceiptTransitionInvalid = new(
         "Guests.RestrictionReceiptTransitionInvalid",
         "The processing-restriction receipt transition is invalid.");
+    public static readonly Error DataHoldIdentityInvalid = new(
+        "Guests.DataHoldIdentityInvalid",
+        "The Guest data-hold identity is invalid.");
+    public static readonly Error DataHoldReasonCodeInvalid = new(
+        "Guests.DataHoldReasonCodeInvalid",
+        "The Guest data-hold reason code is invalid.");
+    public static readonly Error DataHoldLifecycleInvalid = new(
+        "Guests.DataHoldLifecycleInvalid",
+        "The Guest data-hold lifecycle is invalid.");
+    public static readonly Error DataHoldVersionConflict = new(
+        "Guests.DataHoldVersionConflict",
+        "The Guest data-hold version has changed.");
+    public static readonly Error DataHoldAlreadyReleased = new(
+        "Guests.DataHoldAlreadyReleased",
+        "The Guest data hold is already released.");
+    public static readonly Error DataHoldReceiptIdentityInvalid = new(
+        "Guests.DataHoldReceiptIdentityInvalid",
+        "The Guest data-hold receipt identity is invalid.");
+    public static readonly Error DataHoldReceiptTransitionInvalid = new(
+        "Guests.DataHoldReceiptTransitionInvalid",
+        "The Guest data-hold receipt transition is invalid.");
 }

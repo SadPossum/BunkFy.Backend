@@ -23,7 +23,8 @@ public sealed class GuestStayHistoryEntryTests
             null,
             null,
             isCurrentParticipant: true,
-            reservationVersion: 3);
+            reservationVersion: 3,
+            projectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion);
 
         stay.Apply(
             stay.PropertyId,
@@ -35,7 +36,8 @@ public sealed class GuestStayHistoryEntryTests
             null,
             null,
             isCurrentParticipant: true,
-            reservationVersion: 2);
+            reservationVersion: 2,
+            projectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion);
         Assert.Equal(GuestStayStatus.Confirmed, stay.Status);
 
         DateOnly checkIn = new(2026, 8, 1);
@@ -49,7 +51,8 @@ public sealed class GuestStayHistoryEntryTests
             null,
             null,
             isCurrentParticipant: true,
-            reservationVersion: 4);
+            reservationVersion: 4,
+            projectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion);
         Assert.Equal(GuestStayStatus.CheckedIn, stay.Status);
         Assert.Equal(checkIn, stay.CheckedInBusinessDate);
         Assert.Equal(4, stay.ReservationVersion);

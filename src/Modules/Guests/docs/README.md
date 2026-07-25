@@ -40,6 +40,17 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - a versioned fail-closed restriction gate, constant-size transition event and
   bounded keyset rebuild export for dependent modules, with no direct identity,
   contact or free-text values crossing the boundary;
+- independently releasable tenant/property/Guest data holds with stable reason
+  codes, exact optimistic versions, immutable idempotent receipts, bounded
+  listing and a dedicated permission absent from ordinary workspace roles;
+- a versioned internal anonymisation-eligibility contract that resolves the
+  bounded Guest property set from Guests-owned projections, checks every
+  active hold, operational stay, property state and current erasure policy,
+  compares the exact frozen routing-policy evidence, and returns only stable
+  blocker codes and canonical digests;
+- explicit stay-projection contract versions so unknown future projection
+  semantics block destructive eligibility instead of being interpreted
+  optimistically;
 - PII-free profile and reservation/stay integration contracts;
 - monotonic stay history that retains inactive replaced links for audit without granting visibility;
 - local Properties projection plus task-driven rebuilds for Properties and Reservation stay history;

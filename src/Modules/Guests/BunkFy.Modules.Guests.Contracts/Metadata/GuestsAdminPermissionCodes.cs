@@ -6,4 +6,5 @@ public static class GuestsAdminPermissionCodes
     public const string Create = "guests.create";
     public const string Manage = "guests.manage";
     public const string Archive = "guests.archive";
+    public const string DataHoldsManage = "guests.data-holds.manage";
 }

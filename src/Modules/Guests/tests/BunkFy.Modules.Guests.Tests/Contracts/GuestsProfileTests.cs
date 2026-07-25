@@ -16,7 +16,7 @@ public sealed class GuestsProfileTests
     {
         IReadOnlyCollection<ModulePermissionDescriptor> permissions = GuestsModuleMetadata.Descriptor.GetPermissions();
 
-        Assert.Equal(4, permissions.Count);
+        Assert.Equal(5, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.Equal(7, GuestsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(

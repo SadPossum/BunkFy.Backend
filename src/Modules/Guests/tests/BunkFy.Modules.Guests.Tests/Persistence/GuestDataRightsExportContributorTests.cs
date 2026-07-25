@@ -54,7 +54,7 @@ public sealed class GuestDataRightsExportContributorTests
         Assert.Equal(2, result.RecordCount);
         Assert.Equal("guests.personal-data", contributor.Descriptor.CatalogId);
         Assert.Equal(1, contributor.Descriptor.CatalogSchemaVersion);
-        Assert.Equal(5, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(6, contributor.Descriptor.CatalogVersion);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaId, contributor.Descriptor.ExportSchemaId);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaVersion, contributor.Descriptor.ExportSchemaVersion);
         Assert.Equal(26, contributor.Descriptor.FieldIds.Count);
@@ -222,7 +222,8 @@ public sealed class GuestDataRightsExportContributorTests
             null,
             new DateOnly(2026, 7, 22),
             isCurrentParticipant: false,
-            reservationVersion: 3);
+            reservationVersion: 3,
+            projectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion);
 
     private static JsonElement Field(DataRightsExportRecord record, string fieldId) =>
         Assert.Single(record.Fields, field => field.FieldId == fieldId).Value;

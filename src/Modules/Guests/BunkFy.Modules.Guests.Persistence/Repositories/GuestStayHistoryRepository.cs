@@ -39,7 +39,8 @@ internal sealed class GuestStayHistoryRepository(
                 stay.NoShowBusinessDate,
                 stay.CheckedOutBusinessDate,
                 stay.IsCurrentParticipant,
-                stay.ReservationVersion));
+                stay.ReservationVersion,
+                stay.ProjectionContractVersion));
             return;
         }
 
@@ -53,7 +54,8 @@ internal sealed class GuestStayHistoryRepository(
             stay.NoShowBusinessDate,
             stay.CheckedOutBusinessDate,
             stay.IsCurrentParticipant,
-            stay.ReservationVersion);
+            stay.ReservationVersion,
+            stay.ProjectionContractVersion);
     }
 
     public async Task<IReadOnlyCollection<GuestStayHistoryItem>> ListAsync(

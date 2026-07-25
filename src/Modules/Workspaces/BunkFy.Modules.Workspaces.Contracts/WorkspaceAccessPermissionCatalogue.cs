@@ -34,6 +34,7 @@ public static class WorkspaceAccessPermissionCatalogue
         Permission(GuestsAdminPermissionCodes.Create, "Guests", "Create guest records", "Create durable guest profiles.", sensitive: true, requires: [GuestsAdminPermissionCodes.Read]),
         Permission(GuestsAdminPermissionCodes.Manage, "Guests", "Edit guest records", "Update durable guest identity and contact data.", sensitive: true, requires: [GuestsAdminPermissionCodes.Read]),
         Permission(GuestsAdminPermissionCodes.Archive, "Guests", "Archive guest records", "Archive durable guest profiles.", sensitive: true, requires: [GuestsAdminPermissionCodes.Read]),
+        Permission(GuestsAdminPermissionCodes.DataHoldsManage, "Guests", "Manage Guest data holds", "Place, review, and release holds that block Guest anonymisation.", sensitive: true, requires: [GuestsAdminPermissionCodes.Read]),
 
         Permission(StaffAdminPermissionCodes.Read, "Staff", "View staff directory", "View operational staff names, roles, and assignments."),
         Permission(StaffAdminPermissionCodes.SensitiveProfileRead, "Staff", "View sensitive staff data", "View staff employment and contact details.", sensitive: true, requires: [StaffAdminPermissionCodes.Read]),

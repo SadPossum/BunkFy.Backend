@@ -1,19 +1,19 @@
 namespace BunkFy.Modules.Guests.Application;
 
 using BunkFy.DataGovernance;
-using Gma.Framework.AccessControl;
-using Gma.Framework.Application.Composition;
-using Gma.Framework.Messaging;
-using Gma.Framework.ProjectionRebuild.Tasks;
-using Gma.Framework.Tasks;
 using BunkFy.Modules.Guests.Application.Handlers;
 using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Application.Tasks;
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.AccessControl;
+using Gma.Framework.Application.Composition;
+using Gma.Framework.Messaging;
+using Gma.Framework.ProjectionRebuild.Tasks;
+using Gma.Framework.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using BunkFy.Modules.Properties.Contracts;
 
 public static class DependencyInjection
 {
@@ -28,6 +28,9 @@ public static class DependencyInjection
             [],
             CountryPolicyRuntimeMode.Engineering));
         services.TryAddScoped<IGuestCountryPolicyAdmission, GuestCountryPolicyAdmission>();
+        services.TryAddScoped<
+            IGuestAnonymisationEligibilityEvaluator,
+            GuestAnonymisationEligibilityEvaluator>();
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, GuestPropertyCreatedHandler>(
             GuestsModuleMetadata.Name,
             PropertiesModuleMetadata.Name);

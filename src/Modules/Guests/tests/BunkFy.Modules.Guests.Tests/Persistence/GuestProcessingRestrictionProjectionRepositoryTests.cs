@@ -59,6 +59,7 @@ public sealed class GuestProcessingRestrictionProjectionRepositoryTests
                 null,
                 IsCurrentParticipant: true,
                 ReservationVersion: 1,
+                ProjectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion,
                 ObservedAtUtc: createdAtUtc.AddMinutes(1)),
             CancellationToken.None);
         await dbContext.SaveChangesAsync();

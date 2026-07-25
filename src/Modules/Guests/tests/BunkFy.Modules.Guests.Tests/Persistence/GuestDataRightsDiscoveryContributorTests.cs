@@ -48,7 +48,8 @@ public sealed class GuestDataRightsDiscoveryContributorTests
             null,
             new DateOnly(2025, 1, 4),
             isCurrentParticipant: false,
-            reservationVersion: 1));
+            reservationVersion: 1,
+            projectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion));
         await dbContext.SaveChangesAsync();
         GuestDataRightsDiscoveryContributor contributor =
             new(dbContext, new TestScopeContext("tenant-a"));

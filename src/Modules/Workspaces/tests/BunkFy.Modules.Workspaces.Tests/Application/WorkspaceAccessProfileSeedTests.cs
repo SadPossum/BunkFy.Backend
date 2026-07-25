@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;
@@ -66,5 +67,20 @@ public sealed class WorkspaceAccessProfileSeedTests
             dataRightsPermissions.Contains);
         Assert.All(WorkspaceAccessProfileSeeds.All, profile =>
             Assert.DoesNotContain(profile.Permissions, dataRightsPermissions.Contains));
+    }
+
+    [Fact]
+    public void Guest_data_hold_permission_is_delegable_but_not_seeded()
+    {
+        Assert.Contains(
+            GuestsAdminPermissionCodes.DataHoldsManage,
+            WorkspaceAccessRoles.DelegablePermissions);
+        Assert.DoesNotContain(
+            GuestsAdminPermissionCodes.DataHoldsManage,
+            WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.All(WorkspaceAccessProfileSeeds.All, profile =>
+            Assert.DoesNotContain(
+                GuestsAdminPermissionCodes.DataHoldsManage,
+                profile.Permissions));
     }
 }

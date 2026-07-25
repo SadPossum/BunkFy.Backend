@@ -25,6 +25,7 @@ internal sealed class ReservationGuestLinkedStayHandler(IGuestStayHistoryReposit
         integrationEvent.CheckedOutBusinessDate,
         IsCurrentParticipant: true,
         ReservationVersion: integrationEvent.ReservationVersion,
+        ProjectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion,
         ObservedAtUtc: integrationEvent.OccurredAtUtc);
 
 }
@@ -49,6 +50,7 @@ internal sealed class ReservationGuestStayChangedHandler(IGuestStayHistoryReposi
                 integrationEvent.CheckedOutBusinessDate,
                 integrationEvent.IsCurrentParticipant,
                 integrationEvent.ReservationVersion,
+                GuestsModuleMetadata.StayHistoryProjectionVersion,
                 integrationEvent.OccurredAtUtc),
             cancellationToken);
 }

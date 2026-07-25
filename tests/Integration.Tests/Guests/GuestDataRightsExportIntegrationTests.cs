@@ -113,7 +113,8 @@ public sealed class GuestDataRightsExportIntegrationTests
             null,
             new DateOnly(2026, 7, 22),
             isCurrentParticipant: false,
-            reservationVersion: 3);
+            reservationVersion: 3,
+            projectionContractVersion: GuestsModuleMetadata.StayHistoryProjectionVersion);
 
     private static ServiceProvider CreatePersistenceProvider(string connectionString)
     {

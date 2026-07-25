@@ -61,6 +61,7 @@ public static class WorkspaceAccessRoles
         GuestsAdminPermissionCodes.Create,
         GuestsAdminPermissionCodes.Manage,
         GuestsAdminPermissionCodes.Archive,
+        GuestsAdminPermissionCodes.DataHoldsManage,
         StaffAdminPermissionCodes.Read,
         StaffAdminPermissionCodes.SensitiveProfileRead,
         StaffAdminPermissionCodes.Create,

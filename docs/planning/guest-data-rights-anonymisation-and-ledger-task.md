@@ -318,9 +318,9 @@ stable operational error without logging subject coordinates.
 
 1. [Complete] Persist destructive approval evidence and add explicit
    execution/work-item lifecycle without enabling owner mutation.
-2. [Next] Add Guest data holds, eligibility checks and exact stable blocker
+2. [Complete] Add Guest data holds, eligibility checks and exact stable blocker
    codes.
-3. Add `Anonymised`, the aggregate mutation, owner receipt, local tombstone,
+3. [Next] Add `Anonymised`, the aggregate mutation, owner receipt, local tombstone,
    event and ordinary-surface enforcement.
 4. Add the versioned owner contributor and retry-safe DataRights task
    orchestration.
@@ -371,6 +371,41 @@ gate needed for that mutation is present.
 - No task dispatch, owner mutation or completion transition is enabled by this
   slice. The work item remains `Prepared` until Guest eligibility and hold
   evaluation are implemented.
+
+### Completed Slice: Guest Holds And Eligibility
+
+- Guests owns independently releasable tenant/property/Guest holds containing
+  only stable reason codes, lifecycle actors/times and optimistic versions.
+- Placement and release have immutable idempotent receipts. PostgreSQL
+  uniqueness permits exactly one receipt per hold action and retry behavior
+  resolves both optimistic and duplicate-key races.
+- `guests.data-holds.manage` is property scoped and delegable, but no ordinary
+  manager, front-desk, housekeeping or viewer seed receives it.
+- The versioned eligibility evaluator derives the bounded affected-property set
+  from the Guest origin, every stay projection and active holds. It does not
+  scan a tenant or read another module's schema.
+- Any active hold, active/future stay, stale Guest version, non-active Guest,
+  missing/inactive property, unsupported stay projection, unavailable current
+  policy or policy denial blocks with an exact stable code.
+- The routing property's current source version, country/policy/retention
+  coordinates, digest, erasure purpose, surface, provenance and evaluation
+  time must match the frozen approval evidence.
+- Successful evaluation returns only the current Guest version, bounded count,
+  canonical property/policy digests and evaluation time. It returns no direct
+  identity, contact or free-text values.
+- Existing stay projections are conservatively backfilled to contract version
+  1. Future unsupported projection versions fail closed.
+- The executable Guests personal-data catalogue covers holds, receipts,
+  eligibility coordinates and the new projection contract version.
+- DataRights dispatch and Guest mutation remain closed. Step 3 must add the
+  terminal aggregate mutation, owner receipt and local tombstone before the
+  prepared work item can call Guests.
+- Verification passed through `eng/verify.ps1 -SkipRestore`: synchronized
+  solution, source-package checks, zero-warning build, every migration-drift
+  check, all non-Docker suites, 64 architecture tests and 30 non-Docker
+  integration tests. `eng/test-docker.ps1 -NoBuild` then passed all 39
+  real-infrastructure scenarios, including the historical Guests migration
+  backfill.
 
 ## Acceptance Evidence
 

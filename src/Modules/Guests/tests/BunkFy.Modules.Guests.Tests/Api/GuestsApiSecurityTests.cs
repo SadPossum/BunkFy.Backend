@@ -91,4 +91,50 @@ public sealed class GuestsApiSecurityTests
             metadata => metadata.StatusCode == StatusCodes.Status200OK);
         Assert.Equal(responseType, response.Type);
     }
+
+    [Theory]
+    [InlineData(
+        "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-holds",
+        "POST",
+        typeof(GuestDataHoldReceiptDto))]
+    [InlineData(
+        "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-holds/{holdId:guid}/release",
+        "POST",
+        typeof(GuestDataHoldReceiptDto))]
+    [InlineData(
+        "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-holds",
+        "GET",
+        typeof(GuestDataHoldListResponse))]
+    public async Task Data_holds_require_dedicated_permission_at_guest_property_scope(
+        string route,
+        string method,
+        Type responseType)
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new GuestsModule().MapEndpoints(app);
+
+        RouteEndpoint endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>(), candidate =>
+                string.Equals(
+                    candidate.RoutePattern.RawText?.Trim('/'),
+                    route,
+                    StringComparison.Ordinal) &&
+                candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                    method,
+                    StringComparer.Ordinal) == true);
+        AccessPermissionMetadata permission =
+            Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
+        Assert.Equal(GuestsAdminPermissionCodes.DataHoldsManage, permission.Permission.Value);
+        Assert.Equal("guests-property", permission.ScopeResolverName);
+
+        IProducesResponseTypeMetadata response = Assert.Single(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+        Assert.Equal(responseType, response.Type);
+    }
 }

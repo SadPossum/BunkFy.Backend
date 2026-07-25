@@ -49,21 +49,39 @@ public sealed class GuestProcessingRestrictionPersistenceIntegrationTests
                 Guid.NewGuid(),
                 createdAtUtc).Value;
             initial.GuestProfiles.Add(profile);
-            initial.StayHistory.Add(new GuestStayHistoryEntry(
-                "tenant-a",
-                guestId,
-                Guid.NewGuid(),
-                stayPropertyId,
-                GuestStayRole.Primary,
-                new DateOnly(2026, 7, 24),
-                new DateOnly(2026, 7, 25),
-                GuestStayStatus.Confirmed,
-                null,
-                null,
-                null,
-                isCurrentParticipant: true,
-                reservationVersion: 1));
             await initial.SaveChangesAsync();
+
+            Guid reservationId = Guid.NewGuid();
+            await initial.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO guests.stay_history (
+                    "ScopeId",
+                    "GuestId",
+                    "ReservationId",
+                    "PropertyId",
+                    "Role",
+                    "Arrival",
+                    "Departure",
+                    "Status",
+                    "CheckedInBusinessDate",
+                    "NoShowBusinessDate",
+                    "CheckedOutBusinessDate",
+                    "ReservationVersion",
+                    "IsCurrentParticipant")
+                VALUES (
+                    {"tenant-a"},
+                    {guestId},
+                    {reservationId},
+                    {stayPropertyId},
+                    {(int)GuestStayRole.Primary},
+                    {new DateOnly(2026, 7, 24)},
+                    {new DateOnly(2026, 7, 25)},
+                    {(int)GuestStayStatus.Confirmed},
+                    NULL,
+                    NULL,
+                    NULL,
+                    {1L},
+                    {true})
+                """);
         }
 
         await using (GuestsDbContext upgraded = CreateDbContext(postgreSql.GetConnectionString()))

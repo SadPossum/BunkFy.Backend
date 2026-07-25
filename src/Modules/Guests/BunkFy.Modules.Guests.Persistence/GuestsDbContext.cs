@@ -19,6 +19,8 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
         this.Set<GuestProcessingRestrictionReceipt>();
     public DbSet<GuestProcessingRestrictionProjection> ProcessingRestrictionProjections =>
         this.Set<GuestProcessingRestrictionProjection>();
+    public DbSet<GuestDataHold> DataHolds => this.Set<GuestDataHold>();
+    public DbSet<GuestDataHoldReceipt> DataHoldReceipts => this.Set<GuestDataHoldReceipt>();
     public DbSet<GuestPropertyProjection> PropertyProjections => this.Set<GuestPropertyProjection>();
     public DbSet<GuestStayHistoryEntry> StayHistory => this.Set<GuestStayHistoryEntry>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();

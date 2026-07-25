@@ -15,6 +15,7 @@ internal sealed class GuestCountryPolicyAdmission(
     public const string GuestProfileManagementPurpose = "guest-profile-management";
     public const string DataRightsCorrectionPurpose = "data-rights-correction";
     public const string DataRightsRestrictionPurpose = "data-rights-restriction";
+    public const string DataRightsAnonymisationPurpose = "data-rights-anonymisation";
     public const string AuthorizedOperatorProvenance = "authorized-workspace-operator";
 
     public async Task<CountryPolicyDecision> EvaluateAsync(

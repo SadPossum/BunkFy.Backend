@@ -238,6 +238,91 @@ public sealed class GuestsModule : IModule
                 DataRightsAdminPermissionCodes.Restrict,
                 GuestsPropertyAccessScopeResolver.ResolverName);
 
+        group.MapPost("/{guestId:guid}/data-holds", async (
+            Guid propertyId,
+            Guid guestId,
+            PlaceGuestDataHoldRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actor = ResolveActor(context, subjectResolver);
+            return actor is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new PlaceGuestDataHoldCommand(
+                        request.IdempotencyKey,
+                        propertyId,
+                        guestId,
+                        request.ExpectedGuestVersion,
+                        request.ReasonCode,
+                        actor),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<GuestDataHoldReceiptDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                GuestsAdminPermissionCodes.DataHoldsManage,
+                GuestsPropertyAccessScopeResolver.ResolverName);
+
+        group.MapPost("/{guestId:guid}/data-holds/{holdId:guid}/release", async (
+            Guid propertyId,
+            Guid guestId,
+            Guid holdId,
+            ReleaseGuestDataHoldRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actor = ResolveActor(context, subjectResolver);
+            Result<GuestDataHoldReceiptDto> result = !request.Confirmed
+                ? Result.Failure<GuestDataHoldReceiptDto>(
+                    new("Guests.ConfirmationRequired", "Confirmation is required."))
+                : actor is null
+                    ? Result.Failure<GuestDataHoldReceiptDto>(
+                        new("Guests.AuthenticationRequired", "Authentication is required."))
+                    : await dispatcher.SendAsync(
+                        new ReleaseGuestDataHoldCommand(
+                            request.IdempotencyKey,
+                            propertyId,
+                            guestId,
+                            holdId,
+                            request.ExpectedGuestVersion,
+                            request.ExpectedHoldVersion,
+                            actor),
+                        cancellationToken).ConfigureAwait(false);
+            return actor is null ? Results.Unauthorized() : result.ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<GuestDataHoldReceiptDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                GuestsAdminPermissionCodes.DataHoldsManage,
+                GuestsPropertyAccessScopeResolver.ResolverName);
+
+        group.MapGet("/{guestId:guid}/data-holds", async (
+            Guid propertyId,
+            Guid guestId,
+            GuestDataHoldStatus? status,
+            int? page,
+            int? pageSize,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new ListGuestDataHoldsQuery(
+                    propertyId,
+                    guestId,
+                    status,
+                    page ?? PageRequest.DefaultPage,
+                    pageSize ?? PageRequest.DefaultPageSize),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<GuestDataHoldListResponse>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                GuestsAdminPermissionCodes.DataHoldsManage,
+                GuestsPropertyAccessScopeResolver.ResolverName);
+
         group.MapPut("/{guestId:guid}", async (
             Guid propertyId,
             Guid guestId,
@@ -349,6 +434,17 @@ public sealed class GuestsModule : IModule
         long ExpectedRestrictionVersion,
         long ExpectedProjectionRevision);
 
+    public sealed record PlaceGuestDataHoldRequest(
+        Guid IdempotencyKey,
+        long ExpectedGuestVersion,
+        string ReasonCode);
+
+    public sealed record ReleaseGuestDataHoldRequest(
+        Guid IdempotencyKey,
+        long ExpectedGuestVersion,
+        long ExpectedHoldVersion,
+        bool Confirmed);
+
     public sealed record ArchiveGuestProfileRequest(long ExpectedVersion, bool Confirmed);
 
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
@@ -377,6 +473,12 @@ public sealed class GuestsModule : IModule
         new(GuestsApplicationErrors.RestrictionProjectionVersionConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.RestrictionProjectionStateInvalid.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.RestrictionProjectionTransitionInvalid.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.DataHoldRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(GuestsApplicationErrors.DataHoldNotFound.Code, StatusCodes.Status404NotFound),
+        new(GuestsApplicationErrors.DataHoldGuestVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.DataHoldIdempotencyConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.DataHoldVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.DataHoldAlreadyReleased.Code, StatusCodes.Status409Conflict),
         new("Guests.ConfirmationRequired", StatusCodes.Status400BadRequest));
 
     private static ApiErrorStatusCodeMap CreateErrorStatusCodes(params ApiErrorStatusCode[] entries) =>

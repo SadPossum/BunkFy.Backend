@@ -32,7 +32,8 @@ public static class GuestsModuleMetadata
             new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Read, "Read guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Create, "Create guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Manage, "Manage guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
-            new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Archive, "Archive guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants)
+            new ModulePermissionDescriptor(GuestsAdminPermissionCodes.Archive, "Archive guest records.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(GuestsAdminPermissionCodes.DataHoldsManage, "Place, review, and release Guest data holds.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants)
         ])
         .WithSubscription<PropertyCreatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyCreatedHandlerName)
         .WithSubscription<PropertyUpdatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyUpdatedHandlerName)

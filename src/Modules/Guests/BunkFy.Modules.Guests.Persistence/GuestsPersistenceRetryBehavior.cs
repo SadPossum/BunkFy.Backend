@@ -39,7 +39,9 @@ internal sealed class GuestsPersistenceRetryBehavior<TCommand, TResponse>
         if (command is not (
             ApplyGuestDataRightsCorrectionCommand or
             ApplyGuestProcessingRestrictionCommand or
-            ReleaseGuestProcessingRestrictionCommand))
+            ReleaseGuestProcessingRestrictionCommand or
+            PlaceGuestDataHoldCommand or
+            ReleaseGuestDataHoldCommand))
         {
             return await next().ConfigureAwait(false);
         }

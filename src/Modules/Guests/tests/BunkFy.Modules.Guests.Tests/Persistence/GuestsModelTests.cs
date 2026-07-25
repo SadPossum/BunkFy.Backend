@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Guests.Tests;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
+using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Properties.Contracts;
@@ -46,6 +47,56 @@ public sealed class GuestsModelTests
                 nameof(GuestStayHistoryEntry.ScopeId),
                 nameof(GuestStayHistoryEntry.PropertyId),
                 nameof(GuestStayHistoryEntry.GuestId)
+            ]));
+        IEntityType designStay = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(GuestStayHistoryEntry))!;
+        Assert.Contains(
+            designStay.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_guests_stay_history_contract_version");
+        IEntityType dataHold = dbContext.Model.FindEntityType(typeof(GuestDataHold))!;
+        Assert.True(dataHold.FindProperty(nameof(GuestDataHold.Version))!.IsConcurrencyToken);
+        Assert.Contains(dataHold.GetIndexes(), index =>
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestDataHold.ScopeId),
+                nameof(GuestDataHold.GuestId),
+                nameof(GuestDataHold.State),
+                nameof(GuestDataHold.PropertyId),
+                nameof(GuestDataHold.Id)
+            ]));
+        Assert.Contains(dataHold.GetIndexes(), index =>
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestDataHold.ScopeId),
+                nameof(GuestDataHold.PropertyId),
+                nameof(GuestDataHold.GuestId),
+                nameof(GuestDataHold.PlacedAtUtc),
+                nameof(GuestDataHold.Id)
+            ]));
+        Assert.Contains(dataHold.GetIndexes(), index =>
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestDataHold.ScopeId),
+                nameof(GuestDataHold.PropertyId),
+                nameof(GuestDataHold.GuestId),
+                nameof(GuestDataHold.State),
+                nameof(GuestDataHold.PlacedAtUtc),
+                nameof(GuestDataHold.Id)
+            ]));
+        IEntityType designDataHold = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(GuestDataHold))!;
+        Assert.Contains(
+            designDataHold.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_guest_data_holds_lifecycle");
+        IEntityType dataHoldReceipt =
+            dbContext.Model.FindEntityType(typeof(GuestDataHoldReceipt))!;
+        Assert.Contains(dataHoldReceipt.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestDataHoldReceipt.ScopeId),
+                nameof(GuestDataHoldReceipt.IdempotencyKey)
+            ]));
+        Assert.Contains(dataHoldReceipt.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestDataHoldReceipt.ScopeId),
+                nameof(GuestDataHoldReceipt.HoldId),
+                nameof(GuestDataHoldReceipt.Action)
             ]));
         IEntityType correctionReceipt =
             dbContext.Model.FindEntityType(typeof(GuestDataRightsCorrectionReceipt))!;
@@ -135,6 +186,58 @@ public sealed class GuestsModelTests
         Assert.Equal(4, projection.PolicySourceVersion);
     }
 
+    [Fact]
+    public async Task Data_holds_and_receipts_are_tenant_isolated_and_round_trip()
+    {
+        string databaseName = $"guests-holds-{Guid.NewGuid():N}";
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase(databaseName)
+                .Options;
+        DateTimeOffset placedAtUtc =
+            new(2026, 7, 25, 1, 0, 0, TimeSpan.Zero);
+        GuestDataHold hold = GuestDataHold.Place(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "legal-obligation",
+            "user:privacy",
+            placedAtUtc).Value;
+        GuestDataHoldReceipt receipt = GuestDataHoldReceipt.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            hold,
+            GuestDataHoldAction.Place,
+            selectedGuestVersion: 3,
+            "user:privacy",
+            placedAtUtc).Value;
+
+        await using (GuestsDbContext tenantA =
+            new(options, new TestScopeContext("tenant-a")))
+        {
+            tenantA.DataHolds.Add(hold);
+            tenantA.DataHoldReceipts.Add(receipt);
+            await tenantA.SaveChangesAsync();
+        }
+
+        await using (GuestsDbContext tenantB =
+            new(options, new TestScopeContext("tenant-b")))
+        {
+            Assert.Empty(await tenantB.DataHolds.ToArrayAsync());
+            Assert.Empty(await tenantB.DataHoldReceipts.ToArrayAsync());
+        }
+
+        await using GuestsDbContext reloaded =
+            new(options, new TestScopeContext("tenant-a"));
+        GuestDataHold persisted = Assert.Single(await reloaded.DataHolds.ToArrayAsync());
+        GuestDataHoldReceipt persistedReceipt =
+            Assert.Single(await reloaded.DataHoldReceipts.ToArrayAsync());
+        Assert.Equal(hold.Id, persisted.Id);
+        Assert.Equal(receipt.IdempotencyKey, persistedReceipt.IdempotencyKey);
+    }
+
     private static PropertyGovernancePolicyBinding CreateGovernanceBinding()
     {
         DateTimeOffset now = new(2026, 7, 22, 12, 0, 0, TimeSpan.Zero);
@@ -161,9 +264,9 @@ public sealed class GuestsModelTests
         return new(options, new TestScopeContext());
     }
 
-    private sealed class TestScopeContext : IScopeContext
+    private sealed class TestScopeContext(string scopeId = "tenant-a") : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => "tenant-a";
+        public string ScopeId => scopeId;
     }
 }

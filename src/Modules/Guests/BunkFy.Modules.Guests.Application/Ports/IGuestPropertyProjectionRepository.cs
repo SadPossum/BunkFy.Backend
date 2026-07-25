@@ -27,4 +27,6 @@ public sealed record GuestPropertyPolicySnapshot(
     bool IsKnown,
     bool IsActive,
     PropertyProcessingStatus ProcessingStatus,
-    PropertyGovernancePolicyBinding? GovernancePolicy);
+    PropertyGovernancePolicyBinding? GovernancePolicy,
+    long TopologySourceVersion,
+    long PolicySourceVersion);

@@ -19,12 +19,24 @@ public sealed class GuestStayHistoryEntry
         DateOnly? noShowBusinessDate,
         DateOnly? checkedOutBusinessDate,
         bool isCurrentParticipant,
-        long reservationVersion)
+        long reservationVersion,
+        int projectionContractVersion)
     {
         this.ScopeId = scopeId;
         this.GuestId = guestId;
         this.ReservationId = reservationId;
-        this.Apply(propertyId, role, arrival, departure, status, checkedInBusinessDate, noShowBusinessDate, checkedOutBusinessDate, isCurrentParticipant, reservationVersion);
+        this.Apply(
+            propertyId,
+            role,
+            arrival,
+            departure,
+            status,
+            checkedInBusinessDate,
+            noShowBusinessDate,
+            checkedOutBusinessDate,
+            isCurrentParticipant,
+            reservationVersion,
+            projectionContractVersion);
     }
 
     public string ScopeId { get; private set; } = string.Empty;
@@ -40,6 +52,7 @@ public sealed class GuestStayHistoryEntry
     public DateOnly? CheckedOutBusinessDate { get; private set; }
     public bool IsCurrentParticipant { get; private set; }
     public long ReservationVersion { get; private set; }
+    public int ProjectionContractVersion { get; private set; }
 
     public void Apply(
         Guid propertyId,
@@ -51,7 +64,8 @@ public sealed class GuestStayHistoryEntry
         DateOnly? noShowBusinessDate,
         DateOnly? checkedOutBusinessDate,
         bool isCurrentParticipant,
-        long reservationVersion)
+        long reservationVersion,
+        int projectionContractVersion)
     {
         if (reservationVersion <= this.ReservationVersion)
         {
@@ -68,5 +82,6 @@ public sealed class GuestStayHistoryEntry
         this.CheckedOutBusinessDate = checkedOutBusinessDate;
         this.IsCurrentParticipant = isCurrentParticipant;
         this.ReservationVersion = reservationVersion;
+        this.ProjectionContractVersion = projectionContractVersion;
     }
 }

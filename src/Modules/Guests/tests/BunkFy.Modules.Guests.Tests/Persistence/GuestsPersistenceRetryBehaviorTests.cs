@@ -109,6 +109,42 @@ public sealed class GuestsPersistenceRetryBehaviorTests
         Assert.Equal(GuestsApplicationErrors.RestrictionIdempotencyConflict, result.Error);
     }
 
+    [Fact]
+    public async Task Data_hold_persistence_conflict_reexecutes_once()
+    {
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using GuestsDbContext dbContext = new(options, new TestScopeContext());
+        GuestsPersistenceRetryBehavior<
+            PlaceGuestDataHoldCommand,
+            GuestDataHoldReceiptDto> behavior = new(dbContext, _ => true);
+        PlaceGuestDataHoldCommand command = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            1,
+            GuestDataHoldReasonCodes.Dispute,
+            "user:operator");
+        int attempts = 0;
+
+        Task<Result<GuestDataHoldReceiptDto>> Next()
+        {
+            attempts++;
+            return attempts == 1
+                ? throw new DbUpdateException("simulated unique conflict")
+                : Task.FromResult(Result.Failure<GuestDataHoldReceiptDto>(
+                    GuestsApplicationErrors.DataHoldIdempotencyConflict));
+        }
+
+        Result<GuestDataHoldReceiptDto> result =
+            await behavior.HandleAsync(command, Next, CancellationToken.None);
+
+        Assert.Equal(2, attempts);
+        Assert.Equal(GuestsApplicationErrors.DataHoldIdempotencyConflict, result.Error);
+    }
+
     private sealed class TestScopeContext : IScopeContext
     {
         public bool IsEnabled => true;

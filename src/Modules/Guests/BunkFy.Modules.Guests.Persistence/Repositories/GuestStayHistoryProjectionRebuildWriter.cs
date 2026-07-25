@@ -40,6 +40,7 @@ internal sealed class GuestStayHistoryProjectionRebuildWriter(
                     stay.CheckedOutBusinessDate,
                     stay.IsCurrentParticipant,
                     stay.ReservationVersion,
+                    GuestsModuleMetadata.StayHistoryProjectionVersion,
                     clock.UtcNow),
                 cancellationToken).ConfigureAwait(false);
         }
