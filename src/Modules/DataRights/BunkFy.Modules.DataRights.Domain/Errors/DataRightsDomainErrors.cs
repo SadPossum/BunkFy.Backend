@@ -85,4 +85,10 @@ public static class DataRightsDomainErrors
     public static readonly Error ExecutionCoordinateInvalid = new(
         "DataRights.ExecutionCoordinateInvalid",
         "The data-rights execution coordinate is invalid.");
+    public static readonly Error ExecutionTaskConflict = new(
+        "DataRights.ExecutionTaskConflict",
+        "The data-rights execution is already bound to another task or attempt.");
+    public static readonly Error ExecutionOwnerResultInvalid = new(
+        "DataRights.ExecutionOwnerResultInvalid",
+        "The data-rights owner result is invalid or conflicts with durable proof.");
 }

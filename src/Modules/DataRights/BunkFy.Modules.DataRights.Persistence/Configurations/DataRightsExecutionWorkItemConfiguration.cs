@@ -32,10 +32,50 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
                 $"char_length(\"PolicyContentSha256\") = {DataRightsApprovalPolicyEvidence.ContentSha256Length}");
             table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_state",
-                "\"State\" BETWEEN 1 AND 6");
+                "\"State\" BETWEEN 1 AND 7");
             table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_attempts",
                 "\"AttemptCount\" >= 0");
+            table.HasCheckConstraint(
+                "CK_data_rights_execution_work_items_owner_contract",
+                $"\"OwnerContractVersion\" = {DataRightsExecutionWorkItem.CurrentOwnerContractVersion}");
+            table.HasCheckConstraint(
+                "CK_data_rights_execution_work_items_task",
+                "(\"State\" = 1 AND \"TaskRunId\" IS NULL AND " +
+                "\"LastTaskAttempt\" = 0 AND \"LastAttemptAtUtc\" IS NULL AND " +
+                "\"AttemptCount\" = 0) OR " +
+                "(\"State\" BETWEEN 2 AND 7 AND \"TaskRunId\" IS NOT NULL AND " +
+                "\"LastTaskAttempt\" >= 1 AND \"LastAttemptAtUtc\" IS NOT NULL AND " +
+                "\"AttemptCount\" >= 1)");
+            table.HasCheckConstraint(
+                "CK_data_rights_execution_work_items_owner_outcome",
+                "((\"State\" IN (5, 7)) AND " +
+                "\"OwnerReceiptContractVersion\" >= 1 AND " +
+                "\"OwnerReceiptId\" IS NOT NULL AND " +
+                "\"ResultingRecordVersion\" > \"SelectedRecordVersion\" AND " +
+                "length(trim(\"OwnerDispositionCode\")) > 0 AND " +
+                "length(trim(\"OwnerReasonCode\")) > 0 AND " +
+                $"char_length(\"OwnerReceiptSha256\") = {DataRightsExecutionWorkItem.Sha256Length} AND " +
+                "\"OwnerCompletedAtUtc\" IS NOT NULL AND " +
+                "\"OutcomeCode\" IS NULL AND \"OutcomeAtUtc\" IS NOT NULL AND " +
+                "\"OwnerCompletedAtUtc\" <= \"OutcomeAtUtc\") OR " +
+                "((\"State\" IN (3, 4, 6)) AND " +
+                "\"OwnerReceiptContractVersion\" IS NULL AND " +
+                "\"OwnerReceiptId\" IS NULL AND \"ResultingRecordVersion\" IS NULL AND " +
+                "\"OwnerDispositionCode\" IS NULL AND \"OwnerReasonCode\" IS NULL AND " +
+                "\"OwnerReceiptSha256\" IS NULL AND \"OwnerCompletedAtUtc\" IS NULL AND " +
+                "length(trim(\"OutcomeCode\")) > 0 AND \"OutcomeAtUtc\" IS NOT NULL) OR " +
+                "((\"State\" IN (1, 2)) AND " +
+                "\"OwnerReceiptContractVersion\" IS NULL AND " +
+                "\"OwnerReceiptId\" IS NULL AND \"ResultingRecordVersion\" IS NULL AND " +
+                "\"OwnerDispositionCode\" IS NULL AND \"OwnerReasonCode\" IS NULL AND " +
+                "\"OwnerReceiptSha256\" IS NULL AND \"OwnerCompletedAtUtc\" IS NULL AND " +
+                "\"OutcomeCode\" IS NULL AND \"OutcomeAtUtc\" IS NULL)");
+            table.HasCheckConstraint(
+                "CK_data_rights_execution_work_items_timestamps",
+                "(\"LastAttemptAtUtc\" IS NULL OR \"LastAttemptAtUtc\" >= \"CreatedAtUtc\") AND " +
+                "(\"OwnerCompletedAtUtc\" IS NULL OR \"OwnerCompletedAtUtc\" >= \"CreatedAtUtc\") AND " +
+                "(\"OutcomeAtUtc\" IS NULL OR \"OutcomeAtUtc\" >= \"CreatedAtUtc\")");
             table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_created_by",
                 "length(trim(\"CreatedBy\")) > 0");
@@ -71,6 +111,15 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
         builder.Property(workItem => workItem.State)
             .HasConversion<int>()
             .IsRequired();
+        builder.Property(workItem => workItem.OwnerDispositionCode)
+            .HasMaxLength(DataRightsExecutionWorkItem.OwnerCodeMaxLength);
+        builder.Property(workItem => workItem.OwnerReasonCode)
+            .HasMaxLength(DataRightsExecutionWorkItem.OwnerCodeMaxLength);
+        builder.Property(workItem => workItem.OwnerReceiptSha256)
+            .HasMaxLength(DataRightsExecutionWorkItem.Sha256Length)
+            .IsFixedLength();
+        builder.Property(workItem => workItem.OutcomeCode)
+            .HasMaxLength(DataRightsExecutionWorkItem.OutcomeCodeMaxLength);
         builder.Property(workItem => workItem.CreatedBy)
             .HasMaxLength(DataRightsCase.ActorIdMaxLength)
             .IsRequired();
@@ -101,6 +150,11 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
             workItem.CreatedAtUtc,
             workItem.Id
         });
+        builder.HasIndex(workItem => new
+        {
+            workItem.ScopeId,
+            workItem.TaskRunId
+        }).IsUnique();
         builder.HasOne<DataRightsCase>()
             .WithMany()
             .HasForeignKey(workItem => new { workItem.ScopeId, workItem.CaseId })

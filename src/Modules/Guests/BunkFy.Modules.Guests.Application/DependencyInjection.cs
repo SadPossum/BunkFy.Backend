@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Guests.Application;
 
 using BunkFy.DataGovernance;
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Application.Contributors;
 using BunkFy.Modules.Guests.Application.Handlers;
 using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Application.Ports;
@@ -31,6 +33,10 @@ public static class DependencyInjection
         services.TryAddScoped<
             IGuestAnonymisationEligibilityEvaluator,
             GuestAnonymisationEligibilityEvaluator>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationContributor,
+                GuestDataRightsAnonymisationContributor>());
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, GuestPropertyCreatedHandler>(
             GuestsModuleMetadata.Name,
             PropertiesModuleMetadata.Name);

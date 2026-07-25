@@ -94,6 +94,22 @@ public sealed class DataRightsModelTests
         Assert.Equal(
             DataRightsCase.ActorIdMaxLength,
             workItem.FindProperty(nameof(DataRightsExecutionWorkItem.CreatedBy))!.GetMaxLength());
+        Assert.Equal(
+            DataRightsExecutionWorkItem.OwnerCodeMaxLength,
+            workItem.FindProperty(nameof(DataRightsExecutionWorkItem.OwnerDispositionCode))!
+                .GetMaxLength());
+        Assert.Equal(
+            DataRightsExecutionWorkItem.OwnerCodeMaxLength,
+            workItem.FindProperty(nameof(DataRightsExecutionWorkItem.OwnerReasonCode))!
+                .GetMaxLength());
+        Assert.Equal(
+            DataRightsExecutionWorkItem.Sha256Length,
+            workItem.FindProperty(nameof(DataRightsExecutionWorkItem.OwnerReceiptSha256))!
+                .GetMaxLength());
+        Assert.Equal(
+            DataRightsExecutionWorkItem.OutcomeCodeMaxLength,
+            workItem.FindProperty(nameof(DataRightsExecutionWorkItem.OutcomeCode))!
+                .GetMaxLength());
         Assert.Contains(workItem.GetIndexes(), index =>
             index.IsUnique &&
             index.Properties.Select(item => item.Name).SequenceEqual([
@@ -111,12 +127,36 @@ public sealed class DataRightsModelTests
                 nameof(DataRightsExecutionWorkItem.RecordType),
                 nameof(DataRightsExecutionWorkItem.RecordId)
             ]));
+        Assert.Contains(workItem.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsExecutionWorkItem.ScopeId),
+                nameof(DataRightsExecutionWorkItem.TaskRunId)
+            ]));
         Assert.Contains(
             designWorkItem.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_execution_work_items_revisions");
         Assert.Contains(
             designWorkItem.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_execution_work_items_policy");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_state");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_attempts");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_owner_contract");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_task");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_owner_outcome");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_timestamps");
         Assert.Contains(
             designWorkItem.GetForeignKeys(),
             foreignKey =>

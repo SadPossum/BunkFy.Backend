@@ -69,6 +69,15 @@ public static class DependencyInjection
         services.AddTaskHandler<
             RebuildDataRightsPropertiesPayload,
             RebuildDataRightsPropertiesTaskHandler>(DataRightsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            DataRightsAnonymisationExecutionPreparedIntegrationEvent,
+            DataRightsAnonymisationExecutionPreparedHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            ExecuteDataRightsAnonymisationPayload,
+            ExecuteDataRightsAnonymisationTaskHandler>(
+                DataRightsModuleMetadata.Name);
         return services;
     }
 }

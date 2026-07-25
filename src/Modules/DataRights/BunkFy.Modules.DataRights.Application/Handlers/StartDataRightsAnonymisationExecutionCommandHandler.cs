@@ -9,6 +9,7 @@ using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Messaging;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
@@ -18,6 +19,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
     IDataRightsCaseRepository cases,
     IDataRightsExecutionWorkItemRepository workItems,
     IDataRightsOperationApprovalGate approvalGate,
+    IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator ids)
     : ICommandHandler<StartDataRightsAnonymisationExecutionCommand, DataRightsExecutionDto>
@@ -113,6 +115,17 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
         }
 
         await workItems.AddAsync(prepared.Value, cancellationToken).ConfigureAwait(false);
+        await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
+            new DataRightsAnonymisationExecutionPreparedIntegrationEvent(
+                ids.NewId(),
+                dataRightsCase.ScopeId,
+                nowUtc,
+                prepared.Value.Id,
+                dataRightsCase.Id,
+                command.PropertyId,
+                approvalRevision,
+                prepared.Value.ExecutionRevision),
+            cancellationToken).ConfigureAwait(false);
         return Result.Success(ToExecution(dataRightsCase, prepared.Value));
     }
 

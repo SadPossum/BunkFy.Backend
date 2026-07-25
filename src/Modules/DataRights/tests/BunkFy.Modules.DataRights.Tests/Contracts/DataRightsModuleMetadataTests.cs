@@ -27,7 +27,7 @@ public sealed class DataRightsModuleMetadataTests
         ModuleProfileDescriptor profile = Assert.Single(
             DataRightsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(DataRightsProfiles.DefaultName, profile.ProfileName);
-        Assert.Equal(5, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(6, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
@@ -40,7 +40,16 @@ public sealed class DataRightsModuleMetadataTests
                 subscription.EventType ==
                     PropertyProcessingSuspendedIntegrationEvent.EventType &&
                 subscription.ProducerModule == PropertiesModuleMetadata.Name);
-        Assert.Single(DataRightsModuleMetadata.Descriptor.GetTasks());
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    DataRightsAnonymisationExecutionPreparedIntegrationEvent.EventType &&
+                subscription.ProducerModule == DataRightsModuleMetadata.Name);
+        Assert.Equal(2, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task => task.Name == ExecuteDataRightsAnonymisationPayload.TaskName);
     }
 
     [Fact]
@@ -58,5 +67,8 @@ public sealed class DataRightsModuleMetadataTests
         Assert.Equal(
             Enum.GetValues<DataRightsDecisionReason>().Select(value => (int)value),
             Enum.GetValues<DataRightsCaseDecisionReason>().Select(value => (int)value));
+        Assert.Equal(
+            Enum.GetValues<DataRightsExecutionWorkItemStatus>().Select(value => (int)value),
+            Enum.GetValues<DataRightsExecutionWorkItemState>().Select(value => (int)value));
     }
 }

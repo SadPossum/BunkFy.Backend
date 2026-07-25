@@ -8,5 +8,6 @@ public enum DataRightsExecutionWorkItemState
     Blocked = 3,
     Failed = 4,
     Completed = 5,
-    NoOp = 6
+    NoOp = 6,
+    OwnerProofRecorded = 7
 }

@@ -10,6 +10,7 @@ using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
+using Gma.Framework.Messaging;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -32,11 +33,13 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
                 dataRightsCase.ToApprovalEvidence()!));
         Guid workItemId = Guid.NewGuid();
         Guid idempotencyKey = Guid.NewGuid();
+        RecordingOutbox outbox = new();
         StartDataRightsAnonymisationExecutionCommandHandler handler = CreateHandler(
             dataRightsCase,
             workItems,
             gate,
-            workItemId);
+            workItemId,
+            outbox);
 
         Result<DataRightsExecutionDto> result = await handler.HandleAsync(
             new(
@@ -54,6 +57,12 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         Assert.Equal(workItemId, result.Value.WorkItem.Id);
         Assert.Same(workItems.Item, Assert.Single(workItems.Added));
         Assert.True(workItems.Item!.HasIdempotencyKey(idempotencyKey));
+        DataRightsAnonymisationExecutionPreparedIntegrationEvent prepared =
+            Assert.IsType<DataRightsAnonymisationExecutionPreparedIntegrationEvent>(
+                Assert.Single(outbox.Events));
+        Assert.Equal(workItemId, prepared.WorkItemId);
+        Assert.Equal(dataRightsCase.Id, prepared.CaseId);
+        Assert.Equal(7, prepared.ExecutionRevision);
         DataRightsOperationApprovalRequest request = Assert.IsType<DataRightsOperationApprovalRequest>(
             gate.Request);
         Assert.Equal("tenant-a", request.TenantId);
@@ -168,11 +177,13 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         DataRightsCase dataRightsCase,
         StubWorkItemRepository workItems,
         RecordingApprovalGate gate,
-        Guid workItemId) =>
+        Guid workItemId,
+        RecordingOutbox? outbox = null) =>
         new(
             new StubCaseRepository(dataRightsCase),
             workItems,
             gate,
+            new RecordingOutboxRegistry(outbox ?? new RecordingOutbox()),
             new TestClock(),
             new TestIdGenerator(workItemId));
 
@@ -278,6 +289,18 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
                 this.Item?.PropertyId == propertyId && this.Item.CaseId == caseId
                     ? this.Item
                     : null);
+
+        public Task<DataRightsExecutionWorkItem?> GetAsync(
+            Guid propertyId,
+            Guid caseId,
+            Guid workItemId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                this.Item?.PropertyId == propertyId &&
+                this.Item.CaseId == caseId &&
+                this.Item.Id == workItemId
+                    ? this.Item
+                    : null);
     }
 
     private sealed class RecordingApprovalGate(DataRightsOperationApprovalResult result)
@@ -304,5 +327,30 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
     private sealed class TestIdGenerator(Guid id) : IIdGenerator
     {
         public Guid NewId() => id;
+    }
+
+    private sealed class RecordingOutbox : IOutboxWriter
+    {
+        public List<object> Events { get; } = [];
+        public string ModuleName => DataRightsModuleMetadata.Name;
+
+        public Task EnqueueAsync<TEvent>(
+            TEvent integrationEvent,
+            CancellationToken cancellationToken)
+            where TEvent : IIntegrationEvent
+        {
+            this.Events.Add(integrationEvent);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOutboxRegistry(RecordingOutbox outbox)
+        : IOutboxWriterRegistry
+    {
+        public IOutboxWriter GetRequired(string moduleName)
+        {
+            Assert.Equal(DataRightsModuleMetadata.Name, moduleName);
+            return outbox;
+        }
     }
 }

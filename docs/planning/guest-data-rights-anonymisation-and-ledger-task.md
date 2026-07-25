@@ -1,6 +1,6 @@
 # Guest Data Rights Anonymisation And Ledger Task
 
-Status: in progress; owner mutation complete, contributor dispatch closed
+Status: in progress; contributor dispatch complete, append-only ledger next
 
 ## Outcome
 
@@ -322,9 +322,9 @@ stable operational error without logging subject coordinates.
    codes.
 3. [Complete] Add `Anonymised`, the aggregate mutation, owner receipt, local tombstone,
    event and ordinary-surface enforcement.
-4. [Next] Add the versioned owner contributor and retry-safe DataRights task
+4. [Complete] Add the versioned owner contributor and retry-safe DataRights task
    orchestration.
-5. Add the append-only in-database ledger, keyed pseudonym and canonical
+5. [Next] Add the append-only in-database ledger, keyed pseudonym and canonical
    receipt/entry digests.
 6. Add the external delta port, local protected-file test adapter and
    production configuration denial.
@@ -336,8 +336,8 @@ stable operational error without logging subject coordinates.
     restore replay, architecture boundaries and exact-commit GitHub gates.
 
 Only one numbered step is implemented at a time. Later steps may refine code
-from completed steps, but cross-module dispatch remains closed until its
-prepared-work-item and owner-contributor gates are present.
+from completed steps, but a case remains incomplete until every required
+durability and restore gate in the remaining steps is present.
 
 ### Completed Slice: Verified Execution Preparation
 
@@ -443,6 +443,43 @@ prepared-work-item and owner-contributor gates are present.
   including owner-proof persistence, malformed-digest rejection, unsafe
   downgrade denial, operation-lock serialization and the real worker-driven
   reservation/stay lifecycle.
+
+### Completed Slice: Versioned Owner Dispatch And Retry-Safe Task Orchestration
+
+- Starting an execution commits one constant-size, PII-free self-integration
+  event to the DataRights outbox with the prepared work item.
+- Worker-only composition consumes that event and enqueues one deterministic
+  TaskRuntime run. Active-run deduplication and the durable inbox make delayed
+  worker startup and redelivery safe without adding BunkFy behavior to GMA.
+- The task claims one work item transactionally, binds its immutable task-run
+  identity and monotonic attempt, then revalidates the exact case approval and
+  frozen policy evidence immediately before calling an owner.
+- DataRights.Contracts defines the versioned anonymisation contributor request,
+  result and owner-proof contract. Guests Application implements it and remains
+  the only layer able to dispatch the private Guests mutation command.
+- Missing or duplicate contributors and transient owner failures use the
+  generic TaskRuntime retry policy. Stable blockers and stable owner failures
+  fail closed and block the DataRights case with bounded, PII-free codes.
+- A completed Guests contribution records immutable owner receipt coordinates
+  and digest on the work item. The work item enters `OwnerProofRecorded`, while
+  the case deliberately remains `Executing` until the ledger slice durably
+  records the proof.
+- Exact retries replay the Guests owner receipt and do not mutate the Guest
+  twice. A retry after DataRights has recorded owner proof terminates without
+  calling the contributor again.
+- PostgreSQL constraints bind task, owner-proof and outcome fields to the valid
+  work-item states. Migration refuses to invent dispatch state for legacy
+  prepared work and downgrade refuses to discard durable task outcomes.
+- The executable DataRights personal-data catalogue is version 6 and covers
+  the integration event, task payload and contributor request. Reflection tests
+  keep the event and task payload allowlists PII-free.
+- `eng/verify.ps1 -SkipRestore` passes solution synchronization, package
+  boundaries, a zero-warning build, every migration-drift check and all 2,581
+  non-Docker tests, including 64 architecture and 30 integration tests.
+- `eng/test-docker.ps1 -NoBuild` passes all 42 PostgreSQL/NATS scenarios. The
+  added process-boundary scenario publishes before a worker exists, then proves
+  durable task creation, Guests owner mutation and DataRights owner-proof
+  recording after the worker starts.
 
 ## Acceptance Evidence
 

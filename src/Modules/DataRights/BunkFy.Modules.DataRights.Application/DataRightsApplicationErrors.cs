@@ -41,6 +41,9 @@ public static class DataRightsApplicationErrors
     public static readonly Error ExecutionAlreadyStarted = new(
         "DataRights.ExecutionAlreadyStarted",
         "The data-rights execution was already started with different coordinates.");
+    public static readonly Error ExecutionOwnerResultInvalid = new(
+        "DataRights.ExecutionOwnerResultInvalid",
+        "The owner result is invalid or conflicts with the durable execution state.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;

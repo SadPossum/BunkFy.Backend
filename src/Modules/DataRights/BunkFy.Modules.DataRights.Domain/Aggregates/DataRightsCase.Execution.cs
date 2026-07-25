@@ -48,4 +48,29 @@ public sealed partial class DataRightsCase
         this.ExecutionRevision = this.Version;
         return Result.Success();
     }
+
+    public Result BlockAnonymisationExecution(
+        long expectedVersion,
+        string actorId,
+        DateTimeOffset nowUtc)
+    {
+        if (this.Status == DataRightsCaseState.Blocked)
+        {
+            return Result.Success();
+        }
+
+        Result ready = this.EnsureTransition(
+            expectedVersion,
+            actorId,
+            nowUtc,
+            DataRightsCaseState.Executing);
+        if (ready.IsFailure)
+        {
+            return ready;
+        }
+
+        this.Status = DataRightsCaseState.Blocked;
+        this.CompleteChange(actorId, nowUtc);
+        return Result.Success();
+    }
 }

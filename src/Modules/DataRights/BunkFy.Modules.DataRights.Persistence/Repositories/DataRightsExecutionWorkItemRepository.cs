@@ -22,4 +22,16 @@ internal sealed class DataRightsExecutionWorkItemRepository(DataRightsDbContext 
         dbContext.ExecutionWorkItems.SingleOrDefaultAsync(
             workItem => workItem.PropertyId == propertyId && workItem.CaseId == caseId,
             cancellationToken);
+
+    public Task<DataRightsExecutionWorkItem?> GetAsync(
+        Guid propertyId,
+        Guid caseId,
+        Guid workItemId,
+        CancellationToken cancellationToken) =>
+        dbContext.ExecutionWorkItems.SingleOrDefaultAsync(
+            workItem =>
+                workItem.PropertyId == propertyId &&
+                workItem.CaseId == caseId &&
+                workItem.Id == workItemId,
+            cancellationToken);
 }

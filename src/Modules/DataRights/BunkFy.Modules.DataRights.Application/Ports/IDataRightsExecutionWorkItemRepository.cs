@@ -12,4 +12,10 @@ public interface IDataRightsExecutionWorkItemRepository
         Guid propertyId,
         Guid caseId,
         CancellationToken cancellationToken);
+
+    Task<DataRightsExecutionWorkItem?> GetAsync(
+        Guid propertyId,
+        Guid caseId,
+        Guid workItemId,
+        CancellationToken cancellationToken);
 }

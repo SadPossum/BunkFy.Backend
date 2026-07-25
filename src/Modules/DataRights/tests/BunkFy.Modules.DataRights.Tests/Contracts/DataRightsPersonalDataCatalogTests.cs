@@ -56,6 +56,10 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsOperationApprovalRequest),
             nameof(DataRightsOperationApprovalRequest.ExecutingActorId),
             PersonalDataSurface.ApplicationQuery);
+        AssertBinding(
+            typeof(DataRightsAnonymisationContributionRequest),
+            nameof(DataRightsAnonymisationContributionRequest.ExecutingActorId),
+            PersonalDataSurface.IntegrationCommand);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.CreatedBy), PersonalDataSurface.Persistence);
         AssertBinding(
             typeof(DataRightsCase),
@@ -113,6 +117,10 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsExecutionWorkItemDto),
             nameof(DataRightsExecutionWorkItemDto.RecordId),
             PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DataRightsAnonymisationContributionRequest),
+            nameof(DataRightsAnonymisationContributionRequest.Coordinate),
+            PersonalDataSurface.IntegrationCommand);
         AssertBinding(
             typeof(DataRightsSelectedSubjectDto),
             nameof(DataRightsSelectedSubjectDto.SelectedAtUtc),
@@ -205,6 +213,41 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsCase)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Where(property => property.PropertyType == typeof(string))
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void Anonymisation_event_and_task_payload_are_pii_free_coordinates()
+    {
+        Assert.Equal(
+            [
+                "ApprovalRevision",
+                "CaseId",
+                "EventId",
+                "EventName",
+                "ExecutionRevision",
+                "OccurredAtUtc",
+                "PropertyId",
+                "ScopeId",
+                "TenantId",
+                "Version",
+                "WorkItemId"
+            ],
+            typeof(DataRightsAnonymisationExecutionPreparedIntegrationEvent)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "ApprovalRevision",
+                "CaseId",
+                "ExecutionRevision",
+                "PropertyId",
+                "WorkItemId"
+            ],
+            typeof(ExecuteDataRightsAnonymisationPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Select(property => property.Name)
                 .Order(StringComparer.Ordinal));
     }

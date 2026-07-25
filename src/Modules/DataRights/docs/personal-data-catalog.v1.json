@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 5,
+  "catalogVersion": 6,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -106,6 +106,7 @@
       "allowedSurfaces": [
         "application-command",
         "application-query",
+        "integration-command",
         "persistence"
       ],
       "allowedBoundaries": [
@@ -199,6 +200,13 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationContributionRequest",
+          "member": "ExecutingActorId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
           "member": "CreatedBy",
@@ -259,6 +267,7 @@
         "api-input",
         "application-query",
         "api-response",
+        "integration-command",
         "persistence"
       ],
       "allowedBoundaries": [
@@ -287,6 +296,13 @@
           "type": "BunkFy.Modules.DataRights.Contracts.Authorization.DataRightsOperationApprovalRequest",
           "member": "RecordId",
           "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationContributionRequest",
+          "member": "Coordinate",
+          "surface": "integration-command",
           "retentionPolicy": "transient-request"
         },
         {

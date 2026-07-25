@@ -18,9 +18,12 @@ public static class DataRightsModuleMetadata
         "property-processing-policy-activated";
     public const string PropertyProcessingSuspendedHandlerName =
         "property-processing-suspended";
+    public const string AnonymisationExecutionPreparedHandlerName =
+        "anonymisation-execution-prepared";
     public const string PropertiesProjectionName = "properties";
     public const int PropertiesProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
+    public const string AnonymisationWorkerGroup = "data-rights-workers";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -54,7 +57,11 @@ public static class DataRightsModuleMetadata
         .WithSubscription<PropertyProcessingSuspendedIntegrationEvent>(
             PropertiesModuleMetadata.Name,
             PropertyProcessingSuspendedHandlerName)
+        .WithSubscription<DataRightsAnonymisationExecutionPreparedIntegrationEvent>(
+            Name,
+            AnonymisationExecutionPreparedHandlerName)
         .WithTask<RebuildDataRightsPropertiesPayload>()
+        .WithTask<ExecuteDataRightsAnonymisationPayload>()
         .WithProfile(DataRightsProfiles.Default)
         .Build();
 
