@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Reservations.Tests;
 
 using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Persistence.Repositories;
 using BunkFy.Modules.Properties.Contracts;
@@ -19,6 +21,7 @@ public sealed class ReservationArrivalReminderTests
         ReservationArrivalReminderRepository repository = new(dbContext, new TestIdGenerator());
         Guid propertyId = Guid.NewGuid();
         Guid reservationId = Guid.NewGuid();
+        AddUnrestrictedState(dbContext, propertyId, reservationId);
 
         await repository.ApplyPropertyAsync(
             new("tenant-a", propertyId, "Europe/Moscow", true, 1, new(2026, 7, 15, 10, 0, 0, TimeSpan.Zero)),
@@ -48,6 +51,7 @@ public sealed class ReservationArrivalReminderTests
         ReservationArrivalReminderRepository repository = new(dbContext, new TestIdGenerator());
         Guid propertyId = Guid.NewGuid();
         Guid reservationId = Guid.NewGuid();
+        AddUnrestrictedState(dbContext, propertyId, reservationId);
         await repository.ApplyPropertyAsync(
             new("tenant-a", propertyId, "UTC", true, 1, new(2026, 7, 15, 10, 0, 0, TimeSpan.Zero)),
             CancellationToken.None);
@@ -139,6 +143,18 @@ public sealed class ReservationArrivalReminderTests
             now,
             []);
     }
+
+    private static void AddUnrestrictedState(
+        ReservationsDbContext dbContext,
+        Guid propertyId,
+        Guid reservationId) =>
+        dbContext.ProcessingRestrictionProjections.Add(
+            ReservationProcessingRestrictionProjection.Create(
+                "tenant-a",
+                propertyId,
+                reservationId,
+                ReservationProcessingRestrictionContract.CurrentVersion,
+                new(2026, 7, 15, 10, 0, 0, TimeSpan.Zero)).Value);
 
     private static ReservationsDbContext CreateDbContext()
     {

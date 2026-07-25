@@ -15,6 +15,7 @@ internal sealed class ReservationCountryPolicyAdmission(
     public const string ReservationManagementPurpose = "reservation-management";
     public const string ReservationIngestionPurpose = "reservation-ingestion";
     public const string DataRightsCorrectionPurpose = "data-rights-correction";
+    public const string DataRightsRestrictionPurpose = "data-rights-restriction";
     public const string AuthorizedOperatorProvenance = "authorized-workspace-operator";
     public const string ApprovedIngestionProvenance = "approved-ingestion";
 
@@ -28,10 +29,15 @@ internal sealed class ReservationCountryPolicyAdmission(
         ReservationPropertyPolicySnapshot? property = await properties.GetPolicyAsync(
             propertyId,
             cancellationToken).ConfigureAwait(false);
-        bool permitsRetiredProperty = string.Equals(
-            purposeCode,
-            DataRightsCorrectionPurpose,
-            StringComparison.Ordinal);
+        bool permitsRetiredProperty =
+            string.Equals(
+                purposeCode,
+                DataRightsCorrectionPurpose,
+                StringComparison.Ordinal) ||
+            string.Equals(
+                purposeCode,
+                DataRightsRestrictionPurpose,
+                StringComparison.Ordinal);
         if (property is not { IsKnown: true, ProcessingStatus: PropertyProcessingStatus.Enabled } ||
             (!permitsRetiredProperty && !property.IsActive) ||
             property.GovernancePolicy is null)

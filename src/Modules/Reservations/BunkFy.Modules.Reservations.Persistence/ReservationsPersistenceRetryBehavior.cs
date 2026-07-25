@@ -35,7 +35,9 @@ internal sealed class ReservationsPersistenceRetryBehavior<TCommand, TResponse>
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(next);
 
-        if (command is not ApplyReservationDataRightsCorrectionCommand)
+        if (command is not ApplyReservationDataRightsCorrectionCommand and
+            not ApplyReservationProcessingRestrictionCommand and
+            not ReleaseReservationProcessingRestrictionCommand)
         {
             return await next().ConfigureAwait(false);
         }

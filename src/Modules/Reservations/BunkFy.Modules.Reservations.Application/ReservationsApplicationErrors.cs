@@ -43,7 +43,25 @@ public static class ReservationsApplicationErrors
         "The correction does not change the selected reservation details.");
     public static readonly Error DataRightsApprovalRequired = new(
         "Reservations.DataRightsApprovalRequired",
-        "The reservation correction requires a current approved data-rights case.");
+        "The reservation operation requires a current approved data-rights case.");
+    public static readonly Error ProcessingRestrictionRequestInvalid = new(
+        "Reservations.ProcessingRestrictionRequestInvalid",
+        "The reservation processing-restriction request is invalid.");
+    public static readonly Error ProcessingRestrictionIdempotencyConflict = new(
+        "Reservations.ProcessingRestrictionIdempotencyConflict",
+        "The processing-restriction idempotency key is bound to a different request.");
+    public static readonly Error ProcessingRestrictionReservationVersionConflict = new(
+        "Reservations.ProcessingRestrictionReservationVersionConflict",
+        "The selected reservation version has changed.");
+    public static readonly Error ProcessingRestrictionApprovalAlreadyUsed = new(
+        "Reservations.ProcessingRestrictionApprovalAlreadyUsed",
+        "The data-rights approval coordinate has already been used.");
+    public static readonly Error ProcessingRestrictionNotFound = new(
+        "Reservations.ProcessingRestrictionNotFound",
+        "The reservation processing restriction was not found.");
+    public static readonly Error ProcessingRestrictionProjectionUnavailable = new(
+        "Reservations.ProcessingRestrictionProjectionUnavailable",
+        "The reservation processing-restriction state is unavailable or unsupported.");
     public static Error ReservationGuestLinkInvalid => ReservationsDomainErrors.ReservationGuestLinkInvalid;
     public static Error ReservationGuestRoleOccupied => ReservationsDomainErrors.ReservationGuestRoleOccupied;
 }

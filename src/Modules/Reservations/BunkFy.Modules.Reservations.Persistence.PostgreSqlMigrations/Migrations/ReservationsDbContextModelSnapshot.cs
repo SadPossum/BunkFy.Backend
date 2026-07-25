@@ -382,6 +382,210 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AppliedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("ApplyApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ApplyCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApplySelectedReservationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ReleaseApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ReleaseCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ReleaseSelectedReservationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReleasedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "PropertyId", "ReservationId", "ApplyCaseId", "ApplyApprovalRevision")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "ReservationId", "ReleaseCaseId", "ReleaseApprovalRevision")
+                        .IsUnique()
+                        .HasDatabaseName("IX_reservation_processing_restrictions_ScopeId_PropertyId_Res~1");
+
+                    b.HasIndex("ScopeId", "PropertyId", "ReservationId", "Status", "AppliedAtUtc")
+                        .HasDatabaseName("IX_reservation_processing_restrictions_ScopeId_PropertyId_Res~2");
+
+                    b.ToTable("reservation_processing_restrictions", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservation_processing_restrictions_apply_approval", "\"ApplyApprovalRevision\" >= 1 AND \"ApplySelectedReservationVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_reservation_processing_restrictions_lifecycle", "(\"Status\" = 1 AND \"ReleaseCaseId\" IS NULL AND \"ReleaseApprovalRevision\" IS NULL AND \"ReleaseSelectedReservationVersion\" IS NULL AND \"ReleasedBy\" IS NULL AND \"ReleasedAtUtc\" IS NULL AND \"Version\" = 1) OR (\"Status\" = 2 AND \"ReleaseCaseId\" IS NOT NULL AND \"ReleaseApprovalRevision\" >= 1 AND \"ReleaseSelectedReservationVersion\" >= 1 AND \"ReleasedBy\" IS NOT NULL AND \"ReleasedAtUtc\" IS NOT NULL AND \"ReleasedAtUtc\" >= \"AppliedAtUtc\" AND \"Version\" >= 2)");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ActiveRestrictionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsRestricted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastTransitionAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ProjectionOrdinal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("ProjectionOrdinal"));
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ScopeId", "PropertyId", "ReservationId");
+
+                    b.HasIndex("ProjectionOrdinal")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "IsRestricted", "ReservationId");
+
+                    b.ToTable("reservation_processing_restriction_state", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservation_processing_restriction_state_contract", "\"ContractVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_reservation_processing_restriction_state_effective", "(\"ActiveRestrictionCount\" = 0 AND NOT \"IsRestricted\") OR (\"ActiveRestrictionCount\" > 0 AND \"IsRestricted\")");
+
+                            t.HasCheckConstraint("CK_reservation_processing_restriction_state_revision", "\"Revision\" >= 0 AND \"ActiveRestrictionCount\" >= 0 AND \"ActiveRestrictionCount\" <= \"Revision\"");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("EffectiveRestricted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RestrictionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ResultingProjectionRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResultingRestrictionVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedReservationVersion")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "EventId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "CaseId", "ApprovalRevision");
+
+                    b.HasIndex("ScopeId", "PropertyId", "ReservationId", "CompletedAtUtc")
+                        .HasDatabaseName("IX_reservation_processing_restriction_receipts_ScopeId_Proper~1");
+
+                    b.ToTable("reservation_processing_restriction_receipts", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservation_processing_restriction_receipts_versions", "\"ApprovalRevision\" >= 1 AND \"SelectedReservationVersion\" >= 1 AND \"ContractVersion\" >= 1 AND \"ResultingProjectionRevision\" >= 1 AND ((\"Action\" = 1 AND \"ResultingRestrictionVersion\" = 1 AND \"EffectiveRestricted\") OR (\"Action\" = 2 AND \"ResultingRestrictionVersion\" >= 2))");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Entities.RequestedInventoryUnit", b =>
                 {
                     b.Property<string>("ScopeId")

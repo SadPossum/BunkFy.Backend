@@ -1,7 +1,9 @@
 namespace Integration.Tests;
 
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Scoping;
@@ -18,6 +20,8 @@ public sealed class ReservationsMigrationIntegrationTests
     private const string ArrivalRemindersMigration = "20260715123149_AddReservationArrivalReminders";
     private const string PreviousRestrictionEligibilityMigration =
         "20260722134132_AddInternationalMarketGate";
+    private const string PreviousProcessingRestrictionMigration =
+        "20260725190654_AddReservationDataRightsCorrectionReceipts";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -160,6 +164,73 @@ public sealed class ReservationsMigrationIntegrationTests
         Assert.True(await upgraded.GuestProfileProjections.AnyAsync(
             profile => profile.Id == guestId && profile.OriginPropertyId == propertyId));
         Assert.Empty(await upgraded.GuestProcessingRestrictionProjections.ToArrayAsync());
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Processing_restriction_migration_backfills_existing_reservations()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_reservation_processing_restriction_migration_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        DateTimeOffset createdAtUtc =
+            new(2026, 7, 25, 18, 30, 0, TimeSpan.Zero);
+        await using (ReservationsDbContext previous =
+            CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(PreviousProcessingRestrictionMigration);
+            Reservation reservation = Reservation.Create(
+                reservationId,
+                "tenant-a",
+                propertyId,
+                Guid.NewGuid(),
+                new DateOnly(2026, 8, 1),
+                new DateOnly(2026, 8, 3),
+                [Guid.NewGuid()],
+                "Existing Guest",
+                "existing@example.test",
+                "+44 20 1234 5678",
+                guestCount: 1,
+                ReservationSource.Direct,
+                sourceSystem: null,
+                sourceReference: null,
+                notes: null,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                ReservationDetailsChangeOrigin.Staff,
+                initialDetailsActorId: "user:migration-seed",
+                initialAdapterConnectionId: null,
+                initialExternalOperationId: null,
+                Guid.NewGuid(),
+                createdAtUtc).Value;
+            previous.Reservations.Add(reservation);
+            await previous.SaveChangesAsync();
+        }
+
+        await using ReservationsDbContext upgraded =
+            CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        ReservationProcessingRestrictionProjection projection =
+            await upgraded.ProcessingRestrictionProjections
+                .AsNoTracking()
+                .SingleAsync(item =>
+                    item.PropertyId == propertyId &&
+                    item.ReservationId == reservationId);
+        Assert.Equal(
+            ReservationProcessingRestrictionContract.CurrentVersion,
+            projection.ContractVersion);
+        Assert.Equal(0, projection.Revision);
+        Assert.Equal(0, projection.ActiveRestrictionCount);
+        Assert.False(projection.IsRestricted);
+        Assert.Equal(createdAtUtc, projection.LastTransitionAtUtc);
+        Assert.True(projection.ProjectionOrdinal > 0);
     }
 
     private static ReservationsDbContext CreateDbContext(string connectionString)

@@ -50,7 +50,13 @@ internal sealed class ReservationArrivalReminderRepository(
                 reservation.ExpectedArrivalTime != null &&
                 reservation.Arrival >= earliestRelevantArrival &&
                 (reservation.Status == ReservationState.PendingAllocation ||
-                 reservation.Status == ReservationState.Confirmed))
+                 reservation.Status == ReservationState.Confirmed) &&
+                dbContext.ProcessingRestrictionProjections.Any(projection =>
+                    projection.PropertyId == reservation.PropertyId &&
+                    projection.ReservationId == reservation.Id &&
+                    projection.ContractVersion ==
+                        ReservationProcessingRestrictionContract.CurrentVersion &&
+                    !projection.IsRestricted))
             .Select(reservation => new ReservationReminderSource(
                 reservation.ScopeId,
                 reservation.Id,
@@ -108,6 +114,21 @@ internal sealed class ReservationArrivalReminderRepository(
         ReservationArrivalReminder[] existing = await dbContext.ArrivalReminders
             .Where(reminder => reminder.ReservationId == reservation.ReservationId)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        bool processingAllowed =
+            await dbContext.ProcessingRestrictionProjections.AnyAsync(
+                projection =>
+                    projection.PropertyId == reservation.PropertyId &&
+                    projection.ReservationId == reservation.ReservationId &&
+                    projection.ContractVersion ==
+                        ReservationProcessingRestrictionContract.CurrentVersion &&
+                    !projection.IsRestricted,
+                cancellationToken).ConfigureAwait(false);
+        if (!processingAllowed)
+        {
+            Supersede(existing);
+            return;
+        }
+
         ReservationPropertyProjection? property = dbContext.PropertyProjections.Local.FirstOrDefault(
             item => item.Id == reservation.PropertyId && item.ScopeId == reservation.ScopeId) ??
             await dbContext.PropertyProjections.AsNoTracking().FirstOrDefaultAsync(
@@ -115,6 +136,16 @@ internal sealed class ReservationArrivalReminderRepository(
                 cancellationToken).ConfigureAwait(false);
 
         this.RefreshCore(reservation, property, existing);
+    }
+
+    public async Task SuppressForProcessingRestrictionAsync(
+        Guid reservationId,
+        CancellationToken cancellationToken)
+    {
+        ReservationArrivalReminder[] existing = await dbContext.ArrivalReminders
+            .Where(reminder => reminder.ReservationId == reservationId)
+            .ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        Supersede(existing);
     }
 
     public async Task<ReservationArrivalReminderClaimResult> ClaimDueAsync(
@@ -139,7 +170,14 @@ internal sealed class ReservationArrivalReminderRepository(
         Guid[] propertyIds = candidates.Select(reminder => reminder.PropertyId).Distinct().ToArray();
         Dictionary<Guid, ReservationReminderCandidate> reservations = await dbContext.Reservations
             .AsNoTracking()
-            .Where(reservation => reservationIds.Contains(reservation.Id))
+            .Where(reservation =>
+                reservationIds.Contains(reservation.Id) &&
+                dbContext.ProcessingRestrictionProjections.Any(projection =>
+                    projection.PropertyId == reservation.PropertyId &&
+                    projection.ReservationId == reservation.Id &&
+                    projection.ContractVersion ==
+                        ReservationProcessingRestrictionContract.CurrentVersion &&
+                    !projection.IsRestricted))
             .Select(reservation => new ReservationReminderCandidate(
                 reservation.Id,
                 reservation.PropertyId,

@@ -310,6 +310,9 @@ public sealed class ReservationsPersonalDataCatalogTests
     [
         typeof(Reservation),
         typeof(ReservationDataRightsCorrectionReceipt),
+        typeof(ReservationProcessingRestriction),
+        typeof(ReservationProcessingRestrictionProjection),
+        typeof(ReservationProcessingRestrictionReceipt),
         typeof(RequestedInventoryUnit),
         typeof(ReservationGuest),
         typeof(ReservationDetailsHistoryEntry),

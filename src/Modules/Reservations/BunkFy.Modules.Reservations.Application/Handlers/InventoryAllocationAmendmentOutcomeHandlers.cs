@@ -23,7 +23,7 @@ internal sealed class InventoryAllocationAmendmentConfirmedHandler(
         InventoryAllocationAmendmentConfirmedIntegrationEvent outcome,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await reservations.GetForRequiredContinuationAsync(
             outcome.PropertyId,
             outcome.ReservationId,
             cancellationToken).ConfigureAwait(false);
@@ -101,7 +101,7 @@ internal sealed class InventoryAllocationAmendmentRejectedHandler(
         InventoryAllocationAmendmentRejectedIntegrationEvent outcome,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await reservations.GetForRequiredContinuationAsync(
             outcome.PropertyId,
             outcome.ReservationId,
             cancellationToken).ConfigureAwait(false);

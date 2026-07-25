@@ -8,9 +8,11 @@ using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application;
 using BunkFy.Modules.Reservations.Application.Commands;
+using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Cqrs;
@@ -231,6 +233,196 @@ public sealed class ReservationDataRightsIntegrationTests
         Assert.DoesNotContain("+44 20 9999 0000", correctionEvent.Payload, StringComparison.Ordinal);
     }
 
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Approved_restriction_on_retired_property_gates_processing_and_replays_atomically()
+    {
+        await using IContainer nats = AuthTestContainers.CreateNatsContainer();
+        await nats.StartAsync();
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_reservation_processing_restriction_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        string connectionString = postgreSql.GetConnectionString();
+        await using AuthTestApplication api = new(
+            "PostgreSql",
+            connectionString,
+            AuthTestContainers.GetNatsConnectionString(nats));
+        await MigrateCorrectionDatabasesAsync(api).ConfigureAwait(false);
+
+        Guid propertyId = Guid.NewGuid();
+        (
+            Reservation reservation,
+            DataRightsCase applyCase,
+            DataRightsCase releaseCase) =
+            await SeedApprovedRestrictionCasesAsync(api, propertyId)
+                .ConfigureAwait(false);
+        ApplyReservationProcessingRestrictionCommand applyCommand = new(
+            Guid.NewGuid(),
+            propertyId,
+            applyCase.Id,
+            applyCase.DecisionRevision!.Value,
+            reservation.Id,
+            reservation.Version,
+            ExpectedProjectionRevision: 0,
+            "user:privacy-operator");
+
+        using IServiceScope commandScope = api.Services.CreateScope();
+        commandScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        IRequestDispatcher dispatcher =
+            commandScope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+
+        Result<ReservationProcessingRestrictionReceiptDto> applied =
+            await dispatcher.SendAsync(applyCommand, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(applied.IsSuccess, applied.Error.Code);
+        Assert.Equal(ReservationProcessingRestrictionActionDto.Apply, applied.Value.Action);
+        Assert.True(applied.Value.EffectiveRestricted);
+        Assert.Equal(1, applied.Value.RestrictionVersion);
+        Assert.Equal(1, applied.Value.ProjectionRevision);
+
+        Result<ReservationProcessingRestrictionReceiptDto> applyReplay =
+            await dispatcher.SendAsync(applyCommand, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(applyReplay.IsSuccess, applyReplay.Error.Code);
+        Assert.Equal(applied.Value.ReceiptId, applyReplay.Value.ReceiptId);
+
+        using (IServiceScope restrictedScope = api.Services.CreateScope())
+        {
+            restrictedScope.ServiceProvider
+                .GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            IReservationRepository repository = restrictedScope.ServiceProvider
+                .GetRequiredService<IReservationRepository>();
+            Assert.Null(await repository.GetAsync(
+                propertyId,
+                reservation.Id,
+                CancellationToken.None).ConfigureAwait(false));
+            Assert.NotNull(await repository.GetForDataRightsAsync(
+                propertyId,
+                reservation.Id,
+                CancellationToken.None).ConfigureAwait(false));
+            Assert.NotNull(await repository.GetForRequiredContinuationAsync(
+                propertyId,
+                reservation.Id,
+                CancellationToken.None).ConfigureAwait(false));
+        }
+
+        ReleaseReservationProcessingRestrictionCommand releaseCommand = new(
+            Guid.NewGuid(),
+            propertyId,
+            applied.Value.RestrictionId,
+            releaseCase.Id,
+            releaseCase.DecisionRevision!.Value,
+            reservation.Id,
+            reservation.Version,
+            applied.Value.RestrictionVersion,
+            applied.Value.ProjectionRevision,
+            "user:privacy-operator");
+        Result<ReservationProcessingRestrictionReceiptDto> released =
+            await dispatcher.SendAsync(releaseCommand, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(released.IsSuccess, released.Error.Code);
+        Assert.Equal(ReservationProcessingRestrictionActionDto.Release, released.Value.Action);
+        Assert.False(released.Value.EffectiveRestricted);
+        Assert.Equal(2, released.Value.RestrictionVersion);
+        Assert.Equal(2, released.Value.ProjectionRevision);
+
+        Result<ReservationProcessingRestrictionReceiptDto> releaseReplay =
+            await dispatcher.SendAsync(releaseCommand, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(releaseReplay.IsSuccess, releaseReplay.Error.Code);
+        Assert.Equal(released.Value.ReceiptId, releaseReplay.Value.ReceiptId);
+
+        using IServiceScope verificationScope = api.Services.CreateScope();
+        verificationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        IReservationRepository visibleRepository = verificationScope.ServiceProvider
+            .GetRequiredService<IReservationRepository>();
+        Assert.NotNull(await visibleRepository.GetAsync(
+            propertyId,
+            reservation.Id,
+            CancellationToken.None).ConfigureAwait(false));
+        ReservationsDbContext reservations =
+            verificationScope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+        ReservationProcessingRestriction restriction =
+            await reservations.ProcessingRestrictions
+                .AsNoTracking()
+                .SingleAsync()
+                .ConfigureAwait(false);
+        ReservationProcessingRestrictionProjection projection =
+            await reservations.ProcessingRestrictionProjections
+                .AsNoTracking()
+                .SingleAsync()
+                .ConfigureAwait(false);
+        ReservationProcessingRestrictionReceipt[] receipts =
+            await reservations.ProcessingRestrictionReceipts
+                .AsNoTracking()
+                .OrderBy(receipt => receipt.CompletedAtUtc)
+                .ThenBy(receipt => receipt.Id)
+                .ToArrayAsync()
+                .ConfigureAwait(false);
+        ReservationArrivalReminder reminder = await reservations.ArrivalReminders
+            .AsNoTracking()
+            .SingleAsync()
+            .ConfigureAwait(false);
+        Gma.Framework.Messaging.Infrastructure.OutboxMessage[] restrictionEvents =
+            await reservations.OutboxMessages
+                .AsNoTracking()
+                .Where(message => message.EventType.Contains(
+                    "ReservationProcessingRestrictionChanged"))
+                .OrderBy(message => message.OccurredAtUtc)
+                .ToArrayAsync()
+                .ConfigureAwait(false);
+
+        Assert.Equal(ReservationProcessingRestrictionStatus.Released, restriction.Status);
+        Assert.Equal(releaseCase.Id, restriction.ReleaseCaseId);
+        Assert.Equal(releaseCase.DecisionRevision, restriction.ReleaseApprovalRevision);
+        Assert.False(projection.IsRestricted);
+        Assert.Equal(0, projection.ActiveRestrictionCount);
+        Assert.Equal(2, projection.Revision);
+        Assert.Equal(2, receipts.Length);
+        Assert.Contains(
+            receipts,
+            receipt => receipt.Action ==
+                ReservationProcessingRestrictionAction.Apply);
+        Assert.Contains(
+            receipts,
+            receipt => receipt.Action ==
+                ReservationProcessingRestrictionAction.Release);
+        Assert.Equal(ReservationArrivalReminderState.Superseded, reminder.State);
+        Assert.Equal(2, restrictionEvents.Length);
+        Assert.All(
+            restrictionEvents,
+            message =>
+            {
+                Assert.DoesNotContain("Maya Chen", message.Payload, StringComparison.Ordinal);
+                Assert.DoesNotContain(
+                    "maya.chen@example.test",
+                    message.Payload,
+                    StringComparison.Ordinal);
+                Assert.DoesNotContain(
+                    "+44 20 1234 5678",
+                    message.Payload,
+                    StringComparison.Ordinal);
+                Assert.DoesNotContain(
+                    "privacy-operator",
+                    message.Payload,
+                    StringComparison.Ordinal);
+                Assert.DoesNotContain(
+                    applyCase.Id.ToString("D"),
+                    message.Payload,
+                    StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain(
+                    releaseCase.Id.ToString("D"),
+                    message.Payload,
+                    StringComparison.OrdinalIgnoreCase);
+            });
+    }
+
     private static async Task MigrateCorrectionDatabasesAsync(AuthTestApplication api)
     {
         using IServiceScope scope = api.Services.CreateScope();
@@ -331,6 +523,135 @@ public sealed class ReservationDataRightsIntegrationTests
         dataRights.Cases.Add(dataRightsCase);
         await dataRights.SaveChangesAsync().ConfigureAwait(false);
         return (reservation, dataRightsCase);
+    }
+
+    private static async Task<(
+        Reservation Reservation,
+        DataRightsCase Apply,
+        DataRightsCase Release)> SeedApprovedRestrictionCasesAsync(
+            AuthTestApplication api,
+            Guid propertyId)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        ReservationsDbContext reservations =
+            scope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                ReservationsModuleMetadata.Name)
+            .HandleAsync(
+                new(
+                    Guid.NewGuid(),
+                    TenantId,
+                    Now.AddDays(-2),
+                    propertyId,
+                    "Restriction House",
+                    "restriction-house",
+                    "UTC",
+                    PropertyStatus.Active,
+                    1),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            ReservationsModuleMetadata.Name,
+            TenantId,
+            propertyId,
+            2).ConfigureAwait(false);
+        await ResolveHandler<PropertyRetiredIntegrationEvent>(
+                scope.ServiceProvider,
+                ReservationsModuleMetadata.Name)
+            .HandleAsync(
+                new(
+                    Guid.NewGuid(),
+                    TenantId,
+                    Now.AddDays(-1),
+                    propertyId,
+                    3,
+                    "user:property-admin"),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        Reservation reservation = CreateReservation(propertyId, TenantId);
+        await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
+            .AddAsync(reservation, CancellationToken.None)
+            .ConfigureAwait(false);
+        await reservations.SaveChangesAsync().ConfigureAwait(false);
+        await reservations.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             INSERT INTO reservations.arrival_reminders
+                 ("Id", "ScopeId", "ReservationId", "PropertyId",
+                  "DetailsRevision", "TimeZoneId", "Arrival",
+                  "ExpectedArrivalTime", "ExpectedArrivalAtUtc", "DueAtUtc",
+                  "LeadTimeMinutes", "State", "DispatchedAtUtc", "Version")
+             VALUES
+                 ({Guid.NewGuid()}, {TenantId}, {reservation.Id}, {propertyId},
+                  {reservation.DetailsRevision}, {"UTC"}, {reservation.Arrival},
+                  {new TimeOnly(15, 0)}, {Now.AddDays(1)}, {Now.AddHours(22)},
+                  {120}, {(int)ReservationArrivalReminderState.Pending},
+                  {(DateTimeOffset?)null}, {1L});
+             """).ConfigureAwait(false);
+
+        DataRightsCase apply = CreateApprovedRestrictionCase(
+            reservation,
+            DataRightsRestrictionAction.Apply,
+            Now.AddMinutes(1));
+        DataRightsCase release = CreateApprovedRestrictionCase(
+            reservation,
+            DataRightsRestrictionAction.Release,
+            Now.AddMinutes(10));
+        DataRightsDbContext dataRights =
+            scope.ServiceProvider.GetRequiredService<DataRightsDbContext>();
+        dataRights.Cases.AddRange(apply, release);
+        await dataRights.SaveChangesAsync().ConfigureAwait(false);
+        return (reservation, apply, release);
+    }
+
+    private static DataRightsCase CreateApprovedRestrictionCase(
+        Reservation reservation,
+        DataRightsRestrictionAction action,
+        DateTimeOffset startedAtUtc)
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            reservation.PropertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Restriction,
+            DataRightsRequesterRelation.ControllerInitiated,
+            action).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            TenantId,
+            request,
+            "user:privacy-reviewer",
+            startedAtUtc).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            ReservationsDataRightsCoordinates.Owner,
+            ReservationsDataRightsCoordinates.ReservationRecordType,
+            reservation.Id,
+            reservation.Version,
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            startedAtUtc.AddMinutes(4)).IsSuccess);
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            dataRightsCase.Version,
+            "user:decision-maker",
+            startedAtUtc.AddMinutes(5)).IsSuccess);
+        return dataRightsCase;
     }
 
     private static IIntegrationEventHandler<TEvent> ResolveHandler<TEvent>(

@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.Models;
 
 internal sealed record ReservationDataRightsExport(
     Guid ReservationId,
@@ -138,5 +139,45 @@ internal sealed record ReservationDataRightsCorrectionReceiptDataRightsExport(
     long CurrentDetailsRevision,
     IReadOnlyCollection<ReservationDetailsField> ChangedFields,
     Guid DetailsChangeEventId,
+    Guid EventId,
+    DateTimeOffset CompletedAtUtc);
+
+internal sealed record ReservationProcessingRestrictionDataRightsExport(
+    Guid RestrictionId,
+    Guid PropertyId,
+    Guid ReservationId,
+    Guid ApplyCaseId,
+    long ApplyApprovalRevision,
+    long ApplySelectedReservationVersion,
+    ReservationProcessingRestrictionStatus Status,
+    long Version,
+    DateTimeOffset AppliedAtUtc,
+    Guid? ReleaseCaseId,
+    long? ReleaseApprovalRevision,
+    long? ReleaseSelectedReservationVersion,
+    DateTimeOffset? ReleasedAtUtc);
+
+internal sealed record ReservationProcessingRestrictionStateDataRightsExport(
+    Guid PropertyId,
+    Guid ReservationId,
+    int ContractVersion,
+    long Revision,
+    int ActiveRestrictionCount,
+    bool IsRestricted,
+    DateTimeOffset LastTransitionAtUtc);
+
+internal sealed record ReservationProcessingRestrictionReceiptDataRightsExport(
+    Guid ReceiptId,
+    Guid RestrictionId,
+    ReservationProcessingRestrictionAction Action,
+    Guid PropertyId,
+    Guid ReservationId,
+    Guid CaseId,
+    long ApprovalRevision,
+    long SelectedReservationVersion,
+    int ContractVersion,
+    long ResultingRestrictionVersion,
+    long ResultingProjectionRevision,
+    bool EffectiveRestricted,
     Guid EventId,
     DateTimeOffset CompletedAtUtc);

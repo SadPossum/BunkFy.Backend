@@ -17,6 +17,12 @@ internal sealed class ReservationDataRightsExportContributor(
     public const string ArrivalReminderRecordType = "reservation-arrival-reminder";
     public const string DataRightsCorrectionReceiptRecordType =
         "reservation-data-rights-correction-receipt";
+    public const string ProcessingRestrictionRecordType =
+        "reservation-processing-restriction";
+    public const string ProcessingRestrictionStateRecordType =
+        "reservation-processing-restriction-state";
+    public const string ProcessingRestrictionReceiptRecordType =
+        "reservation-processing-restriction-receipt";
 
     public string OwnerKey => ReservationDataRightsDiscoveryContributor.Owner;
 
@@ -245,6 +251,105 @@ internal sealed class ReservationDataRightsExportContributor(
                 receipt.CompletedAtUtc);
             await sink.WriteAsync(
                 ReservationDataRightsExportSchema.CreateDataRightsCorrectionReceiptRecord(export),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        IQueryable<ReservationProcessingRestrictionDataRightsExport>
+            processingRestrictions = dbContext.ProcessingRestrictions
+                .AsNoTracking()
+                .Where(restriction =>
+                    restriction.PropertyId == request.PropertyId &&
+                    restriction.ReservationId == reservation.Id)
+                .OrderBy(restriction => restriction.AppliedAtUtc)
+                .ThenBy(restriction => restriction.Id)
+                .Select(restriction =>
+                    new ReservationProcessingRestrictionDataRightsExport(
+                        restriction.Id,
+                        restriction.PropertyId,
+                        restriction.ReservationId,
+                        restriction.ApplyCaseId,
+                        restriction.ApplyApprovalRevision,
+                        restriction.ApplySelectedReservationVersion,
+                        restriction.Status,
+                        restriction.Version,
+                        restriction.AppliedAtUtc,
+                        restriction.ReleaseCaseId,
+                        restriction.ReleaseApprovalRevision,
+                        restriction.ReleaseSelectedReservationVersion,
+                        restriction.ReleasedAtUtc));
+        await foreach (
+            ReservationProcessingRestrictionDataRightsExport restriction in
+            processingRestrictions
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema
+                    .CreateProcessingRestrictionRecord(restriction),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        ReservationProcessingRestrictionProjection? restrictionState =
+            await dbContext.ProcessingRestrictionProjections
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    state =>
+                        state.PropertyId == request.PropertyId &&
+                        state.ReservationId == reservation.Id,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (restrictionState is not null)
+        {
+            ReservationProcessingRestrictionStateDataRightsExport state = new(
+                restrictionState.PropertyId,
+                restrictionState.ReservationId,
+                restrictionState.ContractVersion,
+                restrictionState.Revision,
+                restrictionState.ActiveRestrictionCount,
+                restrictionState.IsRestricted,
+                restrictionState.LastTransitionAtUtc);
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema
+                    .CreateProcessingRestrictionStateRecord(state),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        IQueryable<ReservationProcessingRestrictionReceipt> restrictionReceipts =
+            dbContext.ProcessingRestrictionReceipts
+                .AsNoTracking()
+                .Where(receipt =>
+                    receipt.PropertyId == request.PropertyId &&
+                    receipt.ReservationId == reservation.Id)
+                .OrderBy(receipt => receipt.CompletedAtUtc)
+                .ThenBy(receipt => receipt.Id);
+        await foreach (
+            ReservationProcessingRestrictionReceipt receipt in restrictionReceipts
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            ReservationProcessingRestrictionReceiptDataRightsExport export = new(
+                receipt.Id,
+                receipt.RestrictionId,
+                receipt.Action,
+                receipt.PropertyId,
+                receipt.ReservationId,
+                receipt.CaseId,
+                receipt.ApprovalRevision,
+                receipt.SelectedReservationVersion,
+                receipt.ContractVersion,
+                receipt.ResultingRestrictionVersion,
+                receipt.ResultingProjectionRevision,
+                receipt.EffectiveRestricted,
+                receipt.EventId,
+                receipt.CompletedAtUtc);
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema
+                    .CreateProcessingRestrictionReceiptRecord(export),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
         }

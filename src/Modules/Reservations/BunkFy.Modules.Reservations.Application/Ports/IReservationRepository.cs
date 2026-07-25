@@ -12,7 +12,18 @@ public interface IReservationRepository
         Guid propertyId,
         Guid reservationId,
         CancellationToken cancellationToken);
-    Task<Reservation?> GetAsyncByReservationId(Guid reservationId, CancellationToken cancellationToken);
+    Task<Reservation?> GetAsyncByReservationId(
+        Guid reservationId,
+        CancellationToken cancellationToken);
+    Task<Reservation?> GetForRequiredContinuationAsync(
+        Guid propertyId,
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        this.GetAsync(propertyId, reservationId, cancellationToken);
+    Task<Reservation?> GetForRequiredContinuationByReservationIdAsync(
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        this.GetAsyncByReservationId(reservationId, cancellationToken);
     Task<Reservation?> GetByExternalSourceAsync(string sourceSystem, string sourceReference, CancellationToken cancellationToken);
     Task<bool> ExternalSourceExistsAsync(string sourceSystem, string sourceReference, CancellationToken cancellationToken);
     Task<ReservationListResponse> ListAsync(

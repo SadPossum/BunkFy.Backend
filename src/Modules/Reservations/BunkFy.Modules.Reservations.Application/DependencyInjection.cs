@@ -126,6 +126,10 @@ public static class DependencyInjection
             RebuildReservationGuestRestrictionsPayload,
             RebuildReservationGuestRestrictionsTaskHandler>(
                 ReservationsModuleMetadata.Name);
+        services.AddTaskHandler<
+            RebuildReservationProcessingRestrictionsPayload,
+            RebuildReservationProcessingRestrictionsTaskHandler>(
+                ReservationsModuleMetadata.Name);
         services.AddTaskHandler<RebuildReservationPropertiesPayload, RebuildReservationPropertiesTaskHandler>(
             ReservationsModuleMetadata.Name);
         services.AddTaskHandler<DispatchReservationArrivalRemindersPayload, DispatchReservationArrivalRemindersTaskHandler>(

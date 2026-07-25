@@ -34,7 +34,10 @@ internal sealed class InventoryAllocationConfirmedHandler(
             cancellationToken).ConfigureAwait(false);
 
         Reservation? reservation = await reservations
-            .GetAsync(outcome.PropertyId, outcome.ReservationId, cancellationToken)
+            .GetForRequiredContinuationAsync(
+                outcome.PropertyId,
+                outcome.ReservationId,
+                cancellationToken)
             .ConfigureAwait(false);
         if (reservation is null)
         {
@@ -86,7 +89,10 @@ internal sealed class InventoryAllocationRejectedHandler(
     public async Task HandleAsync(InventoryAllocationRejectedIntegrationEvent outcome, CancellationToken cancellationToken)
     {
         Reservation? reservation = await reservations
-            .GetAsync(outcome.PropertyId, outcome.ReservationId, cancellationToken)
+            .GetForRequiredContinuationAsync(
+                outcome.PropertyId,
+                outcome.ReservationId,
+                cancellationToken)
             .ConfigureAwait(false);
         if (reservation is null)
         {
@@ -137,7 +143,9 @@ internal sealed class InventoryAllocationReleasedHandler(
     public async Task HandleAsync(InventoryAllocationReleasedIntegrationEvent outcome, CancellationToken cancellationToken)
     {
         Reservation? reservation = await reservations
-            .GetAsyncByReservationId(outcome.ReservationId, cancellationToken)
+            .GetForRequiredContinuationByReservationIdAsync(
+                outcome.ReservationId,
+                cancellationToken)
             .ConfigureAwait(false);
         if (reservation is null)
         {
@@ -181,7 +189,9 @@ internal sealed class InventoryAllocationReleaseRejectedHandler(
         CancellationToken cancellationToken)
     {
         Reservation? reservation = await reservations
-            .GetAsyncByReservationId(outcome.ReservationId, cancellationToken)
+            .GetForRequiredContinuationByReservationIdAsync(
+                outcome.ReservationId,
+                cancellationToken)
             .ConfigureAwait(false);
         if (reservation is null)
         {

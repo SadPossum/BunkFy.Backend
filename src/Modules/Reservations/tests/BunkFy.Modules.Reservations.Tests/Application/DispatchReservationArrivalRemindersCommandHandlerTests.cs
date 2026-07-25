@@ -60,6 +60,10 @@ public sealed class DispatchReservationArrivalRemindersCommandHandlerTests
             ReservationReminderSource reservation,
             CancellationToken cancellationToken) => Task.CompletedTask;
 
+        public Task SuppressForProcessingRestrictionAsync(
+            Guid reservationId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<ReservationArrivalReminderClaimResult> ClaimDueAsync(
             DateTimeOffset nowUtc,
             int batchSize,

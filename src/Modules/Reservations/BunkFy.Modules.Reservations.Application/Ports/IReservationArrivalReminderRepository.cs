@@ -10,6 +10,10 @@ public interface IReservationArrivalReminderRepository
         ReservationReminderSource reservation,
         CancellationToken cancellationToken);
 
+    Task SuppressForProcessingRestrictionAsync(
+        Guid reservationId,
+        CancellationToken cancellationToken);
+
     Task<ReservationArrivalReminderClaimResult> ClaimDueAsync(
         DateTimeOffset nowUtc,
         int batchSize,

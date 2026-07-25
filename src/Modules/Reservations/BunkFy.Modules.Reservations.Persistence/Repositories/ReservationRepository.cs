@@ -7,19 +7,29 @@ using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 
-internal sealed class ReservationRepository(ReservationsDbContext dbContext) : IReservationRepository
+internal sealed class ReservationRepository(
+    ReservationsDbContext dbContext,
+    IReservationProcessingRestrictionProjectionRepository restrictionProjections)
+    : IReservationRepository
 {
-    public Task AddAsync(Reservation reservation, CancellationToken cancellationToken)
+    public async Task AddAsync(
+        Reservation reservation,
+        CancellationToken cancellationToken)
     {
         dbContext.Reservations.Add(reservation);
-        return Task.CompletedTask;
+        await restrictionProjections.EnsureAsync(
+            reservation.ScopeId,
+            reservation.PropertyId,
+            reservation.Id,
+            reservation.CreatedAtUtc,
+            cancellationToken).ConfigureAwait(false);
     }
 
     public Task<Reservation?> GetAsync(
         Guid propertyId,
         Guid reservationId,
         CancellationToken cancellationToken) =>
-        dbContext.Reservations
+        this.OrdinaryReservations()
             .Include(reservation => reservation.RequestedUnits)
             .Include(reservation => reservation.Guests)
             .FirstOrDefaultAsync(
@@ -39,7 +49,32 @@ internal sealed class ReservationRepository(ReservationsDbContext dbContext) : I
                     reservation.PropertyId == propertyId,
                 cancellationToken);
 
-    public Task<Reservation?> GetAsyncByReservationId(Guid reservationId, CancellationToken cancellationToken) =>
+    public Task<Reservation?> GetForRequiredContinuationAsync(
+        Guid propertyId,
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        dbContext.Reservations
+            .Include(reservation => reservation.RequestedUnits)
+            .Include(reservation => reservation.Guests)
+            .FirstOrDefaultAsync(
+                reservation =>
+                    reservation.Id == reservationId &&
+                    reservation.PropertyId == propertyId,
+                cancellationToken);
+
+    public Task<Reservation?> GetAsyncByReservationId(
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        this.OrdinaryReservations()
+            .Include(reservation => reservation.RequestedUnits)
+            .Include(reservation => reservation.Guests)
+            .FirstOrDefaultAsync(
+                reservation => reservation.Id == reservationId,
+                cancellationToken);
+
+    public Task<Reservation?> GetForRequiredContinuationByReservationIdAsync(
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
         dbContext.Reservations
             .Include(reservation => reservation.RequestedUnits)
             .Include(reservation => reservation.Guests)
@@ -73,7 +108,7 @@ internal sealed class ReservationRepository(ReservationsDbContext dbContext) : I
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
-        IQueryable<Reservation> query = dbContext.Reservations
+        IQueryable<Reservation> query = this.OrdinaryReservations()
             .AsNoTracking()
             .Where(reservation => reservation.PropertyId == propertyId);
 
@@ -128,6 +163,15 @@ internal sealed class ReservationRepository(ReservationsDbContext dbContext) : I
             .ConfigureAwait(false);
         return new(rows.Select(Map).ToArray(), pageRequest.Page, pageRequest.PageSize, totalCount);
     }
+
+    private IQueryable<Reservation> OrdinaryReservations() =>
+        dbContext.Reservations.Where(reservation =>
+            dbContext.ProcessingRestrictionProjections.Any(projection =>
+                projection.PropertyId == reservation.PropertyId &&
+                projection.ReservationId == reservation.Id &&
+                projection.ContractVersion ==
+                    ReservationProcessingRestrictionContract.CurrentVersion &&
+                !projection.IsRestricted));
 
     private static ReservationDto Map(Reservation reservation) => new(
         reservation.Id,

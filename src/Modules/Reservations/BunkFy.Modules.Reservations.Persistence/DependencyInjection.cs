@@ -37,6 +37,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IReservationDataRightsCorrectionReceiptRepository,
             ReservationDataRightsCorrectionReceiptRepository>();
+        builder.Services.TryAddScoped<
+            IReservationProcessingRestrictionRepository,
+            ReservationProcessingRestrictionRepository>();
+        builder.Services.TryAddScoped<
+            IReservationProcessingRestrictionProjectionRepository,
+            ReservationProcessingRestrictionProjectionRepository>();
+        builder.Services.TryAddScoped<
+            IReservationProcessingRestrictionProjectionRebuildSource,
+            ReservationProcessingRestrictionProjectionRebuildSource>();
         builder.Services.TryAddScoped<IReservationDetailsHistoryWriter, ReservationDetailsHistoryWriter>();
         builder.Services.TryAddScoped<IReservationDetailsHistoryReader, ReservationDetailsHistoryReader>();
         builder.Services.TryAddScoped<IReservationExternalOperationRepository, ReservationExternalOperationRepository>();
@@ -53,6 +62,10 @@ public static class DependencyInjection
             IProjectionRebuildWriter<GuestProcessingRestrictionProjectionExport>,
             ReservationGuestRestrictionsProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, ReservationPropertyProjectionRebuildWriter>();
+        builder.Services.TryAddScoped<
+            IProjectionRebuildWriter<
+                ReservationProcessingRestrictionProjectionSnapshot>,
+            ReservationProcessingRestrictionProjectionRebuildWriter>();
         builder.Services.TryAddScoped<IReservationGuestStayProjectionExportSource, ReservationGuestStayProjectionExportSource>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<

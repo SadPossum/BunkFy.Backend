@@ -23,7 +23,9 @@ internal static class ReservationDataRightsExportSchema
             ["guest-reservation-link"] = "include-in-authorized-guest-export",
             ["adapter-provenance"] = "include-subject-linked-provider-provenance",
             ["reservation-data-rights-correction-accountability"] =
-                "include-minimum-coordinate-in-authorized-case-ledger"
+                "include-minimum-coordinate-in-authorized-case-ledger",
+            ["reservation-processing-restriction-accountability"] =
+                "include-minimum-restriction-state-in-authorized-case-ledger"
         };
 
     private static readonly Type[] SourceTypes =
@@ -33,6 +35,9 @@ internal static class ReservationDataRightsExportSchema
         typeof(ReservationGuestLinkDataRightsExport),
         typeof(ReservationDetailsHistoryDataRightsExport),
         typeof(ReservationDataRightsCorrectionReceiptDataRightsExport),
+        typeof(ReservationProcessingRestrictionDataRightsExport),
+        typeof(ReservationProcessingRestrictionStateDataRightsExport),
+        typeof(ReservationProcessingRestrictionReceiptDataRightsExport),
         typeof(ReservationExternalOperationDataRightsExport),
         typeof(ReservationArrivalReminderDataRightsExport)
     ];
@@ -99,6 +104,32 @@ internal static class ReservationDataRightsExportSchema
             reminder.ReminderId,
             reminder.Version,
             reminder);
+
+    public static DataRightsExportRecord CreateProcessingRestrictionRecord(
+        ReservationProcessingRestrictionDataRightsExport restriction) =>
+        CreateRecord(
+            ReservationDataRightsExportContributor.ProcessingRestrictionRecordType,
+            restriction.RestrictionId,
+            restriction.Version,
+            restriction);
+
+    public static DataRightsExportRecord CreateProcessingRestrictionStateRecord(
+        ReservationProcessingRestrictionStateDataRightsExport state) =>
+        CreateRecord(
+            ReservationDataRightsExportContributor
+                .ProcessingRestrictionStateRecordType,
+            state.ReservationId,
+            checked(state.Revision + 1),
+            state);
+
+    public static DataRightsExportRecord CreateProcessingRestrictionReceiptRecord(
+        ReservationProcessingRestrictionReceiptDataRightsExport receipt) =>
+        CreateRecord(
+            ReservationDataRightsExportContributor
+                .ProcessingRestrictionReceiptRecordType,
+            receipt.ReceiptId,
+            receipt.ResultingProjectionRevision,
+            receipt);
 
     private static DataRightsExportRecord CreateRecord(
         string recordType,

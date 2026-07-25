@@ -1,7 +1,7 @@
 # Reservations Data Rights Workflow Task
 
 Status: implementation in progress; scoped discovery, catalogue-driven export
-and transactional correction complete, processing restriction next
+and transactional correction complete; processing restriction in progress
 
 ## Outcome
 
@@ -244,8 +244,8 @@ ungated.
    catalogue-driven export for current and historical Reservations-owned data.
 2. [Complete] Add approved transactional correction and immutable owner
    receipts through existing aggregate/history semantics.
-3. [Next] Add Reservations-owned processing restriction, enforcement and rebuildable
-   PII-free state.
+3. [Complete] Add Reservations-owned processing restriction, enforcement
+   and rebuildable PII-free state.
 4. Add holds and fail-closed destructive eligibility.
 5. Add irreversible aggregate/history/link/receipt redaction, owner proof and
    terminal ordinary-surface enforcement.
@@ -257,6 +257,59 @@ ungated.
 Only one numbered slice is implemented at a time. Existing modules may be
 touched through contracts, projections and tests, but Reservations remains the
 only owner of its data.
+
+## Third-Slice Design
+
+- DataRights remains the case and approval authority. Reservations accepts only
+  exact `Restriction` approvals bound to tenant, property, case revision,
+  reservation id, selected record version and `Apply` or `Release`.
+- Reservations owns case-scoped restriction aggregates, one effective
+  per-reservation projection and immutable transition receipts. Multiple active
+  cases compose through an active-count projection; releasing one case cannot
+  release another.
+- Missing state, unsupported contract versions, stale record/restriction/state
+  revisions and reused approval coordinates fail closed.
+- Ordinary list, detail and history reads exclude restricted reservations.
+  Ordinary edits, Guest links, reassignments, stay commands and adapter
+  guest/detail amendments use the same fail-closed admission state.
+- Already-started allocation and cancellation outcomes use separately named
+  required-continuation repository paths so restriction cannot strand
+  distributed work. No new adapter amendment is admitted after restriction.
+- Applying the first effective restriction supersedes pending arrival
+  reminders in the same unit of work. Reminder creation, refresh and dispatch
+  require current unrestricted state, preventing later regeneration or races.
+- New reservations initialize unrestricted state atomically. A one-shot,
+  scope-aware projection rebuild derives exact active count and transition
+  revision from reservation and restriction source rows; the projection is not
+  its own rebuild source.
+- Apply/release mutation, effective-state transition, reminder suppression,
+  immutable receipt and PII-free outbox event commit atomically. Exact
+  idempotency retries return the existing receipt; changed coordinates fail
+  closed.
+- Actor identity remains only in the restriction aggregate's internal audit
+  lifecycle. Receipts, integration events, tasks and rebuild snapshots contain
+  stable coordinates and state only, never reservation guest values or actor
+  identity.
+- The existing rights export remains available and adds subject-linked
+  restriction lifecycle, effective state and minimum transition-accountability
+  receipts. GMA remains unchanged.
+
+## Third-Slice Acceptance Plan
+
+- Unit tests cover apply/release lifecycle, overlapping cases, stale revisions,
+  approval reuse, exact replay, unsupported/missing state, append-only receipts
+  and PII-free event contracts.
+- Query and command tests prove ordinary surfaces deny while DataRights export
+  and exact owner commands remain available.
+- Reminder tests prove restriction supersedes pending reminders and prevents
+  refresh/dispatch even when a stale reminder row exists.
+- Rebuild tests prove zero, one, overlapping and released restrictions produce
+  deterministic state without scanning another module.
+- PostgreSQL integration proves the real approval gate, retired-property policy
+  exception, atomic state/receipt/outbox/reminder persistence, ordinary-surface
+  denial, required continuation, replay and release.
+- Full architecture, migration-drift, non-Docker, Docker, generated-contract,
+  security and publication gates must pass before slice completion.
 
 ## Completed First Slice
 
@@ -357,6 +410,58 @@ only owner of its data.
   narrowly named, policy-bound correction path remains available.
 - GMA transaction, CQRS, scoping and EF classification primitives are reused
   unchanged; Reservations-specific policy and receipt semantics remain local.
+
+## Completed Third Slice
+
+- Reservations now accepts exact approved DataRights `Restriction` apply and
+  release coordinates without owning case workflow or exposing a premature
+  public operator endpoint.
+- Case-scoped restriction aggregates retain internal actor evidence. A
+  current-contract per-reservation projection composes overlapping cases by
+  active count, and append-only transition receipts plus outbox events omit
+  actors and reservation guest values.
+- Ordinary list, detail, history, edit, Guest-link, reassignment, stay and new
+  adapter-detail paths require a current unrestricted projection. Missing or
+  future projection contracts fail closed.
+- Explicitly named DataRights and required-continuation repository paths remain
+  available while restricted so rights work and already-started allocation or
+  cancellation outcomes are not stranded.
+- The first effective restriction supersedes pending arrival reminders in the
+  same unit of work. Reminder scheduling, refresh and claim paths independently
+  require current unrestricted state.
+- New reservations initialize unrestricted state through the repository.
+  `RebuildReservationProcessingRestrictionsPayload` reconstructs projection
+  revision, active count and last transition from Reservations-owned source
+  rows in bounded ordinal batches.
+- Rights export includes restriction lifecycle, effective state and minimum
+  transition receipts. Personal-data catalogue version 5 and its generated
+  inventory bind all new command, event, persistence and export members.
+- Migration
+  `20260725210703_AddReservationProcessingRestrictions` creates the aggregate,
+  projection and append-only receipt stores and backfills every existing
+  reservation with current-contract unrestricted state.
+- GMA remains unchanged.
+
+## Third-Slice Acceptance Evidence
+
+- The complete Reservations suite passes 95 tests covering overlapping
+  apply/release lifecycle, exact approval and replay, stale/missing/future
+  state, approval reuse, append-only receipts, PII-free outbox/export payloads,
+  reminder suppression, query gates and deterministic rebuilds.
+- PostgreSQL migration coverage upgrades from the preceding Reservations
+  migration and verifies one generated-ordinal unrestricted state row for an
+  existing reservation.
+- A PostgreSQL and NATS command-pipeline test proves retired-property apply and
+  release, real DataRights approval, atomic projection/receipt/outbox/reminder
+  persistence, ordinary denial, DataRights and required-continuation access,
+  exact replay and post-release visibility.
+- `eng/verify.ps1 -SkipRestore` passes solution synchronization,
+  source-package ownership, a zero-warning full build, every GMA and BunkFy
+  migration-drift check, architecture tests and all non-Docker suites.
+- `eng/test-docker.ps1 -NoBuild` passes all 46 Docker integration tests. The
+  strengthened required-continuation assertion also passes in a focused rerun.
+- Recursive submodule status confirms every mounted GMA repository is clean;
+  no GMA source or pointer changes are part of this slice.
 
 ## Non-Goals
 

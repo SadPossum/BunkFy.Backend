@@ -41,7 +41,7 @@ public sealed class ReservationsProfileTests
         Assert.Equal(8, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(15, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(16, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Equal(23, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
@@ -79,14 +79,24 @@ public sealed class ReservationsProfileTests
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
             published => published.EventType == ReservationArrivalReminderDueIntegrationEvent.EventType);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
+            published =>
+                published.EventType ==
+                    ReservationProcessingRestrictionChangedIntegrationEvent.EventType);
         Assert.Equal(
             4,
             ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count(subscription =>
                 subscription.ProducerModule == ReservationsModuleMetadata.ExternalOperationSourceModuleName));
-        Assert.Equal(5, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Equal(6, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetTasks(),
             task => task.Name == RebuildReservationGuestRestrictionsPayload.TaskName);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                    RebuildReservationProcessingRestrictionsPayload.TaskName);
         Assert.Single(ReservationsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(6, (int)ReservationStatus.CheckedIn);
         Assert.Equal(7, (int)ReservationStatus.NoShowPending);

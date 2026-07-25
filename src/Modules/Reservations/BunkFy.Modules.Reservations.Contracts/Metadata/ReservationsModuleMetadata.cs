@@ -19,6 +19,9 @@ public static class ReservationsModuleMetadata
     public const int GuestProfilesProjectionVersion = 1;
     public const string GuestRestrictionsProjectionName = "guest-processing-restrictions";
     public const int GuestRestrictionsProjectionVersion = 1;
+    public const string ProcessingRestrictionProjectionName =
+        "reservation-processing-restrictions";
+    public const int ProcessingRestrictionProjectionVersion = 1;
     public const string PropertyProjectionName = "properties";
     public const int PropertyProjectionVersion = 2;
     public const string ProjectionWorkerGroup = "projection-workers";
@@ -108,9 +111,11 @@ public static class ReservationsModuleMetadata
         .WithPublishedEvent<ReservationGuestStayChangedIntegrationEvent>()
         .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEvent>()
         .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEventV2>()
+        .WithPublishedEvent<ReservationProcessingRestrictionChangedIntegrationEvent>()
         .WithTask<RebuildReservationInventoryProjectionPayload>()
         .WithTask<RebuildReservationGuestProfilesPayload>()
         .WithTask<RebuildReservationGuestRestrictionsPayload>()
+        .WithTask<RebuildReservationProcessingRestrictionsPayload>()
         .WithTask<RebuildReservationPropertiesPayload>()
         .WithTask<DispatchReservationArrivalRemindersPayload>()
         .WithProfile(ReservationsProfiles.Default)

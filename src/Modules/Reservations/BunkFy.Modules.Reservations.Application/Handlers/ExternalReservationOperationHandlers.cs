@@ -437,7 +437,7 @@ internal sealed class ExternalReservationCancellationRequestedHandler(
             return;
         }
 
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await reservations.GetForRequiredContinuationAsync(
             request.PropertyId,
             request.ReservationId,
             cancellationToken).ConfigureAwait(false);

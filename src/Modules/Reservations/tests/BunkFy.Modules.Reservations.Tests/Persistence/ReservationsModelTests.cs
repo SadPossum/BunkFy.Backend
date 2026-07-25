@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
+using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Persistence;
 using Xunit;
 
@@ -174,6 +175,95 @@ public sealed class ReservationsModelTests
             () => dbContext.SaveChangesAsync());
         Assert.Equal(
             "Reservation data-rights correction receipts are append-only.",
+            exception.Message);
+    }
+
+    [Fact]
+    public void Model_has_scoped_processing_restriction_lifecycle_and_receipt_constraints()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType restriction = dbContext.Model.FindEntityType(
+            typeof(ReservationProcessingRestriction))!;
+        IEntityType designRestriction = designModel.FindEntityType(
+            typeof(ReservationProcessingRestriction))!;
+        IEntityType projection = dbContext.Model.FindEntityType(
+            typeof(ReservationProcessingRestrictionProjection))!;
+        IEntityType designProjection = designModel.FindEntityType(
+            typeof(ReservationProcessingRestrictionProjection))!;
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(ReservationProcessingRestrictionReceipt))!;
+        IEntityType designReceipt = designModel.FindEntityType(
+            typeof(ReservationProcessingRestrictionReceipt))!;
+
+        Assert.True(restriction.FindProperty(
+            nameof(ReservationProcessingRestriction.Version))!.IsConcurrencyToken);
+        Assert.True(projection.FindProperty(
+            nameof(ReservationProcessingRestrictionProjection.Revision))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            restriction.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name).SequenceEqual([
+                    nameof(ReservationProcessingRestriction.ScopeId),
+                    nameof(ReservationProcessingRestriction.PropertyId),
+                    nameof(ReservationProcessingRestriction.ReservationId),
+                    nameof(ReservationProcessingRestriction.ApplyCaseId),
+                    nameof(ReservationProcessingRestriction.ApplyApprovalRevision)
+                ]));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name).SequenceEqual([
+                    nameof(ReservationProcessingRestrictionReceipt.ScopeId),
+                    nameof(ReservationProcessingRestrictionReceipt.IdempotencyKey)
+                ]));
+        Assert.Contains(
+            designRestriction.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_processing_restrictions_lifecycle");
+        Assert.Contains(
+            designProjection.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_processing_restriction_state_effective");
+        Assert.Contains(
+            designReceipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_processing_restriction_receipts_versions");
+    }
+
+    [Fact]
+    public async Task Processing_restriction_receipts_are_append_only_after_insertion()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        ReservationProcessingRestrictionReceipt receipt =
+            ReservationProcessingRestrictionReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                ReservationProcessingRestrictionAction.Apply,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 2,
+                selectedReservationVersion: 3,
+                contractVersion: 1,
+                resultingRestrictionVersion: 1,
+                resultingProjectionRevision: 1,
+                effectiveRestricted: true,
+                Guid.NewGuid(),
+                new DateTimeOffset(2026, 7, 25, 12, 0, 0, TimeSpan.Zero)).Value;
+        dbContext.ProcessingRestrictionReceipts.Add(receipt);
+        await dbContext.SaveChangesAsync();
+
+        dbContext.ProcessingRestrictionReceipts.Remove(receipt);
+
+        InvalidOperationException exception =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dbContext.SaveChangesAsync());
+        Assert.Equal(
+            "Reservation processing-restriction receipts are append-only.",
             exception.Message);
     }
 

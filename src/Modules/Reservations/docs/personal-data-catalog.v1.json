@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -90,6 +90,19 @@
       "writers": [
         "permission:reservations.read"
       ]
+    },
+    {
+      "id": "reservation-processing-restrictions",
+      "scope": "tenant-property-authorized-data-rights-case",
+      "readers": [
+        "permission:data-rights.read",
+        "system:reservations.data-rights-export",
+        "system:reservations.processing-admission"
+      ],
+      "writers": [
+        "system:reservations.data-rights-restriction",
+        "system:reservations.processing-restriction-rebuild"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -169,6 +182,13 @@
       "startsAt": "response-created",
       "endsAt": "response-completed",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "reservation-processing-restriction-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "reservation-processing-restriction-applied",
+      "endsAt": "approved-data-rights-accountability-retention-completed",
+      "legalHoldBehavior": "retain-approved-minimum-restriction-proof"
     }
   ],
   "rightsPolicies": [
@@ -213,6 +233,13 @@
       "correction": "replace-before-submission",
       "restriction": "discard-request",
       "erasure": "discard-on-request-completion"
+    },
+    {
+      "id": "reservation-processing-restriction-accountability",
+      "export": "include-minimum-restriction-state-in-authorized-case-ledger",
+      "correction": "append-superseding-restriction-transition",
+      "restriction": "enforce-until-every-active-case-is-released",
+      "erasure": "retain-non-personal-minimum-restriction-proof"
     }
   ],
   "fields": [
@@ -1829,6 +1856,32 @@
           "assembly": "BunkFy.Modules.Reservations.Persistence",
           "type": "BunkFy.Modules.Reservations.Persistence.ReservationDetailsHistoryEntry",
           "member": "ActorId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "AppliedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ReleasedBy",
           "surface": "persistence"
         }
       ]
@@ -9263,6 +9316,1483 @@
           "assembly": "BunkFy.Modules.Reservations.Persistence",
           "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
           "member": "NoShowAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.tenant-scope-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.property-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionStateDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.reservation-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "ReservationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "ReservationId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ReservationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "ReservationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "ReservationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionStateDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "RestrictionId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "RestrictionId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "RestrictionId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "RestrictionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "RestrictionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.receipt-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "ReceiptId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.case-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "CaseId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ApplyCaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ReleaseCaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "CaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ApplyCaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ReleaseCaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "CaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.approval-revision",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ApplyApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ReleaseApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ApplyApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ReleaseApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "ApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.selected-record-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "ExpectedReservationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "ExpectedReservationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "SelectedReservationVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ApplySelectedReservationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ReleaseSelectedReservationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "SelectedReservationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ApplySelectedReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ReleaseSelectedReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "SelectedReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.idempotency-key",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "IdempotencyKey",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.action",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "Action",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "Action",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "Action",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.status",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "Status",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.contract-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "ContractVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "ContractVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "ContractVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionStateDataRightsExport",
+          "member": "ContractVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "ContractVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.restriction-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "ExpectedRestrictionVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "RestrictionVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "ResultingRestrictionVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "ResultingRestrictionVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.projection-revision",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationProcessingRestrictionCommand",
+          "member": "ExpectedProjectionRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "ExpectedProjectionRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "ProjectionRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "ProjectionRevision",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "ProjectionRevision",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "Revision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "ResultingProjectionRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionStateDataRightsExport",
+          "member": "Revision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "ResultingProjectionRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.projection-ordinal",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "ProjectionOrdinal",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.active-count",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "ActiveRestrictionCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionStateDataRightsExport",
+          "member": "ActiveRestrictionCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.effective-state",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "EffectiveRestricted",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "IsRestricted",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "IsRestricted",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "IsRestricted",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "EffectiveRestricted",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionStateDataRightsExport",
+          "member": "IsRestricted",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "EffectiveRestricted",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.event-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "EventId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "EventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "EventId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.transition-at-utc",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationProcessingRestrictionChangedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "AppliedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestriction",
+          "member": "ReleasedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionProjection",
+          "member": "LastTransitionAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "AppliedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionDataRightsExport",
+          "member": "ReleasedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionStateDataRightsExport",
+          "member": "LastTransitionAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.processing-restriction.completed-at-utc",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-restriction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-processing-restrictions",
+      "countryPolicyKey": "reservation.processing-restriction-accountability",
+      "retentionPolicy": "reservation-processing-restriction-lifecycle",
+      "rightsPolicy": "reservation-processing-restriction-accountability",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationProcessingRestrictionReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationProcessingRestrictionReceiptDataRightsExport",
+          "member": "CompletedAtUtc",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
         }

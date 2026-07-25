@@ -5,6 +5,7 @@ using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -92,6 +93,50 @@ public sealed class ReservationDataRightsExportContributorTests
                 Guid.NewGuid()).Value;
         dbContext.DataRightsCorrectionReceipts.Add(correctionReceipt);
 
+        ReservationProcessingRestriction restriction =
+            ReservationProcessingRestriction.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                Guid.NewGuid(),
+                applyApprovalRevision: 1,
+                reservation.Version,
+                "user:privacy-operator",
+                Now.AddMinutes(4)).Value;
+        ReservationProcessingRestrictionProjection restrictionState =
+            ReservationProcessingRestrictionProjection.Create(
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                ReservationProcessingRestrictionContract.CurrentVersion,
+                Now).Value;
+        Assert.True(restrictionState.Apply(
+            expectedRevision: 0,
+            ReservationProcessingRestrictionContract.CurrentVersion,
+            Now.AddMinutes(4)).IsSuccess);
+        ReservationProcessingRestrictionReceipt restrictionReceipt =
+            ReservationProcessingRestrictionReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                restriction.Id,
+                ReservationProcessingRestrictionAction.Apply,
+                propertyId,
+                reservation.Id,
+                restriction.ApplyCaseId,
+                restriction.ApplyApprovalRevision,
+                reservation.Version,
+                ReservationProcessingRestrictionContract.CurrentVersion,
+                restriction.Version,
+                restrictionState.Revision,
+                restrictionState.IsRestricted,
+                Guid.NewGuid(),
+                Now.AddMinutes(4)).Value;
+        dbContext.ProcessingRestrictions.Add(restriction);
+        dbContext.ProcessingRestrictionProjections.Add(restrictionState);
+        dbContext.ProcessingRestrictionReceipts.Add(restrictionReceipt);
+
         dbContext.ExternalOperations.Add(new ReservationExternalOperation(
             new ReservationExternalOperationRecord(
                 externalOperationId,
@@ -159,8 +204,8 @@ public sealed class ReservationDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(8, result.RecordCount);
-        Assert.Equal(8, sink.Records.Count);
+        Assert.Equal(11, result.RecordCount);
+        Assert.Equal(11, sink.Records.Count);
         Assert.Equal(
             [
                 ReservationDataRightsDiscoveryContributor.ReservationRecordType,
@@ -169,6 +214,9 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationDataRightsExportContributor.DetailsHistoryRecordType,
                 ReservationDataRightsExportContributor.DetailsHistoryRecordType,
                 ReservationDataRightsExportContributor.DataRightsCorrectionReceiptRecordType,
+                ReservationDataRightsExportContributor.ProcessingRestrictionRecordType,
+                ReservationDataRightsExportContributor.ProcessingRestrictionStateRecordType,
+                ReservationDataRightsExportContributor.ProcessingRestrictionReceiptRecordType,
                 ReservationDataRightsExportContributor.ExternalOperationRecordType,
                 ReservationDataRightsExportContributor.ArrivalReminderRecordType
             ],
@@ -185,6 +233,24 @@ public sealed class ReservationDataRightsExportContributorTests
             field => field.FieldId is
                 "reservation.data-rights.idempotency-key" or
                 "reservation.data-rights.correlation-id");
+        DataRightsExportRecord restrictionExport = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor.ProcessingRestrictionRecordType);
+        DataRightsExportRecord restrictionReceiptExport = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor
+                    .ProcessingRestrictionReceiptRecordType);
+        Assert.DoesNotContain(
+            restrictionExport.Fields.Concat(restrictionReceiptExport.Fields),
+            field => field.FieldId is
+                "reservation.processing-restriction.actor-id" or
+                "reservation.processing-restriction.idempotency-key" or
+                "reservation.guest.primary-name" or
+                "reservation.guest.email" or
+                "reservation.guest.phone" or
+                "reservation.guest.notes");
         Assert.All(
             sink.Records,
             record => Assert.InRange(
@@ -269,7 +335,7 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(4, descriptor.CatalogVersion);
+        Assert.Equal(5, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
         Assert.NotEmpty(descriptor.FieldIds);
     }

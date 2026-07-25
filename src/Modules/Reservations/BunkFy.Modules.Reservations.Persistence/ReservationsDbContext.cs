@@ -16,6 +16,13 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
     public DbSet<Reservation> Reservations => this.Set<Reservation>();
     public DbSet<ReservationDataRightsCorrectionReceipt> DataRightsCorrectionReceipts =>
         this.Set<ReservationDataRightsCorrectionReceipt>();
+    public DbSet<ReservationProcessingRestriction> ProcessingRestrictions =>
+        this.Set<ReservationProcessingRestriction>();
+    public DbSet<ReservationProcessingRestrictionReceipt> ProcessingRestrictionReceipts =>
+        this.Set<ReservationProcessingRestrictionReceipt>();
+    public DbSet<ReservationProcessingRestrictionProjection>
+        ProcessingRestrictionProjections =>
+        this.Set<ReservationProcessingRestrictionProjection>();
     public DbSet<RequestedInventoryUnit> RequestedInventoryUnits => this.Set<RequestedInventoryUnit>();
     public DbSet<ReservationGuest> ReservationGuests => this.Set<ReservationGuest>();
     public DbSet<ReservationGuestProfileProjection> GuestProfileProjections => this.Set<ReservationGuestProfileProjection>();
@@ -33,7 +40,7 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        this.EnsureCorrectionReceiptsAreAppendOnly();
+        this.EnsureDataRightsReceiptsAreAppendOnly();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -41,7 +48,7 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
-        this.EnsureCorrectionReceiptsAreAppendOnly();
+        this.EnsureDataRightsReceiptsAreAppendOnly();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
@@ -52,15 +59,24 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         this.ApplyScopeConventions(modelBuilder);
     }
 
-    private void EnsureCorrectionReceiptsAreAppendOnly()
+    private void EnsureDataRightsReceiptsAreAppendOnly()
     {
-        bool mutationRequested = this.ChangeTracker
+        bool correctionMutationRequested = this.ChangeTracker
             .Entries<ReservationDataRightsCorrectionReceipt>()
             .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
-        if (mutationRequested)
+        if (correctionMutationRequested)
         {
             throw new InvalidOperationException(
                 "Reservation data-rights correction receipts are append-only.");
+        }
+
+        bool restrictionMutationRequested = this.ChangeTracker
+            .Entries<ReservationProcessingRestrictionReceipt>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+        if (restrictionMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Reservation processing-restriction receipts are append-only.");
         }
     }
 }

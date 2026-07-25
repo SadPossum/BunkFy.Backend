@@ -27,9 +27,22 @@ public sealed class ReservationRepositoryPaginationTests
             allocationVersion: 1,
             Guid.NewGuid(),
             first.CreatedAtUtc.AddMinutes(1)).IsSuccess);
-        dbContext.Reservations.AddRange(first, second, excludedBySearch, excludedByProperty);
+        TestScopeContext scopeContext = new();
+        ReservationProcessingRestrictionProjectionRepository projections =
+            new(dbContext, scopeContext);
+        ReservationRepository repository = new(dbContext, projections);
+        foreach (Reservation reservation in new[]
+                 {
+                     first,
+                     second,
+                     excludedBySearch,
+                     excludedByProperty
+                 })
+        {
+            await repository.AddAsync(reservation, CancellationToken.None);
+        }
+
         await dbContext.SaveChangesAsync();
-        ReservationRepository repository = new(dbContext);
 
         ReservationListResponse result = await repository.ListAsync(
             propertyId,
