@@ -23,6 +23,9 @@ internal sealed class IngestionAnonymisationTombstoneConfiguration
                 "CK_ingestion_anonymisation_tombstones_state",
                 "\"State\" IN (1, 2)");
             table.HasCheckConstraint(
+                "CK_ingestion_anonymisation_tombstones_origin",
+                "\"Origin\" IN (1, 2)");
+            table.HasCheckConstraint(
                 "CK_ingestion_anonymisation_tombstones_versions",
                 "\"SelectedSourceLinkVersion\" >= 1 AND " +
                 "\"ResultingSourceLinkVersion\" = " +
@@ -45,24 +48,54 @@ internal sealed class IngestionAnonymisationTombstoneConfiguration
         builder.Property(tombstone => tombstone.Revision)
             .IsConcurrencyToken()
             .IsRequired();
+        builder.Property(tombstone => tombstone.ActorId)
+            .HasMaxLength(
+                IngestionAnonymisationReceipt.ActorIdMaxLength)
+            .IsRequired();
+        builder.Property(tombstone =>
+                tombstone.ApprovalEvidenceSha256)
+            .HasMaxLength(
+                IngestionAnonymisationTombstone.Sha256Length)
+            .IsRequired();
+        builder.Property(tombstone =>
+                tombstone.PolicyEvidenceSha256)
+            .HasMaxLength(
+                IngestionAnonymisationTombstone.Sha256Length)
+            .IsRequired();
+        builder.Property(tombstone =>
+                tombstone.OperationFenceSha256)
+            .HasMaxLength(
+                IngestionAnonymisationTombstone.Sha256Length)
+            .IsRequired();
         builder.Property(tombstone => tombstone.OwnerReceiptSha256)
             .HasMaxLength(IngestionAnonymisationTombstone.Sha256Length)
-            .IsFixedLength()
             .IsRequired();
         builder.Property(tombstone => tombstone.LedgerEntrySha256)
             .HasMaxLength(IngestionAnonymisationTombstone.Sha256Length)
-            .IsFixedLength()
             .IsRequired();
-        builder.HasIndex(tombstone => new
-        {
-            tombstone.ScopeId,
-            tombstone.LedgerEntryId
-        }).IsUnique();
         builder.HasIndex(tombstone => new
         {
             tombstone.ScopeId,
             tombstone.OwnerReceiptId
         }).IsUnique();
+        builder.HasIndex(tombstone => new
+        {
+            tombstone.ScopeId,
+            tombstone.IdempotencyKey
+        })
+            .IsUnique()
+            .HasFilter(
+                "\"IdempotencyKey\" <> " +
+                "'00000000-0000-0000-0000-000000000000'");
+        builder.HasIndex(tombstone => new
+        {
+            tombstone.ScopeId,
+            tombstone.LedgerEntryId
+        })
+            .IsUnique()
+            .HasFilter(
+                "\"LedgerEntryId\" <> " +
+                "'00000000-0000-0000-0000-000000000000'");
         builder.HasIndex(tombstone => tombstone.State);
         builder.HasIndex(tombstone => new
         {

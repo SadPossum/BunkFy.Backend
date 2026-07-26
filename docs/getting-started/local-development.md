@@ -66,10 +66,11 @@ base64-encoded 32-byte key. Production rejects missing keys and the development
 key at startup. Add a new version before making it active, and retain every
 old key while any fingerprint created with that version remains; removing it
 would reopen that provider identity to ingestion. Keep these values in the
-deployment secret store, never appsettings or source control. A reducing
-Ingestion tombstone reports
+deployment secret store, never appsettings or source control. A live reduction,
+a protected replay reduction, or an attached ledger proof that has not finished
+local verification reports
 `ingestion.anonymisation-restore.incomplete` through host readiness until
-protected replay completes.
+the persisted owner state is complete.
 
 Keep first product work focused on real BunkFy modules, starting with Properties/Inventory-style setup and only adding task handlers when a concrete module needs background work.
 

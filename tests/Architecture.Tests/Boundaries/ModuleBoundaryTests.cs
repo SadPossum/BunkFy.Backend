@@ -182,7 +182,7 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
-    public void Ingestion_restore_stays_non_destructive_and_product_owned()
+    public void Ingestion_anonymisation_stays_product_owned_and_off_front_doors()
     {
         string dependencyInjection = RepositoryPaths.Read(
             "src",
@@ -194,7 +194,7 @@ public sealed class ModuleBoundaryTests
             "IDataRightsAnonymisationRestoreContributor",
             dependencyInjection,
             StringComparison.Ordinal);
-        Assert.DoesNotContain(
+        Assert.Contains(
             "IDataRightsAnonymisationContributor",
             dependencyInjection,
             StringComparison.Ordinal);
@@ -210,7 +210,7 @@ public sealed class ModuleBoundaryTests
                 "src/Modules/Ingestion/BunkFy.Modules.Ingestion.AdminCli",
                 "*.cs"))
             .Where(path => File.ReadAllText(path).Contains(
-                "AnonymisationRestore",
+                "Anonymisation",
                 StringComparison.Ordinal))
             .Select(RepositoryPaths.ToRepositoryPath)
             .ToArray();

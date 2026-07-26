@@ -4,10 +4,29 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using BunkFy.DataGovernance;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 
 internal static class IngestionAnonymisationPolicyEvidence
 {
+    public static IngestionAnonymisationRoutingPolicyEvidence
+        FromApproval(DataRightsApprovalEvidence evidence)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        return new(
+            evidence.PropertyVersion,
+            evidence.OperatingCountryCode,
+            evidence.PolicyId,
+            evidence.PolicyVersion,
+            evidence.RetentionPolicyId,
+            evidence.RetentionPolicyVersion,
+            evidence.ContentSha256,
+            evidence.PurposeCode,
+            evidence.Surface,
+            evidence.SourceProvenance,
+            evidence.EvaluatedAtUtc);
+    }
+
     public static IngestionAnonymisationRoutingPolicyEvidence FromCurrent(
         long propertyPolicySourceVersion,
         CountryPolicyEvidence evidence)
@@ -53,6 +72,15 @@ internal static class IngestionAnonymisationPolicyEvidence
                IsKey(NormalizeLower(evidence.SourceProvenance)) &&
                evidence.EvaluatedAtUtc != default;
     }
+
+    public static bool MatchesApproval(
+        IngestionAnonymisationRoutingPolicyEvidence requested,
+        DataRightsApprovalEvidence approved) =>
+        IsValid(requested) &&
+        string.Equals(
+            ComputeSha256(requested),
+            ComputeSha256(FromApproval(approved)),
+            StringComparison.Ordinal);
 
     public static string ComputeSha256(
         IngestionAnonymisationRoutingPolicyEvidence evidence)

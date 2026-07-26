@@ -25,8 +25,8 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class IngestionAnonymisationRestoreTests
 {
-    private const string TenantId = "tenant-a";
-    private static readonly DateTimeOffset Now =
+    internal const string TenantId = "tenant-a";
+    internal static readonly DateTimeOffset Now =
         new(2026, 7, 26, 8, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -253,7 +253,7 @@ public sealed class IngestionAnonymisationRestoreTests
             new TestIds());
     }
 
-    private static async Task<SeededGraph> SeedAsync(
+    internal static async Task<SeededGraph> SeedAsync(
         IngestionDbContext dbContext)
     {
         Guid propertyId = Guid.NewGuid();
@@ -376,7 +376,7 @@ public sealed class IngestionAnonymisationRestoreTests
             seeded.SourceLink.Version + 1,
             Now.AddMinutes(30));
 
-    private static IngestionAnonymisationFingerprintOptions
+    internal static IngestionAnonymisationFingerprintOptions
         FingerprintOptions() =>
         new()
         {
@@ -390,29 +390,30 @@ public sealed class IngestionAnonymisationRestoreTests
             }
         };
 
-    private sealed record SeededGraph(
+    internal sealed record SeededGraph(
         ReservationSourceLink SourceLink,
         ObservationReceipt Receipt,
         ReservationDispatch Dispatch,
         Guid PropertyId);
 
-    private sealed class TestScopeContext : IScopeContext
+    internal sealed class TestScopeContext : IScopeContext
     {
         public bool IsEnabled => true;
         public string ScopeId => TenantId;
     }
 
-    private sealed class TestClock(DateTimeOffset utcNow) : ISystemClock
+    internal sealed class TestClock(DateTimeOffset utcNow)
+        : ISystemClock
     {
         public DateTimeOffset UtcNow { get; set; } = utcNow;
     }
 
-    private sealed class TestIds : IIdGenerator
+    internal sealed class TestIds : IIdGenerator
     {
         public Guid NewId() => Guid.NewGuid();
     }
 
-    private sealed class TestRawPayloadStore : IRawPayloadStore
+    internal sealed class TestRawPayloadStore : IRawPayloadStore
     {
         private readonly Dictionary<
             (Guid FileId, Guid ConnectionId),

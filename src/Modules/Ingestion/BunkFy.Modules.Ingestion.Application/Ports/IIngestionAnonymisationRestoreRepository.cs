@@ -12,6 +12,10 @@ internal interface IIngestionAnonymisationRestoreRepository
         Guid sourceLinkId,
         CancellationToken cancellationToken);
 
+    Task<IngestionAnonymisationReceipt?> GetReceiptAsync(
+        Guid receiptId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<IngestionAnonymisationRecordPlanEntry>>
         GetPlanAsync(
             Guid tombstoneId,
@@ -38,6 +42,8 @@ internal interface IIngestionAnonymisationRestoreRepository
         IngestionAnonymisationTombstone tombstone,
         IReadOnlyCollection<IngestionAnonymisationFingerprint> fingerprints,
         IReadOnlyCollection<IngestionAnonymisationRecordPlanEntry> plan);
+
+    void AddReceipt(IngestionAnonymisationReceipt receipt);
 }
 
 internal sealed record IngestionAnonymisationRestoreGraph(

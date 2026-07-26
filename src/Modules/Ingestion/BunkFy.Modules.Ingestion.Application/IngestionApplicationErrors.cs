@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Ingestion.Application;
 
 using BunkFy.DataGovernance;
 using Gma.Framework.Results;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Contracts.Adapters;
 using BunkFy.Modules.Ingestion.Domain.Errors;
 
@@ -91,6 +92,22 @@ public static class IngestionApplicationErrors
     public static readonly Error AnonymisationRawPayloadDeletionIncomplete = new(
         "Ingestion.AnonymisationRawPayloadDeletionIncomplete",
         "A planned Ingestion raw payload is still present.");
+    public static readonly Error AnonymisationRequestInvalid = new(
+        "Ingestion.AnonymisationRequestInvalid",
+        "The Ingestion anonymisation execution request is invalid.");
+    public static readonly Error AnonymisationApprovalRequired = new(
+        "Ingestion.AnonymisationApprovalRequired",
+        "The Ingestion anonymisation execution is not covered by the approved data-rights operation.");
+    public static readonly Error AnonymisationExecutionConflict = new(
+        "Ingestion.AnonymisationExecutionConflict",
+        "The Ingestion anonymisation execution conflicts with current owner state.");
+    public static readonly Error AnonymisationProofUnavailable = new(
+        "Ingestion.AnonymisationProofUnavailable",
+        "The completed Ingestion anonymisation owner proof cannot be verified.");
+    public static Error AnonymisationBlocked(
+        IngestionAnonymisationBlockerCode blocker) => new(
+        $"Ingestion.AnonymisationBlocked.{blocker}",
+        "The current Ingestion owner state blocks anonymisation.");
     public static readonly Error ReprocessingEnqueueFailed = new("Ingestion.ReprocessingEnqueueFailed", "The reprocessing task could not be enqueued.");
     public static Error ConnectionNotEnabled => IngestionDomainErrors.ConnectionNotEnabled;
     public static Error RunNotActive => IngestionDomainErrors.RunNotActive;

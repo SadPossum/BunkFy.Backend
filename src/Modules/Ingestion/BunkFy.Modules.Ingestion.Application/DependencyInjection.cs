@@ -39,6 +39,10 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationRestoreContributor,
                 IngestionDataRightsAnonymisationRestoreContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationContributor,
+                IngestionDataRightsAnonymisationContributor>());
         services.TryAddScoped<IAdapterObservationSinkFactory, AdapterObservationSinkFactory>();
         services.TryAddScoped<IAdapterDescriptorRegistry, AdapterDescriptorRegistry>();
         services.TryAddScoped<IAdapterRunnerRegistry, AdapterRunnerRegistry>();

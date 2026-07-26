@@ -407,7 +407,7 @@ public sealed class IngestionAnonymisationEligibilityEvaluatorTests
     }
 
     [Fact]
-    public void Application_registers_eligibility_without_destructive_contributor()
+    public void Application_registers_data_rights_contributors_once()
     {
         ServiceCollection services = [];
 
@@ -418,12 +418,12 @@ public sealed class IngestionAnonymisationEligibilityEvaluatorTests
             descriptor =>
                 descriptor.ServiceType ==
                 typeof(IIngestionAnonymisationEligibilityEvaluator));
-        Assert.DoesNotContain(
+        Assert.Single(
             services,
             descriptor =>
                 descriptor.ServiceType ==
                 typeof(IDataRightsAnonymisationContributor));
-        Assert.Contains(
+        Assert.Single(
             services,
             descriptor =>
                 descriptor.ServiceType ==

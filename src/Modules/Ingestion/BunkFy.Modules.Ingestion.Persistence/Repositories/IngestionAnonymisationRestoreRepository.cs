@@ -20,6 +20,13 @@ internal sealed class IngestionAnonymisationRestoreRepository(
             tombstone => tombstone.Id == sourceLinkId,
             cancellationToken);
 
+    public Task<IngestionAnonymisationReceipt?> GetReceiptAsync(
+        Guid receiptId,
+        CancellationToken cancellationToken) =>
+        dbContext.AnonymisationReceipts.SingleOrDefaultAsync(
+            receipt => receipt.Id == receiptId,
+            cancellationToken);
+
     public async Task<
         IReadOnlyList<IngestionAnonymisationRecordPlanEntry>> GetPlanAsync(
             Guid tombstoneId,
@@ -193,6 +200,9 @@ internal sealed class IngestionAnonymisationRestoreRepository(
         dbContext.AnonymisationFingerprints.AddRange(fingerprints);
         dbContext.AnonymisationRecordPlan.AddRange(plan);
     }
+
+    public void AddReceipt(IngestionAnonymisationReceipt receipt) =>
+        dbContext.AnonymisationReceipts.Add(receipt);
 
     private static IngestionAnonymisationRestoreGraph ToRestoreGraph(
         ReservationSourceLink sourceLink,

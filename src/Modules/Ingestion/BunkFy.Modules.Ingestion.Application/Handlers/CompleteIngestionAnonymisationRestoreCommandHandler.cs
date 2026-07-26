@@ -79,16 +79,16 @@ internal sealed class CompleteIngestionAnonymisationRestoreCommandHandler(
         bool completed =
             tombstone.State ==
                 IngestionAnonymisationTombstoneState.Completed;
-        if (!IngestionAnonymisationRestoreStateVerifier.Matches(
+        if (!IngestionAnonymisationStateVerifier.Matches(
                 loaded.Graph,
                 plan,
-                request.LedgerEntryId,
+                tombstone.ReductionClaimId,
                 completed))
         {
             return Conflict();
         }
 
-        if (completed)
+        if (completed && tombstone.LastReplayedAtUtc.HasValue)
         {
             return Result.Success(CreateProof(tombstone));
         }
@@ -110,37 +110,43 @@ internal sealed class CompleteIngestionAnonymisationRestoreCommandHandler(
             }
         }
 
-        Dictionary<Guid, ObservationReceipt> receipts =
-            loaded.Graph.Receipts.ToDictionary(receipt => receipt.Id);
         DateTimeOffset replayedAtUtc =
             ToPersistencePrecision(clock.UtcNow);
-        foreach (IngestionAnonymisationRecordPlanEntry entry in plan
-                     .Where(item => item.RequiresRawPayloadDeletion))
+        if (!completed)
         {
-            if (!receipts.TryGetValue(
-                    entry.RecordId,
-                    out ObservationReceipt? receipt))
+            Dictionary<Guid, ObservationReceipt> receipts =
+                loaded.Graph.Receipts.ToDictionary(
+                    receipt => receipt.Id);
+            foreach (IngestionAnonymisationRecordPlanEntry entry in
+                     plan.Where(item =>
+                         item.RequiresRawPayloadDeletion))
+            {
+                if (!receipts.TryGetValue(
+                        entry.RecordId,
+                        out ObservationReceipt? receipt))
+                {
+                    return Conflict();
+                }
+
+                Result purged = receipt.CompleteRawPayloadPurge(
+                    tombstone.ReductionClaimId,
+                    replayedAtUtc);
+                if (purged.IsFailure)
+                {
+                    return Result.Failure<
+                        DataRightsAnonymisationRestoreProof>(
+                            purged.Error);
+                }
+            }
+
+            if (!IngestionAnonymisationStateVerifier.Matches(
+                    loaded.Graph,
+                    plan,
+                    tombstone.ReductionClaimId,
+                    completed: true))
             {
                 return Conflict();
             }
-
-            Result purged = receipt.CompleteRawPayloadPurge(
-                request.LedgerEntryId,
-                replayedAtUtc);
-            if (purged.IsFailure)
-            {
-                return Result.Failure<
-                    DataRightsAnonymisationRestoreProof>(purged.Error);
-            }
-        }
-
-        if (!IngestionAnonymisationRestoreStateVerifier.Matches(
-                loaded.Graph,
-                plan,
-                request.LedgerEntryId,
-                completed: true))
-        {
-            return Conflict();
         }
 
         Result finalized = tombstone.CompleteRestore(replayedAtUtc);

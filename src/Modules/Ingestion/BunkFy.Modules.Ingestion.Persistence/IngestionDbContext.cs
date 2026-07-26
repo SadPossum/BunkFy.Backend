@@ -36,6 +36,9 @@ public sealed class IngestionDbContext(DbContextOptions<IngestionDbContext> opti
     public DbSet<IngestionAnonymisationTombstone>
         AnonymisationTombstones =>
         this.Set<IngestionAnonymisationTombstone>();
+    public DbSet<IngestionAnonymisationReceipt>
+        AnonymisationReceipts =>
+        this.Set<IngestionAnonymisationReceipt>();
     public DbSet<IngestionAnonymisationFingerprint>
         AnonymisationFingerprints =>
         this.Set<IngestionAnonymisationFingerprint>();

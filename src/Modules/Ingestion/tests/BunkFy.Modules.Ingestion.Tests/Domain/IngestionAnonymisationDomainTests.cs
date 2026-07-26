@@ -65,6 +65,152 @@ public sealed class IngestionAnonymisationDomainTests
     }
 
     [Fact]
+    public void Live_tombstone_reserves_proof_then_attaches_ledger()
+    {
+        Guid sourceLinkId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid connectionId = Guid.NewGuid();
+        Guid workItemId = Guid.NewGuid();
+        Guid idempotencyKey = Guid.NewGuid();
+        Guid caseId = Guid.NewGuid();
+        Guid receiptId = Guid.NewGuid();
+        Result<IngestionAnonymisationTombstone> created =
+            IngestionAnonymisationTombstone.BeginExecution(
+                "tenant-a",
+                sourceLinkId,
+                propertyId,
+                connectionId,
+                selectedSourceLinkVersion: 4,
+                workItemId,
+                idempotencyKey,
+                caseId,
+                approvalRevision: 2,
+                operationRevision: 3,
+                receiptId,
+                new string('a', 64),
+                new string('b', 64),
+                new string('c', 64),
+                "user:executor",
+                graphRecordCount: 3,
+                fingerprintCount: 2,
+                rawPayloadCount: 1,
+                Now);
+
+        Assert.True(created.IsSuccess);
+        IngestionAnonymisationTombstone tombstone = created.Value;
+        Assert.Equal(
+            IngestionAnonymisationOrigin.LiveExecution,
+            tombstone.Origin);
+        Assert.Equal(receiptId, tombstone.ReductionClaimId);
+        Assert.Equal(string.Empty, tombstone.OwnerReceiptSha256);
+        Assert.False(tombstone.IsProtectedReplayPending);
+
+        IngestionAnonymisationReceipt receipt = CreateReceipt(
+            receiptId,
+            workItemId,
+            idempotencyKey,
+            propertyId,
+            caseId,
+            sourceLinkId);
+        Assert.True(tombstone.CompleteExecution(receipt).IsSuccess);
+        Assert.Equal(
+            IngestionAnonymisationTombstoneState.Completed,
+            tombstone.State);
+        Assert.True(tombstone.MatchesOwnerProof(
+            propertyId,
+            receipt.ContractVersion,
+            receipt.Id,
+            receipt.CanonicalSha256,
+            receipt.ResultingSourceLinkVersion,
+            receipt.CompletedAtUtc));
+
+        Guid ledgerEntryId = Guid.NewGuid();
+        Assert.True(tombstone.BeginProtectedReplay(
+            propertyId,
+            receipt.ContractVersion,
+            receipt.Id,
+            receipt.CanonicalSha256,
+            receipt.ResultingSourceLinkVersion,
+            receipt.CompletedAtUtc,
+            ledgerEntryId,
+            tenantSequence: 7,
+            new string('d', 64),
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.True(tombstone.IsProtectedReplayPending);
+        Assert.Equal(receiptId, tombstone.ReductionClaimId);
+
+        DateTimeOffset replayedAtUtc = Now.AddMinutes(3);
+        Assert.True(
+            tombstone.CompleteRestore(replayedAtUtc).IsSuccess);
+        Assert.False(tombstone.IsProtectedReplayPending);
+        Assert.True(tombstone.MatchesRestore(
+            propertyId,
+            receipt.ContractVersion,
+            receipt.Id,
+            receipt.CanonicalSha256,
+            receipt.CompletedAtUtc,
+            ledgerEntryId,
+            7,
+            new string('D', 64)));
+        Assert.Equal(receipt.CanonicalSha256, tombstone.OwnerReceiptSha256);
+    }
+
+    [Fact]
+    public void Owner_receipt_is_canonical_and_rejects_changed_execution()
+    {
+        Guid receiptId = Guid.NewGuid();
+        Guid workItemId = Guid.NewGuid();
+        Guid idempotencyKey = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid caseId = Guid.NewGuid();
+        Guid sourceLinkId = Guid.NewGuid();
+        IngestionAnonymisationReceipt first = CreateReceipt(
+            receiptId,
+            workItemId,
+            idempotencyKey,
+            propertyId,
+            caseId,
+            sourceLinkId);
+        IngestionAnonymisationReceipt second = CreateReceipt(
+            receiptId,
+            workItemId,
+            idempotencyKey,
+            propertyId,
+            caseId,
+            sourceLinkId);
+
+        Assert.Equal(first.CanonicalSha256, second.CanonicalSha256);
+        Assert.True(first.MatchesExecution(
+            workItemId,
+            idempotencyKey,
+            propertyId,
+            caseId,
+            approvalRevision: 2,
+            operationRevision: 3,
+            sourceLinkId,
+            selectedSourceLinkVersion: 4,
+            new string('A', 64),
+            "user:executor"));
+        Assert.False(first.MatchesExecution(
+            workItemId,
+            Guid.NewGuid(),
+            propertyId,
+            caseId,
+            approvalRevision: 2,
+            operationRevision: 3,
+            sourceLinkId,
+            selectedSourceLinkVersion: 4,
+            new string('a', 64),
+            "user:executor"));
+        Assert.Equal(
+            IngestionAnonymisationDisposition.Completed,
+            first.Disposition);
+        Assert.Equal(
+            IngestionAnonymisationReason.ProviderEvidenceAnonymised,
+            first.Reason);
+    }
+
+    [Fact]
     public void Plan_encodes_reduction_and_raw_completion_versions()
     {
         Result<IngestionAnonymisationRecordPlanEntry> rawReceipt =
@@ -145,4 +291,32 @@ public sealed class IngestionAnonymisationDomainTests
             "plaintext-provider-id",
             Now).IsFailure);
     }
+
+    private static IngestionAnonymisationReceipt CreateReceipt(
+        Guid receiptId,
+        Guid workItemId,
+        Guid idempotencyKey,
+        Guid propertyId,
+        Guid caseId,
+        Guid sourceLinkId) =>
+        IngestionAnonymisationReceipt.Create(
+            receiptId,
+            "tenant-a",
+            workItemId,
+            idempotencyKey,
+            propertyId,
+            caseId,
+            approvalRevision: 2,
+            operationRevision: 3,
+            sourceLinkId,
+            selectedSourceLinkVersion: 4,
+            resultingSourceLinkVersion: 5,
+            graphRecordCount: 3,
+            fingerprintCount: 2,
+            rawPayloadCount: 1,
+            new string('a', 64),
+            new string('b', 64),
+            new string('c', 64),
+            "user:executor",
+            Now.AddMinutes(1)).Value;
 }

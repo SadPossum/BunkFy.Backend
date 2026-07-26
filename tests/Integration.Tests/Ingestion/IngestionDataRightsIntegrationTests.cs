@@ -3,6 +3,7 @@ namespace Integration.Tests;
 using System.Security.Cryptography;
 using BunkFy.Adapter.Abstractions;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Contracts;
@@ -29,6 +30,268 @@ public sealed class IngestionDataRightsIntegrationTests
     private const string TenantId = "tenant-ingestion-data-rights";
     private static readonly DateTimeOffset Now =
         new(2026, 7, 25, 18, 0, 0, TimeSpan.Zero);
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Approved_anonymisation_executes_replays_and_restores_on_postgresql()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase(
+                    "bunkfy_ingestion_anonymisation_execution_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        string fileRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"bunkfy-ingestion-anonymisation-{Guid.NewGuid():N}");
+        try
+        {
+            TestApprovalGate approvalGate = new();
+            using ServiceProvider provider = CreatePersistenceProvider(
+                postgreSql.GetConnectionString(),
+                fileRoot,
+                approvalGate);
+            Guid propertyId = Guid.NewGuid();
+            Guid reservationId = Guid.NewGuid();
+            Guid connectionId = Guid.NewGuid();
+            Guid receiptId = Guid.NewGuid();
+            Guid payloadFileId = Guid.NewGuid();
+            byte[] payload =
+                """{"guest":"Maya Chen","reference":"provider-execution-42"}"""u8
+                    .ToArray();
+            string payloadSha256 = Sha256(payload);
+            DataRightsAnonymisationContributionRequest request;
+            DataRightsAnonymisationContributionResult executed;
+
+            using (IServiceScope scope = provider.CreateScope())
+            {
+                IngestionDbContext dbContext = scope.ServiceProvider
+                    .GetRequiredService<IngestionDbContext>();
+                await dbContext.Database.MigrateAsync();
+                IIngestionPropertyProjectionRepository properties =
+                    scope.ServiceProvider.GetRequiredService<
+                        IIngestionPropertyProjectionRepository>();
+                await properties.ApplySnapshotAsync(
+                    new(
+                        TenantId,
+                        propertyId,
+                        "Execution House",
+                        "execution-house",
+                        IsActive: true,
+                        PropertyProcessingStatus.Unconfigured,
+                        GovernancePolicy: null,
+                        SourceVersion: 1),
+                    CancellationToken.None);
+                await CountryPolicyIntegrationTestData
+                    .ApplyActivationAsync(
+                        scope.ServiceProvider,
+                        IngestionModuleMetadata.Name,
+                        TenantId,
+                        propertyId,
+                        propertyVersion: 2);
+
+                AdapterConnection connection = AdapterConnection.Create(
+                    connectionId,
+                    TenantId,
+                    propertyId,
+                    "booking.com",
+                    AdapterExecutionMode.Push,
+                    IngestionConflictPolicy.SuggestionsOnly,
+                    "configuration://anonymisation",
+                    secretReference: null,
+                    Now).Value;
+                ObservationReceipt observation = CreateReceipt(
+                    receiptId,
+                    propertyId,
+                    connectionId,
+                    payloadFileId,
+                    payloadSha256);
+                ReservationSourceLink sourceLink = CreateLinkedSource(
+                    propertyId,
+                    reservationId,
+                    connectionId,
+                    receiptId,
+                    payloadSha256,
+                    cancelled: true);
+                dbContext.AddRange(
+                    connection,
+                    observation,
+                    sourceLink);
+                await dbContext.SaveChangesAsync();
+                IRawPayloadStore rawPayloadStore =
+                    scope.ServiceProvider
+                        .GetRequiredService<IRawPayloadStore>();
+                await rawPayloadStore.StoreAsync(
+                    new(
+                        payloadFileId,
+                        TenantId,
+                        connectionId,
+                        "application/json",
+                        payload,
+                        payloadSha256),
+                    CancellationToken.None);
+
+                IngestionPropertyProjection property =
+                    await dbContext.PropertyProjections
+                        .AsNoTracking()
+                        .SingleAsync(item => item.Id == propertyId);
+                DataRightsApprovalEvidence approval =
+                    CreateApproval(property);
+                approvalGate.Approval = approval;
+                request = new(
+                    DataRightsAnonymisationContract.CurrentVersion,
+                    TenantId,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    propertyId,
+                    Guid.NewGuid(),
+                    ApprovalRevision: 2,
+                    OperationRevision: 3,
+                    new(
+                        IngestionDataRightsCoordinates.Owner,
+                        IngestionDataRightsCoordinates
+                            .ReservationSourceLinkRecordType,
+                        sourceLink.Id,
+                        sourceLink.Version),
+                    approval,
+                    "user:privacy-executor",
+                    Now.AddHours(1));
+                IDataRightsAnonymisationContributor contributor =
+                    scope.ServiceProvider
+                        .GetServices<
+                            IDataRightsAnonymisationContributor>()
+                        .Single(item =>
+                            item.OwnerKey ==
+                            IngestionDataRightsCoordinates.Owner);
+
+                executed = await contributor.ExecuteAsync(
+                    request,
+                    CancellationToken.None);
+
+                Assert.True(
+                    executed.Status ==
+                    DataRightsAnonymisationContributionStatus.Completed,
+                    executed.OutcomeCode);
+                Assert.NotNull(executed.OwnerProof);
+                dbContext.ChangeTracker.Clear();
+                ReservationSourceLink reducedLink =
+                    await dbContext.ReservationSourceLinks
+                        .SingleAsync(item =>
+                            item.Id == sourceLink.Id);
+                ObservationReceipt reducedObservation =
+                    await dbContext.ObservationReceipts
+                        .SingleAsync(item =>
+                            item.Id == observation.Id);
+                IngestionAnonymisationTombstone tombstone =
+                    await dbContext.AnonymisationTombstones
+                        .SingleAsync(item =>
+                            item.Id == sourceLink.Id);
+                IngestionAnonymisationReceipt ownerReceipt =
+                    await dbContext.AnonymisationReceipts
+                        .SingleAsync(item =>
+                            item.Id == executed.OwnerProof.ReceiptId);
+                Assert.Equal(
+                    ReservationSourceLinkState.Anonymised,
+                    reducedLink.State);
+                Assert.Equal(
+                    RawPayloadRetentionState.Purged,
+                    reducedObservation.RawPayloadRetentionState);
+                Assert.Equal(
+                    IngestionAnonymisationOrigin.LiveExecution,
+                    tombstone.Origin);
+                Assert.Equal(
+                    IngestionAnonymisationTombstoneState.Completed,
+                    tombstone.State);
+                Assert.True(tombstone.MatchesOwnerProof(
+                    propertyId,
+                    ownerReceipt.ContractVersion,
+                    ownerReceipt.Id,
+                    ownerReceipt.CanonicalSha256,
+                    ownerReceipt.ResultingSourceLinkVersion,
+                    ownerReceipt.CompletedAtUtc));
+                Assert.Equal(
+                    ownerReceipt.CanonicalSha256,
+                    executed.OwnerProof.ReceiptSha256);
+                Assert.Null(await rawPayloadStore.ReadAsync(
+                    payloadFileId,
+                    TenantId,
+                    connectionId,
+                    CancellationToken.None));
+            }
+
+            using (IServiceScope restart = provider.CreateScope())
+            {
+                IDataRightsAnonymisationContributor contributor =
+                    restart.ServiceProvider
+                        .GetServices<
+                            IDataRightsAnonymisationContributor>()
+                        .Single(item =>
+                            item.OwnerKey ==
+                            IngestionDataRightsCoordinates.Owner);
+                DataRightsAnonymisationContributionResult replayed =
+                    await contributor.ExecuteAsync(
+                        request,
+                        CancellationToken.None);
+                Assert.Equal(executed, replayed);
+
+                Guid ledgerEntryId = Guid.NewGuid();
+                IDataRightsAnonymisationRestoreContributor restore =
+                    restart.ServiceProvider
+                        .GetServices<
+                            IDataRightsAnonymisationRestoreContributor>()
+                        .Single(item =>
+                            item.OwnerKey ==
+                            IngestionDataRightsCoordinates.Owner);
+                DataRightsAnonymisationRestoreResult restored =
+                    await restore.RestoreAsync(
+                        new(
+                            DataRightsAnonymisationRestoreContract
+                                .CurrentVersion,
+                            TenantId,
+                            ledgerEntryId,
+                            TenantSequence: 21,
+                            new string('f', 64),
+                            propertyId,
+                            IngestionDataRightsCoordinates.Owner,
+                            IngestionDataRightsCoordinates
+                                .ReservationSourceLinkRecordType,
+                            request.Coordinate.RecordId,
+                            executed.OwnerProof!.ReceiptContractVersion,
+                            executed.OwnerProof.ReceiptId,
+                            executed.OwnerProof.ReceiptSha256,
+                            executed.OwnerProof.ResultingRecordVersion,
+                            executed.OwnerProof.CompletedAtUtc),
+                        CancellationToken.None);
+                Assert.Equal(
+                    DataRightsAnonymisationRestoreStatus.Completed,
+                    restored.Status);
+                Assert.NotNull(restored.Proof);
+
+                IngestionDbContext dbContext =
+                    restart.ServiceProvider
+                        .GetRequiredService<IngestionDbContext>();
+                dbContext.ChangeTracker.Clear();
+                IngestionAnonymisationTombstone tombstone =
+                    await dbContext.AnonymisationTombstones
+                        .SingleAsync(item =>
+                            item.Id == request.Coordinate.RecordId);
+                Assert.Equal(ledgerEntryId, tombstone.LedgerEntryId);
+                Assert.NotNull(tombstone.LastReplayedAtUtc);
+                Assert.Equal(
+                    executed.OwnerProof.ReceiptSha256,
+                    tombstone.OwnerReceiptSha256);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(fileRoot))
+            {
+                Directory.Delete(fileRoot, recursive: true);
+            }
+        }
+    }
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -521,7 +784,8 @@ public sealed class IngestionDataRightsIntegrationTests
 
     private static ServiceProvider CreatePersistenceProvider(
         string connectionString,
-        string fileRoot)
+        string fileRoot,
+        TestApprovalGate? approvalGate = null)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder();
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
@@ -541,6 +805,12 @@ public sealed class IngestionDataRightsIntegrationTests
                     .ToArray());
         builder.Services.AddSingleton<IScopeContext>(new TestScopeContext(TenantId));
         builder.Services.AddSingleton<ISystemClock>(new TestClock());
+        if (approvalGate is not null)
+        {
+            builder.Services.AddSingleton<
+                IDataRightsOperationApprovalGate>(approvalGate);
+        }
+
         CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
         builder.AddApplicationEventsInfrastructure();
         builder.AddCqrsInfrastructure();
@@ -552,6 +822,32 @@ public sealed class IngestionDataRightsIntegrationTests
             {
                 ValidateScopes = true
             });
+    }
+
+    private static DataRightsApprovalEvidence CreateApproval(
+        IngestionPropertyProjection property)
+    {
+        Assert.Equal(
+            PropertyProcessingStatus.Enabled,
+            property.ProcessingStatus);
+        IngestionPropertyPolicyBinding policy =
+            Assert.IsType<IngestionPropertyPolicyBinding>(
+                property.GovernancePolicy);
+        return new(
+            SchemaVersion: 1,
+            property.Id,
+            PropertyVersion: property.PolicySourceVersion,
+            policy.OperatingCountryCode,
+            policy.PolicyId,
+            policy.PolicyVersion,
+            policy.RetentionPolicyId,
+            policy.RetentionPolicyVersion,
+            policy.ContentSha256,
+            PurposeCode: "data-rights-anonymisation",
+            Surface: "erasure",
+            SourceProvenance: "authorized-workspace-operator",
+            EvaluatedAtUtc: Now,
+            RequiresDistinctExecutor: true);
     }
 
     private static ReservationSourceLink CreateLinkedSource(
@@ -713,5 +1009,25 @@ public sealed class IngestionDataRightsIntegrationTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class TestApprovalGate
+        : IDataRightsOperationApprovalGate
+    {
+        public DataRightsApprovalEvidence? Approval { get; set; }
+
+        public Task<DataRightsOperationApprovalResult> EvaluateAsync(
+            DataRightsOperationApprovalRequest request,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(
+                this.Approval is { } approval
+                    ? DataRightsOperationApprovalResult
+                        .ApprovedWithEvidence(approval)
+                    : DataRightsOperationApprovalResult.Denied(
+                        DataRightsOperationApprovalDenial
+                            .ApprovalEvidenceMissing));
+        }
     }
 }

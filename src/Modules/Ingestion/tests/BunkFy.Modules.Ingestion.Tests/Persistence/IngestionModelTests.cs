@@ -58,11 +58,13 @@ public sealed class IngestionModelTests
     }
 
     [Fact]
-    public void Anonymisation_restore_ledger_is_scoped_and_immutable()
+    public void Anonymisation_execution_and_restore_state_is_scoped()
     {
         using IngestionDbContext dbContext = CreateDbContext();
         IEntityType tombstone = dbContext.Model.FindEntityType(
             typeof(IngestionAnonymisationTombstone))!;
+        IEntityType ownerReceipt = dbContext.Model.FindEntityType(
+            typeof(IngestionAnonymisationReceipt))!;
         IEntityType fingerprint = dbContext.Model.FindEntityType(
             typeof(IngestionAnonymisationFingerprint))!;
         IEntityType plan = dbContext.Model.FindEntityType(
@@ -77,6 +79,19 @@ public sealed class IngestionModelTests
             index.Properties.Select(property => property.Name)
                 .SequenceEqual(
                     [nameof(IngestionAnonymisationTombstone.State)]));
+        Assert.Contains(ownerReceipt.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType ==
+                typeof(IngestionAnonymisationTombstone) &&
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "SourceLinkId"]));
+        Assert.Contains(ownerReceipt.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "IdempotencyKey"]));
+        Assert.Contains(ownerReceipt.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "WorkItemId"]));
         Assert.Contains(fingerprint.GetForeignKeys(), foreignKey =>
             foreignKey.PrincipalEntityType.ClrType ==
                 typeof(IngestionAnonymisationTombstone) &&

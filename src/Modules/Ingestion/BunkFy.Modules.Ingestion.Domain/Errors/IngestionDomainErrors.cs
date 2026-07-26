@@ -85,6 +85,9 @@ public static class IngestionDomainErrors
     public static readonly Error AnonymisationTombstoneInvalid = new(
         "Ingestion.AnonymisationTombstoneInvalid",
         "The Ingestion anonymisation tombstone is invalid.");
+    public static readonly Error AnonymisationReceiptInvalid = new(
+        "Ingestion.AnonymisationReceiptInvalid",
+        "The Ingestion anonymisation owner receipt is invalid.");
     public static readonly Error AnonymisationRecordNotReducible = new(
         "Ingestion.AnonymisationRecordNotReducible",
         "The Ingestion record cannot be reduced from its current state.");

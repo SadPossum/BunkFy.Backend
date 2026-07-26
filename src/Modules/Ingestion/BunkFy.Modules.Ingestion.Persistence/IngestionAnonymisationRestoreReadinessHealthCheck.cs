@@ -26,7 +26,9 @@ internal sealed class IngestionAnonymisationRestoreReadinessHealthCheck(
             .AnyAsync(
                 tombstone =>
                     tombstone.State ==
-                    IngestionAnonymisationTombstoneState.Reducing,
+                        IngestionAnonymisationTombstoneState.Reducing ||
+                    (tombstone.LedgerEntryId != Guid.Empty &&
+                     tombstone.LastReplayedAtUtc == null),
                 cancellationToken)
             .ConfigureAwait(false);
 

@@ -3,6 +3,7 @@ namespace Integration.Tests;
 using System.Text.Json;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Credentials;
+using BunkFy.Modules.Ingestion.Domain.DataRights;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
@@ -19,6 +20,197 @@ using Xunit;
 public sealed class IngestionMigrationIntegrationTests
 {
     private const string PreRetentionMigration = "20260712021246_AddOperationsAndPropertyProjection";
+    private const string PreviousAnonymisationExecutionMigration =
+        "20260726112353_AddIngestionAnonymisationRestore";
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Anonymisation_execution_migration_preserves_legacy_proof_and_blocks_unsafe_downgrade()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase(
+                    "bunkfy_ingestion_anonymisation_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        string connectionString = postgreSql.GetConnectionString();
+        Guid sourceLinkId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid connectionId = Guid.NewGuid();
+        Guid ownerReceiptId = Guid.NewGuid();
+        Guid ledgerEntryId = Guid.NewGuid();
+        DateTimeOffset completedAtUtc =
+            new(2026, 7, 26, 18, 0, 0, TimeSpan.Zero);
+        await using (IngestionDbContext previous =
+            CreateDbContext(connectionString))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(
+                    PreviousAnonymisationExecutionMigration);
+            await previous.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO ingestion.anonymisation_tombstones (
+                    "Id", "ContractVersion", "Revision", "State",
+                    "PropertyId", "ConnectionId",
+                    "SelectedSourceLinkVersion",
+                    "ResultingSourceLinkVersion",
+                    "OwnerReceiptContractVersion", "OwnerReceiptId",
+                    "OwnerReceiptSha256", "OriginallyCompletedAtUtc",
+                    "LedgerEntryId", "TenantSequence",
+                    "LedgerEntrySha256", "GraphRecordCount",
+                    "FingerprintCount", "RawPayloadCount",
+                    "ReplayStartedAtUtc", "LastReplayedAtUtc",
+                    "ScopeId")
+                VALUES (
+                    {sourceLinkId}, {1}, {2L}, {2},
+                    {propertyId}, {connectionId}, {4L}, {5L},
+                    {1}, {ownerReceiptId}, {new string('a', 64)},
+                    {completedAtUtc}, {ledgerEntryId}, {12L},
+                    {new string('b', 64)}, {3}, {2}, {1},
+                    {completedAtUtc.AddMinutes(1)},
+                    {completedAtUtc.AddMinutes(2)}, {"tenant-a"});
+                """);
+        }
+
+        await using (IngestionDbContext upgraded =
+            CreateDbContext(connectionString))
+        {
+            await upgraded.Database.MigrateAsync();
+            IngestionAnonymisationTombstone legacy =
+                await upgraded.AnonymisationTombstones
+                    .AsNoTracking()
+                    .SingleAsync(item => item.Id == sourceLinkId);
+
+            Assert.Equal(
+                IngestionAnonymisationTombstone
+                    .CurrentContractVersion,
+                legacy.ContractVersion);
+            Assert.Equal(
+                IngestionAnonymisationOrigin.ProtectedLedgerReplay,
+                legacy.Origin);
+            Assert.Equal(ownerReceiptId, legacy.OwnerReceiptId);
+            Assert.Equal(new string('a', 64), legacy.OwnerReceiptSha256);
+            Assert.Equal(ledgerEntryId, legacy.LedgerEntryId);
+            Assert.Equal(new string('b', 64), legacy.LedgerEntrySha256);
+            Assert.Equal(Guid.Empty, legacy.WorkItemId);
+            Assert.Equal(Guid.Empty, legacy.IdempotencyKey);
+
+            string[] protectedIndexDefinitions =
+                await upgraded.Database.SqlQueryRaw<string>(
+                    """
+                    SELECT indexdef AS "Value"
+                    FROM pg_indexes
+                    WHERE schemaname = 'ingestion'
+                      AND indexname IN (
+                        'IX_anonymisation_tombstones_ScopeId_IdempotencyKey',
+                        'IX_anonymisation_tombstones_ScopeId_LedgerEntryId')
+                    ORDER BY indexname
+                    """)
+                    .ToArrayAsync();
+            Assert.Equal(2, protectedIndexDefinitions.Length);
+            Assert.All(
+                protectedIndexDefinitions,
+                definition =>
+                {
+                    Assert.Contains(
+                        "UNIQUE",
+                        definition,
+                        StringComparison.Ordinal);
+                    Assert.Contains(
+                        "00000000-0000-0000-0000-000000000000",
+                        definition,
+                        StringComparison.Ordinal);
+                });
+
+            await upgraded.Database.GetService<IMigrator>()
+                .MigrateAsync(
+                    PreviousAnonymisationExecutionMigration);
+            int downgradedContract =
+                await upgraded.Database.SqlQueryRaw<int>(
+                    """
+                    SELECT "ContractVersion" AS "Value"
+                    FROM ingestion.anonymisation_tombstones
+                    LIMIT 1
+                    """)
+                    .SingleAsync();
+            Assert.Equal(1, downgradedContract);
+        }
+
+        await using (IngestionDbContext live =
+            CreateDbContext(connectionString))
+        {
+            await live.Database.MigrateAsync();
+            Guid liveSourceLinkId = Guid.NewGuid();
+            Guid workItemId = Guid.NewGuid();
+            Guid idempotencyKey = Guid.NewGuid();
+            Guid caseId = Guid.NewGuid();
+            Guid liveOwnerReceiptId = Guid.NewGuid();
+            IngestionAnonymisationTombstone tombstone =
+                IngestionAnonymisationTombstone.BeginExecution(
+                    "tenant-a",
+                    liveSourceLinkId,
+                    propertyId,
+                    connectionId,
+                    selectedSourceLinkVersion: 1,
+                    workItemId,
+                    idempotencyKey,
+                    caseId,
+                    approvalRevision: 2,
+                    operationRevision: 3,
+                    liveOwnerReceiptId,
+                    new string('c', 64),
+                    new string('d', 64),
+                    new string('e', 64),
+                    "user:migration-test",
+                    graphRecordCount: 1,
+                    fingerprintCount: 1,
+                    rawPayloadCount: 0,
+                    completedAtUtc.AddHours(1))
+                .Value;
+            IngestionAnonymisationReceipt receipt =
+                IngestionAnonymisationReceipt.Create(
+                    liveOwnerReceiptId,
+                    "tenant-a",
+                    workItemId,
+                    idempotencyKey,
+                    propertyId,
+                    caseId,
+                    approvalRevision: 2,
+                    operationRevision: 3,
+                    liveSourceLinkId,
+                    selectedSourceLinkVersion: 1,
+                    resultingSourceLinkVersion: 2,
+                    graphRecordCount: 1,
+                    fingerprintCount: 1,
+                    rawPayloadCount: 0,
+                    new string('c', 64),
+                    new string('d', 64),
+                    new string('e', 64),
+                    "user:migration-test",
+                    completedAtUtc.AddHours(1).AddMinutes(1))
+                .Value;
+            Assert.True(tombstone.CompleteExecution(receipt).IsSuccess);
+            live.AnonymisationTombstones.Add(tombstone);
+            await live.SaveChangesAsync();
+            live.AnonymisationReceipts.Add(receipt);
+            await live.SaveChangesAsync();
+
+            PostgresException unsafeDowngrade =
+                await Assert.ThrowsAsync<PostgresException>(
+                    () => live.Database.GetService<IMigrator>()
+                        .MigrateAsync(
+                            PreviousAnonymisationExecutionMigration));
+            Assert.Equal(
+                PostgresErrorCodes.RaiseException,
+                unsafeDowngrade.SqlState);
+            Assert.Contains(
+                "Cannot downgrade ingestion anonymisation execution",
+                unsafeDowngrade.MessageText,
+                StringComparison.Ordinal);
+        }
+    }
 
     [DockerFact]
     [Trait("Category", "Docker")]

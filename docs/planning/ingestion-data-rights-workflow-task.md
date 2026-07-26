@@ -378,6 +378,100 @@ create a new destructive API.
   exact-commit publication gates pass before staged irreversible execution
   begins.
 
+## Fourth-Slice Architecture Decision
+
+Irreversible reduction is an Ingestion-owned two-transaction workflow behind
+the existing generic DataRights contributor contract. GMA and DataRights do
+not learn provider identities, object-store coordinates, graph membership,
+fingerprint semantics or Ingestion lifecycle rules.
+
+The existing tombstone, record plan, fingerprints and source-operation lock
+remain the single safety model. A tombstone records whether it originated from
+a live owner execution or a protected-ledger replay:
+
+- live execution stores the exact DataRights work item, idempotency, case,
+  approval, operation, actor, policy and operation-fence coordinates;
+- replay stores the immutable owner proof and protected-ledger coordinates;
+- both origins freeze the same bounded graph and raw-object deletion plan;
+- a live execution reserves its owner-receipt identity at begin, but no
+  completed proof or completion time exists until finalization;
+- attaching protected-ledger coordinates later never changes the completed
+  owner proof.
+
+The live begin command is transactional. It validates the contributor request,
+revalidates the DataRights approval through the existing approval gate,
+acquires the exact source-operation lock, evaluates current Ingestion
+eligibility, compares policy and operation-fence evidence, loads the bounded
+owner graph, creates fingerprints and the immutable plan, redacts
+database-owned sensitive values and persists the reducing barrier.
+
+The contributor then deletes every planned raw object outside the database
+transaction. Deletion is idempotent and absence is verified. A second
+transaction reacquires the same lock, reloads only the frozen plan, proves the
+reduced graph and every raw-object absence, completes raw-retention state,
+creates an immutable Ingestion owner receipt and completes the tombstone. Only
+that receipt is returned as the DataRights owner proof.
+
+A retry with the same complete request resumes the persisted stage. It never
+re-runs discovery to broaden the graph. A changed idempotency key, work item,
+case revision, owner coordinate, property, actor, routing evidence, selected
+version, policy digest or operation fence fails closed. Blocked eligibility is
+reported as a stable owner blocker; malformed, conflicting or unverifiable
+state is an owner failure and is never reported as completion.
+
+The immutable owner receipt contains only bounded execution coordinates,
+selected and resulting source-link versions, affected-record counts, approval,
+policy and operation-fence digests, audit actor, completion time and its
+canonical SHA-256. It contains no provider reference, external id, normalized
+snapshot, raw content, source fingerprint or object-store coordinate.
+
+Restore remains safe for both backup positions:
+
+- a backup predating execution reconstructs reduction from the protected
+  ledger using the existing replay path;
+- a backup containing a completed live tombstone verifies the local immutable
+  proof and final graph, attaches the protected-ledger coordinates, and records
+  replay completion without mutating the owner proof;
+- reducing or ledger-attached-but-unverified state keeps readiness closed.
+
+The existing `IDataRightsAnonymisationContributor` is sufficient: its one
+deadline-bounded call may execute transactional begin, idempotent external
+deletion and transactional finalization. No new generic framework contract,
+distributed transaction abstraction, HTTP endpoint, Admin API or CLI command
+is introduced.
+
+## Fourth-Slice Acceptance Plan
+
+- Domain tests prove both tombstone origins, reserved receipt identity,
+  reducing and completed invariants, immutable owner proof, later ledger
+  attachment, idempotent replay and conflict rejection.
+- Contributor and command tests prove request validation, approval-gate
+  revalidation, exact current eligibility, policy and operation-fence
+  comparison, stable blocker mapping, deadline cancellation and successful
+  owner-proof mapping.
+- Recovery tests prove failure before begin, after begin, during any object
+  deletion and before finalization resumes the frozen plan without broadening
+  the graph or reporting premature completion.
+- Object-store tests prove missing objects are idempotent success, remaining
+  objects block finalization, cancellation is honored and no raw coordinate is
+  emitted through result, log, error or notification surfaces.
+- Restore tests prove protected replay converges from backups both before and
+  after live execution, rejects mismatched local proof, and holds readiness
+  closed for every incomplete state.
+- PostgreSQL tests prove source-lock serialization, exact graph revalidation,
+  optimistic concurrency, immutable receipt persistence, tenant isolation,
+  owner-proof replay and no plaintext provider identities in execution,
+  receipt, tombstone, plan or fingerprint rows.
+- The personal-data catalogue classifies execution coordinates, audit actor,
+  immutable receipt and replay state with explicit access, retention and
+  rights behavior.
+- Architecture tests prove Ingestion registers exactly one destructive
+  contributor only after the complete workflow exists, references DataRights
+  Contracts only, exposes no destructive API or CLI and leaves GMA unchanged.
+- PostgreSQL migration upgrade/drift, focused tests, complete verification,
+  full Docker tests, security checks and exact-commit publication gates pass
+  before the slice is marked complete.
+
 ## First-Slice Implementation
 
 - Ingestion resolves only exact Reservations ids through its tenant-first
@@ -479,6 +573,47 @@ create a new destructive API.
 - Only `IDataRightsAnonymisationRestoreContributor` is registered. There is no
   `IDataRightsAnonymisationContributor`, destructive API, Admin API or CLI
   command in this slice, and GMA remains unchanged.
+
+## Fourth-Slice Implementation
+
+- Ingestion now registers one `IDataRightsAnonymisationContributor`. It
+  revalidates the exact approved case revision, routing-policy evidence,
+  current eligibility and operation fence before any destructive work starts.
+- A first transaction acquires the source-operation lock, freezes the bounded
+  graph and raw-object plan, reduces database-owned sensitive values and
+  persists a resumable reducing barrier. External object deletion occurs only
+  after that transaction commits.
+- Finalization reacquires the same lock, reloads only the frozen plan, proves
+  the reduced graph and object absence, completes retention state and records
+  an immutable owner receipt. Retries resume the persisted stage and cannot
+  broaden the graph or substitute different evidence.
+- The owner receipt contains bounded execution coordinates, versions, counts,
+  approval, policy and operation-fence digests, actor, completion time and a
+  canonical SHA-256. It contains no provider reference, external id, raw
+  content, source fingerprint or object-store coordinate.
+- Protected-ledger restore supports backups from both sides of irreversible
+  execution. A pre-execution backup replays reduction; a post-execution backup
+  verifies and attaches the existing owner proof before recording replay
+  completion. Reducing or attached-but-unverified state keeps readiness
+  closed.
+- The PostgreSQL migration preserves legacy restore tombstones as protected
+  replay state, adds immutable receipts and partial uniqueness for live
+  idempotency and ledger coordinates, and refuses an unsafe downgrade when
+  live execution proof exists.
+- The executable personal-data catalogue and generated inventory classify the
+  execution plan, audit actor, immutable receipt and replay state. Architecture
+  guards keep the implementation inside Ingestion and DataRights Contracts;
+  no destructive HTTP, Admin API or CLI surface was added, and GMA remains
+  unchanged.
+- Focused verification passes all 192 Ingestion tests and 65 architecture
+  guards. The complete verifier passes solution synchronization,
+  source-package checks, a zero-warning build, every migration drift check and
+  2,734 non-Docker tests.
+- The complete Docker suite passes all 56 tests with no failures or skips in
+  two consecutive full runs. Real PostgreSQL coverage proves staged execution,
+  immutable proof, protected replay, historical migration, fail-closed
+  downgrade and normal Ingestion behavior. The direct and transitive NuGet
+  audit reports no known vulnerable packages.
 
 ## Non-Goals
 

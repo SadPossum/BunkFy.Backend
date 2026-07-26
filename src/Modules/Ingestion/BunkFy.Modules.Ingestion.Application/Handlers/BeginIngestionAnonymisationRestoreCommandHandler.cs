@@ -49,6 +49,37 @@ internal sealed class BeginIngestionAnonymisationRestoreCommandHandler(
                 cancellationToken).ConfigureAwait(false);
         if (existing is not null)
         {
+            if (existing.Origin ==
+                IngestionAnonymisationOrigin.LiveExecution)
+            {
+                IngestionAnonymisationReceipt? receipt =
+                    await repository.GetReceiptAsync(
+                        existing.OwnerReceiptId,
+                        cancellationToken).ConfigureAwait(false);
+                if (receipt is null ||
+                    !IngestionAnonymisationExecutionStageFactory
+                        .MatchesCompletedProof(existing, receipt))
+                {
+                    return Conflict();
+                }
+
+                Result replay = existing.BeginProtectedReplay(
+                    request.RoutingPropertyId,
+                    request.OwnerReceiptContractVersion,
+                    request.OwnerReceiptId,
+                    request.OwnerReceiptSha256,
+                    request.ResultingRecordVersion!.Value,
+                    request.OriginallyCompletedAtUtc,
+                    request.LedgerEntryId,
+                    request.TenantSequence,
+                    request.LedgerEntrySha256,
+                    ToPersistencePrecision(clock.UtcNow));
+                if (replay.IsFailure)
+                {
+                    return Conflict();
+                }
+            }
+
             return await this.ResumeAsync(
                 existing,
                 request,
@@ -154,7 +185,7 @@ internal sealed class BeginIngestionAnonymisationRestoreCommandHandler(
                 reduced.Error);
         }
 
-        if (!IngestionAnonymisationRestoreStateVerifier.Matches(
+        if (!IngestionAnonymisationStateVerifier.Matches(
                 graph,
                 planned.Value,
                 request.LedgerEntryId,
@@ -206,10 +237,10 @@ internal sealed class BeginIngestionAnonymisationRestoreCommandHandler(
             tombstone.State ==
                 IngestionAnonymisationTombstoneState.Completed;
         if (loaded.Graph is null ||
-            !IngestionAnonymisationRestoreStateVerifier.Matches(
+            !IngestionAnonymisationStateVerifier.Matches(
                 loaded.Graph,
                 plan,
-                request.LedgerEntryId,
+                tombstone.ReductionClaimId,
                 completed))
         {
             return Conflict();

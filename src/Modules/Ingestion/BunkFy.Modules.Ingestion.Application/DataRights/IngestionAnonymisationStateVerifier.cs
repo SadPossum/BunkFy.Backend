@@ -5,7 +5,7 @@ using BunkFy.Modules.Ingestion.Domain.DataRights;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 
-internal static class IngestionAnonymisationRestoreStateVerifier
+internal static class IngestionAnonymisationStateVerifier
 {
     public static bool Matches(
         IngestionAnonymisationRestoreGraph graph,
