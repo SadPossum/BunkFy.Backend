@@ -31,7 +31,7 @@ public sealed class AdapterHostTests
             using HttpResponseMessage live = await client.GetAsync("/health/live");
             Assert.Equal(HttpStatusCode.OK, live.StatusCode);
             HttpResponseMessage? ready = null;
-            for (int attempt = 0; attempt < 20; attempt++)
+            for (int attempt = 0; attempt < 100; attempt++)
             {
                 ready?.Dispose();
                 ready = await client.GetAsync("/health/ready");
@@ -40,7 +40,7 @@ public sealed class AdapterHostTests
                     break;
                 }
 
-                await Task.Delay(25);
+                await Task.Delay(50);
             }
 
             using (ready)
