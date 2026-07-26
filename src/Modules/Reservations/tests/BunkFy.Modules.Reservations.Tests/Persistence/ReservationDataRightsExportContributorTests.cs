@@ -343,6 +343,73 @@ public sealed class ReservationDataRightsExportContributorTests
     }
 
     [Fact]
+    public async Task Export_includes_minimum_anonymisation_owner_proof()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext("tenant-a");
+        Guid propertyId = AddKnownProperty(dbContext);
+        Reservation reservation = CreateReservation(propertyId, "Maya Chen");
+        Assert.True(reservation.RejectAllocation(
+            reservation.AllocationRequestId,
+            ReservationAllocationRejection.UnitNotSellable,
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        ReservationAnonymisationOutcome outcome = reservation.Anonymise(
+            reservation.Version,
+            reservation.DetailsRevision,
+            "user:privacy-executor",
+            Guid.NewGuid(),
+            Now.AddMinutes(2)).Value;
+        ReservationAnonymisationReceipt receipt =
+            ReservationAnonymisationReceipt.Create(
+                Guid.NewGuid(),
+                reservation.ScopeId,
+                Guid.NewGuid(),
+                propertyId,
+                Guid.NewGuid(),
+                approvalRevision: 2,
+                operationRevision: 3,
+                reservation.Id,
+                outcome,
+                redactedHistoryCount: 1,
+                reducedExternalOperationCount: 0,
+                suppressedReminderCount: 0,
+                new string('a', ReservationAnonymisationReceipt.Sha256Length),
+                new string('b', ReservationAnonymisationReceipt.Sha256Length)).Value;
+        dbContext.Reservations.Add(reservation);
+        dbContext.AnonymisationReceipts.Add(receipt);
+        await dbContext.SaveChangesAsync();
+
+        ReservationDataRightsExportContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result = await contributor.ExportAsync(
+            CreateRequest(propertyId, reservation),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
+        DataRightsExportRecord exportedReceipt = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor
+                    .AnonymisationReceiptRecordType);
+        Assert.DoesNotContain(
+            exportedReceipt.Fields,
+            field => field.FieldId is
+                "reservation.anonymisation.actor-id" or
+                "reservation.anonymisation.idempotency-key");
+        Assert.Contains(
+            exportedReceipt.Fields,
+            field => field.FieldId ==
+                "reservation.anonymisation.owner-approval-revision");
+        Assert.Contains(
+            exportedReceipt.Fields,
+            field => field.FieldId ==
+                "reservation.anonymisation.canonical-sha256");
+    }
+
+    [Fact]
     public async Task Sink_failure_propagates_without_a_false_success_result()
     {
         await using ReservationsDbContext dbContext = CreateDbContext("tenant-a");
@@ -376,9 +443,9 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(6, descriptor.CatalogVersion);
+        Assert.Equal(7, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
-        Assert.Equal(2, descriptor.ExportSchemaVersion);
+        Assert.Equal(3, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);
     }
 

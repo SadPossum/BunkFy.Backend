@@ -147,6 +147,40 @@ public sealed class ReservationAnonymisationEligibilityEvaluatorTests
     }
 
     [Fact]
+    public async Task Already_anonymised_reservation_fails_closed()
+    {
+        PolicyFixture policy = CreatePolicy();
+        Guid propertyId = Guid.NewGuid();
+        Guid reservationId = Guid.NewGuid();
+        ReservationAnonymisationEligibilityEvaluator evaluator =
+            CreateEvaluator(
+                policy.Registry,
+                Snapshot(
+                    policy.Binding,
+                    ReservationState.CheckedOut,
+                    ReservationSource.Direct) with
+                {
+                    IsAnonymised = true
+                });
+
+        ReservationAnonymisationEligibilityResult result =
+            await evaluator.EvaluateAsync(
+                Request(
+                    propertyId,
+                    reservationId,
+                    RoutePolicy(policy.Binding)),
+                CancellationToken.None);
+
+        Assert.Equal(
+            ReservationAnonymisationEligibilityStatus.Blocked,
+            result.Status);
+        Assert.Equal(
+            ReservationAnonymisationBlockerCode.AlreadyRedacted,
+            result.BlockerCode);
+        Assert.Null(result.PolicyEvidenceSha256);
+    }
+
+    [Fact]
     public async Task Stale_details_and_routing_policy_evidence_fail_closed()
     {
         PolicyFixture policy = CreatePolicy();

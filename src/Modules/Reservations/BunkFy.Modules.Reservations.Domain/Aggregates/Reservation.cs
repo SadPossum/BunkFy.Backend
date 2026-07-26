@@ -18,6 +18,7 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     public const int RequestFingerprintLength = 64;
     public const int PendingInventoryUnitIdsMaxLength = MaximumRequestedUnits * 33;
     public const int MaximumRequestedUnits = 100;
+    public const string AnonymisedGuestName = "Anonymised guest";
 
     private readonly List<RequestedInventoryUnit> requestedUnits = [];
     private readonly List<ReservationGuest> guests = [];
@@ -135,6 +136,8 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     public long ProjectionOrdinal { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
+    public bool IsAnonymised { get; private set; }
     public IReadOnlyCollection<RequestedInventoryUnit> RequestedUnits => this.requestedUnits.AsReadOnly();
     public IReadOnlyCollection<ReservationGuest> Guests => this.guests.AsReadOnly();
 

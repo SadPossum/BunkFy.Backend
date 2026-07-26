@@ -88,7 +88,8 @@ internal sealed class ReservationRepository(
             .Include(reservation => reservation.RequestedUnits)
             .Include(reservation => reservation.Guests)
             .FirstOrDefaultAsync(
-                reservation => reservation.SourceSystem == sourceSystem &&
+                reservation => !reservation.IsAnonymised &&
+                               reservation.SourceSystem == sourceSystem &&
                                reservation.SourceReference == sourceReference,
                 cancellationToken);
 
@@ -97,7 +98,10 @@ internal sealed class ReservationRepository(
         string sourceReference,
         CancellationToken cancellationToken) =>
         dbContext.Reservations.AsNoTracking().AnyAsync(
-            reservation => reservation.SourceSystem == sourceSystem && reservation.SourceReference == sourceReference,
+            reservation =>
+                !reservation.IsAnonymised &&
+                reservation.SourceSystem == sourceSystem &&
+                reservation.SourceReference == sourceReference,
             cancellationToken);
 
     public async Task<ReservationListResponse> ListAsync(
@@ -166,6 +170,7 @@ internal sealed class ReservationRepository(
 
     private IQueryable<Reservation> OrdinaryReservations() =>
         dbContext.Reservations.Where(reservation =>
+            !reservation.IsAnonymised &&
             dbContext.ProcessingRestrictionProjections.Any(projection =>
                 projection.PropertyId == reservation.PropertyId &&
                 projection.ReservationId == reservation.Id &&

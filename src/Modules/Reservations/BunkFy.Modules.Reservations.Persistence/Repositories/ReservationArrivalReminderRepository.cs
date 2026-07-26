@@ -47,6 +47,7 @@ internal sealed class ReservationArrivalReminderRepository(
             .AsNoTracking()
             .Where(reservation =>
                 reservation.PropertyId == property.PropertyId &&
+                !reservation.IsAnonymised &&
                 reservation.ExpectedArrivalTime != null &&
                 reservation.Arrival >= earliestRelevantArrival &&
                 (reservation.Status == ReservationState.PendingAllocation ||
@@ -172,6 +173,7 @@ internal sealed class ReservationArrivalReminderRepository(
             .AsNoTracking()
             .Where(reservation =>
                 reservationIds.Contains(reservation.Id) &&
+                !reservation.IsAnonymised &&
                 dbContext.ProcessingRestrictionProjections.Any(projection =>
                     projection.PropertyId == reservation.PropertyId &&
                     projection.ReservationId == reservation.Id &&

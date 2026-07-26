@@ -28,6 +28,7 @@ internal sealed class ReservationAnonymisationEligibilityRepository(
                     item.Source,
                     item.SourceReference != null &&
                         item.SourceReference != string.Empty,
+                    item.IsAnonymised,
                     dbContext.DataHolds.Count(hold =>
                         hold.PropertyId == propertyId &&
                         hold.ReservationId == reservationId &&
@@ -70,7 +71,8 @@ internal sealed class ReservationAnonymisationEligibilityRepository(
                     property.ProcessingStatus,
                     property.TopologySourceVersion,
                     property.PolicySourceVersion,
-                    MapPolicy(property.GovernancePolicy)));
+                    MapPolicy(property.GovernancePolicy)),
+            reservation.IsAnonymised);
     }
 
     private static PropertyGovernancePolicyBinding? MapPolicy(
@@ -101,6 +103,7 @@ internal sealed class ReservationAnonymisationEligibilityRepository(
         bool HasPendingAllocationAmendment,
         ReservationSource Source,
         bool HasDirectSourceReference,
+        bool IsAnonymised,
         int ActiveHoldCount,
         int? ProcessingRestrictionContractVersion);
 }

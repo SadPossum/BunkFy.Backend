@@ -102,6 +102,16 @@ internal sealed class ReservationAnonymisationEligibilityEvaluator(
                 evaluatedAtUtc);
         }
 
+        if (snapshot.IsAnonymised)
+        {
+            return Blocked(
+                ReservationAnonymisationBlockerCode.AlreadyRedacted,
+                snapshot.ReservationVersion,
+                snapshot.DetailsRevision,
+                snapshot.ActiveHoldCount,
+                evaluatedAtUtc);
+        }
+
         if (snapshot.ProcessingRestrictionContractVersion !=
             ReservationProcessingRestrictionContract.CurrentVersion)
         {

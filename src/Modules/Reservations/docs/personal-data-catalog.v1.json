@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 6,
+  "catalogVersion": 7,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -128,6 +128,19 @@
         "system:data-rights.anonymisation",
         "system:reservations.anonymisation-eligibility"
       ]
+    },
+    {
+      "id": "reservation-anonymisation-owner-proof",
+      "scope": "tenant-property-authorized-data-rights-operation",
+      "readers": [
+        "permission:data-rights.read",
+        "system:reservations.data-rights-export",
+        "system:reservations.anonymisation-proof"
+      ],
+      "writers": [
+        "permission:data-rights.execute",
+        "system:reservations.anonymisation"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -235,6 +248,13 @@
       "startsAt": "eligibility-evaluation-requested",
       "endsAt": "eligibility-evaluation-completed",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "reservation-anonymisation-owner-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "reservation-anonymisation-completed",
+      "endsAt": "approved-accountability-retention-completed",
+      "legalHoldBehavior": "retain-approved-minimum-proof"
     }
   ],
   "rightsPolicies": [
@@ -300,6 +320,13 @@
       "correction": "re-evaluate-from-current-owner-projections",
       "restriction": "fail-closed-on-missing-stale-or-unsupported-evidence",
       "erasure": "authorize-only-the-exact-approved-current-record-version"
+    },
+    {
+      "id": "reservation-anonymisation-accountability",
+      "export": "include-minimum-anonymisation-proof-in-authorized-case-ledger",
+      "correction": "append-superseding-owner-proof",
+      "restriction": "retain-minimum-approved-owner-proof",
+      "erasure": "retain-non-personal-minimum-owner-proof"
     }
   ],
   "fields": [
@@ -12470,6 +12497,1226 @@
           "member": "EvaluatedAtUtc",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.terminal-state",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "terminal-surface-enforcement"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "IsAnonymised",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "IsAnonymised",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.completed-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-system-clock"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "domain-event", "integration-event", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "AnonymisedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "AnonymisedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-contract-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "fail-closed-contract-versioning"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ContractVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ContractVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.receipt-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-id-generator"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "domain-event", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "Id",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ReceiptId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "ReceiptId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.tenant-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "tenant-isolation"],
+      "sources": ["tenant-context"],
+      "authoritativeOwner": "tenancy",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "domain-event", "integration-event"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.idempotency-key",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["reservation-anonymisation", "idempotent-owner-operation"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "IdempotencyKey",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "IdempotencyKey",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-property-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "property-authorization"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response", "domain-event", "integration-event", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "PropertyId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "PropertyId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "PropertyId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-case-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["reservation-anonymisation", "approved-operation-correlation"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "CaseId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "CaseId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "CaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-approval-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "approved-operation-versioning"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-operation-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "approved-operation-versioning"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "OperationRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "OperationRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "OperationRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "OperationRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-reservation-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["reservation-anonymisation", "owner-coordinate"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response", "domain-event", "integration-event", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ReservationId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ReservationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "ReservationId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "ReservationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-selected-reservation-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "optimistic-concurrency"],
+      "sources": ["selected-reservation-coordinate"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "ExpectedReservationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "SelectedReservationVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "SelectedReservationVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "SelectedReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-resulting-reservation-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "domain-event", "integration-event", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ResultingReservationVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ResultingReservationVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "ReservationVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "ReservationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ResultingReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-selected-details-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "optimistic-concurrency"],
+      "sources": ["selected-reservation-coordinate"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command", "persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "ExpectedDetailsRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "SelectedDetailsRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "SelectedDetailsRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "SelectedDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-resulting-details-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "domain-event", "integration-event", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ResultingDetailsRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ResultingDetailsRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "DetailsRevision",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "DetailsRevision",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ResultingDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-routing-policy",
+      "dataSubject": "guest",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["reservation-anonymisation", "policy-proof"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["application-command"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "RoutingPolicy",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.disposition",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "Disposition",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "Disposition",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "Disposition",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.reason",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "Reason",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "Reason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "Reason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.redacted-history-count",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "RedactedHistoryCount",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "RedactedHistoryCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "RedactedHistoryCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.removed-guest-link-count",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "RemovedGuestLinkCount",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "RemovedGuestLinkCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "RemovedGuestLinkCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.reduced-external-operation-count",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ReducedExternalOperationCount",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ReducedExternalOperationCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ReducedExternalOperationCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.suppressed-reminder-count",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "SuppressedReminderCount",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "SuppressedReminderCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "SuppressedReminderCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.approval-evidence-sha256",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "immutable-approval-proof"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-policy-evidence-sha256",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "immutable-policy-proof"],
+      "sources": ["reservations-property-policy-projection"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "PolicyEvidenceSha256",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "PolicyEvidenceSha256",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "PolicyEvidenceSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.owner-event-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "event-deduplication"],
+      "sources": ["reservations-id-generator"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "domain-event", "integration-event", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "EventId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "EventId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationAnonymisedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "EventId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.executing-actor-id",
+      "dataSubject": "staff",
+      "classification": "direct-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["reservation-anonymisation", "authorized-operator-audit"],
+      "sources": ["authenticated-operator"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": ["application-command", "persistence", "api-response"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationAnonymisationCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "ActorId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "ActorId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.canonical-sha256",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["reservation-anonymisation", "immutable-owner-proof"],
+      "sources": ["reservations-owner-operation"],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "allowedSurfaces": ["persistence", "api-response", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationAnonymisationReceiptDto",
+          "member": "CanonicalSha256",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationAnonymisationReceiptDataRightsExport",
+          "member": "CanonicalSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
         }
       ]
     }

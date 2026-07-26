@@ -61,4 +61,14 @@ public sealed class ReservationDetailsHistoryEntry
     public string AfterSnapshotJson { get; private set; } = string.Empty;
     public string AfterSnapshotHash { get; private set; } = string.Empty;
     public DateTimeOffset OccurredAtUtc { get; private set; }
+
+    internal void RedactSnapshots(
+        string? beforeSnapshotJson,
+        string afterSnapshotJson,
+        string afterSnapshotHash)
+    {
+        this.BeforeSnapshotJson = beforeSnapshotJson;
+        this.AfterSnapshotJson = afterSnapshotJson;
+        this.AfterSnapshotHash = afterSnapshotHash;
+    }
 }

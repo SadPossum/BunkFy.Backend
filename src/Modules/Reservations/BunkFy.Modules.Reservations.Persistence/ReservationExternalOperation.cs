@@ -5,6 +5,9 @@ using BunkFy.Modules.Reservations.Contracts;
 
 public sealed class ReservationExternalOperation
 {
+    public const string RedactedRequestFingerprint =
+        "0000000000000000000000000000000000000000000000000000000000000000";
+
     private ReservationExternalOperation() { }
 
     internal ReservationExternalOperation(ReservationExternalOperationRecord record)
@@ -52,4 +55,10 @@ public sealed class ReservationExternalOperation
         this.ReservationVersion,
         this.ErrorCode,
         this.CompletedAtUtc);
+
+    internal void ReduceToReconciliationProof()
+    {
+        this.RequestFingerprint = RedactedRequestFingerprint;
+        this.ErrorCode = null;
+    }
 }

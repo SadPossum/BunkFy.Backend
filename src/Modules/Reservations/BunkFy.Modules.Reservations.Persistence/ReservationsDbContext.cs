@@ -27,6 +27,8 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         this.Set<ReservationDataHold>();
     public DbSet<ReservationDataHoldReceipt> DataHoldReceipts =>
         this.Set<ReservationDataHoldReceipt>();
+    public DbSet<ReservationAnonymisationReceipt> AnonymisationReceipts =>
+        this.Set<ReservationAnonymisationReceipt>();
     public DbSet<RequestedInventoryUnit> RequestedInventoryUnits => this.Set<RequestedInventoryUnit>();
     public DbSet<ReservationGuest> ReservationGuests => this.Set<ReservationGuest>();
     public DbSet<ReservationGuestProfileProjection> GuestProfileProjections => this.Set<ReservationGuestProfileProjection>();
@@ -91,6 +93,16 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         {
             throw new InvalidOperationException(
                 "Reservation data-hold receipts are append-only.");
+        }
+
+        bool anonymisationReceiptMutationRequested = this.ChangeTracker
+            .Entries<ReservationAnonymisationReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        if (anonymisationReceiptMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Reservation anonymisation receipts are append-only.");
         }
     }
 }

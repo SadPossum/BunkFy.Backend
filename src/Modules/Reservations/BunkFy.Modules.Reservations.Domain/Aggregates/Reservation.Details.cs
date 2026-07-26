@@ -145,6 +145,12 @@ public sealed partial class Reservation
         TimeOnly? expectedArrivalTime,
         TimeOnly? expectedDepartureTime)
     {
+        if (this.IsAnonymised)
+        {
+            return Result.Failure<ReservationDetailsMutation>(
+                ReservationsDomainErrors.ReservationAlreadyAnonymised);
+        }
+
         if (this.PendingAllocationAmendmentId.HasValue)
         {
             return Result.Failure<ReservationDetailsMutation>(

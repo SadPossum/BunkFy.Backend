@@ -39,12 +39,15 @@ public sealed class ReservationsModelTests
             reservationEntity.FindProperty(nameof(Reservation.CheckedInBy))!.GetMaxLength());
         Assert.NotNull(reservationEntity.FindProperty(nameof(Reservation.NoShowBusinessDate)));
         Assert.NotNull(reservationEntity.FindProperty(nameof(Reservation.CheckedOutAtUtc)));
+        Assert.NotNull(reservationEntity.FindProperty(nameof(Reservation.IsAnonymised)));
+        Assert.NotNull(reservationEntity.FindProperty(nameof(Reservation.AnonymisedAtUtc)));
         string[] lifecycleConstraints =
         [
             "CK_reservations_pending_stay_complete",
             "CK_reservations_checked_in_complete",
             "CK_reservations_no_show_complete",
-            "CK_reservations_checked_out_complete"
+            "CK_reservations_checked_out_complete",
+            "CK_reservations_anonymisation_state"
         ];
         Assert.All(
             lifecycleConstraints,
@@ -108,6 +111,58 @@ public sealed class ReservationsModelTests
                     nameof(ReservationExternalOperation.ConnectionId),
                     nameof(ReservationExternalOperation.CompletedAtUtc)
                 ]));
+    }
+
+    [Fact]
+    public void Model_has_scoped_immutable_anonymisation_owner_proof()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(ReservationAnonymisationReceipt))!;
+        IEntityType designReceipt = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(ReservationAnonymisationReceipt))!;
+
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(ReservationAnonymisationReceipt.ScopeId),
+                        nameof(ReservationAnonymisationReceipt.IdempotencyKey)
+                    ]));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(ReservationAnonymisationReceipt.ScopeId),
+                        nameof(ReservationAnonymisationReceipt.PropertyId),
+                        nameof(ReservationAnonymisationReceipt.ReservationId),
+                        nameof(ReservationAnonymisationReceipt.ResultingReservationVersion)
+                    ]));
+        string[] constraints =
+        [
+            "CK_reservation_anonymisation_receipts_contract",
+            "CK_reservation_anonymisation_receipts_revisions",
+            "CK_reservation_anonymisation_receipts_versions",
+            "CK_reservation_anonymisation_receipts_outcome",
+            "CK_reservation_anonymisation_receipts_counts",
+            "CK_reservation_anonymisation_receipts_digests",
+            "CK_reservation_anonymisation_receipts_actor"
+        ];
+        Assert.All(
+            constraints,
+            constraint => Assert.Contains(
+                designReceipt.GetCheckConstraints(),
+                candidate => candidate.Name == constraint));
+        IForeignKey parent = Assert.Single(receipt.GetForeignKeys());
+        Assert.Equal(DeleteBehavior.Restrict, parent.DeleteBehavior);
+        Assert.Equal(
+            [
+                nameof(ReservationAnonymisationReceipt.ScopeId),
+                nameof(ReservationAnonymisationReceipt.ReservationId)
+            ],
+            parent.Properties.Select(property => property.Name));
     }
 
     [Fact]

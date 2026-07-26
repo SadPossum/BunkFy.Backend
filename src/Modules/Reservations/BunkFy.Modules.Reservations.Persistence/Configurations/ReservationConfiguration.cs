@@ -31,6 +31,10 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
                 "(\"Status\" = 10 AND \"CheckedOutBusinessDate\" IS NOT NULL AND \"CheckedOutAtUtc\" IS NOT NULL AND " +
                 "\"CheckedOutBy\" IS NOT NULL AND length(trim(\"CheckedOutBy\")) > 0) OR " +
                 "(\"Status\" <> 10 AND \"CheckedOutBusinessDate\" IS NULL AND \"CheckedOutAtUtc\" IS NULL AND \"CheckedOutBy\" IS NULL)");
+            table.HasCheckConstraint(
+                "CK_reservations_anonymisation_state",
+                "(\"IsAnonymised\" = TRUE AND \"AnonymisedAtUtc\" IS NOT NULL) OR " +
+                "(\"IsAnonymised\" = FALSE AND \"AnonymisedAtUtc\" IS NULL)");
         });
         builder.HasKey(reservation => reservation.Id);
         builder.HasAlternateKey(reservation => new { reservation.ScopeId, reservation.Id });

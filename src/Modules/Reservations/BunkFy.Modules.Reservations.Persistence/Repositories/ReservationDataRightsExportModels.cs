@@ -5,6 +5,10 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.Models;
 using DomainDataHoldAction =
     BunkFy.Modules.Reservations.Domain.Models.ReservationDataHoldAction;
+using DomainAnonymisationDisposition =
+    BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationDisposition;
+using DomainAnonymisationReason =
+    BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationReason;
 
 internal sealed record ReservationDataRightsExport(
     Guid ReservationId,
@@ -44,7 +48,9 @@ internal sealed record ReservationDataRightsExport(
     ReservationState Status,
     long Version,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? UpdatedAtUtc);
+    DateTimeOffset? UpdatedAtUtc,
+    bool IsAnonymised,
+    DateTimeOffset? AnonymisedAtUtc);
 
 internal sealed record ReservationPendingAmendmentDataRightsExport(
     Guid AmendmentRequestId,
@@ -205,3 +211,27 @@ internal sealed record ReservationDataHoldReceiptDataRightsExport(
     long SelectedDetailsRevision,
     long ResultingHoldVersion,
     DateTimeOffset CompletedAtUtc);
+
+internal sealed record ReservationAnonymisationReceiptDataRightsExport(
+    int ContractVersion,
+    Guid ReceiptId,
+    Guid PropertyId,
+    Guid CaseId,
+    long ApprovalRevision,
+    long OperationRevision,
+    Guid ReservationId,
+    long SelectedReservationVersion,
+    long ResultingReservationVersion,
+    long SelectedDetailsRevision,
+    long ResultingDetailsRevision,
+    DomainAnonymisationDisposition Disposition,
+    DomainAnonymisationReason Reason,
+    int RedactedHistoryCount,
+    int RemovedGuestLinkCount,
+    int ReducedExternalOperationCount,
+    int SuppressedReminderCount,
+    string ApprovalEvidenceSha256,
+    string PolicyEvidenceSha256,
+    Guid EventId,
+    DateTimeOffset CompletedAtUtc,
+    string CanonicalSha256);

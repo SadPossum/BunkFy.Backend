@@ -2,6 +2,7 @@ namespace Integration.Tests;
 
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
@@ -559,6 +560,192 @@ public sealed class ReservationDataRightsIntegrationTests
         Assert.Null(typeof(ReservationDataHoldReceipt).GetProperty("ReleasedBy"));
     }
 
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Approved_anonymisation_redacts_and_replays_atomically()
+    {
+        await using IContainer nats = AuthTestContainers.CreateNatsContainer();
+        await nats.StartAsync();
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_anonymisation_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        await using AuthTestApplication api = new(
+            "PostgreSql",
+            postgreSql.GetConnectionString(),
+            AuthTestContainers.GetNatsConnectionString(nats));
+        await MigrateCorrectionDatabasesAsync(api).ConfigureAwait(false);
+
+        Guid propertyId = Guid.NewGuid();
+        Reservation reservation = await SeedEligibleReservationAsync(
+            api,
+            propertyId).ConfigureAwait(false);
+        ReservationAnonymisationEligibilityRequest policyRequest;
+        using (IServiceScope policyScope = api.Services.CreateScope())
+        {
+            policyScope.ServiceProvider
+                .GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            policyRequest = await CreateEligibilityRequestAsync(
+                policyScope.ServiceProvider,
+                propertyId,
+                reservation).ConfigureAwait(false);
+        }
+
+        DataRightsCase dataRightsCase =
+            await SeedApprovedAnonymisationCaseAsync(
+                api,
+                reservation,
+                policyRequest.RoutingPolicy).ConfigureAwait(false);
+        ApplyReservationAnonymisationCommand command = new(
+            Guid.NewGuid(),
+            propertyId,
+            dataRightsCase.Id,
+            dataRightsCase.DecisionRevision!.Value,
+            dataRightsCase.DecisionRevision.Value + 1,
+            reservation.Id,
+            reservation.Version,
+            reservation.DetailsRevision,
+            policyRequest.RoutingPolicy,
+            "user:privacy-executor");
+
+        using IServiceScope commandScope = api.Services.CreateScope();
+        commandScope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        IRequestDispatcher dispatcher =
+            commandScope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        IDataRightsOperationApprovalGate approvalGate =
+            commandScope.ServiceProvider.GetRequiredService<
+                IDataRightsOperationApprovalGate>();
+        DataRightsOperationApprovalResult approval =
+            await approvalGate.EvaluateAsync(
+                new(
+                    TenantId,
+                    propertyId,
+                    dataRightsCase.Id,
+                    dataRightsCase.DecisionRevision.Value,
+                    DataRightsOperation.Anonymisation,
+                    ReservationsDataRightsCoordinates.Owner,
+                    ReservationsDataRightsCoordinates.ReservationRecordType,
+                    reservation.Id,
+                    reservation.Version,
+                    ExecutingActorId: "user:privacy-executor"),
+                CancellationToken.None).ConfigureAwait(false);
+        Assert.True(approval.IsApproved, approval.Denial.ToString());
+        Assert.NotNull(approval.ApprovalEvidence);
+        DataRightsApprovalEvidence frozenApproval = approval.ApprovalEvidence;
+        command = command with
+        {
+            RoutingPolicy = new(
+                frozenApproval.PropertyVersion,
+                frozenApproval.OperatingCountryCode,
+                frozenApproval.PolicyId,
+                frozenApproval.PolicyVersion,
+                frozenApproval.RetentionPolicyId,
+                frozenApproval.RetentionPolicyVersion,
+                frozenApproval.ContentSha256,
+                frozenApproval.PurposeCode,
+                frozenApproval.Surface,
+                frozenApproval.SourceProvenance,
+                frozenApproval.EvaluatedAtUtc)
+        };
+
+        Result<ReservationAnonymisationReceiptDto> first =
+            await dispatcher.SendAsync(command, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Result<ReservationAnonymisationReceiptDto> replay =
+            await dispatcher.SendAsync(command, CancellationToken.None)
+                .ConfigureAwait(false);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value.ReceiptId, replay.Value.ReceiptId);
+        Assert.Equal(first.Value.CanonicalSha256, replay.Value.CanonicalSha256);
+
+        using IServiceScope verificationScope = api.Services.CreateScope();
+        verificationScope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        ReservationsDbContext reservations =
+            verificationScope.ServiceProvider
+                .GetRequiredService<ReservationsDbContext>();
+        IReservationRepository repository =
+            verificationScope.ServiceProvider
+                .GetRequiredService<IReservationRepository>();
+        Assert.Null(await repository.GetAsync(
+            propertyId,
+            reservation.Id,
+            CancellationToken.None).ConfigureAwait(false));
+        Reservation persisted = Assert.IsType<Reservation>(
+            await repository.GetForDataRightsAsync(
+                propertyId,
+                reservation.Id,
+                CancellationToken.None).ConfigureAwait(false));
+        Assert.True(persisted.IsAnonymised);
+        Assert.Equal(Reservation.AnonymisedGuestName, persisted.PrimaryGuestName);
+        Assert.Null(persisted.Email);
+        Assert.Null(persisted.Phone);
+        Assert.Null(persisted.Notes);
+        Assert.Empty(persisted.Guests);
+        Assert.Equal(
+            ReservationState.AllocationRejected,
+            persisted.Status);
+
+        ReservationAnonymisationReceipt storedReceipt =
+            await reservations.AnonymisationReceipts
+                .AsNoTracking()
+                .SingleAsync()
+                .ConfigureAwait(false);
+        Assert.Equal(first.Value.ReceiptId, storedReceipt.Id);
+        ReservationDetailsHistoryEntry[] history =
+            await reservations.ReservationDetailsHistory
+                .AsNoTracking()
+                .Where(entry => entry.ReservationId == reservation.Id)
+                .ToArrayAsync()
+                .ConfigureAwait(false);
+        Assert.NotEmpty(history);
+        Assert.All(history, entry =>
+        {
+            Assert.DoesNotContain(
+                "Maya Chen",
+                entry.AfterSnapshotJson,
+                StringComparison.Ordinal);
+            Assert.DoesNotContain(
+                "maya.chen@example.test",
+                entry.AfterSnapshotJson,
+                StringComparison.Ordinal);
+        });
+        Gma.Framework.Messaging.Infrastructure.OutboxMessage integrationEvent =
+            Assert.Single(
+                await reservations.OutboxMessages
+                    .AsNoTracking()
+                    .ToArrayAsync()
+                    .ConfigureAwait(false),
+                message => message.EventType.Contains(
+                    "ReservationAnonymised",
+                    StringComparison.Ordinal));
+        Assert.Equal(first.Value.EventId, integrationEvent.Id);
+        Assert.DoesNotContain(
+            "Maya Chen",
+            integrationEvent.Payload,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "maya.chen@example.test",
+            integrationEvent.Payload,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "privacy-executor",
+            integrationEvent.Payload,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            command.IdempotencyKey.ToString("D"),
+            integrationEvent.Payload,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task MigrateCorrectionDatabasesAsync(AuthTestApplication api)
     {
         using IServiceScope scope = api.Services.CreateScope();
@@ -834,11 +1021,19 @@ public sealed class ReservationDataRightsIntegrationTests
             .ConfigureAwait(false);
 
         Reservation reservation = CreateReservation(propertyId, TenantId);
+        Assert.True(reservation.LinkGuest(
+            Guid.NewGuid(),
+            ReservationGuestRole.Primary,
+            replaceExistingRole: false,
+            reservation.Version,
+            "user:front-desk",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
         Assert.True(reservation.RejectAllocation(
             reservation.AllocationRequestId,
             ReservationAllocationRejection.AllocationConflict,
             Guid.NewGuid(),
-            Now.AddMinutes(1)).IsSuccess);
+            Now.AddMinutes(2)).IsSuccess);
         await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
             .AddAsync(reservation, CancellationToken.None)
             .ConfigureAwait(false);
@@ -846,6 +1041,74 @@ public sealed class ReservationDataRightsIntegrationTests
             .SaveChangesAsync()
             .ConfigureAwait(false);
         return reservation;
+    }
+
+    private static async Task<DataRightsCase>
+        SeedApprovedAnonymisationCaseAsync(
+            AuthTestApplication api,
+            Reservation reservation,
+            ReservationAnonymisationRoutingPolicyEvidence routingPolicy)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            reservation.PropertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            TenantId,
+            request,
+            "user:privacy-reviewer",
+            Now.AddMinutes(3)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            Now.AddMinutes(4)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            ReservationsDataRightsCoordinates.Owner,
+            ReservationsDataRightsCoordinates.ReservationRecordType,
+            reservation.Id,
+            reservation.Version,
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            Now.AddMinutes(5)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            Now.AddMinutes(6)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(7)).IsSuccess);
+        DataRightsApprovalPolicyEvidence approvalEvidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                reservation.PropertyId,
+                routingPolicy.PropertyPolicySourceVersion,
+                routingPolicy.OperatingCountryCode,
+                routingPolicy.PolicyId,
+                routingPolicy.PolicyVersion,
+                routingPolicy.RetentionPolicyId,
+                routingPolicy.RetentionPolicyVersion,
+                routingPolicy.ContentSha256,
+                routingPolicy.PurposeCode,
+                routingPolicy.Surface,
+                routingPolicy.SourceProvenance,
+                routingPolicy.EvaluatedAtUtc).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(8),
+            approvalEvidence).IsSuccess);
+        DataRightsDbContext dataRights =
+            scope.ServiceProvider.GetRequiredService<DataRightsDbContext>();
+        dataRights.Cases.Add(dataRightsCase);
+        await dataRights.SaveChangesAsync().ConfigureAwait(false);
+        return dataRightsCase;
     }
 
     private static async Task<ReservationAnonymisationEligibilityRequest>

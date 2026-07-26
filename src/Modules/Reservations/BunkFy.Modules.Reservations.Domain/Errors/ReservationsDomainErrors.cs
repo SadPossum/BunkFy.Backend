@@ -48,6 +48,10 @@ public static class ReservationsDomainErrors
     public static readonly Error DataHoldReceiptIdentityInvalid = new("Reservations.DataHoldReceiptIdentityInvalid", "The reservation data-hold receipt identity is invalid.");
     public static readonly Error DataHoldReceiptVersionInvalid = new("Reservations.DataHoldReceiptVersionInvalid", "The reservation data-hold receipt version is invalid.");
     public static readonly Error DataHoldReceiptLifecycleInvalid = new("Reservations.DataHoldReceiptLifecycleInvalid", "The reservation data-hold receipt lifecycle is invalid.");
+    public static readonly Error ReservationAlreadyAnonymised = new("Reservations.ReservationAlreadyAnonymised", "The reservation has already been anonymised.");
+    public static readonly Error ReservationNotEligibleForAnonymisation = new("Reservations.ReservationNotEligibleForAnonymisation", "The reservation is not in a terminal state that permits anonymisation.");
+    public static readonly Error ReservationAnonymisationProvenanceInvalid = new("Reservations.ReservationAnonymisationProvenanceInvalid", "The reservation anonymisation provenance is invalid.");
+    public static readonly Error ReservationAnonymisationReceiptInvalid = new("Reservations.ReservationAnonymisationReceiptInvalid", "The reservation anonymisation receipt is invalid.");
     public static readonly Error AllocationAmendmentInProgress = new("Reservations.AllocationAmendmentInProgress", "An allocation-affecting reservation amendment is already in progress.");
     public static readonly Error AllocationAmendmentInvalid = new("Reservations.AllocationAmendmentInvalid", "The allocation-affecting reservation amendment is invalid.");
     public static readonly Error StayBusinessDateInvalid = new("Reservations.StayBusinessDateInvalid", "The business date is not valid for this stay transition.");

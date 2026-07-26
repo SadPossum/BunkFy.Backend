@@ -16,6 +16,12 @@ public sealed partial class Reservation
         Guid eventId,
         DateTimeOffset nowUtc)
     {
+        if (this.IsAnonymised)
+        {
+            return Result.Failure<bool>(
+                ReservationsDomainErrors.ReservationAlreadyAnonymised);
+        }
+
         if (guestId == Guid.Empty || role is not ReservationGuestRole.Primary || eventId == Guid.Empty)
         {
             return Result.Failure<bool>(ReservationsDomainErrors.ReservationGuestLinkInvalid);

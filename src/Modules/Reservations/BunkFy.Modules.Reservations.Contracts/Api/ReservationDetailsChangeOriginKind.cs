@@ -7,5 +7,6 @@ public enum ReservationDetailsChangeOriginKind
     Adapter = 2,
     Admin = 3,
     System = 4,
-    DataRightsCorrection = 5
+    DataRightsCorrection = 5,
+    DataRightsAnonymisation = 6
 }

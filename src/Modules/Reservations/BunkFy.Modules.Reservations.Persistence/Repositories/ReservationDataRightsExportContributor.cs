@@ -26,6 +26,8 @@ internal sealed class ReservationDataRightsExportContributor(
     public const string DataHoldRecordType = "reservation-data-hold";
     public const string DataHoldReceiptRecordType =
         "reservation-data-hold-receipt";
+    public const string AnonymisationReceiptRecordType =
+        "reservation-anonymisation-receipt";
 
     public string OwnerKey => ReservationDataRightsDiscoveryContributor.Owner;
 
@@ -125,7 +127,9 @@ internal sealed class ReservationDataRightsExportContributor(
             reservation.Status,
             reservation.Version,
             reservation.CreatedAtUtc,
-            reservation.UpdatedAtUtc);
+            reservation.UpdatedAtUtc,
+            reservation.IsAnonymised,
+            reservation.AnonymisedAtUtc);
         await sink.WriteAsync(
             ReservationDataRightsExportSchema.CreateReservationRecord(reservationExport),
             cancellationToken).ConfigureAwait(false);
@@ -415,6 +419,52 @@ internal sealed class ReservationDataRightsExportContributor(
             await sink.WriteAsync(
                 ReservationDataRightsExportSchema
                     .CreateDataHoldReceiptRecord(receipt),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        IQueryable<ReservationAnonymisationReceiptDataRightsExport>
+            anonymisationReceipts = dbContext.AnonymisationReceipts
+                .AsNoTracking()
+                .Where(receipt =>
+                    receipt.PropertyId == request.PropertyId &&
+                    receipt.ReservationId == reservation.Id)
+                .OrderBy(receipt => receipt.CompletedAtUtc)
+                .ThenBy(receipt => receipt.Id)
+                .Select(receipt =>
+                    new ReservationAnonymisationReceiptDataRightsExport(
+                        receipt.ContractVersion,
+                        receipt.Id,
+                        receipt.PropertyId,
+                        receipt.CaseId,
+                        receipt.ApprovalRevision,
+                        receipt.OperationRevision,
+                        receipt.ReservationId,
+                        receipt.SelectedReservationVersion,
+                        receipt.ResultingReservationVersion,
+                        receipt.SelectedDetailsRevision,
+                        receipt.ResultingDetailsRevision,
+                        receipt.Disposition,
+                        receipt.Reason,
+                        receipt.RedactedHistoryCount,
+                        receipt.RemovedGuestLinkCount,
+                        receipt.ReducedExternalOperationCount,
+                        receipt.SuppressedReminderCount,
+                        receipt.ApprovalEvidenceSha256,
+                        receipt.PolicyEvidenceSha256,
+                        receipt.EventId,
+                        receipt.CompletedAtUtc,
+                        receipt.CanonicalSha256));
+        await foreach (
+            ReservationAnonymisationReceiptDataRightsExport receipt in
+            anonymisationReceipts
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema
+                    .CreateAnonymisationReceiptRecord(receipt),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
         }

@@ -10,7 +10,7 @@ using BunkFy.Modules.DataRights.Contracts;
 internal static class ReservationDataRightsExportSchema
 {
     public const string ExportSchemaId = "reservations.subject-export";
-    public const int ExportSchemaVersion = 2;
+    public const int ExportSchemaVersion = 3;
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Reservations.Persistence.DataGovernance.personal-data-catalog.v1.json";
@@ -27,7 +27,9 @@ internal static class ReservationDataRightsExportSchema
             ["reservation-processing-restriction-accountability"] =
                 "include-minimum-restriction-state-in-authorized-case-ledger",
             ["reservation-data-hold-accountability"] =
-                "include-minimum-hold-state-in-authorized-case-ledger"
+                "include-minimum-hold-state-in-authorized-case-ledger",
+            ["reservation-anonymisation-accountability"] =
+                "include-minimum-anonymisation-proof-in-authorized-case-ledger"
         };
 
     private static readonly Type[] SourceTypes =
@@ -42,6 +44,7 @@ internal static class ReservationDataRightsExportSchema
         typeof(ReservationProcessingRestrictionReceiptDataRightsExport),
         typeof(ReservationDataHoldDataRightsExport),
         typeof(ReservationDataHoldReceiptDataRightsExport),
+        typeof(ReservationAnonymisationReceiptDataRightsExport),
         typeof(ReservationExternalOperationDataRightsExport),
         typeof(ReservationArrivalReminderDataRightsExport)
     ];
@@ -149,6 +152,15 @@ internal static class ReservationDataRightsExportSchema
             ReservationDataRightsExportContributor.DataHoldReceiptRecordType,
             receipt.ReceiptId,
             receipt.ResultingHoldVersion,
+            receipt);
+
+    public static DataRightsExportRecord CreateAnonymisationReceiptRecord(
+        ReservationAnonymisationReceiptDataRightsExport receipt) =>
+        CreateRecord(
+            ReservationDataRightsExportContributor
+                .AnonymisationReceiptRecordType,
+            receipt.ReceiptId,
+            receipt.ResultingReservationVersion,
             receipt);
 
     private static DataRightsExportRecord CreateRecord(

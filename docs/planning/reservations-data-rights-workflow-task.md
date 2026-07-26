@@ -1,7 +1,9 @@
 # Reservations Data Rights Workflow Task
 
-Status: implementation in progress; scoped discovery, catalogue-driven export
-and transactional correction complete; processing restriction in progress
+Status: implementation in progress; discovery, export, correction, processing
+restriction, holds, destructive eligibility and irreversible
+Reservations-owned redaction complete; DataRights dispatch, protected ledger,
+tombstone and restore replay next
 
 ## Outcome
 
@@ -258,6 +260,78 @@ Only one numbered slice is implemented at a time. Existing modules may be
 touched through contracts, projections and tests, but Reservations remains the
 only owner of its data.
 
+## Fifth-Slice Design
+
+- Reservations exposes one internal transactional owner command. It is not a
+  public erasure endpoint and is not registered as a generic DataRights
+  anonymisation contributor until slice 6.
+- The command requires an exact approved anonymisation coordinate, selected
+  reservation/details versions, current routing-policy evidence, one
+  idempotency key and an executing actor. It acquires the existing
+  per-reservation operation lock and re-runs destructive eligibility before
+  loading or mutating owner data.
+- One transaction replaces the current primary guest name with the fixed
+  `Anonymised guest` label; clears contact, notes, search copies and direct
+  source reference; clears pending identity/contact/free-text values; removes
+  every current and historical Reservations-owned Guest link; redacts every
+  details-history snapshot; reduces subject-linked adapter fingerprints to a
+  fixed non-correlating marker; and supersedes pending arrival reminders.
+- Dates, expected stay times, status, guest count, requested units, allocation
+  and release facts, provider name, lifecycle times and staff audit attribution
+  remain unchanged. The redaction state is orthogonal to operational
+  reservation status.
+- Details revision and aggregate version each advance once. The redaction
+  history revision contains only the already-redacted snapshot plus changed
+  field facts; no before-image containing subject values is written to domain
+  events, outbox messages or receipts.
+- The owner command appends one canonical, immutable receipt containing exact
+  case, approval, operation, selected/resulting versions, policy digests,
+  affected-row counts, actor, event and completion evidence. Subject export
+  exposes only its minimum PII-free accountability projection.
+- One versioned integration event contains tenant, property, reservation and
+  resulting versions only. It never contains guest values, Guest ids, actor,
+  idempotency material or policy payloads.
+- Ordinary reservation list, detail, history, source lookup, write, reminder
+  and adapter surfaces exclude terminally redacted reservations. Explicit
+  DataRights and required-continuation paths remain separately named; a
+  redacted terminal record has no admitted operational continuation.
+- Exact idempotency replay verifies the canonical receipt, aggregate terminal
+  state and affected owner stores. Changed coordinates or missing proof fail
+  closed.
+- The operation lock prevents concurrent correction, restriction, hold or
+  redaction mutations. Because the owner mutation is one database transaction,
+  an intermediate owner state is never committed. The reserved
+  `DestructiveOperationInProgress` blocker becomes meaningful in slice 6 when
+  a durable DataRights work item can be unresolved; slice 5 does not add a
+  two-phase owner execution row that could strand PII after a crash.
+- The local tombstone, protected ledger, generic contributor and restore replay
+  remain slice 6. GMA remains unchanged.
+
+## Fifth-Slice Acceptance Plan
+
+- Domain tests cover exact-version redaction, terminal-only transitions,
+  fixed-label/contact/source cleanup, pending-value cleanup, Guest-link
+  removal, one-time version advancement, PII-free event payload and terminal
+  replay proof.
+- Handler tests cover tenant scope, approval and routing-policy binding,
+  operation locking, eligibility re-evaluation, exact idempotency replay,
+  changed-request conflict and atomic owner receipt creation.
+- Persistence tests cover history snapshot rewriting and hashes, adapter
+  fingerprint reduction, reminder suppression, Guest-link deletion, canonical
+  receipt uniqueness and append-only enforcement.
+- Ordinary-surface tests prove terminally redacted records cannot be listed,
+  read, searched, changed, linked, reminded or amended through adapters while
+  DataRights export and exact owner proof remain available.
+- Export and catalogue tests prove the redacted aggregate, child records and
+  minimum owner receipt are complete without actor, idempotency, Guest ids or
+  removed subject values.
+- PostgreSQL integration proves the real approval gate, shared operation lock,
+  atomic aggregate/history/link/adapter/reminder/receipt/outbox persistence,
+  replay, tenant/property isolation and upgrade from the preceding migration.
+- Full architecture, migration-drift, non-Docker, Docker, generated-contract,
+  vulnerability, security and exact-commit publication gates must pass before
+  slice completion.
+
 ## Fourth-Slice Design
 
 - Reservations owns independently releasable, tenant/property/reservation
@@ -295,9 +369,10 @@ only owner of its data.
   and external records without a direct reference can proceed when every other
   check passes.
 - The future destructive command will acquire the same reservation operation
-  lock before re-evaluating eligibility. A reserved
-  `DestructiveOperationInProgress` blocker becomes observable when slice 5 adds
-  owner execution state; slice 4 does not invent a dormant operation table.
+  lock before re-evaluating eligibility. The reserved
+  `DestructiveOperationInProgress` blocker is not synthesized from an
+  uncommitted database lock; it becomes observable only when durable
+  DataRights work-item execution exists in slice 6.
 - Rights export adds subject-linked hold lifecycle and minimum hold receipts.
   Staff actors, idempotency keys and legal advice are excluded. GMA remains
   unchanged.
@@ -557,6 +632,37 @@ only owner of its data.
 - `eng/test-docker.ps1 -NoBuild` passes all 48 Docker integration tests.
   Recursive submodule status confirms no GMA source or pointer change belongs
   to this slice.
+
+## Fifth-Slice Acceptance Evidence
+
+- Reservations owns one internal, transactionally atomic anonymisation command
+  bound to the exact approval, operation coordinate, selected versions, current
+  routing policy and shared per-reservation operation lock. Terminal state,
+  immutable owner proof and exact replay are enforced independently of the
+  DataRights orchestration that follows in slice 6.
+- Aggregate, pending details, current and historical Guest links, history
+  snapshots and hashes, source reference, adapter fingerprints and reminders
+  are scrubbed or suppressed together. Ordinary reservation, history, source,
+  reminder and adapter surfaces exclude redacted records; the explicitly named
+  DataRights export and owner-proof paths remain available.
+- Rights export schema version 3 includes the minimum PII-free anonymisation
+  receipt without actor, idempotency, Guest ids or removed subject values.
+  Personal-data catalogue version 7 and its generated inventory bind the new
+  state, command, receipt, repository and event surfaces.
+- Migration `20260726002653_AddReservationAnonymisationOwnerProof` preserves
+  existing reservations as non-anonymised, creates an empty append-only receipt
+  ledger and adds database state, uniqueness and lifecycle constraints.
+  Historical upgrade tests seed their declared old schema directly, avoiding
+  dependence on the current EF aggregate model.
+- The complete Reservations suite passes 119 tests. Focused real-PostgreSQL
+  migration and owner-workflow tests pass, including approval, locking, atomic
+  scrub, receipt, PII-free outbox, ordinary-surface exclusion and exact replay.
+- `eng/verify.ps1 -SkipRestore` passes solution synchronization,
+  source-package ownership, a zero-warning full build, every GMA and BunkFy
+  migration-drift check, 64 architecture tests and all non-Docker suites.
+- `eng/test-docker.ps1 -NoBuild` passes all 50 Docker integration tests.
+  GMA remains unchanged; recursive source and pointer cleanliness is checked
+  before publication.
 
 ## Non-Goals
 

@@ -24,6 +24,8 @@ public sealed class ReservationsMigrationIntegrationTests
         "20260725190654_AddReservationDataRightsCorrectionReceipts";
     private const string PreviousDataHoldMigration =
         "20260725210703_AddReservationProcessingRestrictions";
+    private const string PreviousAnonymisationMigration =
+        "20260725224526_AddReservationDataHoldsAndEligibility";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -187,32 +189,11 @@ public sealed class ReservationsMigrationIntegrationTests
         {
             await previous.Database.GetService<IMigrator>()
                 .MigrateAsync(PreviousProcessingRestrictionMigration);
-            Reservation reservation = Reservation.Create(
+            await SeedReservationAtPreviousSchemaAsync(
+                previous,
                 reservationId,
-                "tenant-a",
                 propertyId,
-                Guid.NewGuid(),
-                new DateOnly(2026, 8, 1),
-                new DateOnly(2026, 8, 3),
-                [Guid.NewGuid()],
-                "Existing Guest",
-                "existing@example.test",
-                "+44 20 1234 5678",
-                guestCount: 1,
-                ReservationSource.Direct,
-                sourceSystem: null,
-                sourceReference: null,
-                notes: null,
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                ReservationDetailsChangeOrigin.Staff,
-                initialDetailsActorId: "user:migration-seed",
-                initialAdapterConnectionId: null,
-                initialExternalOperationId: null,
-                Guid.NewGuid(),
-                createdAtUtc).Value;
-            previous.Reservations.Add(reservation);
-            await previous.SaveChangesAsync();
+                createdAtUtc);
         }
 
         await using ReservationsDbContext upgraded =
@@ -253,29 +234,10 @@ public sealed class ReservationsMigrationIntegrationTests
         {
             await previous.Database.GetService<IMigrator>()
                 .MigrateAsync(PreviousDataHoldMigration);
-            Reservation reservation = Reservation.Create(
+            await SeedReservationAtPreviousSchemaAsync(
+                previous,
                 reservationId,
-                "tenant-a",
                 propertyId,
-                Guid.NewGuid(),
-                new DateOnly(2026, 8, 1),
-                new DateOnly(2026, 8, 3),
-                [Guid.NewGuid()],
-                "Existing Guest",
-                "existing@example.test",
-                "+44 20 1234 5678",
-                guestCount: 1,
-                ReservationSource.Direct,
-                sourceSystem: null,
-                sourceReference: null,
-                notes: null,
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                ReservationDetailsChangeOrigin.Staff,
-                initialDetailsActorId: "user:migration-seed",
-                initialAdapterConnectionId: null,
-                initialExternalOperationId: null,
-                Guid.NewGuid(),
                 new DateTimeOffset(
                     2026,
                     7,
@@ -283,9 +245,7 @@ public sealed class ReservationsMigrationIntegrationTests
                     21,
                     0,
                     0,
-                    TimeSpan.Zero)).Value;
-            previous.Reservations.Add(reservation);
-            await previous.SaveChangesAsync();
+                    TimeSpan.Zero));
         }
 
         await using ReservationsDbContext upgraded =
@@ -305,6 +265,93 @@ public sealed class ReservationsMigrationIntegrationTests
                 "FROM reservations.reservation_operation_locks")
             .SingleAsync();
         Assert.Equal(0, operationLockCount);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Anonymisation_migration_preserves_existing_reservations_and_starts_empty()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_anonymisation_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid allocationRequestId = Guid.NewGuid();
+        DateTimeOffset createdAtUtc =
+            new(2026, 7, 25, 23, 30, 0, TimeSpan.Zero);
+        await using (ReservationsDbContext previous =
+            CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(PreviousAnonymisationMigration);
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.reservations (
+                    "Id", "PropertyId", "AllocationRequestId",
+                    "Arrival", "Departure",
+                    "PrimaryGuestName", "PrimaryGuestNameSearch",
+                    "Email", "EmailSearch", "Phone", "PhoneSearch",
+                    "GuestCount", "Source", "Status", "Version",
+                    "DetailsRevision", "LastDetailsChangeOrigin",
+                    "LastDetailsChangedAtUtc", "PendingDetailsChangeOrigin",
+                    "CreatedAtUtc", "ScopeId")
+                VALUES (
+                    {reservationId}, {propertyId}, {allocationRequestId},
+                    {new DateOnly(2026, 8, 1)}, {new DateOnly(2026, 8, 3)},
+                    {"Existing Guest"}, {"EXISTING GUEST"},
+                    {"existing@example.test"}, {"EXISTING@EXAMPLE.TEST"},
+                    {"+44 20 1234 5678"}, {"+44 20 1234 5678"},
+                    {1}, {1}, {5}, {2L},
+                    {1L}, {1}, {createdAtUtc}, {0},
+                    {createdAtUtc}, {"tenant-a"});
+                """);
+        }
+
+        await using ReservationsDbContext upgraded =
+            CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        Reservation reservation = await upgraded.Reservations
+            .AsNoTracking()
+            .SingleAsync(item => item.Id == reservationId);
+        Assert.False(reservation.IsAnonymised);
+        Assert.Null(reservation.AnonymisedAtUtc);
+        Assert.Equal("Existing Guest", reservation.PrimaryGuestName);
+        Assert.Empty(await upgraded.AnonymisationReceipts
+            .AsNoTracking()
+            .ToArrayAsync());
+    }
+
+    private static Task<int> SeedReservationAtPreviousSchemaAsync(
+        ReservationsDbContext context,
+        Guid reservationId,
+        Guid propertyId,
+        DateTimeOffset createdAtUtc)
+    {
+        Guid allocationRequestId = Guid.NewGuid();
+        return context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO reservations.reservations (
+                "Id", "PropertyId", "AllocationRequestId",
+                "Arrival", "Departure",
+                "PrimaryGuestName", "PrimaryGuestNameSearch",
+                "Email", "EmailSearch", "Phone", "PhoneSearch",
+                "GuestCount", "Source", "Status", "Version",
+                "DetailsRevision", "LastDetailsChangeOrigin",
+                "LastDetailsChangedAtUtc", "PendingDetailsChangeOrigin",
+                "CreatedAtUtc", "ScopeId")
+            VALUES (
+                {reservationId}, {propertyId}, {allocationRequestId},
+                {new DateOnly(2026, 8, 1)}, {new DateOnly(2026, 8, 3)},
+                {"Existing Guest"}, {"EXISTING GUEST"},
+                {"existing@example.test"}, {"EXISTING@EXAMPLE.TEST"},
+                {"+44 20 1234 5678"}, {"+44 20 1234 5678"},
+                {1}, {1}, {1}, {1L},
+                {1L}, {1}, {createdAtUtc}, {0},
+                {createdAtUtc}, {"tenant-a"});
+            """);
     }
 
     private static ReservationsDbContext CreateDbContext(string connectionString)

@@ -20,7 +20,8 @@ public sealed record ReservationAnonymisationEligibilitySnapshot(
     bool HasDirectSourceReference,
     int ActiveHoldCount,
     int? ProcessingRestrictionContractVersion,
-    ReservationAnonymisationPropertySnapshot? Property);
+    ReservationAnonymisationPropertySnapshot? Property,
+    bool IsAnonymised = false);
 
 public sealed record ReservationAnonymisationPropertySnapshot(
     bool IsKnown,

@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Reservations.Application;
 
 using BunkFy.DataGovernance;
 using Gma.Framework.Results;
+using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Errors;
 
 public static class ReservationsApplicationErrors
@@ -80,6 +81,19 @@ public static class ReservationsApplicationErrors
     public static readonly Error DataHoldProofUnavailable = new(
         "Reservations.DataHoldProofUnavailable",
         "The committed reservation data-hold result cannot be proven.");
+    public static readonly Error AnonymisationRequestInvalid = new(
+        "Reservations.AnonymisationRequestInvalid",
+        "The reservation anonymisation request is invalid.");
+    public static readonly Error AnonymisationIdempotencyConflict = new(
+        "Reservations.AnonymisationIdempotencyConflict",
+        "The anonymisation idempotency key is bound to a different request.");
+    public static readonly Error AnonymisationProofUnavailable = new(
+        "Reservations.AnonymisationProofUnavailable",
+        "The committed reservation anonymisation result cannot be proven.");
+    public static Error AnonymisationBlocked(
+        ReservationAnonymisationBlockerCode blockerCode) => new(
+        $"Reservations.AnonymisationBlocked.{blockerCode}",
+        "The reservation cannot be anonymised under the current owner state and policy.");
     public static Error ReservationGuestLinkInvalid => ReservationsDomainErrors.ReservationGuestLinkInvalid;
     public static Error ReservationGuestRoleOccupied => ReservationsDomainErrors.ReservationGuestRoleOccupied;
 }
