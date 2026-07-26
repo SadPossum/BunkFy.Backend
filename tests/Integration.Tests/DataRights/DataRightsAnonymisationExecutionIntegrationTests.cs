@@ -88,7 +88,10 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         DataRightsExecutionDto execution =
             await ApproveAndStartExecutionAsync(api, dataRightsCase).ConfigureAwait(false);
 
-        await WaitForDataRightsOutboxAsync(api, TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+        await WaitForDataRightsOutboxAsync(
+            api,
+            expectedEventCount: 1,
+            TimeSpan.FromSeconds(20)).ConfigureAwait(false);
         await AssertNoTaskRunAsync(worker, dataRightsCase.Id).ConfigureAwait(false);
 
         bool workerStarted = false;
@@ -101,6 +104,11 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
                 dataRightsCase.Id,
                 TaskRunStatus.Succeeded,
                 TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await WaitForExecutionCompletionAsync(
+                worker,
+                dataRightsCase.Id,
+                expectedWorkItemCount: 1,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
             Assert.Equal(DataRightsModuleMetadata.Name, taskRun.ModuleName);
             Assert.Equal(ExecuteDataRightsAnonymisationPayload.TaskName, taskRun.TaskName);
@@ -132,7 +140,7 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
                 .ConfigureAwait(false);
             DataRightsExecutionWorkItem workItem = await dataRights.ExecutionWorkItems
                 .AsNoTracking()
-                .SingleAsync(item => item.Id == execution.WorkItem.Id)
+                .SingleAsync(item => item.Id == Assert.Single(execution.WorkItems).Id)
                 .ConfigureAwait(false);
             DataRightsCase persistedCase = await dataRights.Cases
                 .AsNoTracking()
@@ -159,7 +167,7 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
 
             Assert.Equal(GuestProfileState.Anonymised, anonymised.Status);
             Assert.True(tombstone.Matches(receipt));
-            Assert.Equal(DataRightsExecutionWorkItemState.OwnerProofRecorded, workItem.State);
+            Assert.Equal(DataRightsExecutionWorkItemState.Completed, workItem.State);
             Assert.Equal(workItem.IdempotencyKey, receipt.IdempotencyKey);
             Assert.Equal(taskRun.Id, workItem.TaskRunId);
             Assert.Equal(taskRun.Attempts, workItem.LastTaskAttempt);
@@ -183,7 +191,7 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
                 guest.Id.ToString("N"),
                 protectedFiles,
                 StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(DataRightsCaseState.Executing, persistedCase.Status);
+            Assert.Equal(DataRightsCaseState.Completed, persistedCase.Status);
 
             await worker.StopAsync().ConfigureAwait(false);
             workerStarted = false;
@@ -323,8 +331,10 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
             await ApproveAndStartExecutionAsync(api, dataRightsCase)
                 .ConfigureAwait(false);
 
-        await WaitForDataRightsOutboxAsync(api, TimeSpan.FromSeconds(20))
-            .ConfigureAwait(false);
+        await WaitForDataRightsOutboxAsync(
+            api,
+            expectedEventCount: 1,
+            TimeSpan.FromSeconds(20)).ConfigureAwait(false);
         await worker.StartAsync().ConfigureAwait(false);
         bool workerStarted = true;
         try
@@ -334,6 +344,11 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
                 dataRightsCase.Id,
                 TaskRunStatus.Succeeded,
                 TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await WaitForExecutionCompletionAsync(
+                worker,
+                dataRightsCase.Id,
+                expectedWorkItemCount: 1,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
             using IServiceScope scope = worker.Services.CreateScope();
             scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
@@ -359,7 +374,7 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
             DataRightsExecutionWorkItem workItem =
                 await dataRights.ExecutionWorkItems
                     .AsNoTracking()
-                    .SingleAsync(item => item.Id == execution.WorkItem.Id)
+                    .SingleAsync(item => item.Id == Assert.Single(execution.WorkItems).Id)
                     .ConfigureAwait(false);
             DataRightsProcessingLedgerEntry ledger =
                 await dataRights.ProcessingLedgerEntries
@@ -481,6 +496,124 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
             {
                 await restoredWorker.StopAsync().ConfigureAwait(false);
             }
+        }
+        finally
+        {
+            if (workerStarted)
+            {
+                await worker.StopAsync().ConfigureAwait(false);
+            }
+
+            if (Directory.Exists(ledgerDeltaPath))
+            {
+                Directory.Delete(ledgerDeltaPath, recursive: true);
+            }
+        }
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Multi_owner_execution_completes_only_after_every_owner_records_durable_proof()
+    {
+        await using IContainer nats = AuthTestContainers.CreateNatsContainer();
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_multi_owner_execution_tests")
+                .Build();
+        await Task.WhenAll(nats.StartAsync(), postgreSql.StartAsync())
+            .ConfigureAwait(false);
+
+        string connectionString = postgreSql.GetConnectionString();
+        string natsConnectionString =
+            AuthTestContainers.GetNatsConnectionString(nats);
+        string ledgerDeltaPath = Path.Combine(
+            Path.GetTempPath(),
+            $"bunkfy-multi-owner-rights-delta-{Guid.NewGuid():N}");
+        await using AuthTestApplication api = new(
+            "PostgreSql",
+            connectionString,
+            natsConnectionString,
+            disableOutboxPublisher: false);
+        await api.MigrateGuestDataRightsAuthorizationDatabaseAsync()
+            .ConfigureAwait(false);
+
+        using IHost worker = CreateWorker(
+            connectionString,
+            natsConnectionString,
+            ledgerDeltaPath);
+        await MigrateTaskRuntimeAsync(worker).ConfigureAwait(false);
+        (GuestProfile guest, Reservation reservation, DataRightsCase dataRightsCase) =
+            await SeedMultiOwnerExecutionCandidateAsync(api).ConfigureAwait(false);
+        DataRightsExecutionDto execution =
+            await ApproveAndStartExecutionAsync(api, dataRightsCase)
+                .ConfigureAwait(false);
+
+        Assert.Equal(2, execution.Batch.SelectedSubjectCount);
+        Assert.Equal(2, execution.WorkItems.Count);
+        await WaitForDataRightsOutboxAsync(
+            api,
+            expectedEventCount: 2,
+            TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+
+        await worker.StartAsync().ConfigureAwait(false);
+        bool workerStarted = true;
+        try
+        {
+            IReadOnlyList<TaskRun> taskRuns = await WaitForTaskRunsAsync(
+                worker,
+                dataRightsCase.Id,
+                expectedCount: 2,
+                TaskRunStatus.Succeeded,
+                TimeSpan.FromSeconds(40)).ConfigureAwait(false);
+            await WaitForExecutionCompletionAsync(
+                worker,
+                dataRightsCase.Id,
+                expectedWorkItemCount: 2,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+
+            using IServiceScope scope = worker.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            GuestProfile anonymisedGuest = await scope.ServiceProvider
+                .GetRequiredService<GuestsDbContext>()
+                .GuestProfiles.AsNoTracking()
+                .SingleAsync(item => item.Id == guest.Id)
+                .ConfigureAwait(false);
+            Reservation anonymisedReservation = await scope.ServiceProvider
+                .GetRequiredService<ReservationsDbContext>()
+                .Reservations.AsNoTracking()
+                .SingleAsync(item => item.Id == reservation.Id)
+                .ConfigureAwait(false);
+            DataRightsDbContext dataRights = scope.ServiceProvider
+                .GetRequiredService<DataRightsDbContext>();
+            List<DataRightsExecutionWorkItem> workItems =
+                await dataRights.ExecutionWorkItems
+                    .AsNoTracking()
+                    .Where(item => item.CaseId == dataRightsCase.Id)
+                    .OrderBy(item => item.OwnerKey)
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+            List<DataRightsProcessingLedgerEntry> ledgerEntries =
+                await dataRights.ProcessingLedgerEntries
+                    .AsNoTracking()
+                    .Where(item => item.CaseId == dataRightsCase.Id)
+                    .OrderBy(item => item.TenantSequence)
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+
+            Assert.Equal(GuestProfileState.Anonymised, anonymisedGuest.Status);
+            Assert.True(anonymisedReservation.IsAnonymised);
+            Assert.Equal(2, taskRuns.Count);
+            Assert.Equal(2, workItems.Count);
+            Assert.Equal(
+                2,
+                workItems.Select(item => item.IdempotencyKey).Distinct().Count());
+            Assert.All(
+                workItems,
+                item => Assert.Equal(DataRightsExecutionWorkItemState.Completed, item.State));
+            Assert.Equal(2, ledgerEntries.Count);
+            Assert.Equal([1L, 2L], ledgerEntries.Select(item => item.TenantSequence));
         }
         finally
         {
@@ -818,6 +951,144 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         return (reservation, dataRightsCase);
     }
 
+    private static async Task<(
+        GuestProfile Guest,
+        Reservation Reservation,
+        DataRightsCase Case)> SeedMultiOwnerExecutionCandidateAsync(
+        AuthTestApplication api)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        PropertyCreatedIntegrationEvent propertyCreated = new(
+            Guid.NewGuid(),
+            TenantId,
+            DateTimeOffset.UtcNow.AddDays(-2),
+            PropertyId,
+            "Multi-owner execution house",
+            "multi-owner-execution-house",
+            "UTC",
+            PropertyStatus.Active,
+            1);
+
+        GuestsDbContext guests = scope.ServiceProvider
+            .GetRequiredService<GuestsDbContext>();
+        await using (var transaction = await guests.Database.BeginTransactionAsync()
+                         .ConfigureAwait(false))
+        {
+            await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                    scope.ServiceProvider,
+                    GuestsModuleMetadata.Name)
+                .HandleAsync(propertyCreated, CancellationToken.None)
+                .ConfigureAwait(false);
+            await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+                scope.ServiceProvider,
+                GuestsModuleMetadata.Name,
+                TenantId,
+                PropertyId,
+                2).ConfigureAwait(false);
+            await guests.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
+
+        GuestProfile guest = GuestProfile.Create(
+            Guid.NewGuid(),
+            TenantId,
+            PropertyId,
+            "Multi-owner Guest",
+            "Multi-owner Legal Name",
+            "multi-owner-guest@example.test",
+            "+44 20 7946 0958",
+            new DateOnly(1990, 1, 1),
+            "GB",
+            "en-GB",
+            "Must be removed by the guest owner",
+            "user:guest-operator",
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow.AddMinutes(-20)).Value;
+        guests.GuestProfiles.Add(guest);
+        await guests.SaveChangesAsync().ConfigureAwait(false);
+
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                ReservationsModuleMetadata.Name)
+            .HandleAsync(propertyCreated, CancellationToken.None)
+            .ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            ReservationsModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
+        Reservation reservation = CreateReservation(
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow.AddMinutes(-20));
+        await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
+            .AddAsync(reservation, CancellationToken.None)
+            .ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+            .SaveChangesAsync()
+            .ConfigureAwait(false);
+
+        DataRightsDbContext dataRights = scope.ServiceProvider
+            .GetRequiredService<DataRightsDbContext>();
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                DataRightsModuleMetadata.Name)
+            .HandleAsync(propertyCreated, CancellationToken.None)
+            .ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            DataRightsModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
+
+        DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-10);
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            PropertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            TenantId,
+            request,
+            "user:privacy-reviewer",
+            startedAtUtc).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            GuestsDataRightsCoordinates.Owner,
+            GuestsDataRightsCoordinates.GuestProfileRecordType,
+            guest.Id,
+            guest.Version,
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            ReservationsDataRightsCoordinates.Owner,
+            ReservationsDataRightsCoordinates.ReservationRecordType,
+            reservation.Id,
+            reservation.Version,
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(4)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            startedAtUtc.AddMinutes(5)).IsSuccess);
+        dataRights.Cases.Add(dataRightsCase);
+        await dataRights.SaveChangesAsync().ConfigureAwait(false);
+        return (guest, reservation, dataRightsCase);
+    }
+
     private static Reservation CreateReservation(
         Guid reservationId,
         DateTimeOffset createdAtUtc)
@@ -890,7 +1161,12 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
                 "user:privacy-executor"),
             CancellationToken.None).ConfigureAwait(false);
         Assert.True(started.IsSuccess, started.Error.Code);
-        Assert.Equal(DataRightsExecutionWorkItemStatus.Prepared, started.Value.WorkItem.Status);
+        Assert.NotEmpty(started.Value.WorkItems);
+        Assert.All(
+            started.Value.WorkItems,
+            workItem => Assert.Equal(
+                DataRightsExecutionWorkItemStatus.Prepared,
+                workItem.Status));
         return started.Value;
     }
 
@@ -910,6 +1186,7 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
 
     private static async Task WaitForDataRightsOutboxAsync(
         AuthTestApplication api,
+        int expectedEventCount,
         TimeSpan timeout)
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
@@ -917,14 +1194,14 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         {
             using IServiceScope scope = api.Services.CreateScope();
             scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
-            bool processed = await scope.ServiceProvider.GetRequiredService<DataRightsDbContext>()
+            int processedCount = await scope.ServiceProvider.GetRequiredService<DataRightsDbContext>()
                 .OutboxMessages.AsNoTracking()
-                .AnyAsync(message =>
+                .CountAsync(message =>
                     message.EventType ==
                         typeof(DataRightsAnonymisationExecutionPreparedIntegrationEvent).FullName &&
                     message.ProcessedAtUtc != null)
                 .ConfigureAwait(false);
-            if (processed)
+            if (processedCount >= expectedEventCount)
             {
                 return;
             }
@@ -934,6 +1211,88 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
 
         throw new TimeoutException(
             "The DataRights outbox did not publish the anonymisation execution event.");
+    }
+
+    private static async Task<IReadOnlyList<TaskRun>> WaitForTaskRunsAsync(
+        IHost worker,
+        Guid caseId,
+        int expectedCount,
+        TaskRunStatus status,
+        TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using IServiceScope scope = worker.Services.CreateScope();
+            List<TaskRun> taskRuns = await scope.ServiceProvider
+                .GetRequiredService<TaskRuntimeDbContext>()
+                .TaskRuns.AsNoTracking()
+                .Where(run =>
+                    run.ModuleName == DataRightsModuleMetadata.Name &&
+                    run.TaskName == ExecuteDataRightsAnonymisationPayload.TaskName &&
+                    run.CorrelationId == caseId)
+                .OrderBy(run => run.Id)
+                .ToListAsync()
+                .ConfigureAwait(false);
+            TaskRun? failed = taskRuns.FirstOrDefault(run =>
+                run.Status is TaskRunStatus.Failed or TaskRunStatus.Canceled);
+            if (failed is not null)
+            {
+                Assert.Fail(
+                    $"DataRights anonymisation task ended as {failed.Status}: " +
+                    failed.LastError);
+            }
+
+            if (taskRuns.Count == expectedCount &&
+                taskRuns.All(run => run.Status == status))
+            {
+                return taskRuns;
+            }
+
+            await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        throw new TimeoutException(
+            "The DataRights anonymisation tasks did not reach the expected state.");
+    }
+
+    private static async Task WaitForExecutionCompletionAsync(
+        IHost worker,
+        Guid caseId,
+        int expectedWorkItemCount,
+        TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            using IServiceScope scope = worker.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            DataRightsDbContext dataRights = scope.ServiceProvider
+                .GetRequiredService<DataRightsDbContext>();
+            DataRightsCase? dataRightsCase = await dataRights.Cases
+                .AsNoTracking()
+                .SingleOrDefaultAsync(item => item.Id == caseId)
+                .ConfigureAwait(false);
+            List<DataRightsExecutionWorkItem> workItems =
+                await dataRights.ExecutionWorkItems
+                    .AsNoTracking()
+                    .Where(item => item.CaseId == caseId)
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+            if (dataRightsCase?.Status == DataRightsCaseState.Completed &&
+                workItems.Count == expectedWorkItemCount &&
+                workItems.All(item =>
+                    item.State == DataRightsExecutionWorkItemState.Completed))
+            {
+                return;
+            }
+
+            await Task.Delay(100).ConfigureAwait(false);
+        }
+
+        throw new TimeoutException(
+            "The DataRights execution did not reconcile to completion.");
     }
 
     private static async Task AssertNoTaskRunAsync(IHost worker, Guid caseId)

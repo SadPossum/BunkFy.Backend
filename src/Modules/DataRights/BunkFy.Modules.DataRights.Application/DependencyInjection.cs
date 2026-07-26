@@ -77,6 +77,11 @@ public static class DependencyInjection
             DataRightsAnonymisationExecutionPreparedHandler>(
                 DataRightsModuleMetadata.Name,
                 DataRightsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            DataRightsAnonymisationWorkItemTerminalIntegrationEvent,
+            DataRightsAnonymisationWorkItemTerminalHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.Name);
         services.AddTaskHandler<
             ExecuteDataRightsAnonymisationPayload,
             ExecuteDataRightsAnonymisationTaskHandler>(

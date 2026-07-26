@@ -6,17 +6,19 @@ using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Messaging;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
     IDataRightsCaseRepository cases,
     IDataRightsExecutionWorkItemRepository workItems,
-    ISystemClock clock)
+    IOutboxWriterRegistry outboxWriters,
+    ISystemClock clock,
+    IIdGenerator ids)
     : ICommandHandler<RecordDataRightsAnonymisationOwnerResultCommand, Unit>
 {
-    private const string SystemActor = "system:data-rights-anonymisation";
-
     public async Task<Result<Unit>> HandleAsync(
         RecordDataRightsAnonymisationOwnerResultCommand command,
         CancellationToken cancellationToken)
@@ -91,14 +93,17 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
         if (workItem.State is DataRightsExecutionWorkItemState.Blocked
                 or DataRightsExecutionWorkItemState.Failed)
         {
-            Result caseBlocked = dataRightsCase.BlockAnonymisationExecution(
-                dataRightsCase.Version,
-                SystemActor,
-                nowUtc);
-            if (caseBlocked.IsFailure)
-            {
-                return Result.Failure<Unit>(caseBlocked.Error);
-            }
+            await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
+                new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
+                    ids.NewId(),
+                    workItem.ScopeId,
+                    nowUtc,
+                    workItem.BatchId,
+                    workItem.Id,
+                    workItem.CaseId,
+                    workItem.PropertyId,
+                    workItem.ExecutionRevision),
+                cancellationToken).ConfigureAwait(false);
         }
 
         return Result.Success(Unit.Value);

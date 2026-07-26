@@ -2,12 +2,16 @@ namespace BunkFy.Modules.DataRights.Application.Handlers;
 
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Messaging;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
+using Gma.Framework.Runtime.Time;
 
 internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
     IDataRightsCaseRepository cases,
@@ -15,7 +19,10 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
     IDataRightsProcessingLedgerRepository ledgers,
     IDataRightsRecordPseudonymizer pseudonymizer,
     IDataRightsReplayEnvelopeProtector replayProtector,
-    IDataRightsLedgerDeltaStore deltaStore)
+    IDataRightsLedgerDeltaStore deltaStore,
+    IOutboxWriterRegistry outboxWriters,
+    ISystemClock clock,
+    IIdGenerator ids)
     : ICommandHandler<FinalizeDataRightsAnonymisationLedgerCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(
@@ -110,6 +117,32 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
         {
             await ledgers.AddAsync(
                 ledger,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        bool wasCompleted =
+            workItem.State == DataRightsExecutionWorkItemState.Completed;
+        DateTimeOffset nowUtc = clock.UtcNow;
+        Result completed = workItem.CompleteAfterDurableLedger(
+            workItem.Version,
+            nowUtc);
+        if (completed.IsFailure)
+        {
+            return Result.Failure<Unit>(completed.Error);
+        }
+
+        if (!wasCompleted)
+        {
+            await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
+                new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
+                        ids.NewId(),
+                        workItem.ScopeId,
+                        nowUtc,
+                        workItem.BatchId,
+                        workItem.Id,
+                        workItem.CaseId,
+                        workItem.PropertyId,
+                        workItem.ExecutionRevision),
                 cancellationToken).ConfigureAwait(false);
         }
 

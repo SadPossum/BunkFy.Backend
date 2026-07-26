@@ -259,6 +259,12 @@
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionBatch",
+          "member": "CreatedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionWorkItem",
           "member": "CreatedBy",
           "surface": "persistence"

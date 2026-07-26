@@ -8,9 +8,10 @@ public interface IDataRightsExecutionWorkItemRepository
         DataRightsExecutionWorkItem workItem,
         CancellationToken cancellationToken);
 
-    Task<DataRightsExecutionWorkItem?> GetByCaseAsync(
+    Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
         Guid propertyId,
         Guid caseId,
+        Guid batchId,
         CancellationToken cancellationToken);
 
     Task<DataRightsExecutionWorkItem?> GetAsync(

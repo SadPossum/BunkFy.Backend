@@ -17,6 +17,8 @@ using Xunit;
 public sealed class DataRightsPersistenceIntegrationTests
 {
     private const string InitialMigration = "20260723052104_InitialDataRights";
+    private const string BeforeExecutionBatchesMigration =
+        "20260726022029_AddProcessingLedgerResultVersion";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -37,6 +39,8 @@ public sealed class DataRightsPersistenceIntegrationTests
             Guid.Parse("10000000-0000-0000-0000-000000000003");
         Guid executionWorkItemId =
             Guid.Parse("40000000-0000-0000-0000-000000000001");
+        Guid executionBatchId =
+            Guid.Parse("40000000-0000-0000-0000-000000000002");
         Guid executionIdempotencyKey =
             Guid.Parse("50000000-0000-0000-0000-000000000001");
         DateTimeOffset createdAtUtc = new(2026, 7, 23, 6, 0, 0, TimeSpan.Zero);
@@ -185,10 +189,23 @@ public sealed class DataRightsPersistenceIntegrationTests
                 6,
                 "staff:executor",
                 selectedAtUtc.AddMinutes(6)).IsSuccess);
+            DataRightsExecutionBatch executionBatch =
+                DataRightsExecutionBatch.Prepare(
+                    executionBatchId,
+                    "tenant-a",
+                    executionIdempotencyKey,
+                    anonymisationCase.Id,
+                    propertyId,
+                    approvalRevision: 6,
+                    executionRevision: 7,
+                    selectedSubjectCount: 1,
+                    "staff:executor",
+                    selectedAtUtc.AddMinutes(6)).Value;
             DataRightsExecutionWorkItem executionWorkItem =
                 DataRightsExecutionWorkItem.Prepare(
                     executionWorkItemId,
                     "tenant-a",
+                    executionBatchId,
                     executionIdempotencyKey,
                     anonymisationCase.Id,
                     propertyId,
@@ -200,6 +217,7 @@ public sealed class DataRightsPersistenceIntegrationTests
                     "staff:executor",
                     selectedAtUtc.AddMinutes(6)).Value;
             upgraded.Cases.Add(anonymisationCase);
+            upgraded.ExecutionBatches.Add(executionBatch);
             upgraded.ExecutionWorkItems.Add(executionWorkItem);
 
             await upgraded.SaveChangesAsync();
@@ -234,10 +252,16 @@ public sealed class DataRightsPersistenceIntegrationTests
             Assert.Equal(DataRightsCaseState.Executing, anonymisationCase.Status);
             Assert.Equal(7, anonymisationCase.ExecutionRevision);
             Assert.Equal("staff:executor", anonymisationCase.ExecutionStartedBy);
+            DataRightsExecutionBatch executionBatch =
+                await reloaded.ExecutionBatches.SingleAsync(
+                    item => item.Id == executionBatchId);
+            Assert.Equal(1, executionBatch.SelectedSubjectCount);
+            Assert.Equal(executionIdempotencyKey, executionBatch.IdempotencyKey);
             DataRightsExecutionWorkItem executionWorkItem =
                 await reloaded.ExecutionWorkItems.SingleAsync(
                     item => item.Id == executionWorkItemId);
             Assert.Equal(DataRightsExecutionWorkItemState.Prepared, executionWorkItem.State);
+            Assert.Equal(executionBatch.Id, executionWorkItem.BatchId);
             Assert.Equal(anonymisationCase.Id, executionWorkItem.CaseId);
             Assert.Equal(6, executionWorkItem.ApprovalRevision);
             Assert.Equal(7, executionWorkItem.ExecutionRevision);
@@ -327,6 +351,153 @@ public sealed class DataRightsPersistenceIntegrationTests
                     """));
             Assert.Equal("P0001", failure.SqlState);
             Assert.Contains("append-only", failure.MessageText);
+        }
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Execution_batch_migration_promotes_only_ledger_proven_legacy_success()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_data_rights_execution_batch_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        Guid caseId = Guid.Parse("11000000-0000-0000-0000-000000000001");
+        Guid propertyId = Guid.Parse("21000000-0000-0000-0000-000000000001");
+        Guid recordId = Guid.Parse("31000000-0000-0000-0000-000000000001");
+        Guid workItemId = Guid.Parse("41000000-0000-0000-0000-000000000001");
+        Guid idempotencyKey = Guid.Parse("51000000-0000-0000-0000-000000000001");
+        Guid taskRunId = Guid.Parse("61000000-0000-0000-0000-000000000001");
+        Guid ownerReceiptId = Guid.Parse("71000000-0000-0000-0000-000000000001");
+        Guid ledgerEntryId = Guid.Parse("81000000-0000-0000-0000-000000000001");
+        DateTimeOffset createdAtUtc =
+            new(2026, 7, 26, 20, 0, 0, TimeSpan.Zero);
+        DateTimeOffset decidedAtUtc = createdAtUtc.AddMinutes(5);
+        DateTimeOffset executionStartedAtUtc = createdAtUtc.AddMinutes(6);
+        DateTimeOffset ownerCompletedAtUtc = createdAtUtc.AddMinutes(7);
+        DateTimeOffset outcomeAtUtc = createdAtUtc.AddMinutes(8);
+        string policySha256 = new('a', 64);
+        string ownerReceiptSha256 = new('b', 64);
+        string recordPseudonymSha256 = new('c', 64);
+        string entrySha256 = new('d', 64);
+
+        await using (DataRightsDbContext legacy =
+                     CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await legacy.Database.GetService<IMigrator>()
+                .MigrateAsync(BeforeExecutionBatchesMigration);
+            await legacy.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "data-rights"."cases" (
+                    "Id", "PropertyId", "Kind", "RequestedOperations",
+                    "RequesterRelationship", "VerificationStatus", "RoutingStatus",
+                    "Status", "DueAtUtc", "Version", "CreatedBy", "CreatedAtUtc",
+                    "LastChangedBy", "LastChangedAtUtc", "ScopeId",
+                    "Decision", "DecisionReason", "DecisionRevision", "DecidedBy",
+                    "DecidedAtUtc", "RestrictionDirective",
+                    "ApprovalEvidenceSchemaVersion", "ApprovalEvidencePropertyId",
+                    "ApprovalEvidencePropertyVersion",
+                    "ApprovalEvidenceOperatingCountryCode", "ApprovalEvidencePolicyId",
+                    "ApprovalEvidencePolicyVersion",
+                    "ApprovalEvidenceRetentionPolicyId",
+                    "ApprovalEvidenceRetentionPolicyVersion",
+                    "ApprovalEvidenceContentSha256", "ApprovalEvidencePurposeCode",
+                    "ApprovalEvidenceSurface", "ApprovalEvidenceSourceProvenance",
+                    "ApprovalEvidenceEvaluatedAtUtc",
+                    "ApprovalEvidenceRequiresDistinctExecutor",
+                    "ExecutionRevision", "ExecutionStartedBy",
+                    "ExecutionStartedAtUtc")
+                VALUES (
+                    {caseId}, {propertyId}, {(int)DataRightsCaseKind.GuestRights},
+                    {(int)DataRightsCaseOperation.Anonymisation},
+                    {(int)DataRightsRequesterRelation.ControllerInitiated},
+                    {(int)DataRightsVerificationState.NotRequired},
+                    {(int)DataRightsRoutingState.NotRequired},
+                    {(int)DataRightsCaseState.Executing}, NULL, 7,
+                    {"staff:privacy"}, {createdAtUtc}, {"staff:executor"},
+                    {executionStartedAtUtc}, {"tenant-a"},
+                    {(int)DataRightsCaseDecision.Approved},
+                    {(int)DataRightsCaseDecisionReason.RequestValidated}, 6,
+                    {"staff:decision-maker"}, {decidedAtUtc},
+                    {(int)DataRightsRestrictionAction.None},
+                    1, {propertyId}, 8, {"GB"}, {"integration-hostel-baseline"}, 1,
+                    {"integration-guest-operational"}, 1, {policySha256},
+                    {"data-rights-anonymisation"}, {"erasure"},
+                    {"authorized-workspace-operator"}, {decidedAtUtc}, TRUE,
+                    7, {"staff:executor"}, {executionStartedAtUtc});
+
+                INSERT INTO "data-rights"."execution_work_items" (
+                    "Id", "IdempotencyKey", "CaseId", "PropertyId",
+                    "ApprovalRevision", "ExecutionRevision", "Operation", "OwnerKey",
+                    "RecordType", "RecordId", "SelectedRecordVersion",
+                    "PolicyEvidenceSchemaVersion", "PolicyId", "PolicyVersion",
+                    "RetentionPolicyId", "RetentionPolicyVersion",
+                    "PolicyContentSha256", "State", "AttemptCount", "CreatedBy",
+                    "CreatedAtUtc", "Version", "ScopeId", "LastAttemptAtUtc",
+                    "LastTaskAttempt", "OutcomeAtUtc", "OutcomeCode",
+                    "OwnerCompletedAtUtc", "OwnerContractVersion",
+                    "OwnerDispositionCode", "OwnerReasonCode",
+                    "OwnerReceiptContractVersion", "OwnerReceiptId",
+                    "OwnerReceiptSha256", "ResultingRecordVersion", "TaskRunId")
+                VALUES (
+                    {workItemId}, {idempotencyKey}, {caseId}, {propertyId}, 6, 7,
+                    {(int)DataRightsCaseOperation.Anonymisation}, {"guests"},
+                    {"guest-profile"}, {recordId}, 1, 1,
+                    {"integration-hostel-baseline"}, 1,
+                    {"integration-guest-operational"}, 1, {policySha256},
+                    {(int)DataRightsExecutionWorkItemState.OwnerProofRecorded}, 1,
+                    {"staff:executor"}, {executionStartedAtUtc}, 3, {"tenant-a"},
+                    {executionStartedAtUtc}, 1, {outcomeAtUtc}, NULL,
+                    {ownerCompletedAtUtc}, 1, {"completed"}, {"anonymised"},
+                    1, {ownerReceiptId}, {ownerReceiptSha256}, 2, {taskRunId});
+
+                INSERT INTO "data-rights"."processing_ledger_entries" (
+                    "Id", "ContractVersion", "TenantSequence", "WorkItemId",
+                    "CaseId", "ApprovalRevision", "OperationRevision", "Operation",
+                    "RoutingPropertyId", "OwnerKey", "RecordType",
+                    "RecordPseudonymKeyVersion", "RecordPseudonymSha256",
+                    "DispositionCode", "ReasonCode", "CompletedAtUtc",
+                    "PolicyEvidenceSchemaVersion", "PolicyId", "PolicyVersion",
+                    "PolicyContentSha256", "RetentionPolicyId",
+                    "RetentionPolicyVersion", "OwnerReceiptContractVersion",
+                    "OwnerReceiptId", "OwnerReceiptSha256", "PreviousEntrySha256",
+                    "EntrySha256", "ReplayOfLedgerEntryId",
+                    "SupersedesLedgerEntryId", "ScopeId",
+                    "ResultingRecordVersion")
+                VALUES (
+                    {ledgerEntryId}, 2, 1, {workItemId}, {caseId}, 6, 7,
+                    {(int)DataRightsCaseOperation.Anonymisation}, {propertyId},
+                    {"guests"}, {"guest-profile"}, 1, {recordPseudonymSha256},
+                    {"completed"}, {"anonymised"}, {ownerCompletedAtUtc}, 1,
+                    {"integration-hostel-baseline"}, 1, {policySha256},
+                    {"integration-guest-operational"}, 1, 1, {ownerReceiptId},
+                    {ownerReceiptSha256}, {new string('0', 64)}, {entrySha256},
+                    NULL, NULL, {"tenant-a"}, 2);
+                """);
+        }
+
+        await using (DataRightsDbContext upgraded =
+                     CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await upgraded.Database.MigrateAsync();
+
+            DataRightsExecutionBatch batch = await upgraded.ExecutionBatches
+                .SingleAsync(item => item.Id == workItemId);
+            DataRightsExecutionWorkItem workItem = await upgraded.ExecutionWorkItems
+                .SingleAsync(item => item.Id == workItemId);
+            DataRightsCase dataRightsCase = await upgraded.Cases
+                .SingleAsync(item => item.Id == caseId);
+
+            Assert.Equal(idempotencyKey, batch.IdempotencyKey);
+            Assert.Equal(1, batch.SelectedSubjectCount);
+            Assert.Equal(batch.Id, workItem.BatchId);
+            Assert.Equal(DataRightsExecutionWorkItemState.Completed, workItem.State);
+            Assert.Equal(DataRightsCaseState.Completed, dataRightsCase.Status);
+            Assert.Equal("system:data-rights-migration", dataRightsCase.LastChangedBy);
+            Assert.Equal(outcomeAtUtc, dataRightsCase.LastChangedAtUtc);
+            Assert.Equal(8, dataRightsCase.Version);
         }
     }
 

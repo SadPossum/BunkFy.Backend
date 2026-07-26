@@ -112,6 +112,7 @@ internal static class ProtectedLedgerTestData
                 scopeId,
                 Guid.NewGuid(),
                 Guid.NewGuid(),
+                Guid.NewGuid(),
                 propertyId,
                 approvalRevision: 6,
                 executionRevision: 7,

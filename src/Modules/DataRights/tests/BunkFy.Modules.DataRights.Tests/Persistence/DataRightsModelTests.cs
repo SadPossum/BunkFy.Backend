@@ -83,6 +83,31 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designSelectedSubject.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_selected_subjects_selected_by");
+        IEntityType batch =
+            dbContext.Model.FindEntityType(typeof(DataRightsExecutionBatch))!;
+        IEntityType designBatch = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsExecutionBatch))!;
+        Assert.True(
+            batch.FindProperty(nameof(DataRightsExecutionBatch.Version))!
+                .IsConcurrencyToken);
+        Assert.Contains(batch.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsExecutionBatch.ScopeId),
+                nameof(DataRightsExecutionBatch.IdempotencyKey)
+            ]));
+        Assert.Contains(batch.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsExecutionBatch.ScopeId),
+                nameof(DataRightsExecutionBatch.CaseId)
+            ]));
+        Assert.Contains(
+            designBatch.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_execution_batches_subject_count");
         IEntityType workItem =
             dbContext.Model.FindEntityType(typeof(DataRightsExecutionWorkItem))!;
         IEntityType designWorkItem = dbContext.GetService<IDesignTimeModel>()
@@ -623,6 +648,7 @@ public sealed class DataRightsModelTests
         DataRightsExecutionWorkItem workItem = DataRightsExecutionWorkItem.Prepare(
             Guid.NewGuid(),
             "tenant-a",
+            Guid.NewGuid(),
             Guid.NewGuid(),
             dataRightsCase.Id,
             propertyId,

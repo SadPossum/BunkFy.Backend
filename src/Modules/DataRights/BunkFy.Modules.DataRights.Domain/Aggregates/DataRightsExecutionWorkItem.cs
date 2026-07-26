@@ -19,6 +19,7 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
 
     private DataRightsExecutionWorkItem(Guid id, string scopeId) : base(id, scopeId) { }
 
+    public Guid BatchId { get; private set; }
     public Guid IdempotencyKey { get; private set; }
     public Guid CaseId { get; private set; }
     public Guid PropertyId { get; private set; }
@@ -57,6 +58,7 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
     public static Result<DataRightsExecutionWorkItem> Prepare(
         Guid id,
         string tenantId,
+        Guid batchId,
         Guid idempotencyKey,
         Guid caseId,
         Guid propertyId,
@@ -72,6 +74,7 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
         ArgumentNullException.ThrowIfNull(policyEvidence);
 
         if (id == Guid.Empty ||
+            batchId == Guid.Empty ||
             idempotencyKey == Guid.Empty ||
             caseId == Guid.Empty ||
             propertyId == Guid.Empty ||
@@ -106,6 +109,7 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
 
         return Result.Success(new DataRightsExecutionWorkItem(id, scopeId)
         {
+            BatchId = batchId,
             IdempotencyKey = idempotencyKey,
             CaseId = caseId,
             PropertyId = propertyId,
@@ -294,6 +298,33 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
             failureCode,
             DataRightsExecutionWorkItemState.Failed,
             recordedAtUtc);
+
+    public Result CompleteAfterDurableLedger(
+        long expectedVersion,
+        DateTimeOffset completedAtUtc)
+    {
+        if (this.State == DataRightsExecutionWorkItemState.Completed)
+        {
+            return Result.Success();
+        }
+
+        if (this.State != DataRightsExecutionWorkItemState.OwnerProofRecorded ||
+            expectedVersion != this.Version ||
+            !this.OwnerReceiptId.HasValue ||
+            !this.ResultingRecordVersion.HasValue ||
+            string.IsNullOrWhiteSpace(this.OwnerReceiptSha256) ||
+            !this.OutcomeAtUtc.HasValue ||
+            completedAtUtc == default ||
+            completedAtUtc < this.OutcomeAtUtc.Value)
+        {
+            return Result.Failure(DataRightsDomainErrors.ExecutionOwnerResultInvalid);
+        }
+
+        this.State = DataRightsExecutionWorkItemState.Completed;
+        this.OutcomeAtUtc = completedAtUtc;
+        this.Version++;
+        return Result.Success();
+    }
 
     private Result RecordOwnerOutcome(
         long expectedVersion,

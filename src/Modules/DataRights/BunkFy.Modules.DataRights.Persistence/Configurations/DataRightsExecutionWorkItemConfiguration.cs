@@ -135,6 +135,14 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
         builder.HasIndex(workItem => new
         {
             workItem.ScopeId,
+            workItem.BatchId,
+            workItem.OwnerKey,
+            workItem.RecordType,
+            workItem.RecordId
+        }).IsUnique();
+        builder.HasIndex(workItem => new
+        {
+            workItem.ScopeId,
             workItem.CaseId,
             workItem.ApprovalRevision,
             workItem.Operation,
@@ -159,6 +167,11 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
             .WithMany()
             .HasForeignKey(workItem => new { workItem.ScopeId, workItem.CaseId })
             .HasPrincipalKey(dataRightsCase => new { dataRightsCase.ScopeId, dataRightsCase.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<DataRightsExecutionBatch>()
+            .WithMany()
+            .HasForeignKey(workItem => new { workItem.ScopeId, workItem.BatchId })
+            .HasPrincipalKey(batch => new { batch.ScopeId, batch.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.Ignore(workItem => workItem.DomainEvents);
     }

@@ -20,6 +20,8 @@ public static class DataRightsModuleMetadata
         "property-processing-suspended";
     public const string AnonymisationExecutionPreparedHandlerName =
         "anonymisation-execution-prepared";
+    public const string AnonymisationWorkItemTerminalHandlerName =
+        "anonymisation-work-item-terminal";
     public const string PropertiesProjectionName = "properties";
     public const int PropertiesProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
@@ -60,6 +62,9 @@ public static class DataRightsModuleMetadata
         .WithSubscription<DataRightsAnonymisationExecutionPreparedIntegrationEvent>(
             Name,
             AnonymisationExecutionPreparedHandlerName)
+        .WithSubscription<DataRightsAnonymisationWorkItemTerminalIntegrationEvent>(
+            Name,
+            AnonymisationWorkItemTerminalHandlerName)
         .WithTask<RebuildDataRightsPropertiesPayload>()
         .WithTask<ExecuteDataRightsAnonymisationPayload>()
         .WithProfile(DataRightsProfiles.Default)

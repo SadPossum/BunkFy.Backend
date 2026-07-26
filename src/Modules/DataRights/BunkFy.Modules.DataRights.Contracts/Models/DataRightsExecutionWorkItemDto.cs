@@ -2,6 +2,7 @@ namespace BunkFy.Modules.DataRights.Contracts;
 
 public sealed record DataRightsExecutionWorkItemDto(
     Guid Id,
+    Guid BatchId,
     Guid CaseId,
     Guid PropertyId,
     long ApprovalRevision,

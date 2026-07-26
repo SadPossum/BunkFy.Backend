@@ -136,5 +136,6 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | DecidedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | ExecutionStartedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | LastChangedBy | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionBatch | CreatedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionWorkItem | CreatedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate | SelectedBy | persistence | data-rights-case-lifecycle |

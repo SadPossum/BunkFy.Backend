@@ -17,6 +17,7 @@ using SelectedSubject = BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubj
 
 internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
     IDataRightsCaseRepository cases,
+    IDataRightsExecutionBatchRepository batches,
     IDataRightsExecutionWorkItemRepository workItems,
     IDataRightsOperationApprovalGate approvalGate,
     IOutboxWriterRegistry outboxWriters,
@@ -38,26 +39,41 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
                 DataRightsApplicationErrors.CaseNotFound);
         }
 
-        DataRightsExecutionWorkItem? existing = await workItems.GetByCaseAsync(
+        DataRightsExecutionBatch? existing = await batches.GetByCaseAsync(
             command.PropertyId,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (existing is not null)
         {
-            return existing.HasIdempotencyKey(command.IdempotencyKey) &&
-                dataRightsCase.ExecutionRevision == existing.ExecutionRevision
-                ? Result.Success(ToExecution(dataRightsCase, existing))
+            IReadOnlyCollection<DataRightsExecutionWorkItem> existingItems =
+                await workItems.ListByBatchAsync(
+                    command.PropertyId,
+                    command.CaseId,
+                    existing.Id,
+                    cancellationToken).ConfigureAwait(false);
+            return existing.Matches(
+                    command.IdempotencyKey,
+                    command.CaseId,
+                    command.PropertyId,
+                    dataRightsCase.ExecutionRevision) &&
+                MatchesBatch(existing, existingItems)
+                ? Result.Success(ToExecution(dataRightsCase, existing, existingItems))
                 : Result.Failure<DataRightsExecutionDto>(
                     DataRightsApplicationErrors.ExecutionAlreadyStarted);
         }
 
-        if (dataRightsCase.SelectedSubjects.Count != 1)
+        if (dataRightsCase.SelectedSubjects.Count is
+            <= 0 or > DataRightsCase.MaxSelectedSubjects)
         {
             return Result.Failure<DataRightsExecutionDto>(
                 DataRightsApplicationErrors.AnonymisationSubjectCountInvalid);
         }
 
-        SelectedSubject subject = dataRightsCase.SelectedSubjects.Single();
+        SelectedSubject[] subjects = dataRightsCase.SelectedSubjects
+            .OrderBy(subject => subject.OwnerKey, StringComparer.Ordinal)
+            .ThenBy(subject => subject.RecordType, StringComparer.Ordinal)
+            .ThenBy(subject => subject.RecordId)
+            .ToArray();
         DataRightsApprovalPolicyEvidence? evidence = dataRightsCase.ApprovalPolicyEvidence;
         if (evidence is null ||
             dataRightsCase.PropertyId != command.PropertyId ||
@@ -67,23 +83,30 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
                 DataRightsApplicationErrors.AnonymisationExecutionDenied);
         }
 
-        DataRightsOperationApprovalResult approval = await approvalGate.EvaluateAsync(
-            new DataRightsOperationApprovalRequest(
-                dataRightsCase.ScopeId,
-                command.PropertyId,
-                command.CaseId,
-                approvalRevision,
-                DataRightsOperation.Anonymisation,
-                subject.OwnerKey,
-                subject.RecordType,
-                subject.RecordId,
-                subject.RecordVersion,
-                ExecutingActorId: command.ActorId),
-            cancellationToken).ConfigureAwait(false);
-        if (!approval.IsApproved || approval.ApprovalEvidence is null)
+        foreach (SelectedSubject subject in subjects)
         {
-            return Result.Failure<DataRightsExecutionDto>(
-                DataRightsApplicationErrors.AnonymisationExecutionDenied);
+            DataRightsOperationApprovalResult approval = await approvalGate.EvaluateAsync(
+                new DataRightsOperationApprovalRequest(
+                    dataRightsCase.ScopeId,
+                    command.PropertyId,
+                    command.CaseId,
+                    approvalRevision,
+                    DataRightsOperation.Anonymisation,
+                    subject.OwnerKey,
+                    subject.RecordType,
+                    subject.RecordId,
+                    subject.RecordVersion,
+                    ExecutingActorId: command.ActorId),
+                cancellationToken).ConfigureAwait(false);
+            if (!approval.IsApproved ||
+                approval.ApprovalEvidence is null ||
+                !DataRightsApprovalEvidenceComparer.Matches(
+                    evidence,
+                    approval.ApprovalEvidence))
+            {
+                return Result.Failure<DataRightsExecutionDto>(
+                    DataRightsApplicationErrors.AnonymisationExecutionDenied);
+            }
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -96,41 +119,93 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
             return Result.Failure<DataRightsExecutionDto>(transition.Error);
         }
 
-        Result<DataRightsExecutionWorkItem> prepared = DataRightsExecutionWorkItem.Prepare(
-            ids.NewId(),
+        Guid batchId = ids.NewId();
+        Result<DataRightsExecutionBatch> preparedBatch = DataRightsExecutionBatch.Prepare(
+            batchId,
             dataRightsCase.ScopeId,
             command.IdempotencyKey,
             dataRightsCase.Id,
             command.PropertyId,
             approvalRevision,
             dataRightsCase.ExecutionRevision!.Value,
-            DataRightsCaseOperation.Anonymisation,
-            subject,
-            evidence,
+            subjects.Length,
             command.ActorId,
             nowUtc);
-        if (prepared.IsFailure)
+        if (preparedBatch.IsFailure)
         {
-            return Result.Failure<DataRightsExecutionDto>(prepared.Error);
+            return Result.Failure<DataRightsExecutionDto>(preparedBatch.Error);
         }
 
-        await workItems.AddAsync(prepared.Value, cancellationToken).ConfigureAwait(false);
-        await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
-            new DataRightsAnonymisationExecutionPreparedIntegrationEvent(
-                ids.NewId(),
-                dataRightsCase.ScopeId,
-                nowUtc,
-                prepared.Value.Id,
-                dataRightsCase.Id,
-                command.PropertyId,
-                approvalRevision,
-                prepared.Value.ExecutionRevision),
-            cancellationToken).ConfigureAwait(false);
-        return Result.Success(ToExecution(dataRightsCase, prepared.Value));
+        List<DataRightsExecutionWorkItem> preparedItems = new(subjects.Length);
+        foreach (SelectedSubject subject in subjects)
+        {
+            Result<DataRightsExecutionWorkItem> prepared =
+                DataRightsExecutionWorkItem.Prepare(
+                    ids.NewId(),
+                    dataRightsCase.ScopeId,
+                    batchId,
+                    DataRightsExecutionIdentity.CreateWorkItemIdempotencyKey(
+                        command.IdempotencyKey,
+                        subject),
+                    dataRightsCase.Id,
+                    command.PropertyId,
+                    approvalRevision,
+                    dataRightsCase.ExecutionRevision.Value,
+                    DataRightsCaseOperation.Anonymisation,
+                    subject,
+                    evidence,
+                    command.ActorId,
+                    nowUtc);
+            if (prepared.IsFailure)
+            {
+                return Result.Failure<DataRightsExecutionDto>(prepared.Error);
+            }
+
+            preparedItems.Add(prepared.Value);
+        }
+
+        await batches.AddAsync(preparedBatch.Value, cancellationToken).ConfigureAwait(false);
+        IOutboxWriter outbox = outboxWriters.GetRequired(DataRightsModuleMetadata.Name);
+        foreach (DataRightsExecutionWorkItem prepared in preparedItems)
+        {
+            await workItems.AddAsync(prepared, cancellationToken).ConfigureAwait(false);
+            await outbox.EnqueueAsync(
+                new DataRightsAnonymisationExecutionPreparedIntegrationEvent(
+                    ids.NewId(),
+                    dataRightsCase.ScopeId,
+                    nowUtc,
+                    prepared.Id,
+                    dataRightsCase.Id,
+                    command.PropertyId,
+                    approvalRevision,
+                    prepared.ExecutionRevision),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return Result.Success(ToExecution(
+            dataRightsCase,
+            preparedBatch.Value,
+            preparedItems));
     }
+
+    private static bool MatchesBatch(
+        DataRightsExecutionBatch batch,
+        IReadOnlyCollection<DataRightsExecutionWorkItem> workItems) =>
+        workItems.Count == batch.SelectedSubjectCount &&
+        workItems.All(workItem =>
+            workItem.BatchId == batch.Id &&
+            workItem.CaseId == batch.CaseId &&
+            workItem.PropertyId == batch.PropertyId &&
+            workItem.ApprovalRevision == batch.ApprovalRevision &&
+            workItem.ExecutionRevision == batch.ExecutionRevision &&
+            workItem.Operation == DataRightsCaseOperation.Anonymisation);
 
     private static DataRightsExecutionDto ToExecution(
         DataRightsCase dataRightsCase,
-        DataRightsExecutionWorkItem workItem) =>
-        new(dataRightsCase.ToDto(), workItem.ToDto());
+        DataRightsExecutionBatch batch,
+        IEnumerable<DataRightsExecutionWorkItem> workItems) =>
+        new(
+            dataRightsCase.ToDto(),
+            batch.ToDto(),
+            workItems.Select(workItem => workItem.ToDto()).ToArray());
 }

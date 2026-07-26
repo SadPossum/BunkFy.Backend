@@ -78,7 +78,7 @@ public static class DataRightsDomainErrors
         "The case does not contain an executable anonymisation approval.");
     public static readonly Error AnonymisationSubjectCountInvalid = new(
         "DataRights.AnonymisationSubjectCountInvalid",
-        "An anonymisation execution requires exactly one selected subject.");
+        "An anonymisation execution requires at least one selected subject.");
     public static readonly Error DecisionActorCannotExecute = new(
         "DataRights.DecisionActorCannotExecute",
         "The decision actor cannot execute this anonymisation.");
@@ -91,6 +91,9 @@ public static class DataRightsDomainErrors
     public static readonly Error ExecutionOwnerResultInvalid = new(
         "DataRights.ExecutionOwnerResultInvalid",
         "The data-rights owner result is invalid or conflicts with durable proof.");
+    public static readonly Error ExecutionOutcomeInvalid = new(
+        "DataRights.ExecutionOutcomeInvalid",
+        "The data-rights execution outcome does not match its selected subjects.");
     public static readonly Error RecordPseudonymInvalid = new(
         "DataRights.RecordPseudonymInvalid",
         "The data-rights record pseudonym is invalid.");

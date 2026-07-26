@@ -53,10 +53,11 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(DataRightsCaseStatus.Executing, result.Value.Case.Status);
         Assert.Equal(7, result.Value.Case.ExecutionRevision);
-        Assert.Equal(DataRightsExecutionWorkItemStatus.Prepared, result.Value.WorkItem.Status);
-        Assert.Equal(workItemId, result.Value.WorkItem.Id);
+        DataRightsExecutionWorkItemDto workItem = Assert.Single(result.Value.WorkItems);
+        Assert.Equal(DataRightsExecutionWorkItemStatus.Prepared, workItem.Status);
+        Assert.Equal(workItemId, workItem.Id);
+        Assert.Equal(result.Value.Batch.Id, workItem.BatchId);
         Assert.Same(workItems.Item, Assert.Single(workItems.Added));
-        Assert.True(workItems.Item!.HasIdempotencyKey(idempotencyKey));
         DataRightsAnonymisationExecutionPreparedIntegrationEvent prepared =
             Assert.IsType<DataRightsAnonymisationExecutionPreparedIntegrationEvent>(
                 Assert.Single(outbox.Events));
@@ -72,6 +73,64 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         Assert.Equal("guests", request.OwnerKey);
         Assert.Equal("guest-profile", request.RecordType);
         Assert.Equal("user:executor", request.ExecutingActorId);
+    }
+
+    [Fact]
+    public async Task Start_prepares_one_ordered_work_item_per_selected_owner()
+    {
+        DataRightsCase dataRightsCase =
+            CreateApprovedAnonymisation(multiOwner: true);
+        StubBatchRepository batches = new();
+        StubWorkItemRepository workItems = new();
+        RecordingApprovalGate gate = new(
+            DataRightsOperationApprovalResult.ApprovedWithEvidence(
+                dataRightsCase.ToApprovalEvidence()!));
+        RecordingOutbox outbox = new();
+        Guid batchId = Guid.NewGuid();
+        Guid guestWorkItemId = Guid.NewGuid();
+        Guid reservationWorkItemId = Guid.NewGuid();
+        StartDataRightsAnonymisationExecutionCommandHandler handler = new(
+            new StubCaseRepository(dataRightsCase),
+            batches,
+            workItems,
+            gate,
+            new RecordingOutboxRegistry(outbox),
+            new TestClock(),
+            new TestIdGenerator(
+                batchId,
+                guestWorkItemId,
+                reservationWorkItemId,
+                Guid.NewGuid(),
+                Guid.NewGuid()));
+
+        Result<DataRightsExecutionDto> result = await handler.HandleAsync(
+            new(
+                dataRightsCase.PropertyId!.Value,
+                dataRightsCase.Id,
+                Guid.NewGuid(),
+                dataRightsCase.Version,
+                "user:executor"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(batchId, result.Value.Batch.Id);
+        Assert.Equal(2, result.Value.Batch.SelectedSubjectCount);
+        Assert.Equal(2, gate.EvaluationCount);
+        Assert.Equal(2, outbox.Events.Count);
+        Assert.Equal(
+            ["guests", "reservations"],
+            result.Value.WorkItems.Select(item => item.OwnerKey));
+        Assert.Equal(
+            [guestWorkItemId, reservationWorkItemId],
+            result.Value.WorkItems.Select(item => item.Id));
+        Assert.Equal(
+            2,
+            workItems.Added.Select(item => item.IdempotencyKey).Distinct().Count());
+        Assert.All(workItems.Added, item => Assert.Equal(batchId, item.BatchId));
+        Assert.All(
+            outbox.Events,
+            item => Assert.IsType<
+                DataRightsAnonymisationExecutionPreparedIntegrationEvent>(item));
     }
 
     [Fact]
@@ -102,7 +161,9 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
 
         Assert.True(first.IsSuccess);
         Assert.True(retry.IsSuccess);
-        Assert.Equal(first.Value.WorkItem.Id, retry.Value.WorkItem.Id);
+        Assert.Equal(
+            Assert.Single(first.Value.WorkItems).Id,
+            Assert.Single(retry.Value.WorkItems).Id);
         Assert.Single(workItems.Added);
         Assert.Equal(1, gate.EvaluationCount);
     }
@@ -181,13 +242,18 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         RecordingOutbox? outbox = null) =>
         new(
             new StubCaseRepository(dataRightsCase),
+            new StubBatchRepository(),
             workItems,
             gate,
             new RecordingOutboxRegistry(outbox ?? new RecordingOutbox()),
             new TestClock(),
-            new TestIdGenerator(workItemId));
+            new TestIdGenerator(
+                Guid.NewGuid(),
+                workItemId,
+                Guid.NewGuid()));
 
-    private static DataRightsCase CreateApprovedAnonymisation()
+    private static DataRightsCase CreateApprovedAnonymisation(
+        bool multiOwner = false)
     {
         Guid propertyId = Guid.NewGuid();
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
@@ -213,12 +279,24 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
             2,
             "user:operator",
             Now.AddMinutes(-4)).IsSuccess);
+        if (multiOwner)
+        {
+            Assert.True(dataRightsCase.SelectSubject(
+                "reservations",
+                "reservation",
+                Guid.NewGuid(),
+                4,
+                dataRightsCase.Version,
+                "user:operator",
+                Now.AddMinutes(-3)).IsSuccess);
+        }
+
         Assert.True(dataRightsCase.RequireReview(
-            3,
+            dataRightsCase.Version,
             "user:operator",
             Now.AddMinutes(-3)).IsSuccess);
         Assert.True(dataRightsCase.BeginDecision(
-            4,
+            dataRightsCase.Version,
             "user:decision-maker",
             Now.AddMinutes(-2)).IsSuccess);
         DataRightsApprovalPolicyEvidence evidence =
@@ -238,7 +316,7 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         Assert.True(dataRightsCase.RecordDecision(
             DataRightsCaseDecision.Approved,
             DataRightsCaseDecisionReason.RequestValidated,
-            5,
+            dataRightsCase.Version,
             "user:decision-maker",
             Now.AddMinutes(-1),
             evidence).IsSuccess);
@@ -281,14 +359,18 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task<DataRightsExecutionWorkItem?> GetByCaseAsync(
+        public Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
             Guid propertyId,
             Guid caseId,
+            Guid batchId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                this.Item?.PropertyId == propertyId && this.Item.CaseId == caseId
-                    ? this.Item
-                    : null);
+                (IReadOnlyCollection<DataRightsExecutionWorkItem>)this.Added
+                    .Where(item =>
+                        item.PropertyId == propertyId &&
+                        item.CaseId == caseId &&
+                        item.BatchId == batchId)
+                    .ToArray());
 
         public Task<DataRightsExecutionWorkItem?> GetAsync(
             Guid propertyId,
@@ -324,9 +406,33 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         public DateTimeOffset UtcNow => Now;
     }
 
-    private sealed class TestIdGenerator(Guid id) : IIdGenerator
+    private sealed class TestIdGenerator(params Guid[] ids) : IIdGenerator
     {
-        public Guid NewId() => id;
+        private readonly Queue<Guid> remaining = new(ids);
+
+        public Guid NewId() => this.remaining.Dequeue();
+    }
+
+    private sealed class StubBatchRepository : IDataRightsExecutionBatchRepository
+    {
+        private DataRightsExecutionBatch? batch;
+
+        public Task AddAsync(
+            DataRightsExecutionBatch executionBatch,
+            CancellationToken cancellationToken)
+        {
+            this.batch = executionBatch;
+            return Task.CompletedTask;
+        }
+
+        public Task<DataRightsExecutionBatch?> GetByCaseAsync(
+            Guid propertyId,
+            Guid caseId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                this.batch?.PropertyId == propertyId && this.batch.CaseId == caseId
+                    ? this.batch
+                    : null);
     }
 
     private sealed class RecordingOutbox : IOutboxWriter

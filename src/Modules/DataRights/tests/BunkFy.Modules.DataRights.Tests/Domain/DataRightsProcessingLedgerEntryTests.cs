@@ -256,6 +256,7 @@ public sealed class DataRightsProcessingLedgerEntryTests
             "tenant-a",
             Guid.NewGuid(),
             Guid.NewGuid(),
+            Guid.NewGuid(),
             propertyId,
             approvalRevision: 6,
             executionRevision: 7,

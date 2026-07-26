@@ -29,11 +29,14 @@ deterministically generated
 - starting anonymisation requires both the tenant-scoped erase permission and
   routing-property read permission, plus the configured destructive-operation
   authentication assurance;
-- an idempotent execution transition freezes the exact approval, operation,
-  selected owner coordinate, record version, policy digest and executor into a
-  PII-minimal work item before any owner module can be invoked;
+- an idempotent execution batch freezes the exact approval, operation, bounded
+  selected owner coordinates, record versions, policy digest and executor into
+  ordered PII-minimal work items before any owner module can be invoked;
 - durable, retry-safe worker dispatch invokes a versioned owner contributor,
   records the immutable owner proof and resumes safely after process failure;
+- one terminal self-event per work item reconciles the case only after every
+  selected owner has a durable result; all-success, all-unsuccessful and mixed
+  batches become `Completed`, `Blocked` and `PartiallyCompleted` respectively;
 - an append-only, HMAC-pseudonymised processing ledger plus an externally
   protected encrypted replay delta preserve deletion proof outside the
   application database;

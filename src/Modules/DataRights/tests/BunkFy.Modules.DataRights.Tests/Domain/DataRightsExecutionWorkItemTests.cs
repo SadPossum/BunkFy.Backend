@@ -29,6 +29,7 @@ public sealed class DataRightsExecutionWorkItemTests
         DataRightsExecutionWorkItem workItem = DataRightsExecutionWorkItem.Prepare(
             Guid.NewGuid(),
             " tenant-a ",
+            Guid.NewGuid(),
             idempotencyKey,
             Guid.NewGuid(),
             propertyId,
@@ -157,6 +158,16 @@ public sealed class DataRightsExecutionWorkItemTests
                 new string('b', 64),
                 Now.AddMinutes(3),
                 Now.AddMinutes(5)).Error.Code);
+
+        Assert.True(workItem.CompleteAfterDurableLedger(
+            proofVersion,
+            Now.AddMinutes(5)).IsSuccess);
+        Assert.Equal(DataRightsExecutionWorkItemState.Completed, workItem.State);
+        long completedVersion = workItem.Version;
+        Assert.True(workItem.CompleteAfterDurableLedger(
+            expectedVersion: 1,
+            Now.AddMinutes(6)).IsSuccess);
+        Assert.Equal(completedVersion, workItem.Version);
     }
 
     [Fact]
@@ -208,6 +219,7 @@ public sealed class DataRightsExecutionWorkItemTests
                 "tenant-a",
                 Guid.NewGuid(),
                 Guid.NewGuid(),
+                Guid.NewGuid(),
                 propertyId,
                 6,
                 7,
@@ -221,6 +233,7 @@ public sealed class DataRightsExecutionWorkItemTests
             DataRightsExecutionWorkItem.Prepare(
                 Guid.NewGuid(),
                 "tenant-a",
+                Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 propertyId,
@@ -261,6 +274,7 @@ public sealed class DataRightsExecutionWorkItemTests
         return DataRightsExecutionWorkItem.Prepare(
             Guid.NewGuid(),
             "tenant-a",
+            Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
             propertyId,

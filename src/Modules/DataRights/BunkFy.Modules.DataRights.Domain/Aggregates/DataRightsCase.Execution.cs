@@ -29,7 +29,7 @@ public sealed partial class DataRightsCase
             return Result.Failure(DataRightsDomainErrors.AnonymisationApprovalInvalid);
         }
 
-        if (this.selectedSubjects.Count != 1)
+        if (this.selectedSubjects.Count is <= 0 or > MaxSelectedSubjects)
         {
             return Result.Failure(DataRightsDomainErrors.AnonymisationSubjectCountInvalid);
         }
@@ -49,12 +49,34 @@ public sealed partial class DataRightsCase
         return Result.Success();
     }
 
-    public Result BlockAnonymisationExecution(
+    public Result ReconcileAnonymisationExecution(
         long expectedVersion,
+        int totalCount,
+        int completedCount,
+        int noOpCount,
+        int blockedCount,
+        int failedCount,
         string actorId,
         DateTimeOffset nowUtc)
     {
-        if (this.Status == DataRightsCaseState.Blocked)
+        if (totalCount <= 0 ||
+            totalCount != this.selectedSubjects.Count ||
+            completedCount < 0 ||
+            noOpCount < 0 ||
+            blockedCount < 0 ||
+            failedCount < 0 ||
+            completedCount + noOpCount + blockedCount + failedCount != totalCount)
+        {
+            return Result.Failure(DataRightsDomainErrors.ExecutionOutcomeInvalid);
+        }
+
+        int successfulCount = completedCount + noOpCount;
+        DataRightsCaseState target = successfulCount == totalCount
+            ? DataRightsCaseState.Completed
+            : successfulCount == 0
+                ? DataRightsCaseState.Blocked
+                : DataRightsCaseState.PartiallyCompleted;
+        if (this.Status == target)
         {
             return Result.Success();
         }
@@ -69,7 +91,7 @@ public sealed partial class DataRightsCase
             return ready;
         }
 
-        this.Status = DataRightsCaseState.Blocked;
+        this.Status = target;
         this.CompleteChange(actorId, nowUtc);
         return Result.Success();
     }

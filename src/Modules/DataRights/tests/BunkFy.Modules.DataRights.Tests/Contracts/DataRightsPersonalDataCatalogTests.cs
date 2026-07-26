@@ -74,6 +74,10 @@ public sealed class DataRightsPersonalDataCatalogTests
             PersonalDataSurface.Persistence);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.LastChangedBy), PersonalDataSurface.Persistence);
         AssertBinding(
+            typeof(DataRightsExecutionBatch),
+            nameof(DataRightsExecutionBatch.CreatedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
             typeof(DataRightsExecutionWorkItem),
             nameof(DataRightsExecutionWorkItem.CreatedBy),
             PersonalDataSurface.Persistence);
@@ -300,6 +304,24 @@ public sealed class DataRightsPersonalDataCatalogTests
     [Fact]
     public void Anonymisation_event_and_task_payload_are_pii_free_coordinates()
     {
+        Assert.Equal(
+            [
+                "BatchId",
+                "CaseId",
+                "EventId",
+                "EventName",
+                "ExecutionRevision",
+                "OccurredAtUtc",
+                "PropertyId",
+                "ScopeId",
+                "TenantId",
+                "Version",
+                "WorkItemId"
+            ],
+            typeof(DataRightsAnonymisationWorkItemTerminalIntegrationEvent)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
         Assert.Equal(
             [
                 "ApprovalRevision",

@@ -8,6 +8,7 @@ public static class DataRightsExecutionWorkItemMappings
     public static DataRightsExecutionWorkItemDto ToDto(
         this DataRightsExecutionWorkItem workItem) => new(
         workItem.Id,
+        workItem.BatchId,
         workItem.CaseId,
         workItem.PropertyId,
         workItem.ApprovalRevision,

@@ -15,13 +15,21 @@ internal sealed class DataRightsExecutionWorkItemRepository(DataRightsDbContext 
         return Task.CompletedTask;
     }
 
-    public Task<DataRightsExecutionWorkItem?> GetByCaseAsync(
+    public async Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
         Guid propertyId,
         Guid caseId,
+        Guid batchId,
         CancellationToken cancellationToken) =>
-        dbContext.ExecutionWorkItems.SingleOrDefaultAsync(
-            workItem => workItem.PropertyId == propertyId && workItem.CaseId == caseId,
-            cancellationToken);
+        await dbContext.ExecutionWorkItems
+            .Where(workItem =>
+                workItem.PropertyId == propertyId &&
+                workItem.CaseId == caseId &&
+                workItem.BatchId == batchId)
+            .OrderBy(workItem => workItem.OwnerKey)
+            .ThenBy(workItem => workItem.RecordType)
+            .ThenBy(workItem => workItem.RecordId)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
 
     public Task<DataRightsExecutionWorkItem?> GetAsync(
         Guid propertyId,

@@ -43,6 +43,7 @@
   <Folder Name="/docs/planning/">
     <File Path="docs/planning/adapter-http-client-task.md" />
     <File Path="docs/planning/architecture-cleanup-task.md" />
+    <File Path="docs/planning/data-rights-multi-owner-execution-task.md" />
     <File Path="docs/planning/development-guidelines.md" />
     <File Path="docs/planning/executable-personal-data-catalog-task.md" />
     <File Path="docs/planning/gma-access-control-properties-alignment.md" />

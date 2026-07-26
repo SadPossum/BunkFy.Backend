@@ -318,6 +318,69 @@ public sealed class DataRightsCaseTests
         Assert.Null(dataRightsCase.ExecutionStartedBy);
     }
 
+    [Theory]
+    [InlineData(2, 0, 0, 0, DataRightsCaseState.Completed)]
+    [InlineData(1, 0, 1, 0, DataRightsCaseState.PartiallyCompleted)]
+    [InlineData(0, 0, 1, 1, DataRightsCaseState.Blocked)]
+    public void Multi_owner_execution_reconciles_only_terminal_owner_outcomes(
+        int completed,
+        int noOp,
+        int blocked,
+        int failed,
+        DataRightsCaseState expectedState)
+    {
+        DataRightsCase dataRightsCase = CreateApprovedMultiOwnerAnonymisation();
+        Assert.True(dataRightsCase.BeginAnonymisationExecution(
+            7,
+            "user:executor",
+            Now.AddMinutes(7)).IsSuccess);
+
+        Assert.True(dataRightsCase.ReconcileAnonymisationExecution(
+            dataRightsCase.Version,
+            totalCount: 2,
+            completed,
+            noOp,
+            blocked,
+            failed,
+            "system:data-rights-anonymisation",
+            Now.AddMinutes(8)).IsSuccess);
+        Assert.Equal(expectedState, dataRightsCase.Status);
+        long terminalVersion = dataRightsCase.Version;
+        Assert.True(dataRightsCase.ReconcileAnonymisationExecution(
+            expectedVersion: 1,
+            totalCount: 2,
+            completed,
+            noOp,
+            blocked,
+            failed,
+            "system:data-rights-anonymisation",
+            Now.AddMinutes(9)).IsSuccess);
+        Assert.Equal(terminalVersion, dataRightsCase.Version);
+    }
+
+    [Fact]
+    public void Execution_reconciliation_rejects_incomplete_owner_counts()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedMultiOwnerAnonymisation();
+        Assert.True(dataRightsCase.BeginAnonymisationExecution(
+            7,
+            "user:executor",
+            Now.AddMinutes(7)).IsSuccess);
+
+        Assert.Equal(
+            "DataRights.ExecutionOutcomeInvalid",
+            dataRightsCase.ReconcileAnonymisationExecution(
+                dataRightsCase.Version,
+                totalCount: 2,
+                completedCount: 1,
+                noOpCount: 0,
+                blockedCount: 0,
+                failedCount: 0,
+                "system:data-rights-anonymisation",
+                Now.AddMinutes(8)).Error.Code);
+        Assert.Equal(DataRightsCaseState.Executing, dataRightsCase.Status);
+    }
+
     [Fact]
     public void Case_changes_reject_timestamp_regression()
     {
@@ -538,6 +601,65 @@ public sealed class DataRightsCaseTests
             5,
             "user:decision-maker",
             Now.AddMinutes(5),
+            evidence).IsSuccess);
+        return dataRightsCase;
+    }
+
+    private static DataRightsCase CreateApprovedMultiOwnerAnonymisation()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = Create(
+            propertyId,
+            DataRightsRequesterRelation.ControllerInitiated,
+            DataRightsCaseOperation.Anonymisation);
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator-a",
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            1,
+            2,
+            "user:operator-a",
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "reservations",
+            "reservation",
+            Guid.NewGuid(),
+            2,
+            3,
+            "user:operator-a",
+            Now.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            4,
+            "user:operator-a",
+            Now.AddMinutes(4)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            5,
+            "user:decision-maker",
+            Now.AddMinutes(5)).IsSuccess);
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                propertyId,
+                9,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('a', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                Now.AddMinutes(6)).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            6,
+            "user:decision-maker",
+            Now.AddMinutes(6),
             evidence).IsSuccess);
         return dataRightsCase;
     }

@@ -7,20 +7,23 @@ using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Messaging;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
     IDataRightsCaseRepository cases,
     IDataRightsExecutionWorkItemRepository workItems,
     IDataRightsOperationApprovalGate approvalGate,
-    ISystemClock clock)
+    IOutboxWriterRegistry outboxWriters,
+    ISystemClock clock,
+    IIdGenerator ids)
     : ICommandHandler<
         BeginDataRightsAnonymisationWorkItemCommand,
         DataRightsAnonymisationWorkItemStart>
 {
     internal static readonly TimeSpan OwnerCallTimeout = TimeSpan.FromMinutes(2);
-    private const string SystemActor = "system:data-rights-anonymisation";
     private const string ApprovalBlockedCode = "DataRights.ApprovalRevalidationDenied";
     private const string ApprovalEvidenceChangedCode =
         "DataRights.ApprovalEvidenceChanged";
@@ -88,23 +91,25 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (!approval.IsApproved || approval.ApprovalEvidence is null)
         {
-            return Block(
-                dataRightsCase,
+            return await this.BlockAsync(
                 workItem,
                 command,
                 ApprovalBlockedCode,
-                nowUtc);
+                nowUtc,
+                cancellationToken).ConfigureAwait(false);
         }
 
         DataRightsApprovalEvidence evidence = approval.ApprovalEvidence;
-        if (!MatchesFrozenEvidence(workItem, evidence))
+        if (dataRightsCase.ApprovalPolicyEvidence is not { } frozenEvidence ||
+            !DataRightsApprovalEvidenceComparer.Matches(frozenEvidence, evidence) ||
+            !MatchesFrozenEvidence(workItem, evidence))
         {
-            return Block(
-                dataRightsCase,
+            return await this.BlockAsync(
                 workItem,
                 command,
                 ApprovalEvidenceChangedCode,
-                nowUtc);
+                nowUtc,
+                cancellationToken).ConfigureAwait(false);
         }
 
         DataRightsAnonymisationContributionRequest request = new(
@@ -128,12 +133,12 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
             DataRightsAnonymisationWorkItemStart.Ready(workItem.Version, request));
     }
 
-    private static Result<DataRightsAnonymisationWorkItemStart> Block(
-        DataRightsCase dataRightsCase,
+    private async Task<Result<DataRightsAnonymisationWorkItemStart>> BlockAsync(
         DataRightsExecutionWorkItem workItem,
         BeginDataRightsAnonymisationWorkItemCommand command,
         string blockerCode,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
     {
         Result blocked = workItem.RecordBlocked(
             workItem.Version,
@@ -146,14 +151,19 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
             return Result.Failure<DataRightsAnonymisationWorkItemStart>(blocked.Error);
         }
 
-        Result caseBlocked = dataRightsCase.BlockAnonymisationExecution(
-            dataRightsCase.Version,
-            SystemActor,
-            nowUtc);
-        return caseBlocked.IsFailure
-            ? Result.Failure<DataRightsAnonymisationWorkItemStart>(caseBlocked.Error)
-            : Result.Success(
-                DataRightsAnonymisationWorkItemStart.Terminal(workItem.Version));
+        await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
+            new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
+                ids.NewId(),
+                workItem.ScopeId,
+                nowUtc,
+                workItem.BatchId,
+                workItem.Id,
+                workItem.CaseId,
+                workItem.PropertyId,
+                workItem.ExecutionRevision),
+            cancellationToken).ConfigureAwait(false);
+        return Result.Success(
+            DataRightsAnonymisationWorkItemStart.Terminal(workItem.Version));
     }
 
     private static bool MatchesFrozenEvidence(

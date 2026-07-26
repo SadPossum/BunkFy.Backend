@@ -10,6 +10,7 @@ using Gma.Framework.Results;
 
 internal sealed class GetDataRightsExecutionQueryHandler(
     IDataRightsCaseRepository cases,
+    IDataRightsExecutionBatchRepository batches,
     IDataRightsExecutionWorkItemRepository workItems)
     : IQueryHandler<GetDataRightsExecutionQuery, DataRightsExecutionDto>
 {
@@ -27,15 +28,28 @@ internal sealed class GetDataRightsExecutionQueryHandler(
                 DataRightsApplicationErrors.CaseNotFound);
         }
 
-        DataRightsExecutionWorkItem? workItem = await workItems.GetByCaseAsync(
+        DataRightsExecutionBatch? batch = await batches.GetByCaseAsync(
             query.PropertyId,
             query.CaseId,
             cancellationToken).ConfigureAwait(false);
-        return workItem is null
+        if (batch is null)
+        {
+            return Result.Failure<DataRightsExecutionDto>(
+                DataRightsApplicationErrors.ExecutionNotFound);
+        }
+
+        IReadOnlyCollection<DataRightsExecutionWorkItem> executionItems =
+            await workItems.ListByBatchAsync(
+                query.PropertyId,
+                query.CaseId,
+                batch.Id,
+                cancellationToken).ConfigureAwait(false);
+        return executionItems.Count != batch.SelectedSubjectCount
             ? Result.Failure<DataRightsExecutionDto>(
-                DataRightsApplicationErrors.ExecutionNotFound)
+                DataRightsApplicationErrors.ExecutionStateInvalid)
             : Result.Success(new DataRightsExecutionDto(
                 dataRightsCase.ToDto(),
-                workItem.ToDto()));
+                batch.ToDto(),
+                executionItems.Select(workItem => workItem.ToDto()).ToArray()));
     }
 }

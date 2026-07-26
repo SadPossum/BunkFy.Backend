@@ -10,8 +10,11 @@ using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Messaging;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
+using Gma.Framework.Runtime.Time;
 using Xunit;
 using SelectedSubject =
     BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
@@ -44,8 +47,9 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
         Assert.Null(ledgers.Entry);
 
         RecordingDeltaStore durable = new(throwBeforeAck: false);
+        RecordingOutbox outbox = new();
         FinalizeDataRightsAnonymisationLedgerCommandHandler handler =
-            CreateHandler(fixture, ledgers, durable);
+            CreateHandler(fixture, ledgers, durable, outbox);
         Result<Unit> completed = await handler.HandleAsync(
             command,
             CancellationToken.None);
@@ -58,6 +62,11 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
         Assert.True(replay.IsSuccess);
         Assert.Equal(1, ledgers.AddCount);
         Assert.Equal(2, durable.AppendCount);
+        Assert.Equal(
+            DataRightsExecutionWorkItemState.Completed,
+            fixture.WorkItem.State);
+        Assert.IsType<DataRightsAnonymisationWorkItemTerminalIntegrationEvent>(
+            Assert.Single(outbox.Events));
         Assert.All(
             durable.Deltas,
             delta => Assert.Equal(ledgerEntryId, delta.Ledger.EntryId));
@@ -97,14 +106,18 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
         CreateHandler(
             ExecutionFixture fixture,
             RecordingLedgerRepository ledgers,
-            RecordingDeltaStore deltaStore) =>
+            RecordingDeltaStore deltaStore,
+            RecordingOutbox? outbox = null) =>
         new(
             fixture.Cases,
             fixture.WorkItems,
             ledgers,
             new StubPseudonymizer(),
             new StubReplayProtector(),
-            deltaStore);
+            deltaStore,
+            new RecordingOutboxRegistry(outbox ?? new RecordingOutbox()),
+            new TestClock(),
+            new TestIdGenerator());
 
     private static FinalizeDataRightsAnonymisationLedgerCommand Command(
         ExecutionFixture fixture) =>
@@ -182,6 +195,7 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
                 Guid.NewGuid(),
                 dataRightsCase.ScopeId,
                 Guid.NewGuid(),
+                Guid.NewGuid(),
                 dataRightsCase.Id,
                 propertyId,
                 approvalRevision: 6,
@@ -258,11 +272,18 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<DataRightsExecutionWorkItem?> GetByCaseAsync(
+        public Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
             Guid propertyId,
             Guid caseId,
+            Guid batchId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<DataRightsExecutionWorkItem?>(workItem);
+            Task.FromResult(
+                (IReadOnlyCollection<DataRightsExecutionWorkItem>)(
+                    workItem.PropertyId == propertyId &&
+                    workItem.CaseId == caseId &&
+                    workItem.BatchId == batchId
+                        ? [workItem]
+                        : []));
 
         public Task<DataRightsExecutionWorkItem?> GetAsync(
             Guid propertyId,
@@ -407,5 +428,40 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
             int pageSize,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class TestClock : ISystemClock
+    {
+        public DateTimeOffset UtcNow => Now.AddSeconds(2);
+    }
+
+    private sealed class TestIdGenerator : IIdGenerator
+    {
+        public Guid NewId() => Guid.NewGuid();
+    }
+
+    private sealed class RecordingOutbox : IOutboxWriter
+    {
+        public List<object> Events { get; } = [];
+        public string ModuleName => DataRightsModuleMetadata.Name;
+
+        public Task EnqueueAsync<TEvent>(
+            TEvent integrationEvent,
+            CancellationToken cancellationToken)
+            where TEvent : IIntegrationEvent
+        {
+            this.Events.Add(integrationEvent);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOutboxRegistry(RecordingOutbox outbox)
+        : IOutboxWriterRegistry
+    {
+        public IOutboxWriter GetRequired(string moduleName)
+        {
+            Assert.Equal(DataRightsModuleMetadata.Name, moduleName);
+            return outbox;
+        }
     }
 }

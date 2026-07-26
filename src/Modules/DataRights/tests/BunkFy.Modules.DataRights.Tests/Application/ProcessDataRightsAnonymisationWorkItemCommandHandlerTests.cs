@@ -11,7 +11,9 @@ using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Pagination;
+using Gma.Framework.Messaging;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Xunit;
 using SelectedSubject = BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
@@ -34,7 +36,9 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
             fixture.Cases,
             fixture.WorkItems,
             gate,
-            clock);
+            new RecordingOutboxRegistry(new RecordingOutbox()),
+            clock,
+            new TestIdGenerator());
         Guid taskRunId = Guid.NewGuid();
 
         Result<DataRightsAnonymisationWorkItemStart> started =
@@ -62,7 +66,9 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
         RecordDataRightsAnonymisationOwnerResultCommandHandler record = new(
             fixture.Cases,
             fixture.WorkItems,
-            clock);
+            new RecordingOutboxRegistry(new RecordingOutbox()),
+            clock,
+            new TestIdGenerator());
         Result<Gma.Framework.Cqrs.Unit> recorded = await record.HandleAsync(
             new RecordDataRightsAnonymisationOwnerResultCommand(
                 fixture.WorkItem.Id,
@@ -93,17 +99,20 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
     }
 
     [Fact]
-    public async Task Approval_revalidation_denial_blocks_case_before_owner_dispatch()
+    public async Task Approval_revalidation_denial_blocks_work_item_before_owner_dispatch()
     {
         ExecutionFixture fixture = CreateFixture();
         RecordingApprovalGate gate = new(
             DataRightsOperationApprovalResult.Denied(
                 DataRightsOperationApprovalDenial.ApprovalRevisionMismatch));
+        RecordingOutbox outbox = new();
         BeginDataRightsAnonymisationWorkItemCommandHandler begin = new(
             fixture.Cases,
             fixture.WorkItems,
             gate,
-            new MutableClock(Now));
+            new RecordingOutboxRegistry(outbox),
+            new MutableClock(Now),
+            new TestIdGenerator());
 
         Result<DataRightsAnonymisationWorkItemStart> result =
             await begin.HandleAsync(
@@ -112,13 +121,15 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.False(result.Value.DispatchRequired);
-        Assert.Equal(DataRightsCaseState.Blocked, fixture.Case.Status);
+        Assert.Equal(DataRightsCaseState.Executing, fixture.Case.Status);
         Assert.Equal(
             DataRightsExecutionWorkItemState.Blocked,
             fixture.WorkItem.State);
         Assert.Equal(
             "DataRights.ApprovalRevalidationDenied",
             fixture.WorkItem.OutcomeCode);
+        Assert.IsType<DataRightsAnonymisationWorkItemTerminalIntegrationEvent>(
+            Assert.Single(outbox.Events));
     }
 
     private static BeginDataRightsAnonymisationWorkItemCommand Command(
@@ -202,6 +213,7 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
                 Guid.NewGuid(),
                 dataRightsCase.ScopeId,
                 Guid.NewGuid(),
+                Guid.NewGuid(),
                 dataRightsCase.Id,
                 propertyId,
                 approvalRevision: 6,
@@ -252,14 +264,18 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
             DataRightsExecutionWorkItem ignored,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<DataRightsExecutionWorkItem?> GetByCaseAsync(
+        public Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
             Guid propertyId,
             Guid caseId,
+            Guid batchId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                workItem.PropertyId == propertyId && workItem.CaseId == caseId
-                    ? workItem
-                    : null);
+                (IReadOnlyCollection<DataRightsExecutionWorkItem>)(
+                    workItem.PropertyId == propertyId &&
+                    workItem.CaseId == caseId &&
+                    workItem.BatchId == batchId
+                        ? [workItem]
+                        : []));
 
         public Task<DataRightsExecutionWorkItem?> GetAsync(
             Guid propertyId,
@@ -291,5 +307,35 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
     private sealed class MutableClock(DateTimeOffset utcNow) : ISystemClock
     {
         public DateTimeOffset UtcNow { get; set; } = utcNow;
+    }
+
+    private sealed class TestIdGenerator : IIdGenerator
+    {
+        public Guid NewId() => Guid.NewGuid();
+    }
+
+    private sealed class RecordingOutbox : IOutboxWriter
+    {
+        public List<object> Events { get; } = [];
+        public string ModuleName => DataRightsModuleMetadata.Name;
+
+        public Task EnqueueAsync<TEvent>(
+            TEvent integrationEvent,
+            CancellationToken cancellationToken)
+            where TEvent : IIntegrationEvent
+        {
+            this.Events.Add(integrationEvent);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOutboxRegistry(RecordingOutbox outbox)
+        : IOutboxWriterRegistry
+    {
+        public IOutboxWriter GetRequired(string moduleName)
+        {
+            Assert.Equal(DataRightsModuleMetadata.Name, moduleName);
+            return outbox;
+        }
     }
 }
