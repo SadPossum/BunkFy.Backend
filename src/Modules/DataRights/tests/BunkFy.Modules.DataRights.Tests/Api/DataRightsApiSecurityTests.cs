@@ -109,6 +109,57 @@ public sealed class DataRightsApiSecurityTests
         Assert.Equal("0", context.Response.Headers.Expires);
     }
 
+    [Fact]
+    public async Task Operator_endpoints_publish_their_success_contracts()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new DataRightsModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+        const string cases = "/api/data-rights/properties/{propertyId:guid}/cases";
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            cases,
+            typeof(DataRightsCaseListResponse));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}",
+            typeof(DataRightsCaseDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/subjects/discover",
+            typeof(DataRightsSubjectDiscoveryResponse));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/subjects",
+            typeof(DataRightsSelectedSubjectsResponse));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/subjects/select",
+            typeof(DataRightsCaseDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/execution",
+            typeof(DataRightsExecutionDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/execution",
+            typeof(DataRightsExecutionDto));
+    }
+
     private static void AssertPermission(
         IEnumerable<RouteEndpoint> endpoints,
         string method,
@@ -165,6 +216,19 @@ public sealed class DataRightsApiSecurityTests
                 metadata.GetType().Name,
                 "AuthenticationAssuranceMetadata",
                 StringComparison.Ordinal));
+    }
+
+    private static void AssertProduces(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route,
+        Type responseType)
+    {
+        RouteEndpoint endpoint = FindEndpoint(endpoints, method, route);
+        IProducesResponseTypeMetadata response = Assert.Single(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+        Assert.Equal(responseType, response.Type);
     }
 
     private static RouteEndpoint FindEndpoint(

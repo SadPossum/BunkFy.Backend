@@ -65,6 +65,7 @@ public sealed class DataRightsModule : IModule
                     pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(
                     DataRightsEndpointSupport.ErrorStatusCodes))
+            .Produces<DataRightsCaseListResponse>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Read,
@@ -79,6 +80,7 @@ public sealed class DataRightsModule : IModule
                 new GetDataRightsCaseQuery(propertyId, caseId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(
                     DataRightsEndpointSupport.ErrorStatusCodes))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Read,
@@ -105,6 +107,7 @@ public sealed class DataRightsModule : IModule
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(
                         DataRightsEndpointSupport.ErrorStatusCodes);
         })
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Create,
@@ -128,6 +131,7 @@ public sealed class DataRightsModule : IModule
                     actor),
                 dispatcher,
                 cancellationToken).ConfigureAwait(false))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Review,
@@ -150,6 +154,7 @@ public sealed class DataRightsModule : IModule
                     actor),
                 dispatcher,
                 cancellationToken).ConfigureAwait(false))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Review,
@@ -172,6 +177,7 @@ public sealed class DataRightsModule : IModule
                     actor),
                 dispatcher,
                 cancellationToken).ConfigureAwait(false))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Discover,
@@ -194,6 +200,7 @@ public sealed class DataRightsModule : IModule
                     actor),
                 dispatcher,
                 cancellationToken).ConfigureAwait(false))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Review,
@@ -216,6 +223,7 @@ public sealed class DataRightsModule : IModule
                     actor),
                 dispatcher,
                 cancellationToken).ConfigureAwait(false))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Decide,
@@ -240,6 +248,7 @@ public sealed class DataRightsModule : IModule
                     actor),
                 dispatcher,
                 cancellationToken).ConfigureAwait(false))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Decide,
@@ -262,6 +271,7 @@ public sealed class DataRightsModule : IModule
                     actor),
                 dispatcher,
                 cancellationToken).ConfigureAwait(false))
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Manage,

@@ -49,7 +49,7 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
         }
 
         Result<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>> contributorSet =
-            DataRightsSubjectContributorSet.Order(contributors);
+            this.ResolveContributors(query.OwnerKey);
         if (contributorSet.IsFailure)
         {
             return Result.Failure<DataRightsSubjectDiscoveryResponse>(contributorSet.Error);
@@ -112,6 +112,23 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
             .Take(DataRightsSubjectDiscoveryLimits.MaxCandidates)
             .ToArray();
         return Result.Success(new DataRightsSubjectDiscoveryResponse(bounded));
+    }
+
+    private Result<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>> ResolveContributors(
+        string? ownerKey)
+    {
+        if (ownerKey is null)
+        {
+            return DataRightsSubjectContributorSet.Order(contributors);
+        }
+
+        Result<IDataRightsSubjectDiscoveryContributor> contributor =
+            DataRightsSubjectContributorSet.Find(contributors, ownerKey);
+        return contributor.IsSuccess
+            ? Result.Success<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>>(
+                [contributor.Value])
+            : Result.Failure<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>>(
+                contributor.Error);
     }
 
     private static bool IsValid(

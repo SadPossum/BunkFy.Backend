@@ -288,6 +288,29 @@ public sealed class LocalFileDataRightsLedgerDeltaStoreTests
     }
 
     [Fact]
+    public async Task Missing_provider_fails_closed_with_a_stable_code()
+    {
+        MissingDataRightsLedgerDeltaStore store = new();
+
+        DataRightsLedgerDeltaStoreReadiness readiness =
+            await store.CheckReadinessAsync(CancellationToken.None);
+        DataRightsLedgerDeltaStoreException failure =
+            await Assert.ThrowsAsync<DataRightsLedgerDeltaStoreException>(
+                () => store.ReadTrustedCheckpointAsync(
+                    "tenant-a",
+                    CancellationToken.None));
+
+        Assert.False(readiness.IsReady);
+        Assert.False(readiness.IsProductionGrade);
+        Assert.Equal(
+            MissingDataRightsLedgerDeltaStore.FailureCode,
+            readiness.FailureCode);
+        Assert.Equal(
+            MissingDataRightsLedgerDeltaStore.FailureCode,
+            failure.Code);
+    }
+
+    [Fact]
     public async Task Restore_startup_gate_marks_an_empty_stable_snapshot_ready()
     {
         ServiceCollection services = new();

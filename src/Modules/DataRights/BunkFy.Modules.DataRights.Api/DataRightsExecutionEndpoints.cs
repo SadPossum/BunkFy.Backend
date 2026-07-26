@@ -34,6 +34,7 @@ internal static class DataRightsExecutionEndpoints
                 cancellationToken).ConfigureAwait(false))
                 .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
         })
+            .Produces<DataRightsExecutionDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Read,
@@ -64,6 +65,7 @@ internal static class DataRightsExecutionEndpoints
                         cancellationToken).ConfigureAwait(false))
                         .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
             })
+            .Produces<DataRightsExecutionDto>()
             .RequireTenant()
             .RequireAllPermissions(
                 TenantAccessPermissionMetadata.Create(

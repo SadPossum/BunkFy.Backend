@@ -15,7 +15,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /var/lib/bunkfy/data-protection /var/lib/bunkfy/file-drop \
+    && mkdir -p /var/lib/bunkfy/data-protection /var/lib/bunkfy/file-drop /var/lib/bunkfy/data-rights-ledger-delta \
     && chown -R app:app /var/lib/bunkfy
 USER app
 WORKDIR /app

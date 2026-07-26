@@ -6,4 +6,5 @@ using Gma.Framework.Cqrs;
 public sealed record DiscoverDataRightsSubjectsQuery(
     Guid PropertyId,
     Guid CaseId,
-    DataRightsSubjectLookup Lookup) : IQuery<DataRightsSubjectDiscoveryResponse>;
+    DataRightsSubjectLookup Lookup,
+    string? OwnerKey = null) : IQuery<DataRightsSubjectDiscoveryResponse>;

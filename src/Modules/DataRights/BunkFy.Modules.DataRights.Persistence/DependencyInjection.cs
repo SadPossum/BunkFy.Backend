@@ -195,6 +195,9 @@ public static class DependencyInjection
         }
 
         builder.Services.TryAddSingleton<
+            IDataRightsLedgerDeltaStore,
+            MissingDataRightsLedgerDeltaStore>();
+        builder.Services.TryAddSingleton<
             IDataRightsRestoreScopeSource,
             MissingDataRightsRestoreScopeSource>();
         builder.Services.TryAddEnumerable(

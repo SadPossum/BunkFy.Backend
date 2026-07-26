@@ -9,7 +9,7 @@ using Xunit;
 public sealed class DataRightsSubjectLookupPolicyTests
 {
     [Fact]
-    public void Exactly_one_guest_id_email_or_phone_is_required()
+    public void Exactly_one_record_id_email_or_phone_is_required()
     {
         DataRightsSubjectLookup[] invalidLookups =
         [
@@ -22,7 +22,7 @@ public sealed class DataRightsSubjectLookupPolicyTests
         foreach (DataRightsSubjectLookup lookup in invalidLookups)
         {
             Assert.Contains(
-                "Exactly one non-empty guest id, email, or phone is required.",
+                "Exactly one non-empty record id, email, or phone is required.",
                 DataRightsSubjectLookupPolicy.Validate(lookup));
             Assert.True(DataRightsSubjectLookupPolicy.Normalize(lookup).IsFailure);
         }

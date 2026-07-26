@@ -29,6 +29,7 @@ internal static class DataRightsDiscoveryEndpoints
                 cancellationToken).ConfigureAwait(false))
                 .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
         })
+            .Produces<DataRightsSelectedSubjectsResponse>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Discover,
@@ -52,10 +53,12 @@ internal static class DataRightsDiscoveryEndpoints
                         request.Email,
                         request.Phone,
                         request.Name,
-                        request.DateOfBirth)),
+                        request.DateOfBirth),
+                    request.OwnerKey),
                 cancellationToken).ConfigureAwait(false))
                 .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
         })
+            .Produces<DataRightsSubjectDiscoveryResponse>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Discover,
@@ -83,6 +86,7 @@ internal static class DataRightsDiscoveryEndpoints
                 dispatcher,
                 cancellationToken).ConfigureAwait(false);
         })
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Discover,
@@ -110,6 +114,7 @@ internal static class DataRightsDiscoveryEndpoints
                 dispatcher,
                 cancellationToken).ConfigureAwait(false);
         })
+            .Produces<DataRightsCaseDto>()
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Discover,
@@ -121,7 +126,8 @@ internal static class DataRightsDiscoveryEndpoints
         string? Email,
         string? Phone,
         string? Name,
-        DateOnly? DateOfBirth);
+        DateOnly? DateOfBirth,
+        string? OwnerKey);
 
     public sealed record SelectDataRightsSubjectRequest(
         DataRightsSubjectCoordinate Coordinate,

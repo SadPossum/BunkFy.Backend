@@ -13,7 +13,7 @@ public static class DataRightsApplicationErrors
         "The data-rights case was not found.");
     public static readonly Error DiscoveryCriteriaInvalid = new(
         "DataRights.DiscoveryCriteriaInvalid",
-        "Sensitive discovery requires exactly one valid guest id, email, or phone.");
+        "Sensitive discovery requires exactly one valid record id, email, or phone.");
     public static readonly Error DiscoveryScopeUnavailable = new(
         "DataRights.DiscoveryScopeUnavailable",
         "The requested property is not available in the owner projection.");

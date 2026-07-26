@@ -5,6 +5,7 @@ using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Handlers;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Application.Queries;
+using BunkFy.Modules.DataRights.Application.Validation;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
@@ -18,6 +19,123 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class DataRightsSubjectDiscoveryHandlerTests
 {
+    [Fact]
+    public async Task Exact_owner_filter_is_normalized_and_does_not_invoke_other_owners()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        DataRightsSubjectCandidate reservation = Candidate("reservations", Guid.NewGuid());
+        StubContributor guests = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success(
+                [Candidate("guests", Guid.NewGuid())]));
+        StubContributor reservations = new(
+            "reservations",
+            _ => DataRightsSubjectDiscoveryResult.Success([reservation]));
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [guests, reservations],
+            new TestScopeContext());
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                propertyId,
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(null, "guest@example.test", null, null, null),
+                " RESERVATIONS "),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([reservation], result.Value.Candidates);
+        Assert.Equal(0, guests.DiscoveryInvocationCount);
+        Assert.Equal(1, reservations.DiscoveryInvocationCount);
+    }
+
+    [Fact]
+    public async Task Unknown_owner_filter_fails_closed_without_invoking_contributors()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        StubContributor guests = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success([]));
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [guests],
+            new TestScopeContext());
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                propertyId,
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(null, "guest@example.test", null, null, null),
+                "reservations"),
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerUnavailable, result.Error);
+        Assert.Equal(0, guests.DiscoveryInvocationCount);
+    }
+
+    [Fact]
+    public async Task Filtered_discovery_fails_closed_for_duplicate_owner_registrations()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        StubContributor first = new(
+            "reservations",
+            _ => DataRightsSubjectDiscoveryResult.Success([]));
+        StubContributor duplicate = new(
+            " RESERVATIONS ",
+            _ => DataRightsSubjectDiscoveryResult.Success([]));
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [first, duplicate],
+            new TestScopeContext());
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                propertyId,
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(Guid.NewGuid(), null, null, null, null),
+                "reservations"),
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerUnavailable, result.Error);
+        Assert.Equal(0, first.DiscoveryInvocationCount);
+        Assert.Equal(0, duplicate.DiscoveryInvocationCount);
+    }
+
+    [Fact]
+    public void Owner_filter_rejects_blank_and_oversized_values()
+    {
+        DiscoverDataRightsSubjectsQueryValidator validator = new();
+        DataRightsSubjectLookup lookup = new(
+            Guid.NewGuid(),
+            null,
+            null,
+            null,
+            null);
+
+        string[][] errors =
+        [
+            validator.Validate(new(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                lookup,
+                " ")).ToArray(),
+            validator.Validate(new(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                lookup,
+                new string('o', DataRightsSubjectDiscoveryLimits.OwnerKeyMaxLength + 1))).ToArray()
+        ];
+
+        Assert.All(errors, validationErrors =>
+            Assert.Contains(validationErrors, error => error.StartsWith(
+                "OwnerKey must contain between 1 and ",
+                StringComparison.Ordinal)));
+    }
+
     [Fact]
     public async Task Duplicate_candidates_do_not_starve_later_owners()
     {
@@ -278,9 +396,15 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
     {
         public string OwnerKey => ownerKey;
 
+        public int DiscoveryInvocationCount { get; private set; }
+
         public Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
             DataRightsSubjectDiscoveryRequest request,
-            CancellationToken cancellationToken) => Task.FromResult(discover(request));
+            CancellationToken cancellationToken)
+        {
+            this.DiscoveryInvocationCount++;
+            return Task.FromResult(discover(request));
+        }
 
         public Task<DataRightsSubjectSelectionValidation> ValidateSelectionAsync(
             DataRightsSubjectSelectionRequest request,

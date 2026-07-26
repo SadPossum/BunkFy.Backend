@@ -1,9 +1,9 @@
 # Reservations Data Rights Workflow Task
 
-Status: sixth implementation slice complete; discovery, export, correction,
+Status: seventh implementation slice complete. Discovery, export, correction,
 processing restriction, holds, destructive eligibility, irreversible
-Reservations-owned redaction, DataRights dispatch, protected ledger, tombstone
-and restore replay are implemented
+Reservations-owned redaction, DataRights dispatch, protected ledger, tombstone,
+restore replay and the first authorized operator workflow are implemented.
 
 ## Outcome
 
@@ -259,6 +259,81 @@ ungated.
 Only one numbered slice is implemented at a time. Existing modules may be
 touched through contracts, projections and tests, but Reservations remains the
 only owner of its data.
+
+## Seventh-Slice Design
+
+- The existing DataRights case API remains the only product orchestration
+  surface. The UI does not call a direct Reservations erasure endpoint or
+  reconstruct approval, work-item or ledger state in the browser.
+- Sensitive discovery accepts an optional exact owner key. When supplied,
+  DataRights resolves exactly one registered contributor before executing the
+  bounded lookup. Unknown, duplicate or unavailable owners fail closed. The
+  Reservations operator flow always supplies `reservations`, preventing Guest
+  candidates from consuming the bounded result set or exposing unrelated
+  subject data.
+- The property-scoped management page is named `Privacy requests`. Its first
+  complete workflow supports one separately approved `Anonymisation`
+  operation against one exact Reservations coordinate. Access export,
+  correction, restriction, multi-owner cases and tenant termination remain
+  outside this UI slice even though their backend foundations may already
+  exist.
+- Case lists contain only the existing PII-minimal case DTO and use status
+  filtering plus bounded pagination. Discovery responses are transient
+  component state: they are not written to URLs, browser storage, query cache,
+  notifications, logs or analytics, and are cleared when the case, property or
+  modal changes.
+- The case detail renders server-owned lifecycle state and exposes only the
+  next valid actions: requester verification and controller routing,
+  discovery, exact selection, review, decision, and execution. Each action is
+  independently permission gated at the existing property or tenant scope.
+  Optimistic versions come only from the latest server response.
+- Approval and irreversible execution remain separate duties. The UI explains
+  that the approver cannot execute the same case, while the existing domain
+  invariant remains authoritative. The destructive confirmation generates one
+  in-memory idempotency key that is retained for exact retries and discarded
+  after success, case close or coordinate change.
+- Execution still requires tenant-scoped `data-rights.erase`,
+  property-scoped `data-rights.read`, and the host-configured recent
+  authentication assurance. Browser controls never weaken or emulate these
+  server checks.
+- Executing work is refreshed only while the case or work item is non-terminal,
+  using the existing bounded foreground polling intervals. Completion
+  invalidates case data plus the affected Reservations list, detail, history
+  and dependent Guest-stay views; ordinary reservation surfaces must no longer
+  reveal the redacted booking.
+- DataRights and Reservations keep all current persistence ownership. No new
+  database table is required for this slice. Existing additive migrations and
+  restore replay are exercised from the operator path through real PostgreSQL,
+  NATS and Worker composition.
+- Admin API and Admin CLI do not gain personal-data discovery or destructive
+  shortcuts in this slice. A later remote-operations surface must call the same
+  application workflow and preserve the same assurance and separation rules.
+  GMA remains unchanged.
+
+## Seventh-Slice Acceptance Plan
+
+- Application tests prove exact owner-filter normalization, unknown-owner
+  denial, duplicate-owner denial, unfiltered compatibility, bounded ordering
+  and no invocation of unrelated contributors.
+- API metadata and integration tests prove sensitive no-store responses,
+  property-scoped lifecycle permissions, tenant-scoped erase permission,
+  recent-authentication assurance and stable error mapping.
+- Web tests cover lifecycle action derivation, status and decision labels,
+  terminal polling decisions, transient discovery handling, exact idempotency
+  reuse and permission-aware navigation. Generated OpenAPI contracts remain
+  drift free.
+- A real PostgreSQL, NATS and Worker operator-path test creates, verifies,
+  routes, discovers, selects, reviews, separately approves and executes one
+  Reservation anonymisation, then proves ordinary surfaces exclude it while
+  case, work item, ledger, owner receipt and tombstone evidence agree.
+- Browser evidence uses separate authorized approver and executor accounts. It
+  covers desktop and mobile layout, masked discovery, stale-version recovery,
+  denied same-actor execution, recent-authentication denial, successful
+  execution, live terminal refresh and disappearance from ordinary reservation
+  views.
+- Full architecture, migration-drift, non-Docker, Docker, generated-contract,
+  dependency, security and exact-commit backend/web/root publication gates must
+  pass before slice completion.
 
 ## Sixth-Slice Design
 
@@ -781,6 +856,58 @@ only owner of its data.
 - `eng/test-docker.ps1 -NoBuild` passes all 52 Docker integration tests.
   Recursive submodule status confirms no GMA source or pointer change belongs
   to this slice.
+
+## Completed Seventh Slice
+
+- DataRights discovery accepts an optional normalized exact owner key and
+  resolves one contributor before running the bounded query. Unknown,
+  duplicate, blank and oversized owner filters fail closed without invoking
+  unrelated contributors; the existing unfiltered contract remains compatible.
+- Every operator endpoint publishes its success response metadata, keeping the
+  generated web OpenAPI contract complete for list, detail, discovery,
+  selection and execution workflows.
+- The property-scoped `Privacy requests` surface implements an
+  Anonymisation-only queue and detail workflow with permission-aware
+  navigation, bounded pagination, transient reservation matching, server-owned
+  lifecycle actions, split approval and execution, exact retry idempotency and
+  terminal query invalidation.
+- Preview composition uses three distinct generated 32-byte keys and a
+  protected local ledger volume shared by API, Worker and management hosts.
+  This is explicitly a Preview-only topology; Production still rejects the
+  local provider and requires a separately registered production-grade store.
+- An unavailable external ledger provider now resolves to a fail-closed store
+  with a stable readiness code instead of failing with an opaque dependency
+  injection error. Runtime images create the protected ledger mount point with
+  the correct application ownership.
+- No database model changed and no migration was required. DataRights and
+  Reservations retain their existing persistence and orchestration ownership;
+  GMA remains unchanged.
+
+## Seventh-Slice Acceptance Evidence
+
+- The complete DataRights suite passes 122 tests, including owner-filter
+  normalization, unknown and duplicate owner denial, unrelated-contributor
+  isolation, OpenAPI success metadata and stable missing-provider readiness.
+- Web contract drift checks pass. TypeScript, lint, all 114 web tests and the
+  production bundle pass with the privacy workflow emitted as its own lazy
+  route chunk.
+- A live preview walkthrough with an authorized operator covers request
+  creation, requester verification, controller routing, exact
+  Reservations-only matching, a no-match result, guarded cancellation and
+  clean desktop and mobile layouts. Browser errors and warnings remain empty;
+  no reservation is destructively changed by this drill.
+- `eng/verify.ps1 -SkipRestore` passes solution synchronization,
+  source-package ownership, a zero-warning full build, every GMA and BunkFy
+  migration-drift check, 64 architecture tests and all non-Docker suites.
+- `eng/test-docker.ps1 -NoBuild` passes all 52 Docker integration tests. The
+  existing real PostgreSQL, NATS and Worker anonymisation drill proves
+  separately authorized execution, ordinary-surface exclusion, protected
+  ledger and owner proof, restored-backup re-scrubbing and checkpoint
+  readiness.
+- Preview PowerShell scripts parse, Compose config validates, the protected
+  ledger volume exists, and API, Worker, web, PostgreSQL, NATS, Redis and MinIO
+  are healthy. Recursive status confirms no GMA source or pointer change
+  belongs to this slice.
 
 ## Non-Goals
 

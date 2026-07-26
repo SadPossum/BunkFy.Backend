@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Application.Validation;
 
 using BunkFy.Modules.DataRights.Application.Queries;
+using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Cqrs;
 
 internal sealed class DiscoverDataRightsSubjectsQueryValidator
@@ -11,6 +12,14 @@ internal sealed class DiscoverDataRightsSubjectsQueryValidator
         if (query.PropertyId == Guid.Empty || query.CaseId == Guid.Empty)
         {
             yield return "PropertyId and CaseId are required.";
+        }
+
+        if (query.OwnerKey is not null &&
+            (string.IsNullOrWhiteSpace(query.OwnerKey) ||
+                query.OwnerKey.Trim().Length > DataRightsSubjectDiscoveryLimits.OwnerKeyMaxLength))
+        {
+            yield return $"OwnerKey must contain between 1 and " +
+                $"{DataRightsSubjectDiscoveryLimits.OwnerKeyMaxLength} characters when supplied.";
         }
 
         foreach (string error in DataRightsSubjectLookupPolicy.Validate(query.Lookup))

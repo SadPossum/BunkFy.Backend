@@ -20,7 +20,7 @@ internal static class DataRightsSubjectLookupPolicy
             (!string.IsNullOrWhiteSpace(lookup.Phone) ? 1 : 0);
         if (strongCoordinates != 1 || lookup.RecordId == Guid.Empty)
         {
-            yield return "Exactly one non-empty guest id, email, or phone is required.";
+            yield return "Exactly one non-empty record id, email, or phone is required.";
         }
 
         string? email = NormalizeOptional(lookup.Email)?.ToLowerInvariant();
