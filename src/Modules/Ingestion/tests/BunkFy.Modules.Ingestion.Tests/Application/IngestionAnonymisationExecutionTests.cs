@@ -40,12 +40,12 @@ public sealed class IngestionAnonymisationExecutionTests
             new(IngestionAnonymisationRestoreTests.Now.AddHours(1));
         IngestionAnonymisationRestoreTests.TestRawPayloadStore
             rawPayloads = new();
+        byte[] rawPayload = Encoding.UTF8.GetBytes(
+            string.Concat("{\"guest\":\"", "Maya Chen", "\"}"));
         rawPayloads.Add(
             seeded.Receipt.RawPayloadFileId,
             seeded.Receipt.ConnectionId,
-            Encoding.UTF8.GetBytes(
-                                     /*lang=json,strict*/
-                                     """{"guest":"Maya Chen"}"""));
+            rawPayload);
         IngestionAnonymisationRestoreRepository repository = new(
             dbContext,
             new IngestionDataRightsEvidenceGraphLoader(dbContext));
