@@ -70,7 +70,10 @@ internal sealed class IngestionDataRightsExportContributor(
                 link =>
                     link.PropertyId == request.PropertyId &&
                     link.Id == coordinate.RecordId &&
-                    link.ReservationId != null,
+                    link.ReservationId != null &&
+                    link.State != ReservationSourceLinkState.Anonymised &&
+                    !dbContext.AnonymisationTombstones.Any(tombstone =>
+                        tombstone.Id == link.Id),
                 cancellationToken)
             .ConfigureAwait(false);
         if (sourceLink is null)

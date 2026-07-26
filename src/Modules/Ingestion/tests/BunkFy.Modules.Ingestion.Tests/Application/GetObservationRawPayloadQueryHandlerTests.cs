@@ -95,6 +95,35 @@ public sealed class GetObservationRawPayloadQueryHandlerTests
         Assert.Equal(0, payloads.ReadCount);
     }
 
+    [Fact]
+    public async Task Anonymisation_purge_blocks_object_storage_reads()
+    {
+        Guid propertyId = Guid.NewGuid();
+        ObservationReceiptDto receipt = CreateReceipt(
+            propertyId,
+            ContentHash) with
+        {
+            RawPayloadStatus = RawPayloadRetentionStatus.Purging
+        };
+        FakeRawPayloadStore payloads = new(
+            new RawPayloadRead("application/json", Content, ContentHash));
+        GetObservationRawPayloadQueryHandler handler = new(
+            new FakeOperationsReader(receipt),
+            payloads,
+            new TestScope());
+
+        Result<ObservationRawPayload> result = await handler.HandleAsync(
+            new GetObservationRawPayloadQuery(
+                propertyId,
+                receipt.ReceiptId),
+            CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.RawPayloadPurgeInProgress,
+            result.Error);
+        Assert.Equal(0, payloads.ReadCount);
+    }
+
     private static ObservationReceiptDto CreateReceipt(Guid propertyId, string contentHash) => new(
         Guid.NewGuid(),
         propertyId,

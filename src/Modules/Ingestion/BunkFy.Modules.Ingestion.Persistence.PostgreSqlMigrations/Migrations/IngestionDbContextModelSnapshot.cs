@@ -207,6 +207,210 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("KeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("TombstoneId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "TombstoneId");
+
+                    b.HasIndex("ScopeId", "Purpose", "KeyVersion", "Sha256")
+                        .IsUnique();
+
+                    b.ToTable("anonymisation_fingerprints", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_fingerprints_key_version", "\"KeyVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_fingerprints_purpose", "\"Purpose\" IN (1, 2)");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("RawPayloadConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("RawPayloadFileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ReductionVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResultingVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TombstoneId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "TombstoneId", "RawPayloadFileId");
+
+                    b.HasIndex("ScopeId", "TombstoneId", "Kind", "RecordId")
+                        .IsUnique();
+
+                    b.ToTable("anonymisation_record_plan", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_record_plan_kind", "\"Kind\" IN (1, 2, 3, 4, 5, 6)");
+
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_record_plan_raw_payload", "(\"RawPayloadFileId\" IS NULL AND \"RawPayloadConnectionId\" IS NULL) OR (\"Kind\" = 2 AND \"RawPayloadFileId\" IS NOT NULL AND \"RawPayloadConnectionId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_record_plan_versions", "\"SelectedVersion\" >= 1 AND \"ReductionVersion\" = \"SelectedVersion\" + CASE WHEN \"Kind\" = 5 THEN 0 ELSE 1 END AND \"ResultingVersion\" = \"ReductionVersion\" + CASE WHEN \"RawPayloadFileId\" IS NULL THEN 0 ELSE 1 END");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FingerprintCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GraphRecordCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LedgerEntrySha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("OriginallyCompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("OwnerReceiptContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OwnerReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("RawPayloadCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ReplayStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ResultingSourceLinkVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedSourceLinkVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("TenantSequence")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("State");
+
+                    b.HasIndex("ScopeId", "LedgerEntryId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "OwnerReceiptId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ConnectionId", "State");
+
+                    b.ToTable("anonymisation_tombstones", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_tombstones_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_tombstones_counts", "\"GraphRecordCount\" >= 1 AND \"FingerprintCount\" >= 1 AND \"RawPayloadCount\" >= 0");
+
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_tombstones_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_tombstones_state", "\"State\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_ingestion_anonymisation_tombstones_versions", "\"SelectedSourceLinkVersion\" >= 1 AND \"ResultingSourceLinkVersion\" = \"SelectedSourceLinkVersion\" + 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.LegalHolds.LegalHold", b =>
                 {
                     b.Property<Guid>("Id")
@@ -277,6 +481,9 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("BaseReservationDetailsRevision")
                         .HasColumnType("bigint");
@@ -367,6 +574,9 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
 
                     b.Property<Guid?>("ActiveReprocessingAttemptId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("ConnectionId")
                         .HasColumnType("uuid");
@@ -590,6 +800,9 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("AttemptId")
                         .HasColumnType("uuid");
 
@@ -637,6 +850,12 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
                     b.HasKey("Id");
 
                     b.HasAlternateKey("ScopeId", "Id");
@@ -646,7 +865,10 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ScopeId", "AttemptId", "OutputIndex")
                         .IsUnique();
 
-                    b.ToTable("observation_reprocessing_outputs", "ingestion");
+                    b.ToTable("observation_reprocessing_outputs", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_ingestion_observation_reprocessing_outputs_version", "\"Version\" >= 1");
+                        });
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.Reservations.ReservationDispatch", b =>
@@ -654,6 +876,9 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -753,6 +978,9 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
 
                     b.Property<Guid?>("ActiveProductOperationId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("ConnectionId")
                         .HasColumnType("uuid");
@@ -1046,6 +1274,37 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("SourceLinkId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "SourceLinkId")
+                        .IsUnique();
+
+                    b.ToTable("source_operation_locks", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_ingestion_source_operation_locks_revision", "\"Revision\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Gma.Framework.Messaging.Infrastructure.InboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1176,6 +1435,26 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                     b.HasOne("BunkFy.Modules.Ingestion.Domain.Connections.AdapterConnection", null)
                         .WithMany()
                         .HasForeignKey("ScopeId", "ConnectionId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "TombstoneId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "TombstoneId")
                         .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

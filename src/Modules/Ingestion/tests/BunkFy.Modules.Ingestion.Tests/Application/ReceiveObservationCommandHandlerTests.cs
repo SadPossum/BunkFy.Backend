@@ -14,6 +14,7 @@ using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
+using BunkFy.Modules.Ingestion.Domain.Reprocessing;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -138,7 +139,76 @@ public sealed class ReceiveObservationCommandHandlerTests
         Assert.Empty(context.Outbox.Events);
     }
 
-    private static TestContext CreateContext(IngestionRun? run = null, bool propertyActive = true)
+    [Fact]
+    public async Task Tombstoned_direct_observation_is_denied_before_storage()
+    {
+        TestContext context = CreateContext(anonymisationBlocked: true);
+
+        Result<AdapterObservationResult> result = await context.Handler
+            .HandleAsync(
+                CreateCommand(context.Connection.Id),
+                CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.AnonymisationBarrierActive,
+            result.Error);
+        Assert.Empty(context.Receipts.Items);
+        Assert.Empty(context.RawPayloads.Writes);
+        Assert.Empty(context.Outbox.Events);
+    }
+
+    [Fact]
+    public async Task Tombstoned_reprocessed_observation_is_denied_before_storage()
+    {
+        TestContext context = CreateContext(anonymisationBlocked: true);
+        ObservationReceipt source = CreateRejectedSource(context.Connection);
+        context.Receipts.Items.Add(source);
+        Guid attemptId = Guid.NewGuid();
+        ObservationReprocessingAttempt attempt =
+            ObservationReprocessingAttempt.Create(
+                attemptId,
+                "tenant-a",
+                context.Connection.PropertyId,
+                context.Connection.Id,
+                source.Id,
+                attemptId,
+                "reservation-mail",
+                1,
+                "staff:42",
+                Now.AddMinutes(-3),
+                Now.AddHours(2))
+            .Value;
+        Assert.True(attempt.Start(
+            attemptId,
+            taskAttempt: 1,
+            Now.AddMinutes(-2),
+            Now.AddHours(2)).IsSuccess);
+        context.ReprocessingAttempts.Items.Add(attempt);
+        ReceiveObservationCommand command =
+            CreateCommand(context.Connection.Id) with
+            {
+                SourceReceiptId = source.Id,
+                ReprocessingAttemptId = attempt.Id,
+                ParserType = attempt.ParserType,
+                ParserVersion = attempt.ParserVersion,
+                ParserOutputIndex = 0
+            };
+
+        Result<AdapterObservationResult> result = await context.Handler
+            .HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.AnonymisationBarrierActive,
+            result.Error);
+        Assert.Single(context.Receipts.Items);
+        Assert.Empty(context.RawPayloads.Writes);
+        Assert.Empty(context.Outbox.Events);
+    }
+
+    private static TestContext CreateContext(
+        IngestionRun? run = null,
+        bool propertyActive = true,
+        bool anonymisationBlocked = false)
     {
         AdapterConnection connection = AdapterConnection.Create(
             Guid.NewGuid(),
@@ -151,6 +221,7 @@ public sealed class ReceiveObservationCommandHandlerTests
             null,
             Now).Value;
         FakeReceiptRepository receipts = new();
+        FakeReprocessingAttemptRepository reprocessingAttempts = new();
         FakeRawPayloadStore rawPayloads = new();
         RecordingOutbox outbox = new();
         ServiceCollection services = new();
@@ -159,18 +230,28 @@ public sealed class ReceiveObservationCommandHandlerTests
             new TestCountryPolicyAdmission(allowed: propertyActive));
         services.AddSingleton<IIngestionRunRepository>(new FakeRunRepository(run));
         services.AddSingleton<IObservationReceiptRepository>(receipts);
-        services.AddSingleton<IObservationReprocessingAttemptRepository>(new FakeReprocessingAttemptRepository());
+        services.AddSingleton<IObservationReprocessingAttemptRepository>(
+            reprocessingAttempts);
         services.AddSingleton<IRawPayloadStore>(rawPayloads);
         services.AddSingleton<IIngestionRetentionPolicy>(new TestRetentionPolicy());
         services.AddSingleton<IOutboxWriterRegistry>(new RecordingOutboxRegistry(outbox));
         services.AddSingleton<IScopeContext>(new TestScopeContext());
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
+        if (anonymisationBlocked)
+        {
+            services.AddBlockingAnonymisationBarrier();
+        }
+        else
+        {
+            services.AddAllowingAnonymisationBarrier();
+        }
         services.AddIngestionApplication();
         ServiceProvider provider = services.BuildServiceProvider();
         return new(
             connection,
             receipts,
+            reprocessingAttempts,
             rawPayloads,
             outbox,
             provider.GetRequiredService<ICommandHandler<ReceiveObservationCommand, AdapterObservationResult>>());
@@ -193,9 +274,44 @@ public sealed class ReceiveObservationCommandHandlerTests
             AdapterPayloadHash.ComputeSha256(payload));
     }
 
+    private static ObservationReceipt CreateRejectedSource(
+        AdapterConnection connection)
+    {
+        Guid receiptId = Guid.NewGuid();
+        byte[] payload = Encoding.UTF8.GetBytes("{\"unsupported\":true}");
+        ObservationReceipt receipt = ObservationReceipt.Create(
+            receiptId,
+            "tenant-a",
+            connection.PropertyId,
+            connection.Id,
+            runId: null,
+            Guid.NewGuid(),
+            "reservation-mail",
+            "mail-42",
+            sourceRevision: null,
+            ObservationIdentity.CreateDeduplicationKey(
+                "reservation-mail",
+                "mail-42",
+                sourceRevision: null,
+                AdapterPayloadHash.ComputeSha256(payload)),
+            AdapterPayloadHash.ComputeSha256(payload),
+            TestObservationCountryPolicyEvidence.Create(Now.AddMinutes(-5)),
+            receiptId,
+            Now.AddDays(30),
+            Now.AddMinutes(-5),
+            Now.AddMinutes(-5),
+            Now.AddMinutes(-5))
+        .Value;
+        Assert.True(receipt.Reject(
+            "unsupported",
+            Now.AddMinutes(-4)).IsSuccess);
+        return receipt;
+    }
+
     private sealed record TestContext(
         AdapterConnection Connection,
         FakeReceiptRepository Receipts,
+        FakeReprocessingAttemptRepository ReprocessingAttempts,
         FakeRawPayloadStore RawPayloads,
         RecordingOutbox Outbox,
         ICommandHandler<ReceiveObservationCommand, AdapterObservationResult> Handler);
@@ -264,17 +380,30 @@ public sealed class ReceiveObservationCommandHandlerTests
 
     private sealed class FakeReprocessingAttemptRepository : IObservationReprocessingAttemptRepository
     {
-        public Task<BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingAttempt?> GetAsync(
-            Guid attemptId, CancellationToken cancellationToken) => Task.FromResult<
-                BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingAttempt?>(null);
+        public List<ObservationReprocessingAttempt> Items { get; } = [];
 
-        public Task<BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingAttempt?> FindActiveBySourceAsync(
-            Guid sourceReceiptId, CancellationToken cancellationToken) => Task.FromResult<
-                BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingAttempt?>(null);
+        public Task<ObservationReprocessingAttempt?> GetAsync(
+            Guid attemptId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(this.Items.SingleOrDefault(
+                attempt => attempt.Id == attemptId));
+
+        public Task<ObservationReprocessingAttempt?> FindActiveBySourceAsync(
+            Guid sourceReceiptId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(this.Items.SingleOrDefault(
+                attempt =>
+                    attempt.SourceReceiptId == sourceReceiptId &&
+                    attempt.State is ObservationReprocessingState.Queued or
+                        ObservationReprocessingState.Running));
 
         public Task AddAsync(
-            BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingAttempt attempt,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
+            ObservationReprocessingAttempt attempt,
+            CancellationToken cancellationToken)
+        {
+            this.Items.Add(attempt);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeRawPayloadStore : IRawPayloadStore

@@ -38,6 +38,8 @@ public sealed class ObservationReprocessingOutput : ScopedAggregateRoot<Guid>
     public string ContentHash { get; private set; } = string.Empty;
     public string? ErrorCode { get; private set; }
     public DateTimeOffset RecordedAtUtc { get; private set; }
+    public long Version { get; private set; } = 1;
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
 
     public static Result<ObservationReprocessingOutput> Create(
         Guid operationId,
@@ -113,4 +115,20 @@ public sealed class ObservationReprocessingOutput : ScopedAggregateRoot<Guid>
         string.Equals(this.ContentHash, contentHash?.Trim(), StringComparison.OrdinalIgnoreCase) &&
         string.Equals(this.ErrorCode, string.IsNullOrWhiteSpace(errorCode) ? null : errorCode.Trim(),
             StringComparison.OrdinalIgnoreCase);
+
+    public Result Anonymise(DateTimeOffset nowUtc)
+    {
+        if (this.AnonymisedAtUtc.HasValue || nowUtc == default)
+        {
+            return Result.Failure(
+                IngestionDomainErrors.AnonymisationRecordNotReducible);
+        }
+
+        this.ExternalId = $"anonymised:{this.Id:N}";
+        this.SourceRevision = null;
+        this.ContentHash = new string('0', ContentHashLength);
+        this.AnonymisedAtUtc = nowUtc.ToUniversalTime();
+        this.Version++;
+        return Result.Success();
+    }
 }

@@ -11,6 +11,7 @@ using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Domain.Credentials;
 using BunkFy.Modules.Ingestion.Domain.LegalHolds;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
+using BunkFy.Modules.Ingestion.Domain.DataRights;
 using Microsoft.EntityFrameworkCore;
 public sealed class IngestionDbContext(DbContextOptions<IngestionDbContext> options, IScopeContext scopeContext)
     : ScopeAwareDbContext<IngestionDbContext>(options, scopeContext)
@@ -32,6 +33,15 @@ public sealed class IngestionDbContext(DbContextOptions<IngestionDbContext> opti
     public DbSet<ReservationSourceLink> ReservationSourceLinks => this.Set<ReservationSourceLink>();
     public DbSet<ReservationDispatch> ReservationDispatches => this.Set<ReservationDispatch>();
     public DbSet<LegalHold> LegalHolds => this.Set<LegalHold>();
+    public DbSet<IngestionAnonymisationTombstone>
+        AnonymisationTombstones =>
+        this.Set<IngestionAnonymisationTombstone>();
+    public DbSet<IngestionAnonymisationFingerprint>
+        AnonymisationFingerprints =>
+        this.Set<IngestionAnonymisationFingerprint>();
+    public DbSet<IngestionAnonymisationRecordPlanEntry>
+        AnonymisationRecordPlan =>
+        this.Set<IngestionAnonymisationRecordPlanEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

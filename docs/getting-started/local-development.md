@@ -57,5 +57,19 @@ The baseline backend stack is intentionally already wired before product modules
 
 Development persists ASP.NET Core Data Protection keys under `src/BunkFy.Host.Api/.data`, which is ignored by Git. Production must configure `DataProtection__KeyRingPath` to shared durable storage mounted by every API replica and keep `DataProtection__ApplicationName` stable. The API fails at startup when that production key-ring path is absent because OIDC state and protected Auth authenticator secrets must survive restarts and replica changes.
 
+Ingestion anonymisation fingerprints also require an explicit production
+keyring. Configure the same
+`Ingestion__AnonymisationFingerprints__ActiveKeyVersion` and versioned
+`Ingestion__AnonymisationFingerprints__Keys__<version>` values in API, Admin
+API, Admin CLI and Worker deployments. Every value is a secret,
+base64-encoded 32-byte key. Production rejects missing keys and the development
+key at startup. Add a new version before making it active, and retain every
+old key while any fingerprint created with that version remains; removing it
+would reopen that provider identity to ingestion. Keep these values in the
+deployment secret store, never appsettings or source control. A reducing
+Ingestion tombstone reports
+`ingestion.anonymisation-restore.incomplete` through host readiness until
+protected replay completes.
+
 Keep first product work focused on real BunkFy modules, starting with Properties/Inventory-style setup and only adding task handlers when a concrete module needs background work.
 

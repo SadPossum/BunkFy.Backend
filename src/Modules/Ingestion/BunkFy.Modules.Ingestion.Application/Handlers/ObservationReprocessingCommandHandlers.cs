@@ -13,6 +13,7 @@ using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
+using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal static class ObservationReprocessingReservationPolicy
 {
@@ -29,7 +30,8 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
     IIngestionCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
-    IIdGenerator idGenerator)
+    IIdGenerator idGenerator,
+    IngestionAnonymisationBarrier anonymisationBarrier)
     : ICommandHandler<PrepareObservationReprocessingCommand, ObservationReprocessingPreparation>
 {
     public async Task<Result<ObservationReprocessingPreparation>> HandleAsync(
@@ -78,6 +80,20 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
         if (connection is null || connection.PropertyId != source.PropertyId)
         {
             return Result.Failure<ObservationReprocessingPreparation>(IngestionApplicationErrors.ConnectionNotFound);
+        }
+
+        Result<Guid> barrier = await anonymisationBarrier
+            .AcquireAndCheckAsync(
+                source.ScopeId,
+                connection.Id,
+                source.SourceRecordType,
+                source.ExternalId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (barrier.IsFailure)
+        {
+            return Result.Failure<ObservationReprocessingPreparation>(
+                barrier.Error);
         }
 
         CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
@@ -189,7 +205,8 @@ internal sealed class StartObservationReprocessingCommandHandler(
     IAdapterConnectionRepository connections,
     IObservationParserDescriptorRegistry parsers,
     IIngestionCountryPolicyAdmission countryPolicy,
-    ISystemClock clock)
+    ISystemClock clock,
+    IngestionAnonymisationBarrier anonymisationBarrier)
     : ICommandHandler<StartObservationReprocessingCommand, ObservationReprocessingStart>
 {
     public async Task<Result<ObservationReprocessingStart>> HandleAsync(
@@ -214,6 +231,20 @@ internal sealed class StartObservationReprocessingCommandHandler(
         {
             return Result.Failure<ObservationReprocessingStart>(
                 IngestionApplicationErrors.ReprocessingRawPayloadInvalid);
+        }
+
+        Result<Guid> barrier = await anonymisationBarrier
+            .AcquireAndCheckAsync(
+                source.ScopeId,
+                connection.Id,
+                source.SourceRecordType,
+                source.ExternalId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (barrier.IsFailure)
+        {
+            return Result.Failure<ObservationReprocessingStart>(
+                barrier.Error);
         }
 
         CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(

@@ -7,10 +7,13 @@ using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
+using BunkFy.Modules.Ingestion.Domain.DataRights;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Application.Events.Infrastructure;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.FileManagement.LocalStorage;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
@@ -204,6 +207,318 @@ public sealed class IngestionDataRightsIntegrationTests
         }
     }
 
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Ingestion_restore_is_durable_isolated_and_replay_safe_on_postgresql()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_ingestion_restore_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        string fileRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"bunkfy-ingestion-restore-{Guid.NewGuid():N}");
+        try
+        {
+            using ServiceProvider provider = CreatePersistenceProvider(
+                postgreSql.GetConnectionString(),
+                fileRoot);
+            using IServiceScope scope = provider.CreateScope();
+            IngestionDbContext dbContext = scope.ServiceProvider
+                .GetRequiredService<IngestionDbContext>();
+            await dbContext.Database.MigrateAsync();
+
+            Guid propertyId = Guid.NewGuid();
+            Guid reservationId = Guid.NewGuid();
+            Guid connectionId = Guid.NewGuid();
+            Guid receiptId = Guid.NewGuid();
+            Guid payloadFileId = Guid.NewGuid();
+            IIngestionPropertyProjectionRepository properties =
+                scope.ServiceProvider
+                    .GetRequiredService<IIngestionPropertyProjectionRepository>();
+            await properties.ApplySnapshotAsync(
+                new IngestionPropertyProjectionWriteModel(
+                    TenantId,
+                    propertyId,
+                    "Restore House",
+                    "restore-house",
+                    IsActive: true,
+                    PropertyProcessingStatus.Unconfigured,
+                    GovernancePolicy: null,
+                    SourceVersion: 1),
+                CancellationToken.None);
+            AdapterConnection connection = AdapterConnection.Create(
+                connectionId,
+                TenantId,
+                propertyId,
+                "booking.com",
+                AdapterExecutionMode.Push,
+                IngestionConflictPolicy.SuggestionsOnly,
+                "configuration://restore",
+                secretReference: null,
+                Now).Value;
+            byte[] payload =
+                """{"guest":"Maya Chen","reference":"provider-restore-42"}"""u8
+                    .ToArray();
+            string hash = Sha256(payload);
+            ObservationReceipt receipt = CreateReceipt(
+                receiptId,
+                propertyId,
+                connectionId,
+                payloadFileId,
+                hash);
+            ReservationSourceLink sourceLink = CreateLinkedSource(
+                propertyId,
+                reservationId,
+                connectionId,
+                receiptId,
+                hash,
+                cancelled: true);
+            dbContext.AddRange(connection, receipt, sourceLink);
+            await dbContext.SaveChangesAsync();
+
+            IRawPayloadStore rawPayloadStore = scope.ServiceProvider
+                .GetRequiredService<IRawPayloadStore>();
+            await rawPayloadStore.StoreAsync(
+                new(
+                    payloadFileId,
+                    TenantId,
+                    connectionId,
+                    "application/json",
+                    payload,
+                    hash),
+                CancellationToken.None);
+            IDataRightsSubjectDiscoveryContributor discovery =
+                scope.ServiceProvider
+                    .GetServices<IDataRightsSubjectDiscoveryContributor>()
+                    .Single(item =>
+                        item.OwnerKey ==
+                        IngestionDataRightsCoordinates.Owner);
+            DataRightsSubjectCandidate candidate = Assert.Single(
+                (await discovery.DiscoverAsync(
+                    new DataRightsSubjectDiscoveryRequest(
+                        TenantId,
+                        propertyId,
+                        new DataRightsSubjectLookup(
+                            reservationId,
+                            Email: null,
+                            Phone: null,
+                            Name: null,
+                            DateOfBirth: null),
+                        DataRightsSubjectDiscoveryLimits.MaxCandidates),
+                    CancellationToken.None)).Candidates);
+            DataRightsAnonymisationRestoreRequest request = new(
+                DataRightsAnonymisationRestoreContract.CurrentVersion,
+                TenantId,
+                Guid.NewGuid(),
+                TenantSequence: 17,
+                new string('d', 64),
+                propertyId,
+                IngestionDataRightsCoordinates.Owner,
+                IngestionDataRightsCoordinates
+                    .ReservationSourceLinkRecordType,
+                sourceLink.Id,
+                OwnerReceiptContractVersion: 1,
+                Guid.NewGuid(),
+                new string('e', 64),
+                sourceLink.Version + 1,
+                Now.AddHours(1));
+            IDataRightsAnonymisationRestoreContributor contributor =
+                scope.ServiceProvider
+                    .GetServices<
+                        IDataRightsAnonymisationRestoreContributor>()
+                    .Single(item =>
+                        item.OwnerKey ==
+                        IngestionDataRightsCoordinates.Owner);
+
+            DataRightsAnonymisationRestoreResult restored =
+                await contributor.RestoreAsync(
+                    request,
+                    CancellationToken.None);
+
+            Assert.Equal(
+                DataRightsAnonymisationRestoreStatus.Completed,
+                restored.Status);
+            Assert.NotNull(restored.Proof);
+            dbContext.ChangeTracker.Clear();
+            ReservationSourceLink reducedLink = await dbContext
+                .ReservationSourceLinks
+                .SingleAsync(item => item.Id == sourceLink.Id);
+            ObservationReceipt reducedReceipt = await dbContext
+                .ObservationReceipts
+                .SingleAsync(item => item.Id == receipt.Id);
+            IngestionAnonymisationTombstone tombstone = await dbContext
+                .AnonymisationTombstones
+                .SingleAsync(item => item.Id == sourceLink.Id);
+            Assert.Equal(
+                ReservationSourceLinkState.Anonymised,
+                reducedLink.State);
+            Assert.Equal(
+                $"anonymised:{sourceLink.Id:N}",
+                reducedLink.SourceReference);
+            Assert.Equal(
+                $"anonymised:{receipt.Id:N}",
+                reducedReceipt.ExternalId);
+            Assert.Equal(
+                RawPayloadRetentionState.Purged,
+                reducedReceipt.RawPayloadRetentionState);
+            Assert.Equal(
+                IngestionAnonymisationTombstoneState.Completed,
+                tombstone.State);
+            Assert.Equal(
+                2,
+                await dbContext.AnonymisationFingerprints.CountAsync());
+            Assert.Equal(
+                2,
+                await dbContext.AnonymisationRecordPlan.CountAsync());
+            Assert.Null(await rawPayloadStore.ReadAsync(
+                payloadFileId,
+                TenantId,
+                connectionId,
+                CancellationToken.None));
+
+            DataRightsAnonymisationRestoreResult replayed =
+                await contributor.RestoreAsync(
+                    request,
+                    CancellationToken.None);
+            Assert.Equal(
+                DataRightsAnonymisationRestoreStatus.Completed,
+                replayed.Status);
+            Assert.Equal(restored.Proof, replayed.Proof);
+            Assert.Empty(
+                (await discovery.DiscoverAsync(
+                    new DataRightsSubjectDiscoveryRequest(
+                        TenantId,
+                        propertyId,
+                        new DataRightsSubjectLookup(
+                            reservationId,
+                            Email: null,
+                            Phone: null,
+                            Name: null,
+                            DateOfBirth: null),
+                        DataRightsSubjectDiscoveryLimits.MaxCandidates),
+                    CancellationToken.None)).Candidates);
+            IDataRightsSubjectExportContributor exporter =
+                scope.ServiceProvider
+                    .GetServices<IDataRightsSubjectExportContributor>()
+                    .Single(item =>
+                        item.OwnerKey ==
+                        IngestionDataRightsCoordinates.Owner);
+            CollectingSink postRestoreSink = new();
+            DataRightsSubjectExportResult postRestoreExport =
+                await exporter.ExportAsync(
+                    new DataRightsSubjectExportRequest(
+                        TenantId,
+                        propertyId,
+                        candidate.Coordinate),
+                    postRestoreSink,
+                    CancellationToken.None);
+            Assert.Equal(
+                DataRightsSubjectExportStatus.NotFound,
+                postRestoreExport.Status);
+            Assert.Empty(postRestoreSink.Records);
+
+            await using IngestionDbContext otherTenant =
+                CreateDbContext(
+                    postgreSql.GetConnectionString(),
+                    "tenant-other");
+            Assert.Empty(await otherTenant.AnonymisationTombstones
+                .ToArrayAsync());
+            Assert.Single(await otherTenant.AnonymisationTombstones
+                .IgnoreQueryFilters()
+                .ToArrayAsync());
+
+            IngestionAnonymisationTombstone concurrent =
+                CreateReducingTombstone();
+            dbContext.AnonymisationTombstones.Add(concurrent);
+            await dbContext.SaveChangesAsync();
+            await using IngestionDbContext first =
+                CreateDbContext(postgreSql.GetConnectionString(), TenantId);
+            await using IngestionDbContext second =
+                CreateDbContext(postgreSql.GetConnectionString(), TenantId);
+            IngestionAnonymisationTombstone firstCopy =
+                await first.AnonymisationTombstones
+                    .SingleAsync(item => item.Id == concurrent.Id);
+            IngestionAnonymisationTombstone secondCopy =
+                await second.AnonymisationTombstones
+                    .SingleAsync(item => item.Id == concurrent.Id);
+            DateTimeOffset completedAt = Now.AddHours(2);
+            Assert.True(firstCopy.CompleteRestore(completedAt).IsSuccess);
+            Assert.True(secondCopy.CompleteRestore(completedAt).IsSuccess);
+            await first.SaveChangesAsync();
+            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(
+                () => second.SaveChangesAsync());
+
+            string[] tombstoneColumns = await dbContext.Database
+                .SqlQueryRaw<string>(
+                    """
+                    SELECT column_name AS "Value"
+                    FROM information_schema.columns
+                    WHERE table_schema = 'ingestion'
+                      AND table_name = 'anonymisation_tombstones'
+                    ORDER BY ordinal_position
+                    """)
+                .ToArrayAsync();
+            Assert.DoesNotContain(
+                tombstoneColumns,
+                column => column.Contains(
+                    "external",
+                    StringComparison.OrdinalIgnoreCase) ||
+                    column.Contains(
+                        "source_reference",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    column.Contains(
+                        "source_system",
+                        StringComparison.OrdinalIgnoreCase));
+            string protectedLedgerText = await dbContext.Database
+                .SqlQueryRaw<string>(
+                    """
+                    SELECT concat_ws(
+                        '|',
+                        "ScopeId",
+                        "OwnerReceiptSha256",
+                        "LedgerEntrySha256") AS "Value"
+                    FROM ingestion.anonymisation_tombstones
+                    WHERE "Id" = {0}
+                    """,
+                    sourceLink.Id)
+                .SingleAsync();
+            Assert.DoesNotContain(
+                "provider-restore-42",
+                protectedLedgerText,
+                StringComparison.Ordinal);
+
+            IngestionAnonymisationFingerprint persistedFingerprint =
+                await dbContext.AnonymisationFingerprints
+                    .AsNoTracking()
+                    .FirstAsync();
+            await using IngestionDbContext duplicateContext =
+                CreateDbContext(postgreSql.GetConnectionString(), TenantId);
+            duplicateContext.AnonymisationFingerprints.Add(
+                IngestionAnonymisationFingerprint.Create(
+                    Guid.NewGuid(),
+                    TenantId,
+                    persistedFingerprint.TombstoneId,
+                    persistedFingerprint.Purpose,
+                    persistedFingerprint.KeyVersion,
+                    persistedFingerprint.Sha256,
+                    Now.AddMinutes(1))
+                .Value);
+            await Assert.ThrowsAsync<DbUpdateException>(
+                () => duplicateContext.SaveChangesAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(fileRoot))
+            {
+                Directory.Delete(fileRoot, recursive: true);
+            }
+        }
+    }
+
     private static ServiceProvider CreatePersistenceProvider(
         string connectionString,
         string fileRoot)
@@ -216,9 +531,19 @@ public sealed class IngestionDataRightsIntegrationTests
         builder.Configuration["FileManagement:MaximumObjectBytes"] = "5242880";
         builder.Configuration["FileManagement:AllowedContentTypes:0"] = "application/json";
         builder.Configuration["FileManagement:LocalStorage:RootPath"] = fileRoot;
+        builder.Configuration[
+            "Ingestion:AnonymisationFingerprints:ActiveKeyVersion"] = "7";
+        builder.Configuration[
+            "Ingestion:AnonymisationFingerprints:Keys:7"] =
+            Convert.ToBase64String(
+                Enumerable.Range(1, 32)
+                    .Select(value => (byte)value)
+                    .ToArray());
         builder.Services.AddSingleton<IScopeContext>(new TestScopeContext(TenantId));
         builder.Services.AddSingleton<ISystemClock>(new TestClock());
         CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
+        builder.AddApplicationEventsInfrastructure();
+        builder.AddCqrsInfrastructure();
         builder.AddLocalFileStorage();
         builder.Services.AddIngestionApplication();
         builder.AddIngestionPersistence();
@@ -234,7 +559,8 @@ public sealed class IngestionDataRightsIntegrationTests
         Guid reservationId,
         Guid connectionId,
         Guid receiptId,
-        string hash)
+        string hash,
+        bool cancelled = false)
     {
         ReservationSourceLink sourceLink = ReservationSourceLink.Create(
             Guid.NewGuid(),
@@ -258,16 +584,40 @@ public sealed class IngestionDataRightsIntegrationTests
             receiptId,
             "revision-1",
             1,
-            "{\"primaryGuestName\":\"Maya Chen\"}",
+            cancelled
+                ? null
+                : "{\"primaryGuestName\":\"Maya Chen\"}",
             reservationId,
             1,
             keepActive: false,
             applied: true,
             cancellationPending: false,
-            cancelled: false,
+            cancelled,
             Now).IsSuccess);
         return sourceLink;
     }
+
+    private static IngestionAnonymisationTombstone
+        CreateReducingTombstone() =>
+        IngestionAnonymisationTombstone.BeginRestore(
+            TenantId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            selectedSourceLinkVersion: 1,
+            resultingSourceLinkVersion: 2,
+            ownerReceiptContractVersion: 1,
+            Guid.NewGuid(),
+            new string('a', 64),
+            Now,
+            Guid.NewGuid(),
+            tenantSequence: 1,
+            new string('b', 64),
+            graphRecordCount: 1,
+            fingerprintCount: 1,
+            rawPayloadCount: 0,
+            Now.AddMinutes(1))
+        .Value;
 
     private static ObservationReceipt CreateReceipt(
         Guid receiptId,
@@ -321,6 +671,24 @@ public sealed class IngestionDataRightsIntegrationTests
 
     private static string Sha256(byte[] content) =>
         Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+
+    private static IngestionDbContext CreateDbContext(
+        string connectionString,
+        string tenantId)
+    {
+        DbContextOptions<IngestionDbContext> options =
+            new DbContextOptionsBuilder<IngestionDbContext>()
+                .UseNpgsql(
+                    connectionString,
+                    provider => provider
+                        .MigrationsAssembly(
+                            IngestionMigrations.PostgreSqlAssembly)
+                        .MigrationsHistoryTable(
+                            IngestionMigrations.HistoryTable,
+                            IngestionMigrations.Schema))
+                .Options;
+        return new(options, new TestScopeContext(tenantId));
+    }
 
     private sealed class CollectingSink : IDataRightsExportSink
     {

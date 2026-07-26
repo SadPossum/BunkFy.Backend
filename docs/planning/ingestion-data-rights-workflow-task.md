@@ -1,7 +1,7 @@
 # Ingestion Data Rights Workflow Task
 
-Status: first and second implementation slices complete and published; third
-safety-foundation slice planned
+Status: first three implementation slices complete; fourth staged
+irreversible-reduction slice planned
 
 ## Outcome
 
@@ -434,20 +434,58 @@ create a new destructive API.
   request, policy evidence and result.
 - No raw payload object is read by eligibility, no schema migration is needed,
   and no `IDataRightsAnonymisationContributor` is registered. Irreversible
-  reduction remains blocked on owner proof, tombstone, re-ingestion denial and
-  restore replay in slices 3 and 4.
+  reduction remains blocked on staged begin, object deletion, finalization and
+  recovery in slice 4.
 - Focused verification passes 164 Ingestion tests, 64 architecture guards and
   the real PostgreSQL/local-file data-rights scenario. The complete verifier
   passes solution synchronization, source-package checks, a zero-warning
   build, every migration drift check and 2,705 non-Docker tests. The complete
   Docker suite passes 53 tests with no failures or skips.
 
+## Third-Slice Implementation
+
+- Ingestion now owns a tenant-scoped tombstone, immutable bounded record plan,
+  versioned keyed HMAC fingerprints and deterministic source-operation locks.
+  Protected rows contain coordinates, versions, bounded counts and digests,
+  never plaintext provider identifiers or raw evidence.
+- Direct and reprocessed receipt ingress acquire the source lock and reject an
+  exact fingerprint before object storage or database mutation. Normalized
+  dispatch checks the same barrier before recreating a source link.
+  Reprocessing, raw reads, DataRights discovery and export reject reducing or
+  completed tombstones.
+- The registered restore contributor revalidates the existing DataRights owner
+  proof, restores the exact planned graph, physically removes protected raw
+  objects and completes the tombstone. Same-proof replay is idempotent; stale,
+  incomplete, oversized or conflicting state fails before partial mutation.
+- Host readiness stays closed for reducing tombstones. DataRights startup
+  reconciliation replays completed protected-ledger proofs after a database
+  restore, while reducing state remains unhealthy until every planned object
+  is absent and the final PostgreSQL state is committed.
+- Production configuration requires an explicit active fingerprint key and
+  rejects the development key. Matching checks every retained key version in
+  one exact indexed query so key rotation cannot reopen an old identity.
+- The PostgreSQL migration adds the restore ledger, plan, fingerprint and lock
+  tables, redaction timestamps and optimistic output versions. Historical
+  upgrade preserves existing source links and receipts, and EF reports no
+  pending model changes.
+- Focused verification passes all 183 Ingestion tests, including 8 executable
+  personal-data catalogue guards, and 65 architecture guards. Real PostgreSQL
+  tests prove durable restore/replay, historical migration, tenant isolation,
+  exact fingerprint translation and normal ingress/management behavior.
+- The complete verifier passes solution synchronization, source-package
+  checks, a 270-project zero-warning build, every migration drift check and
+  2,725 non-Docker tests. The complete Docker suite passes 54 tests with no
+  failures or skips.
+- Only `IDataRightsAnonymisationRestoreContributor` is registered. There is no
+  `IDataRightsAnonymisationContributor`, destructive API, Admin API or CLI
+  command in this slice, and GMA remains unchanged.
+
 ## Non-Goals
 
 - Fuzzy or raw-payload identity search.
 - Treating provider references as generic Guid subject ids.
 - Automatic selection of every owner from one reservation candidate.
-- Ingestion anonymisation before blocker, tombstone and restore semantics are
-  complete.
+- Registering Ingestion anonymisation before staged begin, object deletion,
+  finalization and idempotent recovery are verified together.
 - Exporting adapter secrets, staff identity or unrelated property operations.
 - Moving BunkFy DataRights or Ingestion semantics into GMA.

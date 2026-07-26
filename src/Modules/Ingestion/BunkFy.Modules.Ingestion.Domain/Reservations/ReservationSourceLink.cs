@@ -41,6 +41,7 @@ public sealed class ReservationSourceLink : ScopedAggregateRoot<Guid>
     public long Version { get; private set; } = 1;
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
 
     public static Result<ReservationSourceLink> Create(
         Guid linkId,
@@ -217,6 +218,33 @@ public sealed class ReservationSourceLink : ScopedAggregateRoot<Guid>
 
         this.State = ReservationSourceLinkState.Cancelled;
         this.ActiveProductOperationId = null;
+        this.UpdatedAtUtc = nowUtc;
+        this.Version++;
+        return Result.Success();
+    }
+
+    public Result Anonymise(long expectedVersion, DateTimeOffset nowUtc)
+    {
+        if (expectedVersion != this.Version ||
+            this.State != ReservationSourceLinkState.Cancelled ||
+            this.ActiveProductOperationId.HasValue ||
+            this.DeferredReceiptId.HasValue ||
+            this.AnonymisedAtUtc.HasValue ||
+            nowUtc == default)
+        {
+            return Result.Failure(
+                IngestionDomainErrors.AnonymisationRecordNotReducible);
+        }
+
+        this.SourceReference = $"anonymised:{this.Id:N}";
+        this.ReservationId = null;
+        this.LastObservedSourceRevision = null;
+        this.LastObservedContentHash =
+            new string('0', ContentHashLength);
+        this.LastAppliedSourceRevision = null;
+        this.LastAppliedOperationalBaseline = null;
+        this.State = ReservationSourceLinkState.Anonymised;
+        this.AnonymisedAtUtc = nowUtc.ToUniversalTime();
         this.UpdatedAtUtc = nowUtc;
         this.Version++;
         return Result.Success();

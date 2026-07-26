@@ -167,6 +167,22 @@ public sealed class IngestionMigrationIntegrationTests
         Assert.Equal(receivedAtUtc.AddDays(30), receipt.RawPayloadRetainUntilUtc);
         Assert.Null(receipt.RawPayloadPurgeClaimId);
         Assert.Null(receipt.RawPayloadPurgedAtUtc);
+        Assert.Null(receipt.AnonymisedAtUtc);
+        Assert.Null(validLink.AnonymisedAtUtc);
+        Assert.Empty(await upgraded.AnonymisationTombstones.ToArrayAsync());
+        Assert.Empty(await upgraded.AnonymisationFingerprints.ToArrayAsync());
+        Assert.Empty(await upgraded.AnonymisationRecordPlan.ToArrayAsync());
+        bool outputVersionDefaultsToOne = await upgraded.Database
+            .SqlQueryRaw<bool>(
+                """
+                SELECT column_default LIKE '1%' AS "Value"
+                FROM information_schema.columns
+                WHERE table_schema = 'ingestion'
+                  AND table_name = 'observation_reprocessing_outputs'
+                  AND column_name = 'Version'
+                """)
+            .SingleAsync();
+        Assert.True(outputVersionDefaultsToOne);
         Assert.Null(connection.PollingIntervalSeconds);
         Assert.Null(connection.PollingScheduleMaxAttempts);
         Assert.Null(connection.PollingScheduleConfiguredAtUtc);

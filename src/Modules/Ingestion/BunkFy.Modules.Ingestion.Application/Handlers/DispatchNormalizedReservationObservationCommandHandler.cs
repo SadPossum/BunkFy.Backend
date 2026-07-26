@@ -13,6 +13,7 @@ using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
+using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal sealed class DispatchNormalizedReservationObservationCommandHandler(
     IObservationReceiptRepository receipts,
@@ -22,7 +23,8 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
     IChangeProposalRepository proposals,
     IIngestionCountryPolicyAdmission countryPolicy,
     ReservationExternalRequestPublisher requestPublisher,
-    ISystemClock clock)
+    ISystemClock clock,
+    IngestionAnonymisationBarrier anonymisationBarrier)
     : ICommandHandler<DispatchNormalizedReservationObservationCommand, ReservationObservationDispatchResult>
 {
     public async Task<Result<ReservationObservationDispatchResult>> HandleAsync(
@@ -44,6 +46,20 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
         if (connection is null || connection.PropertyId != receipt.PropertyId)
         {
             return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ConnectionNotFound);
+        }
+
+        Result<Guid> barrier = await anonymisationBarrier
+            .AcquireAndCheckAsync(
+                receipt.ScopeId,
+                connection.Id,
+                receipt.SourceRecordType,
+                receipt.ExternalId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (barrier.IsFailure)
+        {
+            return Result.Failure<ReservationObservationDispatchResult>(
+                barrier.Error);
         }
 
         CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
@@ -69,9 +85,8 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
                 return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ReservationSourceNotLinked);
             }
 
-            Guid linkId = ReservationOperationIdentity.CreateSourceLinkId(receipt.ScopeId, connection.Id, receipt.ExternalId);
             Result<ReservationSourceLink> created = ReservationSourceLink.Create(
-                linkId,
+                barrier.Value,
                 receipt.ScopeId,
                 receipt.PropertyId,
                 connection.Id,

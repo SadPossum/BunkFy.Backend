@@ -91,6 +91,7 @@ public sealed class ReprocessObservationTaskHandlerTests
         services.AddSingleton<IObservationParserDescriptorProvider>(parser);
         services.AddSingleton<IObservationParser>(parser);
         services.AddSingleton<IRawPayloadStore>(new FakeRawPayloadStore(raw));
+        services.AddAllowingAnonymisationBarrier();
         services.AddIngestionApplication();
         services.AddIngestionTaskHandlers();
         ServiceProvider provider = services.BuildServiceProvider();

@@ -52,6 +52,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
     public string? RejectionReason { get; private set; }
     public DateTimeOffset ReceivedAtUtc { get; private set; }
     public DateTimeOffset? ProcessedAtUtc { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
 
     public static Result<ObservationReceipt> Create(
         Guid receiptId,
@@ -274,6 +275,46 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
+    public Result BeginAnonymisation(
+        Guid claimId,
+        DateTimeOffset nowUtc)
+    {
+        if (claimId == Guid.Empty ||
+            nowUtc == default ||
+            this.State == ObservationReceiptState.Pending ||
+            this.ActiveReprocessingAttemptId.HasValue ||
+            this.RawPayloadRetentionState ==
+                RawPayloadRetentionState.Purging)
+        {
+            return Result.Failure(
+                IngestionDomainErrors.AnonymisationRecordNotReducible);
+        }
+
+        if (this.AnonymisedAtUtc.HasValue)
+        {
+            return Result.Failure(
+                IngestionDomainErrors.AnonymisationRecordNotReducible);
+        }
+
+        this.ExternalId = $"anonymised:{this.Id:N}";
+        this.SourceRevision = null;
+        this.DeduplicationKey = $"anonymised:{this.Id:N}";
+        this.ContentHash = new string('0', ContentHashLength);
+        this.RejectionReason = null;
+        this.AnonymisedAtUtc = nowUtc.ToUniversalTime();
+        if (this.RawPayloadRetentionState ==
+            RawPayloadRetentionState.Available)
+        {
+            this.RawPayloadRetentionState =
+                RawPayloadRetentionState.Purging;
+            this.RawPayloadPurgeClaimId = claimId;
+            this.RawPayloadPurgeStartedAtUtc = nowUtc;
+        }
+
+        this.RawPayloadVersion++;
+        return Result.Success();
+    }
+
     public Result MarkProcessed(DateTimeOffset nowUtc)
     {
         if (this.State != ObservationReceiptState.Pending)
@@ -283,6 +324,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
 
         this.State = ObservationReceiptState.Processed;
         this.ProcessedAtUtc = nowUtc;
+        this.RawPayloadVersion++;
         return Result.Success();
     }
 
@@ -302,6 +344,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
         this.State = ObservationReceiptState.Rejected;
         this.RejectionReason = normalizedReason;
         this.ProcessedAtUtc = nowUtc;
+        this.RawPayloadVersion++;
         return Result.Success();
     }
 }

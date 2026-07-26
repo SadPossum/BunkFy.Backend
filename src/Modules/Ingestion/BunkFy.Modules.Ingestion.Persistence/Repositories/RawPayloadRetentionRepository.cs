@@ -20,6 +20,7 @@ internal sealed class RawPayloadRetentionRepository(
     {
         List<ObservationReceipt> receipts = await dbContext.ObservationReceipts
             .Where(receipt =>
+                receipt.AnonymisedAtUtc == null &&
                 (receipt.State == ObservationReceiptState.Processed ||
                  receipt.State == ObservationReceiptState.Rejected) &&
                 receipt.RawPayloadRetainUntilUtc <= nowUtc &&

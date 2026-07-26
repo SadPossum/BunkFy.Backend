@@ -6,5 +6,6 @@ public enum ReservationSourceLinkState
     AwaitingCreate = 1,
     Linked = 2,
     CancellationPending = 3,
-    Cancelled = 4
+    Cancelled = 4,
+    Anonymised = 5
 }

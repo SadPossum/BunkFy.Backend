@@ -13,7 +13,10 @@ using Gma.Framework.ProjectionRebuild;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 public static class DependencyInjection
 {
@@ -67,6 +70,17 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IIngestionAnonymisationEligibilityRepository,
             IngestionAnonymisationEligibilityRepository>();
+        builder.Services.TryAddScoped<
+            IIngestionAnonymisationBarrierRepository,
+            IngestionAnonymisationBarrierRepository>();
+        builder.Services.TryAddScoped<
+            IIngestionAnonymisationRestoreRepository,
+            IngestionAnonymisationRestoreRepository>();
+        builder.Services.TryAddScoped<
+            IIngestionSourceOperationLock,
+            IngestionSourceOperationLockRepository>();
+        AddAnonymisationFingerprintServices(builder);
+        AddAnonymisationRestoreReadiness(builder);
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectDiscoveryContributor,
@@ -94,5 +108,48 @@ public static class DependencyInjection
             IngestionProjectionRebuildTransactionBoundary>());
 
         return builder;
+    }
+
+    private static void AddAnonymisationFingerprintServices(
+        IHostApplicationBuilder builder)
+    {
+        bool isProduction = builder.Environment.IsProduction();
+        IConfigurationSection section = builder.Configuration.GetSection(
+            IngestionAnonymisationFingerprintOptions.SectionName);
+        bool useDevelopmentKey = !isProduction && !section.Exists();
+        builder.Services
+            .AddOptions<IngestionAnonymisationFingerprintOptions>()
+            .Bind(section)
+            .PostConfigure(options =>
+            {
+                if (useDevelopmentKey)
+                {
+                    options.ActiveKeyVersion = 1;
+                    options.Keys[1] =
+                        IngestionAnonymisationFingerprintOptions
+                            .DevelopmentKeyBase64;
+                }
+            })
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IValidateOptions<
+                    IngestionAnonymisationFingerprintOptions>>(
+                new IngestionAnonymisationFingerprintOptionsValidator(
+                    isProduction)));
+        builder.Services.TryAddSingleton<
+            IIngestionAnonymisationFingerprintService,
+            HmacIngestionAnonymisationFingerprintService>();
+    }
+
+    private static void AddAnonymisationRestoreReadiness(
+        IHostApplicationBuilder builder)
+    {
+        builder.Services.TryAddSingleton<
+            IngestionAnonymisationRestoreReadinessHealthCheck>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<HealthCheckServiceOptions>,
+                IngestionAnonymisationRestoreHealthCheckOptionsSetup>());
     }
 }

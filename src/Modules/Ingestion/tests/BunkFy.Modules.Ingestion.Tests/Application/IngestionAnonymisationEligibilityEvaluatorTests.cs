@@ -423,6 +423,11 @@ public sealed class IngestionAnonymisationEligibilityEvaluatorTests
             descriptor =>
                 descriptor.ServiceType ==
                 typeof(IDataRightsAnonymisationContributor));
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.ServiceType ==
+                typeof(IDataRightsAnonymisationRestoreContributor));
     }
 
     private static Task<IngestionAnonymisationEligibilityResult> EvaluateAsync(

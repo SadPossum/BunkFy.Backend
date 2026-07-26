@@ -15,6 +15,7 @@ using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
+using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal sealed class ReceiveObservationCommandHandler(
     IAdapterConnectionRepository connections,
@@ -27,7 +28,8 @@ internal sealed class ReceiveObservationCommandHandler(
     IOutboxWriterRegistry outboxWriters,
     IScopeContext scopeContext,
     ISystemClock clock,
-    IIdGenerator idGenerator)
+    IIdGenerator idGenerator,
+    IngestionAnonymisationBarrier anonymisationBarrier)
     : ICommandHandler<ReceiveObservationCommand, AdapterObservationResult>
 {
     public async Task<Result<AdapterObservationResult>> HandleAsync(
@@ -196,6 +198,20 @@ internal sealed class ReceiveObservationCommandHandler(
         catch (ArgumentException)
         {
             return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ObservationInvalid);
+        }
+
+        Result<Guid> barrier = await anonymisationBarrier
+            .AcquireAndCheckAsync(
+                scopeContext.ScopeId,
+                connection.Id,
+                observation.RecordType,
+                observation.ExternalRecordId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (barrier.IsFailure)
+        {
+            return Result.Failure<AdapterObservationResult>(
+                barrier.Error);
         }
 
         ObservationReceipt? operationDuplicate = await receipts.FindByOperationAsync(

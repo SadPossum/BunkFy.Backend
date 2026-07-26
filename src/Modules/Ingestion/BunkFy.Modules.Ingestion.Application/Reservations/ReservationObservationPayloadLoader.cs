@@ -11,6 +11,14 @@ internal sealed class ReservationObservationPayloadLoader(IRawPayloadStore rawPa
         ObservationReceipt receipt,
         CancellationToken cancellationToken)
     {
+        if (receipt.AnonymisedAtUtc.HasValue ||
+            receipt.RawPayloadRetentionState !=
+                RawPayloadRetentionState.Available)
+        {
+            return Result.Failure<NormalizedReservationObservation>(
+                IngestionApplicationErrors.AnonymisationBarrierActive);
+        }
+
         RawPayloadRead? raw = await rawPayloads.ReadAsync(
             receipt.RawPayloadFileId,
             receipt.ScopeId,

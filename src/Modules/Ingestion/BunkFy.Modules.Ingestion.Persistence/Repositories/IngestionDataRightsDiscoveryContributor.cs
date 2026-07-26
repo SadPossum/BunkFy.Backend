@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Ingestion.Persistence.Repositories;
 
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
+using BunkFy.Modules.Ingestion.Domain.Reservations;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,7 +38,10 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
             .AsNoTracking()
             .Where(link =>
                 link.PropertyId == request.PropertyId &&
-                link.ReservationId == reservationId)
+                link.ReservationId == reservationId &&
+                link.State != ReservationSourceLinkState.Anonymised &&
+                !dbContext.AnonymisationTombstones.Any(tombstone =>
+                    tombstone.Id == link.Id))
             .OrderBy(link => link.Id)
             .Take(request.MaxCandidates)
             .Select(link => new SourceLinkCandidate(
@@ -88,7 +92,10 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
             .Where(link =>
                 link.PropertyId == request.PropertyId &&
                 link.Id == request.Coordinate.RecordId &&
-                link.ReservationId != null)
+                link.ReservationId != null &&
+                link.State != ReservationSourceLinkState.Anonymised &&
+                !dbContext.AnonymisationTombstones.Any(tombstone =>
+                    tombstone.Id == link.Id))
             .Select(link => (long?)link.Version)
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);

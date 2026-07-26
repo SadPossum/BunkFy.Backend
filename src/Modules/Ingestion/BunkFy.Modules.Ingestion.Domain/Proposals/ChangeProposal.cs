@@ -36,6 +36,7 @@ public sealed class ChangeProposal : ScopedAggregateRoot<Guid>
     public DateTimeOffset? CompletedAtUtc { get; private set; }
     public DateTimeOffset? SensitiveDataRetainUntilUtc { get; private set; }
     public DateTimeOffset? SensitiveDataRedactedAtUtc { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
 
     public static Result<ChangeProposal> Create(
         Guid proposalId,
@@ -215,6 +216,26 @@ public sealed class ChangeProposal : ScopedAggregateRoot<Guid>
 
         this.Diff = null;
         this.SensitiveDataRedactedAtUtc = nowUtc;
+        this.Version++;
+        return Result.Success();
+    }
+
+    public Result Anonymise(DateTimeOffset nowUtc)
+    {
+        if (this.State is ChangeProposalState.Pending or
+                ChangeProposalState.Applying ||
+            this.AnonymisedAtUtc.HasValue ||
+            nowUtc == default)
+        {
+            return Result.Failure(
+                IngestionDomainErrors.AnonymisationRecordNotReducible);
+        }
+
+        this.ReservationId = Guid.Empty;
+        this.Diff = null;
+        this.DecisionReason = null;
+        this.SensitiveDataRedactedAtUtc = nowUtc.ToUniversalTime();
+        this.AnonymisedAtUtc = nowUtc.ToUniversalTime();
         this.Version++;
         return Result.Success();
     }

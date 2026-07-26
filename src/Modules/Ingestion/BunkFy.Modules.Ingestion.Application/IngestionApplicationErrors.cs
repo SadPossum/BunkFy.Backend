@@ -76,6 +76,21 @@ public static class IngestionApplicationErrors
     public static readonly Error ReprocessingOutputInvalid = new("Ingestion.ReprocessingOutputInvalid", "The parser returned an invalid or undeclared observation output.");
     public static readonly Error ReprocessingOutputConflict = new("Ingestion.ReprocessingOutputConflict", "The parser returned duplicate output identities.");
     public static readonly Error ReprocessingRawPayloadInvalid = new("Ingestion.ReprocessingRawPayloadInvalid", "The retained source payload is unavailable or does not match its receipt.");
+    public static readonly Error AnonymisationBarrierActive = new(
+        "Ingestion.AnonymisationBarrierActive",
+        "The provider record is unavailable after an approved data-rights operation.");
+    public static readonly Error AnonymisationRestoreRequestInvalid = new(
+        "Ingestion.AnonymisationRestoreRequestInvalid",
+        "The Ingestion anonymisation restore request is invalid.");
+    public static readonly Error AnonymisationRestoreProofConflict = new(
+        "Ingestion.AnonymisationRestoreProofConflict",
+        "The protected Ingestion anonymisation proof conflicts with current owner state.");
+    public static readonly Error AnonymisationRestoreStateUnavailable = new(
+        "Ingestion.AnonymisationRestoreStateUnavailable",
+        "The exact Ingestion evidence graph cannot be restored safely.");
+    public static readonly Error AnonymisationRawPayloadDeletionIncomplete = new(
+        "Ingestion.AnonymisationRawPayloadDeletionIncomplete",
+        "A planned Ingestion raw payload is still present.");
     public static readonly Error ReprocessingEnqueueFailed = new("Ingestion.ReprocessingEnqueueFailed", "The reprocessing task could not be enqueued.");
     public static Error ConnectionNotEnabled => IngestionDomainErrors.ConnectionNotEnabled;
     public static Error RunNotActive => IngestionDomainErrors.RunNotActive;

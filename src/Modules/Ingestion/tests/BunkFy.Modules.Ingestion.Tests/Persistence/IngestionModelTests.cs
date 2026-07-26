@@ -4,6 +4,7 @@ using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Credentials;
+using BunkFy.Modules.Ingestion.Domain.DataRights;
 using BunkFy.Modules.Ingestion.Domain.LegalHolds;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
@@ -43,10 +44,71 @@ public sealed class IngestionModelTests
             .FindProperty(nameof(ObservationReceipt.RawPayloadVersion))!.IsConcurrencyToken);
         Assert.True(dbContext.Model.FindEntityType(typeof(ObservationReprocessingAttempt))!
             .FindProperty(nameof(ObservationReprocessingAttempt.Version))!.IsConcurrencyToken);
+        Assert.True(dbContext.Model.FindEntityType(typeof(ObservationReprocessingOutput))!
+            .FindProperty(nameof(ObservationReprocessingOutput.Version))!.IsConcurrencyToken);
+        Assert.Equal(
+            1L,
+            dbContext.Model.FindEntityType(typeof(ObservationReprocessingOutput))!
+                .FindProperty(nameof(ObservationReprocessingOutput.Version))!
+                .GetDefaultValue());
         Assert.True(dbContext.Model.FindEntityType(typeof(LegalHold))!
             .FindProperty(nameof(LegalHold.Version))!.IsConcurrencyToken);
         Assert.True(dbContext.Model.FindEntityType(typeof(IngestionPropertyProjection))!
             .FindProperty(nameof(IngestionPropertyProjection.RetentionFenceVersion))!.IsConcurrencyToken);
+    }
+
+    [Fact]
+    public void Anonymisation_restore_ledger_is_scoped_and_immutable()
+    {
+        using IngestionDbContext dbContext = CreateDbContext();
+        IEntityType tombstone = dbContext.Model.FindEntityType(
+            typeof(IngestionAnonymisationTombstone))!;
+        IEntityType fingerprint = dbContext.Model.FindEntityType(
+            typeof(IngestionAnonymisationFingerprint))!;
+        IEntityType plan = dbContext.Model.FindEntityType(
+            typeof(IngestionAnonymisationRecordPlanEntry))!;
+        IEntityType operationLock = dbContext.Model.FindEntityType(
+            typeof(IngestionSourceOperationLock))!;
+
+        Assert.True(tombstone
+            .FindProperty(nameof(IngestionAnonymisationTombstone.Revision))!
+            .IsConcurrencyToken);
+        Assert.Contains(tombstone.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(
+                    [nameof(IngestionAnonymisationTombstone.State)]));
+        Assert.Contains(fingerprint.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType ==
+                typeof(IngestionAnonymisationTombstone) &&
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "TombstoneId"]));
+        Assert.Contains(fingerprint.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(
+                    [
+                        "ScopeId",
+                        nameof(IngestionAnonymisationFingerprint.Purpose),
+                        nameof(IngestionAnonymisationFingerprint.KeyVersion),
+                        nameof(IngestionAnonymisationFingerprint.Sha256)
+                    ]));
+        Assert.Contains(plan.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType ==
+                typeof(IngestionAnonymisationTombstone) &&
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "TombstoneId"]));
+        Assert.Contains(plan.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(
+                    ["ScopeId", "TombstoneId", "Kind", "RecordId"]));
+        Assert.True(operationLock
+            .FindProperty(nameof(IngestionSourceOperationLock.Revision))!
+            .IsConcurrencyToken);
+        Assert.Contains(operationLock.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "SourceLinkId"]));
     }
 
     [Fact]
@@ -424,9 +486,18 @@ public sealed class IngestionModelTests
         ObservationReceipt pendingReceipt = CreateReceipt(connection, now.AddDays(-40), now.AddDays(-10));
         ObservationReceipt applyingReceipt = CreateReceipt(connection, now.AddDays(-40), now.AddDays(-10));
         ObservationReceipt terminalReceipt = CreateReceipt(connection, now.AddDays(-40), now.AddDays(-10));
+        ObservationReceipt anonymisedReceipt = CreateReceipt(
+            connection,
+            now.AddDays(-40),
+            now.AddDays(-10));
         Assert.True(pendingReceipt.MarkProcessed(now.AddDays(-39)).IsSuccess);
         Assert.True(applyingReceipt.MarkProcessed(now.AddDays(-39)).IsSuccess);
         Assert.True(terminalReceipt.MarkProcessed(now.AddDays(-39)).IsSuccess);
+        Assert.True(anonymisedReceipt.MarkProcessed(now.AddDays(-39)).IsSuccess);
+        Guid anonymisationClaimId = Guid.NewGuid();
+        Assert.True(anonymisedReceipt.BeginAnonymisation(
+            anonymisationClaimId,
+            now.AddHours(-1)).IsSuccess);
 
         ChangeProposal pending = CreateProposal(connection, pendingReceipt, now.AddDays(-39));
         ChangeProposal applying = CreateProposal(connection, applyingReceipt, now.AddDays(-39));
@@ -438,7 +509,15 @@ public sealed class IngestionModelTests
         await properties.ApplyTopologyAsync(new(
             "tenant-a", connection.PropertyId, "Held property", "held-property", true, 1),
             CancellationToken.None);
-        dbContext.AddRange(connection, pendingReceipt, applyingReceipt, terminalReceipt, pending, applying, terminal);
+        dbContext.AddRange(
+            connection,
+            pendingReceipt,
+            applyingReceipt,
+            terminalReceipt,
+            anonymisedReceipt,
+            pending,
+            applying,
+            terminal);
         await dbContext.SaveChangesAsync();
 
         IReadOnlyList<BunkFy.Modules.Ingestion.Application.Ports.RawPayloadPurgeCandidate> claimed =
@@ -449,6 +528,12 @@ public sealed class IngestionModelTests
         Assert.Equal(RawPayloadRetentionState.Available, pendingReceipt.RawPayloadRetentionState);
         Assert.Equal(RawPayloadRetentionState.Available, applyingReceipt.RawPayloadRetentionState);
         Assert.Equal(RawPayloadRetentionState.Purging, terminalReceipt.RawPayloadRetentionState);
+        Assert.Equal(
+            RawPayloadRetentionState.Purging,
+            anonymisedReceipt.RawPayloadRetentionState);
+        Assert.Equal(
+            anonymisationClaimId,
+            anonymisedReceipt.RawPayloadPurgeClaimId);
         await dbContext.SaveChangesAsync();
         dbContext.ChangeTracker.Clear();
         AdapterConnectionHealthDto? health = await new IngestionOperationsReader(dbContext).GetConnectionHealthAsync(

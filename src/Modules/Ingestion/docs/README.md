@@ -1,6 +1,6 @@
 # Ingestion Module
 
-Status: reservation ingestion workflow and first data-rights owner slice
+Status: reservation ingestion workflow and data-rights restore safety slice
 implemented
 
 Ingestion is BunkFy's tenant- and property-scoped control plane for external source adapters, durable observations, normalization, and staff-reviewed change proposals.
@@ -71,10 +71,15 @@ link, receipts, proposals, dispatches, reprocessing lineage and retained raw
 evidence; unrelated connections and property operations are excluded.
 Available raw objects are emitted as deterministic bounded chunks, a missing
 available object makes the fragment unavailable, and a purged object is never
-reconstructed. Destructive DataRights execution is intentionally not
-registered yet: legal-hold, retention, reprocessing and reconciliation
-blockers, owner proof, local tombstones, re-ingestion denial and pre-ready
-restore replay must be delivered together. See
+reconstructed. Destructive DataRights execution remains intentionally
+unregistered. The module now registers protected restore only: immutable
+owner plans, keyed anti-resurrection fingerprints, local tombstones, ordinary
+ingress/dispatch/reprocessing/raw/discovery/export barriers protect ordinary
+surfaces. Host readiness remains closed while DataRights startup
+reconciliation replays completed owner proofs after database restore.
+PostgreSQL and object storage remain a two-phase state machine; reducing
+tombstones are unhealthy until every planned object is absent and final
+receipt state is committed. See
 [Ingestion Data Rights Workflow Task](../../../docs/planning/ingestion-data-rights-workflow-task.md).
 
 New evidence is written under a deterministic receipt key before the PostgreSQL transaction commits. This avoids acknowledging a receipt whose evidence was never stored and makes command retries idempotent, but a process crash can leave an unreferenced object. Production launch therefore still requires a bounded, grace-period orphan reconciliation job built on a provider-neutral GMA storage-inventory capability; Ingestion must not depend directly on MinIO listing APIs.
@@ -89,7 +94,7 @@ Connection health keeps its operational state factual: `NoActivity`, `RunActive`
 
 Health also reports whether the current host knows the connection's adapter descriptor and still supports its execution mode, together with protocol/configuration schema versions. This detects deployment composition drift without claiming that a registered adapter is operationally healthy.
 
-Focused Docker coverage proves PostgreSQL, MinIO, JetStream, exact deduplication, worker-downtime recovery, automatic reservation creation, accepted and rejected allocation amendments, fresh worker restarts, the staff-conflict proposal path, real-token property-scoped connection management and health, separately authorized raw-payload retrieval, retention migration backfill, active-proposal evidence protection, legacy PII baseline reduction, normalized-history redaction and constraints, overlapping legal holds and fence conflicts, physical object purge, one-time adapter credential rotation, tenant/connection denial, direct push acceptance/replay, standalone and remote-leased runner delivery plus checkpointing, revocation, queued JSON file-drop receipt/archive/quarantine behavior, real SMTP-to-IMAP reservation acquisition and poison-message progress through GreenMail, and Admin API/CLI confirmation. Vendor-specific connectors, federated workload identity, remote fleet discovery, orphan reconciliation, and broader operational workflows remain later slices.
+Focused Docker coverage proves PostgreSQL, MinIO, JetStream, exact deduplication, worker-downtime recovery, automatic reservation creation, accepted and rejected allocation amendments, fresh worker restarts, the staff-conflict proposal path, real-token property-scoped connection management and health, separately authorized raw-payload retrieval, retention migration backfill, active-proposal evidence protection, legacy PII baseline reduction, normalized-history redaction and constraints, overlapping legal holds and fence conflicts, protected-ledger restore replay, anti-resurrection barriers, physical object purge, one-time adapter credential rotation, tenant/connection denial, direct push acceptance/replay, standalone and remote-leased runner delivery plus checkpointing, revocation, queued JSON file-drop receipt/archive/quarantine behavior, real SMTP-to-IMAP reservation acquisition and poison-message progress through GreenMail, and Admin API/CLI confirmation. Vendor-specific connectors, federated workload identity, remote fleet discovery, orphan reconciliation, irreversible anonymisation execution, and broader operational workflows remain later slices.
 
 Retained rejected evidence can be parsed again without reopening the source receipt; the durable attempt, lineage, and retention-fence contract is in [Ingestion Source Reprocessing Task](../../../docs/planning/ingestion-source-reprocessing-task.md).
 

@@ -10,7 +10,10 @@ internal sealed class ObservationReprocessingOutputConfiguration
 {
     public void Configure(EntityTypeBuilder<ObservationReprocessingOutput> builder)
     {
-        builder.ToTable("observation_reprocessing_outputs");
+        builder.ToTable("observation_reprocessing_outputs", table =>
+            table.HasCheckConstraint(
+                "CK_ingestion_observation_reprocessing_outputs_version",
+                "\"Version\" >= 1"));
         builder.HasKey(output => output.Id);
         builder.HasAlternateKey(output => new { output.ScopeId, output.Id });
         builder.Property(output => output.ScopeId).HasMaxLength(128).IsRequired();
@@ -25,6 +28,10 @@ internal sealed class ObservationReprocessingOutputConfiguration
         builder.Property(output => output.ErrorCode)
             .HasMaxLength(ObservationReprocessingOutput.ErrorCodeMaxLength);
         builder.Property(output => output.Disposition).HasConversion<int>().IsRequired();
+        builder.Property(output => output.Version)
+            .HasDefaultValue(1L)
+            .IsConcurrencyToken()
+            .IsRequired();
         builder.HasIndex(output => new { output.ScopeId, output.AttemptId, output.OutputIndex }).IsUnique();
         builder.HasOne<ObservationReprocessingAttempt>()
             .WithMany()

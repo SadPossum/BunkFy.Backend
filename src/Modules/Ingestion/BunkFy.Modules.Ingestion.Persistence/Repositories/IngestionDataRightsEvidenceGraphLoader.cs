@@ -13,10 +13,30 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
 
     public async Task<IngestionDataRightsEvidenceGraphLoadResult> LoadAsync(
         ReservationSourceLink sourceLink,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        await this.LoadCoreAsync(
+            sourceLink,
+            trackChanges: false,
+            cancellationToken).ConfigureAwait(false);
+
+    public async Task<IngestionDataRightsEvidenceGraphLoadResult>
+        LoadTrackedAsync(
+            ReservationSourceLink sourceLink,
+            CancellationToken cancellationToken) =>
+        await this.LoadCoreAsync(
+            sourceLink,
+            trackChanges: true,
+            cancellationToken).ConfigureAwait(false);
+
+    private async Task<IngestionDataRightsEvidenceGraphLoadResult>
+        LoadCoreAsync(
+            ReservationSourceLink sourceLink,
+            bool trackChanges,
+            CancellationToken cancellationToken)
     {
-        ReservationDispatch[] dispatches = await dbContext.ReservationDispatches
-            .AsNoTracking()
+        ReservationDispatch[] dispatches = await Query(
+                dbContext.ReservationDispatches,
+                trackChanges)
             .Where(dispatch =>
                 dispatch.PropertyId == sourceLink.PropertyId &&
                 dispatch.SourceLinkId == sourceLink.Id)
@@ -30,8 +50,9 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
             return IngestionDataRightsEvidenceGraphLoadResult.TooLarge();
         }
 
-        ChangeProposal[] proposals = await dbContext.ChangeProposals
-            .AsNoTracking()
+        ChangeProposal[] proposals = await Query(
+                dbContext.ChangeProposals,
+                trackChanges)
             .Where(proposal =>
                 proposal.PropertyId == sourceLink.PropertyId &&
                 proposal.ConnectionId == sourceLink.ConnectionId &&
@@ -47,8 +68,9 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
         }
 
         Dictionary<Guid, ObservationReceipt> receipts =
-            (await dbContext.ObservationReceipts
-                .AsNoTracking()
+            (await Query(
+                    dbContext.ObservationReceipts,
+                    trackChanges)
                 .Where(receipt =>
                     receipt.PropertyId == sourceLink.PropertyId &&
                     receipt.ConnectionId == sourceLink.ConnectionId &&
@@ -86,6 +108,7 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
                 requiredReceiptIds,
                 receipts,
                 dispatches.Length + proposals.Length,
+                trackChanges,
                 cancellationToken).ConfigureAwait(false);
         if (receiptLoadStatus !=
             IngestionDataRightsEvidenceGraphLoadStatus.Succeeded)
@@ -99,8 +122,9 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
             int remaining = MaximumGraphRecords -
                 GraphRecordCount(dispatches, proposals, receipts.Count);
             ObservationReceipt[] descendants =
-                await dbContext.ObservationReceipts
-                    .AsNoTracking()
+                await Query(
+                        dbContext.ObservationReceipts,
+                        trackChanges)
                     .Where(receipt =>
                         receipt.PropertyId == sourceLink.PropertyId &&
                         receipt.ConnectionId == sourceLink.ConnectionId &&
@@ -136,8 +160,9 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
         int attemptCapacity = MaximumGraphRecords -
             GraphRecordCount(dispatches, proposals, receipts.Count);
         ObservationReprocessingAttempt[] attempts =
-            await dbContext.ObservationReprocessingAttempts
-                .AsNoTracking()
+            await Query(
+                    dbContext.ObservationReprocessingAttempts,
+                    trackChanges)
                 .Where(attempt =>
                     attempt.PropertyId == sourceLink.PropertyId &&
                     attempt.ConnectionId == sourceLink.ConnectionId &&
@@ -165,8 +190,9 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
             attempts.Length;
         ObservationReprocessingOutput[] outputs = attemptIds.Length == 0
             ? []
-            : await dbContext.ObservationReprocessingOutputs
-                .AsNoTracking()
+            : await Query(
+                    dbContext.ObservationReprocessingOutputs,
+                    trackChanges)
                 .Where(output => attemptIds.Contains(output.AttemptId))
                 .OrderBy(output => output.AttemptId)
                 .ThenBy(output => output.OutputIndex)
@@ -205,6 +231,7 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
             IReadOnlyCollection<Guid> requiredIds,
             Dictionary<Guid, ObservationReceipt> receipts,
             int existingGraphCount,
+            bool trackChanges,
             CancellationToken cancellationToken)
     {
         Guid[] missingIds = requiredIds
@@ -223,8 +250,9 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
             return IngestionDataRightsEvidenceGraphLoadStatus.TooLarge;
         }
 
-        ObservationReceipt[] found = await dbContext.ObservationReceipts
-            .AsNoTracking()
+        ObservationReceipt[] found = await Query(
+                dbContext.ObservationReceipts,
+                trackChanges)
             .Where(receipt =>
                 receipt.PropertyId == sourceLink.PropertyId &&
                 receipt.ConnectionId == sourceLink.ConnectionId &&
@@ -249,6 +277,12 @@ internal sealed class IngestionDataRightsEvidenceGraphLoader(
         ChangeProposal[] proposals,
         int receiptCount) =>
         checked(1 + dispatches.Length + proposals.Length + receiptCount);
+
+    private static IQueryable<T> Query<T>(
+        DbSet<T> records,
+        bool trackChanges)
+        where T : class =>
+        trackChanges ? records : records.AsNoTracking();
 
     private static void AddIfPresent(HashSet<Guid> values, Guid? value)
     {

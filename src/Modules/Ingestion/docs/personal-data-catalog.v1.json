@@ -29,6 +29,18 @@
       ]
     },
     {
+      "id": "ingestion-anonymisation-restore",
+      "scope": "tenant-internal-protected-ledger-replay",
+      "readers": [
+        "system:data-rights.anonymisation",
+        "system:ingestion.anonymisation-restore"
+      ],
+      "writers": [
+        "system:data-rights.anonymisation",
+        "system:ingestion.anonymisation-restore"
+      ]
+    },
+    {
       "id": "legal-hold-audit",
       "scope": "tenant-property-authorized",
       "readers": [
@@ -88,6 +100,14 @@
       "approvalState": "engineering-default",
       "startsAt": "eligibility-evaluation-requested",
       "endsAt": "eligibility-evaluation-completed",
+      "duration": null,
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "ingestion-anonymisation-restore-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "protected-owner-proof-replayed",
+      "endsAt": "tenant-termination-plus-approved-proof-window",
       "duration": null,
       "legalHoldBehavior": "not-applicable"
     },
@@ -153,6 +173,13 @@
       "correction": "re-evaluate-from-current-owner-projections",
       "restriction": "fail-closed-on-missing-stale-or-unsupported-evidence",
       "erasure": "authorize-only-the-exact-approved-current-source-graph"
+    },
+    {
+      "id": "ingestion-anonymisation-restore-control",
+      "export": "exclude-owner-proofs-plans-and-keyed-fingerprints",
+      "correction": "replay-only-from-the-protected-data-rights-ledger",
+      "restriction": "keep-the-source-identity-barrier-fail-closed",
+      "erasure": "cryptographically-delete-fingerprint-keys-after-tenant-lifecycle"
     },
     {
       "id": "operational-rights",
@@ -13451,6 +13478,149 @@
           "surface": "projection-export",
           "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
         }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.restore-tombstone",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "protected-ledger-replay",
+        "anonymisation-barrier",
+        "restore-proof"
+      ],
+      "sources": [
+        "protected-data-rights-ledger",
+        "ingestion-current-projections"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-restore",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-restore-lifecycle",
+      "rightsPolicy": "ingestion-anonymisation-restore-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "ContractVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "Revision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "State", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "PropertyId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "ConnectionId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "SelectedSourceLinkVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "ResultingSourceLinkVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "OwnerReceiptContractVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "OwnerReceiptId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "OwnerReceiptSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "OriginallyCompletedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "LedgerEntryId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "TenantSequence", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "LedgerEntrySha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "GraphRecordCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "FingerprintCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "RawPayloadCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "ReplayStartedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationTombstone", "member": "LastReplayedAtUtc", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.keyed-fingerprint",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-barrier",
+        "reingestion-denial",
+        "fingerprint-key-rotation"
+      ],
+      "sources": ["ingestion-provider-identities"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-restore",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-restore-lifecycle",
+      "rightsPolicy": "ingestion-anonymisation-restore-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", "member": "TombstoneId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", "member": "Purpose", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", "member": "KeyVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", "member": "Sha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationFingerprint", "member": "CreatedAtUtc", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.record-plan",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "bounded-restore-replay",
+        "optimistic-version-proof",
+        "raw-payload-deletion-plan"
+      ],
+      "sources": ["ingestion-current-projections"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-restore",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-restore-lifecycle",
+      "rightsPolicy": "ingestion-anonymisation-restore-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "TombstoneId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "Kind", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "RecordId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "SelectedVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "ReductionVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "ResultingVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "RawPayloadFileId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "RawPayloadConnectionId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry", "member": "CreatedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Persistence", "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Persistence", "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Persistence", "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock", "member": "SourceLinkId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Persistence", "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock", "member": "Revision", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.record-marker",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "anonymisation-state-verification",
+        "ordinary-surface-denial"
+      ],
+      "sources": ["protected-data-rights-ledger"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-restore",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-restore-lifecycle",
+      "rightsPolicy": "ingestion-anonymisation-restore-control",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationReceipt", "member": "AnonymisedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Reservations.ReservationSourceLink", "member": "AnonymisedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Proposals.ChangeProposal", "member": "AnonymisedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Reservations.ReservationDispatch", "member": "AnonymisedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingOutput", "member": "AnonymisedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingOutput", "member": "Version", "surface": "persistence" }
       ]
     }
   ]

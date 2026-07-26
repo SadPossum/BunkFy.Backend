@@ -76,6 +76,18 @@ public static class IngestionDomainErrors
     public static readonly Error ReservationDispatchNotPending = new("Ingestion.ReservationDispatchNotPending", "The reservation dispatch is already terminal.");
     public static readonly Error SensitiveHistoryRetentionInvalid = new("Ingestion.SensitiveHistoryRetentionInvalid", "The sensitive history retention deadline is invalid.");
     public static readonly Error SensitiveHistoryNotRedactable = new("Ingestion.SensitiveHistoryNotRedactable", "The sensitive history is active or not yet due for redaction.");
+    public static readonly Error AnonymisationFingerprintInvalid = new(
+        "Ingestion.AnonymisationFingerprintInvalid",
+        "The Ingestion anonymisation fingerprint is invalid.");
+    public static readonly Error AnonymisationFingerprintKeyUnavailable = new(
+        "Ingestion.AnonymisationFingerprintKeyUnavailable",
+        "The requested Ingestion anonymisation fingerprint key is unavailable.");
+    public static readonly Error AnonymisationTombstoneInvalid = new(
+        "Ingestion.AnonymisationTombstoneInvalid",
+        "The Ingestion anonymisation tombstone is invalid.");
+    public static readonly Error AnonymisationRecordNotReducible = new(
+        "Ingestion.AnonymisationRecordNotReducible",
+        "The Ingestion record cannot be reduced from its current state.");
     public static readonly Error LegalHoldIdentityInvalid = new("Ingestion.LegalHoldIdentityInvalid", "The legal hold identity is invalid.");
     public static readonly Error LegalHoldReasonInvalid = new("Ingestion.LegalHoldReasonInvalid", "A valid legal hold reason is required.");
     public static readonly Error LegalHoldActorInvalid = new("Ingestion.LegalHoldActorInvalid", "A valid legal hold actor is required.");

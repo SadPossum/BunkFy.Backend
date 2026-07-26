@@ -18,6 +18,9 @@ using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.ProjectionRebuild.Tasks;
 using BunkFy.Modules.Ingestion.Application.Credentials;
 using BunkFy.Modules.Ingestion.Application.Parsing;
+using BunkFy.Modules.Ingestion.Application.DataRights;
+using BunkFy.Modules.Ingestion.Application.Contributors;
+using BunkFy.Modules.DataRights.Contracts;
 
 public static class DependencyInjection
 {
@@ -31,6 +34,11 @@ public static class DependencyInjection
         services.TryAddScoped<
             IIngestionAnonymisationEligibilityEvaluator,
             IngestionAnonymisationEligibilityEvaluator>();
+        services.TryAddScoped<IngestionAnonymisationBarrier>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationRestoreContributor,
+                IngestionDataRightsAnonymisationRestoreContributor>());
         services.TryAddScoped<IAdapterObservationSinkFactory, AdapterObservationSinkFactory>();
         services.TryAddScoped<IAdapterDescriptorRegistry, AdapterDescriptorRegistry>();
         services.TryAddScoped<IAdapterRunnerRegistry, AdapterRunnerRegistry>();

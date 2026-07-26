@@ -77,6 +77,7 @@ public sealed class AdapterObservationSinkTests
     {
         ServiceCollection services = new();
         services.AddSingleton<IRequestDispatcher>(dispatcher);
+        services.AddAllowingAnonymisationBarrier();
         services.AddIngestionApplication();
         return services.BuildServiceProvider().GetRequiredService<IAdapterObservationSinkFactory>();
     }

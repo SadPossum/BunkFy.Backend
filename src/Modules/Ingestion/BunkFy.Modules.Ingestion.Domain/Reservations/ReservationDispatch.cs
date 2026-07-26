@@ -38,6 +38,7 @@ public sealed class ReservationDispatch : ScopedAggregateRoot<Guid>
     public DateTimeOffset? CompletedAtUtc { get; private set; }
     public DateTimeOffset? SensitiveDataRetainUntilUtc { get; private set; }
     public DateTimeOffset? SensitiveDataRedactedAtUtc { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
 
     public static Result<ReservationDispatch> Create(
         Guid operationId,
@@ -167,6 +168,26 @@ public sealed class ReservationDispatch : ScopedAggregateRoot<Guid>
 
         this.NormalizedSnapshot = null;
         this.SensitiveDataRedactedAtUtc = nowUtc;
+        this.Version++;
+        return Result.Success();
+    }
+
+    public Result Anonymise(DateTimeOffset nowUtc)
+    {
+        if (this.State is ReservationDispatchState.Pending or
+                ReservationDispatchState.Accepted ||
+            this.AnonymisedAtUtc.HasValue ||
+            nowUtc == default)
+        {
+            return Result.Failure(
+                IngestionDomainErrors.AnonymisationRecordNotReducible);
+        }
+
+        this.ReservationId = null;
+        this.SourceRevision = null;
+        this.NormalizedSnapshot = null;
+        this.SensitiveDataRedactedAtUtc = nowUtc.ToUniversalTime();
+        this.AnonymisedAtUtc = nowUtc.ToUniversalTime();
         this.Version++;
         return Result.Success();
     }

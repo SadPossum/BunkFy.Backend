@@ -182,6 +182,52 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Ingestion_restore_stays_non_destructive_and_product_owned()
+    {
+        string dependencyInjection = RepositoryPaths.Read(
+            "src",
+            "Modules",
+            "Ingestion",
+            "BunkFy.Modules.Ingestion.Application",
+            "DependencyInjection.cs");
+        Assert.Contains(
+            "IDataRightsAnonymisationRestoreContributor",
+            dependencyInjection,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "IDataRightsAnonymisationContributor",
+            dependencyInjection,
+            StringComparison.Ordinal);
+
+        string[] frontDoorOffenders =
+            RepositoryPaths.EnumerateFiles(
+                "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Api",
+                "*.cs")
+            .Concat(RepositoryPaths.EnumerateFiles(
+                "src/Modules/Ingestion/BunkFy.Modules.Ingestion.AdminApi",
+                "*.cs"))
+            .Concat(RepositoryPaths.EnumerateFiles(
+                "src/Modules/Ingestion/BunkFy.Modules.Ingestion.AdminCli",
+                "*.cs"))
+            .Where(path => File.ReadAllText(path).Contains(
+                "AnonymisationRestore",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+        Assert.Empty(frontDoorOffenders);
+
+        string[] gmaOffenders = RepositoryPaths.EnumerateFiles(
+                "gma",
+                "*.cs")
+            .Where(path => File.ReadAllText(path).Contains(
+                "IngestionAnonymisation",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+        Assert.Empty(gmaOffenders);
+    }
+
+    [Fact]
     public void Remote_adapter_lease_protocol_stays_in_shared_runtime_transport_and_ingestion()
     {
         string[] allowedRoots =
