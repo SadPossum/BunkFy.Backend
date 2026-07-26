@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 7,
+  "catalogVersion": 8,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -11920,27 +11920,16 @@
       "dataSubject": "guest",
       "classification": "lifecycle",
       "sensitivity": "standard",
-      "purposes": [
-        "fail-closed-contract-versioning",
-        "anonymisation-eligibility"
-      ],
-      "sources": [
-        "reservations-anonymisation-contract"
-      ],
+      "purposes": ["fail-closed-contract-versioning", "anonymisation-eligibility"],
+      "sources": ["reservations-anonymisation-contract"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command",
-        "projection-export"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -11964,26 +11953,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "standard",
-      "purposes": [
-        "anonymisation-eligibility",
-        "tenant-isolation"
-      ],
-      "sources": [
-        "approved-data-rights-operation"
-      ],
+      "purposes": ["anonymisation-eligibility", "tenant-isolation"],
+      "sources": ["approved-data-rights-operation"],
       "authoritativeOwner": "tenancy",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12000,26 +11979,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "elevated",
-      "purposes": [
-        "anonymisation-eligibility",
-        "approved-operation-correlation"
-      ],
-      "sources": [
-        "approved-data-rights-case"
-      ],
+      "purposes": ["anonymisation-eligibility", "approved-operation-correlation"],
+      "sources": ["approved-data-rights-case"],
       "authoritativeOwner": "data-rights",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12036,26 +12005,16 @@
       "dataSubject": "guest",
       "classification": "lifecycle",
       "sensitivity": "standard",
-      "purposes": [
-        "anonymisation-eligibility",
-        "approved-operation-versioning"
-      ],
-      "sources": [
-        "approved-data-rights-operation"
-      ],
+      "purposes": ["anonymisation-eligibility", "approved-operation-versioning"],
+      "sources": ["approved-data-rights-operation"],
       "authoritativeOwner": "data-rights",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12079,26 +12038,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "standard",
-      "purposes": [
-        "anonymisation-eligibility",
-        "property-authorization"
-      ],
-      "sources": [
-        "approved-data-rights-operation"
-      ],
+      "purposes": ["anonymisation-eligibility", "property-authorization"],
+      "sources": ["approved-data-rights-operation"],
       "authoritativeOwner": "properties",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12115,26 +12064,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "elevated",
-      "purposes": [
-        "anonymisation-eligibility",
-        "approved-record-selection"
-      ],
-      "sources": [
-        "approved-data-rights-operation"
-      ],
+      "purposes": ["anonymisation-eligibility", "approved-record-selection"],
+      "sources": ["approved-data-rights-operation"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12151,28 +12090,16 @@
       "dataSubject": "guest",
       "classification": "lifecycle",
       "sensitivity": "standard",
-      "purposes": [
-        "anonymisation-eligibility",
-        "stale-operation-prevention"
-      ],
-      "sources": [
-        "approved-data-rights-operation",
-        "reservation-record"
-      ],
+      "purposes": ["anonymisation-eligibility", "stale-operation-prevention"],
+      "sources": ["approved-data-rights-operation", "reservation-record"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command",
-        "projection-export"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12196,28 +12123,16 @@
       "dataSubject": "guest",
       "classification": "lifecycle",
       "sensitivity": "standard",
-      "purposes": [
-        "anonymisation-eligibility",
-        "stale-operation-prevention"
-      ],
-      "sources": [
-        "approved-data-rights-operation",
-        "reservation-record"
-      ],
+      "purposes": ["anonymisation-eligibility", "stale-operation-prevention"],
+      "sources": ["approved-data-rights-operation", "reservation-record"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command",
-        "projection-export"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12241,26 +12156,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "elevated",
-      "purposes": [
-        "anonymisation-eligibility",
-        "approved-policy-proof"
-      ],
-      "sources": [
-        "approved-data-rights-operation"
-      ],
+      "purposes": ["anonymisation-eligibility", "approved-policy-proof"],
+      "sources": ["approved-data-rights-operation"],
       "authoritativeOwner": "data-rights",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "integration-command"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12354,26 +12259,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "elevated",
-      "purposes": [
-        "anonymisation-eligibility",
-        "fail-closed-decision"
-      ],
-      "sources": [
-        "reservations-current-projections"
-      ],
+      "purposes": ["anonymisation-eligibility", "fail-closed-decision"],
+      "sources": ["reservations-current-projections"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "projection-export"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12397,26 +12292,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "elevated",
-      "purposes": [
-        "anonymisation-eligibility",
-        "data-hold-blocking"
-      ],
-      "sources": [
-        "reservations-data-holds"
-      ],
+      "purposes": ["anonymisation-eligibility", "data-hold-blocking"],
+      "sources": ["reservations-data-holds"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "projection-export"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12433,26 +12318,16 @@
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "standard",
-      "purposes": [
-        "anonymisation-eligibility",
-        "immutable-policy-proof"
-      ],
-      "sources": [
-        "reservations-property-policy-projection"
-      ],
+      "purposes": ["anonymisation-eligibility", "immutable-policy-proof"],
+      "sources": ["reservations-property-policy-projection"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "projection-export"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12469,26 +12344,16 @@
       "dataSubject": "guest",
       "classification": "lifecycle",
       "sensitivity": "standard",
-      "purposes": [
-        "anonymisation-eligibility",
-        "evaluation-freshness"
-      ],
-      "sources": [
-        "reservations-system-clock"
-      ],
+      "purposes": ["anonymisation-eligibility", "evaluation-freshness"],
+      "sources": ["reservations-system-clock"],
       "authoritativeOwner": "reservations",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "reservation-anonymisation-eligibility",
       "countryPolicyKey": "reservation.data-rights-anonymisation",
       "retentionPolicy": "reservation-anonymisation-eligibility-evaluation",
       "rightsPolicy": "reservation-anonymisation-eligibility-control",
-      "allowedSurfaces": [
-        "projection-export"
-      ],
-      "allowedBoundaries": [
-        "cross-module",
-        "intra-module"
-      ],
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
         {
@@ -12598,6 +12463,20 @@
           "member": "CompletedAtUtc",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "CompletedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "OriginallyCompletedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -12638,6 +12517,34 @@
           "member": "ContractVersion",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "ContractVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "OwnerReceiptContractVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptContractVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -12685,6 +12592,20 @@
           "member": "ReceiptId",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "OwnerReceiptId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -12732,6 +12653,20 @@
           "member": "ScopeId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -12833,6 +12768,20 @@
           "member": "PropertyId",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "PropertyId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "PropertyId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -13035,6 +12984,20 @@
           "member": "ReservationId",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "Id",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "ReservationId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -13136,6 +13099,20 @@
           "member": "ResultingReservationVersion",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "ResultingReservationVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "ResultingReservationVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -13237,6 +13214,20 @@
           "member": "ResultingDetailsRevision",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "ResultingDetailsRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "ResultingDetailsRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     },
@@ -13717,6 +13708,211 @@
           "member": "CanonicalSha256",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "OwnerReceiptSha256",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptSha256",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.restore.request",
+      "dataSubject": "guest",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "approvalState": "engineering-default",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["restore-integrity", "tombstone-reapplication"],
+      "sources": ["verified-data-rights-processing-ledger"],
+      "authoritativeOwner": "data-rights",
+      "retentionPolicy": "transient-request",
+      "allowedSurfaces": ["application-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.RestoreReservationAnonymisationCommand",
+          "member": "Request",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.restore.ledger-entry-id",
+      "dataSubject": "guest",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "approvalState": "engineering-default",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["restore-accountability", "authoritative-ledger-correlation"],
+      "sources": ["data-rights-processing-ledger"],
+      "authoritativeOwner": "data-rights",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "LedgerEntryId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "Id",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "LedgerEntryId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.restore.tenant-sequence",
+      "dataSubject": "guest",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "approvalState": "engineering-default",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["restore-accountability", "ledger-ordering"],
+      "sources": ["data-rights-processing-ledger"],
+      "authoritativeOwner": "data-rights",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "TenantSequence",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.restore.ledger-entry-sha256",
+      "dataSubject": "guest",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "approvalState": "engineering-default",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["restore-integrity", "authoritative-ledger-proof"],
+      "sources": ["data-rights-processing-ledger"],
+      "authoritativeOwner": "data-rights",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "LedgerEntrySha256",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.restore.tombstone-revision",
+      "dataSubject": "guest",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "approvalState": "engineering-default",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["restore-accountability", "monotonic-tombstone-versioning"],
+      "sources": ["reservations-anonymisation-workflow"],
+      "authoritativeOwner": "reservations",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "Revision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "TombstoneRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        }
+      ]
+    },
+    {
+      "id": "reservation.anonymisation.restore.replayed-at-utc",
+      "dataSubject": "guest",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-anonymisation-owner-proof",
+      "countryPolicyKey": "reservation.data-rights-anonymisation",
+      "rightsPolicy": "reservation-anonymisation-accountability",
+      "approvalState": "engineering-default",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["restore-accountability", "replay-ordering"],
+      "sources": ["reservations-restore-gate"],
+      "authoritativeOwner": "reservations",
+      "retentionPolicy": "reservation-anonymisation-owner-proof",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "LastReplayedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationRestoreReceipt",
+          "member": "ReplayedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-anonymisation-owner-proof"
         }
       ]
     }

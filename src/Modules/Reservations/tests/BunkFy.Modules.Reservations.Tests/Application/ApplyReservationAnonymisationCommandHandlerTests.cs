@@ -59,6 +59,9 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
         Assert.Equal(1, approval.CallCount);
         Assert.Equal(1, eligibility.CallCount);
         Assert.Equal(1, anonymisation.AddCount);
+        Assert.NotNull(anonymisation.Tombstone);
+        Assert.True(anonymisation.Tombstone.Matches(
+            anonymisation.Receipt!));
     }
 
     [Fact]
@@ -251,6 +254,12 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
         : IReservationAnonymisationRepository
     {
         public ReservationAnonymisationReceipt? Receipt { get; private set; }
+        public ReservationAnonymisationTombstone? Tombstone
+        {
+            get;
+            private set;
+        }
+
         public int AddCount { get; private set; }
 
         public Task<ReservationAnonymisationReceipt?>
@@ -277,11 +286,13 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(this.Receipt == receipt);
 
-        public Task AddReceiptAsync(
+        public Task AddOwnerProofAsync(
             ReservationAnonymisationReceipt receipt,
+            ReservationAnonymisationTombstone tombstone,
             CancellationToken cancellationToken)
         {
             this.Receipt = receipt;
+            this.Tombstone = tombstone;
             this.AddCount++;
             return Task.CompletedTask;
         }

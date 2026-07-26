@@ -124,7 +124,12 @@ public sealed class ReservationAnonymisationRepositoryTests
                 affected.SuppressedReminderCount,
                 new string('b', ReservationAnonymisationReceipt.Sha256Length),
                 new string('c', ReservationAnonymisationReceipt.Sha256Length)).Value;
-        await anonymisation.AddReceiptAsync(receipt, CancellationToken.None);
+        ReservationAnonymisationTombstone tombstone =
+            ReservationAnonymisationTombstone.Create(receipt).Value;
+        await anonymisation.AddOwnerProofAsync(
+            receipt,
+            tombstone,
+            CancellationToken.None);
         await dbContext.SaveChangesAsync();
         dbContext.ChangeTracker.Clear();
 
@@ -182,6 +187,114 @@ public sealed class ReservationAnonymisationRepositoryTests
             await Assert.ThrowsAsync<InvalidOperationException>(
                 () => dbContext.SaveChangesAsync());
         Assert.Contains("append-only", mutationError.Message);
+    }
+
+    [Fact]
+    public async Task Restore_re_scrubs_child_stores_without_duplicate_history()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        Reservation reservation = CreateTerminalReservation();
+        ReservationAnonymisationRestoreOutcome restored =
+            reservation.RestoreAnonymisation(
+                reservation.Version + 1,
+                "data-rights-restore",
+                Guid.NewGuid(),
+                Now.AddHours(-2),
+                Now.AddHours(-1)).Value;
+        reservation.ClearDomainEvents();
+        dbContext.Reservations.Add(reservation);
+
+        string staleSnapshot = JsonSerializer.Serialize(
+            new ReservationDetailsSnapshot(
+                reservation.Arrival,
+                reservation.Departure,
+                reservation.RequestedUnits
+                    .Select(unit => unit.InventoryUnitId)
+                    .ToArray(),
+                "Restored Guest",
+                "restored@example.test",
+                "+44 20 1111 2222",
+                reservation.GuestCount,
+                "Restored note",
+                reservation.ExpectedArrivalTime,
+                reservation.ExpectedDepartureTime),
+            SerializerOptions);
+        dbContext.ReservationDetailsHistory.Add(
+            new ReservationDetailsHistoryEntry(
+                Guid.NewGuid(),
+                reservation.ScopeId,
+                reservation.Id,
+                reservation.PropertyId,
+                fromRevision: 0,
+                toRevision: restored.CurrentDetailsRevision,
+                ReservationDetailsChangeOrigin.Staff,
+                actorId: "staff:restore",
+                adapterConnectionId: null,
+                externalOperationId: null,
+                operationDeduplicationKey: new string('e', 64),
+                Guid.NewGuid(),
+                changedFieldsJson: "[\"PrimaryGuestName\",\"Email\"]",
+                beforeSnapshotJson: staleSnapshot,
+                afterSnapshotJson: staleSnapshot,
+                afterSnapshotHash: Hash(staleSnapshot),
+                Now.AddHours(-3)));
+        dbContext.ExternalOperations.Add(
+            new ReservationExternalOperation(
+                new ReservationExternalOperationRecord(
+                    Guid.NewGuid(),
+                    reservation.ScopeId,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    reservation.PropertyId,
+                    ExternalReservationOperationKind.Amend,
+                    new string('f', Reservation.RequestFingerprintLength),
+                    ExternalReservationOperationOutcome.ValidationRejected,
+                    reservation.Id,
+                    reservation.DetailsRevision,
+                    reservation.Version,
+                    "Restored Guest could not be applied",
+                    Now.AddHours(-2))));
+        dbContext.ArrivalReminders.Add(
+            ReservationArrivalReminder.Create(
+                Guid.NewGuid(),
+                reservation.ScopeId,
+                reservation.Id,
+                reservation.PropertyId,
+                reservation.DetailsRevision,
+                "UTC",
+                reservation.Arrival,
+                reservation.ExpectedArrivalTime!.Value,
+                Now.AddDays(4),
+                Now.AddDays(4).AddHours(-2),
+                leadTimeMinutes: 120));
+        await dbContext.SaveChangesAsync();
+
+        ReservationAnonymisationRepository anonymisation = new(dbContext);
+        ReservationAnonymisationAffectedRecords affected =
+            await anonymisation.RedactRestoredOwnedRecordsAsync(
+                reservation,
+                outcome: null,
+                CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        Assert.Equal(1, affected.RedactedHistoryCount);
+        Assert.Equal(1, affected.ReducedExternalOperationCount);
+        Assert.Equal(1, affected.SuppressedReminderCount);
+        ReservationDetailsHistoryEntry history = Assert.Single(
+            await dbContext.ReservationDetailsHistory.ToArrayAsync());
+        Assert.DoesNotContain(
+            "Restored Guest",
+            history.AfterSnapshotJson,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "restored@example.test",
+            history.AfterSnapshotJson,
+            StringComparison.Ordinal);
+        Assert.True(await anonymisation.VerifyRestoredOwnerStateAsync(
+            reservation.PropertyId,
+            reservation.Id,
+            CancellationToken.None));
     }
 
     private static Reservation CreateTerminalReservation() => Reservation.Create(

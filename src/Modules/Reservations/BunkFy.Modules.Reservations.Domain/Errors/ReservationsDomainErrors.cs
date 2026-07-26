@@ -52,6 +52,9 @@ public static class ReservationsDomainErrors
     public static readonly Error ReservationNotEligibleForAnonymisation = new("Reservations.ReservationNotEligibleForAnonymisation", "The reservation is not in a terminal state that permits anonymisation.");
     public static readonly Error ReservationAnonymisationProvenanceInvalid = new("Reservations.ReservationAnonymisationProvenanceInvalid", "The reservation anonymisation provenance is invalid.");
     public static readonly Error ReservationAnonymisationReceiptInvalid = new("Reservations.ReservationAnonymisationReceiptInvalid", "The reservation anonymisation receipt is invalid.");
+    public static readonly Error ReservationAnonymisationTombstoneInvalid = new("Reservations.ReservationAnonymisationTombstoneInvalid", "The reservation anonymisation tombstone is invalid.");
+    public static readonly Error ReservationAnonymisationRestoreReceiptInvalid = new("Reservations.ReservationAnonymisationRestoreReceiptInvalid", "The reservation anonymisation restore receipt is invalid.");
+    public static readonly Error ReservationAnonymisationRestoreStateInvalid = new("Reservations.ReservationAnonymisationRestoreStateInvalid", "The restored reservation state cannot be reconciled with the protected anonymisation proof.");
     public static readonly Error AllocationAmendmentInProgress = new("Reservations.AllocationAmendmentInProgress", "An allocation-affecting reservation amendment is already in progress.");
     public static readonly Error AllocationAmendmentInvalid = new("Reservations.AllocationAmendmentInvalid", "The allocation-affecting reservation amendment is invalid.");
     public static readonly Error StayBusinessDateInvalid = new("Reservations.StayBusinessDateInvalid", "The business date is not valid for this stay transition.");

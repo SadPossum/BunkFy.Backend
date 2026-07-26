@@ -13,7 +13,8 @@ using Gma.Framework.Results;
 
 public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
 {
-    public const int CurrentContractVersion = 1;
+    public const int MinimumSupportedContractVersion = 1;
+    public const int CurrentContractVersion = 2;
     public const int CodeMaxLength = DataRightsExecutionWorkItem.OwnerCodeMaxLength;
     public const int Sha256Length = DataRightsRecordPseudonym.Sha256Length;
     public const string GenesisEntrySha256 =
@@ -50,6 +51,7 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
     public int OwnerReceiptContractVersion { get; private set; }
     public Guid OwnerReceiptId { get; private set; }
     public string OwnerReceiptSha256 { get; private set; } = string.Empty;
+    public long? ResultingRecordVersion { get; private set; }
     public string PreviousEntrySha256 { get; private set; } = string.Empty;
     public string EntrySha256 { get; private set; } = string.Empty;
     public Guid? ReplayOfLedgerEntryId { get; private set; }
@@ -140,6 +142,7 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             OwnerReceiptContractVersion = workItem.OwnerReceiptContractVersion!.Value,
             OwnerReceiptId = workItem.OwnerReceiptId!.Value,
             OwnerReceiptSha256 = ownerReceiptDigest,
+            ResultingRecordVersion = workItem.ResultingRecordVersion,
             PreviousEntrySha256 = previousDigest,
             ReplayOfLedgerEntryId = replayOfLedgerEntryId,
             SupersedesLedgerEntryId = supersedesLedgerEntryId
@@ -192,7 +195,8 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             this.PreviousEntrySha256,
             this.EntrySha256,
             this.ReplayOfLedgerEntryId,
-            this.SupersedesLedgerEntryId);
+            this.SupersedesLedgerEntryId,
+            this.ResultingRecordVersion);
 
     public static Result<DataRightsProcessingLedgerEntry> Restore(
         DataRightsProcessingLedgerSnapshot snapshot)
@@ -225,6 +229,7 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             OwnerReceiptContractVersion = snapshot.OwnerReceiptContractVersion,
             OwnerReceiptId = snapshot.OwnerReceiptId,
             OwnerReceiptSha256 = snapshot.OwnerReceiptSha256,
+            ResultingRecordVersion = snapshot.ResultingRecordVersion,
             PreviousEntrySha256 = snapshot.PreviousEntrySha256,
             EntrySha256 = snapshot.EntrySha256,
             ReplayOfLedgerEntryId = snapshot.ReplayOfLedgerEntryId,
@@ -237,7 +242,8 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
     }
 
     private bool HasValidCoordinates() =>
-        this.ContractVersion == CurrentContractVersion &&
+        this.ContractVersion is >= MinimumSupportedContractVersion
+            and <= CurrentContractVersion &&
         this.Id != Guid.Empty &&
         TenantIds.TryNormalize(this.ScopeId, out string? normalizedScopeId) &&
         string.Equals(this.ScopeId, normalizedScopeId, StringComparison.Ordinal) &&
@@ -274,6 +280,9 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
         this.OwnerReceiptContractVersion > 0 &&
         this.OwnerReceiptId != Guid.Empty &&
         IsSha256(this.OwnerReceiptSha256) &&
+        (this.ContractVersion == MinimumSupportedContractVersion
+            ? !this.ResultingRecordVersion.HasValue
+            : this.ResultingRecordVersion > 0) &&
         IsSha256(this.PreviousEntrySha256) &&
         (this.TenantSequence == 1
             ? string.Equals(
@@ -329,6 +338,14 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             this.OwnerReceiptContractVersion.ToString(CultureInfo.InvariantCulture));
         Append(canonical, this.OwnerReceiptId.ToString("N"));
         Append(canonical, this.OwnerReceiptSha256);
+        if (this.ContractVersion >= 2)
+        {
+            Append(
+                canonical,
+                this.ResultingRecordVersion!.Value.ToString(
+                    CultureInfo.InvariantCulture));
+        }
+
         Append(canonical, this.PreviousEntrySha256);
         Append(canonical, Coordinate(this.ReplayOfLedgerEntryId));
         Append(canonical, Coordinate(this.SupersedesLedgerEntryId));

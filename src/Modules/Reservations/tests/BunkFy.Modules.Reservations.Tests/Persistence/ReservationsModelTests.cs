@@ -166,6 +166,108 @@ public sealed class ReservationsModelTests
     }
 
     [Fact]
+    public void Model_keeps_restore_proof_independent_from_operational_row()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IEntityType tombstone = dbContext.Model.FindEntityType(
+            typeof(ReservationAnonymisationTombstone))!;
+        IEntityType restoreReceipt = dbContext.Model.FindEntityType(
+            typeof(ReservationAnonymisationRestoreReceipt))!;
+        IEntityType designTombstone =
+            dbContext.GetService<IDesignTimeModel>().Model.FindEntityType(
+                typeof(ReservationAnonymisationTombstone))!;
+        IEntityType designRestoreReceipt =
+            dbContext.GetService<IDesignTimeModel>().Model.FindEntityType(
+                typeof(ReservationAnonymisationRestoreReceipt))!;
+
+        Assert.Empty(tombstone.GetForeignKeys());
+        Assert.True(tombstone.FindProperty(
+            nameof(ReservationAnonymisationTombstone.Revision))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            tombstone.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(ReservationAnonymisationTombstone.ScopeId),
+                        nameof(ReservationAnonymisationTombstone.LedgerEntryId)
+                    ]));
+        Assert.Contains(
+            designTombstone.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_anonymisation_tombstones_replay");
+
+        IForeignKey parent = Assert.Single(
+            restoreReceipt.GetForeignKeys());
+        Assert.Equal(
+            typeof(ReservationAnonymisationTombstone),
+            parent.PrincipalEntityType.ClrType);
+        Assert.Equal(DeleteBehavior.Restrict, parent.DeleteBehavior);
+        Assert.Contains(
+            designRestoreReceipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservation_anonymisation_restore_receipts_digests");
+    }
+
+    [Fact]
+    public async Task Restore_receipts_are_append_only_and_tombstones_survive()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid ownerReceiptId = Guid.NewGuid();
+        Guid ledgerEntryId = Guid.NewGuid();
+        DateTimeOffset completedAtUtc =
+            new(2026, 7, 26, 2, 0, 0, TimeSpan.Zero);
+        DateTimeOffset replayedAtUtc = completedAtUtc.AddHours(1);
+        ReservationAnonymisationTombstone tombstone =
+            ReservationAnonymisationTombstone.Restore(
+                "tenant-a",
+                reservationId,
+                propertyId,
+                ownerReceiptContractVersion: 1,
+                ownerReceiptId,
+                new string('a', 64),
+                resultingReservationVersion: 2,
+                resultingDetailsRevision: 2,
+                completedAtUtc,
+                ledgerEntryId,
+                replayedAtUtc).Value;
+        ReservationAnonymisationRestoreReceipt restoreReceipt =
+            ReservationAnonymisationRestoreReceipt.Create(
+                "tenant-a",
+                ledgerEntryId,
+                tenantSequence: 1,
+                new string('b', 64),
+                propertyId,
+                reservationId,
+                ownerReceiptContractVersion: 1,
+                ownerReceiptId,
+                new string('a', 64),
+                resultingReservationVersion: 2,
+                resultingDetailsRevision: 2,
+                completedAtUtc,
+                tombstone.Revision,
+                replayedAtUtc).Value;
+        dbContext.AnonymisationTombstones.Add(tombstone);
+        dbContext.AnonymisationRestoreReceipts.Add(restoreReceipt);
+        await dbContext.SaveChangesAsync();
+
+        dbContext.AnonymisationRestoreReceipts.Remove(restoreReceipt);
+        InvalidOperationException receiptError =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dbContext.SaveChangesAsync());
+        Assert.Contains("append-only", receiptError.Message);
+        dbContext.Entry(restoreReceipt).State = EntityState.Detached;
+
+        dbContext.AnonymisationTombstones.Remove(tombstone);
+        InvalidOperationException tombstoneError =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dbContext.SaveChangesAsync());
+        Assert.Contains("cannot be deleted", tombstoneError.Message);
+    }
+
+    [Fact]
     public void Model_has_immutable_scoped_correction_receipt_constraints()
     {
         using ReservationsDbContext dbContext = CreateDbContext();

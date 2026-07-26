@@ -42,6 +42,10 @@ public sealed class DataRightsProcessingLedgerEntryTests
         Assert.Equal(workItem.ExecutionRevision, first.OperationRevision);
         Assert.Equal(workItem.OwnerReceiptId, first.OwnerReceiptId);
         Assert.Equal(workItem.OwnerReceiptSha256, first.OwnerReceiptSha256);
+        Assert.Equal(workItem.ResultingRecordVersion, first.ResultingRecordVersion);
+        Assert.Equal(
+            DataRightsProcessingLedgerEntry.CurrentContractVersion,
+            first.ContractVersion);
         Assert.Equal(pseudonym.KeyVersion, first.RecordPseudonymKeyVersion);
         Assert.Equal(pseudonym.Sha256, first.RecordPseudonymSha256);
         Assert.Equal(
@@ -72,6 +76,67 @@ public sealed class DataRightsProcessingLedgerEntryTests
             DataRightsProcessingLedgerEntry.Restore(
                 snapshot with { OwnerReceiptSha256 = new string('d', 64) })
                 .Error.Code);
+        Assert.Equal(
+            "DataRights.ProcessingLedgerEntryInvalid",
+            DataRightsProcessingLedgerEntry.Restore(
+                snapshot with
+                {
+                    ResultingRecordVersion =
+                        snapshot.ResultingRecordVersion!.Value + 1
+                })
+                .Error.Code);
+    }
+
+    [Fact]
+    public void Version_one_snapshot_preserves_its_original_digest_contract()
+    {
+        DataRightsProcessingLedgerSnapshot snapshot = new(
+            ContractVersion: 1,
+            EntryId: Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            ScopeId: "tenant-a",
+            TenantSequence: 1,
+            WorkItemId: Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            CaseId: Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            ApprovalRevision: 6,
+            OperationRevision: 7,
+            Operation: DataRightsCaseOperation.Anonymisation,
+            RoutingPropertyId: Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            OwnerKey: "guests",
+            RecordType: "guest-profile",
+            RecordPseudonymKeyVersion: 1,
+            RecordPseudonymSha256: new string('c', 64),
+            DispositionCode: "guests.completed",
+            ReasonCode: "guests.profile-anonymised",
+            CompletedAtUtc: new(
+                2026,
+                7,
+                25,
+                12,
+                4,
+                0,
+                TimeSpan.Zero),
+            PolicyEvidenceSchemaVersion: 1,
+            PolicyId: "approved-policy",
+            PolicyVersion: 3,
+            PolicyContentSha256: new string('a', 64),
+            RetentionPolicyId: "guest-retention",
+            RetentionPolicyVersion: 2,
+            OwnerReceiptContractVersion: 1,
+            OwnerReceiptId: Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            OwnerReceiptSha256: new string('b', 64),
+            PreviousEntrySha256:
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+            EntrySha256:
+                "ff2ce0d9a70bd93ad1ee27ad1100955aea4326be4f180d9e14051fd87424546b",
+            ReplayOfLedgerEntryId: null,
+            SupersedesLedgerEntryId: null);
+
+        DataRightsProcessingLedgerEntry restored =
+            DataRightsProcessingLedgerEntry.Restore(snapshot).Value;
+
+        Assert.Equal(1, restored.ContractVersion);
+        Assert.Null(restored.ResultingRecordVersion);
+        Assert.True(restored.HasValidCanonicalDigest());
     }
 
     [Fact]

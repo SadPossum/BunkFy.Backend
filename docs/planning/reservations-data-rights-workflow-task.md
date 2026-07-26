@@ -1,9 +1,9 @@
 # Reservations Data Rights Workflow Task
 
-Status: implementation in progress; discovery, export, correction, processing
-restriction, holds, destructive eligibility and irreversible
-Reservations-owned redaction complete; DataRights dispatch, protected ledger,
-tombstone and restore replay next
+Status: sixth implementation slice complete; discovery, export, correction,
+processing restriction, holds, destructive eligibility, irreversible
+Reservations-owned redaction, DataRights dispatch, protected ledger, tombstone
+and restore replay are implemented
 
 ## Outcome
 
@@ -248,10 +248,10 @@ ungated.
    receipts through existing aggregate/history semantics.
 3. [Complete] Add Reservations-owned processing restriction, enforcement
    and rebuildable PII-free state.
-4. [Implemented] Add holds and fail-closed destructive eligibility.
-5. Add irreversible aggregate/history/link/receipt redaction, owner proof and
-   terminal ordinary-surface enforcement.
-6. Add DataRights work-item dispatch, protected ledger completion,
+4. [Complete] Add holds and fail-closed destructive eligibility.
+5. [Complete] Add irreversible aggregate/history/link/receipt redaction, owner
+   proof and terminal ordinary-surface enforcement.
+6. [Complete] Add DataRights work-item dispatch, protected ledger completion,
    Reservations tombstone and pre-ready restore replay.
 7. Add operator API/UI flows, migration/architecture/Docker/browser evidence
    and exact-commit publication gates.
@@ -259,6 +259,71 @@ ungated.
 Only one numbered slice is implemented at a time. Existing modules may be
 touched through contracts, projections and tests, but Reservations remains the
 only owner of its data.
+
+## Sixth-Slice Design
+
+- DataRights keeps ownership of case execution, one-record work items,
+  contributor dispatch, protected external ledger durability, bounded restore
+  pages and the host readiness gate. Reservations registers one versioned
+  anonymisation contributor and one versioned restore contributor through the
+  existing contracts; it does not read DataRights persistence.
+- The owner contributor resolves the current Reservations details revision for
+  the exact approved aggregate version, maps generic routing-policy evidence to
+  the existing owner command and accepts only a canonical Reservations receipt
+  bound to the same case, operation, record and idempotency coordinates. A
+  concurrent owner change advances the aggregate version and fails closed
+  during the command's locked eligibility re-evaluation.
+- The protected processing ledger carries the resulting owner record version
+  already proven by the DataRights work item. New entries use ledger contract
+  version 2 and bind that value into the canonical chain digest. Version 1
+  entries and deltas remain readable with their original digest algorithm;
+  their missing result-version evidence is never invented.
+- Reservations commits its local tombstone with the original redaction receipt
+  and aggregate mutation. The tombstone is keyed by tenant and reservation,
+  stores property, original owner receipt digest, authoritative resulting
+  versions and a monotonic replay revision, and deliberately has no foreign key
+  to the reservation aggregate so a backup predating record creation can still
+  retain deletion proof without fabricated booking facts.
+- Restore replay accepts only the verified DataRights ledger envelope and runs
+  behind the existing per-reservation operation lock. If a restored aggregate
+  exists, Reservations re-scrubs current, pending, history, Guest-link,
+  adapter-fingerprint and reminder state regardless of the older operational
+  status while preserving factual stay, allocation and staff audit fields.
+  If it is absent, replay writes only the tombstone and restore receipt.
+- A fully matching terminal aggregate is not mutated again. An existing
+  original receipt is verified when present but is never recreated from its
+  digest. Every replay writes or reuses one immutable restore receipt binding
+  the ledger entry, original owner receipt proof, resulting owner state and
+  tombstone revision.
+- Exact restore receipt replay verifies the complete current owner state. A
+  changed ledger coordinate, receipt digest, tombstone, aggregate state or
+  owned child store fails closed. The DataRights checkpoint advances only after
+  this proof succeeds; API, Admin API, Admin CLI and Worker readiness therefore
+  remain false after an unsafe restore.
+- DataRights and Reservations executable personal-data catalogues include the
+  new protected proof, internal commands, tombstone and restore receipt.
+  Operator-facing erasure endpoints remain slice 7. GMA remains unchanged.
+
+## Sixth-Slice Acceptance Plan
+
+- DataRights domain and persistence tests prove contract-2 result-version
+  binding, canonical chain integrity, version-1 read compatibility, exact
+  restore-proof comparison and migration preservation of existing ledger rows.
+- Contributor tests prove exact owner resolution, routing-policy mapping,
+  blocked/failure classification, deadline handling and rejection of mismatched
+  receipts.
+- Reservations domain and handler tests cover original tombstone creation,
+  active/terminal restored-row re-scrubbing, already-redacted replay, absent-row
+  tombstone-only replay, immutable restore receipts and every mismatch path.
+- Persistence tests cover append-only proof stores, tenant-first uniqueness,
+  operation locking, full child-store re-scrubbing and exact idempotent replay.
+- PostgreSQL migration and Docker restore drills execute anonymisation through
+  the real DataRights worker, restore a pre-operation database, prove hosts stay
+  unready until Reservations replay completes, then verify ledger, tombstone,
+  owner state, restore receipt and checkpoint evidence.
+- Full architecture, migration-drift, non-Docker, Docker, generated-contract,
+  vulnerability, security and exact-commit publication gates must pass before
+  slice completion.
 
 ## Fifth-Slice Design
 
@@ -663,6 +728,59 @@ only owner of its data.
 - `eng/test-docker.ps1 -NoBuild` passes all 50 Docker integration tests.
   GMA remains unchanged; recursive source and pointer cleanliness is checked
   before publication.
+
+## Completed Sixth Slice
+
+- Reservations registers exact `reservations/reservation` anonymisation and
+  restore contributors through the existing DataRights contracts. Generic
+  work items resolve the current details revision, re-run Reservations-owned
+  policy and eligibility checks under the operation lock, and accept only the
+  canonical owner receipt bound to the approved coordinate.
+- DataRights processing-ledger contract version 2 binds the resulting owner
+  record version into its canonical chain digest. Existing version-1 entries
+  retain their original digest algorithm and remain restorable without
+  inventing the missing result-version field.
+- The original Reservations redaction transaction now writes an immutable
+  local tombstone with the owner receipt. The tombstone deliberately has no
+  operational Reservation foreign key and can therefore preserve proof when a
+  restored backup predates creation of that booking.
+- Restore replay accepts only the verified protected-ledger envelope. It
+  re-scrubs a restored aggregate, pending amendment, history, Guest links,
+  adapter operations and reminders, or writes proof only when the operational
+  row is absent. It never recreates an original owner receipt.
+- One append-only restore receipt binds the full generic ledger coordinate,
+  original owner proof, resulting Reservations versions and tombstone
+  revision. Exact replay is idempotent; changed ledger, owner, tombstone,
+  aggregate or child-store state fails closed before the checkpoint advances.
+- DataRights and Reservations personal-data catalogues and generated
+  inventories classify the new internal commands, protected proof, tombstone
+  and restore receipt. GMA remains unchanged.
+
+## Sixth-Slice Acceptance Evidence
+
+- DataRights, Guests and Reservations suites pass 116, 82 and 130 tests. They
+  cover contract-2 canonical binding, captured contract-1 compatibility,
+  exact contributor mapping, tombstone creation, restored-row and absent-row
+  replay, immutable receipts, child-store re-scrubbing and mismatch paths.
+- Migration
+  `20260726022029_AddProcessingLedgerResultVersion` additively extends the
+  generic ledger while preserving existing rows. Migration
+  `20260726024630_AddReservationAnonymisationRestoreProof` creates the
+  tombstone and restore-proof stores and backfills every existing owner
+  receipt into an exact tombstone.
+- A previous-schema PostgreSQL upgrade test seeds a real Reservations owner
+  receipt, applies the current migration and verifies the exact tombstone
+  digest without fabricating a restore receipt.
+- A PostgreSQL and NATS worker drill executes the generic Reservations work
+  item, records contract-2 ledger and owner proof, restores a pre-operation
+  database, re-scrubs the restored booking and keeps readiness gated until the
+  restore receipt, tombstone and checkpoint agree.
+- `eng/verify.ps1 -SkipRestore` passes solution synchronization,
+  source-package ownership, a zero-warning full build, every GMA and BunkFy
+  migration-drift check, 64 architecture tests and all non-Docker suites.
+- `eng/test-docker.ps1 -NoBuild` passes all 52 Docker integration tests.
+  Recursive submodule status confirms no GMA source or pointer change belongs
+  to this slice.
 
 ## Non-Goals
 

@@ -175,8 +175,17 @@ internal sealed class ApplyReservationAnonymisationCommandHandler(
                 receipt.Error);
         }
 
-        await anonymisation.AddReceiptAsync(
+        Result<ReservationAnonymisationTombstone> tombstone =
+            ReservationAnonymisationTombstone.Create(receipt.Value);
+        if (tombstone.IsFailure)
+        {
+            return Result.Failure<ReservationAnonymisationReceiptDto>(
+                tombstone.Error);
+        }
+
+        await anonymisation.AddOwnerProofAsync(
             receipt.Value,
+            tombstone.Value,
             cancellationToken).ConfigureAwait(false);
         return Result.Success(receipt.Value.ToDto());
     }

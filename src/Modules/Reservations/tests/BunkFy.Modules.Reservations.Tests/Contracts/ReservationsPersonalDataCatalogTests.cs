@@ -342,6 +342,8 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(Reservation),
         typeof(ReservationDataRightsCorrectionReceipt),
         typeof(ReservationAnonymisationReceipt),
+        typeof(ReservationAnonymisationTombstone),
+        typeof(ReservationAnonymisationRestoreReceipt),
         typeof(ReservationDataHold),
         typeof(ReservationDataHoldReceipt),
         typeof(ReservationProcessingRestriction),

@@ -15,6 +15,12 @@ using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.Models;
+using BunkFy.Modules.Reservations.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Messaging;
@@ -271,6 +277,225 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         }
     }
 
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Durable_reservation_execution_restores_owner_proof_before_readiness()
+    {
+        await using IContainer nats = AuthTestContainers.CreateNatsContainer();
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_execution_tests")
+                .Build();
+        await using PostgreSqlContainer restoredPostgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_restore_tests")
+                .Build();
+        await Task.WhenAll(
+                nats.StartAsync(),
+                postgreSql.StartAsync(),
+                restoredPostgreSql.StartAsync())
+            .ConfigureAwait(false);
+
+        string connectionString = postgreSql.GetConnectionString();
+        string natsConnectionString =
+            AuthTestContainers.GetNatsConnectionString(nats);
+        string ledgerDeltaPath = Path.Combine(
+            Path.GetTempPath(),
+            $"bunkfy-reservation-rights-delta-{Guid.NewGuid():N}");
+        await using AuthTestApplication api = new(
+            "PostgreSql",
+            connectionString,
+            natsConnectionString,
+            disableOutboxPublisher: false);
+        await api.MigrateGuestDataRightsAuthorizationDatabaseAsync()
+            .ConfigureAwait(false);
+
+        using IHost worker = CreateWorker(
+            connectionString,
+            natsConnectionString,
+            ledgerDeltaPath);
+        await MigrateTaskRuntimeAsync(worker).ConfigureAwait(false);
+        (Reservation reservation, DataRightsCase dataRightsCase) =
+            await SeedReservationExecutionCandidateAsync(api)
+                .ConfigureAwait(false);
+        DataRightsExecutionDto execution =
+            await ApproveAndStartExecutionAsync(api, dataRightsCase)
+                .ConfigureAwait(false);
+
+        await WaitForDataRightsOutboxAsync(api, TimeSpan.FromSeconds(20))
+            .ConfigureAwait(false);
+        await worker.StartAsync().ConfigureAwait(false);
+        bool workerStarted = true;
+        try
+        {
+            TaskRun taskRun = await WaitForTaskRunAsync(
+                worker,
+                dataRightsCase.Id,
+                TaskRunStatus.Succeeded,
+                TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            using IServiceScope scope = worker.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            ReservationsDbContext reservations = scope.ServiceProvider
+                .GetRequiredService<ReservationsDbContext>();
+            DataRightsDbContext dataRights = scope.ServiceProvider
+                .GetRequiredService<DataRightsDbContext>();
+            Reservation anonymised = await reservations.Reservations
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == reservation.Id)
+                .ConfigureAwait(false);
+            ReservationAnonymisationReceipt receipt =
+                await reservations.AnonymisationReceipts
+                    .AsNoTracking()
+                    .SingleAsync()
+                    .ConfigureAwait(false);
+            ReservationAnonymisationTombstone tombstone =
+                await reservations.AnonymisationTombstones
+                    .AsNoTracking()
+                    .SingleAsync()
+                    .ConfigureAwait(false);
+            DataRightsExecutionWorkItem workItem =
+                await dataRights.ExecutionWorkItems
+                    .AsNoTracking()
+                    .SingleAsync(item => item.Id == execution.WorkItem.Id)
+                    .ConfigureAwait(false);
+            DataRightsProcessingLedgerEntry ledger =
+                await dataRights.ProcessingLedgerEntries
+                    .AsNoTracking()
+                    .SingleAsync(item => item.WorkItemId == workItem.Id)
+                    .ConfigureAwait(false);
+
+            Assert.True(anonymised.IsAnonymised);
+            Assert.Equal(
+                Reservation.AnonymisedGuestName,
+                anonymised.PrimaryGuestName);
+            Assert.Null(anonymised.Email);
+            Assert.Null(anonymised.Phone);
+            Assert.Null(anonymised.Notes);
+            Assert.Empty(anonymised.Guests);
+            Assert.True(tombstone.Matches(receipt));
+            Assert.Equal(taskRun.Id, workItem.TaskRunId);
+            Assert.Equal(receipt.Id, workItem.OwnerReceiptId);
+            Assert.Equal(
+                receipt.ResultingReservationVersion,
+                workItem.ResultingRecordVersion);
+            Assert.Equal(
+                receipt.ResultingReservationVersion,
+                ledger.ResultingRecordVersion);
+            Assert.Equal(2, ledger.ContractVersion);
+
+            string protectedFiles = string.Join(
+                '\n',
+                Directory.GetFiles(
+                        ledgerDeltaPath,
+                        "*",
+                        SearchOption.AllDirectories)
+                    .Select(File.ReadAllText));
+            Assert.DoesNotContain(
+                reservation.Id.ToString("N"),
+                protectedFiles,
+                StringComparison.OrdinalIgnoreCase);
+
+            await worker.StopAsync().ConfigureAwait(false);
+            workerStarted = false;
+
+            using IHost restoredWorker = CreateWorker(
+                restoredPostgreSql.GetConnectionString(),
+                natsConnectionString,
+                ledgerDeltaPath);
+            await MigrateRestoreDatabasesAsync(restoredWorker)
+                .ConfigureAwait(false);
+            await SeedPreAnonymisationReservationSnapshotAsync(
+                    restoredWorker,
+                    reservation.Id)
+                .ConfigureAwait(false);
+
+            await restoredWorker.StartAsync().ConfigureAwait(false);
+            try
+            {
+                using IServiceScope restoredScope =
+                    restoredWorker.Services.CreateScope();
+                restoredScope.ServiceProvider
+                    .GetRequiredService<ITenantContextAccessor>()
+                    .SetTenant(TenantId);
+                ReservationsDbContext restoredReservations =
+                    restoredScope.ServiceProvider
+                        .GetRequiredService<ReservationsDbContext>();
+                DataRightsDbContext restoredDataRights =
+                    restoredScope.ServiceProvider
+                        .GetRequiredService<DataRightsDbContext>();
+                Reservation restoredReservation =
+                    await restoredReservations.Reservations
+                        .AsNoTracking()
+                        .SingleAsync(item => item.Id == reservation.Id)
+                        .ConfigureAwait(false);
+                ReservationAnonymisationRestoreReceipt restoreReceipt =
+                    await restoredReservations.AnonymisationRestoreReceipts
+                        .AsNoTracking()
+                        .SingleAsync()
+                        .ConfigureAwait(false);
+                ReservationAnonymisationTombstone restoredTombstone =
+                    await restoredReservations.AnonymisationTombstones
+                        .AsNoTracking()
+                        .SingleAsync(item => item.Id == reservation.Id)
+                        .ConfigureAwait(false);
+                DataRightsRestoreCheckpoint restoreCheckpoint =
+                    await restoredDataRights.RestoreCheckpoints
+                        .AsNoTracking()
+                        .SingleAsync()
+                        .ConfigureAwait(false);
+                DataRightsRestoreReadinessSnapshot readiness =
+                    restoredScope.ServiceProvider
+                        .GetRequiredService<IDataRightsRestoreReadiness>()
+                        .Snapshot;
+
+                Assert.True(restoredReservation.IsAnonymised);
+                Assert.Equal(
+                    Reservation.AnonymisedGuestName,
+                    restoredReservation.PrimaryGuestName);
+                Assert.Null(restoredReservation.Email);
+                Assert.Null(restoredReservation.Phone);
+                Assert.Null(restoredReservation.Notes);
+                Assert.Empty(restoredReservation.Guests);
+                Assert.Equal(ledger.Id, restoreReceipt.LedgerEntryId);
+                Assert.Equal(receipt.Id, restoreReceipt.OwnerReceiptId);
+                Assert.Equal(
+                    receipt.CanonicalSha256,
+                    restoreReceipt.OwnerReceiptSha256);
+                Assert.Equal(ledger.Id, restoredTombstone.LedgerEntryId);
+                Assert.Equal(
+                    receipt.CanonicalSha256,
+                    restoredTombstone.OwnerReceiptSha256);
+                Assert.Equal(1, restoreCheckpoint.TenantSequence);
+                Assert.Equal(
+                    ledger.EntrySha256,
+                    restoreCheckpoint.EntrySha256);
+                Assert.True(readiness.IsReady);
+                Assert.Equal(
+                    "data-rights.restore.ready",
+                    readiness.StatusCode);
+            }
+            finally
+            {
+                await restoredWorker.StopAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            if (workerStarted)
+            {
+                await worker.StopAsync().ConfigureAwait(false);
+            }
+
+            if (Directory.Exists(ledgerDeltaPath))
+            {
+                Directory.Delete(ledgerDeltaPath, recursive: true);
+            }
+        }
+    }
+
     private static IHost CreateWorker(
         string connectionString,
         string natsConnectionString,
@@ -345,6 +570,9 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
             .Database.MigrateAsync()
             .ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<DataRightsDbContext>()
             .Database.MigrateAsync()
             .ConfigureAwait(false);
@@ -379,6 +607,22 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
             DateTimeOffset.UtcNow.AddHours(-1)).Value;
         guests.GuestProfiles.Add(profile);
         await guests.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    private static async Task SeedPreAnonymisationReservationSnapshotAsync(
+        IHost worker,
+        Guid reservationId)
+    {
+        using IServiceScope scope = worker.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        ReservationsDbContext reservations =
+            scope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+        Reservation reservation = CreateReservation(
+            reservationId,
+            DateTimeOffset.UtcNow.AddHours(-2));
+        reservations.Reservations.Add(reservation);
+        await reservations.SaveChangesAsync().ConfigureAwait(false);
     }
 
     private static async Task<(GuestProfile Guest, DataRightsCase Case)>
@@ -483,6 +727,139 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         dataRights.Cases.Add(dataRightsCase);
         await dataRights.SaveChangesAsync().ConfigureAwait(false);
         return (guest, dataRightsCase);
+    }
+
+    private static async Task<(Reservation Reservation, DataRightsCase Case)>
+        SeedReservationExecutionCandidateAsync(AuthTestApplication api)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        PropertyCreatedIntegrationEvent propertyCreated = new(
+            Guid.NewGuid(),
+            TenantId,
+            DateTimeOffset.UtcNow.AddDays(-2),
+            PropertyId,
+            "Durable reservation execution house",
+            "durable-reservation-execution-house",
+            "UTC",
+            PropertyStatus.Active,
+            1);
+
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                ReservationsModuleMetadata.Name)
+            .HandleAsync(propertyCreated, CancellationToken.None)
+            .ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            ReservationsModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
+        Reservation reservation = CreateReservation(
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow.AddMinutes(-20));
+        await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
+            .AddAsync(reservation, CancellationToken.None)
+            .ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
+            .SaveChangesAsync()
+            .ConfigureAwait(false);
+
+        DataRightsDbContext dataRights =
+            scope.ServiceProvider.GetRequiredService<DataRightsDbContext>();
+        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                scope.ServiceProvider,
+                DataRightsModuleMetadata.Name)
+            .HandleAsync(propertyCreated, CancellationToken.None)
+            .ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            DataRightsModuleMetadata.Name,
+            TenantId,
+            PropertyId,
+            2).ConfigureAwait(false);
+
+        DateTimeOffset startedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-10);
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            PropertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            TenantId,
+            request,
+            "user:privacy-reviewer",
+            startedAtUtc).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            ReservationsDataRightsCoordinates.Owner,
+            ReservationsDataRightsCoordinates.ReservationRecordType,
+            reservation.Id,
+            reservation.Version,
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            startedAtUtc.AddMinutes(4)).IsSuccess);
+        dataRights.Cases.Add(dataRightsCase);
+        await dataRights.SaveChangesAsync().ConfigureAwait(false);
+        return (reservation, dataRightsCase);
+    }
+
+    private static Reservation CreateReservation(
+        Guid reservationId,
+        DateTimeOffset createdAtUtc)
+    {
+        Reservation reservation = Reservation.Create(
+            reservationId,
+            TenantId,
+            PropertyId,
+            Guid.NewGuid(),
+            new DateOnly(2026, 8, 1),
+            new DateOnly(2026, 8, 3),
+            [Guid.NewGuid()],
+            "Durable Reservation Guest",
+            "durable-reservation@example.test",
+            "+44 20 1234 5678",
+            guestCount: 1,
+            ReservationSource.Direct,
+            sourceSystem: null,
+            sourceReference: null,
+            notes: "Must be scrubbed before readiness",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ReservationDetailsChangeOrigin.Staff,
+            initialDetailsActorId: null,
+            initialAdapterConnectionId: null,
+            initialExternalOperationId: null,
+            Guid.NewGuid(),
+            createdAtUtc).Value;
+        Assert.True(reservation.LinkGuest(
+            Guid.NewGuid(),
+            ReservationGuestRole.Primary,
+            replaceExistingRole: false,
+            reservation.Version,
+            "user:front-desk",
+            Guid.NewGuid(),
+            createdAtUtc.AddMinutes(1)).IsSuccess);
+        Assert.True(reservation.RejectAllocation(
+            reservation.AllocationRequestId,
+            ReservationAllocationRejection.AllocationConflict,
+            Guid.NewGuid(),
+            createdAtUtc.AddMinutes(2)).IsSuccess);
+        return reservation;
     }
 
     private static async Task<DataRightsExecutionDto> ApproveAndStartExecutionAsync(

@@ -273,6 +273,15 @@ public sealed class DataRightsPersonalDataCatalogTests
         }
 
         AssertBinding(
+            typeof(ProcessingLedgerEntry),
+            nameof(ProcessingLedgerEntry.ResultingRecordVersion),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(ProcessingLedgerSnapshot),
+            nameof(ProcessingLedgerSnapshot.ResultingRecordVersion),
+            PersonalDataSurface.Persistence);
+
+        AssertBinding(
             typeof(DataRightsAnonymisationRestoreResult),
             nameof(DataRightsAnonymisationRestoreResult.Proof),
             PersonalDataSurface.ProjectionExport);

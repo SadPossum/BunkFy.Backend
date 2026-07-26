@@ -30,4 +30,5 @@ public sealed record DataRightsProcessingLedgerSnapshot(
     string PreviousEntrySha256,
     string EntrySha256,
     Guid? ReplayOfLedgerEntryId,
-    Guid? SupersedesLedgerEntryId);
+    Guid? SupersedesLedgerEntryId,
+    long? ResultingRecordVersion = null);

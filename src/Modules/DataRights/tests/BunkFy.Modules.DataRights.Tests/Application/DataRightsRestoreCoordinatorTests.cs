@@ -79,6 +79,7 @@ public sealed class DataRightsRestoreCoordinatorTests
             ["query", "read", "prepare", "owner", "advance", "confirm"],
             calls);
         Assert.Equal(recordId, contributor.RecordId);
+        Assert.Equal(ledger.ResultingRecordVersion, contributor.ResultingRecordVersion);
     }
 
     private sealed class RecordingDispatcher(
@@ -200,6 +201,7 @@ public sealed class DataRightsRestoreCoordinatorTests
         public int ContractVersion =>
             DataRightsAnonymisationRestoreContract.CurrentVersion;
         public Guid RecordId { get; private set; }
+        public long? ResultingRecordVersion { get; private set; }
 
         public Task<DataRightsAnonymisationRestoreResult> RestoreAsync(
             DataRightsAnonymisationRestoreRequest request,
@@ -207,6 +209,7 @@ public sealed class DataRightsRestoreCoordinatorTests
         {
             calls.Add("owner");
             this.RecordId = request.RecordId;
+            this.ResultingRecordVersion = request.ResultingRecordVersion;
             return Task.FromResult(
                 DataRightsAnonymisationRestoreResult.Completed(
                     new(

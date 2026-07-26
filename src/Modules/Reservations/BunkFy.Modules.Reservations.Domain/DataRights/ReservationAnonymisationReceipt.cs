@@ -165,6 +165,29 @@ public sealed class ReservationAnonymisationReceipt : ScopedAggregateRoot<Guid>
             this.ComputeCanonicalSha256(),
             StringComparison.Ordinal);
 
+    public bool MatchesOwnerProof(
+        int contractVersion,
+        Guid receiptId,
+        Guid propertyId,
+        Guid reservationId,
+        long resultingReservationVersion,
+        string canonicalSha256,
+        DateTimeOffset completedAtUtc) =>
+        this.ContractVersion == contractVersion &&
+        this.Id == receiptId &&
+        this.PropertyId == propertyId &&
+        this.ReservationId == reservationId &&
+        this.ResultingReservationVersion == resultingReservationVersion &&
+        this.CompletedAtUtc == completedAtUtc.ToUniversalTime() &&
+        string.Equals(
+            this.CanonicalSha256,
+            NormalizeSha256(canonicalSha256),
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.CanonicalSha256,
+            this.ComputeCanonicalSha256(),
+            StringComparison.Ordinal);
+
     private string ComputeCanonicalSha256()
     {
         StringBuilder canonical = new();

@@ -29,6 +29,12 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         this.Set<ReservationDataHoldReceipt>();
     public DbSet<ReservationAnonymisationReceipt> AnonymisationReceipts =>
         this.Set<ReservationAnonymisationReceipt>();
+    public DbSet<ReservationAnonymisationTombstone>
+        AnonymisationTombstones =>
+        this.Set<ReservationAnonymisationTombstone>();
+    public DbSet<ReservationAnonymisationRestoreReceipt>
+        AnonymisationRestoreReceipts =>
+        this.Set<ReservationAnonymisationRestoreReceipt>();
     public DbSet<RequestedInventoryUnit> RequestedInventoryUnits => this.Set<RequestedInventoryUnit>();
     public DbSet<ReservationGuest> ReservationGuests => this.Set<ReservationGuest>();
     public DbSet<ReservationGuestProfileProjection> GuestProfileProjections => this.Set<ReservationGuestProfileProjection>();
@@ -103,6 +109,25 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         {
             throw new InvalidOperationException(
                 "Reservation anonymisation receipts are append-only.");
+        }
+
+        bool restoreReceiptMutationRequested = this.ChangeTracker
+            .Entries<ReservationAnonymisationRestoreReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        if (restoreReceiptMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Reservation anonymisation restore receipts are append-only.");
+        }
+
+        bool tombstoneDeletionRequested = this.ChangeTracker
+            .Entries<ReservationAnonymisationTombstone>()
+            .Any(entry => entry.State == EntityState.Deleted);
+        if (tombstoneDeletionRequested)
+        {
+            throw new InvalidOperationException(
+                "Reservation anonymisation tombstones cannot be deleted.");
         }
     }
 }

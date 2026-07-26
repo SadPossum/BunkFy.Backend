@@ -52,9 +52,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IReservationAnonymisationEligibilityRepository,
             ReservationAnonymisationEligibilityRepository>();
+        builder.Services.TryAddScoped<ReservationAnonymisationRepository>();
         builder.Services.TryAddScoped<
-            IReservationAnonymisationRepository,
-            ReservationAnonymisationRepository>();
+            IReservationAnonymisationRepository>(services =>
+            services.GetRequiredService<
+                ReservationAnonymisationRepository>());
+        builder.Services.TryAddScoped<
+            IReservationAnonymisationRestoreRepository>(services =>
+            services.GetRequiredService<
+                ReservationAnonymisationRepository>());
         builder.Services.TryAddScoped<
             IReservationProcessingRestrictionProjectionRebuildSource,
             ReservationProcessingRestrictionProjectionRebuildSource>();

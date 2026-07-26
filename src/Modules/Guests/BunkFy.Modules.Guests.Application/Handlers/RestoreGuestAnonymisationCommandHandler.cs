@@ -92,6 +92,7 @@ internal sealed class RestoreGuestAnonymisationCommandHandler(
         else if (profile.Status == GuestProfileState.Anonymised)
         {
             if (!profile.MatchesAnonymisedState(
+                    request.ResultingRecordVersion!.Value,
                     request.OriginallyCompletedAtUtc))
             {
                 return Result.Failure<GuestAnonymisationRestoreReceipt>(
@@ -101,6 +102,14 @@ internal sealed class RestoreGuestAnonymisationCommandHandler(
         }
         else
         {
+            if (profile.Version !=
+                request.ResultingRecordVersion!.Value - 1)
+            {
+                return Result.Failure<GuestAnonymisationRestoreReceipt>(
+                    GuestsApplicationErrors
+                        .AnonymisationRestoreProofConflict);
+            }
+
             Result<GuestProfileAnonymisationOutcome> restored =
                 profile.RestoreAnonymisation(
                     RestoreActorId,
@@ -112,6 +121,12 @@ internal sealed class RestoreGuestAnonymisationCommandHandler(
                 return Result.Failure<GuestAnonymisationRestoreReceipt>(
                     restored.Error);
             }
+        }
+
+        if (profile.Version != request.ResultingRecordVersion!.Value)
+        {
+            return Result.Failure<GuestAnonymisationRestoreReceipt>(
+                GuestsApplicationErrors.AnonymisationRestoreProofConflict);
         }
 
         GuestAnonymisationTombstone? tombstone =
@@ -187,7 +202,9 @@ internal sealed class RestoreGuestAnonymisationCommandHandler(
                 request.RecordId,
                 request.OwnerReceiptContractVersion,
                 request.OwnerReceiptId,
-                request.OwnerReceiptSha256))
+                request.OwnerReceiptSha256) ||
+            receipt.ResultingGuestVersion !=
+                request.ResultingRecordVersion!.Value)
         {
             return Result.Failure<GuestAnonymisationRestoreReceipt>(
                 GuestsApplicationErrors.AnonymisationRestoreProofConflict);
@@ -246,6 +263,7 @@ internal sealed class RestoreGuestAnonymisationCommandHandler(
         request.OwnerReceiptContractVersion > 0 &&
         request.OwnerReceiptId != Guid.Empty &&
         IsSha256(request.OwnerReceiptSha256) &&
+        request.ResultingRecordVersion > 0 &&
         request.OriginallyCompletedAtUtc != default &&
         request.OriginallyCompletedAtUtc.Offset == TimeSpan.Zero;
 

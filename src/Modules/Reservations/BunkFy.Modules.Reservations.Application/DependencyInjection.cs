@@ -1,10 +1,12 @@
 namespace BunkFy.Modules.Reservations.Application;
 
 using BunkFy.DataGovernance;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application.External;
+using BunkFy.Modules.Reservations.Application.Contributors;
 using BunkFy.Modules.Reservations.Application.Handlers;
 using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
@@ -33,6 +35,14 @@ public static class DependencyInjection
         services.TryAddScoped<
             IReservationAnonymisationEligibilityEvaluator,
             ReservationAnonymisationEligibilityEvaluator>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationContributor,
+                ReservationDataRightsAnonymisationContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationRestoreContributor,
+                ReservationDataRightsAnonymisationRestoreContributor>());
         services.AddIntegrationEventHandler<InventoryAllocationConfirmedIntegrationEvent, InventoryAllocationConfirmedHandler>(
             ReservationsModuleMetadata.Name,
             InventoryModuleMetadata.Name);

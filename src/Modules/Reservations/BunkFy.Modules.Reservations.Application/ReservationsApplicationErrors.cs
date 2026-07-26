@@ -90,6 +90,12 @@ public static class ReservationsApplicationErrors
     public static readonly Error AnonymisationProofUnavailable = new(
         "Reservations.AnonymisationProofUnavailable",
         "The committed reservation anonymisation result cannot be proven.");
+    public static readonly Error AnonymisationRestoreRequestInvalid = new(
+        "Reservations.AnonymisationRestoreRequestInvalid",
+        "The reservation anonymisation restore request is invalid.");
+    public static readonly Error AnonymisationRestoreProofConflict = new(
+        "Reservations.AnonymisationRestoreProofConflict",
+        "The restored reservation state conflicts with the protected anonymisation proof.");
     public static Error AnonymisationBlocked(
         ReservationAnonymisationBlockerCode blockerCode) => new(
         $"Reservations.AnonymisationBlocked.{blockerCode}",

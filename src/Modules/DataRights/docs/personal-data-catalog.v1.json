@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 9,
+  "catalogVersion": 10,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -714,7 +714,7 @@
       ]
     },
     {
-      "id": "data-rights.guest-restore-proof",
+      "id": "data-rights.owner-restore-proof",
       "dataSubject": "guest",
       "classification": "linked-operational",
       "sensitivity": "elevated",
@@ -825,6 +825,13 @@
         {
           "assembly": "BunkFy.Modules.DataRights.Contracts",
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequest",
+          "member": "ResultingRecordVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequest",
           "member": "OriginallyCompletedAtUtc",
           "surface": "integration-command",
           "retentionPolicy": "transient-request"
@@ -877,6 +884,12 @@
           "member": "Proof",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsProcessingLedgerEntry",
+          "member": "ResultingRecordVersion",
+          "surface": "persistence"
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Domain",
@@ -936,6 +949,12 @@
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsRestoreCheckpoint",
           "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot",
+          "member": "ResultingRecordVersion",
           "surface": "persistence"
         }
       ]

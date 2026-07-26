@@ -186,6 +186,7 @@ internal sealed class DataRightsRestoreCoordinator(
                         ledger.OwnerReceiptContractVersion,
                         ledger.OwnerReceiptId,
                         ledger.OwnerReceiptSha256,
+                        ledger.ResultingRecordVersion,
                         ledger.CompletedAtUtc),
                     cancellationToken).ConfigureAwait(false);
             if (!HasMatchingProof(result, ledger))
@@ -326,11 +327,20 @@ internal sealed class DataRightsRestoreCoordinator(
                 proof.OwnerReceiptSha256,
                 ledger.OwnerReceiptSha256,
                 StringComparison.Ordinal) &&
-            proof.ResultingRecordVersion > 0 &&
+            HasMatchingResultVersion(proof, ledger) &&
             proof.TombstoneRevision > 0 &&
             proof.ReplayedAtUtc != default &&
             proof.ReplayedAtUtc.Offset == TimeSpan.Zero;
     }
+
+    private static bool HasMatchingResultVersion(
+        DataRightsAnonymisationRestoreProof proof,
+        DataRightsProcessingLedgerEntry ledger) =>
+        ledger.ContractVersion >= 2
+            ? ledger.ResultingRecordVersion.HasValue &&
+              proof.ResultingRecordVersion ==
+                  ledger.ResultingRecordVersion.Value
+            : proof.ResultingRecordVersion > 0;
 
     private static bool IsSha256(string? value) =>
         value is { Length: DataRightsProcessingLedgerEntry.Sha256Length } &&

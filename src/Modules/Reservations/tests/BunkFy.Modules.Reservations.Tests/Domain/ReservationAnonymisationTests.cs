@@ -143,6 +143,87 @@ public sealed class ReservationAnonymisationTests
                 Now.AddMinutes(1)).Error);
     }
 
+    [Fact]
+    public void Restore_re_scrubs_exact_selected_version_and_preserves_facts()
+    {
+        Reservation reservation = CreateReservation();
+        Guid guestId = Guid.NewGuid();
+        Assert.True(reservation.LinkGuest(
+            guestId,
+            ReservationGuestRole.Primary,
+            replaceExistingRole: false,
+            reservation.Version,
+            "user:front-desk",
+            Guid.NewGuid(),
+            Now.AddHours(-2)).IsSuccess);
+        reservation.ClearDomainEvents();
+        long expectedResultingVersion = reservation.Version + 1;
+        long previousDetailsRevision = reservation.DetailsRevision;
+        DateOnly arrival = reservation.Arrival;
+        DateOnly departure = reservation.Departure;
+        ReservationState status = reservation.Status;
+        Guid[] units = reservation.RequestedUnits
+            .Select(unit => unit.InventoryUnitId)
+            .ToArray();
+
+        Result<ReservationAnonymisationRestoreOutcome> result =
+            reservation.RestoreAnonymisation(
+                expectedResultingVersion,
+                "data-rights-restore",
+                Guid.NewGuid(),
+                Now.AddHours(-1),
+                Now);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expectedResultingVersion, reservation.Version);
+        Assert.Equal(previousDetailsRevision + 1, reservation.DetailsRevision);
+        Assert.True(reservation.MatchesAnonymisedState(
+            expectedResultingVersion,
+            reservation.DetailsRevision,
+            Now.AddHours(-1)));
+        Assert.Equal(status, reservation.Status);
+        Assert.Equal(arrival, reservation.Arrival);
+        Assert.Equal(departure, reservation.Departure);
+        Assert.Equal(
+            units,
+            reservation.RequestedUnits.Select(unit => unit.InventoryUnitId));
+        Assert.Empty(reservation.Guests);
+        Assert.Empty(reservation.DomainEvents);
+    }
+
+    [Fact]
+    public void Restore_rejects_stale_or_already_anonymised_state()
+    {
+        Reservation reservation = CreateReservation();
+
+        Assert.Equal(
+            ReservationsDomainErrors
+                .ReservationAnonymisationRestoreStateInvalid,
+            reservation.RestoreAnonymisation(
+                reservation.Version + 2,
+                "data-rights-restore",
+                Guid.NewGuid(),
+                Now.AddHours(-1),
+                Now).Error);
+        Assert.False(reservation.IsAnonymised);
+
+        Assert.True(reservation.RestoreAnonymisation(
+            reservation.Version + 1,
+            "data-rights-restore",
+            Guid.NewGuid(),
+            Now.AddHours(-1),
+            Now).IsSuccess);
+        Assert.Equal(
+            ReservationsDomainErrors
+                .ReservationAnonymisationRestoreStateInvalid,
+            reservation.RestoreAnonymisation(
+                reservation.Version + 1,
+                "data-rights-restore",
+                Guid.NewGuid(),
+                Now.AddHours(-1),
+                Now.AddMinutes(1)).Error);
+    }
+
     private static Reservation CreateReservation() => Reservation.Create(
         Guid.NewGuid(),
         "tenant-a",

@@ -18,8 +18,9 @@ public interface IReservationAnonymisationRepository
         ReservationAnonymisationReceipt receipt,
         CancellationToken cancellationToken);
 
-    Task AddReceiptAsync(
+    Task AddOwnerProofAsync(
         ReservationAnonymisationReceipt receipt,
+        ReservationAnonymisationTombstone tombstone,
         CancellationToken cancellationToken);
 }
 

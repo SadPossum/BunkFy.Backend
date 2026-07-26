@@ -151,6 +151,7 @@ public sealed class RestoreGuestAnonymisationCommandHandlerTests
             OwnerReceiptContractVersion: 1,
             OwnerReceiptId: Guid.NewGuid(),
             OwnerReceiptSha256: new string('b', 64),
+            ResultingRecordVersion: 2,
             OriginallyCompletedAtUtc);
 
     private static GuestProfile CreateProfile() => GuestProfile.Create(

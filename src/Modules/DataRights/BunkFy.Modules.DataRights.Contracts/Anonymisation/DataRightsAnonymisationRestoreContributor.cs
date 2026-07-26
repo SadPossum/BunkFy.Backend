@@ -26,6 +26,7 @@ public sealed record DataRightsAnonymisationRestoreRequest(
     int OwnerReceiptContractVersion,
     Guid OwnerReceiptId,
     string OwnerReceiptSha256,
+    long? ResultingRecordVersion,
     DateTimeOffset OriginallyCompletedAtUtc);
 
 public sealed record DataRightsAnonymisationRestoreProof(
@@ -67,5 +68,5 @@ public enum DataRightsAnonymisationRestoreStatus
 
 public static class DataRightsAnonymisationRestoreContract
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 }

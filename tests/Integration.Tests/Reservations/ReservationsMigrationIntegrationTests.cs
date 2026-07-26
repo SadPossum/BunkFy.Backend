@@ -26,6 +26,8 @@ public sealed class ReservationsMigrationIntegrationTests
         "20260725210703_AddReservationProcessingRestrictions";
     private const string PreviousAnonymisationMigration =
         "20260725224526_AddReservationDataHoldsAndEligibility";
+    private const string PreviousAnonymisationRestoreMigration =
+        "20260726002653_AddReservationAnonymisationOwnerProof";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -321,6 +323,88 @@ public sealed class ReservationsMigrationIntegrationTests
         Assert.Null(reservation.AnonymisedAtUtc);
         Assert.Equal("Existing Guest", reservation.PrimaryGuestName);
         Assert.Empty(await upgraded.AnonymisationReceipts
+            .AsNoTracking()
+            .ToArrayAsync());
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Anonymisation_restore_migration_backfills_owner_proof_tombstones()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_restore_proof_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid receiptId = Guid.NewGuid();
+        DateTimeOffset completedAtUtc =
+            new(2026, 7, 26, 2, 30, 0, TimeSpan.Zero);
+        const string receiptSha256 =
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+        await using (ReservationsDbContext previous =
+            CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(PreviousAnonymisationRestoreMigration);
+            await SeedReservationAtPreviousSchemaAsync(
+                previous,
+                reservationId,
+                propertyId,
+                completedAtUtc.AddHours(-1));
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE reservations.reservations
+                SET "Version" = {2L},
+                    "DetailsRevision" = {2L},
+                    "IsAnonymised" = TRUE,
+                    "AnonymisedAtUtc" = {completedAtUtc}
+                WHERE "ScopeId" = {"tenant-a"} AND "Id" = {reservationId};
+
+                INSERT INTO reservations.reservation_anonymisation_receipts (
+                    "Id", "ContractVersion", "IdempotencyKey", "PropertyId",
+                    "CaseId", "ApprovalRevision", "OperationRevision",
+                    "ReservationId", "SelectedReservationVersion",
+                    "ResultingReservationVersion", "SelectedDetailsRevision",
+                    "ResultingDetailsRevision", "Disposition", "Reason",
+                    "RedactedHistoryCount", "RemovedGuestLinkCount",
+                    "ReducedExternalOperationCount", "SuppressedReminderCount",
+                    "ApprovalEvidenceSha256", "PolicyEvidenceSha256",
+                    "EventId", "ActorId", "CompletedAtUtc",
+                    "CanonicalSha256", "ScopeId")
+                VALUES (
+                    {receiptId}, {1}, {Guid.NewGuid()}, {propertyId},
+                    {Guid.NewGuid()}, {1L}, {2L},
+                    {reservationId}, {1L}, {2L}, {1L}, {2L}, {1}, {1},
+                    {1}, {0}, {0}, {0},
+                    {receiptSha256}, {receiptSha256},
+                    {Guid.NewGuid()}, {"staff:migration"}, {completedAtUtc},
+                    {receiptSha256}, {"tenant-a"});
+                """);
+        }
+
+        await using ReservationsDbContext upgraded =
+            CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        ReservationAnonymisationTombstone tombstone =
+            await upgraded.AnonymisationTombstones
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == reservationId);
+        Assert.Equal(1, tombstone.ContractVersion);
+        Assert.Equal(1, tombstone.Revision);
+        Assert.Equal(propertyId, tombstone.PropertyId);
+        Assert.Equal(receiptId, tombstone.OwnerReceiptId);
+        Assert.Equal(receiptSha256, tombstone.OwnerReceiptSha256);
+        Assert.Equal(2, tombstone.ResultingReservationVersion);
+        Assert.Equal(2, tombstone.ResultingDetailsRevision);
+        Assert.Equal(completedAtUtc, tombstone.CompletedAtUtc);
+        Assert.Null(tombstone.LedgerEntryId);
+        Assert.Null(tombstone.LastReplayedAtUtc);
+        Assert.Empty(await upgraded.AnonymisationRestoreReceipts
             .AsNoTracking()
             .ToArrayAsync());
     }

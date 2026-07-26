@@ -15,7 +15,9 @@ internal sealed class DataRightsProcessingLedgerEntryConfiguration
         {
             table.HasCheckConstraint(
                 "CK_data_rights_processing_ledger_contract",
-                $"\"ContractVersion\" = {DataRightsProcessingLedgerEntry.CurrentContractVersion}");
+                $"\"ContractVersion\" BETWEEN " +
+                $"{DataRightsProcessingLedgerEntry.MinimumSupportedContractVersion} AND " +
+                $"{DataRightsProcessingLedgerEntry.CurrentContractVersion}");
             table.HasCheckConstraint(
                 "CK_data_rights_processing_ledger_sequence",
                 "\"TenantSequence\" >= 1");
@@ -47,6 +49,12 @@ internal sealed class DataRightsProcessingLedgerEntryConfiguration
                 "CK_data_rights_processing_ledger_receipt",
                 "\"OwnerReceiptContractVersion\" >= 1 AND " +
                 $"char_length(\"OwnerReceiptSha256\") = {DataRightsProcessingLedgerEntry.Sha256Length}");
+            table.HasCheckConstraint(
+                "CK_data_rights_processing_ledger_result_version",
+                $"(\"ContractVersion\" = {DataRightsProcessingLedgerEntry.MinimumSupportedContractVersion} AND " +
+                "\"ResultingRecordVersion\" IS NULL) OR " +
+                $"(\"ContractVersion\" = {DataRightsProcessingLedgerEntry.CurrentContractVersion} AND " +
+                "\"ResultingRecordVersion\" >= 1)");
             table.HasCheckConstraint(
                 "CK_data_rights_processing_ledger_chain",
                 $"char_length(\"PreviousEntrySha256\") = {DataRightsProcessingLedgerEntry.Sha256Length} AND " +
