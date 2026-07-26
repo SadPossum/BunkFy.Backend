@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 internal sealed class IngestionDataRightsExportContributor(
     IngestionDbContext dbContext,
+    IngestionDataRightsEvidenceGraphLoader graphLoader,
     IRawPayloadStore rawPayloadStore,
     IScopeContext scopeContext) : IDataRightsSubjectExportContributor
 {
@@ -23,7 +24,6 @@ internal sealed class IngestionDataRightsExportContributor(
     public const string ReprocessingOutputRecordType = "ingestion-reprocessing-output";
     public const string RawPayloadChunkRecordType = "ingestion-raw-payload-chunk";
 
-    private const int MaximumGraphRecords = 1_000;
     private const int RawPayloadChunkBytes = 12_000;
 
     public string OwnerKey => IngestionDataRightsDiscoveryContributor.Owner;
@@ -83,10 +83,15 @@ internal sealed class IngestionDataRightsExportContributor(
             return DataRightsSubjectExportResult.Stale();
         }
 
-        EvidenceGraph? graph = await this.LoadEvidenceGraphAsync(
-            sourceLink,
-            cancellationToken).ConfigureAwait(false);
-        if (graph is null)
+        IngestionDataRightsEvidenceGraphLoadResult graphResult =
+            await graphLoader.LoadAsync(
+                sourceLink,
+                cancellationToken).ConfigureAwait(false);
+        if (graphResult is not
+            {
+                Status: IngestionDataRightsEvidenceGraphLoadStatus.Succeeded,
+                Graph: { } graph
+            })
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
@@ -218,231 +223,6 @@ internal sealed class IngestionDataRightsExportContributor(
         }
 
         return DataRightsSubjectExportResult.Success(recordCount);
-    }
-
-    private async Task<EvidenceGraph?> LoadEvidenceGraphAsync(
-        ReservationSourceLink sourceLink,
-        CancellationToken cancellationToken)
-    {
-        ReservationDispatch[] dispatches = await dbContext.ReservationDispatches
-            .AsNoTracking()
-            .Where(dispatch =>
-                dispatch.PropertyId == sourceLink.PropertyId &&
-                dispatch.SourceLinkId == sourceLink.Id)
-            .OrderBy(dispatch => dispatch.CreatedAtUtc)
-            .ThenBy(dispatch => dispatch.Id)
-            .Take(MaximumGraphRecords + 1)
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-        if (dispatches.Length > MaximumGraphRecords)
-        {
-            return null;
-        }
-
-        ChangeProposal[] proposals = await dbContext.ChangeProposals
-            .AsNoTracking()
-            .Where(proposal =>
-                proposal.PropertyId == sourceLink.PropertyId &&
-                proposal.ConnectionId == sourceLink.ConnectionId &&
-                proposal.ReservationId == sourceLink.ReservationId)
-            .OrderBy(proposal => proposal.CreatedAtUtc)
-            .ThenBy(proposal => proposal.Id)
-            .Take(MaximumGraphRecords - dispatches.Length + 1)
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-        if (dispatches.Length + proposals.Length > MaximumGraphRecords)
-        {
-            return null;
-        }
-
-        Dictionary<Guid, ObservationReceipt> receipts = (await dbContext.ObservationReceipts
-                .AsNoTracking()
-                .Where(receipt =>
-                    receipt.PropertyId == sourceLink.PropertyId &&
-                    receipt.ConnectionId == sourceLink.ConnectionId &&
-                    receipt.ExternalId == sourceLink.SourceReference)
-                .OrderBy(receipt => receipt.ReceivedAtUtc)
-                .ThenBy(receipt => receipt.Id)
-                .Take(MaximumGraphRecords - dispatches.Length - proposals.Length + 1)
-                .ToArrayAsync(cancellationToken)
-                .ConfigureAwait(false))
-            .ToDictionary(receipt => receipt.Id);
-        if (GraphRecordCount(dispatches, proposals, receipts.Count) > MaximumGraphRecords)
-        {
-            return null;
-        }
-
-        HashSet<Guid> requiredReceiptIds =
-        [
-            sourceLink.LastObservedReceiptId
-        ];
-        AddIfPresent(requiredReceiptIds, sourceLink.LastAppliedReceiptId);
-        AddIfPresent(requiredReceiptIds, sourceLink.DeferredReceiptId);
-        requiredReceiptIds.UnionWith(dispatches.Select(dispatch => dispatch.ReceiptId));
-        requiredReceiptIds.UnionWith(proposals.Select(proposal => proposal.ReceiptId));
-        if (!await this.AddReceiptsByIdAsync(
-                sourceLink,
-                requiredReceiptIds,
-                receipts,
-                dispatches.Length + proposals.Length,
-                cancellationToken).ConfigureAwait(false))
-        {
-            return null;
-        }
-
-        while (true)
-        {
-            Guid[] parentIds = receipts.Keys.ToArray();
-            int remaining = MaximumGraphRecords -
-                GraphRecordCount(dispatches, proposals, receipts.Count);
-            if (remaining <= 0)
-            {
-                return null;
-            }
-
-            ObservationReceipt[] descendants = await dbContext.ObservationReceipts
-                .AsNoTracking()
-                .Where(receipt =>
-                    receipt.PropertyId == sourceLink.PropertyId &&
-                    receipt.ConnectionId == sourceLink.ConnectionId &&
-                    receipt.SourceReceiptId != null &&
-                    parentIds.Contains(receipt.SourceReceiptId.Value) &&
-                    !parentIds.Contains(receipt.Id))
-                .OrderBy(receipt => receipt.ReceivedAtUtc)
-                .ThenBy(receipt => receipt.Id)
-                .Take(remaining + 1)
-                .ToArrayAsync(cancellationToken)
-                .ConfigureAwait(false);
-            if (descendants.Length > remaining)
-            {
-                return null;
-            }
-
-            int added = 0;
-            foreach (ObservationReceipt receipt in descendants)
-            {
-                if (receipts.TryAdd(receipt.Id, receipt))
-                {
-                    added++;
-                }
-            }
-
-            if (added == 0)
-            {
-                break;
-            }
-        }
-
-        Guid[] receiptIds = receipts.Keys.ToArray();
-        int attemptCapacity = MaximumGraphRecords -
-            GraphRecordCount(dispatches, proposals, receipts.Count);
-        ObservationReprocessingAttempt[] attempts = await dbContext
-            .ObservationReprocessingAttempts
-            .AsNoTracking()
-            .Where(attempt =>
-                attempt.PropertyId == sourceLink.PropertyId &&
-                attempt.ConnectionId == sourceLink.ConnectionId &&
-                receiptIds.Contains(attempt.SourceReceiptId))
-            .OrderBy(attempt => attempt.RequestedAtUtc)
-            .ThenBy(attempt => attempt.Id)
-            .Take(attemptCapacity + 1)
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-        if (attempts.Length > attemptCapacity)
-        {
-            return null;
-        }
-
-        Guid[] attemptIds = attempts.Select(attempt => attempt.Id).ToArray();
-        int outputCapacity = MaximumGraphRecords -
-            GraphRecordCount(dispatches, proposals, receipts.Count) -
-            attempts.Length;
-        ObservationReprocessingOutput[] outputs = attemptIds.Length == 0
-            ? []
-            : await dbContext.ObservationReprocessingOutputs
-                .AsNoTracking()
-                .Where(output => attemptIds.Contains(output.AttemptId))
-                .OrderBy(output => output.AttemptId)
-                .ThenBy(output => output.OutputIndex)
-                .ThenBy(output => output.Id)
-                .Take(outputCapacity + 1)
-                .ToArrayAsync(cancellationToken)
-                .ConfigureAwait(false);
-        if (outputs.Length > outputCapacity ||
-            outputs.Any(output =>
-                output.ReceiptId.HasValue &&
-                !receipts.ContainsKey(output.ReceiptId.Value)))
-        {
-            return null;
-        }
-
-        ObservationReceipt[] orderedReceipts = receipts.Values
-            .OrderBy(receipt => receipt.ReceivedAtUtc)
-            .ThenBy(receipt => receipt.Id)
-            .ToArray();
-        return new EvidenceGraph(
-            proposals,
-            dispatches,
-            orderedReceipts,
-            attempts,
-            outputs);
-    }
-
-    private async Task<bool> AddReceiptsByIdAsync(
-        ReservationSourceLink sourceLink,
-        IReadOnlyCollection<Guid> requiredIds,
-        Dictionary<Guid, ObservationReceipt> receipts,
-        int existingGraphCount,
-        CancellationToken cancellationToken)
-    {
-        Guid[] missingIds = requiredIds
-            .Where(id => id != Guid.Empty && !receipts.ContainsKey(id))
-            .Distinct()
-            .ToArray();
-        if (missingIds.Length == 0)
-        {
-            return true;
-        }
-
-        int remaining = MaximumGraphRecords - existingGraphCount - receipts.Count;
-        if (missingIds.Length > remaining)
-        {
-            return false;
-        }
-
-        ObservationReceipt[] found = await dbContext.ObservationReceipts
-            .AsNoTracking()
-            .Where(receipt =>
-                receipt.PropertyId == sourceLink.PropertyId &&
-                receipt.ConnectionId == sourceLink.ConnectionId &&
-                missingIds.Contains(receipt.Id))
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-        if (found.Length != missingIds.Length)
-        {
-            return false;
-        }
-
-        foreach (ObservationReceipt receipt in found)
-        {
-            receipts.Add(receipt.Id, receipt);
-        }
-
-        return true;
-    }
-
-    private static int GraphRecordCount(
-        ReservationDispatch[] dispatches,
-        ChangeProposal[] proposals,
-        int receiptCount) =>
-        checked(1 + dispatches.Length + proposals.Length + receiptCount);
-
-    private static void AddIfPresent(HashSet<Guid> values, Guid? value)
-    {
-        if (value is { } id && id != Guid.Empty)
-        {
-            values.Add(id);
-        }
     }
 
     private static ValueTask WriteAsync(
@@ -648,10 +428,4 @@ internal sealed class IngestionDataRightsExportContributor(
         string.Equals(scopeContext.ScopeId, tenantId?.Trim(), StringComparison.Ordinal) &&
         propertyId != Guid.Empty;
 
-    private sealed record EvidenceGraph(
-        IReadOnlyCollection<ChangeProposal> Proposals,
-        IReadOnlyCollection<ReservationDispatch> Dispatches,
-        IReadOnlyCollection<ObservationReceipt> Receipts,
-        IReadOnlyCollection<ObservationReprocessingAttempt> Attempts,
-        IReadOnlyCollection<ObservationReprocessingOutput> Outputs);
 }

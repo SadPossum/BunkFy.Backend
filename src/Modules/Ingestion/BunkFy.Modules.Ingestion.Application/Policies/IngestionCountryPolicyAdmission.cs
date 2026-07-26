@@ -13,6 +13,8 @@ internal sealed class IngestionCountryPolicyAdmission(
 {
     public const string AccommodationType = "hostel";
     public const string ReservationIngestionPurpose = "reservation-ingestion";
+    public const string DataRightsAnonymisationPurpose =
+        "data-rights-anonymisation";
     public const string AuthorizedOperatorProvenance = "authorized-workspace-operator";
     public const string ApprovedAdapterProvenance = "approved-adapter";
     public const string ApprovedParserProvenance = "approved-parser";

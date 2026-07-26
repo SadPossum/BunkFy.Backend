@@ -1,12 +1,16 @@
 namespace BunkFy.Modules.Ingestion.Tests;
 
 using System.Security.Cryptography;
+using BunkFy.Adapter.Abstractions;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Domain.Connections;
+using BunkFy.Modules.Ingestion.Domain.LegalHolds;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Ingestion.Persistence.Repositories;
+using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -150,6 +154,7 @@ public sealed class IngestionDataRightsContributorTests
         CollectingSink sink = new();
         IngestionDataRightsExportContributor contributor = new(
             dbContext,
+            new IngestionDataRightsEvidenceGraphLoader(dbContext),
             rawStore,
             scope);
 
@@ -186,7 +191,7 @@ public sealed class IngestionDataRightsContributorTests
                 payload.Length,
                 Field(record, "ingestion.operations.raw-payload-total-bytes").GetInt32());
         });
-        Assert.Equal(2, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(3, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             IngestionDataRightsExportSchema.ExportSchemaVersion,
             contributor.Descriptor.ExportSchemaVersion);
@@ -227,6 +232,7 @@ public sealed class IngestionDataRightsContributorTests
 
         IngestionDataRightsExportContributor contributor = new(
             dbContext,
+            new IngestionDataRightsEvidenceGraphLoader(dbContext),
             new TestRawPayloadStore(),
             scope);
         CollectingSink missingSink = new();
@@ -252,6 +258,145 @@ public sealed class IngestionDataRightsContributorTests
         Assert.DoesNotContain(purgedSink.Records, record =>
             record.RecordType ==
             IngestionDataRightsExportContributor.RawPayloadChunkRecordType);
+    }
+
+    [Fact]
+    public async Task Eligibility_loads_complete_maximum_graph_and_current_restrictions()
+    {
+        TestScopeContext scope = new(ScopeId);
+        await using IngestionDbContext dbContext = CreateDbContext(scope);
+        Guid propertyId = Guid.NewGuid();
+        Guid reservationId = Guid.NewGuid();
+        Guid connectionId = Guid.NewGuid();
+        Guid firstReceiptId = Guid.NewGuid();
+
+        IngestionPropertyProjection property =
+            IngestionPropertyProjection.Create(propertyId, ScopeId);
+        property.ApplySnapshot(
+            "Hostel",
+            "HST",
+            isActive: true,
+            PropertyProcessingStatus.Enabled,
+            PolicyBinding(),
+            sourceVersion: 3);
+        property.AdvanceRetentionFence();
+        property.AdvanceRetentionFence();
+        AdapterConnection connection = AdapterConnection.Create(
+            connectionId,
+            ScopeId,
+            propertyId,
+            "fake.http",
+            AdapterExecutionMode.Push,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://data-rights",
+            secretReference: null,
+            Now).Value;
+        ReservationSourceLink sourceLink = CreateLinkedSource(
+            Guid.NewGuid(),
+            propertyId,
+            reservationId,
+            connectionId,
+            firstReceiptId,
+            "booking-com",
+            "provider-42");
+        ObservationReceipt[] receipts = Enumerable.Range(
+                0,
+                IngestionDataRightsEvidenceGraphLoader.MaximumGraphRecords - 1)
+            .Select(index => CreateReceipt(
+                index == 0 ? firstReceiptId : Guid.NewGuid(),
+                propertyId,
+                connectionId,
+                "provider-42",
+                new string('a', 64),
+                Guid.NewGuid()))
+            .ToArray();
+        LegalHold hold = LegalHold.Place(
+            Guid.NewGuid(),
+            ScopeId,
+            propertyId,
+            "Preserve provider evidence",
+            "user:privacy-operator",
+            Now).Value;
+        dbContext.PropertyProjections.Add(property);
+        dbContext.AdapterConnections.Add(connection);
+        dbContext.ReservationSourceLinks.Add(sourceLink);
+        dbContext.ObservationReceipts.AddRange(receipts);
+        dbContext.LegalHolds.Add(hold);
+        await dbContext.SaveChangesAsync();
+
+        IngestionAnonymisationEligibilityRepository repository = new(
+            dbContext,
+            new IngestionDataRightsEvidenceGraphLoader(dbContext));
+        IngestionAnonymisationEligibilityLoadResult loaded =
+            await repository.LoadAsync(
+                propertyId,
+                sourceLink.Id,
+                CancellationToken.None);
+
+        Assert.Equal(
+            IngestionAnonymisationEligibilityLoadStatus.Found,
+            loaded.Status);
+        IngestionAnonymisationEligibilitySnapshot snapshot =
+            Assert.IsType<IngestionAnonymisationEligibilitySnapshot>(
+                loaded.Snapshot);
+        Assert.Equal(
+            IngestionDataRightsEvidenceGraphLoader.MaximumGraphRecords,
+            snapshot.GraphRecordCount);
+        Assert.Equal(receipts.Length, snapshot.Receipts.Count);
+        Assert.Equal(1, snapshot.ActiveLegalHoldCount);
+        Assert.Equal(2, snapshot.Property?.RetentionFenceVersion);
+        Assert.Equal(
+            PropertyProcessingStatus.Enabled,
+            snapshot.Property?.ProcessingStatus);
+        Assert.Equal(
+            connection.Version,
+            snapshot.Connection.Version);
+    }
+
+    [Fact]
+    public async Task Evidence_graph_fails_closed_when_reprocessing_lineage_is_incomplete()
+    {
+        TestScopeContext scope = new(ScopeId);
+        await using IngestionDbContext dbContext = CreateDbContext(scope);
+        Guid propertyId = Guid.NewGuid();
+        Guid reservationId = Guid.NewGuid();
+        Guid connectionId = Guid.NewGuid();
+        ObservationReceipt sourceReceipt = CreateReceipt(
+            Guid.NewGuid(),
+            propertyId,
+            connectionId,
+            "provider-42",
+            new string('a', 64),
+            Guid.NewGuid());
+        ObservationReceipt descendant = CreateReceipt(
+            Guid.NewGuid(),
+            propertyId,
+            connectionId,
+            "provider-42",
+            new string('b', 64),
+            Guid.NewGuid(),
+            sourceReceipt.Id,
+            Guid.NewGuid());
+        ReservationSourceLink sourceLink = CreateLinkedSource(
+            Guid.NewGuid(),
+            propertyId,
+            reservationId,
+            connectionId,
+            sourceReceipt.Id,
+            "booking-com",
+            "provider-42");
+        dbContext.ObservationReceipts.AddRange(sourceReceipt, descendant);
+        dbContext.ReservationSourceLinks.Add(sourceLink);
+        await dbContext.SaveChangesAsync();
+
+        IngestionDataRightsEvidenceGraphLoadResult loaded =
+            await new IngestionDataRightsEvidenceGraphLoader(dbContext)
+                .LoadAsync(sourceLink, CancellationToken.None);
+
+        Assert.Equal(
+            IngestionDataRightsEvidenceGraphLoadStatus.Incomplete,
+            loaded.Status);
+        Assert.Null(loaded.Graph);
     }
 
     private static DataRightsSubjectExportRequest RequestFor(
@@ -335,7 +480,9 @@ public sealed class IngestionDataRightsContributorTests
         Guid connectionId,
         string externalId,
         string contentHash,
-        Guid payloadFileId)
+        Guid payloadFileId,
+        Guid? sourceReceiptId = null,
+        Guid? reprocessingAttemptId = null)
     {
         ObservationCountryPolicyEvidence evidence =
             ObservationCountryPolicyEvidence.Create(
@@ -370,7 +517,12 @@ public sealed class IngestionDataRightsContributorTests
             Now.AddDays(30),
             Now,
             Now,
-            Now).Value;
+            Now,
+            sourceReceiptId,
+            reprocessingAttemptId,
+            parserType: sourceReceiptId.HasValue ? "reservation-mail" : null,
+            parserVersion: sourceReceiptId.HasValue ? 1 : null,
+            parserOutputIndex: sourceReceiptId.HasValue ? 0 : null).Value;
         Assert.True(receipt.MarkProcessed(Now.AddMinutes(1)).IsSuccess);
         return receipt;
     }
@@ -382,6 +534,21 @@ public sealed class IngestionDataRightsContributorTests
 
     private static string Sha256(byte[] content) =>
         Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+
+    private static PropertyGovernancePolicyBinding PolicyBinding() =>
+        new(
+            "GB",
+            "gb-hostel",
+            1,
+            "eu-west-2",
+            "uk-no-transfer",
+            "ingestion-operational",
+            1,
+            new string('b', 64),
+            Now.AddDays(-1),
+            Now.AddDays(30),
+            Now.AddHours(-1),
+            []);
 
     private sealed class TestScopeContext(string scopeId) : IScopeContext
     {

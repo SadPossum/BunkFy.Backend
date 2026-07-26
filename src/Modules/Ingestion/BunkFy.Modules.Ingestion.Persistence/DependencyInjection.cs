@@ -63,6 +63,10 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IReservationDispatchRepository, ReservationDispatchRepository>();
         builder.Services.TryAddScoped<IChangeProposalRepository, ChangeProposalRepository>();
         builder.Services.TryAddScoped<IChangeProposalReader, ChangeProposalReader>();
+        builder.Services.TryAddScoped<IngestionDataRightsEvidenceGraphLoader>();
+        builder.Services.TryAddScoped<
+            IIngestionAnonymisationEligibilityRepository,
+            IngestionAnonymisationEligibilityRepository>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectDiscoveryContributor,

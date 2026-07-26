@@ -5,13 +5,16 @@ using BunkFy.Adapter.Abstractions;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.FileManagement.LocalStorage;
+using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -160,6 +163,37 @@ public sealed class IngestionDataRightsIntegrationTests
                         .GetBytesFromBase64())
                 .ToArray();
             Assert.Equal(payload, reconstructed);
+
+            IIngestionAnonymisationEligibilityEvaluator evaluator =
+                scope.ServiceProvider.GetRequiredService<
+                    IIngestionAnonymisationEligibilityEvaluator>();
+            IngestionAnonymisationEligibilityResult eligibility =
+                await evaluator.EvaluateAsync(
+                    new(
+                        IngestionAnonymisationEligibilityContract.CurrentVersion,
+                        TenantId,
+                        Guid.NewGuid(),
+                        ApprovalRevision: 1,
+                        OperationRevision: 2,
+                        propertyId,
+                        sourceLink.Id,
+                        sourceLink.Version,
+                        new(
+                            PropertyPolicySourceVersion: 1,
+                            "GB",
+                            "integration-hostel-baseline",
+                            PolicyVersion: 1,
+                            "integration-guest-operational",
+                            RetentionPolicyVersion: 1,
+                            new string('a', 64),
+                            "data-rights-anonymisation",
+                            "erasure",
+                            "authorized-workspace-operator",
+                            Now)),
+                    CancellationToken.None);
+            Assert.Equal(
+                IngestionAnonymisationBlockerCode.PropertyPolicyUnavailable,
+                eligibility.BlockerCode);
         }
         finally
         {
@@ -183,6 +217,8 @@ public sealed class IngestionDataRightsIntegrationTests
         builder.Configuration["FileManagement:AllowedContentTypes:0"] = "application/json";
         builder.Configuration["FileManagement:LocalStorage:RootPath"] = fileRoot;
         builder.Services.AddSingleton<IScopeContext>(new TestScopeContext(TenantId));
+        builder.Services.AddSingleton<ISystemClock>(new TestClock());
+        CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
         builder.AddLocalFileStorage();
         builder.Services.AddIngestionApplication();
         builder.AddIngestionPersistence();
@@ -304,5 +340,10 @@ public sealed class IngestionDataRightsIntegrationTests
     {
         public bool IsEnabled => true;
         public string ScopeId { get; } = scopeId;
+    }
+
+    private sealed class TestClock : ISystemClock
+    {
+        public DateTimeOffset UtcNow => Now;
     }
 }

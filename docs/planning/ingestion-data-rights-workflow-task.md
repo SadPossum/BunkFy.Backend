@@ -1,6 +1,6 @@
 # Ingestion Data Rights Workflow Task
 
-Status: first implementation slice complete
+Status: first and second implementation slices complete
 
 ## Outcome
 
@@ -117,9 +117,9 @@ inbox/outbox messages, notifications, logs, metrics, traces or receipts.
 
 ## Legal Holds And Destructive Eligibility
 
-The following slice will add one exact, fail-closed Ingestion owner operation.
-It must re-evaluate current state under an owner-local operation fence and
-block with stable codes when:
+The second slice adds one exact, fail-closed Ingestion eligibility operation.
+It re-evaluates current state under an owner-local optimistic operation fence
+and blocks with stable codes when:
 
 - any applicable Ingestion property legal hold is active;
 - raw-payload purge or sensitive-history redaction is in progress;
@@ -132,6 +132,56 @@ block with stable codes when:
 
 Property-wide legal holds remain Ingestion-owned. DataRights records only the
 stable blocker and owner proof.
+
+The eligibility operation does not register an anonymisation contributor and
+does not mutate provider evidence. It is an Ingestion-owned prerequisite used
+by the later destructive contributor in the same owner transaction.
+
+## Second-Slice Architecture Decision
+
+The eligibility coordinate remains the selected reservation source-link id and
+version. No email, phone, name, provider reference, raw-payload search or
+cross-module query is accepted.
+
+Eligibility loads the same bounded evidence graph as export:
+
+- the selected source link and its adapter connection;
+- exact receipts and reprocessing descendants;
+- proposals and dispatches associated with the source link;
+- reprocessing attempts and outputs;
+- the property projection, governance policy and retention-fence version;
+- active Ingestion legal holds.
+
+The export and eligibility paths share one Persistence graph loader so graph
+reachability, bounds and fail-closed behavior cannot drift. The loader uses
+existing tenant-scoped indexes, excludes raw object content and returns
+unavailable when the graph exceeds 1,000 records or has incomplete lineage.
+
+The owner operation fence is a SHA-256 digest over a deterministic, ordered
+snapshot of every graph record id, lifecycle state and optimistic version,
+together with source-link, connection, policy and property retention-fence
+versions. It is not an authorization token or a substitute for locking.
+
+The later destructive handler must re-run eligibility inside its own
+transaction, compare this digest and use optimistic database concurrency while
+committing reduction, owner proof and tombstone. Any concurrent receipt,
+proposal, dispatch, reprocessing, retention, legal-hold, connection or policy
+change alters the current eligibility result or operation fence.
+
+Stable blocker precedence is:
+
+1. contract, request and tenant validation;
+2. missing, stale, oversized or inconsistent owner graph;
+3. property projection, current country policy and approved routing evidence;
+4. active legal holds and retention work in progress;
+5. active reprocessing or non-terminal observation, proposal or dispatch work;
+6. provider reconciliation state that still requires direct source evidence.
+
+The current model has no durable sensitive-history `Redacting` state because
+redaction is an atomic database mutation. Its proposal or dispatch version and
+the property retention-fence version change in the same transaction, so the
+operation-fence digest detects completion. The destructive slice must still
+re-evaluate under transaction before writing.
 
 ## Irreversible Reduction And Restore Safety
 
@@ -198,6 +248,28 @@ only owner of its evidence.
 - Full non-Docker, Docker, generated-contract, dependency and exact-commit
   publication gates must pass before the slice is marked complete.
 
+## Second-Slice Acceptance Plan
+
+- Contract tests prove every eligibility status and blocker code is stable,
+  bounded and represented in the personal-data catalogue.
+- Evaluator tests prove request, tenant, selected-version, property-policy and
+  approved-routing-evidence validation fails closed.
+- Graph tests prove active legal holds, raw purge, reprocessing reservations,
+  queued or running attempts, pending observations, non-terminal proposals,
+  non-terminal dispatches and unreconciled source links each block with the
+  expected precedence.
+- Operation-fence tests prove deterministic results and a changed digest after
+  any reachable lifecycle, version, connection, policy or retention-fence
+  change.
+- PostgreSQL tests prove exact indexed graph loading, tenant/property
+  isolation, descendant lineage, graph bounds and no raw object reads.
+- Architecture tests prove the evaluator remains Ingestion-owned, references
+  only BunkFy module contracts and shared data-governance primitives, and does
+  not add a DataRights anonymisation contributor.
+- Migration drift, focused tests, complete repository verification, Docker
+  integration and exact-commit publication gates pass before the slice is
+  marked complete.
+
 ## First-Slice Implementation
 
 - Ingestion resolves only exact Reservations ids through its tenant-first
@@ -228,6 +300,39 @@ only owner of its evidence.
   architecture suite has 64 guards.
 - The full Docker suite passed 53 tests with no failures or skips. The existing
   privacy-request operator route remained healthy with an HTTP 200 response.
+
+## Second-Slice Implementation
+
+- Ingestion exposes one versioned, cross-module eligibility evaluator for an
+  exact source-link id and version. The request carries approved DataRights
+  case and routing-policy evidence; the result returns only stable status,
+  blocker, current owner versions, graph count and policy/fence digests.
+- The export and eligibility paths use one bounded Persistence graph loader.
+  It accepts a complete graph at the documented 1,000-record limit, rejects an
+  oversized graph and fails closed when required receipts, reprocessing
+  attempts or output lineage are incomplete.
+- Eligibility revalidates tenant scope, source-link version, property
+  projection, current country and retention policy, approved routing evidence,
+  active Ingestion legal holds, raw-payload purge state, reprocessing
+  reservations and attempts, pending observations, proposals and dispatches,
+  and provider reconciliation state.
+- A deterministic SHA-256 operation fence covers source-link, connection,
+  property policy, retention fence, legal-hold count and every reachable graph
+  record id, lifecycle state and optimistic version. Tests prove ordering does
+  not affect the digest and each protected scope changes it.
+- Repository snapshots are internal Application-to-Persistence collaboration,
+  not public module contracts. The executable personal-data catalogue and
+  generated inventory classify the intentional transient cross-module
+  request, policy evidence and result.
+- No raw payload object is read by eligibility, no schema migration is needed,
+  and no `IDataRightsAnonymisationContributor` is registered. Irreversible
+  reduction remains blocked on owner proof, tombstone, re-ingestion denial and
+  restore replay in slices 3 and 4.
+- Focused verification passes 164 Ingestion tests, 64 architecture guards and
+  the real PostgreSQL/local-file data-rights scenario. The complete verifier
+  passes solution synchronization, source-package checks, a zero-warning
+  build, every migration drift check and 2,705 non-Docker tests. The complete
+  Docker suite passes 53 tests with no failures or skips.
 
 ## Non-Goals
 

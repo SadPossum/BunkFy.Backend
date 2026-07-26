@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 2,
+  "catalogVersion": 3,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -14,6 +14,18 @@
       "writers": [
         "permission:ingestion.credentials.manage",
         "system:ingestion"
+      ]
+    },
+    {
+      "id": "ingestion-anonymisation-eligibility",
+      "scope": "tenant-internal-approved-data-rights-operation",
+      "readers": [
+        "permission:data-rights.erase",
+        "system:data-rights.anonymisation"
+      ],
+      "writers": [
+        "system:data-rights.anonymisation",
+        "system:ingestion.anonymisation-eligibility"
       ]
     },
     {
@@ -72,6 +84,14 @@
       "legalHoldBehavior": "pause-purge-or-redaction"
     },
     {
+      "id": "ingestion-anonymisation-eligibility-evaluation",
+      "approvalState": "engineering-default",
+      "startsAt": "eligibility-evaluation-requested",
+      "endsAt": "eligibility-evaluation-completed",
+      "duration": null,
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
       "id": "ingestion-data-rights-export-fragment",
       "approvalState": "engineering-default",
       "startsAt": "owner-export-started",
@@ -126,6 +146,13 @@
       "correction": "rotate-or-revoke",
       "restriction": "revoke",
       "erasure": "erase-secret-after-lifecycle"
+    },
+    {
+      "id": "ingestion-anonymisation-eligibility-control",
+      "export": "include-digests-and-blocker-in-authorized-case-ledger",
+      "correction": "re-evaluate-from-current-owner-projections",
+      "restriction": "fail-closed-on-missing-stale-or-unsupported-evidence",
+      "erasure": "authorize-only-the-exact-approved-current-source-graph"
     },
     {
       "id": "operational-rights",
@@ -13042,6 +13069,387 @@
           "member": "SourceUpdatedAtUtc",
           "surface": "data-rights-export",
           "retentionPolicy": "ingestion-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.case-coordinate",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-eligibility", "approved-operation-correlation"],
+      "sources": ["approved-data-rights-case"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "TenantId",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "CaseId",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.approval-coordinate",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-eligibility", "approved-operation-revision"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "ContractVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "ApprovalRevision",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "OperationRevision",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.source-link-coordinate",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-eligibility", "approved-record-selection", "optimistic-operation-fence"],
+      "sources": ["approved-data-rights-operation", "ingestion-current-projections"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["integration-command", "projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "PropertyId",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "SourceLinkId",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "SelectedSourceLinkVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "SourceLinkVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "RetentionFenceVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "GraphRecordCount",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.routing-policy-evidence",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-eligibility", "approved-policy-proof"],
+      "sources": ["approved-data-rights-operation"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["integration-command"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityRequest",
+          "member": "RoutingPolicy",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "PropertyPolicySourceVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "OperatingCountryCode",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "PolicyId",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "PolicyVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "RetentionPolicyId",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "RetentionPolicyVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "ContentSha256",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "PurposeCode",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "Surface",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "SourceProvenance",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationRoutingPolicyEvidence",
+          "member": "EvaluatedAtUtc",
+          "surface": "integration-command",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.decision",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-eligibility", "fail-closed-decision"],
+      "sources": ["ingestion-current-projections"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "ContractVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "Status",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "BlockerCode",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.active-legal-hold-count",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["anonymisation-eligibility", "legal-hold-blocking"],
+      "sources": ["ingestion-legal-holds"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "ActiveLegalHoldCount",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.policy-evidence-sha256",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-eligibility", "immutable-policy-proof"],
+      "sources": ["ingestion-property-policy-projection"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "PolicyEvidenceSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.operation-fence-sha256",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-eligibility", "optimistic-operation-fence"],
+      "sources": ["ingestion-current-projections"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "OperationFenceSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.anonymisation.evaluated-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["anonymisation-eligibility", "evaluation-freshness"],
+      "sources": ["ingestion-system-clock"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "ingestion-anonymisation-eligibility",
+      "countryPolicyKey": "ingestion.data-rights-anonymisation",
+      "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation",
+      "rightsPolicy": "ingestion-anonymisation-eligibility-control",
+      "allowedSurfaces": ["projection-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionAnonymisationEligibilityResult",
+          "member": "EvaluatedAtUtc",
+          "surface": "projection-export",
+          "retentionPolicy": "ingestion-anonymisation-eligibility-evaluation"
         }
       ]
     }

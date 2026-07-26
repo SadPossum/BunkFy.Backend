@@ -257,6 +257,16 @@ public sealed class IngestionPersonalDataCatalogTests
         {
             yield return (PersonalDataSurface.FileIngress, type);
         }
+
+        yield return (
+            PersonalDataSurface.IntegrationCommand,
+            typeof(IngestionAnonymisationEligibilityRequest));
+        yield return (
+            PersonalDataSurface.IntegrationCommand,
+            typeof(IngestionAnonymisationRoutingPolicyEvidence));
+        yield return (
+            PersonalDataSurface.ProjectionExport,
+            typeof(IngestionAnonymisationEligibilityResult));
     }
 
     private static bool IsProductPersistenceType(IEntityType entityType) =>

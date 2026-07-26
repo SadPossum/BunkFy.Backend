@@ -28,6 +28,9 @@ public static class DependencyInjection
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(IngestionModuleMetadata.Descriptor);
         services.TryAddScoped<IIngestionCountryPolicyAdmission, IngestionCountryPolicyAdmission>();
+        services.TryAddScoped<
+            IIngestionAnonymisationEligibilityEvaluator,
+            IngestionAnonymisationEligibilityEvaluator>();
         services.TryAddScoped<IAdapterObservationSinkFactory, AdapterObservationSinkFactory>();
         services.TryAddScoped<IAdapterDescriptorRegistry, AdapterDescriptorRegistry>();
         services.TryAddScoped<IAdapterRunnerRegistry, AdapterRunnerRegistry>();
