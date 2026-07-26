@@ -1,6 +1,7 @@
 # Ingestion Data Rights Workflow Task
 
-Status: first and second implementation slices complete
+Status: first and second implementation slices complete and published; third
+safety-foundation slice planned
 
 ## Outcome
 
@@ -185,7 +186,7 @@ re-evaluate under transaction before writing.
 
 ## Irreversible Reduction And Restore Safety
 
-The destructive slice must define policy-approved behavior separately for:
+The destructive workflow must define policy-approved behavior separately for:
 
 - raw payload objects and their retention metadata;
 - source references, external ids and normalized snapshots;
@@ -196,14 +197,46 @@ The destructive slice must define policy-approved behavior separately for:
 Deleting a MinIO object, purging by age, unlinking a reservation or redacting a
 terminal proposal alone is not complete anonymisation.
 
-Ingestion must commit its reduction, immutable owner proof and local tombstone
-before DataRights completes the protected ledger. Restore and re-ingestion
-must consult that tombstone before evidence becomes readable or publishable.
-API, Worker and management readiness remain gated until protected-ledger replay
-has re-applied every Ingestion tombstone.
+PostgreSQL and object storage cannot be changed atomically. The later
+destructive execution therefore uses an idempotent owner-local state machine:
 
-No destructive contributor is registered until owner proof, tombstone,
-re-ingestion denial and restore replay are implemented together.
+1. Acquire the exact source-identity operation locks, re-run eligibility in the
+   transaction and compare its current operation fence.
+2. Commit a reducing barrier, redact database-owned sensitive values, mark
+   retained raw objects unavailable and persist the bounded deletion plan.
+3. Delete every planned raw object idempotently outside the database
+   transaction.
+4. In a second transaction, prove every object is absent, finalize the immutable
+   owner receipt and completed tombstone, and only then report completion to
+   DataRights.
+
+A retry with the same idempotency key resumes the recorded stage and deletion
+plan. It never rebuilds a broader graph from current tenant data. A conflicting
+idempotency key, owner coordinate, operation revision, policy digest or graph
+fence fails closed.
+
+Source references and adapter external ids cannot remain in a tombstone merely
+to prevent re-ingestion. Ingestion instead owns versioned keyed-HMAC
+fingerprints over canonical tenant, connection and provider-record identities.
+The stored fingerprint is purpose-separated, contains no plaintext provider
+identifier and can be matched across configured key-rotation candidates.
+Fingerprint semantics and key configuration stay in BunkFy Ingestion; they are
+not DataRights contracts and do not move into GMA.
+
+The reducing barrier denies raw reads, normalization, dispatch, reprocessing
+and new matching observations before object deletion begins. The completed
+tombstone continues that denial after owner completion. Ordinary API and export
+surfaces expose neither the original values nor the fingerprints.
+
+Restore does not restore erased provider data. The DataRights protected ledger
+replays the immutable owner proof into Ingestion, which re-applies reduction to
+the exact source-link graph and reconstructs required fingerprints from the
+restored pre-reduction rows. API, Worker and management readiness remain gated
+until protected-ledger replay has re-applied every Ingestion tombstone.
+
+No destructive contributor is registered until the tombstone, fingerprint,
+ordinary-surface denial, restore replay and staged owner proof are implemented
+and verified in that dependency order.
 
 ## Delivery Slices
 
@@ -211,10 +244,13 @@ re-ingestion denial and restore replay are implemented together.
    catalogue-driven streaming export for reachable raw and normalized evidence.
 2. Add legal-hold, retention, reprocessing and reconciliation eligibility with
    stable blockers and an owner-local operation fence.
-3. Add approved irreversible reduction, immutable owner proof and ordinary
-   surface enforcement.
-4. Add DataRights work-item dispatch, local tombstone, protected-ledger
-   completion and pre-ready restore/re-ingestion replay.
+3. Add the owner-local tombstone and keyed source fingerprints, enforce the
+   barrier at ingress, dispatch, reprocessing, raw reads, discovery and export,
+   and add protected-ledger restore replay. Do not register a destructive
+   contributor.
+4. Add staged irreversible reduction, immutable owner proof and DataRights
+   work-item dispatch. Register the destructive contributor only when begin,
+   object deletion, finalize and idempotent recovery are verified together.
 5. Extend the operator workflow for explicit multi-owner selection and run
    migration, architecture, Docker, browser, security and exact-commit gates.
 
@@ -269,6 +305,78 @@ only owner of its evidence.
 - Migration drift, focused tests, complete repository verification, Docker
   integration and exact-commit publication gates pass before the slice is
   marked complete.
+
+## Third-Slice Architecture Decision
+
+The safety foundation is an Ingestion-owned persistence and application
+capability. DataRights supplies only its existing restore request and owner
+proof contracts. GMA supplies the existing scope, transaction, task, readiness
+and persistence primitives. Neither layer learns provider identity,
+fingerprinting, evidence-graph or object-retention semantics.
+
+One tombstone is keyed by tenant and reservation source-link id. It stores:
+
+- a versioned lifecycle state and optimistic revision;
+- property, connection and source-link coordinates;
+- the selected and resulting source-link versions;
+- the owner receipt identity and canonical digest when completion is proven;
+- the protected-ledger entry and latest replay time after restore;
+- only bounded counts and policy/fence digests required to verify owner state.
+
+Child fingerprints cover the source-link identity and every reachable receipt
+provider identity. They store purpose, key version and a fixed-length digest,
+never source references, external ids, normalized values or raw content. A
+unique tenant-purpose-key-version-digest index makes ingress checks exact and
+bounded.
+
+An Ingestion-specific HMAC service owns canonical length-prefixed encoding,
+purpose separation and key rotation. Production configuration requires an
+explicit active key and rejects the development key. Matching computes
+candidates for every configured key version so rotation does not reopen an old
+tombstone. Logs, metrics, traces, errors and notifications never contain keys,
+digests or source values.
+
+The restore contributor revalidates the DataRights owner proof, acquires the
+same source-identity locks used by normal ingestion, loads the bounded current
+graph, reapplies redaction and persists the completed tombstone atomically.
+Replay is idempotent for the same ledger entry and fails readiness on missing,
+ambiguous, oversized or conflicting owner state.
+
+The normal receive path checks the provider-record fingerprint before storing
+an object or adding a receipt. The normalized reservation dispatcher checks
+again before creating or updating a source link, closing restore and
+receive/dispatch race windows. Reprocessing, raw reads, subject discovery and
+owner export reject a reducing or completed tombstone.
+
+Slice 3 may register `IDataRightsAnonymisationRestoreContributor`; it must not
+register `IDataRightsAnonymisationContributor`, expose an operator command or
+create a new destructive API.
+
+## Third-Slice Acceptance Plan
+
+- Domain tests prove tombstone lifecycle, immutable owner proof, restore replay
+  idempotency, conflict rejection and lower-case fixed-length fingerprint
+  invariants.
+- Cryptography tests prove deterministic tenant/purpose/key separation,
+  candidate matching across key rotation, missing-key denial and production
+  rejection of development defaults.
+- Application tests prove direct and reprocessed ingress is denied before
+  object storage, dispatch cannot recreate a tombstoned source link, and raw
+  reads, reprocessing, discovery and export fail closed.
+- Restore tests prove an exact bounded graph is reduced and fingerprinted,
+  owner proof is revalidated, repeated replay is idempotent and incomplete or
+  stale graphs fail readiness without partial mutation.
+- PostgreSQL tests prove unique fingerprint lookup, tenant isolation,
+  optimistic tombstone concurrency, transactional graph redaction and no
+  plaintext provider identifiers in tombstone tables.
+- Architecture tests prove only the restore contributor is registered, no
+  destructive command or API is reachable, Ingestion references DataRights
+  Contracts only, and GMA remains unchanged.
+- The personal-data catalogue classifies the tombstone, fingerprints and
+  restore proof with explicit access, retention and rights behavior.
+- Migration upgrade/drift, focused tests, complete verification, Docker and
+  exact-commit publication gates pass before staged irreversible execution
+  begins.
 
 ## First-Slice Implementation
 
