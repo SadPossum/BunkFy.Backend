@@ -1,6 +1,7 @@
 # Ingestion Module
 
-Status: first reservation ingestion workflow implemented
+Status: reservation ingestion workflow and first data-rights owner slice
+implemented
 
 Ingestion is BunkFy's tenant- and property-scoped control plane for external source adapters, durable observations, normalization, and staff-reviewed change proposals.
 
@@ -36,6 +37,8 @@ The current foundation contains:
 - safe checkpoint reset for disabled connections and a rebuildable local active-property projection;
 - separate scoped permissions for ordinary reads, connection management, run control, raw payload access, sensitive normalized history, and proposal decisions;
 - versioned parser capability discovery plus retained-source reprocessing with immutable source receipts, derived lineage, per-output audit, bounded evidence reservations, and TaskRuntime execution;
+- exact reservation-linked DataRights discovery with versioned Ingestion-owned source-link coordinates and no raw or fuzzy identity search;
+- catalogue-driven DataRights export of the selected provider-evidence graph, including deterministic protected raw-payload chunking and fail-closed retained-object reads;
 - an executable [personal-data catalogue](personal-data-catalog.v1.json) and deterministic [resolved inventory](personal-data-inventory.v1.md) covering persistence, application/API boundaries, adapter/parser ingress, raw evidence, credentials, audit data, and the minimal cross-module event.
 
 GMA TaskRuntime owns enqueue state, worker leases, retries, cancellation, timeout, and daemon lifecycle. Ingestion records the linked task run/attempt and source-specific outcome rather than implementing a parallel scheduler. Admin orchestration resolves an Ingestion-owned connection or run first, then delegates execution control to TaskRuntime.
@@ -61,6 +64,18 @@ Source-specific adapters do not belong in this module. Local and future remote a
 HTTP downloads are forced to opaque attachments with cache prevention and content sniffing disabled. The Admin CLI requires `--yes`, writes through a same-directory temporary file, and does not replace an existing file unless `--overwrite` is also supplied.
 
 Raw payloads default to a 30-day retention period configured by `Ingestion:Retention:RawPayloadRetention` (valid range: one hour through ten years). Each receipt stores the deadline assigned when it is accepted, so later configuration changes do not silently rewrite existing retention obligations. Only processed or rejected receipts can be claimed; pending/applying proposals and non-expired reprocessing reservations keep source evidence out of the claim query. Reprocessing reservations expire automatically and are not substitutes for legal holds. The `purge-expired-raw-payloads` TaskRuntime job uses a durable claim before deleting MinIO content and finalizes the receipt afterward; the same task retry can resume immediately, another task can recover a stale claim, and an already-missing object is successful idempotent deletion. Admin API and CLI enqueue this tenant-scoped job behind `ingestion.retention.manage` and explicit confirmation.
+
+DataRights uses the exact product reservation id only to resolve indexed
+Ingestion source links. A selected coordinate streams its reachable source
+link, receipts, proposals, dispatches, reprocessing lineage and retained raw
+evidence; unrelated connections and property operations are excluded.
+Available raw objects are emitted as deterministic bounded chunks, a missing
+available object makes the fragment unavailable, and a purged object is never
+reconstructed. Destructive DataRights execution is intentionally not
+registered yet: legal-hold, retention, reprocessing and reconciliation
+blockers, owner proof, local tombstones, re-ingestion denial and pre-ready
+restore replay must be delivered together. See
+[Ingestion Data Rights Workflow Task](../../../docs/planning/ingestion-data-rights-workflow-task.md).
 
 New evidence is written under a deterministic receipt key before the PostgreSQL transaction commits. This avoids acknowledging a receipt whose evidence was never stored and makes command retries idempotent, but a process crash can leave an unreferenced object. Production launch therefore still requires a bounded, grace-period orphan reconciliation job built on a provider-neutral GMA storage-inventory capability; Ingestion must not depend directly on MinIO listing APIs.
 

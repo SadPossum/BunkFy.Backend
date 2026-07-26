@@ -91,14 +91,15 @@ public sealed class IngestionPersonalDataCatalogTests
     }
 
     [Fact]
-    public void Raw_source_evidence_stays_inside_explicit_ingress_command_file_and_response_surfaces()
+    public void Raw_source_evidence_stays_inside_explicit_ingress_file_response_and_rights_surfaces()
     {
         HashSet<PersonalDataSurface> allowed =
         [
             PersonalDataSurface.AdapterIngress,
             PersonalDataSurface.ApplicationCommand,
             PersonalDataSurface.FileIngress,
-            PersonalDataSurface.ApiResponse
+            PersonalDataSurface.ApiResponse,
+            PersonalDataSurface.DataRightsExport
         ];
         PersonalDataFieldDefinition[] rawFields = Catalogue.Fields
             .Where(field => field.Id.StartsWith("ingestion.raw-source.", StringComparison.Ordinal))

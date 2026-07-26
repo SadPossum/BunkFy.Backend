@@ -2,8 +2,8 @@ namespace BunkFy.Modules.Ingestion.Persistence.Configurations;
 
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
-using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
+using BunkFy.Modules.Ingestion.Domain.Runs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -83,6 +83,13 @@ internal sealed class ObservationReceiptConfiguration : IEntityTypeConfiguration
         });
         builder.HasIndex(receipt => new { receipt.ScopeId, receipt.ConnectionId, receipt.OperationId }).IsUnique();
         builder.HasIndex(receipt => new { receipt.ScopeId, receipt.ConnectionId, receipt.DeduplicationKey }).IsUnique();
+        builder.HasIndex(receipt => new
+        {
+            receipt.ScopeId,
+            receipt.ConnectionId,
+            receipt.ExternalId,
+            receipt.ReceivedAtUtc
+        });
         builder.HasIndex(receipt => new { receipt.ScopeId, receipt.ConnectionId, receipt.State, receipt.ReceivedAtUtc });
         builder.HasIndex(receipt => new
         {

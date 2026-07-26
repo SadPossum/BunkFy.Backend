@@ -1,7 +1,6 @@
 namespace Integration.Tests;
 
 using System.Text.Json;
-using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Credentials;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
@@ -9,6 +8,7 @@ using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Persistence;
+using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -141,6 +141,13 @@ public sealed class IngestionMigrationIntegrationTests
 
         await using IngestionDbContext upgraded = CreateDbContext(postgreSql.GetConnectionString());
         await upgraded.Database.MigrateAsync();
+        int dataRightsLookupIndexCount = await upgraded.Database.SqlQueryRaw<int>(
+            """
+            SELECT COUNT(*)::integer AS "Value"
+            FROM pg_indexes
+            WHERE schemaname = 'ingestion'
+              AND indexname = 'IX_observation_receipts_ScopeId_ConnectionId_ExternalId_Receiv~'
+            """).SingleAsync();
         ObservationReceipt receipt = await upgraded.ObservationReceipts.SingleAsync(item => item.Id == receiptId);
         AdapterConnection connection = await upgraded.AdapterConnections.SingleAsync(item => item.Id == connectionId);
         IngestionRun run = await upgraded.Runs.SingleAsync(item => item.Id == runId);
@@ -200,6 +207,7 @@ public sealed class IngestionMigrationIntegrationTests
         Assert.NotNull(terminalDispatch.NormalizedSnapshot);
         Assert.Equal(0, propertyProjection.RetentionFenceVersion);
         Assert.Empty(await upgraded.LegalHolds.ToArrayAsync());
+        Assert.Equal(1, dataRightsLookupIndexCount);
 
         PostgresException invalidActiveDeadline = await Assert.ThrowsAsync<PostgresException>(() =>
             upgraded.Database.ExecuteSqlInterpolatedAsync($"""

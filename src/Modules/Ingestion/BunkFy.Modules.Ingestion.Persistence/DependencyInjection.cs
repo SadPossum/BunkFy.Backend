@@ -1,18 +1,20 @@
 namespace BunkFy.Modules.Ingestion.Persistence;
 
-using Gma.Framework.Cqrs.UnitOfWork;
-using Gma.Framework.Cqrs;
-using Gma.Framework.Cqrs.Infrastructure;
-using Gma.Framework.Messaging;
-using Gma.Framework.Persistence.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Persistence.Repositories;
-using Gma.Framework.ProjectionRebuild;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
+using Gma.Framework.Cqrs.UnitOfWork;
+using Gma.Framework.Messaging;
+using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.ProjectionRebuild;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+
 public static class DependencyInjection
 {
     public static IHostApplicationBuilder AddIngestionPersistence(this IHostApplicationBuilder builder)
@@ -61,6 +63,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IReservationDispatchRepository, ReservationDispatchRepository>();
         builder.Services.TryAddScoped<IChangeProposalRepository, ChangeProposalRepository>();
         builder.Services.TryAddScoped<IChangeProposalReader, ChangeProposalReader>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectDiscoveryContributor,
+                IngestionDataRightsDiscoveryContributor>());
+        IngestionDataRightsExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                IngestionDataRightsExportContributor>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
             typeof(ICommandPipelineBehavior<,>),
             typeof(IngestionPersistenceRetryBehavior<,>)));

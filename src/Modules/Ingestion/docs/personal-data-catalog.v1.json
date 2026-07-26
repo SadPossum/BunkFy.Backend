@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -70,6 +70,14 @@
       "endsAt": "revoked-or-expired-plus-approved-audit-window",
       "duration": null,
       "legalHoldBehavior": "pause-purge-or-redaction"
+    },
+    {
+      "id": "ingestion-data-rights-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "owner-export-started",
+      "endsAt": null,
+      "duration": "01:00:00",
+      "legalHoldBehavior": "not-applicable"
     },
     {
       "id": "legal-hold-audit-lifecycle",
@@ -164,8 +172,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -481,8 +489,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -952,8 +960,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -988,8 +996,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -1419,9 +1427,11 @@
       "retentionPolicy": "legal-hold-audit-lifecycle",
       "rightsPolicy": "audit-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -1432,6 +1442,13 @@
           "member": "DecisionReason",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "DecisionReason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2208,8 +2225,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2226,6 +2243,332 @@
           "member": "WorkerId",
           "surface": "adapter-ingress",
           "retentionPolicy": null
+        }
+      ]
+    },
+    {
+      "id": "ingestion.governance.policy-metadata",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "ingestion-processing",
+        "source-reconciliation",
+        "operational-audit"
+      ],
+      "sources": [
+        "ingestion-persistence",
+        "system-workflow"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "ContentSha256",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "DataRegionId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "EvaluatedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "OperatingCountryCode",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyEffectiveAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyExpiresAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "ProcessingSurface",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "PurposeCode",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "RetentionPolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "RetentionPolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "SourceProvenance",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
+          "member": "TransferProfileId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyAcknowledgement",
+          "member": "AcknowledgementId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyAcknowledgement",
+          "member": "AcknowledgementVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "ActivatedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "ContentSha256",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "DataRegionId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "OperatingCountryCode",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyEffectiveAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyExpiresAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "PolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "RetentionPolicyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "RetentionPolicyVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
+          "member": "TransferProfileId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyProjection",
+          "member": "ProcessingStatus",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "DataRegionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "OperatingCountryCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PolicyContentSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PolicyEffectiveAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PolicyEvaluatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PolicyExpiresAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PolicyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PolicyVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ProcessingSurface",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PurposeCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RetentionPolicyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RetentionPolicyVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "SourceProvenance",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "TransferProfileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2388,9 +2731,11 @@
       "retentionPolicy": "normalized-history-window",
       "rightsPolicy": "reservation-history-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2401,6 +2746,13 @@
           "member": "Diff",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "Diff",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2458,9 +2810,11 @@
       "retentionPolicy": "normalized-history-window",
       "rightsPolicy": "reservation-history-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2471,6 +2825,13 @@
           "member": "LastAppliedOperationalBaseline",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastAppliedOperationalBaseline",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2493,9 +2854,11 @@
       "retentionPolicy": "normalized-history-window",
       "rightsPolicy": "reservation-history-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2506,6 +2869,13 @@
           "member": "NormalizedSnapshot",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "NormalizedSnapshot",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2531,13 +2901,13 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2607,13 +2977,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "data-rights-export",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2658,6 +3030,13 @@
           "member": "AcceptedCount",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "AcceptedCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2684,8 +3063,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2718,9 +3097,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2731,6 +3112,13 @@
           "member": "ActiveProductOperationId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "ActiveProductOperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2754,9 +3142,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -2767,6 +3157,13 @@
           "member": "ActiveReprocessingAttemptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ActiveReprocessingAttemptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -2794,15 +3191,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
         "application-query",
-        "persistence",
-        "adapter-ingress",
-        "file-ingress"
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2894,8 +3291,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2931,8 +3328,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2969,9 +3366,11 @@
       "allowedSurfaces": [
         "application-command",
         "application-query",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -3045,6 +3444,13 @@
           "member": "AttemptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "AttemptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -3068,9 +3474,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -3081,6 +3489,13 @@
           "member": "BaseReservationDetailsRevision",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "BaseReservationDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -3149,13 +3564,13 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -3212,8 +3627,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -3247,12 +3662,12 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "adapter-ingress"
+        "adapter-ingress",
+        "application-command"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -3345,12 +3760,14 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "persistence",
-        "adapter-ingress"
+        "adapter-ingress",
+        "data-rights-export",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -3388,6 +3805,27 @@
           "member": "CompletedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -3414,8 +3852,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -3519,8 +3957,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -3617,17 +4055,18 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
         "application-query",
+        "data-rights-export",
+        "file-ingress",
         "integration-event",
-        "persistence",
-        "adapter-ingress",
-        "file-ingress"
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
+        "adapter",
         "cross-module",
-        "adapter"
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -3847,6 +4286,41 @@
           "member": "ConnectionId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "ConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "ConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "ConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "ConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -3872,9 +4346,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -3906,6 +4382,27 @@
           "member": "ContentHash",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ContentHash",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "ContentHash",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "ContentSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -3932,15 +4429,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "api-response",
         "adapter-ingress",
+        "api-response",
+        "application-command",
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
+        "adapter",
         "customer-api",
-        "adapter"
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -4025,15 +4522,17 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "api-response",
         "adapter-ingress",
+        "api-response",
+        "application-command",
+        "data-rights-export",
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
+        "adapter",
+        "cross-module",
         "customer-api",
-        "adapter"
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -4092,6 +4591,13 @@
           "member": "ContentType",
           "surface": "api-response",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "ContentType",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4115,9 +4621,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4149,6 +4657,27 @@
           "member": "CreatedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4172,9 +4701,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4185,6 +4716,13 @@
           "member": "DecidedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "DecidedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4208,9 +4746,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4221,6 +4761,13 @@
           "member": "DeduplicationKey",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "DeduplicationKey",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4244,9 +4791,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4257,6 +4806,13 @@
           "member": "DeferredReceiptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "DeferredReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4319,14 +4875,16 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "persistence",
         "adapter-ingress",
-        "file-ingress"
+        "application-command",
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -4364,6 +4922,13 @@
           "member": "Disposition",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "Disposition",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4389,9 +4954,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4409,6 +4976,13 @@
           "member": "DuplicateCount",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "DuplicateCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4470,13 +5044,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "data-rights-export",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -4549,6 +5125,20 @@
           "member": "ErrorCode",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "ErrorCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "ErrorCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4575,8 +5165,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -4585,6 +5175,43 @@
           "type": "BunkFy.Adapter.Abstractions.AdapterRunCompletion",
           "member": "ErrorMessage",
           "surface": "adapter-ingress",
+          "retentionPolicy": null
+        }
+      ]
+    },
+    {
+      "id": "ingestion.operations.event-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "ingestion-processing",
+        "source-reconciliation",
+        "operational-audit"
+      ],
+      "sources": [
+        "cross-module-event"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
           "retentionPolicy": null
         }
       ]
@@ -4647,13 +5274,13 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -4724,8 +5351,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -4758,9 +5385,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4771,6 +5400,13 @@
           "member": "ExpectedDetailsRevision",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "ExpectedDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -4975,9 +5611,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5009,6 +5647,20 @@
           "member": "ExternalId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ExternalId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "ExternalId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5034,13 +5686,13 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
         "adapter-ingress",
+        "application-command",
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -5137,9 +5789,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5206,6 +5860,48 @@
           "member": "Id",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "ProposalId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "AttemptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "OutputId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "DispatchId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "SourceLinkId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5355,9 +6051,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5375,6 +6073,13 @@
           "member": "Kind",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "Kind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5398,9 +6103,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5411,6 +6118,13 @@
           "member": "LastAppliedReceiptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastAppliedReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5434,9 +6148,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5447,6 +6163,13 @@
           "member": "LastAppliedReservationDetailsRevision",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastAppliedReservationDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5470,9 +6193,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5483,6 +6208,13 @@
           "member": "LastAppliedSourceRevision",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastAppliedSourceRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5506,9 +6238,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5519,6 +6253,13 @@
           "member": "LastAppliedSourceSequence",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastAppliedSourceSequence",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5542,9 +6283,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5555,6 +6298,13 @@
           "member": "LastErrorCode",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "LastErrorCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5578,9 +6328,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5591,6 +6343,13 @@
           "member": "LastObservedContentHash",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastObservedContentHash",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5614,9 +6373,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5627,6 +6388,13 @@
           "member": "LastObservedReceiptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastObservedReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5650,9 +6418,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5663,6 +6433,13 @@
           "member": "LastObservedSourceRevision",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastObservedSourceRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5686,9 +6463,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5699,6 +6478,13 @@
           "member": "LastObservedSourceSequence",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastObservedSourceSequence",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5722,9 +6508,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5735,6 +6523,13 @@
           "member": "LastObservedSourceUpdatedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastObservedSourceUpdatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5758,9 +6553,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5771,6 +6568,13 @@
           "member": "LastProductOperationId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "LastProductOperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5794,9 +6598,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -5807,6 +6613,13 @@
           "member": "LastTaskAttempt",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "LastTaskAttempt",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -5833,8 +6646,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -5884,8 +6697,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -5942,8 +6755,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -5986,8 +6799,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6108,8 +6921,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6262,14 +7075,16 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "persistence",
         "adapter-ingress",
-        "file-ingress"
+        "application-command",
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6321,6 +7136,13 @@
           "member": "ObservedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ObservedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -6346,13 +7168,13 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6387,6 +7209,43 @@
       ]
     },
     {
+      "id": "ingestion.operations.occurred-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "ingestion-processing",
+        "source-reconciliation",
+        "operational-audit"
+      ],
+      "sources": [
+        "cross-module-event"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": null
+        }
+      ]
+    },
+    {
       "id": "ingestion.operations.operation-id",
       "dataSubject": "guest",
       "classification": "pseudonymous-identifier",
@@ -6408,13 +7267,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "data-rights-export",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6473,6 +7334,20 @@
           "member": "OperationId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -6497,12 +7372,12 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "adapter-ingress"
+        "adapter-ingress",
+        "application-command"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6558,9 +7433,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -6578,6 +7455,13 @@
           "member": "OutputIndex",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "OutputIndex",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -6604,8 +7488,8 @@
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6641,8 +7525,8 @@
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6805,9 +7689,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -6825,6 +7711,13 @@
           "member": "ParsedCount",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "ParsedCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -6850,9 +7743,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -6870,6 +7765,13 @@
           "member": "ParserOutputIndex",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ParserOutputIndex",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -6896,12 +7798,14 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
-        "persistence",
-        "file-ingress"
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -6953,6 +7857,20 @@
           "member": "ParserType",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ParserType",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "ParserType",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -6979,12 +7897,14 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
-        "persistence",
-        "file-ingress"
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -7036,6 +7956,20 @@
           "member": "ParserVersion",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ParserVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "ParserVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7062,8 +7996,8 @@
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -7099,8 +8033,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -7241,9 +8175,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -7254,6 +8190,13 @@
           "member": "ProcessedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ProcessedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7279,9 +8222,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -7299,6 +8244,13 @@
           "member": "ProductOperationId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "ProductOperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7326,16 +8278,17 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
         "application-query",
+        "data-rights-export",
         "integration-event",
-        "persistence",
-        "adapter-ingress"
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
+        "adapter",
         "cross-module",
-        "adapter"
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -7576,6 +8529,41 @@
           "member": "PropertyId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7697,8 +8685,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -7741,8 +8729,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -7784,9 +8772,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -7811,6 +8801,20 @@
           "member": "RawPayloadFileId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RawPayloadFileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "RawPayloadFileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7870,9 +8874,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -7883,6 +8889,13 @@
           "member": "RawPayloadPurgeStartedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RawPayloadPurgeStartedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7906,9 +8919,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -7919,6 +8934,13 @@
           "member": "RawPayloadPurgedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RawPayloadPurgedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7942,9 +8964,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -7955,6 +8979,13 @@
           "member": "RawPayloadRetainUntilUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RawPayloadRetainUntilUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -7978,9 +9009,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -7991,6 +9024,13 @@
           "member": "RawPayloadRetentionState",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RawPayloadRetentionState",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8014,9 +9054,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -8027,6 +9069,13 @@
           "member": "RawPayloadVersion",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RawPayloadVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8089,12 +9138,14 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
-        "persistence",
-        "file-ingress"
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -8118,6 +9169,13 @@
           "member": "ReasonCode",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "ReasonCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8145,16 +9203,17 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
         "application-query",
+        "data-rights-export",
         "integration-event",
-        "persistence",
-        "adapter-ingress"
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
+        "adapter",
         "cross-module",
-        "adapter"
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -8241,6 +9300,34 @@
           "member": "ReceiptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8264,9 +9351,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -8277,6 +9366,13 @@
           "member": "ReceivedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ReceivedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8303,8 +9399,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -8340,14 +9436,16 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "persistence",
         "adapter-ingress",
-        "file-ingress"
+        "application-command",
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -8392,6 +9490,13 @@
           "member": "RecordType",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "RecordType",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8415,9 +9520,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -8428,6 +9535,13 @@
           "member": "RecordedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "RecordedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8454,8 +9568,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -8504,13 +9618,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
-        "persistence",
-        "adapter-ingress"
+        "data-rights-export",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -8555,6 +9671,13 @@
           "member": "RejectedCount",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "RejectedCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8578,9 +9701,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -8591,6 +9716,13 @@
           "member": "RejectionReason",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RejectionReason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8897,8 +10029,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -8940,9 +10072,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -8960,6 +10094,13 @@
           "member": "ReprocessingAttemptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ReprocessingAttemptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -8983,9 +10124,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -8996,6 +10139,13 @@
           "member": "ReprocessingReservationExpiresAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "ReprocessingReservationExpiresAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9069,9 +10219,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9082,6 +10234,13 @@
           "member": "RequestedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "RequestedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9108,8 +10267,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -9151,9 +10310,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9171,6 +10332,13 @@
           "member": "ReservationExpiresAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "ReservationExpiresAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9194,9 +10362,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9221,6 +10391,27 @@
           "member": "ReservationId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9244,9 +10435,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9257,6 +10450,13 @@
           "member": "ResultDetailsRevision",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "ResultDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9280,9 +10480,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9293,6 +10495,13 @@
           "member": "ResultReservationVersion",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "ResultReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9319,8 +10528,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -9399,14 +10608,16 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
         "application-query",
-        "persistence",
-        "adapter-ingress"
+        "data-rights-export",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -9507,6 +10718,13 @@
           "member": "RunId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "RunId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9576,8 +10794,8 @@
         "adapter-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -9614,15 +10832,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "adapter-ingress",
         "application-command",
         "application-query",
-        "persistence",
-        "adapter-ingress",
-        "file-ingress"
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -9767,9 +10985,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9787,6 +11007,20 @@
           "member": "SensitiveDataRedactedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "SensitiveDataRedactedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "SensitiveDataRedactedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9810,9 +11044,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9830,6 +11066,20 @@
           "member": "SensitiveDataRetainUntilUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "SensitiveDataRetainUntilUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "SensitiveDataRetainUntilUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9855,9 +11105,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9875,6 +11127,13 @@
           "member": "SourceLinkId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "SourceLinkId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9898,9 +11157,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -9911,6 +11172,13 @@
           "member": "SourcePayloadFileId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "SourcePayloadFileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -9939,12 +11207,14 @@
       "allowedSurfaces": [
         "application-command",
         "application-query",
-        "persistence",
-        "file-ingress"
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -10003,6 +11273,20 @@
           "member": "SourceReceiptId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "SourceReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "SourceReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10029,12 +11313,14 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
-        "persistence",
-        "file-ingress"
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -10058,6 +11344,13 @@
           "member": "SourceRecordType",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "SourceRecordType",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10081,9 +11374,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10094,6 +11389,13 @@
           "member": "SourceReference",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "SourceReference",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10120,14 +11422,16 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command",
-        "persistence",
         "adapter-ingress",
-        "file-ingress"
+        "application-command",
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -10200,6 +11504,27 @@
           "member": "SourceRevision",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "SourceRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingOutputDataRightsExport",
+          "member": "SourceRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "SourceRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10225,9 +11550,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10245,6 +11572,13 @@
           "member": "SourceSequence",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "SourceSequence",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10268,9 +11602,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10281,6 +11617,13 @@
           "member": "SourceSystem",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "SourceSystem",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10323,14 +11666,14 @@
         {
           "assembly": "BunkFy.Modules.Ingestion.Persistence",
           "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyProjection",
-          "member": "TopologySourceVersion",
+          "member": "PolicySourceVersion",
           "surface": "persistence",
           "retentionPolicy": null
         },
         {
           "assembly": "BunkFy.Modules.Ingestion.Persistence",
           "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyProjection",
-          "member": "PolicySourceVersion",
+          "member": "TopologySourceVersion",
           "surface": "persistence",
           "retentionPolicy": null
         }
@@ -10392,9 +11735,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10412,6 +11757,13 @@
           "member": "StartedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "StartedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10473,9 +11825,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10535,6 +11889,41 @@
           "member": "State",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "State",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "State",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "State",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "State",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "State",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10625,8 +12014,8 @@
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -10662,8 +12051,8 @@
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -10764,9 +12153,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10811,6 +12202,57 @@
           "type": "BunkFy.Modules.Ingestion.Domain.Runs.IngestionRun",
           "member": "TaskRunId",
           "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "TaskRunId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.operations.tenant-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "ingestion-processing",
+        "source-reconciliation",
+        "operational-audit"
+      ],
+      "sources": [
+        "cross-module-event"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
+          "member": "TenantId",
+          "surface": "integration-event",
           "retentionPolicy": null
         }
       ]
@@ -10871,9 +12313,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10884,6 +12328,13 @@
           "member": "TriggerId",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "TriggerId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10907,9 +12358,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10920,6 +12373,13 @@
           "member": "TriggerKind",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "TriggerKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10943,9 +12403,11 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -10963,6 +12425,13 @@
           "member": "UpdatedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "UpdatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -10988,9 +12457,11 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "application-command",
+        "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -11043,6 +12514,102 @@
           "member": "Version",
           "surface": "persistence",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ChangeProposalDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReprocessingAttemptDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationDispatchDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ReservationSourceLinkDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.operations.raw-payload-chunk-count",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "provider-evidence-export"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "raw-source-evidence",
+      "countryPolicyKey": "ingestion.raw-evidence",
+      "retentionPolicy": "raw-source-evidence-window",
+      "rightsPolicy": "raw-evidence-rights",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "ChunkCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.operations.raw-payload-chunk-index",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "provider-evidence-export"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "raw-source-evidence",
+      "countryPolicyKey": "ingestion.raw-evidence",
+      "retentionPolicy": "raw-source-evidence-window",
+      "rightsPolicy": "raw-evidence-rights",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "ChunkIndex",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -11067,12 +12634,14 @@
       "rightsPolicy": "raw-evidence-rights",
       "allowedSurfaces": [
         "api-response",
+        "data-rights-export",
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
+        "adapter",
+        "cross-module",
         "customer-api",
-        "adapter"
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -11096,6 +12665,13 @@
           "member": "Content",
           "surface": "api-response",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "Content",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -11120,13 +12696,13 @@
       "retentionPolicy": "raw-source-evidence-window",
       "rightsPolicy": "raw-evidence-rights",
       "allowedSurfaces": [
-        "application-command",
         "adapter-ingress",
+        "application-command",
         "file-ingress"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -11164,6 +12740,40 @@
           "member": "Payload",
           "surface": "application-command",
           "retentionPolicy": null
+        }
+      ]
+    },
+    {
+      "id": "ingestion.operations.raw-payload-total-bytes",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "provider-evidence-export"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "raw-source-evidence",
+      "countryPolicyKey": "ingestion.raw-evidence",
+      "retentionPolicy": "raw-source-evidence-window",
+      "rightsPolicy": "raw-evidence-rights",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.RawPayloadChunkDataRightsExport",
+          "member": "TotalBytes",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     },
@@ -11364,14 +12974,16 @@
       "retentionPolicy": "normalized-history-window",
       "rightsPolicy": "reservation-history-rights",
       "allowedSurfaces": [
-        "application-command",
-        "persistence",
         "adapter-ingress",
-        "file-ingress"
+        "application-command",
+        "data-rights-export",
+        "file-ingress",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "intra-module",
-        "adapter"
+        "adapter",
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -11423,350 +13035,13 @@
           "member": "SourceUpdatedAtUtc",
           "surface": "persistence",
           "retentionPolicy": null
-        }
-      ]
-    },
-    {
-      "id": "ingestion.operations.event-id",
-      "dataSubject": "guest",
-      "classification": "pseudonymous-identifier",
-      "sensitivity": "standard",
-      "purposes": [
-        "ingestion-processing",
-        "source-reconciliation",
-        "operational-audit"
-      ],
-      "sources": [
-        "cross-module-event"
-      ],
-      "authoritativeOwner": "ingestion",
-      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
-      "accessPolicy": "operations",
-      "countryPolicyKey": "ingestion.operations",
-      "retentionPolicy": "operations-lifecycle",
-      "rightsPolicy": "operational-rights",
-      "allowedSurfaces": [
-        "integration-event"
-      ],
-      "allowedBoundaries": [
-        "intra-module",
-        "cross-module"
-      ],
-      "approvalState": "engineering-default",
-      "bindings": [
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Contracts",
-          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
-          "member": "EventId",
-          "surface": "integration-event",
-          "retentionPolicy": null
-        }
-      ]
-    },
-    {
-      "id": "ingestion.operations.occurred-at-utc",
-      "dataSubject": "guest",
-      "classification": "lifecycle",
-      "sensitivity": "standard",
-      "purposes": [
-        "ingestion-processing",
-        "source-reconciliation",
-        "operational-audit"
-      ],
-      "sources": [
-        "cross-module-event"
-      ],
-      "authoritativeOwner": "ingestion",
-      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
-      "accessPolicy": "operations",
-      "countryPolicyKey": "ingestion.operations",
-      "retentionPolicy": "operations-lifecycle",
-      "rightsPolicy": "operational-rights",
-      "allowedSurfaces": [
-        "integration-event"
-      ],
-      "allowedBoundaries": [
-        "intra-module",
-        "cross-module"
-      ],
-      "approvalState": "engineering-default",
-      "bindings": [
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Contracts",
-          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
-          "member": "OccurredAtUtc",
-          "surface": "integration-event",
-          "retentionPolicy": null
-        }
-      ]
-    },
-    {
-      "id": "ingestion.operations.tenant-id",
-      "dataSubject": "guest",
-      "classification": "pseudonymous-identifier",
-      "sensitivity": "standard",
-      "purposes": [
-        "ingestion-processing",
-        "source-reconciliation",
-        "operational-audit"
-      ],
-      "sources": [
-        "cross-module-event"
-      ],
-      "authoritativeOwner": "ingestion",
-      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
-      "accessPolicy": "operations",
-      "countryPolicyKey": "ingestion.operations",
-      "retentionPolicy": "operations-lifecycle",
-      "rightsPolicy": "operational-rights",
-      "allowedSurfaces": [
-        "integration-event"
-      ],
-      "allowedBoundaries": [
-        "intra-module",
-        "cross-module"
-      ],
-      "approvalState": "engineering-default",
-      "bindings": [
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Contracts",
-          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
-          "member": "ScopeId",
-          "surface": "integration-event",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Contracts",
-          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptAcceptedIntegrationEvent",
-          "member": "TenantId",
-          "surface": "integration-event",
-          "retentionPolicy": null
-        }
-      ]
-    },
-    {
-      "id": "ingestion.governance.policy-metadata",
-      "dataSubject": "guest",
-      "classification": "linked-operational",
-      "sensitivity": "standard",
-      "purposes": [
-        "ingestion-processing",
-        "source-reconciliation",
-        "operational-audit"
-      ],
-      "sources": [
-        "ingestion-persistence",
-        "system-workflow"
-      ],
-      "authoritativeOwner": "ingestion",
-      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
-      "accessPolicy": "operations",
-      "countryPolicyKey": "ingestion.operations",
-      "retentionPolicy": "operations-lifecycle",
-      "rightsPolicy": "operational-rights",
-      "allowedSurfaces": [
-        "persistence"
-      ],
-      "allowedBoundaries": [
-        "intra-module"
-      ],
-      "approvalState": "engineering-default",
-      "bindings": [
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyProjection",
-          "member": "ProcessingStatus",
-          "surface": "persistence",
-          "retentionPolicy": null
         },
         {
           "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "OperatingCountryCode",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "PolicyId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "PolicyVersion",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "DataRegionId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "TransferProfileId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "RetentionPolicyId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "RetentionPolicyVersion",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "ContentSha256",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "PolicyEffectiveAtUtc",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "PolicyExpiresAtUtc",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyBinding",
-          "member": "ActivatedAtUtc",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyAcknowledgement",
-          "member": "AcknowledgementId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionPropertyPolicyAcknowledgement",
-          "member": "AcknowledgementVersion",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "OperatingCountryCode",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "PolicyId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "PolicyVersion",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "DataRegionId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "TransferProfileId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "RetentionPolicyId",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "RetentionPolicyVersion",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "ContentSha256",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "PurposeCode",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "ProcessingSurface",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "SourceProvenance",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "PolicyEffectiveAtUtc",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "PolicyExpiresAtUtc",
-          "surface": "persistence",
-          "retentionPolicy": null
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Domain",
-          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence",
-          "member": "EvaluatedAtUtc",
-          "surface": "persistence",
-          "retentionPolicy": null
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.ObservationReceiptDataRightsExport",
+          "member": "SourceUpdatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-data-rights-export-fragment"
         }
       ]
     }

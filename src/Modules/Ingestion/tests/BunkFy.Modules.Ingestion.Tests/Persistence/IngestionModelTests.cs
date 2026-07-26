@@ -1,20 +1,20 @@
 namespace BunkFy.Modules.Ingestion.Tests.Persistence;
 
-using Gma.Framework.Scoping;
+using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
+using BunkFy.Modules.Ingestion.Domain.Credentials;
+using BunkFy.Modules.Ingestion.Domain.LegalHolds;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
-using BunkFy.Modules.Ingestion.Domain.Runs;
-using BunkFy.Modules.Ingestion.Domain.Credentials;
-using BunkFy.Modules.Ingestion.Domain.Reservations;
-using BunkFy.Modules.Ingestion.Domain.LegalHolds;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
-using BunkFy.Modules.Ingestion.Contracts;
-using BunkFy.Modules.Ingestion.Application.Ports;
-using BunkFy.Modules.Ingestion.Persistence.Repositories;
-using Gma.Framework.Pagination;
+using BunkFy.Modules.Ingestion.Domain.Reservations;
+using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Ingestion.Persistence.Repositories;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Pagination;
+using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
@@ -81,6 +81,9 @@ public sealed class IngestionModelTests
         Assert.Contains(receipt.GetIndexes(), index =>
             index.IsUnique && index.Properties.Select(property => property.Name)
                 .SequenceEqual(["ScopeId", "ConnectionId", "DeduplicationKey"]));
+        Assert.Contains(receipt.GetIndexes(), index =>
+            !index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "ConnectionId", "ExternalId", "ReceivedAtUtc"]));
     }
 
     [Fact]

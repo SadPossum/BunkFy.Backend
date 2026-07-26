@@ -56,6 +56,7 @@ Useful entry points:
 - [Guest Data Rights Restriction Task](planning/guest-data-rights-restriction-task.md)
 - [Data Rights Module](../src/Modules/DataRights/docs/README.md)
 - [Ingestion Module Task](planning/ingestion-module-task.md)
+- [Ingestion Data Rights Workflow Task](planning/ingestion-data-rights-workflow-task.md)
 - [Ingestion PII Minimization Task](planning/ingestion-pii-minimization-task.md)
 - [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)
 - [Ingestion Legal Holds Task](planning/ingestion-legal-holds-task.md)

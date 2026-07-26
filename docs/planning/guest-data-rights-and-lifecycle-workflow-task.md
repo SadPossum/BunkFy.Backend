@@ -1,8 +1,8 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
 Status: implementation in progress; Guests owner workflow through protected
-ledger and restore replay complete; Reservations discovery and catalogue-driven
-export complete
+ledger and restore replay complete; Reservations owner workflow complete;
+Ingestion exact discovery and catalogue-driven export implemented
 
 ## Outcome
 
@@ -429,11 +429,13 @@ The owner-local Guests restriction projection and dependent Reservations gate
 are complete. Their detailed implementation and acceptance plan is
 `guest-data-rights-restriction-task.md`.
 
-Guests-owned destructive eligibility, anonymisation, authoritative ledger
-completion and pre-ready restore replay are complete. Reservations now owns the
-next domain slice. Its scoped discovery and catalogue-driven export are
-complete; transactional correction is next under
-`reservations-data-rights-workflow-task.md`.
+Guests-owned and Reservations-owned workflows through authoritative ledger
+completion and pre-ready restore replay are complete. Ingestion now owns the
+active domain slice. Its exact reservation-linked discovery and
+catalogue-driven export are implemented under
+`ingestion-data-rights-workflow-task.md`; destructive execution remains closed
+until Ingestion's legal-hold, retention, reprocessing, reconciliation,
+tombstone and restore guarantees are implemented together.
 
 ## Acceptance Evidence
 
