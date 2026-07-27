@@ -71,6 +71,7 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("FileManagement:Minio:CreateBucketIfMissing", minioCreateBucketIfMissing.ToString());
         builder.UseSetting("FileManagement:AllowedContentTypes:0", "application/json");
         builder.UseSetting("FileManagement:AllowedContentTypes:1", "message/rfc822");
+        builder.UseSetting("FileManagement:AllowedContentTypes:2", "application/octet-stream");
         builder.UseSetting("Auth:Jwt:Issuer", JwtIssuer);
         builder.UseSetting("Auth:Jwt:Audience", JwtAudience);
         builder.UseSetting("Auth:Jwt:SigningKey", JwtSigningKey);
@@ -116,6 +117,7 @@ internal sealed class AuthTestApplication(
                 ["FileManagement:Minio:CreateBucketIfMissing"] = minioCreateBucketIfMissing.ToString(),
                 ["FileManagement:AllowedContentTypes:0"] = "application/json",
                 ["FileManagement:AllowedContentTypes:1"] = "message/rfc822",
+                ["FileManagement:AllowedContentTypes:2"] = "application/octet-stream",
             };
 
             if (enableWorkspaceSelfService)

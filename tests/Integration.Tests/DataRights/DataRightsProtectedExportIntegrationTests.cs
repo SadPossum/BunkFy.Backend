@@ -273,6 +273,15 @@ public sealed class DataRightsProtectedExportIntegrationTests
             request,
             "staff:privacy",
             Now.AddHours(-1)).Value;
+        Assert.True(dataRightsCase.RecordRequesterVerification(
+            verified: true,
+            dataRightsCase.Version,
+            "staff:privacy",
+            Now.AddMinutes(-55)).IsSuccess);
+        Assert.True(dataRightsCase.RecordControllerRouting(
+            dataRightsCase.Version,
+            "staff:privacy",
+            Now.AddMinutes(-52)).IsSuccess);
         Assert.True(dataRightsCase.BeginDiscovery(
             dataRightsCase.Version,
             "staff:privacy",

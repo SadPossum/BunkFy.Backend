@@ -62,8 +62,9 @@ internal sealed class AdminApiTestApplication(
         builder.UseSetting("Caching:Enabled", "false");
         builder.UseSetting("FileManagement:Enabled", "true");
         builder.UseSetting("FileManagement:Provider", "Minio");
-        builder.UseSetting("FileManagement:MaximumObjectBytes", "1048576");
+        builder.UseSetting("FileManagement:MaximumObjectBytes", "67108864");
         builder.UseSetting("FileManagement:AllowedContentTypes:0", "application/json");
+        builder.UseSetting("FileManagement:AllowedContentTypes:1", "application/octet-stream");
         builder.UseSetting("FileManagement:Minio:Endpoint", "localhost:9000");
         builder.UseSetting("FileManagement:Minio:AccessKey", "integration-test");
         builder.UseSetting("FileManagement:Minio:SecretKey", "integration-test-secret");
@@ -95,8 +96,9 @@ internal sealed class AdminApiTestApplication(
                 ["Caching:Enabled"] = "false",
                 ["FileManagement:Enabled"] = "true",
                 ["FileManagement:Provider"] = "Minio",
-                ["FileManagement:MaximumObjectBytes"] = "1048576",
+                ["FileManagement:MaximumObjectBytes"] = "67108864",
                 ["FileManagement:AllowedContentTypes:0"] = "application/json",
+                ["FileManagement:AllowedContentTypes:1"] = "application/octet-stream",
                 ["FileManagement:Minio:Endpoint"] = "localhost:9000",
                 ["FileManagement:Minio:AccessKey"] = "integration-test",
                 ["FileManagement:Minio:SecretKey"] = "integration-test-secret",

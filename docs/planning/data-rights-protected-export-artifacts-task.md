@@ -1,7 +1,7 @@
 # Data Rights Protected Export Artifacts Task
 
-Status: implementation slices 1 through 3 complete; local candidate and
-preview gates complete; publication pending
+Status: implementation slices 1 through 3 complete; initial publication
+complete; exact-candidate Docker correction pending
 
 ## Goal
 
@@ -362,8 +362,17 @@ expensive gates.
   manufacture a plaintext download.
 - Staff request attribution now says `Requested by the staff member`, and
   selected discovery results no longer fall through to the no-match message.
+- The first published Docker candidate built successfully and then exposed two
+  test-fixture gaps: shared API test hosts replaced the production file-content
+  type/capacity defaults, and the protected-export fixture skipped the required
+  requester-verification and controller-routing transitions. The test hosts now
+  preserve the opaque export type and production capacity, the fixture records
+  both prerequisite transitions, and the focused integration-project build
+  passes with zero warnings. Production fail-closed validation is unchanged.
 - GMA source and all nested GMA pointers remain unchanged.
-- Exact published-commit GitHub Actions remain pending.
+- The failed Docker workflow is the only complete gate to repeat for the
+  replacement candidate. Exact replacement-commit GitHub Actions remain
+  pending.
 
 ## Deferred
 
