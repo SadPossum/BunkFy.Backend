@@ -8,7 +8,7 @@ internal sealed class RequireDataRightsReviewCommandValidator
 {
     public IEnumerable<string> Validate(RequireDataRightsReviewCommand command) =>
         DataRightsCaseValidation.Mutation(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.ExpectedVersion,
             command.ActorId);

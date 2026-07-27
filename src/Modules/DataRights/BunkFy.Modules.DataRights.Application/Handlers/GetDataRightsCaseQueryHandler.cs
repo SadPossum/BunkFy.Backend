@@ -16,7 +16,7 @@ internal sealed class GetDataRightsCaseQueryHandler(IDataRightsCaseRepository ca
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            query.PropertyId,
+            query.Scope,
             query.CaseId,
             cancellationToken).ConfigureAwait(false);
         return dataRightsCase is null

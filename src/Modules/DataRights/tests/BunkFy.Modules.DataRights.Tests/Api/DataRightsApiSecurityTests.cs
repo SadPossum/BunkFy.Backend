@@ -98,6 +98,94 @@ public sealed class DataRightsApiSecurityTests
     }
 
     [Fact]
+    public async Task Tenant_case_endpoints_use_only_tenant_scoped_permissions()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new DataRightsModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+        const string cases = "/api/data-rights/tenant/cases";
+        (string Method, string Route, string Permission)[] expected =
+        [
+            (HttpMethods.Get, cases, DataRightsAdminPermissionCodes.Read),
+            (HttpMethods.Get, $"{cases}/{{caseId:guid}}", DataRightsAdminPermissionCodes.Read),
+            (HttpMethods.Post, cases, DataRightsAdminPermissionCodes.Create),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/requester-verification",
+                DataRightsAdminPermissionCodes.Review),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/controller-routing",
+                DataRightsAdminPermissionCodes.Review),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/discovery",
+                DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/review",
+                DataRightsAdminPermissionCodes.Review),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/decision",
+                DataRightsAdminPermissionCodes.Decide),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/decision/outcome",
+                DataRightsAdminPermissionCodes.Decide),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/cancel",
+                DataRightsAdminPermissionCodes.Manage),
+            (
+                HttpMethods.Get,
+                $"{cases}/{{caseId:guid}}/subjects",
+                DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/subjects/discover",
+                DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/subjects/select",
+                DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/subjects/unselect",
+                DataRightsAdminPermissionCodes.Discover),
+        ];
+
+        foreach ((string method, string route, string permissionCode) in expected)
+        {
+            RouteEndpoint endpoint = FindEndpoint(endpoints, method, route);
+            AccessPermissionMetadata permission =
+                Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
+            Assert.Equal(permissionCode, permission.Permission.Value);
+            Assert.Equal("tenant", permission.ScopeResolverName);
+            Assert.DoesNotContain(
+                endpoint.Metadata.OfType<AccessPermissionMetadata>(),
+                metadata => string.Equals(
+                    metadata.ScopeResolverName,
+                    "data-rights-property",
+                    StringComparison.Ordinal));
+        }
+
+        Assert.DoesNotContain(
+            endpoints,
+            endpoint =>
+                endpoint.RoutePattern.RawText?.StartsWith(
+                    $"{cases}/{{caseId:guid}}/execution",
+                    StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
     public void Sensitive_discovery_responses_are_not_cacheable()
     {
         DefaultHttpContext context = new();

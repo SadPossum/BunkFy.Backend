@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.DataRights.Application.Handlers;
 
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
@@ -24,7 +25,7 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.PropertyId,
+            DataRightsCaseScope.ForProperty(command.PropertyId),
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionWorkItem? workItem = await workItems.GetAsync(

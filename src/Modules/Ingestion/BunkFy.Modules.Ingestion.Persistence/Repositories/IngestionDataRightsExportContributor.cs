@@ -28,6 +28,9 @@ internal sealed class IngestionDataRightsExportContributor(
 
     public string OwnerKey => IngestionDataRightsDiscoveryContributor.Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public DataRightsExportDescriptor Descriptor => IngestionDataRightsExportSchema.Descriptor;
 
     public async Task<DataRightsSubjectExportResult> ExportAsync(
@@ -38,7 +41,7 @@ internal sealed class IngestionDataRightsExportContributor(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(sink);
 
-        if (!this.IsValidScope(request.TenantId, request.PropertyId))
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
@@ -58,7 +61,8 @@ internal sealed class IngestionDataRightsExportContributor(
             return DataRightsSubjectExportResult.NotFound();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken)
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
@@ -68,7 +72,7 @@ internal sealed class IngestionDataRightsExportContributor(
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 link =>
-                    link.PropertyId == request.PropertyId &&
+                    link.PropertyId == propertyId &&
                     link.Id == coordinate.RecordId &&
                     link.ReservationId != null &&
                     link.State != ReservationSourceLinkState.Anonymised &&
@@ -425,10 +429,15 @@ internal sealed class IngestionDataRightsExportContributor(
                 property => property.Id == propertyId && property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(scopeContext.ScopeId, tenantId?.Trim(), StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 
 }

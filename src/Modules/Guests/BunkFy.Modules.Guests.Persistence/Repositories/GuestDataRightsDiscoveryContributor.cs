@@ -15,23 +15,27 @@ internal sealed class GuestDataRightsDiscoveryContributor(
 
     public string OwnerKey => Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public async Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
         DataRightsSubjectDiscoveryRequest request,
         CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             request.MaxCandidates is <= 0 or > DataRightsSubjectDiscoveryLimits.MaxCandidates ||
             !HasOneStrongCoordinate(request.Lookup))
         {
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken).ConfigureAwait(false))
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken).ConfigureAwait(false))
         {
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
         }
 
-        IQueryable<GuestProfile> query = this.VisibleAtProperty(request.PropertyId);
+        IQueryable<GuestProfile> query = this.VisibleAtProperty(propertyId);
         if (request.Lookup.RecordId.HasValue)
         {
             Guid recordId = request.Lookup.RecordId.Value;
@@ -85,7 +89,7 @@ internal sealed class GuestDataRightsDiscoveryContributor(
         DataRightsSubjectSelectionRequest request,
         CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             !string.Equals(request.Coordinate.OwnerKey, Owner, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(
                 request.Coordinate.RecordType,
@@ -97,12 +101,13 @@ internal sealed class GuestDataRightsDiscoveryContributor(
             return DataRightsSubjectSelectionValidation.NotFound();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken).ConfigureAwait(false))
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken).ConfigureAwait(false))
         {
             return DataRightsSubjectSelectionValidation.ScopeUnavailable();
         }
 
-        GuestVersion? profile = await this.VisibleAtProperty(request.PropertyId)
+        GuestVersion? profile = await this.VisibleAtProperty(propertyId)
             .Where(candidate => candidate.Id == request.Coordinate.RecordId)
             .Select(candidate => new GuestVersion(candidate.Version))
             .SingleOrDefaultAsync(cancellationToken)
@@ -143,15 +148,22 @@ internal sealed class GuestDataRightsDiscoveryContributor(
                 property => property.Id == propertyId && property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(scopeContext.ScopeId, tenantId?.Trim(), StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 
     private static bool HasOneStrongCoordinate(DataRightsSubjectLookup? lookup)
     {
-        if (lookup is null || lookup.RecordId == Guid.Empty)
+        if (lookup is null ||
+            lookup.RecordId == Guid.Empty ||
+            !string.IsNullOrWhiteSpace(lookup.AccountSubjectId))
         {
             return false;
         }

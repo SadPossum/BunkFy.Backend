@@ -13,6 +13,9 @@ internal sealed class GuestDataRightsExportContributor(
 
     public string OwnerKey => GuestDataRightsDiscoveryContributor.Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public DataRightsExportDescriptor Descriptor => GuestDataRightsExportSchema.Descriptor;
 
     public async Task<DataRightsSubjectExportResult> ExportAsync(
@@ -23,7 +26,7 @@ internal sealed class GuestDataRightsExportContributor(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(sink);
 
-        if (!this.IsValidScope(request.TenantId, request.PropertyId))
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
@@ -43,12 +46,13 @@ internal sealed class GuestDataRightsExportContributor(
             return DataRightsSubjectExportResult.NotFound();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken).ConfigureAwait(false))
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken).ConfigureAwait(false))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
 
-        GuestProfileDataRightsExport? profile = await this.VisibleAtProperty(request.PropertyId)
+        GuestProfileDataRightsExport? profile = await this.VisibleAtProperty(propertyId)
             .Where(candidate => candidate.Id == coordinate.RecordId)
             .Select(candidate => new GuestProfileDataRightsExport(
                 candidate.Id,
@@ -87,7 +91,7 @@ internal sealed class GuestDataRightsExportContributor(
             .AsNoTracking()
             .Where(stay =>
                 stay.GuestId == coordinate.RecordId &&
-                stay.PropertyId == request.PropertyId)
+                stay.PropertyId == propertyId)
             .OrderBy(stay => stay.ReservationId)
             .Select(stay => new GuestStayDataRightsExport(
                 stay.ReservationId,
@@ -134,9 +138,14 @@ internal sealed class GuestDataRightsExportContributor(
                 property => property.Id == propertyId && property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(scopeContext.ScopeId, tenantId?.Trim(), StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 }

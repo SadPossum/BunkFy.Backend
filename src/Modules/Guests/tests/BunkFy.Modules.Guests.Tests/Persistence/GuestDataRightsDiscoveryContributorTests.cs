@@ -57,6 +57,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectDiscoveryResult result = await contributor.DiscoverAsync(
             new DataRightsSubjectDiscoveryRequest(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 targetPropertyId,
                 new(null, "maya.chen@example.test", null, null, null),
                 DataRightsSubjectDiscoveryLimits.MaxCandidates),
@@ -98,6 +99,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectDiscoveryResult bounded = await contributor.DiscoverAsync(
             new DataRightsSubjectDiscoveryRequest(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new(null, "shared@example.test", null, null, null),
                 DataRightsSubjectDiscoveryLimits.MaxCandidates),
@@ -105,6 +107,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectDiscoveryResult nameOnly = await contributor.DiscoverAsync(
             new DataRightsSubjectDiscoveryRequest(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new(null, null, null, "Guest 01", null),
                 DataRightsSubjectDiscoveryLimits.MaxCandidates),
@@ -112,6 +115,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectDiscoveryResult wrongTenant = await contributor.DiscoverAsync(
             new DataRightsSubjectDiscoveryRequest(
                 "tenant-b",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new(null, "shared@example.test", null, null, null),
                 DataRightsSubjectDiscoveryLimits.MaxCandidates),
@@ -119,6 +123,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectDiscoveryResult unknownProperty = await contributor.DiscoverAsync(
             new DataRightsSubjectDiscoveryRequest(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 Guid.NewGuid(),
                 new(null, "shared@example.test", null, null, null),
                 DataRightsSubjectDiscoveryLimits.MaxCandidates),
@@ -132,6 +137,32 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         Assert.Equal(DataRightsSubjectDiscoveryStatus.ScopeUnavailable, nameOnly.Status);
         Assert.Equal(DataRightsSubjectDiscoveryStatus.ScopeUnavailable, wrongTenant.Status);
         Assert.Equal(DataRightsSubjectDiscoveryStatus.ScopeUnavailable, unknownProperty.Status);
+    }
+
+    [Fact]
+    public async Task Staff_scope_and_account_subject_lookup_are_not_owned_by_guests()
+    {
+        await using GuestsDbContext dbContext = CreateDbContext("tenant-a");
+        GuestDataRightsDiscoveryContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+
+        DataRightsSubjectDiscoveryResult result = await contributor.DiscoverAsync(
+            new DataRightsSubjectDiscoveryRequest(
+                "tenant-a",
+                DataRightsCaseType.StaffRights,
+                PropertyId: null,
+                new DataRightsSubjectLookup(
+                    RecordId: null,
+                    Email: null,
+                    Phone: null,
+                    Name: null,
+                    DateOfBirth: null,
+                    AccountSubjectId: "account-subject-123"),
+                DataRightsSubjectDiscoveryLimits.MaxCandidates),
+            CancellationToken.None);
+
+        Assert.Equal([DataRightsCaseType.GuestRights], contributor.SupportedCaseTypes);
+        Assert.Equal(DataRightsSubjectDiscoveryStatus.ScopeUnavailable, result.Status);
     }
 
     [Fact]
@@ -159,6 +190,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectSelectionValidation valid = await contributor.ValidateSelectionAsync(
             new(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new(
                     GuestDataRightsDiscoveryContributor.Owner,
@@ -169,6 +201,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectSelectionValidation stale = await contributor.ValidateSelectionAsync(
             new(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new(
                     GuestDataRightsDiscoveryContributor.Owner,
@@ -180,6 +213,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
             await contributor.ValidateSelectionAsync(
                 new(
                     "tenant-a",
+                    DataRightsCaseType.GuestRights,
                     Guid.NewGuid(),
                     new(
                         GuestDataRightsDiscoveryContributor.Owner,
@@ -225,6 +259,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
         DataRightsSubjectDiscoveryResult discovery = await contributor.DiscoverAsync(
             new(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new(profile.Id, null, null, null, null),
                 DataRightsSubjectDiscoveryLimits.MaxCandidates),
@@ -233,6 +268,7 @@ public sealed class GuestDataRightsDiscoveryContributorTests
             await contributor.ValidateSelectionAsync(
                 new(
                     "tenant-a",
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         GuestDataRightsDiscoveryContributor.Owner,

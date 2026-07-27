@@ -15,7 +15,7 @@ public static class DataRightsDomainErrors
         "A guest data-rights case requires a property.");
     public static readonly Error PropertyNotAllowed = new(
         "DataRights.PropertyNotAllowed",
-        "A tenant-termination case cannot be limited to one property.");
+        "A tenant-scoped data-rights case cannot be limited to one property.");
     public static readonly Error CaseTypeInvalid = new(
         "DataRights.CaseTypeInvalid",
         "The data-rights case type is invalid.");
@@ -31,6 +31,12 @@ public static class DataRightsDomainErrors
     public static readonly Error GuestRightsRequesterInvalid = new(
         "DataRights.GuestRightsRequesterInvalid",
         "A guest data-rights case must be initiated by the data subject, an authorized representative, or the controller.");
+    public static readonly Error StaffRightsRequesterInvalid = new(
+        "DataRights.StaffRightsRequesterInvalid",
+        "A staff data-rights case must be initiated by the data subject, an authorized representative, or the controller.");
+    public static readonly Error StaffRightsOperationsInvalid = new(
+        "DataRights.StaffRightsOperationsInvalid",
+        "A staff data-rights case currently supports access export only.");
     public static readonly Error TenantTerminationRequesterInvalid = new(
         "DataRights.TenantTerminationRequesterInvalid",
         "Tenant termination must be initiated by the controller or tenant owner.");

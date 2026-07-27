@@ -16,18 +16,22 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
 
     public string OwnerKey => Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public async Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
         DataRightsSubjectDiscoveryRequest request,
         CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             request.MaxCandidates is <= 0 or > DataRightsSubjectDiscoveryLimits.MaxCandidates ||
             !HasExactReservationId(request.Lookup))
         {
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken)
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
@@ -37,7 +41,7 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
         SourceLinkCandidate[] links = await dbContext.ReservationSourceLinks
             .AsNoTracking()
             .Where(link =>
-                link.PropertyId == request.PropertyId &&
+                link.PropertyId == propertyId &&
                 link.ReservationId == reservationId &&
                 link.State != ReservationSourceLinkState.Anonymised &&
                 !dbContext.AnonymisationTombstones.Any(tombstone =>
@@ -69,7 +73,7 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
         DataRightsSubjectSelectionRequest request,
         CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             !string.Equals(request.Coordinate.OwnerKey, Owner, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(
                 request.Coordinate.RecordType,
@@ -81,7 +85,8 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
             return DataRightsSubjectSelectionValidation.NotFound();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken)
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return DataRightsSubjectSelectionValidation.ScopeUnavailable();
@@ -90,7 +95,7 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
         long? version = await dbContext.ReservationSourceLinks
             .AsNoTracking()
             .Where(link =>
-                link.PropertyId == request.PropertyId &&
+                link.PropertyId == propertyId &&
                 link.Id == request.Coordinate.RecordId &&
                 link.ReservationId != null &&
                 link.State != ReservationSourceLinkState.Anonymised &&
@@ -126,11 +131,16 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
                 property => property.Id == propertyId && property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(scopeContext.ScopeId, tenantId?.Trim(), StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 
     private static bool HasExactReservationId(DataRightsSubjectLookup? lookup) =>
         lookup is
@@ -139,7 +149,8 @@ internal sealed class IngestionDataRightsDiscoveryContributor(
             Email: null,
             Phone: null,
             Name: null,
-            DateOfBirth: null
+            DateOfBirth: null,
+            AccountSubjectId: null
         } &&
         recordId != Guid.Empty;
 

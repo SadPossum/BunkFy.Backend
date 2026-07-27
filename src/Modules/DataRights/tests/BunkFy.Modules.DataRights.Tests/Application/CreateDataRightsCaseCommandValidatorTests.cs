@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Tests.Application;
 
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Validation;
 using BunkFy.Modules.DataRights.Contracts;
 using Xunit;
@@ -31,7 +32,7 @@ public sealed class CreateDataRightsCaseCommandValidatorTests
         bool expectedValid)
     {
         CreateDataRightsCaseCommand command = new(
-            Guid.NewGuid(),
+            DataRightsCaseScope.ForProperty(Guid.NewGuid()),
             operations,
             directive,
             DataRightsRequesterRelationship.ControllerInitiated,

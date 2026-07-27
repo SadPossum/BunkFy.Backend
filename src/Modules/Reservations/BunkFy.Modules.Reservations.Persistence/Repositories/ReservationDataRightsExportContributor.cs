@@ -31,6 +31,9 @@ internal sealed class ReservationDataRightsExportContributor(
 
     public string OwnerKey => ReservationDataRightsDiscoveryContributor.Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public DataRightsExportDescriptor Descriptor => ReservationDataRightsExportSchema.Descriptor;
 
     public async Task<DataRightsSubjectExportResult> ExportAsync(
@@ -41,7 +44,7 @@ internal sealed class ReservationDataRightsExportContributor(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(sink);
 
-        if (!this.IsValidScope(request.TenantId, request.PropertyId))
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
@@ -61,7 +64,8 @@ internal sealed class ReservationDataRightsExportContributor(
             return DataRightsSubjectExportResult.NotFound();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken)
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
@@ -72,7 +76,7 @@ internal sealed class ReservationDataRightsExportContributor(
             .Include(candidate => candidate.RequestedUnits)
             .SingleOrDefaultAsync(
                 candidate =>
-                    candidate.PropertyId == request.PropertyId &&
+                    candidate.PropertyId == propertyId &&
                     candidate.Id == coordinate.RecordId,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -196,7 +200,7 @@ internal sealed class ReservationDataRightsExportContributor(
             dbContext.ReservationDetailsHistory
                 .AsNoTracking()
                 .Where(history =>
-                    history.PropertyId == request.PropertyId &&
+                    history.PropertyId == propertyId &&
                     history.ReservationId == reservation.Id)
                 .OrderBy(history => history.ToRevision)
                 .ThenBy(history => history.Id)
@@ -231,7 +235,7 @@ internal sealed class ReservationDataRightsExportContributor(
             dbContext.DataRightsCorrectionReceipts
                 .AsNoTracking()
                 .Where(receipt =>
-                    receipt.PropertyId == request.PropertyId &&
+                    receipt.PropertyId == propertyId &&
                     receipt.ReservationId == reservation.Id)
                 .OrderBy(receipt => receipt.CompletedAtUtc)
                 .ThenBy(receipt => receipt.Id);
@@ -266,7 +270,7 @@ internal sealed class ReservationDataRightsExportContributor(
             processingRestrictions = dbContext.ProcessingRestrictions
                 .AsNoTracking()
                 .Where(restriction =>
-                    restriction.PropertyId == request.PropertyId &&
+                    restriction.PropertyId == propertyId &&
                     restriction.ReservationId == reservation.Id)
                 .OrderBy(restriction => restriction.AppliedAtUtc)
                 .ThenBy(restriction => restriction.Id)
@@ -304,7 +308,7 @@ internal sealed class ReservationDataRightsExportContributor(
                 .AsNoTracking()
                 .SingleOrDefaultAsync(
                     state =>
-                        state.PropertyId == request.PropertyId &&
+                        state.PropertyId == propertyId &&
                         state.ReservationId == reservation.Id,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -329,7 +333,7 @@ internal sealed class ReservationDataRightsExportContributor(
             dbContext.ProcessingRestrictionReceipts
                 .AsNoTracking()
                 .Where(receipt =>
-                    receipt.PropertyId == request.PropertyId &&
+                    receipt.PropertyId == propertyId &&
                     receipt.ReservationId == reservation.Id)
                 .OrderBy(receipt => receipt.CompletedAtUtc)
                 .ThenBy(receipt => receipt.Id);
@@ -365,7 +369,7 @@ internal sealed class ReservationDataRightsExportContributor(
             dbContext.DataHolds
                 .AsNoTracking()
                 .Where(hold =>
-                    hold.PropertyId == request.PropertyId &&
+                    hold.PropertyId == propertyId &&
                     hold.ReservationId == reservation.Id)
                 .OrderBy(hold => hold.PlacedAtUtc)
                 .ThenBy(hold => hold.Id)
@@ -393,7 +397,7 @@ internal sealed class ReservationDataRightsExportContributor(
             dbContext.DataHoldReceipts
                 .AsNoTracking()
                 .Where(receipt =>
-                    receipt.PropertyId == request.PropertyId &&
+                    receipt.PropertyId == propertyId &&
                     receipt.ReservationId == reservation.Id)
                 .OrderBy(receipt => receipt.CompletedAtUtc)
                 .ThenBy(receipt => receipt.Id)
@@ -427,7 +431,7 @@ internal sealed class ReservationDataRightsExportContributor(
             anonymisationReceipts = dbContext.AnonymisationReceipts
                 .AsNoTracking()
                 .Where(receipt =>
-                    receipt.PropertyId == request.PropertyId &&
+                    receipt.PropertyId == propertyId &&
                     receipt.ReservationId == reservation.Id)
                 .OrderBy(receipt => receipt.CompletedAtUtc)
                 .ThenBy(receipt => receipt.Id)
@@ -473,7 +477,7 @@ internal sealed class ReservationDataRightsExportContributor(
             dbContext.ExternalOperations
                 .AsNoTracking()
                 .Where(operation =>
-                    operation.PropertyId == request.PropertyId &&
+                    operation.PropertyId == propertyId &&
                     operation.ReservationId == reservation.Id)
                 .OrderBy(operation => operation.CompletedAtUtc)
                 .ThenBy(operation => operation.Id)
@@ -505,7 +509,7 @@ internal sealed class ReservationDataRightsExportContributor(
             dbContext.ArrivalReminders
                 .AsNoTracking()
                 .Where(reminder =>
-                    reminder.PropertyId == request.PropertyId &&
+                    reminder.PropertyId == propertyId &&
                     reminder.ReservationId == reservation.Id)
                 .OrderBy(reminder => reminder.DueAtUtc)
                 .ThenBy(reminder => reminder.Id)
@@ -546,11 +550,16 @@ internal sealed class ReservationDataRightsExportContributor(
                 property => property.Id == propertyId && property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(scopeContext.ScopeId, tenantId?.Trim(), StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 
     private static Guid[] ParseInventoryUnitIds(string? value)
     {

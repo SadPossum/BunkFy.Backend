@@ -69,6 +69,7 @@ public sealed class GuestDataRightsExportIntegrationTests
         DataRightsSubjectExportResult result = await contributor.ExportAsync(
             new DataRightsSubjectExportRequest(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 targetPropertyId,
                 new DataRightsSubjectCoordinate(
                     contributor.OwnerKey,

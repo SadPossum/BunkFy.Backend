@@ -15,6 +15,9 @@ internal sealed class InventoryDataRightsExportContributor(
 
     public string OwnerKey => InventoryDataRightsDiscoveryContributor.Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public DataRightsExportDescriptor Descriptor =>
         InventoryDataRightsExportSchema.Descriptor;
 
@@ -26,7 +29,7 @@ internal sealed class InventoryDataRightsExportContributor(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(sink);
 
-        if (!this.IsValidScope(request.TenantId, request.PropertyId))
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
@@ -47,8 +50,9 @@ internal sealed class InventoryDataRightsExportContributor(
             return DataRightsSubjectExportResult.NotFound();
         }
 
+        Guid propertyId = request.PropertyId!.Value;
         if (!await this.IsKnownPropertyAsync(
-                request.PropertyId,
+                propertyId,
                 cancellationToken).ConfigureAwait(false))
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
@@ -60,7 +64,7 @@ internal sealed class InventoryDataRightsExportContributor(
                 .Include(item => item.Units)
                 .SingleOrDefaultAsync(
                     item =>
-                    item.PropertyId == request.PropertyId &&
+                    item.PropertyId == propertyId &&
                     item.Id == coordinate.RecordId &&
                     !item.IsAnonymised,
                     cancellationToken)
@@ -79,7 +83,7 @@ internal sealed class InventoryDataRightsExportContributor(
             await dbContext.AllocationAmendmentDecisions
                 .AsNoTracking()
                 .Where(decision =>
-                    decision.PropertyId == request.PropertyId &&
+                    decision.PropertyId == propertyId &&
                     decision.AllocationId == coordinate.RecordId)
                 .OrderBy(decision => decision.DecidedAtUtc)
                 .ThenBy(decision => decision.Id)
@@ -155,12 +159,17 @@ internal sealed class InventoryDataRightsExportContributor(
                     property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(
             scopeContext.ScopeId,
             tenantId?.Trim(),
             StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 }

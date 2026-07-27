@@ -8,9 +8,9 @@ internal sealed class ListDataRightsCasesQueryValidator : IQueryValidator<ListDa
 {
     public IEnumerable<string> Validate(ListDataRightsCasesQuery query)
     {
-        if (query.PropertyId == Guid.Empty)
+        if (query.Scope is null)
         {
-            yield return "PropertyId is required.";
+            yield return "Scope is required.";
         }
 
         if (query.Status.HasValue &&

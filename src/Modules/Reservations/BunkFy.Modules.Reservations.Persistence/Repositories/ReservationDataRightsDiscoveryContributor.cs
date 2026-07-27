@@ -15,18 +15,22 @@ internal sealed class ReservationDataRightsDiscoveryContributor(
 
     public string OwnerKey => Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public async Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
         DataRightsSubjectDiscoveryRequest request,
         CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             request.MaxCandidates is <= 0 or > DataRightsSubjectDiscoveryLimits.MaxCandidates ||
             !HasOneStrongCoordinate(request.Lookup))
         {
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken)
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
@@ -45,7 +49,7 @@ internal sealed class ReservationDataRightsDiscoveryContributor(
             query = dbContext.Reservations
                 .AsNoTracking()
                 .Where(reservation =>
-                    reservation.PropertyId == request.PropertyId &&
+                    reservation.PropertyId == propertyId &&
                     reservation.Id == reservationId &&
                     (name == null ||
                      reservation.PrimaryGuestNameSearch == name ||
@@ -66,7 +70,7 @@ internal sealed class ReservationDataRightsDiscoveryContributor(
             query = dbContext.Reservations
                 .AsNoTracking()
                 .Where(reservation =>
-                    reservation.PropertyId == request.PropertyId &&
+                    reservation.PropertyId == propertyId &&
                     ((email != null &&
                       reservation.EmailSearch == email &&
                       (name == null || reservation.PrimaryGuestNameSearch == name)) ||
@@ -131,7 +135,7 @@ internal sealed class ReservationDataRightsDiscoveryContributor(
         DataRightsSubjectSelectionRequest request,
         CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             !string.Equals(request.Coordinate.OwnerKey, Owner, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(
                 request.Coordinate.RecordType,
@@ -143,7 +147,8 @@ internal sealed class ReservationDataRightsDiscoveryContributor(
             return DataRightsSubjectSelectionValidation.NotFound();
         }
 
-        if (!await this.IsKnownPropertyAsync(request.PropertyId, cancellationToken)
+        Guid propertyId = request.PropertyId!.Value;
+        if (!await this.IsKnownPropertyAsync(propertyId, cancellationToken)
                 .ConfigureAwait(false))
         {
             return DataRightsSubjectSelectionValidation.ScopeUnavailable();
@@ -152,7 +157,7 @@ internal sealed class ReservationDataRightsDiscoveryContributor(
         long? version = await dbContext.Reservations
             .AsNoTracking()
             .Where(reservation =>
-                reservation.PropertyId == request.PropertyId &&
+                reservation.PropertyId == propertyId &&
                 reservation.Id == request.Coordinate.RecordId)
             .Select(reservation => (long?)reservation.Version)
             .SingleOrDefaultAsync(cancellationToken)
@@ -183,15 +188,22 @@ internal sealed class ReservationDataRightsDiscoveryContributor(
                 property => property.Id == propertyId && property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(scopeContext.ScopeId, tenantId?.Trim(), StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 
     private static bool HasOneStrongCoordinate(DataRightsSubjectLookup? lookup)
     {
-        if (lookup is null || lookup.RecordId == Guid.Empty)
+        if (lookup is null ||
+            lookup.RecordId == Guid.Empty ||
+            !string.IsNullOrWhiteSpace(lookup.AccountSubjectId))
         {
             return false;
         }

@@ -27,7 +27,7 @@ internal sealed class SelectDataRightsSubjectCommandHandler(
         }
 
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)
@@ -49,7 +49,10 @@ internal sealed class SelectDataRightsSubjectCommandHandler(
         }
 
         Result<IDataRightsSubjectDiscoveryContributor> contributor =
-            DataRightsSubjectContributorSet.Find(contributors, requestedCoordinate.OwnerKey);
+            DataRightsSubjectContributorSet.Find(
+                contributors,
+                requestedCoordinate.OwnerKey,
+                (DataRightsCaseType)dataRightsCase.Kind);
         if (contributor.IsFailure)
         {
             return Result.Failure<DataRightsCaseDto>(contributor.Error);
@@ -59,7 +62,8 @@ internal sealed class SelectDataRightsSubjectCommandHandler(
             await contributor.Value.ValidateSelectionAsync(
                 new DataRightsSubjectSelectionRequest(
                     scopeContext.ScopeId,
-                    command.PropertyId,
+                    (DataRightsCaseType)dataRightsCase.Kind,
+                    dataRightsCase.PropertyId,
                     requestedCoordinate),
                 cancellationToken).ConfigureAwait(false);
         if (validation is null)

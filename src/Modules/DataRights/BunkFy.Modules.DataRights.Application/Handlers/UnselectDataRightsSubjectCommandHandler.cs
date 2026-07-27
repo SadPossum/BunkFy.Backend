@@ -24,7 +24,7 @@ internal sealed class UnselectDataRightsSubjectCommandHandler(
 
         return DataRightsCaseCommandExecution.ApplyAsync(
             cases,
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             dataRightsCase => dataRightsCase.UnselectSubject(
                 coordinate.OwnerKey,

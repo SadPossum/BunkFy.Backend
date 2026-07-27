@@ -2,7 +2,8 @@ namespace BunkFy.Modules.DataRights.Contracts;
 
 public sealed record DataRightsSubjectSelectionRequest(
     string TenantId,
-    Guid PropertyId,
+    DataRightsCaseType CaseType,
+    Guid? PropertyId,
     DataRightsSubjectCoordinate Coordinate);
 
 public enum DataRightsSubjectSelectionValidationStatus

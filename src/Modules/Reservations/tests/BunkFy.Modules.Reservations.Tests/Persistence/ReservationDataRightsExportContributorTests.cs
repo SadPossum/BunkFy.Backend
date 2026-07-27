@@ -19,6 +19,32 @@ public sealed class ReservationDataRightsExportContributorTests
         new(2026, 7, 25, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Staff_scope_is_not_exported_by_reservations()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext("tenant-a");
+        ReservationDataRightsExportContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result = await contributor.ExportAsync(
+            new DataRightsSubjectExportRequest(
+                "tenant-a",
+                DataRightsCaseType.StaffRights,
+                PropertyId: null,
+                new DataRightsSubjectCoordinate(
+                    ReservationDataRightsDiscoveryContributor.Owner,
+                    ReservationDataRightsDiscoveryContributor.ReservationRecordType,
+                    Guid.NewGuid(),
+                    1)),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal([DataRightsCaseType.GuestRights], contributor.SupportedCaseTypes);
+        Assert.Equal(DataRightsSubjectExportStatus.ScopeUnavailable, result.Status);
+        Assert.Empty(sink.Records);
+    }
+
+    [Fact]
     public async Task Export_writes_every_owned_record_once_and_excludes_unrelated_rows()
     {
         await using ReservationsDbContext dbContext = CreateDbContext("tenant-a");
@@ -454,6 +480,7 @@ public sealed class ReservationDataRightsExportContributorTests
         Reservation reservation) =>
         new(
             "tenant-a",
+            DataRightsCaseType.GuestRights,
             propertyId,
             new(
                 ReservationDataRightsDiscoveryContributor.Owner,

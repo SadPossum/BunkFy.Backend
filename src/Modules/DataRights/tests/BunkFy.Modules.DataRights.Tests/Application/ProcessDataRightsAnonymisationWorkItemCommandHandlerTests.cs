@@ -3,6 +3,7 @@ namespace BunkFy.Modules.DataRights.Tests.Application;
 using BunkFy.Modules.DataRights.Application;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Handlers;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
@@ -242,16 +243,18 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<DataRightsCase?> GetAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                dataRightsCase.PropertyId == propertyId && dataRightsCase.Id == caseId
+                dataRightsCase.PropertyId == scope.PropertyId &&
+                dataRightsCase.Kind == (DataRightsCaseKind)scope.CaseType &&
+                dataRightsCase.Id == caseId
                     ? dataRightsCase
                     : null);
 
         public Task<DataRightsCaseListResponse> ListAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             DataRightsCaseStatus? status,
             PageRequest pageRequest,
             CancellationToken cancellationToken) => throw new NotSupportedException();

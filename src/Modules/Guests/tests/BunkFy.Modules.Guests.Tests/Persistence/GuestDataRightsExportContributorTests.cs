@@ -141,6 +141,32 @@ public sealed class GuestDataRightsExportContributorTests
     }
 
     [Fact]
+    public async Task Staff_scope_is_not_exported_by_guests()
+    {
+        await using GuestsDbContext dbContext = CreateDbContext("tenant-a");
+        GuestDataRightsExportContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result = await contributor.ExportAsync(
+            new DataRightsSubjectExportRequest(
+                "tenant-a",
+                DataRightsCaseType.StaffRights,
+                PropertyId: null,
+                new DataRightsSubjectCoordinate(
+                    GuestDataRightsDiscoveryContributor.Owner,
+                    GuestDataRightsDiscoveryContributor.ProfileRecordType,
+                    Guid.NewGuid(),
+                    1)),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal([DataRightsCaseType.GuestRights], contributor.SupportedCaseTypes);
+        Assert.Equal(DataRightsSubjectExportStatus.ScopeUnavailable, result.Status);
+        Assert.Empty(sink.Records);
+    }
+
+    [Fact]
     public async Task Sink_failure_aborts_export_instead_of_returning_partial_success()
     {
         await using GuestsDbContext dbContext = CreateDbContext("tenant-a");
@@ -216,6 +242,7 @@ public sealed class GuestDataRightsExportContributorTests
         long version) =>
         new(
             tenantId,
+            DataRightsCaseType.GuestRights,
             propertyId,
             new(
                 GuestDataRightsDiscoveryContributor.Owner,

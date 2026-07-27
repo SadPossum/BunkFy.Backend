@@ -54,6 +54,21 @@ For normal module work:
 8. Add integration tests when persistence, tenancy, authorization, messaging, files, notifications, or task behavior changes.
 9. Update module docs and glossary terms.
 
+## Verification Cadence
+
+Keep the development loop proportional to the evidence needed at that moment:
+
+- while shaping a slice, run focused unit, contract, architecture, formatting, and migration checks for the behavior being changed;
+- batch related changes and failures before running repository-wide verification;
+- run the complete non-Docker verifier once the slice is functionally complete;
+- run expensive Docker suites once at the end-of-slice gate, unless a focused real-infrastructure test is the only practical way to diagnose a specific failure;
+- after a failed gate, rerun the narrowest affected checks while fixing the batch, then repeat the full gate once before publication;
+- publish the completed slice in dependency order and use GitHub Actions to prove the exact candidate commits, not as the feedback loop for each development step.
+
+Do not repeat an unchanged expensive gate after documentation-only edits unless that
+gate validates the edited artifact. Record the final local and exact-commit evidence
+in the active slice task.
+
 ## Adding A Module
 
 Use `eng/new-module.ps1` as the starting point when possible, then manually decide:

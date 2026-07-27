@@ -2,6 +2,7 @@ namespace BunkFy.Modules.DataRights.Tests.Persistence;
 
 using BunkFy.Modules.DataRights.Application;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Persistence;
 using Gma.Framework.Cqrs;
@@ -64,7 +65,7 @@ public sealed class DataRightsPersistenceRetryBehaviorTests
             CreateDataRightsCaseCommand,
             DataRightsCaseDto> behavior = new(dbContext, _ => true);
         CreateDataRightsCaseCommand command = new(
-            Guid.NewGuid(),
+            DataRightsCaseScope.ForProperty(Guid.NewGuid()),
             DataRightsOperation.AccessExport,
             DataRightsRestrictionDirective.Unknown,
             DataRightsRequesterRelationship.ControllerInitiated,

@@ -17,15 +17,26 @@ internal sealed class CreateDataRightsCaseCommandValidator
 
     public IEnumerable<string> Validate(CreateDataRightsCaseCommand command)
     {
-        if (command.PropertyId == Guid.Empty)
+        if (command.Scope is null)
         {
-            yield return "PropertyId is required.";
+            yield return "Scope is required.";
+        }
+        else if (command.Scope.CaseType is not DataRightsCaseType.GuestRights
+            and not DataRightsCaseType.StaffRights)
+        {
+            yield return "CaseType is invalid.";
         }
 
         if (command.RequestedOperations == DataRightsOperation.None ||
             (command.RequestedOperations & ~KnownOperations) != DataRightsOperation.None)
         {
             yield return "RequestedOperations is invalid.";
+        }
+
+        if (command.Scope?.CaseType == DataRightsCaseType.StaffRights &&
+            command.RequestedOperations != DataRightsOperation.AccessExport)
+        {
+            yield return "StaffRights currently supports AccessExport only.";
         }
 
         bool restrictionRequested =

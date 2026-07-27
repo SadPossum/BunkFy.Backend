@@ -13,10 +13,11 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
         builder.ToTable("cases", table =>
         {
             table.HasCheckConstraint("CK_data_rights_cases_version", "\"Version\" >= 1");
-            table.HasCheckConstraint("CK_data_rights_cases_kind", "\"Kind\" IN (1, 2)");
+            table.HasCheckConstraint("CK_data_rights_cases_kind", "\"Kind\" IN (1, 2, 3)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_operations",
-                "\"RequestedOperations\" BETWEEN 1 AND 31");
+                "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
+                "(\"Kind\" = 3 AND \"RequestedOperations\" = 1)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_restriction_directive",
                 "((\"RequestedOperations\" & 4) = 0 AND \"RestrictionDirective\" = 0) OR " +
@@ -26,7 +27,7 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "\"RequesterRelationship\" IN (1, 2, 3, 4)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_requester_scope",
-                "(\"Kind\" = 1 AND \"RequesterRelationship\" IN (1, 2, 3)) OR " +
+                "(\"Kind\" IN (1, 3) AND \"RequesterRelationship\" IN (1, 2, 3)) OR " +
                 "(\"Kind\" = 2 AND \"RequesterRelationship\" IN (3, 4))");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_verification",
@@ -116,7 +117,7 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             table.HasCheckConstraint(
                 "CK_data_rights_cases_property_scope",
                 "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR " +
-                "(\"Kind\" = 2 AND \"PropertyId\" IS NULL)");
+                "(\"Kind\" IN (2, 3) AND \"PropertyId\" IS NULL)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_timestamps",
                 "\"LastChangedAtUtc\" >= \"CreatedAtUtc\" AND " +

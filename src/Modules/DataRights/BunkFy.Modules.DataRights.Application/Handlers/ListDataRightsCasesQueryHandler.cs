@@ -13,7 +13,7 @@ internal sealed class ListDataRightsCasesQueryHandler(IDataRightsCaseRepository 
     public async Task<Result<DataRightsCaseListResponse>> HandleAsync(
         ListDataRightsCasesQuery query,
         CancellationToken cancellationToken) => Result.Success(await cases.ListAsync(
-        query.PropertyId,
+        query.Scope,
         query.Status,
         PageRequest.Normalize(query.Page, query.PageSize),
         cancellationToken).ConfigureAwait(false));

@@ -15,7 +15,7 @@ internal sealed class BeginDataRightsDecisionCommandHandler(
         BeginDataRightsDecisionCommand command,
         CancellationToken cancellationToken) => DataRightsCaseCommandExecution.ApplyAsync(
         cases,
-        command.PropertyId,
+        command.Scope,
         command.CaseId,
         dataRightsCase => dataRightsCase.BeginDecision(
             command.ExpectedVersion,

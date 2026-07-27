@@ -21,7 +21,7 @@ internal sealed class RecordDataRightsDecisionCommandHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)
@@ -36,6 +36,12 @@ internal sealed class RecordDataRightsDecisionCommandHandler(
             (dataRightsCase.RequestedOperations & DataRightsCaseOperation.Anonymisation) != 0;
         if (approvesAnonymisation)
         {
+            if (!command.Scope.PropertyId.HasValue)
+            {
+                return Result.Failure<DataRightsCaseDto>(
+                    DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied);
+            }
+
             if (dataRightsCase.RequestedOperations != DataRightsCaseOperation.Anonymisation)
             {
                 return Result.Failure<DataRightsCaseDto>(
@@ -44,7 +50,7 @@ internal sealed class RecordDataRightsDecisionCommandHandler(
 
             Result<DataRightsApprovalPolicyEvidence> policy =
                 await anonymisationPolicy.EvaluateAsync(
-                    command.PropertyId,
+                    command.Scope.PropertyId.Value,
                     cancellationToken).ConfigureAwait(false);
             if (policy.IsFailure)
             {

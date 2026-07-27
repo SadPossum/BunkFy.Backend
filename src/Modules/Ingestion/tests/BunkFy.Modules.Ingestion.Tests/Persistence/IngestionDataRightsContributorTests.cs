@@ -22,6 +22,53 @@ public sealed class IngestionDataRightsContributorTests
     private static readonly DateTimeOffset Now = new(2026, 7, 25, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Staff_scope_is_not_owned_or_exported_by_ingestion()
+    {
+        TestScopeContext scope = new(ScopeId);
+        await using IngestionDbContext dbContext = CreateDbContext(scope);
+        IngestionDataRightsDiscoveryContributor discovery = new(dbContext, scope);
+        IngestionDataRightsExportContributor export = new(
+            dbContext,
+            new IngestionDataRightsEvidenceGraphLoader(dbContext),
+            new TestRawPayloadStore(),
+            scope);
+        CollectingSink sink = new();
+
+        DataRightsSubjectDiscoveryResult discovered = await discovery.DiscoverAsync(
+            new DataRightsSubjectDiscoveryRequest(
+                ScopeId,
+                DataRightsCaseType.StaffRights,
+                PropertyId: null,
+                new DataRightsSubjectLookup(
+                    RecordId: null,
+                    Email: null,
+                    Phone: null,
+                    Name: null,
+                    DateOfBirth: null,
+                    AccountSubjectId: "account-subject-123"),
+                DataRightsSubjectDiscoveryLimits.MaxCandidates),
+            CancellationToken.None);
+        DataRightsSubjectExportResult exported = await export.ExportAsync(
+            new DataRightsSubjectExportRequest(
+                ScopeId,
+                DataRightsCaseType.StaffRights,
+                PropertyId: null,
+                new DataRightsSubjectCoordinate(
+                    IngestionDataRightsDiscoveryContributor.Owner,
+                    IngestionDataRightsDiscoveryContributor.SourceLinkRecordType,
+                    Guid.NewGuid(),
+                    1)),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal([DataRightsCaseType.GuestRights], discovery.SupportedCaseTypes);
+        Assert.Equal([DataRightsCaseType.GuestRights], export.SupportedCaseTypes);
+        Assert.Equal(DataRightsSubjectDiscoveryStatus.ScopeUnavailable, discovered.Status);
+        Assert.Equal(DataRightsSubjectExportStatus.ScopeUnavailable, exported.Status);
+        Assert.Empty(sink.Records);
+    }
+
+    [Fact]
     public async Task Discovery_requires_an_exact_reservation_and_returns_ordered_source_links()
     {
         TestScopeContext scope = new(ScopeId);
@@ -53,6 +100,7 @@ public sealed class IngestionDataRightsContributorTests
         DataRightsSubjectDiscoveryResult discovered = await contributor.DiscoverAsync(
             new DataRightsSubjectDiscoveryRequest(
                 ScopeId,
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new DataRightsSubjectLookup(
                     reservationId,
@@ -80,6 +128,7 @@ public sealed class IngestionDataRightsContributorTests
         DataRightsSubjectDiscoveryResult unsupported = await contributor.DiscoverAsync(
             new DataRightsSubjectDiscoveryRequest(
                 ScopeId,
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new DataRightsSubjectLookup(
                     RecordId: null,
@@ -94,6 +143,7 @@ public sealed class IngestionDataRightsContributorTests
         DataRightsSubjectSelectionValidation stale = await contributor.ValidateSelectionAsync(
             new DataRightsSubjectSelectionRequest(
                 ScopeId,
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new DataRightsSubjectCoordinate(
                     IngestionDataRightsDiscoveryContributor.Owner,
@@ -404,6 +454,7 @@ public sealed class IngestionDataRightsContributorTests
         ReservationSourceLink sourceLink) =>
         new(
             ScopeId,
+            DataRightsCaseType.GuestRights,
             propertyId,
             new DataRightsSubjectCoordinate(
                 IngestionDataRightsDiscoveryContributor.Owner,

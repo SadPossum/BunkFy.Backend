@@ -27,7 +27,7 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
         }
 
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            query.PropertyId,
+            query.Scope,
             query.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)
@@ -48,8 +48,9 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
             return Result.Failure<DataRightsSubjectDiscoveryResponse>(lookup.Error);
         }
 
+        DataRightsCaseType caseType = (DataRightsCaseType)dataRightsCase.Kind;
         Result<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>> contributorSet =
-            this.ResolveContributors(query.OwnerKey);
+            this.ResolveContributors(query.OwnerKey, caseType);
         if (contributorSet.IsFailure)
         {
             return Result.Failure<DataRightsSubjectDiscoveryResponse>(contributorSet.Error);
@@ -68,7 +69,8 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
             DataRightsSubjectDiscoveryResult result = await contributor.DiscoverAsync(
                 new DataRightsSubjectDiscoveryRequest(
                     scopeContext.ScopeId,
-                    query.PropertyId,
+                    caseType,
+                    dataRightsCase.PropertyId,
                     lookup.Value,
                     remaining),
                 cancellationToken).ConfigureAwait(false);
@@ -115,15 +117,16 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
     }
 
     private Result<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>> ResolveContributors(
-        string? ownerKey)
+        string? ownerKey,
+        DataRightsCaseType caseType)
     {
         if (ownerKey is null)
         {
-            return DataRightsSubjectContributorSet.Order(contributors);
+            return DataRightsSubjectContributorSet.Order(contributors, caseType);
         }
 
         Result<IDataRightsSubjectDiscoveryContributor> contributor =
-            DataRightsSubjectContributorSet.Find(contributors, ownerKey);
+            DataRightsSubjectContributorSet.Find(contributors, ownerKey, caseType);
         return contributor.IsSuccess
             ? Result.Success<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>>(
                 [contributor.Value])

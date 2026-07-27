@@ -8,9 +8,9 @@ internal sealed class GetDataRightsSelectedSubjectsQueryValidator
 {
     public IEnumerable<string> Validate(GetDataRightsSelectedSubjectsQuery query)
     {
-        if (query.PropertyId == Guid.Empty || query.CaseId == Guid.Empty)
+        if (query.Scope is null || query.CaseId == Guid.Empty)
         {
-            yield return "PropertyId and CaseId are required.";
+            yield return "Scope and CaseId are required.";
         }
     }
 }

@@ -16,13 +16,20 @@ public sealed class DataRightsSubjectLookupPolicyTests
             new(null, null, null, "Guest Name", new DateOnly(1990, 1, 1)),
             new(Guid.Empty, null, null, null, null),
             new(Guid.NewGuid(), "guest@example.test", null, null, null),
-            new(null, "guest@example.test", "+44 20 1234 5678", null, null)
+            new(null, "guest@example.test", "+44 20 1234 5678", null, null),
+            new(
+                Guid.NewGuid(),
+                null,
+                null,
+                null,
+                null,
+                "account-subject")
         ];
 
         foreach (DataRightsSubjectLookup lookup in invalidLookups)
         {
             Assert.Contains(
-                "Exactly one non-empty record id, email, or phone is required.",
+                "Exactly one non-empty record id, account subject id, email, or phone is required.",
                 DataRightsSubjectLookupPolicy.Validate(lookup));
             Assert.True(DataRightsSubjectLookupPolicy.Normalize(lookup).IsFailure);
         }
@@ -46,6 +53,24 @@ public sealed class DataRightsSubjectLookupPolicyTests
         Assert.Null(result.Value.Phone);
         Assert.Equal("Guest Name", result.Value.Name);
         Assert.Equal(new DateOnly(1990, 1, 1), result.Value.DateOfBirth);
+        Assert.Null(result.Value.AccountSubjectId);
+    }
+
+    [Fact]
+    public void Account_subject_id_is_a_bounded_exact_coordinate()
+    {
+        DataRightsSubjectLookup lookup = new(
+            null,
+            null,
+            null,
+            null,
+            null,
+            "  subject:staff-a  ");
+
+        Result<DataRightsSubjectLookup> result = DataRightsSubjectLookupPolicy.Normalize(lookup);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("subject:staff-a", result.Value.AccountSubjectId);
     }
 
     [Fact]
@@ -55,6 +80,15 @@ public sealed class DataRightsSubjectLookupPolicyTests
         [
             new(null, "not-an-email", null, null, null),
             new(null, null, new string('1', 65), null, null),
+            new(
+                null,
+                null,
+                null,
+                null,
+                null,
+                new string(
+                    'a',
+                    DataRightsSubjectDiscoveryLimits.AccountSubjectIdMaxLength + 1)),
             new(
                 null,
                 "guest@example.test",

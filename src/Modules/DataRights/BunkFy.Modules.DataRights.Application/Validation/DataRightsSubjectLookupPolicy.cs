@@ -16,11 +16,19 @@ internal static class DataRightsSubjectLookupPolicy
 
         int strongCoordinates =
             (lookup.RecordId.HasValue ? 1 : 0) +
+            (!string.IsNullOrWhiteSpace(lookup.AccountSubjectId) ? 1 : 0) +
             (!string.IsNullOrWhiteSpace(lookup.Email) ? 1 : 0) +
             (!string.IsNullOrWhiteSpace(lookup.Phone) ? 1 : 0);
         if (strongCoordinates != 1 || lookup.RecordId == Guid.Empty)
         {
-            yield return "Exactly one non-empty record id, email, or phone is required.";
+            yield return
+                "Exactly one non-empty record id, account subject id, email, or phone is required.";
+        }
+
+        string? accountSubjectId = NormalizeOptional(lookup.AccountSubjectId);
+        if (accountSubjectId?.Length > DataRightsSubjectDiscoveryLimits.AccountSubjectIdMaxLength)
+        {
+            yield return "Account subject id must be within the supported limit.";
         }
 
         string? email = NormalizeOptional(lookup.Email)?.ToLowerInvariant();
@@ -57,7 +65,8 @@ internal static class DataRightsSubjectLookupPolicy
             NormalizeOptional(lookup.Email)?.ToLowerInvariant(),
             NormalizeOptional(lookup.Phone),
             NormalizeOptional(lookup.Name),
-            lookup.DateOfBirth));
+            lookup.DateOfBirth,
+            NormalizeOptional(lookup.AccountSubjectId)));
     }
 
     private static string? NormalizeOptional(string? value)

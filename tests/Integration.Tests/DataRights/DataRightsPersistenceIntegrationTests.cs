@@ -19,6 +19,8 @@ public sealed class DataRightsPersistenceIntegrationTests
     private const string InitialMigration = "20260723052104_InitialDataRights";
     private const string BeforeExecutionBatchesMigration =
         "20260726022029_AddProcessingLedgerResultVersion";
+    private const string BeforeStaffRightsMigration =
+        "20260726214049_AddDataRightsExecutionBatches";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -499,6 +501,132 @@ public sealed class DataRightsPersistenceIntegrationTests
             Assert.Equal(outcomeAtUtc, dataRightsCase.LastChangedAtUtc);
             Assert.Equal(8, dataRightsCase.Version);
         }
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Staff_rights_migration_preserves_existing_cases_and_enforces_tenant_scope()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_data_rights_staff_scope_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        string connectionString = postgreSql.GetConnectionString();
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase guest = CreateCase(
+            propertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsRequesterRelation.ControllerInitiated);
+        DataRightsCase tenantTermination = CreateCase(
+            propertyId: null,
+            DataRightsCaseKind.TenantTermination,
+            DataRightsRequesterRelation.TenantOwner);
+
+        await using (DataRightsDbContext previous = CreateDbContext(connectionString))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(BeforeStaffRightsMigration);
+            previous.Cases.AddRange(guest, tenantTermination);
+            await previous.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext upgraded = CreateDbContext(connectionString);
+        await upgraded.Database.MigrateAsync();
+
+        DataRightsCase[] preserved = await upgraded.Cases
+            .OrderBy(item => item.Kind)
+            .ToArrayAsync();
+        Assert.Equal(2, preserved.Length);
+        Assert.Contains(preserved, item =>
+            item.Id == guest.Id &&
+            item.Kind == DataRightsCaseKind.GuestRights &&
+            item.PropertyId == propertyId);
+        Assert.Contains(preserved, item =>
+            item.Id == tenantTermination.Id &&
+            item.Kind == DataRightsCaseKind.TenantTermination &&
+            item.PropertyId is null);
+
+        DataRightsCase staff = CreateCase(
+            propertyId: null,
+            DataRightsCaseKind.StaffRights,
+            DataRightsRequesterRelation.DataSubject);
+        upgraded.Cases.Add(staff);
+        await upgraded.SaveChangesAsync();
+        Assert.Equal(
+            DataRightsCaseKind.StaffRights,
+            (await upgraded.Cases.SingleAsync(item => item.Id == staff.Id)).Kind);
+
+        await AssertConstraintViolationAsync(
+            upgraded,
+            Guid.NewGuid(),
+            propertyId,
+            DataRightsCaseOperation.AccessExport,
+            DataRightsRequesterRelation.DataSubject,
+            "CK_data_rights_cases_property_scope");
+        await AssertConstraintViolationAsync(
+            upgraded,
+            Guid.NewGuid(),
+            propertyId: null,
+            DataRightsCaseOperation.Correction,
+            DataRightsRequesterRelation.DataSubject,
+            "CK_data_rights_cases_operations");
+        await AssertConstraintViolationAsync(
+            upgraded,
+            Guid.NewGuid(),
+            propertyId: null,
+            DataRightsCaseOperation.AccessExport,
+            DataRightsRequesterRelation.TenantOwner,
+            "CK_data_rights_cases_requester_scope");
+    }
+
+    private static DataRightsCase CreateCase(
+        Guid? propertyId,
+        DataRightsCaseKind kind,
+        DataRightsRequesterRelation requesterRelationship)
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId,
+            kind,
+            DataRightsCaseOperation.AccessExport,
+            requesterRelationship).Value;
+        return DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "staff:privacy",
+            new DateTimeOffset(2026, 7, 27, 0, 0, 0, TimeSpan.Zero)).Value;
+    }
+
+    private static async Task AssertConstraintViolationAsync(
+        DataRightsDbContext dbContext,
+        Guid caseId,
+        Guid? propertyId,
+        DataRightsCaseOperation operations,
+        DataRightsRequesterRelation requesterRelationship,
+        string expectedConstraint)
+    {
+        DateTimeOffset createdAtUtc =
+            new(2026, 7, 27, 0, 0, 0, TimeSpan.Zero);
+        PostgresException exception = await Assert.ThrowsAsync<PostgresException>(() =>
+            dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "data-rights"."cases"
+                    ("Id", "PropertyId", "Kind", "RequestedOperations",
+                     "RequesterRelationship", "VerificationStatus", "RoutingStatus",
+                     "Status", "DueAtUtc", "Version", "CreatedBy", "CreatedAtUtc",
+                     "LastChangedBy", "LastChangedAtUtc", "ScopeId")
+                VALUES
+                    ({caseId}, {propertyId}, {(int)DataRightsCaseKind.StaffRights},
+                     {(int)operations}, {(int)requesterRelationship},
+                     {(int)DataRightsVerificationState.Pending},
+                     {(int)DataRightsRoutingState.Pending},
+                     {(int)DataRightsCaseState.Draft}, NULL, 1, {"staff:privacy"},
+                     {createdAtUtc}, {"staff:privacy"}, {createdAtUtc}, {"tenant-a"})
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, exception.SqlState);
+        Assert.Equal(expectedConstraint, exception.ConstraintName);
     }
 
     private static DataRightsDbContext CreateDbContext(string connectionString)

@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Api;
 
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
@@ -25,7 +26,9 @@ internal static class DataRightsDiscoveryEndpoints
         {
             DataRightsSensitiveResponseHeaders.Apply(context.Response);
             return (await dispatcher.QueryAsync(
-                new GetDataRightsSelectedSubjectsQuery(propertyId, caseId),
+                new GetDataRightsSelectedSubjectsQuery(
+                    DataRightsCaseScope.ForProperty(propertyId),
+                    caseId),
                 cancellationToken).ConfigureAwait(false))
                 .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
         })
@@ -46,14 +49,15 @@ internal static class DataRightsDiscoveryEndpoints
             DataRightsSensitiveResponseHeaders.Apply(context.Response);
             return (await dispatcher.QueryAsync(
                 new DiscoverDataRightsSubjectsQuery(
-                    propertyId,
+                    DataRightsCaseScope.ForProperty(propertyId),
                     caseId,
                     new DataRightsSubjectLookup(
                         request.RecordId,
                         request.Email,
                         request.Phone,
                         request.Name,
-                        request.DateOfBirth),
+                        request.DateOfBirth,
+                        request.AccountSubjectId),
                     request.OwnerKey),
                 cancellationToken).ConfigureAwait(false))
                 .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
@@ -78,7 +82,7 @@ internal static class DataRightsDiscoveryEndpoints
                 context,
                 subjectResolver,
                 actor => new SelectDataRightsSubjectCommand(
-                    propertyId,
+                    DataRightsCaseScope.ForProperty(propertyId),
                     caseId,
                     request.Coordinate,
                     request.ExpectedVersion,
@@ -106,7 +110,7 @@ internal static class DataRightsDiscoveryEndpoints
                 context,
                 subjectResolver,
                 actor => new UnselectDataRightsSubjectCommand(
-                    propertyId,
+                    DataRightsCaseScope.ForProperty(propertyId),
                     caseId,
                     request.Coordinate,
                     request.ExpectedVersion,
@@ -127,6 +131,7 @@ internal static class DataRightsDiscoveryEndpoints
         string? Phone,
         string? Name,
         DateOnly? DateOfBirth,
+        string? AccountSubjectId,
         string? OwnerKey);
 
     public sealed record SelectDataRightsSubjectRequest(

@@ -4,13 +4,18 @@ using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Persistence;
+using BunkFy.Modules.DataRights.Persistence.Repositories;
+using Gma.Framework.Pagination;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
+using DataRightsCaseListResponse =
+    BunkFy.Modules.DataRights.Contracts.DataRightsCaseListResponse;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsModelTests
@@ -60,6 +65,25 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_approval_policy_evidence");
+        Assert.Equal(
+            "\"Kind\" IN (1, 2, 3)",
+            designEntity.GetCheckConstraints().Single(
+                constraint => constraint.Name == "CK_data_rights_cases_kind").Sql);
+        Assert.Equal(
+            "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
+            "(\"Kind\" = 3 AND \"RequestedOperations\" = 1)",
+            designEntity.GetCheckConstraints().Single(
+                constraint => constraint.Name == "CK_data_rights_cases_operations").Sql);
+        Assert.Equal(
+            "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR " +
+            "(\"Kind\" IN (2, 3) AND \"PropertyId\" IS NULL)",
+            designEntity.GetCheckConstraints().Single(
+                constraint => constraint.Name == "CK_data_rights_cases_property_scope").Sql);
+        Assert.Equal(
+            "(\"Kind\" IN (1, 3) AND \"RequesterRelationship\" IN (1, 2, 3)) OR " +
+            "(\"Kind\" = 2 AND \"RequesterRelationship\" IN (3, 4))",
+            designEntity.GetCheckConstraints().Single(
+                constraint => constraint.Name == "CK_data_rights_cases_requester_scope").Sql);
         Assert.Equal(
             DataRightsCase.ActorIdMaxLength,
             entity.FindProperty(nameof(DataRightsCase.DecidedBy))!.GetMaxLength());
@@ -214,6 +238,67 @@ public sealed class DataRightsModelTests
             root,
             "tenant-b");
         Assert.Empty(await tenantB.Cases.ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task Case_repository_keeps_property_and_tenant_case_kinds_isolated()
+    {
+        string databaseName = $"data-rights-case-scope-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        Guid propertyA = Guid.NewGuid();
+        Guid propertyB = Guid.NewGuid();
+        DataRightsCase guestA = CreateCase("tenant-a", propertyA);
+        DataRightsCase guestB = CreateCase("tenant-a", propertyB);
+        DataRightsCase staff = CreateTenantCase(
+            "tenant-a",
+            DataRightsCaseKind.StaffRights,
+            DataRightsRequesterRelation.DataSubject);
+        DataRightsCase termination = CreateTenantCase(
+            "tenant-a",
+            DataRightsCaseKind.TenantTermination,
+            DataRightsRequesterRelation.TenantOwner);
+
+        await using DataRightsDbContext dbContext = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        dbContext.Cases.AddRange(guestA, guestB, staff, termination);
+        await dbContext.SaveChangesAsync();
+        DataRightsCaseRepository repository = new(dbContext);
+
+        Assert.Same(
+            guestA,
+            await repository.GetAsync(
+                DataRightsCaseScope.ForProperty(propertyA),
+                guestA.Id,
+                CancellationToken.None));
+        Assert.Null(await repository.GetAsync(
+            DataRightsCaseScope.ForProperty(propertyB),
+            guestA.Id,
+            CancellationToken.None));
+        Assert.Same(
+            staff,
+            await repository.GetAsync(
+                DataRightsCaseScope.Staff,
+                staff.Id,
+                CancellationToken.None));
+        Assert.Null(await repository.GetAsync(
+            DataRightsCaseScope.Staff,
+            termination.Id,
+            CancellationToken.None));
+        Assert.Same(
+            termination,
+            await repository.GetAsync(
+                DataRightsCaseScope.TenantTermination,
+                termination.Id,
+                CancellationToken.None));
+
+        DataRightsCaseListResponse staffCases = await repository.ListAsync(
+            DataRightsCaseScope.Staff,
+            status: null,
+            new PageRequest(1, 20),
+            CancellationToken.None);
+        Assert.Equal(staff.Id, Assert.Single(staffCases.Items).Id);
     }
 
     [Fact]
@@ -576,6 +661,24 @@ public sealed class DataRightsModelTests
             DataRightsCaseKind.GuestRights,
             DataRightsCaseOperation.AccessExport,
             DataRightsRequesterRelation.ControllerInitiated).Value;
+        return DataRightsCase.Create(
+            Guid.NewGuid(),
+            tenantId,
+            request,
+            "user:operator",
+            new DateTimeOffset(2026, 7, 23, 12, 0, 0, TimeSpan.Zero)).Value;
+    }
+
+    private static DataRightsCase CreateTenantCase(
+        string tenantId,
+        DataRightsCaseKind kind,
+        DataRightsRequesterRelation requesterRelationship)
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            kind,
+            DataRightsCaseOperation.AccessExport,
+            requesterRelationship).Value;
         return DataRightsCase.Create(
             Guid.NewGuid(),
             tenantId,

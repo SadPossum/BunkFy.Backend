@@ -29,8 +29,8 @@ internal sealed class CreateDataRightsCaseCommandHandler(
         }
 
         Result<DataRightsCaseRequest> request = DataRightsCaseRequest.Create(
-            command.PropertyId,
-            DataRightsCaseKind.GuestRights,
+            command.Scope.PropertyId,
+            (DataRightsCaseKind)command.Scope.CaseType,
             (DataRightsCaseOperation)command.RequestedOperations,
             (DataRightsRequesterRelation)command.RequesterRelationship,
             (DataRightsRestrictionAction)command.RestrictionDirective);

@@ -1,58 +1,32 @@
 namespace BunkFy.Modules.DataRights.Api;
 
-using BunkFy.Modules.DataRights.Application;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Contracts;
-using BunkFy.Modules.DataRights.Persistence;
-using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Modules;
 using Gma.Framework.Api.Observability;
 using Gma.Framework.Api.Results;
 using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
-using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
-using Gma.Framework.Results;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
-public sealed class DataRightsModule : IModule
+internal static class DataRightsTenantEndpoints
 {
-    public string Name => DataRightsModuleMetadata.Name;
-
-    public void AddServices(IHostApplicationBuilder builder)
+    public static void Map(IEndpointRouteBuilder endpoints, string moduleName)
     {
-        builder.SelectModuleProfile(DataRightsProfiles.Default, "BunkFy.Modules.DataRights.Api");
-        builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Scoped<IAccessHttpScopeResolver, DataRightsPropertyAccessScopeResolver>());
-        builder.Services.AddOptions<DataRightsApiSecurityOptions>();
-        builder.Services.AddDataRightsApplication();
-        builder.AddDataRightsPersistence();
-        builder.AddDataRightsRestoreReadinessGate();
-    }
-
-    public void MapEndpoints(IEndpointRouteBuilder endpoints)
-    {
-        DataRightsApiSecurityOptions security = endpoints.ServiceProvider
-            .GetRequiredService<IOptions<DataRightsApiSecurityOptions>>()
-            .Value;
         RouteGroupBuilder group = endpoints
-            .MapGroup("/api/data-rights/properties/{propertyId:guid}/cases")
-            .WithModuleName(this.Name)
+            .MapGroup("/api/data-rights/tenant/cases")
+            .WithModuleName(moduleName)
             .WithTags("Data rights")
             .RequireAuthorization();
 
         group.MapGet("", async (
-            Guid propertyId,
             DataRightsCaseStatus? status,
             int? page,
             int? pageSize,
@@ -60,7 +34,7 @@ public sealed class DataRightsModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(
                 new ListDataRightsCasesQuery(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     status,
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
@@ -68,30 +42,22 @@ public sealed class DataRightsModule : IModule
                     DataRightsEndpointSupport.ErrorStatusCodes))
             .Produces<DataRightsCaseListResponse>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Read,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Read);
 
         group.MapGet("/{caseId:guid}", async (
-            Guid propertyId,
             Guid caseId,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(
-                new GetDataRightsCaseQuery(
-                    DataRightsCaseScope.ForProperty(propertyId),
-                    caseId),
+                new GetDataRightsCaseQuery(DataRightsCaseScope.Staff, caseId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(
                     DataRightsEndpointSupport.ErrorStatusCodes))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Read,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Read);
 
         group.MapPost("", async (
-            Guid propertyId,
-            CreateDataRightsCaseRequest request,
+            DataRightsModule.CreateDataRightsCaseRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
@@ -102,7 +68,7 @@ public sealed class DataRightsModule : IModule
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new CreateDataRightsCaseCommand(
-                        DataRightsCaseScope.ForProperty(propertyId),
+                        DataRightsCaseScope.Staff,
                         request.RequestedOperations,
                         request.RestrictionDirective,
                         request.RequesterRelationship,
@@ -112,22 +78,20 @@ public sealed class DataRightsModule : IModule
         })
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Create,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Create);
 
         group.MapPost("/{caseId:guid}/requester-verification", async (
-            Guid propertyId,
             Guid caseId,
-            RecordRequesterVerificationRequest request,
+            DataRightsModule.RecordRequesterVerificationRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+            CancellationToken cancellationToken) =>
+            await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new RecordRequesterVerificationCommand(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     caseId,
                     request.Verified,
                     request.ExpectedVersion,
@@ -136,22 +100,20 @@ public sealed class DataRightsModule : IModule
                 cancellationToken).ConfigureAwait(false))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Review,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Review);
 
         group.MapPost("/{caseId:guid}/controller-routing", async (
-            Guid propertyId,
             Guid caseId,
-            VersionedDataRightsCaseRequest request,
+            DataRightsModule.VersionedDataRightsCaseRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+            CancellationToken cancellationToken) =>
+            await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new RecordControllerRoutingCommand(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     caseId,
                     request.ExpectedVersion,
                     actor),
@@ -159,22 +121,20 @@ public sealed class DataRightsModule : IModule
                 cancellationToken).ConfigureAwait(false))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Review,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Review);
 
         group.MapPost("/{caseId:guid}/discovery", async (
-            Guid propertyId,
             Guid caseId,
-            VersionedDataRightsCaseRequest request,
+            DataRightsModule.VersionedDataRightsCaseRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+            CancellationToken cancellationToken) =>
+            await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new BeginDataRightsDiscoveryCommand(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     caseId,
                     request.ExpectedVersion,
                     actor),
@@ -182,22 +142,20 @@ public sealed class DataRightsModule : IModule
                 cancellationToken).ConfigureAwait(false))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Discover,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Discover);
 
         group.MapPost("/{caseId:guid}/review", async (
-            Guid propertyId,
             Guid caseId,
-            VersionedDataRightsCaseRequest request,
+            DataRightsModule.VersionedDataRightsCaseRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+            CancellationToken cancellationToken) =>
+            await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new RequireDataRightsReviewCommand(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     caseId,
                     request.ExpectedVersion,
                     actor),
@@ -205,22 +163,20 @@ public sealed class DataRightsModule : IModule
                 cancellationToken).ConfigureAwait(false))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Review,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Review);
 
         group.MapPost("/{caseId:guid}/decision", async (
-            Guid propertyId,
             Guid caseId,
-            VersionedDataRightsCaseRequest request,
+            DataRightsModule.VersionedDataRightsCaseRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+            CancellationToken cancellationToken) =>
+            await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new BeginDataRightsDecisionCommand(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     caseId,
                     request.ExpectedVersion,
                     actor),
@@ -228,22 +184,20 @@ public sealed class DataRightsModule : IModule
                 cancellationToken).ConfigureAwait(false))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Decide,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Decide);
 
         group.MapPost("/{caseId:guid}/decision/outcome", async (
-            Guid propertyId,
             Guid caseId,
-            RecordDataRightsDecisionRequest request,
+            DataRightsModule.RecordDataRightsDecisionRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+            CancellationToken cancellationToken) =>
+            await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new RecordDataRightsDecisionCommand(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     caseId,
                     request.Decision,
                     request.Reason,
@@ -253,22 +207,20 @@ public sealed class DataRightsModule : IModule
                 cancellationToken).ConfigureAwait(false))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Decide,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Decide);
 
         group.MapPost("/{caseId:guid}/cancel", async (
-            Guid propertyId,
             Guid caseId,
-            VersionedDataRightsCaseRequest request,
+            DataRightsModule.VersionedDataRightsCaseRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            CancellationToken cancellationToken) => await DataRightsEndpointSupport.DispatchAsync(
+            CancellationToken cancellationToken) =>
+            await DataRightsEndpointSupport.DispatchAsync(
                 context,
                 subjectResolver,
                 actor => new CancelDataRightsCaseCommand(
-                    DataRightsCaseScope.ForProperty(propertyId),
+                    DataRightsCaseScope.Staff,
                     caseId,
                     request.ExpectedVersion,
                     actor),
@@ -276,29 +228,106 @@ public sealed class DataRightsModule : IModule
                 cancellationToken).ConfigureAwait(false))
             .Produces<DataRightsCaseDto>()
             .RequireTenant()
-            .RequireResolvedScopePermission(
-                DataRightsAdminPermissionCodes.Manage,
-                DataRightsPropertyAccessScopeResolver.ResolverName);
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Manage);
 
-        DataRightsDiscoveryEndpoints.Map(group);
-        DataRightsExecutionEndpoints.Map(group, security.AnonymisationExecutionAssurance);
-        DataRightsTenantEndpoints.Map(endpoints, this.Name);
+        MapDiscovery(group);
     }
 
-    public sealed record CreateDataRightsCaseRequest(
-        DataRightsOperation RequestedOperations,
-        DataRightsRestrictionDirective RestrictionDirective,
-        DataRightsRequesterRelationship RequesterRelationship);
+    private static void MapDiscovery(RouteGroupBuilder group)
+    {
+        group.MapGet("/{caseId:guid}/subjects", async (
+            Guid caseId,
+            HttpContext context,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            DataRightsSensitiveResponseHeaders.Apply(context.Response);
+            return (await dispatcher.QueryAsync(
+                new GetDataRightsSelectedSubjectsQuery(
+                    DataRightsCaseScope.Staff,
+                    caseId),
+                cancellationToken).ConfigureAwait(false))
+                .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+        })
+            .Produces<DataRightsSelectedSubjectsResponse>()
+            .RequireTenant()
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Discover);
 
-    public sealed record RecordRequesterVerificationRequest(
-        bool Verified,
-        long ExpectedVersion);
+        group.MapPost("/{caseId:guid}/subjects/discover", async (
+            Guid caseId,
+            DataRightsDiscoveryEndpoints.DiscoverDataRightsSubjectsRequest request,
+            HttpContext context,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            DataRightsSensitiveResponseHeaders.Apply(context.Response);
+            return (await dispatcher.QueryAsync(
+                new DiscoverDataRightsSubjectsQuery(
+                    DataRightsCaseScope.Staff,
+                    caseId,
+                    new DataRightsSubjectLookup(
+                        request.RecordId,
+                        request.Email,
+                        request.Phone,
+                        request.Name,
+                        request.DateOfBirth,
+                        request.AccountSubjectId),
+                    request.OwnerKey),
+                cancellationToken).ConfigureAwait(false))
+                .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+        })
+            .Produces<DataRightsSubjectDiscoveryResponse>()
+            .RequireTenant()
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Discover);
 
-    public sealed record RecordDataRightsDecisionRequest(
-        DataRightsDecisionOutcome Decision,
-        DataRightsDecisionReason Reason,
-        long ExpectedVersion);
+        group.MapPost("/{caseId:guid}/subjects/select", async (
+            Guid caseId,
+            DataRightsDiscoveryEndpoints.SelectDataRightsSubjectRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            DataRightsSensitiveResponseHeaders.Apply(context.Response);
+            return await DataRightsEndpointSupport.DispatchAsync(
+                context,
+                subjectResolver,
+                actor => new SelectDataRightsSubjectCommand(
+                    DataRightsCaseScope.Staff,
+                    caseId,
+                    request.Coordinate,
+                    request.ExpectedVersion,
+                    actor),
+                dispatcher,
+                cancellationToken).ConfigureAwait(false);
+        })
+            .Produces<DataRightsCaseDto>()
+            .RequireTenant()
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Discover);
 
-    public sealed record VersionedDataRightsCaseRequest(long ExpectedVersion);
-
+        group.MapPost("/{caseId:guid}/subjects/unselect", async (
+            Guid caseId,
+            DataRightsDiscoveryEndpoints.UnselectDataRightsSubjectRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            DataRightsSensitiveResponseHeaders.Apply(context.Response);
+            return await DataRightsEndpointSupport.DispatchAsync(
+                context,
+                subjectResolver,
+                actor => new UnselectDataRightsSubjectCommand(
+                    DataRightsCaseScope.Staff,
+                    caseId,
+                    request.Coordinate,
+                    request.ExpectedVersion,
+                    actor),
+                dispatcher,
+                cancellationToken).ConfigureAwait(false);
+        })
+            .Produces<DataRightsCaseDto>()
+            .RequireTenant()
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Discover);
+    }
 }

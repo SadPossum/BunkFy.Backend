@@ -7,9 +7,9 @@ internal sealed class GetDataRightsCaseQueryValidator : IQueryValidator<GetDataR
 {
     public IEnumerable<string> Validate(GetDataRightsCaseQuery query)
     {
-        if (query.PropertyId == Guid.Empty || query.CaseId == Guid.Empty)
+        if (query.Scope is null || query.CaseId == Guid.Empty)
         {
-            yield return "PropertyId and CaseId are required.";
+            yield return "Scope and CaseId are required.";
         }
     }
 }

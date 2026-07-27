@@ -8,7 +8,7 @@ internal sealed class RecordControllerRoutingCommandValidator
 {
     public IEnumerable<string> Validate(RecordControllerRoutingCommand command) =>
         DataRightsCaseValidation.Mutation(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.ExpectedVersion,
             command.ActorId);

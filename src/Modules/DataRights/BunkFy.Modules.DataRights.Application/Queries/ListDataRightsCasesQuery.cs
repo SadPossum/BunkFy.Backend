@@ -1,10 +1,11 @@
 namespace BunkFy.Modules.DataRights.Application.Queries;
 
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Cqrs;
 
 public sealed record ListDataRightsCasesQuery(
-    Guid PropertyId,
+    DataRightsCaseScope Scope,
     DataRightsCaseStatus? Status,
     int Page,
     int PageSize) : IQuery<DataRightsCaseListResponse>;

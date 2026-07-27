@@ -7,4 +7,5 @@ public static class DataRightsSubjectDiscoveryLimits
     public const int RecordTypeMaxLength = 100;
     public const int DisplayNameMaxLength = 256;
     public const int ContactHintMaxLength = 320;
+    public const int AccountSubjectIdMaxLength = 256;
 }

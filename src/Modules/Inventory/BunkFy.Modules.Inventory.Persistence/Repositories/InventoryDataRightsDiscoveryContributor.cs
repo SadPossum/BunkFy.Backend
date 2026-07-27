@@ -15,11 +15,14 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
 
     public string OwnerKey => Owner;
 
+    public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
+        [DataRightsCaseType.GuestRights];
+
     public async Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
         DataRightsSubjectDiscoveryRequest request,
         CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             request.MaxCandidates is <= 0 or >
                 DataRightsSubjectDiscoveryLimits.MaxCandidates ||
             !HasExactReservationId(request.Lookup))
@@ -27,8 +30,9 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
         }
 
+        Guid propertyId = request.PropertyId!.Value;
         if (!await this.IsKnownPropertyAsync(
-                request.PropertyId,
+                propertyId,
                 cancellationToken).ConfigureAwait(false))
         {
             return DataRightsSubjectDiscoveryResult.ScopeUnavailable();
@@ -38,7 +42,7 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
         InventoryAllocationCandidate[] allocations = await dbContext.Allocations
             .AsNoTracking()
             .Where(allocation =>
-                allocation.PropertyId == request.PropertyId &&
+                allocation.PropertyId == propertyId &&
                 allocation.ReservationId == reservationId &&
                 !allocation.IsAnonymised)
             .OrderBy(allocation => allocation.Id)
@@ -72,7 +76,7 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
             DataRightsSubjectSelectionRequest request,
             CancellationToken cancellationToken)
     {
-        if (!this.IsValidScope(request.TenantId, request.PropertyId) ||
+        if (!this.IsValidScope(request.CaseType, request.TenantId, request.PropertyId) ||
             !string.Equals(
                 request.Coordinate.OwnerKey,
                 Owner,
@@ -87,8 +91,9 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
             return DataRightsSubjectSelectionValidation.NotFound();
         }
 
+        Guid propertyId = request.PropertyId!.Value;
         if (!await this.IsKnownPropertyAsync(
-                request.PropertyId,
+                propertyId,
                 cancellationToken).ConfigureAwait(false))
         {
             return DataRightsSubjectSelectionValidation.ScopeUnavailable();
@@ -97,7 +102,7 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
         long? version = await dbContext.Allocations
             .AsNoTracking()
             .Where(allocation =>
-                allocation.PropertyId == request.PropertyId &&
+                allocation.PropertyId == propertyId &&
                 allocation.Id == request.Coordinate.RecordId &&
                 !allocation.IsAnonymised)
             .Select(allocation => (long?)allocation.Version)
@@ -132,14 +137,19 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
                     property.IsKnown,
                 cancellationToken);
 
-    private bool IsValidScope(string tenantId, Guid propertyId) =>
+    private bool IsValidScope(
+        DataRightsCaseType caseType,
+        string tenantId,
+        Guid? propertyId) =>
+        caseType == DataRightsCaseType.GuestRights &&
         scopeContext.IsEnabled &&
         !string.IsNullOrWhiteSpace(scopeContext.ScopeId) &&
         string.Equals(
             scopeContext.ScopeId,
             tenantId?.Trim(),
             StringComparison.Ordinal) &&
-        propertyId != Guid.Empty;
+        propertyId.HasValue &&
+        propertyId.Value != Guid.Empty;
 
     private static bool HasExactReservationId(
         DataRightsSubjectLookup? lookup) =>
@@ -149,7 +159,8 @@ internal sealed class InventoryDataRightsDiscoveryContributor(
             Email: null,
             Phone: null,
             Name: null,
-            DateOfBirth: null
+            DateOfBirth: null,
+            AccountSubjectId: null
         } &&
         recordId != Guid.Empty;
 

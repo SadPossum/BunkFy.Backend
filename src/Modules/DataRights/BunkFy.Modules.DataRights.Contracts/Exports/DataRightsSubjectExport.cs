@@ -6,6 +6,8 @@ public interface IDataRightsSubjectExportContributor
 {
     string OwnerKey { get; }
 
+    IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; }
+
     DataRightsExportDescriptor Descriptor { get; }
 
     Task<DataRightsSubjectExportResult> ExportAsync(
@@ -27,7 +29,8 @@ public interface IDataRightsExportSink
 
 public sealed record DataRightsSubjectExportRequest(
     string TenantId,
-    Guid PropertyId,
+    DataRightsCaseType CaseType,
+    Guid? PropertyId,
     DataRightsSubjectCoordinate Coordinate);
 
 public sealed record DataRightsExportDescriptor(

@@ -9,9 +9,9 @@ internal sealed class DiscoverDataRightsSubjectsQueryValidator
 {
     public IEnumerable<string> Validate(DiscoverDataRightsSubjectsQuery query)
     {
-        if (query.PropertyId == Guid.Empty || query.CaseId == Guid.Empty)
+        if (query.Scope is null || query.CaseId == Guid.Empty)
         {
-            yield return "PropertyId and CaseId are required.";
+            yield return "Scope and CaseId are required.";
         }
 
         if (query.OwnerKey is not null &&

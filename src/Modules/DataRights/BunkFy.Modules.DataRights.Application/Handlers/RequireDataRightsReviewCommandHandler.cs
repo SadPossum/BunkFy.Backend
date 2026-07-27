@@ -15,7 +15,7 @@ internal sealed class RequireDataRightsReviewCommandHandler(
         RequireDataRightsReviewCommand command,
         CancellationToken cancellationToken) => DataRightsCaseCommandExecution.ApplyAsync(
         cases,
-        command.PropertyId,
+        command.Scope,
         command.CaseId,
         dataRightsCase => dataRightsCase.RequireReview(
             command.ExpectedVersion,

@@ -94,7 +94,15 @@ public sealed class DataRightsPersonalDataCatalogTests
             "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+" +
             "DiscoverDataRightsSubjectsRequest",
             throwOnError: true)!;
-        foreach (string member in new[] { "RecordId", "Email", "Phone", "Name", "DateOfBirth" })
+        foreach (string member in new[]
+                 {
+                     "RecordId",
+                     "Email",
+                     "Phone",
+                     "Name",
+                     "DateOfBirth",
+                     "AccountSubjectId"
+                 })
         {
             AssertBinding(apiRequest, member, PersonalDataSurface.ApiInput);
             AssertBinding(typeof(DataRightsSubjectLookup), member, PersonalDataSurface.ApplicationQuery);

@@ -15,7 +15,7 @@ internal sealed class RecordRequesterVerificationCommandHandler(
         RecordRequesterVerificationCommand command,
         CancellationToken cancellationToken) => DataRightsCaseCommandExecution.ApplyAsync(
         cases,
-        command.PropertyId,
+        command.Scope,
         command.CaseId,
         dataRightsCase => dataRightsCase.RecordRequesterVerification(
             command.Verified,

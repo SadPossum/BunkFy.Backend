@@ -69,6 +69,7 @@ public sealed class ReservationDataRightsIntegrationTests
         DataRightsSubjectDiscoveryResult discovered = await discovery.DiscoverAsync(
             new(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 new(null, " maya.chen@example.test ", null, "maya chen", null),
                 DataRightsSubjectDiscoveryLimits.MaxCandidates),
@@ -82,6 +83,7 @@ public sealed class ReservationDataRightsIntegrationTests
         DataRightsSubjectExportResult exported = await exporter.ExportAsync(
             new(
                 "tenant-a",
+                DataRightsCaseType.GuestRights,
                 propertyId,
                 candidate.Coordinate),
             sink,

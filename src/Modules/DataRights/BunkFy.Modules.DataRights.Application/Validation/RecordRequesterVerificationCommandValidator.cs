@@ -8,7 +8,7 @@ internal sealed class RecordRequesterVerificationCommandValidator
 {
     public IEnumerable<string> Validate(RecordRequesterVerificationCommand command) =>
         DataRightsCaseValidation.Mutation(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.ExpectedVersion,
             command.ActorId);

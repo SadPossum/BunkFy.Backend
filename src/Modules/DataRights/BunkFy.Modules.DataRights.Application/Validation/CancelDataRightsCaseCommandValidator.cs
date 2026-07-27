@@ -8,7 +8,7 @@ internal sealed class CancelDataRightsCaseCommandValidator
 {
     public IEnumerable<string> Validate(CancelDataRightsCaseCommand command) =>
         DataRightsCaseValidation.Mutation(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.ExpectedVersion,
             command.ActorId);

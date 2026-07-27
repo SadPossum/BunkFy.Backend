@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 10,
+  "catalogVersion": 11,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -90,6 +90,13 @@
       "erasure": "pseudonymize-subject-when-approved-retention-permits"
     },
     {
+      "id": "staff-subject-discovery",
+      "export": "include-selected-coordinate-in-authorized-staff-export",
+      "correction": "re-run-discovery-against-authoritative-owner",
+      "restriction": "exclude-coordinate-from-selection-and-downstream-work",
+      "erasure": "discard-transient-lookup-after-request-completion"
+    },
+    {
       "id": "guest-subject-discovery",
       "export": "include-selected-coordinates-in-authorized-case-export",
       "correction": "re-run-discovery-against-authoritative-owner",
@@ -112,6 +119,50 @@
     }
   ],
   "fields": [
+    {
+      "id": "data-rights.staff-account-subject-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "authorized-subject-discovery",
+        "account-to-staff-correlation"
+      ],
+      "sources": [
+        "request-input",
+        "auth-authoritative-owner"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "staff.profile.identifier",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "staff-subject-discovery",
+      "allowedSurfaces": [
+        "api-input",
+        "application-query"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Api",
+          "type": "BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest",
+          "member": "AccountSubjectId",
+          "surface": "api-input"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup",
+          "member": "AccountSubjectId",
+          "surface": "application-query"
+        }
+      ]
+    },
     {
       "id": "data-rights.staff-actor-reference",
       "dataSubject": "staff",

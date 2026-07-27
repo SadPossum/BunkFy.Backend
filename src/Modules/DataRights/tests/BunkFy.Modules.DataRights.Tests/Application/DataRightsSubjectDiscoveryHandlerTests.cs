@@ -3,6 +3,7 @@ namespace BunkFy.Modules.DataRights.Tests.Application;
 using BunkFy.Modules.DataRights.Application;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Handlers;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Application.Validation;
@@ -39,7 +40,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 new DataRightsSubjectLookup(null, "guest@example.test", null, null, null),
                 " RESERVATIONS "),
@@ -66,7 +67,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 new DataRightsSubjectLookup(null, "guest@example.test", null, null, null),
                 "reservations"),
@@ -94,7 +95,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 new DataRightsSubjectLookup(Guid.NewGuid(), null, null, null, null),
                 "reservations"),
@@ -119,12 +120,12 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         string[][] errors =
         [
             validator.Validate(new(
-                Guid.NewGuid(),
+                DataRightsCaseScope.ForProperty(Guid.NewGuid()),
                 Guid.NewGuid(),
                 lookup,
                 " ")).ToArray(),
             validator.Validate(new(
-                Guid.NewGuid(),
+                DataRightsCaseScope.ForProperty(Guid.NewGuid()),
                 Guid.NewGuid(),
                 lookup,
                 new string('o', DataRightsSubjectDiscoveryLimits.OwnerKeyMaxLength + 1))).ToArray()
@@ -157,13 +158,65 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 new DataRightsSubjectLookup(null, "guest@example.test", null, null, null)),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal([first, second], result.Value.Candidates);
+    }
+
+    [Fact]
+    public async Task Staff_discovery_invokes_only_staff_contributors_without_a_property_scope()
+    {
+        DataRightsCase dataRightsCase = CreateStaffDiscoveryCase();
+        DataRightsSubjectCandidate candidate = new(
+            new DataRightsSubjectCoordinate(
+                "staff",
+                "staff-profile",
+                Guid.NewGuid(),
+                3),
+            "Staff member",
+            null,
+            null);
+        StubContributor guests = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success([]));
+        StubContributor staff = new(
+            "staff",
+            _ => DataRightsSubjectDiscoveryResult.Success([candidate]),
+            supportedCaseTypes: [DataRightsCaseType.StaffRights]);
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [guests, staff],
+            new TestScopeContext());
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                DataRightsCaseScope.Staff,
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(
+                    RecordId: null,
+                    Email: null,
+                    Phone: null,
+                    Name: null,
+                    DateOfBirth: null,
+                    AccountSubjectId: "account-subject-123")),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(candidate, Assert.Single(result.Value.Candidates));
+        Assert.Equal(0, guests.DiscoveryInvocationCount);
+        Assert.Equal(1, staff.DiscoveryInvocationCount);
+        Assert.NotNull(staff.LastDiscoveryRequest);
+        Assert.Equal(
+            DataRightsCaseType.StaffRights,
+            staff.LastDiscoveryRequest.CaseType);
+        Assert.Null(staff.LastDiscoveryRequest.PropertyId);
+        Assert.Equal(
+            "account-subject-123",
+            staff.LastDiscoveryRequest.Lookup.AccountSubjectId);
     }
 
     [Fact]
@@ -187,7 +240,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 new DataRightsSubjectLookup(null, null, "+44 20 1234 5678", null, null)),
             CancellationToken.None);
@@ -207,7 +260,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 new DataRightsSubjectLookup(null, "guest@example.test", null, null, null)),
             CancellationToken.None);
@@ -238,7 +291,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsCaseDto> result = await handler.HandleAsync(
             new SelectDataRightsSubjectCommand(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 requested,
                 dataRightsCase.Version,
@@ -271,7 +324,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Result<DataRightsCaseDto> result = await handler.HandleAsync(
             new SelectDataRightsSubjectCommand(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 requested,
                 dataRightsCase.Version,
@@ -309,7 +362,9 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
             new(new CaseRepository(dataRightsCase));
 
         Result<DataRightsSelectedSubjectsResponse> result = await handler.HandleAsync(
-            new GetDataRightsSelectedSubjectsQuery(propertyId, dataRightsCase.Id),
+            new GetDataRightsSelectedSubjectsQuery(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -335,9 +390,56 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
             _ => DataRightsSubjectDiscoveryResult.Success([]));
 
         Result<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>> result =
-            DataRightsSubjectContributorSet.Order([first, duplicate]);
+            DataRightsSubjectContributorSet.Order(
+                [first, duplicate],
+                DataRightsCaseType.GuestRights);
 
         Assert.Equal(DataRightsApplicationErrors.SubjectOwnerUnavailable, result.Error);
+    }
+
+    [Fact]
+    public void Explicit_owner_that_does_not_support_the_case_type_fails_closed()
+    {
+        StubContributor contributor = new(
+            "staff",
+            _ => DataRightsSubjectDiscoveryResult.Success([]),
+            supportedCaseTypes: [DataRightsCaseType.StaffRights]);
+
+        Result<IDataRightsSubjectDiscoveryContributor> result =
+            DataRightsSubjectContributorSet.Find(
+                [contributor],
+                "staff",
+                DataRightsCaseType.GuestRights);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerUnavailable, result.Error);
+    }
+
+    [Fact]
+    public void Invalid_supported_case_type_metadata_fails_closed()
+    {
+        IReadOnlyCollection<DataRightsCaseType>[] invalidSupportedCaseTypes =
+        [
+            [],
+            [DataRightsCaseType.Unknown],
+            [DataRightsCaseType.StaffRights, DataRightsCaseType.StaffRights]
+        ];
+
+        Assert.All(invalidSupportedCaseTypes, supportedCaseTypes =>
+        {
+            StubContributor contributor = new(
+                "staff",
+                _ => DataRightsSubjectDiscoveryResult.Success([]),
+                supportedCaseTypes: supportedCaseTypes);
+
+            Result<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>> result =
+                DataRightsSubjectContributorSet.Order(
+                    [contributor],
+                    DataRightsCaseType.StaffRights);
+
+            Assert.Equal(
+                DataRightsApplicationErrors.SubjectOwnerUnavailable,
+                result.Error);
+        });
     }
 
     private static DataRightsSubjectCandidate Candidate(string owner, Guid recordId) => new(
@@ -366,6 +468,26 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         return dataRightsCase;
     }
 
+    private static DataRightsCase CreateStaffDiscoveryCase()
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseOperation.AccessExport,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            new DateTimeOffset(2026, 7, 23, 12, 0, 0, TimeSpan.Zero)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:operator",
+            dataRightsCase.CreatedAtUtc.AddMinutes(1)).IsSuccess);
+        return dataRightsCase;
+    }
+
     private sealed class CaseRepository(DataRightsCase dataRightsCase)
         : IDataRightsCaseRepository
     {
@@ -374,15 +496,17 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<DataRightsCase?> GetAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             CancellationToken cancellationToken) => Task.FromResult(
-            dataRightsCase.PropertyId == propertyId && dataRightsCase.Id == caseId
+            dataRightsCase.PropertyId == scope.PropertyId &&
+            dataRightsCase.Kind == (DataRightsCaseKind)scope.CaseType &&
+            dataRightsCase.Id == caseId
                 ? dataRightsCase
                 : null);
 
         public Task<DataRightsCaseListResponse> ListAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             DataRightsCaseStatus? status,
             PageRequest pageRequest,
             CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -391,18 +515,25 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
     private sealed class StubContributor(
         string ownerKey,
         Func<DataRightsSubjectDiscoveryRequest, DataRightsSubjectDiscoveryResult> discover,
-        Func<DataRightsSubjectSelectionRequest, DataRightsSubjectSelectionValidation>? validate = null)
+        Func<DataRightsSubjectSelectionRequest, DataRightsSubjectSelectionValidation>? validate = null,
+        IReadOnlyCollection<DataRightsCaseType>? supportedCaseTypes = null)
         : IDataRightsSubjectDiscoveryContributor
     {
         public string OwnerKey => ownerKey;
 
+        public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes =>
+            supportedCaseTypes ?? [DataRightsCaseType.GuestRights];
+
         public int DiscoveryInvocationCount { get; private set; }
+
+        public DataRightsSubjectDiscoveryRequest? LastDiscoveryRequest { get; private set; }
 
         public Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
             DataRightsSubjectDiscoveryRequest request,
             CancellationToken cancellationToken)
         {
             this.DiscoveryInvocationCount++;
+            this.LastDiscoveryRequest = request;
             return Task.FromResult(discover(request));
         }
 

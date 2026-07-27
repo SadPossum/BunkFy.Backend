@@ -10,7 +10,7 @@ internal sealed class UnselectDataRightsSubjectCommandValidator
     public IEnumerable<string> Validate(UnselectDataRightsSubjectCommand command)
     {
         foreach (string error in DataRightsCaseValidation.Mutation(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.ExpectedVersion,
             command.ActorId))

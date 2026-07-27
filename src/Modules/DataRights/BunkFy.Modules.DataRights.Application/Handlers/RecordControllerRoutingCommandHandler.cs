@@ -15,7 +15,7 @@ internal sealed class RecordControllerRoutingCommandHandler(
         RecordControllerRoutingCommand command,
         CancellationToken cancellationToken) => DataRightsCaseCommandExecution.ApplyAsync(
         cases,
-        command.PropertyId,
+        command.Scope,
         command.CaseId,
         dataRightsCase => dataRightsCase.RecordControllerRouting(
             command.ExpectedVersion,

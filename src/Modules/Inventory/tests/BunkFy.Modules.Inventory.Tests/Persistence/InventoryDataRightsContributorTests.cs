@@ -20,6 +20,49 @@ public sealed class InventoryDataRightsContributorTests
         new(2026, 7, 27, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Staff_scope_is_not_owned_or_exported_by_inventory()
+    {
+        TestScopeContext scope = new(ScopeId);
+        await using InventoryDbContext dbContext = CreateDbContext(scope);
+        InventoryDataRightsDiscoveryContributor discovery = new(dbContext, scope);
+        InventoryDataRightsExportContributor export = new(dbContext, scope);
+        CollectingSink sink = new();
+
+        DataRightsSubjectDiscoveryResult discovered = await discovery.DiscoverAsync(
+            new DataRightsSubjectDiscoveryRequest(
+                ScopeId,
+                DataRightsCaseType.StaffRights,
+                PropertyId: null,
+                new DataRightsSubjectLookup(
+                    RecordId: null,
+                    Email: null,
+                    Phone: null,
+                    Name: null,
+                    DateOfBirth: null,
+                    AccountSubjectId: "account-subject-123"),
+                DataRightsSubjectDiscoveryLimits.MaxCandidates),
+            CancellationToken.None);
+        DataRightsSubjectExportResult exported = await export.ExportAsync(
+            new DataRightsSubjectExportRequest(
+                ScopeId,
+                DataRightsCaseType.StaffRights,
+                PropertyId: null,
+                new DataRightsSubjectCoordinate(
+                    InventoryDataRightsDiscoveryContributor.Owner,
+                    InventoryDataRightsDiscoveryContributor.AllocationRecordType,
+                    Guid.NewGuid(),
+                    1)),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal([DataRightsCaseType.GuestRights], discovery.SupportedCaseTypes);
+        Assert.Equal([DataRightsCaseType.GuestRights], export.SupportedCaseTypes);
+        Assert.Equal(DataRightsSubjectDiscoveryStatus.ScopeUnavailable, discovered.Status);
+        Assert.Equal(DataRightsSubjectExportStatus.ScopeUnavailable, exported.Status);
+        Assert.Empty(sink.Records);
+    }
+
+    [Fact]
     public async Task Discovery_requires_an_exact_reservation_and_revalidates_version()
     {
         TestScopeContext scope = new(ScopeId);
@@ -38,6 +81,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.DiscoverAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         reservationId,
@@ -72,6 +116,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.DiscoverAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         RecordId: null,
@@ -89,6 +134,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.ValidateSelectionAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     candidate.Coordinate),
                 CancellationToken.None);
@@ -96,6 +142,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.ValidateSelectionAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     candidate.Coordinate with
                     {
@@ -120,6 +167,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.DiscoverAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         reservationId,
@@ -133,6 +181,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.ValidateSelectionAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     candidate.Coordinate),
                 CancellationToken.None);
@@ -174,6 +223,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.ExportAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         InventoryDataRightsCoordinates.Owner,
@@ -214,6 +264,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.ExportAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         InventoryDataRightsCoordinates.Owner,
@@ -233,6 +284,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.ExportAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         InventoryDataRightsCoordinates.Owner,
@@ -276,6 +328,7 @@ public sealed class InventoryDataRightsContributorTests
             await contributor.ExportAsync(
                 new(
                     ScopeId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new(
                         InventoryDataRightsCoordinates.Owner,

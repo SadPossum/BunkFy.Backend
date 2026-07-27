@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Persistence.Repositories;
 
 using BunkFy.Modules.DataRights.Application.Mapping;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -17,24 +18,29 @@ internal sealed class DataRightsCaseRepository(DataRightsDbContext dbContext)
         return Task.CompletedTask;
     }
 
-    public Task<DataRightsCase?> GetAsync(
-        Guid propertyId,
+    public async Task<DataRightsCase?> GetAsync(
+        DataRightsCaseScope scope,
         Guid caseId,
-        CancellationToken cancellationToken) => dbContext.Cases.FirstOrDefaultAsync(
-        dataRightsCase =>
-            dataRightsCase.Id == caseId &&
-            dataRightsCase.PropertyId == propertyId,
-        cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        return await ApplyScope(dbContext.Cases, scope)
+            .FirstOrDefaultAsync(
+                dataRightsCase => dataRightsCase.Id == caseId,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     public async Task<DataRightsCaseListResponse> ListAsync(
-        Guid propertyId,
+        DataRightsCaseScope scope,
         DataRightsCaseStatus? status,
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
-        IQueryable<DataRightsCase> query = dbContext.Cases
-            .AsNoTracking()
-            .Where(dataRightsCase => dataRightsCase.PropertyId == propertyId);
+        ArgumentNullException.ThrowIfNull(scope);
+        IQueryable<DataRightsCase> query = ApplyScope(
+            dbContext.Cases.AsNoTracking(),
+            scope);
         if (status.HasValue)
         {
             DataRightsCaseState state = (DataRightsCaseState)status.Value;
@@ -53,4 +59,15 @@ internal sealed class DataRightsCaseRepository(DataRightsDbContext dbContext)
             pageRequest.Page,
             pageRequest.PageSize);
     }
+
+    private static IQueryable<DataRightsCase> ApplyScope(
+        IQueryable<DataRightsCase> query,
+        DataRightsCaseScope scope) =>
+        scope.IsTenant
+            ? query.Where(dataRightsCase =>
+                dataRightsCase.Kind == (DataRightsCaseKind)scope.CaseType &&
+                dataRightsCase.PropertyId == null)
+            : query.Where(dataRightsCase =>
+                dataRightsCase.Kind == (DataRightsCaseKind)scope.CaseType &&
+                dataRightsCase.PropertyId == scope.PropertyId!.Value);
 }

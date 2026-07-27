@@ -8,7 +8,7 @@ internal sealed class BeginDataRightsDiscoveryCommandValidator
 {
     public IEnumerable<string> Validate(BeginDataRightsDiscoveryCommand command) =>
         DataRightsCaseValidation.Mutation(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.ExpectedVersion,
             command.ActorId);

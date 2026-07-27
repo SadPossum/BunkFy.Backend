@@ -15,7 +15,7 @@ internal sealed class CancelDataRightsCaseCommandHandler(
         CancelDataRightsCaseCommand command,
         CancellationToken cancellationToken) => DataRightsCaseCommandExecution.ApplyAsync(
         cases,
-        command.PropertyId,
+        command.Scope,
         command.CaseId,
         dataRightsCase => dataRightsCase.Cancel(
             command.ExpectedVersion,

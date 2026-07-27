@@ -40,7 +40,9 @@ public sealed class DataRightsCaseRequest
         DataRightsRequesterRelation requesterRelationship,
         DataRightsRestrictionAction restrictionAction = DataRightsRestrictionAction.None)
     {
-        if (kind is not DataRightsCaseKind.GuestRights and not DataRightsCaseKind.TenantTermination)
+        if (kind is not DataRightsCaseKind.GuestRights
+            and not DataRightsCaseKind.TenantTermination
+            and not DataRightsCaseKind.StaffRights)
         {
             return Result.Failure<DataRightsCaseRequest>(DataRightsDomainErrors.CaseTypeInvalid);
         }
@@ -84,9 +86,24 @@ public sealed class DataRightsCaseRequest
                 DataRightsDomainErrors.GuestRightsRequesterInvalid);
         }
 
-        if (kind == DataRightsCaseKind.TenantTermination && propertyId.HasValue)
+        if ((kind is DataRightsCaseKind.StaffRights or DataRightsCaseKind.TenantTermination) &&
+            propertyId.HasValue)
         {
             return Result.Failure<DataRightsCaseRequest>(DataRightsDomainErrors.PropertyNotAllowed);
+        }
+
+        if (kind == DataRightsCaseKind.StaffRights &&
+            requestedOperations != DataRightsCaseOperation.AccessExport)
+        {
+            return Result.Failure<DataRightsCaseRequest>(
+                DataRightsDomainErrors.StaffRightsOperationsInvalid);
+        }
+
+        if (kind == DataRightsCaseKind.StaffRights &&
+            requesterRelationship == DataRightsRequesterRelation.TenantOwner)
+        {
+            return Result.Failure<DataRightsCaseRequest>(
+                DataRightsDomainErrors.StaffRightsRequesterInvalid);
         }
 
         if (kind == DataRightsCaseKind.TenantTermination &&

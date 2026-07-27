@@ -8,7 +8,8 @@ public sealed record DataRightsSubjectCandidate(
 
 public sealed record DataRightsSubjectDiscoveryRequest(
     string TenantId,
-    Guid PropertyId,
+    DataRightsCaseType CaseType,
+    Guid? PropertyId,
     DataRightsSubjectLookup Lookup,
     int MaxCandidates);
 

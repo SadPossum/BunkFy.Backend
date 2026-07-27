@@ -5,4 +5,5 @@ public sealed record DataRightsSubjectLookup(
     string? Email,
     string? Phone,
     string? Name,
-    DateOnly? DateOfBirth);
+    DateOnly? DateOfBirth,
+    string? AccountSubjectId = null);

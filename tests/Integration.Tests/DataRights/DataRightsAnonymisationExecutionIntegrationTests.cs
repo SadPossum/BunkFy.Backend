@@ -2,6 +2,7 @@ namespace Integration.Tests;
 
 using BunkFy.Host.Worker;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -1142,7 +1143,7 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
         IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
         Result<DataRightsCaseDto> approved = await dispatcher.SendAsync(
             new RecordDataRightsDecisionCommand(
-                PropertyId,
+                DataRightsCaseScope.ForProperty(PropertyId),
                 dataRightsCase.Id,
                 DataRightsDecisionOutcome.Approved,
                 DataRightsDecisionReason.RequestValidated,

@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.DataRights.Application.Handlers;
 
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Application.Ports;
@@ -30,7 +31,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.PropertyId,
+            DataRightsCaseScope.ForProperty(command.PropertyId),
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)

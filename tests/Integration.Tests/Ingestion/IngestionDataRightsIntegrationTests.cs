@@ -385,6 +385,7 @@ public sealed class IngestionDataRightsIntegrationTests
             DataRightsSubjectDiscoveryResult discovered = await discovery.DiscoverAsync(
                 new DataRightsSubjectDiscoveryRequest(
                     TenantId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     new DataRightsSubjectLookup(
                         reservationId,
@@ -403,6 +404,7 @@ public sealed class IngestionDataRightsIntegrationTests
             DataRightsSubjectExportResult exported = await exporter.ExportAsync(
                 new DataRightsSubjectExportRequest(
                     TenantId,
+                    DataRightsCaseType.GuestRights,
                     propertyId,
                     candidate.Coordinate),
                 sink,
@@ -564,6 +566,7 @@ public sealed class IngestionDataRightsIntegrationTests
                 (await discovery.DiscoverAsync(
                     new DataRightsSubjectDiscoveryRequest(
                         TenantId,
+                        DataRightsCaseType.GuestRights,
                         propertyId,
                         new DataRightsSubjectLookup(
                             reservationId,
@@ -655,6 +658,7 @@ public sealed class IngestionDataRightsIntegrationTests
                 (await discovery.DiscoverAsync(
                     new DataRightsSubjectDiscoveryRequest(
                         TenantId,
+                        DataRightsCaseType.GuestRights,
                         propertyId,
                         new DataRightsSubjectLookup(
                             reservationId,
@@ -675,6 +679,7 @@ public sealed class IngestionDataRightsIntegrationTests
                 await exporter.ExportAsync(
                     new DataRightsSubjectExportRequest(
                         TenantId,
+                        DataRightsCaseType.GuestRights,
                         propertyId,
                         candidate.Coordinate),
                     postRestoreSink,

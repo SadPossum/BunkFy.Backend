@@ -4,6 +4,8 @@ public interface IDataRightsSubjectDiscoveryContributor
 {
     string OwnerKey { get; }
 
+    IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; }
+
     Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
         DataRightsSubjectDiscoveryRequest request,
         CancellationToken cancellationToken);

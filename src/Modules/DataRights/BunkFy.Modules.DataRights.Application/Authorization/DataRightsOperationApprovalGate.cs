@@ -2,6 +2,7 @@ namespace BunkFy.Modules.DataRights.Application.Authorization;
 
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Application.Mapping;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -25,7 +26,7 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
         }
 
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            request.PropertyId,
+            DataRightsCaseScope.ForProperty(request.PropertyId),
             request.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null ||
