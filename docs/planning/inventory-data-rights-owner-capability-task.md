@@ -1,6 +1,6 @@
 # Inventory Data-Rights Owner Capability Task
 
-Status: implemented; local production verification complete
+Status: published; local and exact-commit production proof complete
 
 ## Goal
 
@@ -178,5 +178,9 @@ existing allocation, initializes its anonymisation state safely, and backfills
 its operation-lock row. The production-shaped preview applied the migration to
 14 existing allocations, backfilled 14 operation-lock rows, passed same-origin
 health and smoke checks, and completed a fresh Worker schedule cycle without a
-recurring startup error. Exact-commit CI remains required before this slice is
-marked published.
+recurring startup error. Published backend commit
+`c47d9768c67dbd172934f20c08ddd4746b351542` passed exact validation in GitHub
+Actions run `30228165438` and all Docker tests in run `30228165445`. Product
+root commit `26ac367904a59150cba04f4fb70c3da4266cbbcf` passed exact validation,
+Security Baseline, and CodeQL in runs `30228504721`, `30228504744`, and
+`30228504711`.

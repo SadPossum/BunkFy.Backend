@@ -257,14 +257,18 @@ Current Inventory evidence:
   passed exact Windows and Ubuntu validation in GitHub Actions run
   `29904293750`; Docker run `29904293838` also passed.
 - The current owner-capability extension has six field definitions resolving
-  582 concrete bindings, 63 green Inventory tests, 65 green architecture tests,
+  582 concrete bindings, 64 green Inventory tests, 65 green architecture tests,
   a synchronized solution, zero migration drift across every mounted GMA and
-  BunkFy context, 2,758 green non-Docker tests, and 59 green Docker integration
+  BunkFy context, 2,759 green non-Docker tests, and 59 green Docker integration
   tests. Docker coverage includes preservation and operation-lock backfill for
   an allocation created on the previous schema. The production-shaped preview
   applied the migration to 14 existing allocations, backfilled all 14
   operation-lock rows, passed same-origin health/smoke checks, and completed a
-  fresh Worker schedule cycle. Exact-commit CI remains pending publication.
+  fresh Worker schedule cycle. Published backend commit
+  `c47d9768c67dbd172934f20c08ddd4746b351542` passed exact validation in run
+  `30228165438` and Docker verification in run `30228165445`; product root
+  commit `26ac367904a59150cba04f4fb70c3da4266cbbcf` passed exact validation,
+  Security Baseline, and CodeQL.
 
 Current Properties evidence:
 
