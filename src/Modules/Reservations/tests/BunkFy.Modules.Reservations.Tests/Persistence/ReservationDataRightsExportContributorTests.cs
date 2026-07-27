@@ -116,6 +116,7 @@ public sealed class ReservationDataRightsExportContributorTests
                     Guid.NewGuid(),
                     Guid.NewGuid(),
                     Now.AddMinutes(3)),
+                Guid.NewGuid(),
                 Guid.NewGuid()).Value;
         dbContext.DataRightsCorrectionReceipts.Add(correctionReceipt);
 

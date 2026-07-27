@@ -24,6 +24,12 @@ public static class DataRightsModuleMetadata
         "anonymisation-work-item-terminal";
     public const string ExportArtifactRequestedHandlerName =
         "export-artifact-requested";
+    public const string GuestCorrectionAppliedHandlerName =
+        "guest-correction-applied";
+    public const string ReservationCorrectionAppliedHandlerName =
+        "reservation-correction-applied";
+    public const string GuestsProducerModuleName = "guests";
+    public const string ReservationsProducerModuleName = "reservations";
     public const string PropertiesProjectionName = "properties";
     public const int PropertiesProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
@@ -71,6 +77,12 @@ public static class DataRightsModuleMetadata
         .WithSubscription<DataRightsExportArtifactRequestedIntegrationEvent>(
             Name,
             ExportArtifactRequestedHandlerName)
+        .WithSubscription<DataRightsCorrectionAppliedIntegrationEvent>(
+            GuestsProducerModuleName,
+            GuestCorrectionAppliedHandlerName)
+        .WithSubscription<DataRightsCorrectionAppliedIntegrationEvent>(
+            ReservationsProducerModuleName,
+            ReservationCorrectionAppliedHandlerName)
         .WithTask<RebuildDataRightsPropertiesPayload>()
         .WithTask<ExecuteDataRightsAnonymisationPayload>()
         .WithTask<GenerateDataRightsExportPayload>()

@@ -322,6 +322,7 @@ public sealed class ReservationsModelTests
                     Guid.NewGuid(),
                     Guid.NewGuid(),
                     new DateTimeOffset(2026, 7, 25, 12, 0, 0, TimeSpan.Zero)),
+                Guid.NewGuid(),
                 Guid.NewGuid()).Value;
         dbContext.DataRightsCorrectionReceipts.Add(receipt);
         await dbContext.SaveChangesAsync();

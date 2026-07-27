@@ -1,6 +1,6 @@
 # Data Rights Restriction Execution Task
 
-Status: implemented and verified locally; publication pending
+Status: published; local and exact-candidate verification complete
 
 ## Outcome
 
@@ -71,7 +71,7 @@ operator workflow is safe to publish.
    apply/release flow and focused frontend tests.
 4. [x] Run the complete non-Docker gate once, then the complete Docker gate
    once. Batch any failures and repeat only the failed gate.
-5. [ ] Publish in dependency order and verify exact-candidate GitHub Actions
+5. [x] Publish in dependency order and verify exact-candidate GitHub Actions
    once.
 
 ## Verification
@@ -86,6 +86,11 @@ operator workflow is safe to publish.
 - Backend `eng/test-docker.ps1 -NoBuild`: 63 Docker integration tests passed in
   the single end-of-slice run, including Data Rights-to-Guests restriction
   apply, replay, release, durable proof, and owner-state verification.
+- Exact-candidate GitHub Actions passed for backend
+  `0f6f0f2191de15a377fa422ae61e655bd7bf9962`, web
+  `de7c98f55efc7a40743d3a23b6db0ae8c8fcae06`, and product
+  `2a6e9a8189f5a42e79987e6990ef8d0bd52ffa1e`, including backend Docker,
+  combined validation, Security Baseline, and both CodeQL languages.
 
 ## Security And Efficiency
 

@@ -727,6 +727,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<DateTimeOffset>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("CompletionEventId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("ContractVersion")
                         .HasColumnType("integer");
 
@@ -768,6 +771,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.HasKey("Id");
 
                     b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "CompletionEventId")
+                        .IsUnique();
 
                     b.HasIndex("ScopeId", "DetailsChangeEventId")
                         .IsUnique();

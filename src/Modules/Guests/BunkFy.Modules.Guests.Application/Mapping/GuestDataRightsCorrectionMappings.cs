@@ -18,7 +18,7 @@ internal static class GuestDataRightsCorrectionMappings
         receipt.EventId,
         receipt.CompletedAtUtc);
 
-    private static string ToFieldKey(GuestProfileField field) => field switch
+    public static string ToFieldKey(this GuestProfileField field) => field switch
     {
         GuestProfileField.DisplayName => "guest.profile.display-name",
         GuestProfileField.LegalName => "guest.profile.legal-name",

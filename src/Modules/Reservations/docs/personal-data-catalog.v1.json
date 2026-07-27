@@ -1993,6 +1993,7 @@
       "retentionPolicy": "reservation-data-rights-correction-receipt",
       "rightsPolicy": "reservation-data-rights-correction-accountability",
       "allowedSurfaces": [
+        "api-input",
         "api-response",
         "application-command",
         "data-rights-export",
@@ -2007,6 +2008,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
+          "member": "ApprovalRevision",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand",
@@ -2070,6 +2078,7 @@
       "retentionPolicy": "reservation-data-rights-correction-receipt",
       "rightsPolicy": "reservation-data-rights-correction-accountability",
       "allowedSurfaces": [
+        "api-input",
         "api-response",
         "application-command",
         "data-rights-export",
@@ -2084,6 +2093,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
+          "member": "CaseId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand",
@@ -2566,6 +2582,7 @@
       "allowedSurfaces": [
         "api-response",
         "data-rights-export",
+        "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
@@ -2587,6 +2604,19 @@
           "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationDataRightsCorrectionReceipt",
           "member": "EventId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationDataRightsCorrectionReceipt",
+          "member": "CompletionEventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationDataRightsCorrectionAppliedDomainEvent",
+          "member": "CompletionEventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
         },
         {
           "assembly": "BunkFy.Modules.Reservations.Persistence",
@@ -2617,14 +2647,24 @@
       "retentionPolicy": "reservation-data-rights-correction-receipt",
       "rightsPolicy": "reservation-data-rights-correction-accountability",
       "allowedSurfaces": [
+        "api-input",
         "application-command",
+        "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "customer-api",
         "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
+          "member": "ExecutionId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand",
@@ -2637,6 +2677,13 @@
           "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationDataRightsCorrectionReceipt",
           "member": "IdempotencyKey",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Events.ReservationDataRightsCorrectionAppliedDomainEvent",
+          "member": "ExecutionId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-domain-event"
         }
       ]
     },
@@ -3288,6 +3335,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Api",
           "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+UpdateReservationGuestDetailsRequest",
+          "member": "ExpectedDetailsRevision",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
           "member": "ExpectedDetailsRevision",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -4901,6 +4955,13 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
+          "member": "GuestCount",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand",
           "member": "GuestCount",
@@ -5039,6 +5100,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Api",
           "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+UpdateReservationGuestDetailsRequest",
+          "member": "Email",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
           "member": "Email",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -5210,6 +5278,13 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
+          "member": "Notes",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand",
           "member": "Notes",
@@ -5348,6 +5423,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Api",
           "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+UpdateReservationGuestDetailsRequest",
+          "member": "Phone",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
           "member": "Phone",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -5515,6 +5597,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Api",
           "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+UpdateReservationGuestDetailsRequest",
+          "member": "PrimaryGuestName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
           "member": "PrimaryGuestName",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -5862,6 +5951,7 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "adapter-ingress",
+        "api-input",
         "api-response",
         "application-command",
         "application-query",
@@ -5878,6 +5968,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
+          "member": "ReservationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand",
@@ -6409,6 +6506,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Api",
           "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+StayLifecycleRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
           "member": "ExpectedVersion",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -9081,6 +9185,13 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
+          "member": "ExpectedArrivalTime",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand",
           "member": "ExpectedArrivalTime",
@@ -9259,6 +9370,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Api",
           "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+UpdateReservationGuestDetailsRequest",
+          "member": "ExpectedDepartureTime",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
           "member": "ExpectedDepartureTime",
           "surface": "api-input",
           "retentionPolicy": "transient-request"

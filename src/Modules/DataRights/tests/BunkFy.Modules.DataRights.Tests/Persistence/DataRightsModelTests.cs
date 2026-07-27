@@ -122,6 +122,48 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designSelectedSubject.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_selected_subjects_selected_by");
+        IEntityType correctionExecution =
+            dbContext.Model.FindEntityType(typeof(DataRightsCorrectionExecution))!;
+        IEntityType designCorrectionExecution = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsCorrectionExecution))!;
+        Assert.True(
+            correctionExecution.FindProperty(nameof(DataRightsCorrectionExecution.Version))!
+                .IsConcurrencyToken);
+        Assert.Equal(
+            DataRightsCorrectionExecution.FieldPolicyKeyMaxLength,
+            correctionExecution
+                .FindProperty(nameof(DataRightsCorrectionExecution.FieldPolicyKey))!
+                .GetMaxLength());
+        Assert.Contains(correctionExecution.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsCorrectionExecution.ScopeId),
+                nameof(DataRightsCorrectionExecution.CaseId)
+            ]));
+        Assert.Contains(correctionExecution.GetIndexes(), index =>
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsCorrectionExecution.ScopeId),
+                nameof(DataRightsCorrectionExecution.PropertyId),
+                nameof(DataRightsCorrectionExecution.State),
+                nameof(DataRightsCorrectionExecution.ExpiresAtUtc)
+            ]));
+        Assert.Contains(
+            designCorrectionExecution.GetCheckConstraints(),
+            constraint =>
+                constraint.Name == "CK_data_rights_correction_executions_contract");
+        Assert.Contains(
+            designCorrectionExecution.GetCheckConstraints(),
+            constraint =>
+                constraint.Name == "CK_data_rights_correction_executions_state");
+        Assert.Contains(
+            designCorrectionExecution.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name).SequenceEqual([
+                    nameof(DataRightsCorrectionExecution.ScopeId),
+                    nameof(DataRightsCorrectionExecution.CaseId)
+                ]));
         IEntityType batch =
             dbContext.Model.FindEntityType(typeof(DataRightsExecutionBatch))!;
         IEntityType designBatch = dbContext.GetService<IDesignTimeModel>()

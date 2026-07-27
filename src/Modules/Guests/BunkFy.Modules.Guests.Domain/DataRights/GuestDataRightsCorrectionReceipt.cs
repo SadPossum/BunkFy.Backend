@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Domain.DataRights;
 
 using BunkFy.Modules.Guests.Domain.Errors;
+using BunkFy.Modules.Guests.Domain.Events;
 using BunkFy.Modules.Guests.Domain.Models;
 using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
@@ -8,6 +9,7 @@ using Gma.Framework.Results;
 
 public sealed class GuestDataRightsCorrectionReceipt : ScopedAggregateRoot<Guid>
 {
+    public const int CurrentContractVersion = 1;
     public const int AllChangedFieldsMask = (1 << 8) - 1;
 
     private GuestDataRightsCorrectionReceipt() { }
@@ -17,6 +19,7 @@ public sealed class GuestDataRightsCorrectionReceipt : ScopedAggregateRoot<Guid>
     {
     }
 
+    public int ContractVersion { get; private set; }
     public Guid IdempotencyKey { get; private set; }
     public Guid PropertyId { get; private set; }
     public Guid CaseId { get; private set; }
@@ -26,6 +29,7 @@ public sealed class GuestDataRightsCorrectionReceipt : ScopedAggregateRoot<Guid>
     public long CurrentRecordVersion { get; private set; }
     public int ChangedFieldsMask { get; private set; }
     public Guid EventId { get; private set; }
+    public Guid CompletionEventId { get; private set; }
     public DateTimeOffset CompletedAtUtc { get; private set; }
 
     public IReadOnlyCollection<GuestProfileField> ChangedFields =>
@@ -46,6 +50,7 @@ public sealed class GuestDataRightsCorrectionReceipt : ScopedAggregateRoot<Guid>
         long currentRecordVersion,
         IReadOnlyCollection<GuestProfileField> changedFields,
         Guid eventId,
+        Guid completionEventId,
         DateTimeOffset completedAtUtc)
     {
         if (receiptId == Guid.Empty ||
@@ -54,6 +59,8 @@ public sealed class GuestDataRightsCorrectionReceipt : ScopedAggregateRoot<Guid>
             caseId == Guid.Empty ||
             guestId == Guid.Empty ||
             eventId == Guid.Empty ||
+            completionEventId == Guid.Empty ||
+            completionEventId == eventId ||
             completedAtUtc == default ||
             !TenantIds.TryNormalize(tenantId, out string? scopeId))
         {
@@ -76,8 +83,9 @@ public sealed class GuestDataRightsCorrectionReceipt : ScopedAggregateRoot<Guid>
                 GuestsDomainErrors.CorrectionReceiptFieldsInvalid);
         }
 
-        return Result.Success(new GuestDataRightsCorrectionReceipt(receiptId, scopeId)
+        GuestDataRightsCorrectionReceipt receipt = new(receiptId, scopeId)
         {
+            ContractVersion = CurrentContractVersion,
             IdempotencyKey = idempotencyKey,
             PropertyId = propertyId,
             CaseId = caseId,
@@ -87,8 +95,23 @@ public sealed class GuestDataRightsCorrectionReceipt : ScopedAggregateRoot<Guid>
             CurrentRecordVersion = currentRecordVersion,
             ChangedFieldsMask = changedFieldsMask,
             EventId = eventId,
+            CompletionEventId = completionEventId,
             CompletedAtUtc = completedAtUtc
-        });
+        };
+        receipt.RaiseDomainEvent(new GuestDataRightsCorrectionAppliedDomainEvent(
+            completionEventId,
+            completedAtUtc,
+            scopeId,
+            idempotencyKey,
+            receiptId,
+            propertyId,
+            caseId,
+            approvalRevision,
+            guestId,
+            selectedRecordVersion,
+            currentRecordVersion,
+            changedFields));
+        return Result.Success(receipt);
     }
 
     private static int ToMask(IReadOnlyCollection<GuestProfileField> fields)

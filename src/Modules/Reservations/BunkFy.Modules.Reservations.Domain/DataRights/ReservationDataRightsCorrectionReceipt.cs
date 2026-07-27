@@ -33,6 +33,7 @@ public sealed class ReservationDataRightsCorrectionReceipt : ScopedAggregateRoot
     public Guid DetailsChangeEventId { get; private set; }
     public Guid CorrelationId { get; private set; }
     public Guid EventId { get; private set; }
+    public Guid CompletionEventId { get; private set; }
     public DateTimeOffset CompletedAtUtc { get; private set; }
 
     public IReadOnlyCollection<ReservationDetailsField> ChangedFields =>
@@ -50,7 +51,8 @@ public sealed class ReservationDataRightsCorrectionReceipt : ScopedAggregateRoot
         long approvalRevision,
         Guid reservationId,
         ReservationDataRightsCorrectionOutcome correction,
-        Guid eventId)
+        Guid eventId,
+        Guid completionEventId)
     {
         ArgumentNullException.ThrowIfNull(correction);
 
@@ -62,6 +64,8 @@ public sealed class ReservationDataRightsCorrectionReceipt : ScopedAggregateRoot
             correction.DetailsChangeEventId == Guid.Empty ||
             correction.CorrelationId == Guid.Empty ||
             eventId == Guid.Empty ||
+            completionEventId == Guid.Empty ||
+            completionEventId == eventId ||
             correction.CompletedAtUtc == default ||
             !TenantIds.TryNormalize(tenantId, out string? scopeId))
         {
@@ -102,6 +106,7 @@ public sealed class ReservationDataRightsCorrectionReceipt : ScopedAggregateRoot
             DetailsChangeEventId = correction.DetailsChangeEventId,
             CorrelationId = correction.CorrelationId,
             EventId = eventId,
+            CompletionEventId = completionEventId,
             CompletedAtUtc = correction.CompletedAtUtc
         };
         receipt.RaiseDomainEvent(new ReservationDataRightsCorrectionAppliedDomainEvent(
@@ -118,7 +123,9 @@ public sealed class ReservationDataRightsCorrectionReceipt : ScopedAggregateRoot
             correction.PreviousDetailsRevision,
             correction.CurrentDetailsRevision,
             correction.ChangedFields,
-            correction.DetailsChangeEventId));
+            correction.DetailsChangeEventId,
+            idempotencyKey,
+            completionEventId));
         return Result.Success(receipt);
     }
 

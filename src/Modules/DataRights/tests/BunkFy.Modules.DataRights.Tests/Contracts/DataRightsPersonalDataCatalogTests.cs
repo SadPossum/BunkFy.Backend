@@ -5,6 +5,7 @@ using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -56,6 +57,7 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(RequireDataRightsReviewCommand),
             typeof(SelectDataRightsSubjectCommand),
             typeof(StartDataRightsAnonymisationExecutionCommand),
+            typeof(StartDataRightsCorrectionExecutionCommand),
             typeof(UnselectDataRightsSubjectCommand)
         ];
 
@@ -76,6 +78,14 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsRestrictionContributionRequest),
             nameof(DataRightsRestrictionContributionRequest.ExecutingActorId),
             PersonalDataSurface.IntegrationCommand);
+        AssertBinding(
+            typeof(DataRightsCorrectionExecutionGateRequest),
+            nameof(DataRightsCorrectionExecutionGateRequest.ExecutingActorId),
+            PersonalDataSurface.ApplicationQuery);
+        AssertBinding(
+            typeof(DataRightsCorrectionExecutionDetailsDto),
+            nameof(DataRightsCorrectionExecutionDetailsDto.ExecutedBy),
+            PersonalDataSurface.ApiResponse);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.CreatedBy), PersonalDataSurface.Persistence);
         AssertBinding(
             typeof(DataRightsCase),
@@ -109,6 +119,10 @@ public sealed class DataRightsPersonalDataCatalogTests
         AssertBinding(
             typeof(DataRightsRestrictionExecutionProof),
             nameof(DataRightsRestrictionExecutionProof.ExecutedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsCorrectionExecution),
+            nameof(DataRightsCorrectionExecution.ExecutedBy),
             PersonalDataSurface.Persistence);
     }
 
@@ -172,6 +186,22 @@ public sealed class DataRightsPersonalDataCatalogTests
         AssertBinding(
             typeof(DataRightsRestrictionExecutionProof),
             nameof(DataRightsRestrictionExecutionProof.RecordId),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsCorrectionExecutionGateRequest),
+            nameof(DataRightsCorrectionExecutionGateRequest.Coordinate),
+            PersonalDataSurface.ApplicationQuery);
+        AssertBinding(
+            typeof(DataRightsCorrectionAppliedIntegrationEvent),
+            nameof(DataRightsCorrectionAppliedIntegrationEvent.RecordId),
+            PersonalDataSurface.IntegrationEvent);
+        AssertBinding(
+            typeof(DataRightsCorrectionExecutionDetailsDto),
+            nameof(DataRightsCorrectionExecutionDetailsDto.Subject),
+            PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(DataRightsCorrectionExecution),
+            nameof(DataRightsCorrectionExecution.RecordId),
             PersonalDataSurface.Persistence);
         AssertBinding(
             typeof(DataRightsSelectedSubjectDto),
@@ -278,6 +308,53 @@ public sealed class DataRightsPersonalDataCatalogTests
                 property.Name,
                 PersonalDataSurface.Persistence);
         }
+    }
+
+    [Fact]
+    public void Correction_execution_proof_is_explicitly_classified()
+    {
+        Type apiRequest = typeof(DataRightsModule).Assembly.GetType(
+            "BunkFy.Modules.DataRights.Api.DataRightsCorrectionEndpoints+" +
+            "StartDataRightsCorrectionRequest",
+            throwOnError: true)!;
+        AssertPublicPropertiesClassified(
+            apiRequest,
+            PersonalDataSurface.ApiInput);
+        AssertPublicPropertiesClassified(
+            typeof(StartDataRightsCorrectionExecutionCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(StartDataRightsCorrectionExecutionCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(GetDataRightsCorrectionExecutionQuery),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsCorrectionExecutionGateRequest),
+            PersonalDataSurface.ApplicationQuery,
+            nameof(DataRightsCorrectionExecutionGateRequest.Coordinate),
+            nameof(DataRightsCorrectionExecutionGateRequest.ExecutingActorId));
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsCorrectionExecutionGateResult),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsCorrectionExecutionDto),
+            PersonalDataSurface.ApiResponse);
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsCorrectionExecutionDetailsDto),
+            PersonalDataSurface.ApiResponse,
+            nameof(DataRightsCorrectionExecutionDetailsDto.Subject),
+            nameof(DataRightsCorrectionExecutionDetailsDto.ExecutedBy));
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsCorrectionAppliedIntegrationEvent),
+            PersonalDataSurface.IntegrationEvent,
+            nameof(DataRightsCorrectionAppliedIntegrationEvent.EventName),
+            nameof(DataRightsCorrectionAppliedIntegrationEvent.Version),
+            nameof(DataRightsCorrectionAppliedIntegrationEvent.RecordId));
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsCorrectionExecution),
+            PersonalDataSurface.Persistence,
+            nameof(DataRightsCorrectionExecution.DomainEvents),
+            nameof(DataRightsCorrectionExecution.RecordId),
+            nameof(DataRightsCorrectionExecution.ExecutedBy));
     }
 
     [Fact]
@@ -526,6 +603,20 @@ public sealed class DataRightsPersonalDataCatalogTests
             string.Equals(binding.Member, member, StringComparison.Ordinal) &&
             binding.Surface == surface);
         Assert.True(found, $"Missing {surface} classification for {type.FullName}.{member}.");
+    }
+
+    private static void AssertPublicPropertiesClassified(
+        Type type,
+        PersonalDataSurface surface,
+        params string[] excludedMembers)
+    {
+        HashSet<string> excluded = excludedMembers.ToHashSet(StringComparer.Ordinal);
+        foreach (PropertyInfo property in type
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(property => !excluded.Contains(property.Name)))
+        {
+            AssertBinding(type, property.Name, surface);
+        }
     }
 
     private static IEnumerable<PersonalDataMemberBinding> Bindings() =>

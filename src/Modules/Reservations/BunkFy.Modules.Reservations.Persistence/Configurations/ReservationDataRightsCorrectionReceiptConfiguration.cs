@@ -34,6 +34,7 @@ internal sealed class ReservationDataRightsCorrectionReceiptConfiguration
         builder.Property(receipt => receipt.ContractVersion).IsRequired();
         builder.HasIndex(receipt => new { receipt.ScopeId, receipt.IdempotencyKey }).IsUnique();
         builder.HasIndex(receipt => new { receipt.ScopeId, receipt.EventId }).IsUnique();
+        builder.HasIndex(receipt => new { receipt.ScopeId, receipt.CompletionEventId }).IsUnique();
         builder.HasIndex(receipt => new { receipt.ScopeId, receipt.DetailsChangeEventId }).IsUnique();
         builder.HasIndex(receipt => new
         {

@@ -1,7 +1,7 @@
 # Data Rights Multi-Owner Execution Task
 
-Status: in progress - backend execution and migration complete; operator
-workflow alignment and complete repository gates remain
+Status: implementation and exact-candidate repository gates complete;
+destructive multi-account browser proof remains
 
 ## Outcome
 
@@ -160,6 +160,27 @@ notifications.
   contracts-only module dependencies.
 - Complete non-Docker, migration, Docker, vulnerability, browser, and
   exact-commit GitHub gates pass before this task is marked complete.
+
+## Current Evidence
+
+- DataRights creates one immutable ordered work item per selected Guest,
+  Reservation, or Ingestion coordinate and reconciles the case only after every
+  owner records durable proof. The real PostgreSQL, NATS, and Worker integration
+  drill covers all three owners in one execution batch.
+- The operator workflow exposes explicit owner tabs, keeps prior selections
+  while another bounded search runs, removes individual selections, shows
+  per-owner work-item progress, and refreshes only non-terminal execution.
+- Published backend commit `0f6f0f2191de15a377fa422ae61e655bd7bf9962`
+  passed validation and all 63 Docker integration tests. Published web commit
+  `de7c98f55efc7a40743d3a23b6db0ae8c8fcae06` passed validation.
+- Product commit `2a6e9a8189f5a42e79987e6990ef8d0bd52ffa1e`
+  passed the combined repository verifier, Security Baseline, and C# plus
+  JavaScript/TypeScript CodeQL analysis.
+- A read-only authenticated preview smoke confirmed the request queue, scoped
+  intake, selected-record summary, protected-export state, and permission-aware
+  operation choices. The destructive multi-owner flow was intentionally not
+  executed against the developer's local workspace; separate approver/executor
+  browser evidence remains a deployment acceptance activity.
 
 ## Non-Goals
 

@@ -12,6 +12,9 @@ internal sealed class GuestDataRightsCorrectionReceiptConfiguration
         builder.ToTable("guest_data_rights_correction_receipts", table =>
         {
             table.HasCheckConstraint(
+                "CK_guest_data_rights_correction_receipts_contract",
+                $"\"ContractVersion\" = {GuestDataRightsCorrectionReceipt.CurrentContractVersion}");
+            table.HasCheckConstraint(
                 "CK_guest_data_rights_correction_receipts_approval_revision",
                 "\"ApprovalRevision\" >= 1");
             table.HasCheckConstraint(
@@ -25,7 +28,10 @@ internal sealed class GuestDataRightsCorrectionReceiptConfiguration
         builder.HasKey(receipt => receipt.Id);
         builder.HasAlternateKey(receipt => new { receipt.ScopeId, receipt.Id });
         builder.Property(receipt => receipt.ScopeId).HasMaxLength(128).IsRequired();
+        builder.Property(receipt => receipt.ContractVersion).IsRequired();
         builder.HasIndex(receipt => new { receipt.ScopeId, receipt.IdempotencyKey }).IsUnique();
+        builder.HasIndex(receipt => new { receipt.ScopeId, receipt.EventId }).IsUnique();
+        builder.HasIndex(receipt => new { receipt.ScopeId, receipt.CompletionEventId }).IsUnique();
         builder.HasIndex(receipt => new
         {
             receipt.ScopeId,

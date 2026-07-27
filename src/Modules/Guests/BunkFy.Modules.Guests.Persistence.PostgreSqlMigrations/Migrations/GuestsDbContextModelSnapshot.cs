@@ -511,6 +511,12 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<DateTimeOffset>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("CompletionEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
                     b.Property<long>("CurrentRecordVersion")
                         .HasColumnType("bigint");
 
@@ -538,6 +544,12 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasAlternateKey("ScopeId", "Id");
 
+                    b.HasIndex("ScopeId", "CompletionEventId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "EventId")
+                        .IsUnique();
+
                     b.HasIndex("ScopeId", "IdempotencyKey")
                         .IsUnique();
 
@@ -550,6 +562,8 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                             t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_approval_revision", "\"ApprovalRevision\" >= 1");
 
                             t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_changed_fields", "\"ChangedFieldsMask\" BETWEEN 1 AND 255");
+
+                            t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_contract", "\"ContractVersion\" = 1");
 
                             t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_versions", "\"SelectedRecordVersion\" >= 1 AND \"CurrentRecordVersion\" = \"SelectedRecordVersion\" + 1");
                         });

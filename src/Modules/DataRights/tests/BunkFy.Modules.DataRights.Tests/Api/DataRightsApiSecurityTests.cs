@@ -26,6 +26,7 @@ public sealed class DataRightsApiSecurityTests
                 TimeSpan.FromMinutes(10));
             options.AnonymisationExecutionAssurance = assurance;
             options.RestrictionExecutionAssurance = assurance;
+            options.CorrectionExecutionAssurance = assurance;
             options.ExportGenerationAssurance = assurance;
             options.ExportDownloadAssurance = assurance;
         });
@@ -110,6 +111,20 @@ public sealed class DataRightsApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/restriction");
+        AssertPermission(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/correction",
+            DataRightsAdminPermissionCodes.Execute);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/correction",
+            DataRightsAdminPermissionCodes.Execute);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/correction");
         AssertPermission(
             endpoints,
             HttpMethods.Get,

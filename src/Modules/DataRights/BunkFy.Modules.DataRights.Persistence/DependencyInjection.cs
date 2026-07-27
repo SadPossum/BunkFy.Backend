@@ -32,6 +32,9 @@ public static class DependencyInjection
                 DataRightsMigrations.HistoryTable));
         builder.Services.TryAddScoped<IDataRightsCaseRepository, DataRightsCaseRepository>();
         builder.Services.TryAddScoped<
+            IDataRightsCorrectionExecutionRepository,
+            DataRightsCorrectionExecutionRepository>();
+        builder.Services.TryAddScoped<
             IDataRightsExportArtifactRepository,
             DataRightsExportArtifactRepository>();
         builder.Services.TryAddScoped<

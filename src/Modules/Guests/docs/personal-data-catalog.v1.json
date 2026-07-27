@@ -2894,6 +2894,39 @@
         { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestStayHistoryEntry", "member": "Status", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestStayDataRightsExport", "member": "Status", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" }
       ]
+    },
+    {
+      "id": "guest.data-rights.correction-completion-proof",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["correction-accountability", "cross-module-completion"],
+      "sources": ["authorized-data-rights-case", "guests-owner-receipt", "system-generated"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-data-rights-correction-receipts",
+      "countryPolicyKey": "guest.data-rights.correction-receipt",
+      "retentionPolicy": "guest-data-rights-correction-receipt",
+      "rightsPolicy": "guest-data-rights-correction-accountability",
+      "allowedSurfaces": ["domain-event", "persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt", "member": "ContractVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt", "member": "CompletionEventId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "EventId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "OccurredAtUtc", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "ScopeId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "ExecutionId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "ReceiptId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "PropertyId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "CaseId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "ApprovalRevision", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "GuestId", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "SelectedRecordVersion", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "CurrentRecordVersion", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "ChangedFields", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
     }
   ]
 }

@@ -20,6 +20,7 @@ using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Queries;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.DataRights.Contracts;
 
 public sealed class ReservationsModule : IModule
 {
@@ -70,6 +71,44 @@ public sealed class ReservationsModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Create,
+                ReservationsPropertyAccessScopeResolver.ResolverName);
+
+        group.MapPost("/data-rights-corrections", async (
+            Guid propertyId,
+            ReservationDataRightsCorrectionRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actorId = ResolveActor(httpContext, subjectResolver);
+            return actorId is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new ApplyReservationDataRightsCorrectionCommand(
+                        request.ExecutionId,
+                        propertyId,
+                        request.CaseId,
+                        request.ApprovalRevision,
+                        request.ReservationId,
+                        request.ExpectedVersion,
+                        request.ExpectedDetailsRevision,
+                        request.PrimaryGuestName,
+                        request.Email,
+                        request.Phone,
+                        request.GuestCount,
+                        request.Notes,
+                        request.ExpectedArrivalTime,
+                        request.ExpectedDepartureTime,
+                        actorId),
+                    cancellationToken).ConfigureAwait(false))
+                    .ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<ReservationDataRightsCorrectionReceiptDto>(
+                StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                DataRightsAdminPermissionCodes.Execute,
                 ReservationsPropertyAccessScopeResolver.ResolverName);
 
         group.MapGet("", async (
@@ -332,6 +371,21 @@ public sealed class ReservationsModule : IModule
 
     public sealed record CancelReservationRequest(long ExpectedVersion);
 
+    public sealed record ReservationDataRightsCorrectionRequest(
+        Guid ExecutionId,
+        Guid CaseId,
+        long ApprovalRevision,
+        Guid ReservationId,
+        long ExpectedVersion,
+        long ExpectedDetailsRevision,
+        string PrimaryGuestName,
+        string? Email,
+        string? Phone,
+        int GuestCount,
+        string? Notes,
+        TimeOnly? ExpectedArrivalTime,
+        TimeOnly? ExpectedDepartureTime);
+
     public sealed record StayLifecycleRequest(DateOnly BusinessDate, long ExpectedVersion);
 
     public sealed record LinkReservationGuestRequest(
@@ -364,6 +418,10 @@ public sealed class ReservationsModule : IModule
         new(ReservationsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.DetailsRevisionConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.DetailsChangeProvenanceInvalid.Code, StatusCodes.Status400BadRequest),
+        new(ReservationsApplicationErrors.DataRightsApprovalRequired.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(ReservationsApplicationErrors.CorrectionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.CorrectionNoChanges.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.AllocationAmendmentInProgress.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.AllocationAmendmentInvalid.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.StayBusinessDateInvalid.Code, StatusCodes.Status400BadRequest),

@@ -19,7 +19,9 @@ public sealed record ReservationDataRightsCorrectionAppliedDomainEvent : ScopedD
         long previousDetailsRevision,
         long currentDetailsRevision,
         IReadOnlyCollection<ReservationDetailsField> changedFields,
-        Guid detailsChangeEventId)
+        Guid detailsChangeEventId,
+        Guid executionId,
+        Guid completionEventId)
         : base(eventId, occurredAtUtc, scopeId)
     {
         this.ReceiptId = DomainEventGuards.RequireId(receiptId, nameof(receiptId));
@@ -29,6 +31,16 @@ public sealed record ReservationDataRightsCorrectionAppliedDomainEvent : ScopedD
         this.DetailsChangeEventId = DomainEventGuards.RequireId(
             detailsChangeEventId,
             nameof(detailsChangeEventId));
+        this.ExecutionId = DomainEventGuards.RequireId(executionId, nameof(executionId));
+        this.CompletionEventId = DomainEventGuards.RequireId(
+            completionEventId,
+            nameof(completionEventId));
+        if (completionEventId == eventId)
+        {
+            throw new ArgumentException(
+                "The generic completion event requires its own event id.",
+                nameof(completionEventId));
+        }
         if (approvalRevision < 1 ||
             previousRecordVersion < 1 ||
             currentRecordVersion != previousRecordVersion + 1 ||
@@ -70,4 +82,6 @@ public sealed record ReservationDataRightsCorrectionAppliedDomainEvent : ScopedD
     public long CurrentDetailsRevision { get; }
     public IReadOnlyCollection<ReservationDetailsField> ChangedFields { get; }
     public Guid DetailsChangeEventId { get; }
+    public Guid ExecutionId { get; }
+    public Guid CompletionEventId { get; }
 }

@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Reservations.Tests;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
@@ -41,7 +42,7 @@ public sealed class ReservationsProfileTests
         Assert.Equal(8, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(16, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(17, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Equal(23, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
@@ -84,6 +85,10 @@ public sealed class ReservationsProfileTests
             published =>
                 published.EventType ==
                     ReservationProcessingRestrictionChangedIntegrationEvent.EventType);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
+            published =>
+                published.EventType == DataRightsCorrectionAppliedIntegrationEvent.EventType);
         Assert.Equal(
             4,
             ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count(subscription =>

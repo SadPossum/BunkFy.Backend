@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Contracts;
 
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Modules;
@@ -51,6 +52,7 @@ public static class GuestsModuleMetadata
         .WithPublishedEvent<GuestProfileArchivedIntegrationEvent>()
         .WithPublishedEvent<GuestProfileAnonymisedIntegrationEvent>()
         .WithPublishedEvent<GuestProcessingRestrictionChangedIntegrationEvent>()
+        .WithPublishedEvent<DataRightsCorrectionAppliedIntegrationEvent>()
         .WithTask<RebuildGuestsPropertiesPayload>()
         .WithTask<RebuildGuestStayHistoryPayload>()
         .WithProfile(GuestsProfiles.Default)

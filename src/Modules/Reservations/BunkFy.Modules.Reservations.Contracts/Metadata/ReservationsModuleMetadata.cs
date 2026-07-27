@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Reservations.Contracts;
 
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Messaging;
@@ -112,6 +113,7 @@ public static class ReservationsModuleMetadata
         .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEvent>()
         .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEventV2>()
         .WithPublishedEvent<ReservationProcessingRestrictionChangedIntegrationEvent>()
+        .WithPublishedEvent<DataRightsCorrectionAppliedIntegrationEvent>()
         .WithTask<RebuildReservationInventoryProjectionPayload>()
         .WithTask<RebuildReservationGuestProfilesPayload>()
         .WithTask<RebuildReservationGuestRestrictionsPayload>()

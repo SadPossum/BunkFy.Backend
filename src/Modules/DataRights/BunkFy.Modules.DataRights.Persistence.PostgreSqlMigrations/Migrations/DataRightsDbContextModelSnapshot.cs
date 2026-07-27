@@ -162,6 +162,122 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCorrectionExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ChangedFieldCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ChangedFieldsSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("CurrentRecordVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ExecutedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("ExecutionRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FieldPolicyKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("OwnerKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ReceiptContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReceiptSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedCaseVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SelectedRecordVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "CaseId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "State", "ExpiresAtUtc");
+
+                    b.ToTable("correction_executions", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_data_rights_correction_executions_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_data_rights_correction_executions_coordinates", "\"PropertyId\" IS NOT NULL AND \"CaseId\" IS NOT NULL AND \"RecordId\" IS NOT NULL AND length(trim(\"OwnerKey\")) > 0 AND length(trim(\"RecordType\")) > 0 AND length(trim(\"FieldPolicyKey\")) > 0 AND length(trim(\"ExecutedBy\")) > 0");
+
+                            t.HasCheckConstraint("CK_data_rights_correction_executions_revisions", "\"SelectedCaseVersion\" >= 1 AND \"ExecutionRevision\" = \"SelectedCaseVersion\" + 1 AND \"ApprovalRevision\" >= 1 AND \"SelectedRecordVersion\" >= 1 AND \"Version\" >= 1");
+
+                            t.HasCheckConstraint("CK_data_rights_correction_executions_state", "(\"State\" = 1 AND \"ReceiptContractVersion\" IS NULL AND \"ReceiptId\" IS NULL AND \"CurrentRecordVersion\" IS NULL AND \"ChangedFieldCount\" IS NULL AND \"ChangedFieldsSha256\" IS NULL AND \"ReceiptSha256\" IS NULL AND \"CompletedAtUtc\" IS NULL) OR (\"State\" = 2 AND \"ReceiptContractVersion\" >= 1 AND \"ReceiptId\" IS NOT NULL AND \"CurrentRecordVersion\" = \"SelectedRecordVersion\" + 1 AND \"ChangedFieldCount\" BETWEEN 1 AND 32 AND char_length(\"ChangedFieldsSha256\") = 64 AND char_length(\"ReceiptSha256\") = 64 AND \"CompletedAtUtc\" BETWEEN \"StartedAtUtc\" AND \"ExpiresAtUtc\")");
+
+                            t.HasCheckConstraint("CK_data_rights_correction_executions_timestamps", "\"StartedAtUtc\" IS NOT NULL AND \"ExpiresAtUtc\" > \"StartedAtUtc\" AND \"ExpiresAtUtc\" <= \"StartedAtUtc\" + INTERVAL '15 minutes'");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionBatch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1254,6 +1370,16 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                     b.Navigation("RestrictionExecutionProof");
 
                     b.Navigation("SelectedSubjects");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCorrectionExecution", b =>
+                {
+                    b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCorrectionExecution", "ScopeId", "CaseId")
+                        .HasPrincipalKey("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionBatch", b =>

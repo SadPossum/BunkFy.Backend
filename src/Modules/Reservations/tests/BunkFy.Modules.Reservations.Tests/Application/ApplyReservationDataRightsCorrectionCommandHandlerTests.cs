@@ -1,7 +1,7 @@
 namespace BunkFy.Modules.Reservations.Tests.Application;
 
 using BunkFy.DataGovernance;
-using BunkFy.Modules.DataRights.Contracts.Authorization;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Application;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Handlers;
@@ -40,6 +40,7 @@ public sealed class ApplyReservationDataRightsCorrectionCommandHandlerTests
         Guid detailsEventId = Guid.NewGuid();
         Guid receiptId = Guid.NewGuid();
         Guid receiptEventId = Guid.NewGuid();
+        Guid completionEventId = Guid.NewGuid();
         ApplyReservationDataRightsCorrectionCommandHandler handler = CreateHandler(
             reservation,
             receipts,
@@ -49,7 +50,8 @@ public sealed class ApplyReservationDataRightsCorrectionCommandHandlerTests
                 correlationId,
                 detailsEventId,
                 receiptId,
-                receiptEventId));
+                receiptEventId,
+                completionEventId));
 
         Result<ReservationDataRightsCorrectionReceiptDto> result =
             await handler.HandleAsync(command, CancellationToken.None);
@@ -66,11 +68,17 @@ public sealed class ApplyReservationDataRightsCorrectionCommandHandlerTests
             ReservationCountryPolicyAdmission.DataRightsCorrectionPurpose,
             countryPolicy.PurposeCode);
         Assert.Equal(command.CaseId, approval.Request!.CaseId);
-        Assert.Equal(command.ExpectedVersion, approval.Request.RecordVersion);
+        Assert.Equal(command.IdempotencyKey, approval.Request.ExecutionId);
+        Assert.Equal(command.ExpectedVersion, approval.Request.Coordinate.RecordVersion);
+        Assert.Equal(command.ReservationId, approval.Request.Coordinate.RecordId);
+        Assert.Equal(
+            ReservationsDataRightsCoordinates.CorrectionFieldPolicyKey,
+            approval.Request.FieldPolicyKey);
         Assert.Equal(command.ActorId, approval.Request.ExecutingActorId);
         Assert.NotNull(receipts.Added);
         Assert.Equal(correlationId, receipts.Added.CorrelationId);
         Assert.Equal(receiptEventId, receipts.Added.EventId);
+        Assert.Equal(completionEventId, receipts.Added.CompletionEventId);
         Assert.DoesNotContain(
             typeof(ReservationDataRightsCorrectionReceipt).GetProperties(),
             property => property.Name is
@@ -176,13 +184,21 @@ public sealed class ApplyReservationDataRightsCorrectionCommandHandlerTests
             .HandleAsync(domainEvent, CancellationToken.None);
 
         ReservationDataRightsCorrectionAppliedIntegrationEvent integrationEvent =
-            Assert.IsType<ReservationDataRightsCorrectionAppliedIntegrationEvent>(
-                Assert.Single(outbox.Events));
+            Assert.Single(outbox.Events.OfType<
+                ReservationDataRightsCorrectionAppliedIntegrationEvent>());
+        DataRightsCorrectionAppliedIntegrationEvent completion =
+            Assert.Single(outbox.Events.OfType<DataRightsCorrectionAppliedIntegrationEvent>());
         Assert.Equal(domainEvent.EventId, integrationEvent.EventId);
         Assert.Equal(domainEvent.DetailsChangeEventId, integrationEvent.DetailsChangeEventId);
         Assert.Equal(["reservation.guest.primary-name"], integrationEvent.ChangedFields);
+        Assert.Equal(domainEvent.CompletionEventId, completion.EventId);
+        Assert.Equal(command.IdempotencyKey, completion.ExecutionId);
+        Assert.Equal(
+            ReservationsDataRightsCoordinates.CorrectionFieldPolicyKey,
+            completion.FieldPolicyKey);
+        Assert.Equal(["reservation.guest.primary-name"], completion.ChangedFieldKeys);
         Assert.DoesNotContain(
-            integrationEvent.GetType().GetProperties(),
+            outbox.Events.SelectMany(item => item.GetType().GetProperties()),
             property => property.Name is
                 "PrimaryGuestName" or "Email" or "Phone" or "Notes" or "ActorId");
     }
@@ -249,6 +265,7 @@ public sealed class ApplyReservationDataRightsCorrectionCommandHandlerTests
             command.ApprovalRevision,
             command.ReservationId,
             correction.Value,
+            Guid.NewGuid(),
             Guid.NewGuid()).Value;
     }
 
@@ -348,19 +365,19 @@ public sealed class ApplyReservationDataRightsCorrectionCommandHandlerTests
     }
 
     private sealed class RecordingApprovalGate(bool isApproved = true)
-        : IDataRightsOperationApprovalGate
+        : IDataRightsCorrectionExecutionGate
     {
-        public DataRightsOperationApprovalRequest? Request { get; private set; }
+        public DataRightsCorrectionExecutionGateRequest? Request { get; private set; }
 
-        public Task<DataRightsOperationApprovalResult> EvaluateAsync(
-            DataRightsOperationApprovalRequest request,
+        public Task<DataRightsCorrectionExecutionGateResult> EvaluateAsync(
+            DataRightsCorrectionExecutionGateRequest request,
             CancellationToken cancellationToken)
         {
             this.Request = request;
             return Task.FromResult(isApproved
-                ? DataRightsOperationApprovalResult.Approved
-                : DataRightsOperationApprovalResult.Denied(
-                    DataRightsOperationApprovalDenial.CaseNotApproved));
+                ? DataRightsCorrectionExecutionGateResult.Allowed(Now.AddMinutes(5))
+                : DataRightsCorrectionExecutionGateResult.Denied(
+                    DataRightsCorrectionExecutionDenial.CaseNotExecuting));
         }
     }
 

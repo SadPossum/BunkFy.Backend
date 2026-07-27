@@ -111,6 +111,7 @@ builder.Services.Configure<DataRightsApiSecurityOptions>(
     {
         options.AnonymisationExecutionAssurance = destructiveOperationAssurance;
         options.RestrictionExecutionAssurance = privilegedOperationAssurance;
+        options.CorrectionExecutionAssurance = privilegedOperationAssurance;
         options.ExportGenerationAssurance = privilegedOperationAssurance;
         options.ExportDownloadAssurance = destructiveOperationAssurance;
     });

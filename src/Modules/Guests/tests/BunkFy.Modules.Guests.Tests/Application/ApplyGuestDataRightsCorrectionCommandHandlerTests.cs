@@ -1,7 +1,7 @@
 namespace BunkFy.Modules.Guests.Tests.Application;
 
 using BunkFy.DataGovernance;
-using BunkFy.Modules.DataRights.Contracts.Authorization;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Application;
 using BunkFy.Modules.Guests.Application.Commands;
 using BunkFy.Modules.Guests.Application.Handlers;
@@ -31,12 +31,13 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
         RecordingApprovalGate approval = new();
         Guid eventId = Guid.NewGuid();
         Guid receiptId = Guid.NewGuid();
+        Guid completionEventId = Guid.NewGuid();
         ApplyGuestDataRightsCorrectionCommand command = CreateCommand(profile, "Corrected Guest");
         ApplyGuestDataRightsCorrectionCommandHandler handler = CreateHandler(
             profile,
             receipts,
             approval,
-            new QueueIdGenerator(eventId, receiptId));
+            new QueueIdGenerator(eventId, receiptId, completionEventId));
 
         Result<GuestDataRightsCorrectionReceiptDto> result =
             await handler.HandleAsync(command, CancellationToken.None);
@@ -46,15 +47,20 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
         Assert.Equal(2, profile.Version);
         Assert.Equal(receiptId, result.Value.ReceiptId);
         Assert.Equal(eventId, result.Value.EventId);
+        Assert.Equal(completionEventId, receipts.Added!.CompletionEventId);
         Assert.Equal(["guest.profile.display-name"], result.Value.ChangedFields);
-        Assert.NotNull(receipts.Added);
         Assert.Equal(command.IdempotencyKey, receipts.Added.IdempotencyKey);
         Assert.Equal(1, receipts.Added.SelectedRecordVersion);
         Assert.Equal(2, receipts.Added.CurrentRecordVersion);
         Assert.Equal(command.CaseId, approval.Request!.CaseId);
         Assert.Equal(command.ApprovalRevision, approval.Request.ApprovalRevision);
-        Assert.Equal(command.GuestId, approval.Request.RecordId);
-        Assert.Equal(command.ExpectedVersion, approval.Request.RecordVersion);
+        Assert.Equal(command.IdempotencyKey, approval.Request.ExecutionId);
+        Assert.Equal(command.GuestId, approval.Request.Coordinate.RecordId);
+        Assert.Equal(command.ExpectedVersion, approval.Request.Coordinate.RecordVersion);
+        Assert.Equal(
+            GuestsDataRightsCoordinates.CorrectionFieldPolicyKey,
+            approval.Request.FieldPolicyKey);
+        Assert.Equal(command.ActorId, approval.Request.ExecutingActorId);
         Assert.DoesNotContain(
             typeof(GuestDataRightsCorrectionReceipt).GetProperties(),
             property => property.Name is
@@ -119,6 +125,7 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
             updated.Value.CurrentVersion,
             updated.Value.ChangedFields,
             updated.Value.EventId,
+            Guid.NewGuid(),
             updated.Value.OccurredAtUtc).Value;
         RecordingReceiptRepository receipts = new(receipt);
         RecordingApprovalGate approval = new();
@@ -169,6 +176,7 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
             updated.CurrentVersion,
             updated.ChangedFields,
             updated.EventId,
+            Guid.NewGuid(),
             updated.OccurredAtUtc).Value;
         ApplyGuestDataRightsCorrectionCommand changed = committed with
         {
@@ -283,19 +291,19 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
     }
 
     private sealed class RecordingApprovalGate(bool isApproved = true)
-        : IDataRightsOperationApprovalGate
+        : IDataRightsCorrectionExecutionGate
     {
-        public DataRightsOperationApprovalRequest? Request { get; private set; }
+        public DataRightsCorrectionExecutionGateRequest? Request { get; private set; }
 
-        public Task<DataRightsOperationApprovalResult> EvaluateAsync(
-            DataRightsOperationApprovalRequest request,
+        public Task<DataRightsCorrectionExecutionGateResult> EvaluateAsync(
+            DataRightsCorrectionExecutionGateRequest request,
             CancellationToken cancellationToken)
         {
             this.Request = request;
             return Task.FromResult(isApproved
-                ? DataRightsOperationApprovalResult.Approved
-                : DataRightsOperationApprovalResult.Denied(
-                    DataRightsOperationApprovalDenial.CaseNotApproved));
+                ? DataRightsCorrectionExecutionGateResult.Allowed(Now.AddMinutes(5))
+                : DataRightsCorrectionExecutionGateResult.Denied(
+                    DataRightsCorrectionExecutionDenial.CaseNotExecuting));
         }
     }
 

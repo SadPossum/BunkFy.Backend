@@ -43,6 +43,10 @@ public static class DependencyInjection
                 GuestDataRightsRestrictionContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
+                IDataRightsCorrectionPolicyContributor,
+                GuestDataRightsCorrectionPolicyContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationRestoreContributor,
                 GuestDataRightsAnonymisationRestoreContributor>());
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, GuestPropertyCreatedHandler>(

@@ -169,6 +169,9 @@ public sealed class GuestsPersonalDataCatalogTests
             typeof(GuestProcessingRestrictionChangedDomainEvent),
             PersonalDataSurface.DomainEvent);
         AssertType(
+            typeof(GuestDataRightsCorrectionAppliedDomainEvent),
+            PersonalDataSurface.DomainEvent);
+        AssertType(
             typeof(GuestProfileAnonymisedDomainEvent),
             PersonalDataSurface.DomainEvent);
         AssertType(typeof(GuestProfileDataRightsExport), PersonalDataSurface.DataRightsExport);

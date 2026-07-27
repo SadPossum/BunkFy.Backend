@@ -2,7 +2,6 @@ namespace BunkFy.Modules.Reservations.Application.Handlers;
 
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Contracts;
-using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Mapping;
 using BunkFy.Modules.Reservations.Application.Policies;
@@ -20,7 +19,7 @@ using Gma.Framework.Scoping;
 internal sealed class ApplyReservationDataRightsCorrectionCommandHandler(
     IReservationRepository reservations,
     IReservationDataRightsCorrectionReceiptRepository receipts,
-    IDataRightsOperationApprovalGate approvalGate,
+    IDataRightsCorrectionExecutionGate executionGate,
     IReservationCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
@@ -67,20 +66,23 @@ internal sealed class ApplyReservationDataRightsCorrectionCommandHandler(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
-        DataRightsOperationApprovalResult approval = await approvalGate.EvaluateAsync(
+        DataRightsCorrectionExecutionGateResult execution =
+            await executionGate.EvaluateAsync(
             new(
                 scopeContext.ScopeId,
                 command.PropertyId,
                 command.CaseId,
                 command.ApprovalRevision,
-                DataRightsOperation.Correction,
-                ReservationsDataRightsCoordinates.Owner,
-                ReservationsDataRightsCoordinates.ReservationRecordType,
-                command.ReservationId,
-                command.ExpectedVersion,
-                ExecutingActorId: command.ActorId.Trim()),
+                command.IdempotencyKey,
+                new DataRightsSubjectCoordinate(
+                    ReservationsDataRightsCoordinates.Owner,
+                    ReservationsDataRightsCoordinates.ReservationRecordType,
+                    command.ReservationId,
+                    command.ExpectedVersion),
+                ReservationsDataRightsCoordinates.CorrectionFieldPolicyKey,
+                command.ActorId),
             cancellationToken).ConfigureAwait(false);
-        if (!approval.IsApproved)
+        if (!execution.IsAllowed)
         {
             return Result.Failure<ReservationDataRightsCorrectionReceiptDto>(
                 ReservationsApplicationErrors.DataRightsApprovalRequired);
@@ -130,6 +132,7 @@ internal sealed class ApplyReservationDataRightsCorrectionCommandHandler(
                 command.ApprovalRevision,
                 command.ReservationId,
                 corrected.Value,
+                ids.NewId(),
                 ids.NewId());
         if (created.IsFailure)
         {

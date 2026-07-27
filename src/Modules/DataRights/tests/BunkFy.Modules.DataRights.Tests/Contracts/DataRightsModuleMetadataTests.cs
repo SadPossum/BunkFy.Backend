@@ -27,7 +27,7 @@ public sealed class DataRightsModuleMetadataTests
         ModuleProfileDescriptor profile = Assert.Single(
             DataRightsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(DataRightsProfiles.DefaultName, profile.ProfileName);
-        Assert.Equal(8, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(10, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
@@ -58,6 +58,24 @@ public sealed class DataRightsModuleMetadataTests
                 subscription.EventType ==
                     DataRightsExportArtifactRequestedIntegrationEvent.EventType &&
                 subscription.ProducerModule == DataRightsModuleMetadata.Name);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    DataRightsCorrectionAppliedIntegrationEvent.EventType &&
+                subscription.ProducerModule ==
+                    DataRightsModuleMetadata.GuestsProducerModuleName &&
+                subscription.HandlerName ==
+                    DataRightsModuleMetadata.GuestCorrectionAppliedHandlerName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    DataRightsCorrectionAppliedIntegrationEvent.EventType &&
+                subscription.ProducerModule ==
+                    DataRightsModuleMetadata.ReservationsProducerModuleName &&
+                subscription.HandlerName ==
+                    DataRightsModuleMetadata.ReservationCorrectionAppliedHandlerName);
         Assert.Equal(4, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetTasks(),

@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using BunkFy.DataGovernance;
+using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -122,9 +123,25 @@ public sealed class ReservationDataRightsIntegrationTests
         Guid propertyId = Guid.NewGuid();
         (Reservation reservation, DataRightsCase dataRightsCase) =
             await SeedApprovedCorrectionAsync(api, propertyId).ConfigureAwait(false);
-        Guid idempotencyKey = Guid.NewGuid();
+
+        using IServiceScope commandScope = api.Services.CreateScope();
+        commandScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        IRequestDispatcher dispatcher =
+            commandScope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        Guid executionId = Guid.NewGuid();
+        Result<DataRightsCorrectionExecutionDto> execution = await dispatcher.SendAsync(
+            new StartDataRightsCorrectionExecutionCommand(
+                propertyId,
+                dataRightsCase.Id,
+                executionId,
+                dataRightsCase.Version,
+                "user:privacy-operator"),
+            CancellationToken.None).ConfigureAwait(false);
+        Assert.True(execution.IsSuccess, execution.Error.Code);
+
         ApplyReservationDataRightsCorrectionCommand command = new(
-            idempotencyKey,
+            executionId,
             propertyId,
             dataRightsCase.Id,
             dataRightsCase.DecisionRevision!.Value,
@@ -139,12 +156,6 @@ public sealed class ReservationDataRightsIntegrationTests
             reservation.ExpectedArrivalTime,
             reservation.ExpectedDepartureTime,
             "user:privacy-operator");
-
-        using IServiceScope commandScope = api.Services.CreateScope();
-        commandScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
-            .SetTenant(TenantId);
-        IRequestDispatcher dispatcher =
-            commandScope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
         Result<ReservationDto> ordinaryManagement = await dispatcher.SendAsync(
             new UpdateReservationGuestDetailsCommand(

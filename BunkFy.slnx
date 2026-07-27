@@ -43,6 +43,7 @@
   <Folder Name="/docs/planning/">
     <File Path="docs/planning/adapter-http-client-task.md" />
     <File Path="docs/planning/architecture-cleanup-task.md" />
+    <File Path="docs/planning/data-rights-correction-execution-task.md" />
     <File Path="docs/planning/data-rights-multi-owner-execution-task.md" />
     <File Path="docs/planning/data-rights-protected-export-artifacts-task.md" />
     <File Path="docs/planning/data-rights-restriction-execution-task.md" />

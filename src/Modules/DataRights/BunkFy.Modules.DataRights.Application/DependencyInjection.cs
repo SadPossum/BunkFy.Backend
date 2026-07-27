@@ -25,6 +25,10 @@ public static class DependencyInjection
 
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<IDataRightsOperationApprovalGate, DataRightsOperationApprovalGate>();
+        services.AddScoped<
+            IDataRightsCorrectionExecutionGate,
+            DataRightsCorrectionExecutionGate>();
+        services.TryAddScoped<DataRightsCorrectionCompletionCoordinator>();
         services.TryAddSingleton(_ => CountryPolicyRegistry.Create(
             [],
             [],
@@ -63,6 +67,16 @@ public static class DependencyInjection
             DataRightsPropertyProcessingSuspendedHandler>(
                 DataRightsModuleMetadata.Name,
                 PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            DataRightsCorrectionAppliedIntegrationEvent,
+            GuestDataRightsCorrectionAppliedHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.GuestsProducerModuleName);
+        services.AddIntegrationEventHandler<
+            DataRightsCorrectionAppliedIntegrationEvent,
+            ReservationDataRightsCorrectionAppliedHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.ReservationsProducerModuleName);
         services.AddGmaAccessControlPermissionPolicies(DataRightsModuleMetadata.Descriptor);
         return services;
     }

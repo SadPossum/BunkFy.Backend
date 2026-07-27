@@ -2,7 +2,6 @@ namespace BunkFy.Modules.Guests.Application.Handlers;
 
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Contracts;
-using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.Guests.Application.Commands;
 using BunkFy.Modules.Guests.Application.Mapping;
 using BunkFy.Modules.Guests.Application.Policies;
@@ -20,7 +19,7 @@ using Gma.Framework.Scoping;
 internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
     IGuestProfileRepository profiles,
     IGuestDataRightsCorrectionReceiptRepository receipts,
-    IDataRightsOperationApprovalGate approvalGate,
+    IDataRightsCorrectionExecutionGate executionGate,
     IGuestCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
@@ -76,19 +75,23 @@ internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
                 GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
-        DataRightsOperationApprovalResult approval = await approvalGate.EvaluateAsync(
+        DataRightsCorrectionExecutionGateResult execution =
+            await executionGate.EvaluateAsync(
             new(
                 scopeContext.ScopeId,
                 command.PropertyId,
                 command.CaseId,
                 command.ApprovalRevision,
-                DataRightsOperation.Correction,
-                GuestsDataRightsCoordinates.Owner,
-                GuestsDataRightsCoordinates.GuestProfileRecordType,
-                command.GuestId,
-                command.ExpectedVersion),
+                command.IdempotencyKey,
+                new DataRightsSubjectCoordinate(
+                    GuestsDataRightsCoordinates.Owner,
+                    GuestsDataRightsCoordinates.GuestProfileRecordType,
+                    command.GuestId,
+                    command.ExpectedVersion),
+                GuestsDataRightsCoordinates.CorrectionFieldPolicyKey,
+                command.ActorId),
             cancellationToken).ConfigureAwait(false);
-        if (!approval.IsApproved)
+        if (!execution.IsAllowed)
         {
             return Result.Failure<GuestDataRightsCorrectionReceiptDto>(
                 GuestsApplicationErrors.DataRightsApprovalRequired);
@@ -142,6 +145,7 @@ internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
                 updated.Value.CurrentVersion,
                 updated.Value.ChangedFields,
                 updated.Value.EventId,
+                ids.NewId(),
                 updated.Value.OccurredAtUtc);
         if (created.IsFailure)
         {

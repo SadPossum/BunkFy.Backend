@@ -199,10 +199,14 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
             return Result.Failure(DataRightsDomainErrors.SubjectSelectionRequired);
         }
 
-        if (this.RequestedOperations == DataRightsCaseOperation.Restriction &&
+        if ((this.RequestedOperations == DataRightsCaseOperation.Restriction ||
+             this.RequestedOperations == DataRightsCaseOperation.Correction) &&
             this.selectedSubjects.Count != 1)
         {
-            return Result.Failure(DataRightsDomainErrors.RestrictionExecutionInvalid);
+            return Result.Failure(
+                this.RequestedOperations == DataRightsCaseOperation.Restriction
+                    ? DataRightsDomainErrors.RestrictionExecutionInvalid
+                    : DataRightsDomainErrors.CorrectionExecutionInvalid);
         }
 
         this.Status = DataRightsCaseState.ReviewRequired;

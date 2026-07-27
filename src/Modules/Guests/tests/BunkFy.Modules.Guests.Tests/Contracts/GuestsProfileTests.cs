@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Guests.Tests;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Messaging;
@@ -29,11 +30,15 @@ public sealed class GuestsProfileTests
             subscription =>
                 subscription.EventType == PropertyProcessingSuspendedIntegrationEvent.EventType &&
                 subscription.ProducerModule == PropertiesModuleMetadata.Name);
-        Assert.Equal(5, GuestsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(6, GuestsModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Contains(
             GuestsModuleMetadata.Descriptor.GetPublishedEvents(),
             published =>
                 published.EventType == GuestProcessingRestrictionChangedIntegrationEvent.EventType);
+        Assert.Contains(
+            GuestsModuleMetadata.Descriptor.GetPublishedEvents(),
+            published =>
+                published.EventType == DataRightsCorrectionAppliedIntegrationEvent.EventType);
         Assert.Equal(2, GuestsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Single(GuestsModuleMetadata.Descriptor.GetCompositionProfiles());
 
@@ -49,6 +54,7 @@ public sealed class GuestsProfileTests
             typeof(GuestProfileArchivedIntegrationEvent),
             typeof(GuestProfileAnonymisedIntegrationEvent),
             typeof(GuestProcessingRestrictionChangedIntegrationEvent),
+            typeof(DataRightsCorrectionAppliedIntegrationEvent),
             typeof(ReservationGuestLinkedIntegrationEvent),
             typeof(ReservationGuestStayChangedIntegrationEvent)
         ];

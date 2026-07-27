@@ -49,6 +49,19 @@ public static class DataRightsApplicationErrors
         "The selected owner returned invalid processing-restriction proof.");
     public static Error RestrictionExecutionConflict =>
         DataRightsDomainErrors.RestrictionExecutionConflict;
+    public static readonly Error CorrectionExecutionDenied = new(
+        "DataRights.CorrectionExecutionDenied",
+        "The approved correction is not executable with the current evidence.");
+    public static readonly Error CorrectionOwnerUnavailable = new(
+        "DataRights.CorrectionOwnerUnavailable",
+        "The selected correction owner is unavailable.");
+    public static readonly Error CorrectionExecutionNotFound = new(
+        "DataRights.CorrectionExecutionNotFound",
+        "The correction execution was not found.");
+    public static Error CorrectionExecutionConflict =>
+        DataRightsDomainErrors.CorrectionExecutionConflict;
+    public static Error CorrectionExecutionExpired =>
+        DataRightsDomainErrors.CorrectionExecutionExpired;
     public static readonly Error ExecutionNotFound = new(
         "DataRights.ExecutionNotFound",
         "The data-rights execution was not found.");

@@ -94,6 +94,21 @@ public static class DataRightsDomainErrors
     public static readonly Error RestrictionExecutionConflict = new(
         "DataRights.RestrictionExecutionConflict",
         "The processing restriction was already executed with different coordinates.");
+    public static readonly Error CorrectionExecutionInvalid = new(
+        "DataRights.CorrectionExecutionInvalid",
+        "The case does not contain one executable correction.");
+    public static readonly Error CorrectionExecutionCoordinateInvalid = new(
+        "DataRights.CorrectionExecutionCoordinateInvalid",
+        "The correction execution coordinate is invalid.");
+    public static readonly Error CorrectionExecutionConflict = new(
+        "DataRights.CorrectionExecutionConflict",
+        "The correction execution is already bound to different coordinates.");
+    public static readonly Error CorrectionExecutionProofInvalid = new(
+        "DataRights.CorrectionExecutionProofInvalid",
+        "The correction owner proof is invalid.");
+    public static readonly Error CorrectionExecutionExpired = new(
+        "DataRights.CorrectionExecutionExpired",
+        "The correction execution claim has expired.");
     public static readonly Error DecisionActorCannotExecute = new(
         "DataRights.DecisionActorCannotExecute",
         "The decision actor cannot execute this anonymisation.");

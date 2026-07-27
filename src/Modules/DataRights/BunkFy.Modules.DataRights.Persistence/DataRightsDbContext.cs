@@ -12,6 +12,8 @@ public sealed class DataRightsDbContext(
     IScopeContext scopeContext) : ScopeAwareDbContext<DataRightsDbContext>(options, scopeContext)
 {
     public DbSet<DataRightsCase> Cases => this.Set<DataRightsCase>();
+    public DbSet<DataRightsCorrectionExecution> CorrectionExecutions =>
+        this.Set<DataRightsCorrectionExecution>();
     public DbSet<DataRightsExecutionBatch> ExecutionBatches =>
         this.Set<DataRightsExecutionBatch>();
     public DbSet<DataRightsExportArtifact> ExportArtifacts =>

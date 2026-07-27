@@ -43,6 +43,10 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationRestoreContributor,
                 ReservationDataRightsAnonymisationRestoreContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsCorrectionPolicyContributor,
+                ReservationDataRightsCorrectionPolicyContributor>());
         services.AddIntegrationEventHandler<InventoryAllocationConfirmedIntegrationEvent, InventoryAllocationConfirmedHandler>(
             ReservationsModuleMetadata.Name,
             InventoryModuleMetadata.Name);
