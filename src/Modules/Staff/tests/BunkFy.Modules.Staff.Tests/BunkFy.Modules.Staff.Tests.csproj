@@ -11,6 +11,7 @@
     <PackageReference Include="xunit.runner.visualstudio"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Api\BunkFy.Modules.Staff.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.AdminApi\BunkFy.Modules.Staff.AdminApi.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Application\BunkFy.Modules.Staff.Application.csproj" />

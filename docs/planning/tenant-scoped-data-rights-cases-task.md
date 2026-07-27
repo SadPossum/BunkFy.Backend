@@ -1,6 +1,6 @@
 # Tenant-Scoped Data Rights Cases Task
 
-Status: completed locally; exact-commit CI pending publication
+Status: published; local and exact-commit production proof complete
 
 ## Goal
 
@@ -229,6 +229,13 @@ existing Guest and Tenant Termination cases are unchanged.
   drift, 2,777 non-Docker tests, 61 Docker tests, 65 architecture tests, and
   the web contract check, typecheck, lint, 114 tests, and production build.
   GMA framework, module, and extension source remains unchanged.
+- Backend commit `db72d55b85eda173d5f629d55b2e0f3279748700`
+  passed Windows and Ubuntu validation in run `30233901198` and Docker
+  verification in run `30233901197`. Web contract commit
+  `b06157bdd20c9ca20ac86ec1c2fe76243e603d61` passed run `30233920952`.
+  Product root commit `4e2f2c9759323a8ea2b3f93fe9cf75200264ca4a`
+  passed validation, Security Baseline, and CodeQL in runs `30234447941`,
+  `30234447946`, and `30234447906`.
 
 ## Deferred
 

@@ -11,6 +11,7 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.Entities;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
@@ -102,6 +103,14 @@ public sealed class StaffPersonalDataCatalogTests
         {
             AssertType(type, surface);
         }
+
+        AssertType(
+            typeof(StaffProfileDataRightsExport),
+            PersonalDataSurface.DataRightsExport);
+        AssertType(
+            typeof(StaffAssignmentDataRightsExport),
+            PersonalDataSurface.DataRightsExport,
+            nameof(StaffAssignmentDataRightsExport.RecordVersion));
     }
 
     [Fact]
@@ -168,15 +177,20 @@ public sealed class StaffPersonalDataCatalogTests
         Assert.Equal(expected, PersonalDataInventoryRenderer.RenderMarkdown(Catalogue));
     }
 
-    private static void AssertType(Type type, PersonalDataSurface surface)
+    private static void AssertType(
+        Type type,
+        PersonalDataSurface surface,
+        params string[] nonPersonalMembers)
     {
+        HashSet<string> explicitExclusions = new(nonPersonalMembers, StringComparer.Ordinal);
         foreach (PropertyInfo property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
             bool isIntegrationEventMetadata = typeof(IIntegrationEvent).IsAssignableFrom(type) &&
                                               property.Name is "EventName" or "Version";
             if (isIntegrationEventMetadata ||
-                (NonPersonalMembers.TryGetValue(type, out HashSet<string>? excluded) &&
-                 excluded.Contains(property.Name)))
+                explicitExclusions.Contains(property.Name) ||
+                (NonPersonalMembers.TryGetValue(type, out HashSet<string>? configuredExclusions) &&
+                 configuredExclusions.Contains(property.Name)))
             {
                 continue;
             }

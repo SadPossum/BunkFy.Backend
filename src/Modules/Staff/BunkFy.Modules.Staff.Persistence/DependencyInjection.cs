@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Staff.Persistence;
 
+using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -25,6 +26,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IStaffMemberRepository, StaffMemberRepository>();
         builder.Services.TryAddScoped<IStaffPropertyAudienceReader, StaffPropertyAudienceReader>();
         builder.Services.TryAddScoped<IStaffPropertyProjectionRepository, StaffPropertyProjectionRepository>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectDiscoveryContributor,
+                StaffDataRightsDiscoveryContributor>());
+        StaffDataRightsExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                StaffDataRightsExportContributor>());
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>,
             StaffPropertiesProjectionRebuildWriter>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, StaffUnitOfWork>());
