@@ -17,6 +17,8 @@ using ProcessingLedgerEntry =
     DataRights.Domain.Entities.DataRightsProcessingLedgerEntry;
 using ProcessingLedgerSnapshot =
     DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot;
+using ExportAuditEntry =
+    DataRights.Domain.Entities.DataRightsExportAuditEntry;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsPersonalDataCatalogTests
@@ -48,6 +50,8 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(CreateDataRightsCaseCommand),
             typeof(RecordControllerRoutingCommand),
             typeof(RecordRequesterVerificationCommand),
+            typeof(PrepareDataRightsExportDownloadCommand),
+            typeof(RequestDataRightsExportCommand),
             typeof(RequireDataRightsReviewCommand),
             typeof(SelectDataRightsSubjectCommand),
             typeof(StartDataRightsAnonymisationExecutionCommand),
@@ -73,6 +77,18 @@ public sealed class DataRightsPersonalDataCatalogTests
             nameof(DataRightsCase.ExecutionStartedBy),
             PersonalDataSurface.Persistence);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.LastChangedBy), PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsExportArtifact),
+            nameof(DataRightsExportArtifact.RequestedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsExportArtifact),
+            nameof(DataRightsExportArtifact.GenerationActor),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(ExportAuditEntry),
+            nameof(ExportAuditEntry.ActorId),
+            PersonalDataSurface.Persistence);
         AssertBinding(
             typeof(DataRightsExecutionBatch),
             nameof(DataRightsExecutionBatch.CreatedBy),
@@ -178,6 +194,19 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsExportField),
             nameof(DataRightsExportField.Value),
             PersonalDataSurface.DataRightsExport);
+    }
+
+    [Fact]
+    public void Protected_export_digests_are_explicitly_classified()
+    {
+        AssertBinding(
+            typeof(DataRightsExportArtifact),
+            nameof(DataRightsExportArtifact.SelectionSha256),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsExportArtifact),
+            nameof(DataRightsExportArtifact.PlaintextSha256),
+            PersonalDataSurface.Persistence);
     }
 
     [Fact]
@@ -357,6 +386,50 @@ public sealed class DataRightsPersonalDataCatalogTests
                 "WorkItemId"
             ],
             typeof(ExecuteDataRightsAnonymisationPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "ArtifactId",
+                "CaseId",
+                "CaseType",
+                "DecisionRevision",
+                "EventId",
+                "EventName",
+                "ExpiresAtUtc",
+                "OccurredAtUtc",
+                "PropertyId",
+                "ScopeId",
+                "TenantId",
+                "Version"
+            ],
+            typeof(DataRightsExportArtifactRequestedIntegrationEvent)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "ArtifactId",
+                "CaseId",
+                "CaseType",
+                "DecisionRevision",
+                "PropertyId"
+            ],
+            typeof(GenerateDataRightsExportPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "ArtifactId",
+                "CaseId",
+                "CaseType",
+                "DecisionRevision",
+                "ExpiresAtUtc",
+                "PropertyId"
+            ],
+            typeof(DeleteExpiredDataRightsExportArtifactPayload)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Select(property => property.Name)
                 .Order(StringComparer.Ordinal));

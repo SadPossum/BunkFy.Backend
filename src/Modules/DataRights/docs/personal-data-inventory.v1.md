@@ -1,4 +1,4 @@
-# data-rights Personal-Data Inventory v11
+# data-rights Personal-Data Inventory v13
 
 Generated from `data-rights.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -12,6 +12,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights-case-audit | tenant-property-data-rights-case | permission:data-rights.cases.manage<br>permission:data-rights.cases.read<br>system:authorized-audit-consumer | permission:data-rights.cases.create<br>permission:data-rights.cases.discover<br>permission:data-rights.cases.manage<br>permission:data-rights.cases.review |
 | data-rights-owner-export | tenant-property-selected-subject | system:data-rights.export-assembler | system:authorized-owner-export |
 | data-rights-processing-ledger | tenant-data-rights-processing-proof | permission:data-rights.cases.manage<br>system:authorized-audit-consumer<br>system:data-rights-restore-gate | system:data-rights-ledger-writer<br>system:data-rights-restore-gate |
+| data-rights-protected-export-artifact | tenant-or-property-data-rights-artifact | permission:data-rights.export<br>permission:data-rights.export.download<br>system:authorized-audit-consumer<br>system:data-rights.export-generator | permission:data-rights.export<br>system:data-rights.export-cleanup<br>system:data-rights.export-generator |
 
 ## Retention Policies
 
@@ -19,6 +20,8 @@ Engineering metadata is not legal or country-launch approval.
 |---|---|---|---|---|
 | data-rights-case-lifecycle | engineering-default | data-rights-case-created | approved-case-retention-completed-or-tenant-termination | retain-minimum-required-audit-evidence |
 | data-rights-processing-ledger | engineering-default | owner-processing-proof-confirmed | approved-proof-retention-completed-or-tenant-termination | retain-minimum-required-processing-proof |
+| protected-access-export | engineering-default | export-generation-requested | 1.00:00:00 | not-applicable-delete-at-expiry |
+| protected-access-export-proof | engineering-default | export-generation-requested | approved-export-proof-retention-completed-or-tenant-termination | retain-minimum-required-export-proof |
 | transient-owner-export-fragment | engineering-default | owner-export-started | 01:00:00 | not-applicable |
 | transient-request | engineering-default | request-accepted | request-completed | not-applicable |
 | transient-response | engineering-default | response-created | response-completed | not-applicable |
@@ -29,6 +32,8 @@ Engineering metadata is not legal or country-launch approval.
 |---|---|---|---|---|
 | guest-subject-discovery | include-selected-coordinates-in-authorized-case-export | re-run-discovery-against-authoritative-owner | exclude-coordinate-from-selection-and-downstream-work | remove-selected-coordinate-when-approved-case-retention-permits |
 | processing-ledger-proof | exclude-opaque-internal-pseudonym-from-subject-export | append-superseding-processing-proof | retain-minimum-required-processing-proof | retain-keyed-pseudonym-as-minimum-required-deletion-proof |
+| protected-access-export | deliver-only-through-authorized-step-up-download | generate-a-new-artifact-from-a-new-approved-case | deny-delivery-and-expire-the-artifact | delete-ciphertext-after-expiry-or-approved-early-removal |
+| protected-access-export-proof | exclude-internal-integrity-digests-from-subject-export | append-superseding-export-proof | retain-minimum-required-export-proof | retain-minimum-proof-until-approved-retention-completes |
 | selected-owner-export | include-in-authorized-subject-export | route-to-authoritative-owner | discard-uncommitted-export-fragment | expire-export-fragment |
 | staff-audit-attribution | include-in-authorized-staff-audit-export | append-corrective-case-action | retain-minimum-required-audit-attribution | pseudonymize-subject-when-approved-retention-permits |
 | staff-subject-discovery | include-selected-coordinate-in-authorized-staff-export | re-run-discovery-against-authoritative-owner | exclude-coordinate-from-selection-and-downstream-work | discard-transient-lookup-after-request-completion |
@@ -47,6 +52,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.guest-subject-selected-at | guest | lifecycle | standard | authorized-change-traceability<br>case-subject-selection | operator-selection | data-rights | customer-controller-bunk-fy-processor | data-rights-case-audit | guest.profile.lifecycle | data-rights-case-lifecycle | guest-subject-discovery | api-response<br>persistence | customer-api<br>intra-module | engineering-default |
 | data-rights.owner-export-envelope | subject-scoped | structured-payload | unstructured | authorized-subject-export<br>protected-export-assembly | authorized-owner-export | selected-owner-module | customer-controller-bunk-fy-processor | data-rights-owner-export | data-rights.owner-export | transient-owner-export-fragment | selected-owner-export | data-rights-export | cross-module | engineering-default |
 | data-rights.owner-restore-proof | guest | linked-operational | elevated | checkpoint-accountability<br>restore-integrity<br>tombstone-reapplication | owner-anonymisation-restore-proof<br>verified-protected-processing-ledger | data-rights | customer-controller-bunk-fy-processor | data-rights-processing-ledger | guest.profile.identifier | data-rights-processing-ledger | processing-ledger-proof | integration-command<br>persistence<br>projection-export | cross-module<br>intra-module<br>processor | engineering-default |
+| data-rights.protected-export-integrity | subject-scoped | pseudonymous-identifier | elevated | immutable-selection-verification<br>protected-artifact-integrity-verification | assembled-export-document-digest<br>selected-subject-coordinate-digest | data-rights | customer-controller-bunk-fy-processor | data-rights-protected-export-artifact | data-rights.protected-export-artifact | protected-access-export-proof | protected-access-export-proof | persistence | intra-module | engineering-default |
 | data-rights.staff-account-subject-id | staff | linked-operational | elevated | account-to-staff-correlation<br>authorized-subject-discovery | auth-authoritative-owner<br>request-input | auth | customer-controller-bunk-fy-processor | data-rights-case-audit | staff.profile.identifier | transient-request | staff-subject-discovery | api-input<br>application-query | cross-module<br>customer-api<br>intra-module | engineering-default |
 | data-rights.staff-actor-reference | staff | audit-attribution | standard | authorized-change-traceability<br>case-accountability | authenticated-access-subject | auth | customer-controller-bunk-fy-processor | data-rights-case-audit | staff.audit-attribution | data-rights-case-lifecycle | staff-audit-attribution | application-command<br>application-query<br>integration-command<br>persistence | cross-module<br>intra-module | engineering-default |
 
@@ -121,15 +127,19 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.owner-restore-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsRestoreCheckpoint | TenantSequence | persistence | data-rights-processing-ledger |
 | data-rights.owner-restore-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsRestoreCheckpoint | Version | persistence | data-rights-processing-ledger |
 | data-rights.owner-restore-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot | ResultingRecordVersion | persistence | data-rights-processing-ledger |
+| data-rights.protected-export-integrity | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact | PlaintextSha256 | persistence | protected-access-export-proof |
+| data-rights.protected-export-integrity | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact | SelectionSha256 | persistence | protected-access-export-proof |
 | data-rights.staff-account-subject-id | BunkFy.Modules.DataRights.Api | BunkFy.Modules.DataRights.Api.DataRightsDiscoveryEndpoints+DiscoverDataRightsSubjectsRequest | AccountSubjectId | api-input | transient-request |
 | data-rights.staff-account-subject-id | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsSubjectLookup | AccountSubjectId | application-query | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.BeginDataRightsDecisionCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.BeginDataRightsDiscoveryCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.CancelDataRightsCaseCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.CreateDataRightsCaseCommand | ActorId | application-command | transient-request |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.PrepareDataRightsExportDownloadCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RecordControllerRoutingCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RecordDataRightsDecisionCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RecordRequesterVerificationCommand | ActorId | application-command | transient-request |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RequestDataRightsExportCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.RequireDataRightsReviewCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.SelectDataRightsSubjectCommand | ActorId | application-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Application | BunkFy.Modules.DataRights.Application.Commands.StartDataRightsAnonymisationExecutionCommand | ActorId | application-command | transient-request |
@@ -142,4 +152,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | LastChangedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionBatch | CreatedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionWorkItem | CreatedBy | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact | GenerationActor | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact | RequestedBy | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsExportAuditEntry | ActorId | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate | SelectedBy | persistence | data-rights-case-lifecycle |

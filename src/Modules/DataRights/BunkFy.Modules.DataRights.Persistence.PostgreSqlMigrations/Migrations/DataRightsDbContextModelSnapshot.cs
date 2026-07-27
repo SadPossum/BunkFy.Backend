@@ -130,7 +130,7 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_cases_decision_state", "(\"Decision\" = 0 AND \"Status\" IN (1, 2, 3, 4, 11)) OR (\"Decision\" = 1 AND \"Status\" IN (5, 7, 8, 9, 10, 11)) OR (\"Decision\" = 2 AND \"Status\" = 6)");
 
-                            t.HasCheckConstraint("CK_data_rights_cases_execution", "(\"ExecutionRevision\" IS NULL AND \"ExecutionStartedBy\" IS NULL AND \"ExecutionStartedAtUtc\" IS NULL AND \"Status\" IN (1, 2, 3, 4, 5, 6, 11)) OR (\"ExecutionRevision\" IS NOT NULL AND \"ExecutionRevision\" > \"DecisionRevision\" AND \"ExecutionRevision\" <= \"Version\" AND \"ExecutionStartedBy\" IS NOT NULL AND \"ExecutionStartedAtUtc\" IS NOT NULL AND \"Decision\" = 1 AND \"Status\" IN (7, 8, 9, 10, 11))");
+                            t.HasCheckConstraint("CK_data_rights_cases_execution", "(\"ExecutionRevision\" IS NULL AND \"ExecutionStartedBy\" IS NULL AND \"ExecutionStartedAtUtc\" IS NULL AND (\"Status\" IN (1, 2, 3, 4, 5, 6, 11) OR (\"Status\" = 9 AND \"Decision\" = 1 AND \"RequestedOperations\" = 1))) OR (\"ExecutionRevision\" IS NOT NULL AND \"ExecutionRevision\" > \"DecisionRevision\" AND \"ExecutionRevision\" <= \"Version\" AND \"ExecutionStartedBy\" IS NOT NULL AND \"ExecutionStartedAtUtc\" IS NOT NULL AND \"Decision\" = 1 AND \"Status\" IN (7, 8, 9, 10, 11))");
 
                             t.HasCheckConstraint("CK_data_rights_cases_execution_attribution", "\"ExecutionStartedBy\" IS NULL OR (length(trim(\"ExecutionStartedBy\")) > 0 AND \"ExecutionStartedAtUtc\" >= \"DecidedAtUtc\" AND \"ExecutionStartedAtUtc\" <= \"LastChangedAtUtc\")");
 
@@ -395,6 +395,195 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                             t.HasCheckConstraint("CK_data_rights_execution_work_items_timestamps", "(\"LastAttemptAtUtc\" IS NULL OR \"LastAttemptAtUtc\" >= \"CreatedAtUtc\") AND (\"OwnerCompletedAtUtc\" IS NULL OR \"OwnerCompletedAtUtc\" >= \"CreatedAtUtc\") AND (\"OutcomeAtUtc\" IS NULL OR \"OutcomeAtUtc\" >= \"CreatedAtUtc\")");
 
                             t.HasCheckConstraint("CK_data_rights_execution_work_items_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AvailableAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CaseKind")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("DecisionRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletionRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletionStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("EncryptedByteLength")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("EncryptionKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("FormatVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GenerationActor")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("GenerationAttempt")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("GenerationRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("GenerationStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlaintextSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid?>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("SelectedSubjectCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SelectionSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "CaseId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "State", "ExpiresAtUtc");
+
+                    b.ToTable("export_artifacts", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_failure_shape", "(\"State\" = 4 AND \"FailureCode\" IS NOT NULL) OR (\"State\" <> 4 AND \"FailureCode\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_generation_shape", "(\"GenerationActor\" IS NULL AND \"GenerationRunId\" IS NULL AND \"GenerationAttempt\" IS NULL AND \"GenerationStartedAtUtc\" IS NULL) OR (\"GenerationActor\" IS NOT NULL AND \"GenerationRunId\" IS NOT NULL AND \"GenerationAttempt\" > 0 AND \"GenerationStartedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_lifecycle_shape", "(\"State\" = 1 AND \"GenerationActor\" IS NULL AND \"StorageKey\" IS NULL AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 2 AND \"GenerationActor\" IS NOT NULL AND \"GenerationRunId\" IS NOT NULL AND \"GenerationAttempt\" > 0 AND \"GenerationStartedAtUtc\" IS NOT NULL AND \"StorageKey\" IS NULL AND \"EncryptedByteLength\" IS NULL AND \"PlaintextSha256\" IS NULL AND \"EncryptionKeyVersion\" IS NULL AND \"FormatVersion\" IS NULL AND \"AvailableAtUtc\" IS NULL AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 4 AND \"GenerationActor\" IS NOT NULL AND \"GenerationRunId\" IS NOT NULL AND \"GenerationAttempt\" > 0 AND \"GenerationStartedAtUtc\" IS NOT NULL AND \"StorageKey\" IS NULL AND \"FailureCode\" IS NOT NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 3 AND \"GenerationActor\" IS NOT NULL AND \"StorageKey\" IS NOT NULL AND \"EncryptedByteLength\" > 0 AND \"PlaintextSha256\" IS NOT NULL AND \"EncryptionKeyVersion\" > 0 AND \"FormatVersion\" > 0 AND \"AvailableAtUtc\" IS NOT NULL AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 5 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 6 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NOT NULL AND \"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 7 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NOT NULL AND \"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_revision", "\"DecisionRevision\" > 0");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_scope", "(\"CaseKind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"CaseKind\" = 3 AND \"PropertyId\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_state", "\"State\" BETWEEN 1 AND 7");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_storage_shape", "(\"StorageKey\" IS NULL AND \"EncryptedByteLength\" IS NULL AND \"PlaintextSha256\" IS NULL AND \"EncryptionKeyVersion\" IS NULL AND \"FormatVersion\" IS NULL AND \"AvailableAtUtc\" IS NULL) OR (\"GenerationActor\" IS NOT NULL AND \"StorageKey\" IS NOT NULL AND \"EncryptedByteLength\" > 0 AND \"PlaintextSha256\" IS NOT NULL AND \"EncryptionKeyVersion\" > 0 AND \"FormatVersion\" > 0 AND \"AvailableAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_subject_count", "\"SelectedSubjectCount\" BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_timestamps", "\"ExpiresAtUtc\" > \"RequestedAtUtc\" AND (\"GenerationStartedAtUtc\" IS NULL OR (\"GenerationStartedAtUtc\" >= \"RequestedAtUtc\" AND \"GenerationStartedAtUtc\" < \"ExpiresAtUtc\")) AND (\"AvailableAtUtc\" IS NULL OR (\"GenerationStartedAtUtc\" IS NOT NULL AND \"AvailableAtUtc\" >= \"GenerationStartedAtUtc\" AND \"AvailableAtUtc\" < \"ExpiresAtUtc\")) AND (\"DeletionStartedAtUtc\" IS NULL OR \"DeletionStartedAtUtc\" >= \"ExpiresAtUtc\") AND (\"DeletedAtUtc\" IS NULL OR (\"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" >= \"DeletionStartedAtUtc\"))");
+
+                            t.HasCheckConstraint("CK_data_rights_export_artifacts_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Entities.DataRightsExportAuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ArtifactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CaseKind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OutcomeCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "ArtifactId", "OccurredAtUtc", "Id");
+
+                    b.HasIndex("ScopeId", "CaseId", "OccurredAtUtc", "Id");
+
+                    b.ToTable("export_audit_entries", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_data_rights_export_audit_action", "\"Action\" BETWEEN 1 AND 8");
+
+                            t.HasCheckConstraint("CK_data_rights_export_audit_scope", "(\"CaseKind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"CaseKind\" = 3 AND \"PropertyId\" IS NULL)");
                         });
                 });
 
@@ -996,6 +1185,16 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "CaseId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact", b =>
+                {
                     b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase", null)
                         .WithMany()
                         .HasForeignKey("ScopeId", "CaseId")

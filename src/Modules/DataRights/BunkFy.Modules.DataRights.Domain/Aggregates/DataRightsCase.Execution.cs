@@ -6,6 +6,44 @@ using Gma.Framework.Results;
 
 public sealed partial class DataRightsCase
 {
+    public Result CompleteAccessExport(
+        long decisionRevision,
+        string actorId,
+        DateTimeOffset nowUtc)
+    {
+        if (this.Status == DataRightsCaseState.Completed &&
+            this.DecisionRevision == decisionRevision &&
+            this.RequestedOperations == DataRightsCaseOperation.AccessExport)
+        {
+            return Result.Success();
+        }
+
+        Result ready = this.EnsureTransition(
+            this.Version,
+            actorId,
+            nowUtc,
+            DataRightsCaseState.Approved);
+        if (ready.IsFailure)
+        {
+            return ready;
+        }
+
+        if (this.Decision != DataRightsCaseDecision.Approved ||
+            this.DecisionReason !=
+                DataRightsCaseDecisionReason.RequestValidated ||
+            this.RequestedOperations !=
+                DataRightsCaseOperation.AccessExport ||
+            this.DecisionRevision != decisionRevision)
+        {
+            return Result.Failure(
+                DataRightsDomainErrors.AccessExportCompletionInvalid);
+        }
+
+        this.Status = DataRightsCaseState.Completed;
+        this.CompleteChange(actorId, nowUtc);
+        return Result.Success();
+    }
+
     public Result BeginAnonymisationExecution(
         long expectedVersion,
         string actorId,

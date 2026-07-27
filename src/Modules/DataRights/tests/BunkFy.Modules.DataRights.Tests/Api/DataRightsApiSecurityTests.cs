@@ -20,9 +20,14 @@ public sealed class DataRightsApiSecurityTests
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.Services.Configure<DataRightsApiSecurityOptions>(options =>
-            options.AnonymisationExecutionAssurance = new AuthenticationAssuranceRequirement(
+        {
+            AuthenticationAssuranceRequirement assurance = new(
                 ["urn:test:acr:mfa"],
-                TimeSpan.FromMinutes(10)));
+                TimeSpan.FromMinutes(10));
+            options.AnonymisationExecutionAssurance = assurance;
+            options.ExportGenerationAssurance = assurance;
+            options.ExportDownloadAssurance = assurance;
+        });
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         await using WebApplication app = builder.Build();
@@ -95,12 +100,42 @@ public sealed class DataRightsApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/execution");
+        AssertPermission(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/export",
+            DataRightsAdminPermissionCodes.Export);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export",
+            DataRightsAdminPermissionCodes.Export);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export");
+        AssertPermission(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/download",
+            DataRightsAdminPermissionCodes.DownloadExport);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/download");
     }
 
     [Fact]
     public async Task Tenant_case_endpoints_use_only_tenant_scoped_permissions()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<DataRightsApiSecurityOptions>(options =>
+        {
+            AuthenticationAssuranceRequirement assurance = new(
+                maxAuthenticationAge: TimeSpan.FromMinutes(10));
+            options.ExportGenerationAssurance = assurance;
+            options.ExportDownloadAssurance = assurance;
+        });
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         await using WebApplication app = builder.Build();
@@ -160,6 +195,18 @@ public sealed class DataRightsApiSecurityTests
                 HttpMethods.Post,
                 $"{cases}/{{caseId:guid}}/subjects/unselect",
                 DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Get,
+                $"{cases}/{{caseId:guid}}/export",
+                DataRightsAdminPermissionCodes.Export),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/export",
+                DataRightsAdminPermissionCodes.Export),
+            (
+                HttpMethods.Get,
+                $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/download",
+                DataRightsAdminPermissionCodes.DownloadExport),
         ];
 
         foreach ((string method, string route, string permissionCode) in expected)
@@ -183,6 +230,14 @@ public sealed class DataRightsApiSecurityTests
                 endpoint.RoutePattern.RawText?.StartsWith(
                     $"{cases}/{{caseId:guid}}/execution",
                     StringComparison.Ordinal) == true);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export");
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/download");
     }
 
     [Fact]
@@ -246,6 +301,16 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/execution",
             typeof(DataRightsExecutionDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/export",
+            typeof(DataRightsExportArtifactDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export",
+            typeof(DataRightsExportArtifactDto));
     }
 
     private static void AssertPermission(

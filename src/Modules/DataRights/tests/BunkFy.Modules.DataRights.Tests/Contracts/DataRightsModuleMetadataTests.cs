@@ -27,7 +27,7 @@ public sealed class DataRightsModuleMetadataTests
         ModuleProfileDescriptor profile = Assert.Single(
             DataRightsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(DataRightsProfiles.DefaultName, profile.ProfileName);
-        Assert.Equal(7, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(8, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
@@ -52,10 +52,24 @@ public sealed class DataRightsModuleMetadataTests
                 subscription.EventType ==
                     DataRightsAnonymisationWorkItemTerminalIntegrationEvent.EventType &&
                 subscription.ProducerModule == DataRightsModuleMetadata.Name);
-        Assert.Equal(2, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    DataRightsExportArtifactRequestedIntegrationEvent.EventType &&
+                subscription.ProducerModule == DataRightsModuleMetadata.Name);
+        Assert.Equal(4, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetTasks(),
             task => task.Name == ExecuteDataRightsAnonymisationPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task => task.Name == GenerateDataRightsExportPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                DeleteExpiredDataRightsExportArtifactPayload.TaskName);
     }
 
     [Fact]
@@ -76,5 +90,8 @@ public sealed class DataRightsModuleMetadataTests
         Assert.Equal(
             Enum.GetValues<DataRightsExecutionWorkItemStatus>().Select(value => (int)value),
             Enum.GetValues<DataRightsExecutionWorkItemState>().Select(value => (int)value));
+        Assert.Equal(
+            Enum.GetValues<DataRightsExportArtifactStatus>().Select(value => (int)value),
+            Enum.GetValues<DataRightsExportArtifactState>().Select(value => (int)value));
     }
 }

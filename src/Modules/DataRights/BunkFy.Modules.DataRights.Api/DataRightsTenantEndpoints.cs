@@ -11,6 +11,7 @@ using Gma.Framework.Api.Results;
 using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
+using Gma.Framework.Security;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -18,7 +19,11 @@ using Microsoft.AspNetCore.Routing;
 
 internal static class DataRightsTenantEndpoints
 {
-    public static void Map(IEndpointRouteBuilder endpoints, string moduleName)
+    public static void Map(
+        IEndpointRouteBuilder endpoints,
+        string moduleName,
+        AuthenticationAssuranceRequirement? exportGenerationAssurance,
+        AuthenticationAssuranceRequirement? exportDownloadAssurance)
     {
         RouteGroupBuilder group = endpoints
             .MapGroup("/api/data-rights/tenant/cases")
@@ -231,6 +236,10 @@ internal static class DataRightsTenantEndpoints
             .RequireTenantPermission(DataRightsAdminPermissionCodes.Manage);
 
         MapDiscovery(group);
+        DataRightsExportEndpoints.MapTenant(
+            group,
+            exportGenerationAssurance,
+            exportDownloadAssurance);
     }
 
     private static void MapDiscovery(RouteGroupBuilder group)

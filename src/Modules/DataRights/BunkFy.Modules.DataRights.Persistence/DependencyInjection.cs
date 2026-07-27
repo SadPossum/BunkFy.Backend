@@ -32,6 +32,12 @@ public static class DependencyInjection
                 DataRightsMigrations.HistoryTable));
         builder.Services.TryAddScoped<IDataRightsCaseRepository, DataRightsCaseRepository>();
         builder.Services.TryAddScoped<
+            IDataRightsExportArtifactRepository,
+            DataRightsExportArtifactRepository>();
+        builder.Services.TryAddScoped<
+            IDataRightsExportAuditSink,
+            DataRightsExportAuditSink>();
+        builder.Services.TryAddScoped<
             IDataRightsExecutionBatchRepository,
             DataRightsExecutionBatchRepository>();
         builder.Services.TryAddScoped<
@@ -44,6 +50,7 @@ public static class DependencyInjection
             IDataRightsRestoreCheckpointRepository,
             DataRightsRestoreCheckpointRepository>();
         AddProtectedLedgerServices(builder);
+        AddProtectedExportServices(builder);
         builder.Services.TryAddScoped<
             IDataRightsPropertyProjectionRepository,
             DataRightsPropertyProjectionRepository>();
@@ -207,6 +214,49 @@ public static class DependencyInjection
             ServiceDescriptor.Singleton<
                 IHostedService,
                 DataRightsLedgerDeltaStartupValidator>());
+    }
+
+    private static void AddProtectedExportServices(
+        IHostApplicationBuilder builder)
+    {
+        bool isProduction = builder.Environment.IsProduction();
+        IConfigurationSection section = builder.Configuration.GetSection(
+            DataRightsExportArtifactOptions.SectionName);
+        bool useDevelopmentKey = !isProduction && !section.Exists();
+        builder.Services
+            .AddOptions<DataRightsExportArtifactOptions>()
+            .Bind(section)
+            .PostConfigure(options =>
+            {
+                if (useDevelopmentKey)
+                {
+                    options.ActiveKeyVersion = 1;
+                    options.Keys[1] =
+                        DataRightsExportArtifactOptions.DevelopmentKeyBase64;
+                }
+            })
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<DataRightsExportArtifactOptions>>(
+            new DataRightsExportArtifactOptionsValidator(isProduction)));
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<Gma.Framework.FileManagement.FileManagementOptions>,
+            DataRightsExportArtifactStorageOptionsValidator>());
+        builder.Services.TryAddSingleton<
+            IDataRightsExportArtifactProtector,
+            AesGcmDataRightsExportArtifactProtector>();
+        builder.Services.TryAddSingleton<
+            IDataRightsExportArtifactPolicy,
+            DataRightsExportArtifactPolicy>();
+        builder.Services.TryAddScoped<
+            IDataRightsExportArtifactGenerator,
+            ProtectedDataRightsExportArtifactGenerator>();
+        builder.Services.TryAddScoped<
+            IDataRightsExportArtifactReader,
+            ProtectedDataRightsExportArtifactReader>();
+        builder.Services.TryAddScoped<
+            IDataRightsExportArtifactObjectStore,
+            DataRightsExportArtifactObjectStore>();
     }
 
     private static DataRightsLedgerDeltaProvider ParseLedgerDeltaProvider(

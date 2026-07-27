@@ -65,6 +65,30 @@ public static class DataRightsApplicationErrors
     public static readonly Error RestoreStorageConflict = new(
         "DataRights.RestoreStorageConflict",
         "The external and database data-rights restore state conflict.");
+    public static readonly Error ExportNotEligible = new(
+        "DataRights.ExportNotEligible",
+        "The case is not eligible for protected access export generation.");
+    public static readonly Error ExportArtifactNotFound = new(
+        "DataRights.ExportArtifactNotFound",
+        "The protected export artifact was not found.");
+    public static readonly Error ExportArtifactAlreadyRequested = new(
+        "DataRights.ExportArtifactAlreadyRequested",
+        "The protected export was already requested with different coordinates.");
+    public static readonly Error ExportOwnerUnavailable = new(
+        "DataRights.ExportOwnerUnavailable",
+        "A selected data owner has no unique export contributor.");
+    public static readonly Error ExportGenerationConflict = new(
+        "DataRights.ExportGenerationConflict",
+        "The protected export generation no longer matches the approved case.");
+    public static readonly Error ExportArtifactNotAvailable = new(
+        "DataRights.ExportArtifactNotAvailable",
+        "The protected export artifact is not available for download.");
+    public static readonly Error ExportArtifactExpired = new(
+        "DataRights.ExportArtifactExpired",
+        "The protected export artifact has expired.");
+    public static readonly Error ExportArtifactVerificationFailed = new(
+        "DataRights.ExportArtifactVerificationFailed",
+        "The protected export artifact could not be verified.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;
@@ -88,4 +112,6 @@ public static class DataRightsApplicationErrors
         DataRightsDomainErrors.RestoreCheckpointInvalid;
     public static Error RestoreCheckpointConflict =>
         DataRightsDomainErrors.RestoreCheckpointConflict;
+    public static Error ExportArtifactTransitionInvalid =>
+        DataRightsDomainErrors.ExportArtifactTransitionInvalid;
 }

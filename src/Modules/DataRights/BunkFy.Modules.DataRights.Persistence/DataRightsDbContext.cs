@@ -14,6 +14,10 @@ public sealed class DataRightsDbContext(
     public DbSet<DataRightsCase> Cases => this.Set<DataRightsCase>();
     public DbSet<DataRightsExecutionBatch> ExecutionBatches =>
         this.Set<DataRightsExecutionBatch>();
+    public DbSet<DataRightsExportArtifact> ExportArtifacts =>
+        this.Set<DataRightsExportArtifact>();
+    public DbSet<DataRightsExportAuditEntry> ExportAuditEntries =>
+        this.Set<DataRightsExportAuditEntry>();
     public DbSet<DataRightsExecutionWorkItem> ExecutionWorkItems =>
         this.Set<DataRightsExecutionWorkItem>();
     public DbSet<DataRightsProcessingLedgerEntry> ProcessingLedgerEntries =>
@@ -29,7 +33,7 @@ public sealed class DataRightsDbContext(
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        this.EnsureProcessingLedgerIsAppendOnly();
+        this.EnsureAppendOnlyEntities();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -37,7 +41,7 @@ public sealed class DataRightsDbContext(
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
-        this.EnsureProcessingLedgerIsAppendOnly();
+        this.EnsureAppendOnlyEntities();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
@@ -48,15 +52,24 @@ public sealed class DataRightsDbContext(
         this.ApplyScopeConventions(modelBuilder);
     }
 
-    private void EnsureProcessingLedgerIsAppendOnly()
+    private void EnsureAppendOnlyEntities()
     {
-        bool mutationRequested = this.ChangeTracker
+        bool ledgerMutationRequested = this.ChangeTracker
             .Entries<DataRightsProcessingLedgerEntry>()
             .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
-        if (mutationRequested)
+        if (ledgerMutationRequested)
         {
             throw new InvalidOperationException(
                 "Data-rights processing ledger entries are append-only.");
+        }
+
+        bool exportAuditMutationRequested = this.ChangeTracker
+            .Entries<DataRightsExportAuditEntry>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+        if (exportAuditMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Data-rights export audit entries are append-only.");
         }
     }
 }

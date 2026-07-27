@@ -136,7 +136,7 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Production_hosts_allow_only_canonical_json_object_storage()
+    public void Production_hosts_allow_only_canonical_module_object_storage()
     {
         string[] settingsPaths =
         [
@@ -156,8 +156,15 @@ public sealed class HostCompositionGuardTests
                 .Select(value => value.GetString())
                 .OfType<string>()
                 .ToArray();
+            long maximumObjectBytes = document.RootElement
+                .GetProperty("FileManagement")
+                .GetProperty("MaximumObjectBytes")
+                .GetInt64();
 
-            Assert.Equal(["application/json"], allowedContentTypes);
+            Assert.Equal(
+                ["application/json", "application/octet-stream"],
+                allowedContentTypes);
+            Assert.Equal(64 * 1024 * 1024, maximumObjectBytes);
         }
     }
 
@@ -181,7 +188,13 @@ public sealed class HostCompositionGuardTests
                 .OfType<string>()
                 .ToArray();
 
-            Assert.Equal(["application/json", "message/rfc822"], allowedContentTypes);
+            Assert.Equal(
+                [
+                    "application/json",
+                    "application/octet-stream",
+                    "message/rfc822"
+                ],
+                allowedContentTypes);
         }
     }
 

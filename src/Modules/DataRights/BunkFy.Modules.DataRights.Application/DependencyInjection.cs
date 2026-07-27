@@ -35,6 +35,9 @@ public static class DependencyInjection
         services.TryAddScoped<
             IDataRightsRestoreCoordinator,
             DataRightsRestoreCoordinator>();
+        services.TryAddScoped<
+            IDataRightsExportAssembler,
+            DataRightsExportAssembler>();
         services.AddIntegrationEventHandler<
             PropertyCreatedIntegrationEvent,
             DataRightsPropertyCreatedHandler>(
@@ -82,9 +85,22 @@ public static class DependencyInjection
             DataRightsAnonymisationWorkItemTerminalHandler>(
                 DataRightsModuleMetadata.Name,
                 DataRightsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            DataRightsExportArtifactRequestedIntegrationEvent,
+            DataRightsExportArtifactRequestedHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.Name);
         services.AddTaskHandler<
             ExecuteDataRightsAnonymisationPayload,
             ExecuteDataRightsAnonymisationTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            GenerateDataRightsExportPayload,
+            GenerateDataRightsExportTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            DeleteExpiredDataRightsExportArtifactPayload,
+            DeleteExpiredDataRightsExportArtifactTaskHandler>(
                 DataRightsModuleMetadata.Name);
         return services;
     }

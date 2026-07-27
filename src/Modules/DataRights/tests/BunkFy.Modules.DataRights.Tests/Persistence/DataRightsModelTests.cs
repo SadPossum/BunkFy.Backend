@@ -62,6 +62,17 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_decision_state");
+        Assert.Equal(
+            "(\"ExecutionRevision\" IS NULL AND \"ExecutionStartedBy\" IS NULL AND " +
+            "\"ExecutionStartedAtUtc\" IS NULL AND " +
+            "(\"Status\" IN (1, 2, 3, 4, 5, 6, 11) OR " +
+            "(\"Status\" = 9 AND \"Decision\" = 1 AND \"RequestedOperations\" = 1))) OR " +
+            "(\"ExecutionRevision\" IS NOT NULL AND \"ExecutionRevision\" > \"DecisionRevision\" AND " +
+            "\"ExecutionRevision\" <= \"Version\" AND \"ExecutionStartedBy\" IS NOT NULL AND " +
+            "\"ExecutionStartedAtUtc\" IS NOT NULL AND \"Decision\" = 1 AND " +
+            "\"Status\" IN (7, 8, 9, 10, 11))",
+            designEntity.GetCheckConstraints().Single(
+                constraint => constraint.Name == "CK_data_rights_cases_execution").Sql);
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_approval_policy_evidence");
@@ -214,6 +225,149 @@ public sealed class DataRightsModelTests
                     nameof(DataRightsExecutionWorkItem.ScopeId),
                     nameof(DataRightsExecutionWorkItem.CaseId)
                 ]));
+    }
+
+    [Fact]
+    public void Export_artifact_model_enforces_scope_identity_and_state_shape()
+    {
+        using DataRightsDbContext dbContext = CreateDbContext(
+            $"data-rights-export-model-{Guid.NewGuid():N}",
+            new InMemoryDatabaseRoot(),
+            "tenant-a");
+        IEntityType artifact =
+            dbContext.Model.FindEntityType(typeof(DataRightsExportArtifact))!;
+        IEntityType designArtifact = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsExportArtifact))!;
+
+        Assert.True(
+            artifact.FindProperty(nameof(DataRightsExportArtifact.Version))!
+                .IsConcurrencyToken);
+        Assert.False(
+            artifact.FindProperty(nameof(DataRightsExportArtifact.ExpiresAtUtc))!
+                .IsNullable);
+        Assert.Equal(
+            DataRightsExportArtifact.Sha256Length,
+            artifact.FindProperty(nameof(DataRightsExportArtifact.SelectionSha256))!
+                .GetMaxLength());
+        Assert.Equal(
+            DataRightsExportArtifact.ActorIdMaxLength,
+            artifact.FindProperty(nameof(DataRightsExportArtifact.RequestedBy))!
+                .GetMaxLength());
+        Assert.Contains(artifact.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsExportArtifact.ScopeId),
+                nameof(DataRightsExportArtifact.IdempotencyKey)
+            ]));
+        Assert.Contains(artifact.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsExportArtifact.ScopeId),
+                nameof(DataRightsExportArtifact.CaseId)
+            ]));
+        Assert.Contains(
+            designArtifact.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_export_artifacts_generation_shape");
+        Assert.Contains(
+            designArtifact.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_export_artifacts_storage_shape");
+        Assert.Contains(
+            designArtifact.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_export_artifacts_lifecycle_shape");
+        Assert.Contains(
+            designArtifact.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_export_artifacts_timestamps");
+        Assert.Contains(
+            designArtifact.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_export_artifacts_failure_shape");
+        Assert.Contains(
+            designArtifact.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(DataRightsExportArtifact.ScopeId),
+                        nameof(DataRightsExportArtifact.CaseId)
+                    ]));
+    }
+
+    [Fact]
+    public async Task Export_audit_model_is_scoped_bounded_and_append_only()
+    {
+        string databaseName = $"data-rights-export-audit-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        DataRightsExportAuditEntry entry =
+            DataRightsExportAuditEntry.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                propertyId: null,
+                DataRightsCaseKind.StaffRights,
+                DataRightsExportAuditAction.Download,
+                "user:privacy",
+                "succeeded",
+                new DateTimeOffset(
+                    2026,
+                    7,
+                    27,
+                    12,
+                    0,
+                    0,
+                    TimeSpan.Zero)).Value;
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            IEntityType entity = writer.Model.FindEntityType(
+                typeof(DataRightsExportAuditEntry))!;
+            IEntityType designEntity = writer.GetService<IDesignTimeModel>()
+                .Model
+                .FindEntityType(typeof(DataRightsExportAuditEntry))!;
+            Assert.Equal(
+                DataRightsExportArtifact.ActorIdMaxLength,
+                entity.FindProperty(nameof(DataRightsExportAuditEntry.ActorId))!
+                    .GetMaxLength());
+            Assert.Equal(
+                DataRightsExportAuditEntry.OutcomeCodeMaxLength,
+                entity.FindProperty(nameof(DataRightsExportAuditEntry.OutcomeCode))!
+                    .GetMaxLength());
+            Assert.Contains(
+                designEntity.GetCheckConstraints(),
+                constraint =>
+                    constraint.Name == "CK_data_rights_export_audit_scope");
+            Assert.Contains(
+                designEntity.GetCheckConstraints(),
+                constraint =>
+                    constraint.Name == "CK_data_rights_export_audit_action");
+
+            writer.ExportAuditEntries.Add(entry);
+            await writer.SaveChangesAsync();
+            writer.Entry(entry).State = EntityState.Modified;
+            InvalidOperationException failure =
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => writer.SaveChangesAsync());
+            Assert.Contains("append-only", failure.Message);
+        }
+
+        await using DataRightsDbContext tenantB = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-b");
+        Assert.Empty(await tenantB.ExportAuditEntries.ToArrayAsync());
     }
 
     [Fact]

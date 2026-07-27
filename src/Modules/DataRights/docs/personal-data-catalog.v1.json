@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 11,
+  "catalogVersion": 13,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -28,6 +28,21 @@
       ],
       "writers": [
         "system:authorized-owner-export"
+      ]
+    },
+    {
+      "id": "data-rights-protected-export-artifact",
+      "scope": "tenant-or-property-data-rights-artifact",
+      "readers": [
+        "permission:data-rights.export",
+        "permission:data-rights.export.download",
+        "system:data-rights.export-generator",
+        "system:authorized-audit-consumer"
+      ],
+      "writers": [
+        "permission:data-rights.export",
+        "system:data-rights.export-generator",
+        "system:data-rights.export-cleanup"
       ]
     },
     {
@@ -79,6 +94,20 @@
       "startsAt": "owner-export-started",
       "duration": "01:00:00",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "protected-access-export",
+      "approvalState": "engineering-default",
+      "startsAt": "export-generation-requested",
+      "duration": "1.00:00:00",
+      "legalHoldBehavior": "not-applicable-delete-at-expiry"
+    },
+    {
+      "id": "protected-access-export-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "export-generation-requested",
+      "endsAt": "approved-export-proof-retention-completed-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-required-export-proof"
     }
   ],
   "rightsPolicies": [
@@ -116,6 +145,20 @@
       "correction": "route-to-authoritative-owner",
       "restriction": "discard-uncommitted-export-fragment",
       "erasure": "expire-export-fragment"
+    },
+    {
+      "id": "protected-access-export",
+      "export": "deliver-only-through-authorized-step-up-download",
+      "correction": "generate-a-new-artifact-from-a-new-approved-case",
+      "restriction": "deny-delivery-and-expire-the-artifact",
+      "erasure": "delete-ciphertext-after-expiry-or-approved-early-removal"
+    },
+    {
+      "id": "protected-access-export-proof",
+      "export": "exclude-internal-integrity-digests-from-subject-export",
+      "correction": "append-superseding-export-proof",
+      "restriction": "retain-minimum-required-export-proof",
+      "erasure": "retain-minimum-proof-until-approved-retention-completes"
     }
   ],
   "fields": [
@@ -251,6 +294,20 @@
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.RequestDataRightsExportCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.PrepareDataRightsExportDownloadCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
           "type": "BunkFy.Modules.DataRights.Application.Commands.SelectDataRightsSubjectCommand",
           "member": "ActorId",
           "surface": "application-command",
@@ -306,6 +363,24 @@
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase",
           "member": "LastChangedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact",
+          "member": "RequestedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact",
+          "member": "GenerationActor",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsExportAuditEntry",
+          "member": "ActorId",
           "surface": "persistence"
         },
         {
@@ -1077,6 +1152,47 @@
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsExportField",
           "member": "Value",
           "surface": "data-rights-export"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.protected-export-integrity",
+      "dataSubject": "subject-scoped",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "immutable-selection-verification",
+        "protected-artifact-integrity-verification"
+      ],
+      "sources": [
+        "selected-subject-coordinate-digest",
+        "assembled-export-document-digest"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-protected-export-artifact",
+      "countryPolicyKey": "data-rights.protected-export-artifact",
+      "retentionPolicy": "protected-access-export-proof",
+      "rightsPolicy": "protected-access-export-proof",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact",
+          "member": "SelectionSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact",
+          "member": "PlaintextSha256",
+          "surface": "persistence"
         }
       ]
     }

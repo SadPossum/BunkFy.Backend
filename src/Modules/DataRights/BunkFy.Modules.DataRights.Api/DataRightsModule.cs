@@ -282,7 +282,15 @@ public sealed class DataRightsModule : IModule
 
         DataRightsDiscoveryEndpoints.Map(group);
         DataRightsExecutionEndpoints.Map(group, security.AnonymisationExecutionAssurance);
-        DataRightsTenantEndpoints.Map(endpoints, this.Name);
+        DataRightsExportEndpoints.MapProperty(
+            group,
+            security.ExportGenerationAssurance,
+            security.ExportDownloadAssurance);
+        DataRightsTenantEndpoints.Map(
+            endpoints,
+            this.Name,
+            security.ExportGenerationAssurance,
+            security.ExportDownloadAssurance);
     }
 
     public sealed record CreateDataRightsCaseRequest(

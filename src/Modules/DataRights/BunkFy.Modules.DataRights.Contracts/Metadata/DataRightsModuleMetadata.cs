@@ -22,10 +22,13 @@ public static class DataRightsModuleMetadata
         "anonymisation-execution-prepared";
     public const string AnonymisationWorkItemTerminalHandlerName =
         "anonymisation-work-item-terminal";
+    public const string ExportArtifactRequestedHandlerName =
+        "export-artifact-requested";
     public const string PropertiesProjectionName = "properties";
     public const int PropertiesProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
     public const string AnonymisationWorkerGroup = "data-rights-workers";
+    public const string ExportWorkerGroup = "data-rights-workers";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -65,8 +68,13 @@ public static class DataRightsModuleMetadata
         .WithSubscription<DataRightsAnonymisationWorkItemTerminalIntegrationEvent>(
             Name,
             AnonymisationWorkItemTerminalHandlerName)
+        .WithSubscription<DataRightsExportArtifactRequestedIntegrationEvent>(
+            Name,
+            ExportArtifactRequestedHandlerName)
         .WithTask<RebuildDataRightsPropertiesPayload>()
         .WithTask<ExecuteDataRightsAnonymisationPayload>()
+        .WithTask<GenerateDataRightsExportPayload>()
+        .WithTask<DeleteExpiredDataRightsExportArtifactPayload>()
         .WithProfile(DataRightsProfiles.Default)
         .Build();
 

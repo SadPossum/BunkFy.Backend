@@ -69,7 +69,9 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             table.HasCheckConstraint(
                 "CK_data_rights_cases_execution",
                 "(\"ExecutionRevision\" IS NULL AND \"ExecutionStartedBy\" IS NULL AND " +
-                "\"ExecutionStartedAtUtc\" IS NULL AND \"Status\" IN (1, 2, 3, 4, 5, 6, 11)) OR " +
+                "\"ExecutionStartedAtUtc\" IS NULL AND " +
+                "(\"Status\" IN (1, 2, 3, 4, 5, 6, 11) OR " +
+                "(\"Status\" = 9 AND \"Decision\" = 1 AND \"RequestedOperations\" = 1))) OR " +
                 "(\"ExecutionRevision\" IS NOT NULL AND \"ExecutionRevision\" > \"DecisionRevision\" AND " +
                 "\"ExecutionRevision\" <= \"Version\" AND \"ExecutionStartedBy\" IS NOT NULL AND " +
                 "\"ExecutionStartedAtUtc\" IS NOT NULL AND \"Decision\" = 1 AND " +

@@ -121,4 +121,28 @@ public static class DataRightsDomainErrors
     public static readonly Error RestoreCheckpointConflict = new(
         "DataRights.RestoreCheckpointConflict",
         "The data-rights restore checkpoint changed during reconciliation.");
+    public static readonly Error ExportArtifactCoordinateInvalid = new(
+        "DataRights.ExportArtifactCoordinateInvalid",
+        "The protected export artifact coordinate is invalid.");
+    public static readonly Error ExportArtifactGenerationInvalid = new(
+        "DataRights.ExportArtifactGenerationInvalid",
+        "The protected export generation attempt is invalid.");
+    public static readonly Error ExportArtifactTransitionInvalid = new(
+        "DataRights.ExportArtifactTransitionInvalid",
+        "The protected export artifact cannot make that transition.");
+    public static readonly Error ExportArtifactCompletionInvalid = new(
+        "DataRights.ExportArtifactCompletionInvalid",
+        "The protected export artifact completion proof is invalid.");
+    public static readonly Error ExportArtifactFailureInvalid = new(
+        "DataRights.ExportArtifactFailureInvalid",
+        "The protected export artifact failure proof is invalid.");
+    public static readonly Error ExportArtifactDeletionInvalid = new(
+        "DataRights.ExportArtifactDeletionInvalid",
+        "The protected export artifact deletion proof is invalid.");
+    public static readonly Error ExportAuditEntryInvalid = new(
+        "DataRights.ExportAuditEntryInvalid",
+        "The protected export audit fact is invalid.");
+    public static readonly Error AccessExportCompletionInvalid = new(
+        "DataRights.AccessExportCompletionInvalid",
+        "The case does not contain the matching approved access export.");
 }

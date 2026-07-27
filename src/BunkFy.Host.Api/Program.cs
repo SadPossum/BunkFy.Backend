@@ -107,7 +107,12 @@ builder.Services.Configure<OrganizationsApiSecurityOptions>(
 builder.Services.Configure<IngestionApiSecurityOptions>(
     options => options.CredentialManagementAssurance = privilegedOperationAssurance);
 builder.Services.Configure<DataRightsApiSecurityOptions>(
-    options => options.AnonymisationExecutionAssurance = destructiveOperationAssurance);
+    options =>
+    {
+        options.AnonymisationExecutionAssurance = destructiveOperationAssurance;
+        options.ExportGenerationAssurance = privilegedOperationAssurance;
+        options.ExportDownloadAssurance = destructiveOperationAssurance;
+    });
 builder.AddModule<AccessControlApiModule>();
 
 builder.AddModule<TenancyModule>();

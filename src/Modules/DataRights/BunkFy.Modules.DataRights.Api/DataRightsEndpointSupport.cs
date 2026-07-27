@@ -35,6 +35,25 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.SubjectSelectionLimitReached.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectSelectionRequired.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.DecisionInvalid.Code, StatusCodes.Status400BadRequest),
+            new(DataRightsApplicationErrors.ExportNotEligible.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.ExportArtifactNotFound.Code, StatusCodes.Status404NotFound),
+            new(
+                DataRightsApplicationErrors.ExportArtifactAlreadyRequested.Code,
+                StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.ExportOwnerUnavailable.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.ExportGenerationConflict.Code, StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.ExportArtifactNotAvailable.Code,
+                StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.ExportArtifactExpired.Code,
+                StatusCodes.Status410Gone),
+            new(
+                DataRightsApplicationErrors.ExportArtifactVerificationFailed.Code,
+                StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.ExportArtifactTransitionInvalid.Code,
+                StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.ExecutionNotFound.Code, StatusCodes.Status404NotFound),
             new(DataRightsApplicationErrors.ExecutionAlreadyStarted.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.AnonymisationExecutionDenied.Code, StatusCodes.Status409Conflict),

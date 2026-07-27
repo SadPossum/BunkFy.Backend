@@ -1,6 +1,6 @@
 # Staff Data Rights Owner Capability Task
 
-Status: implemented; local verification complete; publication pending
+Status: published; local and exact-commit production proof complete
 
 ## Goal
 
@@ -176,6 +176,12 @@ then repeat the full gate once.
   zero-warning build, all migration drift checks, and 2,783 tests passed.
 - Complete Docker gate: 62 integration tests passed in 7 minutes 36 seconds,
   including the Staff PostgreSQL discovery/export path.
+- Backend commit `cc441f57e09344d80c20a44237fe30e4389f91a9`
+  passed Windows and Ubuntu validation in run `30237069841` and Docker
+  verification in run `30237069846`.
+- Product root commit `705e533907d498ef4864a4e597950cbd4532574d`
+  passed validation, Security Baseline, and CodeQL in runs `30237169850`,
+  `30237169843`, and `30237169821`.
 - The final evidence applies to the implementation; the status and evidence
   notes added afterward are documentation-only and do not require repeating
   unchanged expensive gates.

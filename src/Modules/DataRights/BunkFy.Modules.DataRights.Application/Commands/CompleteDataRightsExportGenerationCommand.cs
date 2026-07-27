@@ -1,0 +1,15 @@
+namespace BunkFy.Modules.DataRights.Application.Commands;
+
+using BunkFy.Modules.DataRights.Application.Models;
+using BunkFy.Modules.DataRights.Application.Ports;
+using Gma.Framework.Cqrs;
+
+public sealed record CompleteDataRightsExportGenerationCommand(
+    DataRightsCaseScope Scope,
+    Guid ArtifactId,
+    Guid CaseId,
+    long DecisionRevision,
+    Guid RunId,
+    int Attempt,
+    DataRightsProtectedExportArtifact ProtectedArtifact)
+    : ITransactionalCommand<Unit>, IDataRightsPersistenceRetryableCommand;
