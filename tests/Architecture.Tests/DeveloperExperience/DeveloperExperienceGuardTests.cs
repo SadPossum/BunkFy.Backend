@@ -293,6 +293,7 @@ public sealed partial class DeveloperExperienceGuardTests
             "<GmaModuleAdministrationRoot>$(GmaModulesRoot)administration\\src\\</GmaModuleAdministrationRoot>",
             "<GmaModuleFilesRoot>$(GmaModulesRoot)files\\src\\</GmaModuleFilesRoot>",
             "<GmaModuleNotificationsRoot>$(GmaModulesRoot)notifications\\src\\</GmaModuleNotificationsRoot>",
+            "<GmaModuleOrganizationsRoot>$(GmaModulesRoot)organizations\\src\\</GmaModuleOrganizationsRoot>",
             "<GmaModuleTaskRuntimeRoot>$(GmaModulesRoot)task-runtime\\src\\</GmaModuleTaskRuntimeRoot>",
             "<GmaModuleTenancyRoot>$(GmaModulesRoot)tenancy\\src\\</GmaModuleTenancyRoot>"
         ];
@@ -302,6 +303,21 @@ public sealed partial class DeveloperExperienceGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void Product_projects_use_named_gma_module_source_roots()
+    {
+        string[] offenders = ProjectFile.All()
+            .Where(project =>
+                project.RepositoryPath.StartsWith("src/", StringComparison.Ordinal))
+            .SelectMany(project => project.ProjectReferences
+                .Where(reference =>
+                    reference.Contains("$(GmaModulesRoot)", StringComparison.Ordinal))
+                .Select(reference => $"{project.RepositoryPath} -> {reference}"))
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]
