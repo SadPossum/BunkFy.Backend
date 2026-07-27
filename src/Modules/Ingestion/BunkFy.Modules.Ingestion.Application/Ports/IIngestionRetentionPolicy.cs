@@ -11,4 +11,7 @@ public interface IIngestionRetentionPolicy
         Guid propertyId,
         Guid connectionId,
         DateTimeOffset terminalAtUtc);
+
+    DateTimeOffset GetLegalHoldReviewDueAtUtc(
+        DateTimeOffset placedAtUtc);
 }

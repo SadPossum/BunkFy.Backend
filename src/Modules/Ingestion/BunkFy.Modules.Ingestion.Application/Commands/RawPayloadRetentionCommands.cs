@@ -10,4 +10,5 @@ public sealed record ClaimExpiredRawPayloadsCommand(
 
 public sealed record CompleteRawPayloadPurgeCommand(
     Guid ReceiptId,
-    Guid ClaimId) : ITransactionalCommand<Unit>;
+    Guid ClaimId,
+    Guid? RetentionExecutionId = null) : ITransactionalCommand<Unit>;

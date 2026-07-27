@@ -42,6 +42,9 @@ using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Retention.Application;
+using BunkFy.Modules.Retention.Contracts;
+using BunkFy.Modules.Retention.Persistence;
 using BunkFy.Adapters.Configuration;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
@@ -280,6 +283,19 @@ public static class WorkerHostBuilderExtensions
                 builder.Services.AddIngestionTaskHandlers();
             }
             builder.AddIngestionPersistence();
+        }
+
+        if (workerOptions.Modules.Retention)
+        {
+            builder.SelectModuleProfile(
+                RetentionProfiles.Default,
+                "BunkFy.Host.Worker/Retention");
+            builder.Services.AddRetentionApplication();
+            if (workerOptions.TaskWorkerEnabled)
+            {
+                builder.Services.AddRetentionTaskHandlers();
+            }
+            builder.AddRetentionPersistence();
         }
 
         if (workerOptions.Modules.TaskRuntime)

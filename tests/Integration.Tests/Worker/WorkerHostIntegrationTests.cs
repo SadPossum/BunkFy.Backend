@@ -19,6 +19,7 @@ using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.ObservationParsing;
 using BunkFy.Parsers.ReservationMail;
@@ -151,6 +152,8 @@ public sealed class WorkerHostIntegrationTests
         builder.Configuration["Worker:Modules:Reservations"] = "true";
         builder.Configuration["Worker:Modules:Guests"] = "true";
         builder.Configuration["Worker:Modules:Ingestion"] = "true";
+        builder.Configuration["Worker:Modules:Organizations"] = "true";
+        builder.Configuration["Worker:Modules:Retention"] = "true";
         builder.Configuration["Worker:Modules:TaskRuntime"] = "true";
         builder.Configuration["FileManagement:Enabled"] = "true";
         builder.Configuration["FileManagement:Provider"] = "Minio";
@@ -188,9 +191,16 @@ public sealed class WorkerHostIntegrationTests
             IngestionModuleMetadata.Name,
             ReprocessObservationPayload.TaskName,
             ReprocessObservationPayload.PayloadVersion));
+        Assert.NotNull(registry.Find(
+            RetentionModuleMetadata.Name,
+            ExecuteRetentionSchedulePayload.TaskName,
+            ExecuteRetentionSchedulePayload.PayloadVersion));
         Assert.Contains(
             scope.ServiceProvider.GetServices<ITaskScheduleProvider>(),
             provider => provider.GetType().Name == "IngestionPollingScheduleProvider");
+        Assert.Contains(
+            scope.ServiceProvider.GetServices<ITaskScheduleProvider>(),
+            provider => provider.GetType().Name == "RetentionScheduleProvider");
         Assert.Contains(
             scope.ServiceProvider.GetServices<IAdapterDescriptorProvider>(),
             provider => provider.Descriptor.AdapterType == JsonFileDropAdapterDescriptor.AdapterType);

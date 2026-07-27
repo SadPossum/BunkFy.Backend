@@ -440,6 +440,9 @@ public sealed class ReceiveObservationCommandHandlerTests
             Guid propertyId,
             Guid connectionId,
             DateTimeOffset terminalAtUtc) => terminalAtUtc.AddDays(90);
+
+        public DateTimeOffset GetLegalHoldReviewDueAtUtc(
+            DateTimeOffset placedAtUtc) => placedAtUtc.AddDays(30);
     }
 
     private sealed class RecordingOutbox : IOutboxWriter

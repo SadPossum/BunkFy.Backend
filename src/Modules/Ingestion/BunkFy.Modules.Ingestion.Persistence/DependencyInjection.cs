@@ -57,6 +57,12 @@ public static class DependencyInjection
             ObservationReprocessingOutputRepository>();
         builder.Services.TryAddScoped<IRawPayloadRetentionRepository, RawPayloadRetentionRepository>();
         builder.Services.TryAddScoped<ISensitiveHistoryRetentionRepository, SensitiveHistoryRetentionRepository>();
+        builder.Services.TryAddScoped<
+            IIngestionRetentionExecutionRepository,
+            IngestionRetentionExecutionRepository>();
+        builder.Services.TryAddScoped<
+            IIngestionRetentionStatusReader,
+            IngestionRetentionStatusReader>();
         builder.Services.TryAddScoped<LegalHoldRepository>();
         builder.Services.TryAddScoped<ILegalHoldRepository>(provider =>
             provider.GetRequiredService<LegalHoldRepository>());

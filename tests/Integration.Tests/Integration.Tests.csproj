@@ -72,6 +72,11 @@
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.Domain\BunkFy.Modules.Ingestion.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence\BunkFy.Modules.Ingestion.Persistence.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Retention\BunkFy.Modules.Retention.Application\BunkFy.Modules.Retention.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Retention\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Retention\BunkFy.Modules.Retention.Domain\BunkFy.Modules.Retention.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Retention\BunkFy.Modules.Retention.Persistence\BunkFy.Modules.Retention.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Retention\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reservations\BunkFy.Modules.Reservations.Application\BunkFy.Modules.Reservations.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reservations\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reservations\BunkFy.Modules.Reservations.Persistence\BunkFy.Modules.Reservations.Persistence.csproj" />

@@ -60,6 +60,10 @@
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence\BunkFy.Modules.Ingestion.Persistence.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Application\BunkFy.Modules.Retention.Application.csproj" />
+    <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Persistence\BunkFy.Modules.Retention.Persistence.csproj" />
+    <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Extensions\BunkFy.Extensions.Operations.Notifications\BunkFy.Extensions.Operations.Notifications.csproj" />
     <ProjectReference Include="..\Extensions\BunkFy.Extensions.Workspaces\BunkFy.Extensions.Workspaces.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.Configuration\BunkFy.Adapters.Configuration.csproj" />

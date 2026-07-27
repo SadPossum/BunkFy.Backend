@@ -40,6 +40,8 @@
     <ProjectReference Include="..\Modules\Staff\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations\BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.AdminCli\BunkFy.Modules.Ingestion.AdminCli.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.AdminCli\BunkFy.Modules.Retention.AdminCli.csproj" />
+    <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.AdminCli\BunkFy.Modules.Workspaces.AdminCli.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.FakeHttp\BunkFy.Adapters.FakeHttp.csproj" />

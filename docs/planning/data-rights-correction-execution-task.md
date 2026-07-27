@@ -1,6 +1,6 @@
 # Data Rights Correction Execution Task
 
-Status: verified; publication pending
+Status: published; local and exact-commit verification complete
 
 ## Outcome
 
@@ -105,7 +105,7 @@ does not infer related records that the operator did not explicitly select.
    is functionally complete.
 6. [x] Run the complete Docker gate once. Batch any failures and repeat only
    the failed full gate after the fixes.
-7. [ ] Publish the exact candidate in dependency order and use GitHub Actions
+7. [x] Publish the exact candidate in dependency order and use GitHub Actions
    once to prove those published commits.
 
 ## Verification
@@ -115,6 +115,9 @@ does not infer related records that the operator did not explicitly select.
   also passed focused contract tests and a zero-warning integration build.
 - Web `pnpm verify` and generated-contract drift checks passed.
 - PostgreSQL/NATS/Worker Docker verification passed: 63 tests, 0 failures.
+- Backend commit `1a89ddc`, web commit `bb11869`, and root pointer commit
+  `5f9c8d6` were published on `dev`. Backend Linux/Windows validation, backend
+  Docker integration, and web validation passed for those exact commits.
 
 ## Acceptance
 

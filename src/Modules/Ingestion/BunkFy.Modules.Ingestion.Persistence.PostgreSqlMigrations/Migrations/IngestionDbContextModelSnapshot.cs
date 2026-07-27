@@ -1234,6 +1234,73 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                     b.ToTable("reservation_source_links", "ingestion");
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AffectedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DataClassKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("DeadlineUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ExecutionPolicyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("HoldReviewDueAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OutcomeCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("RemainingCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "DataClassKey", "ExecutionPolicyVersion", "StartedAtUtc");
+
+                    b.ToTable("retention_executions", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_ingestion_retention_executions_state", "(\"State\" = 1 AND \"CompletedAtUtc\" IS NULL AND \"RemainingCount\" IS NULL AND \"OutcomeCode\" IS NULL AND \"HoldReviewDueAtUtc\" IS NULL) OR (\"State\" IN (2, 3) AND \"CompletedAtUtc\" BETWEEN \"StartedAtUtc\" AND \"DeadlineUtc\" AND \"RemainingCount\" >= 0 AND length(trim(\"OutcomeCode\")) > 0 AND ((\"State\" = 3 AND \"HoldReviewDueAtUtc\" IS NOT NULL) OR (\"State\" = 2 AND \"HoldReviewDueAtUtc\" IS NULL)))");
+
+                            t.HasCheckConstraint("CK_ingestion_retention_executions_time", "\"DeadlineUtc\" > \"StartedAtUtc\"");
+
+                            t.HasCheckConstraint("CK_ingestion_retention_executions_versions", "\"ExecutionPolicyVersion\" >= 1 AND \"Attempt\" >= 1 AND \"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.Runs.IngestionRun", b =>
                 {
                     b.Property<Guid>("Id")

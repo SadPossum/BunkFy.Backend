@@ -332,8 +332,10 @@ This overlaps with Data Providers/Ingestion but may become a separate management
 ## Suggested Next Slice
 
 Properties, Inventory, the provider-agnostic Ingestion platform milestone, the
-operational Reservations lifecycle, Guest Records, and the first Staff Profiles
-slice are complete. DataRights is the one active new module: its case-lifecycle
-foundation is implemented, and the next slice adds one complete owner capability
-through Guests. Rates, Billing, business-day close/reopen, housekeeping, and
-temporary holds remain separate later candidates.
+operational Reservations lifecycle, Guest Records, Staff Profiles, and the
+controller-managed Data Rights workflow are implemented. The next production
+slice is the PII-minimized Retention control plane: automatic scope scheduling,
+owner-local execution, durable health evidence, and the first Ingestion raw
+purge/history-redaction contributors. Rates, Billing, business-day
+close/reopen, housekeeping, and temporary holds remain separate later
+candidates.

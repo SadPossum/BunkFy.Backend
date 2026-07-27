@@ -19,6 +19,22 @@ public sealed class ConfiguredIngestionRetentionPolicyTests
 
         Assert.Equal(Now.AddDays(30), policy.GetRawPayloadRetainUntilUtc(PropertyId, ConnectionId, Now));
         Assert.Equal(Now.AddDays(90), policy.GetSensitiveHistoryRetainUntilUtc(PropertyId, ConnectionId, Now));
+        Assert.Equal(Now.AddDays(30), policy.GetLegalHoldReviewDueAtUtc(Now));
+    }
+
+    [Fact]
+    public void Legal_hold_review_interval_is_independently_configurable()
+    {
+        ConfigurationManager configuration = new();
+        configuration[ConfiguredIngestionRetentionPolicy.LegalHoldReviewConfigurationKey] =
+            "14.00:00:00";
+        ConfiguredIngestionRetentionPolicy policy =
+            ConfiguredIngestionRetentionPolicy.FromConfiguration(configuration);
+
+        Assert.Equal(Now.AddDays(14), policy.GetLegalHoldReviewDueAtUtc(Now));
+        Assert.Equal(
+            Now.AddDays(30),
+            policy.GetRawPayloadRetainUntilUtc(PropertyId, ConnectionId, Now));
     }
 
     [Fact]

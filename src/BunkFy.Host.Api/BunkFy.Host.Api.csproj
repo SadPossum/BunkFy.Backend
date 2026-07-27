@@ -68,5 +68,6 @@
     <ProjectReference Include="$(GmaFrameworkRoot)Tenancy\Gma.Framework.Tenancy.Caching\Gma.Framework.Tenancy.Caching.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tenancy\Gma.Framework.Tenancy.Messaging.Infrastructure\Gma.Framework.Tenancy.Messaging.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\DataRights\BunkFy.Modules.DataRights.Api\BunkFy.Modules.DataRights.Api.csproj" />
+    <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Api\BunkFy.Modules.Retention.Api.csproj" />
   </ItemGroup>
 </Project>

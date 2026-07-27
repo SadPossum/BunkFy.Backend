@@ -21,6 +21,7 @@ using BunkFy.Modules.Ingestion.Application.Parsing;
 using BunkFy.Modules.Ingestion.Application.DataRights;
 using BunkFy.Modules.Ingestion.Application.Contributors;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 
 public static class DependencyInjection
 {
@@ -80,6 +81,15 @@ public static class DependencyInjection
             IngestionPropertyProcessingSuspendedHandler>(
                 IngestionModuleMetadata.Name,
                 PropertiesModuleMetadata.Name);
+        services.TryAddScoped<IngestionRetentionExecutor>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IRetentionExecutionContributor,
+                IngestionRawPayloadRetentionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IRetentionExecutionContributor,
+                IngestionSensitiveHistoryRetentionContributor>());
 
         return services;
     }

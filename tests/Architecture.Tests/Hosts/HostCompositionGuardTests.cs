@@ -82,6 +82,7 @@ public sealed class HostCompositionGuardTests
             "builder.AddModule<StaffModule>();",
             "builder.AddModule<IngestionModule>();",
             "builder.AddModule<DataRightsModule>();",
+            "builder.AddModule<RetentionModule>();",
             "builder.AddGmaProductionHttp();",
             "app.UseGmaProductionHttp();",
             "builder.ValidateModuleComposition();",
@@ -121,6 +122,19 @@ public sealed class HostCompositionGuardTests
 
         Assert.Contains("builder.Services.AddPropertiesApplication();", worker, StringComparison.Ordinal);
         Assert.Contains("builder.AddPropertiesPersistence();", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Worker_composes_retention_application_with_its_persistence()
+    {
+        string worker = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Worker",
+            "WorkerHostBuilderExtensions.cs");
+
+        Assert.Contains("builder.Services.AddRetentionApplication();", worker, StringComparison.Ordinal);
+        Assert.Contains("builder.Services.AddRetentionTaskHandlers();", worker, StringComparison.Ordinal);
+        Assert.Contains("builder.AddRetentionPersistence();", worker, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -233,6 +247,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminApiModule<GuestsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<StaffAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<IngestionAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<RetentionAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<WorkspacesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddGmaProductionHttp();", adminApi, StringComparison.Ordinal);
@@ -247,6 +262,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminModule<GuestsAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<StaffAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<IngestionAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<RetentionAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<WorkspacesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<TaskRuntimeAdminCliModule>();", adminCli, StringComparison.Ordinal);
     }
@@ -297,6 +313,7 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("\"Guests\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Staff\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Ingestion\": false", appsettings, StringComparison.Ordinal);
+        Assert.Contains("\"Retention\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"TaskRuntime\": false", appsettings, StringComparison.Ordinal);
         Assert.Contains("defaultValue: false", options, StringComparison.Ordinal);
         Assert.Contains(
@@ -373,6 +390,9 @@ public sealed class HostCompositionGuardTests
             "Worker__Modules__Guests",
             "Worker__Modules__DataRights",
             "Worker__Modules__Staff",
+            "Worker__Modules__Retention",
+            "Tasks__Worker__WorkerGroups__6",
+            "retention-workers",
             "AppHost:AdminApi:Enabled",
             "AppHost:Worker:Enabled",
             "AppHost:Redis:Enabled"
@@ -386,6 +406,18 @@ public sealed class HostCompositionGuardTests
         Assert.Empty(missing);
         Assert.Contains("\"SqlServer\"", appsettings, StringComparison.Ordinal);
         Assert.Contains("\"Enabled\": false", appsettings, StringComparison.Ordinal);
+
+        using JsonDocument workerSettings = JsonDocument.Parse(
+            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "appsettings.json"));
+        string[] workerGroups = workerSettings.RootElement
+            .GetProperty("Tasks")
+            .GetProperty("Worker")
+            .GetProperty("WorkerGroups")
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .OfType<string>()
+            .ToArray();
+        Assert.Contains("retention-workers", workerGroups, StringComparer.Ordinal);
     }
 
     [Fact]

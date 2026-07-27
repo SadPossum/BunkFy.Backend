@@ -40,6 +40,7 @@ public sealed class WorkerHostOptions
             GetBoolean(modules, nameof(WorkerModuleOptions.DataRights), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Staff), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.Ingestion), defaultValue: false),
+            GetBoolean(modules, nameof(WorkerModuleOptions.Retention), defaultValue: false),
             GetBoolean(modules, nameof(WorkerModuleOptions.TaskRuntime), defaultValue: false));
 
         return new WorkerHostOptions(
@@ -108,6 +109,11 @@ public sealed class WorkerHostOptions
             modules.Add("ingestion");
         }
 
+        if (this.Modules.Retention)
+        {
+            modules.Add("retention");
+        }
+
         if (this.Modules.TaskRuntime)
         {
             modules.Add("task-runtime");
@@ -137,4 +143,5 @@ public sealed record WorkerModuleOptions(
     bool DataRights,
     bool Staff,
     bool Ingestion,
+    bool Retention,
     bool TaskRuntime);

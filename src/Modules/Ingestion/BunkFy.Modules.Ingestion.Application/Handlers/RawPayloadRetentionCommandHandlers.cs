@@ -8,6 +8,7 @@ using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
+using BunkFy.Modules.Ingestion.Domain.Retention;
 
 internal sealed class ClaimExpiredRawPayloadsCommandHandler(
     IRawPayloadRetentionRepository retention,
@@ -45,6 +46,7 @@ internal sealed class ClaimExpiredRawPayloadsCommandHandler(
 
 internal sealed class CompleteRawPayloadPurgeCommandHandler(
     IObservationReceiptRepository receipts,
+    IIngestionRetentionExecutionRepository executions,
     ISystemClock clock)
     : ICommandHandler<CompleteRawPayloadPurgeCommand, Unit>
 {
@@ -60,8 +62,29 @@ internal sealed class CompleteRawPayloadPurgeCommandHandler(
         }
 
         Result completed = receipt.CompleteRawPayloadPurge(command.ClaimId, clock.UtcNow);
-        return completed.IsSuccess
-            ? Result.Success(Unit.Value)
-            : Result.Failure<Unit>(completed.Error);
+        if (completed.IsFailure)
+        {
+            return Result.Failure<Unit>(completed.Error);
+        }
+
+        if (command.RetentionExecutionId is { } executionId)
+        {
+            IngestionRetentionExecution? execution = await executions.GetAsync(
+                executionId,
+                cancellationToken).ConfigureAwait(false);
+            if (execution is null)
+            {
+                return Result.Failure<Unit>(
+                    IngestionApplicationErrors.RetentionExecutionNotFound);
+            }
+
+            Result recorded = execution.RecordAffected(1);
+            if (recorded.IsFailure)
+            {
+                return Result.Failure<Unit>(recorded.Error);
+            }
+        }
+
+        return Result.Success(Unit.Value);
     }
 }

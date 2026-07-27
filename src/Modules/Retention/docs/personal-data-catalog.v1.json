@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "retention.personal-data",
+  "catalogVersion": 1,
+  "module": "retention",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "retention-control-plane",
+      "scope": "tenant-retention-schedule-and-execution-coordinates",
+      "readers": [
+        "permission:retention.read",
+        "permission:retention.retry",
+        "system:retention-scheduler"
+      ],
+      "writers": [
+        "system:retention-scheduler",
+        "system:retention-scope-projections"
+      ]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "retention-control-plane-evidence",
+      "approvalState": "engineering-default",
+      "startsAt": "retention-scope-or-execution-recorded",
+      "endsAt": "tenant-termination-and-approved-pseudonymization",
+      "legalHoldBehavior": "retain-minimum-required-schedule-and-execution-evidence"
+    },
+    {
+      "id": "transient-owner-execution-request",
+      "approvalState": "engineering-default",
+      "startsAt": "owner-retention-contribution-requested",
+      "endsAt": "owner-retention-contribution-completed",
+      "legalHoldBehavior": "not-applicable"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "retention-scope-coordinate",
+      "export": "include-in-authorized-operational-retention-export",
+      "correction": "correct-through-authoritative-organization-or-property-workflow",
+      "restriction": "stop-scheduling-when-authoritative-scope-is-inactive",
+      "erasure": "remove-or-pseudonymize-after-approved-tenant-termination-policy"
+    }
+  ],
+  "fields": [
+    {
+      "id": "retention.tenant-scope-reference",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "owner-module-execution",
+        "retention-scope-correlation",
+        "schedule-health"
+      ],
+      "sources": [
+        "organizations-projection",
+        "tenant-execution-context"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "retention-control-plane",
+      "countryPolicyKey": "retention.tenant-scope-reference",
+      "retentionPolicy": "retention-control-plane-evidence",
+      "rightsPolicy": "retention-scope-coordinate",
+      "allowedSurfaces": [
+        "application-query",
+        "integration-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module",
+        "processor"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Retention.Contracts",
+          "type": "BunkFy.Modules.Retention.Contracts.RetentionContributionRequest",
+          "member": "TenantId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-owner-execution-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Application",
+          "type": "BunkFy.Modules.Retention.Application.Ports.RetentionScheduleTarget",
+          "member": "ScopeId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-owner-execution-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.RetentionTenantProjection",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "retention-control-plane-evidence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.RetentionScheduleState",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "retention-control-plane-evidence"
+        }
+      ]
+    },
+    {
+      "id": "retention.property-reference",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "owner-module-execution",
+        "property-retention-scheduling",
+        "schedule-health"
+      ],
+      "sources": [
+        "properties-projection"
+      ],
+      "authoritativeOwner": "properties",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "retention-control-plane",
+      "countryPolicyKey": "retention.property-reference",
+      "retentionPolicy": "retention-control-plane-evidence",
+      "rightsPolicy": "retention-scope-coordinate",
+      "allowedSurfaces": [
+        "api-response",
+        "application-query",
+        "integration-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "processor"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Retention.Contracts",
+          "type": "BunkFy.Modules.Retention.Contracts.RetentionContributionRequest",
+          "member": "PropertyId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-owner-execution-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Contracts",
+          "type": "BunkFy.Modules.Retention.Contracts.RetentionScheduleHealthDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-owner-execution-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Application",
+          "type": "BunkFy.Modules.Retention.Application.Ports.RetentionScheduleTarget",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-owner-execution-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.RetentionPropertyProjection",
+          "member": "Id",
+          "surface": "persistence",
+          "retentionPolicy": "retention-control-plane-evidence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.RetentionScheduleState",
+          "member": "PropertyId",
+          "surface": "persistence",
+          "retentionPolicy": "retention-control-plane-evidence"
+        }
+      ]
+    }
+  ]
+}

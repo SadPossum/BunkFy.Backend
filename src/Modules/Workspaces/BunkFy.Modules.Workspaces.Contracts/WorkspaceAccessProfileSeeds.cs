@@ -5,6 +5,7 @@ using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Modules.AccessControl.Contracts;
 
@@ -49,7 +50,8 @@ public static class WorkspaceAccessProfileSeeds
             IngestionAdminPermissionCodes.Read,
             IngestionAdminPermissionCodes.ConnectionsManage,
             IngestionAdminPermissionCodes.RunsManage,
-            IngestionAdminPermissionCodes.ProposalsDecide
+            IngestionAdminPermissionCodes.ProposalsDecide,
+            RetentionPermissionCodes.Read
         ]);
 
     public static AccessProfileDefinition FrontDesk { get; } = new(

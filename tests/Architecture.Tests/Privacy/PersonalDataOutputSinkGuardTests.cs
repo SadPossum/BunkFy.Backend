@@ -17,6 +17,7 @@ public sealed class PersonalDataOutputSinkGuardTests
         "operations-notifications.personal-data",
         "properties.personal-data",
         "reservations.personal-data",
+        "retention.personal-data",
         "staff.personal-data",
         "workspaces.personal-data"
     ];

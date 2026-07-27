@@ -12,6 +12,7 @@ using BunkFy.Modules.Reservations.AdminCli;
 using BunkFy.Modules.Guests.AdminCli;
 using BunkFy.Modules.Staff.AdminCli;
 using BunkFy.Modules.Ingestion.AdminCli;
+using BunkFy.Modules.Retention.AdminCli;
 using BunkFy.Modules.Workspaces.AdminCli;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Adapters.FakeHttp;
@@ -68,6 +69,7 @@ try
     builder.AddAdminModule<GuestsAdminCliModule>();
     builder.AddAdminModule<StaffAdminCliModule>();
     builder.AddAdminModule<IngestionAdminCliModule>();
+    builder.AddAdminModule<RetentionAdminCliModule>();
     builder.AddAdminModule<WorkspacesAdminCliModule>();
     builder.ValidateModuleComposition();
 

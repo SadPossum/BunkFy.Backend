@@ -61,6 +61,7 @@ public static class IngestionApplicationErrors
     public static readonly Error RawPayloadPurgeInProgress = new("Ingestion.RawPayloadPurgeInProgress", "The raw observation payload is being purged.");
     public static readonly Error RawPayloadUnavailable = new("Ingestion.RawPayloadUnavailable", "The raw observation payload has been purged.");
     public static readonly Error RetentionTaskOptionsInvalid = new("Ingestion.RetentionTaskOptionsInvalid", "The retention task options are invalid.");
+    public static readonly Error RetentionExecutionNotFound = new("Ingestion.RetentionExecutionNotFound", "The ingestion retention execution was not found.");
     public static readonly Error ProposalNotFound = new("Ingestion.ProposalNotFound", "The change proposal was not found.");
     public static readonly Error ProposalStatusInvalid = new("Ingestion.ProposalStatusInvalid", "The change proposal status filter is invalid.");
     public static readonly Error ProposalDecisionConflict = new("Ingestion.ProposalDecisionConflict", "The change proposal was already decided differently.");

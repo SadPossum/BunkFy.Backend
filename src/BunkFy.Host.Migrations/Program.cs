@@ -4,6 +4,7 @@ using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Retention.Persistence;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Modules.AccessControl.Persistence;
@@ -48,6 +49,7 @@ builder.AddGuestsPersistence();
 builder.AddStaffPersistence();
 builder.AddWorkspacesPersistence();
 builder.AddIngestionPersistence();
+builder.AddRetentionPersistence();
 
 using IHost host = builder.Build();
 await using AsyncServiceScope scope = host.Services.CreateAsyncScope();
@@ -69,7 +71,8 @@ ILogger logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
     ("guests", typeof(GuestsDbContext)),
     ("staff", typeof(StaffDbContext)),
     ("workspaces", typeof(WorkspacesDbContext)),
-    ("ingestion", typeof(IngestionDbContext))
+    ("ingestion", typeof(IngestionDbContext)),
+    ("retention", typeof(RetentionDbContext))
 ];
 
 foreach ((string name, Type contextType) in migrations)

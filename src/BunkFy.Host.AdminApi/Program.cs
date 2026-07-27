@@ -26,6 +26,8 @@ using BunkFy.Modules.Staff.AdminApi;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Ingestion.AdminApi;
 using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Retention.AdminApi;
+using BunkFy.Modules.Retention.Persistence;
 using BunkFy.Modules.Workspaces.AdminApi;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
@@ -87,6 +89,7 @@ builder.AddAdminApiModule<ReservationsAdminApiModule>();
 builder.AddAdminApiModule<GuestsAdminApiModule>();
 builder.AddAdminApiModule<StaffAdminApiModule>();
 builder.AddAdminApiModule<IngestionAdminApiModule>();
+builder.AddAdminApiModule<RetentionAdminApiModule>();
 builder.AddAdminApiModule<WorkspacesAdminApiModule>();
 
 builder.AddServiceDefaults();
@@ -104,6 +107,7 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<ReservationsDbContext>("res
 builder.Services.AddGmaEntityFrameworkReadinessCheck<GuestsDbContext>("guests-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<StaffDbContext>("staff-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingestion-database");
+builder.Services.AddGmaEntityFrameworkReadinessCheck<RetentionDbContext>("retention-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<WorkspacesDbContext>("workspaces-database");
 builder.AddGmaOpenApi();
 builder.ValidateModuleComposition();

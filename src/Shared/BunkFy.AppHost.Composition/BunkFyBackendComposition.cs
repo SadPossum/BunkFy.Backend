@@ -173,13 +173,15 @@ public static class BunkFyBackendComposition
             .WithEnvironment("Worker__Modules__DataRights", "true")
             .WithEnvironment("Worker__Modules__Staff", "true")
             .WithEnvironment("Worker__Modules__Ingestion", "true")
+            .WithEnvironment("Worker__Modules__Retention", "true")
             .WithEnvironment("Worker__Modules__TaskRuntime", "true")
             .WithEnvironment("Tasks__Worker__WorkerGroups__0", "default")
             .WithEnvironment("Tasks__Worker__WorkerGroups__1", "projection-workers")
             .WithEnvironment("Tasks__Worker__WorkerGroups__2", "reminder-workers")
             .WithEnvironment("Tasks__Worker__WorkerGroups__3", "ingestion-adapters")
             .WithEnvironment("Tasks__Worker__WorkerGroups__4", "ingestion-maintenance")
-            .WithEnvironment("Tasks__Worker__WorkerGroups__5", "data-rights-workers");
+            .WithEnvironment("Tasks__Worker__WorkerGroups__5", "data-rights-workers")
+            .WithEnvironment("Tasks__Worker__WorkerGroups__6", "retention-workers");
         if (sqlServer is { } configuredSqlServer)
         {
             worker.WithReference(configuredSqlServer).WaitFor(configuredSqlServer);

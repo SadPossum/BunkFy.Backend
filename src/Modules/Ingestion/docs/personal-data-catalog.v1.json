@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 3,
+  "catalogVersion": 4,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -13681,6 +13681,102 @@
         { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Reservations.ReservationDispatch", "member": "AnonymisedAtUtc", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingOutput", "member": "AnonymisedAtUtc", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingOutput", "member": "Version", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.retention.execution-coordinate",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "retention-execution",
+        "retention-idempotency",
+        "operational-audit"
+      ],
+      "sources": ["system-workflow", "ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": ["application-command", "persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.BeginIngestionRetentionExecutionCommand", "member": "Request", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.CompleteIngestionRetentionExecutionCommand", "member": "ExecutionId", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.CompleteRawPayloadPurgeCommand", "member": "RetentionExecutionId", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.RedactExpiredSensitiveHistoryCommand", "member": "RetentionExecutionId", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "DataClassKey", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.retention.execution-lifecycle",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "retention-execution",
+        "legal-hold-enforcement",
+        "operational-audit"
+      ],
+      "sources": ["system-workflow", "ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": ["application-command", "persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.CompleteIngestionRetentionExecutionCommand", "member": "RemainingCount", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.CompleteIngestionRetentionExecutionCommand", "member": "CompletedAtUtc", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.CompleteIngestionRetentionExecutionCommand", "member": "HoldReviewDueAtUtc", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.IngestionRetentionExecutionStart", "member": "DispatchRequired", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.IngestionRetentionBacklog", "member": "EligibleCount", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.IngestionRetentionBacklog", "member": "BlockedCount", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.IngestionRetentionBacklog", "member": "EarliestBlockingHoldPlacedAtUtc", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "ExecutionPolicyVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "Attempt", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "State", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "StartedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "DeadlineUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "CompletedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "AffectedCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "RemainingCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "HoldReviewDueAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "Version", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.retention.execution-outcome",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "retention-execution",
+        "retention-health",
+        "operational-audit"
+      ],
+      "sources": ["system-workflow", "ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": ["application-command", "persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.CompleteIngestionRetentionExecutionCommand", "member": "OutcomeCode", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.IngestionRetentionExecutionStart", "member": "CompletedResult", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "OutcomeCode", "surface": "persistence" }
       ]
     }
   ]

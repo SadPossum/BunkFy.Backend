@@ -1,3 +1,4 @@
+﻿using BunkFy.Modules.Retention.Api;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
@@ -140,6 +141,7 @@ builder.AddModule<StaffModule>();
 builder.AddModule<WorkspacesModule>();
 builder.AddModule<IngestionModule>();
 builder.AddModule<DataRightsModule>();
+builder.AddModule<RetentionModule>();
 // module-scaffold:public-api-modules
 
 builder.AddServiceDefaults();

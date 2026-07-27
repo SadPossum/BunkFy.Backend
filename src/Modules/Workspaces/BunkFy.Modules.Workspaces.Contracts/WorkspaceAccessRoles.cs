@@ -6,6 +6,7 @@ using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Modules.AccessControl.Contracts;
 
@@ -89,7 +90,10 @@ public static class WorkspaceAccessRoles
         DataRightsAdminPermissionCodes.Restrict,
         DataRightsAdminPermissionCodes.Erase,
         DataRightsAdminPermissionCodes.TerminateTenant,
-        DataRightsAdminPermissionCodes.Manage
+        DataRightsAdminPermissionCodes.Manage,
+        RetentionPermissionCodes.Read,
+        RetentionPermissionCodes.Manage,
+        RetentionPermissionCodes.Retry
     ];
 
     public static IReadOnlyList<string> ProvisionerPermissions { get; } =

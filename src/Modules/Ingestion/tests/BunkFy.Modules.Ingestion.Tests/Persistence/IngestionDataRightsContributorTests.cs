@@ -241,7 +241,7 @@ public sealed class IngestionDataRightsContributorTests
                 payload.Length,
                 Field(record, "ingestion.operations.raw-payload-total-bytes").GetInt32());
         });
-        Assert.Equal(3, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(4, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             IngestionDataRightsExportSchema.ExportSchemaVersion,
             contributor.Descriptor.ExportSchemaVersion);

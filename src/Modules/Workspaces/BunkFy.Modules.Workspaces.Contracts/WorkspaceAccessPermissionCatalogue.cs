@@ -6,6 +6,7 @@ using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 
 public static class WorkspaceAccessPermissionCatalogue
@@ -65,7 +66,11 @@ public static class WorkspaceAccessPermissionCatalogue
         Permission(DataRightsAdminPermissionCodes.Restrict, "Data rights", "Manage processing restrictions", "Apply or release approved processing restrictions.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide]),
         Permission(DataRightsAdminPermissionCodes.Erase, "Data rights", "Erase or anonymise data", "Execute approved irreversible erasure or anonymisation.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide, DataRightsAdminPermissionCodes.Execute]),
         Permission(DataRightsAdminPermissionCodes.TerminateTenant, "Data rights", "Terminate tenant data", "Execute approved tenant export, revocation, and deletion.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide, DataRightsAdminPermissionCodes.Execute]),
-        Permission(DataRightsAdminPermissionCodes.Manage, "Data rights", "Manage case lifecycle", "Route, cancel, and recover data-rights cases.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read])
+        Permission(DataRightsAdminPermissionCodes.Manage, "Data rights", "Manage case lifecycle", "Route, cancel, and recover data-rights cases.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read]),
+
+        Permission(RetentionPermissionCodes.Read, "Retention", "View retention health", "View PII-minimized schedule, due, hold, and failure status."),
+        Permission(RetentionPermissionCodes.Manage, "Retention", "Manage retention", "Manage retention schedules and policy-controlled execution.", sensitive: true, requires: [RetentionPermissionCodes.Read]),
+        Permission(RetentionPermissionCodes.Retry, "Retention", "Retry retention work", "Retry failed retention execution through the durable task runtime.", sensitive: true, requires: [RetentionPermissionCodes.Read])
     ];
 
     public static IReadOnlyList<string> ProtectedSeedKeys { get; } =

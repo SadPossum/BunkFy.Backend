@@ -43,6 +43,7 @@
   <Folder Name="/docs/planning/">
     <File Path="docs/planning/adapter-http-client-task.md" />
     <File Path="docs/planning/architecture-cleanup-task.md" />
+    <File Path="docs/planning/automatic-retention-control-plane-task.md" />
     <File Path="docs/planning/data-rights-correction-execution-task.md" />
     <File Path="docs/planning/data-rights-multi-owner-execution-task.md" />
     <File Path="docs/planning/data-rights-protected-export-artifacts-task.md" />
@@ -662,6 +663,34 @@
   </Folder>
   <Folder Name="/src/Modules/Reservations/tests/">
     <Project Path="src/Modules/Reservations/tests/BunkFy.Modules.Reservations.Tests/BunkFy.Modules.Reservations.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/docs/">
+    <File Path="src/Modules/Retention/docs/personal-data-catalog.v1.json" />
+    <File Path="src/Modules/Retention/docs/personal-data-inventory.v1.md" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/src/Admin/">
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.Admin.Contracts/BunkFy.Modules.Retention.Admin.Contracts.csproj" />
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.AdminApi/BunkFy.Modules.Retention.AdminApi.csproj" />
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.AdminCli/BunkFy.Modules.Retention.AdminCli.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/src/Api/">
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.Api/BunkFy.Modules.Retention.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/src/Application/">
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.Application/BunkFy.Modules.Retention.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/src/Contracts/">
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.Contracts/BunkFy.Modules.Retention.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/src/Domain/">
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.Domain/BunkFy.Modules.Retention.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/src/Persistence/">
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations/BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Retention/BunkFy.Modules.Retention.Persistence/BunkFy.Modules.Retention.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Retention/tests/">
+    <Project Path="src/Modules/Retention/tests/BunkFy.Modules.Retention.Tests/BunkFy.Modules.Retention.Tests.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Staff/docs/">
     <File Path="src/Modules/Staff/docs/README.md" />
