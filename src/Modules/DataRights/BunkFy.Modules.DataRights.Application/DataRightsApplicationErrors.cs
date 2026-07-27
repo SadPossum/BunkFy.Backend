@@ -35,6 +35,20 @@ public static class DataRightsApplicationErrors
     public static readonly Error AnonymisationExecutionDenied = new(
         "DataRights.AnonymisationExecutionDenied",
         "The approved anonymisation is not executable with the current evidence.");
+    public static readonly Error RestrictionExecutionDenied = new(
+        "DataRights.RestrictionExecutionDenied",
+        "The approved processing restriction is not executable with the current evidence.");
+    public static readonly Error RestrictionOwnerUnavailable = new(
+        "DataRights.RestrictionOwnerUnavailable",
+        "The selected restriction owner is unavailable.");
+    public static readonly Error RestrictionExecutionBlocked = new(
+        "DataRights.RestrictionExecutionBlocked",
+        "The selected owner cannot apply the approved processing restriction.");
+    public static readonly Error RestrictionOwnerProofInvalid = new(
+        "DataRights.RestrictionOwnerProofInvalid",
+        "The selected owner returned invalid processing-restriction proof.");
+    public static Error RestrictionExecutionConflict =>
+        DataRightsDomainErrors.RestrictionExecutionConflict;
     public static readonly Error ExecutionNotFound = new(
         "DataRights.ExecutionNotFound",
         "The data-rights execution was not found.");

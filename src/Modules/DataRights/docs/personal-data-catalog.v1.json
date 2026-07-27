@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 13,
+  "catalogVersion": 14,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -17,7 +17,8 @@
         "permission:data-rights.cases.create",
         "permission:data-rights.cases.discover",
         "permission:data-rights.cases.manage",
-        "permission:data-rights.cases.review"
+        "permission:data-rights.cases.review",
+        "permission:data-rights.restrict"
       ]
     },
     {
@@ -400,6 +401,26 @@
           "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate",
           "member": "SelectedBy",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Commands.ExecuteDataRightsRestrictionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "ExecutingActorId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "ExecutedBy",
+          "surface": "persistence"
         }
       ]
     },
@@ -549,6 +570,13 @@
         },
         {
           "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "Coordinate",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequest",
           "member": "RecordId",
           "surface": "integration-command",
@@ -598,6 +626,12 @@
         {
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate",
+          "member": "RecordId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
           "member": "RecordId",
           "surface": "persistence"
         }
@@ -1087,6 +1121,293 @@
           "assembly": "BunkFy.Modules.DataRights.Domain",
           "type": "BunkFy.Modules.DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot",
           "member": "ResultingRecordVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "data-rights.restriction-execution-proof",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "restriction-execution-integrity",
+        "owner-receipt-replay",
+        "case-accountability"
+      ],
+      "sources": [
+        "approved-data-rights-case",
+        "authoritative-owner-restriction-receipt"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "data-rights-case-audit",
+      "countryPolicyKey": "guest.profile.identifier",
+      "retentionPolicy": "data-rights-case-lifecycle",
+      "rightsPolicy": "processing-ledger-proof",
+      "allowedSurfaces": [
+        "api-response",
+        "integration-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "ContractVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "TenantId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "IdempotencyKey",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "PropertyId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "CaseId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "ApprovalRevision",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "Directive",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "DeadlineUtc",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "ReceiptContractVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "ReceiptId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "OwnerOperationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "ResultingOwnerRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "ResultingProjectionRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "EffectiveRestricted",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "ReceiptSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionOwnerProof",
+          "member": "CompletedAtUtc",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionResult",
+          "member": "OwnerProof",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionExecutionDto",
+          "member": "Proof",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionExecutionProofDto",
+          "member": "Directive",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionExecutionProofDto",
+          "member": "ReceiptId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionExecutionProofDto",
+          "member": "ResultingOwnerRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionExecutionProofDto",
+          "member": "ResultingProjectionRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionExecutionProofDto",
+          "member": "EffectiveRestricted",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionExecutionProofDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "IdempotencyKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "ApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "Directive",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "OwnerKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "RecordType",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "SelectedRecordVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "ReceiptContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "ReceiptId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "OwnerOperationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "ResultingOwnerRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "ResultingProjectionRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "EffectiveRestricted",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "ReceiptSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Domain",
+          "type": "BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof",
+          "member": "CompletedAtUtc",
           "surface": "persistence"
         }
       ]

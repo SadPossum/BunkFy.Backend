@@ -117,6 +117,47 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "\"ApprovalEvidenceEvaluatedAtUtc\" IS NULL AND " +
                 "\"ApprovalEvidenceRequiresDistinctExecutor\" IS NULL)");
             table.HasCheckConstraint(
+                "CK_data_rights_cases_restriction_execution_proof",
+                "((\"RequestedOperations\" = 4 AND \"Status\" = 9) AND " +
+                "\"RestrictionExecutionIdempotencyKey\" IS NOT NULL AND " +
+                "\"RestrictionExecutionApprovalRevision\" = \"DecisionRevision\" AND " +
+                "\"RestrictionExecutionDirective\" = \"RestrictionDirective\" AND " +
+                "length(trim(\"RestrictionExecutionOwnerKey\")) > 0 AND " +
+                "length(trim(\"RestrictionExecutionRecordType\")) > 0 AND " +
+                "\"RestrictionExecutionRecordId\" IS NOT NULL AND " +
+                "\"RestrictionExecutionSelectedRecordVersion\" >= 1 AND " +
+                "\"RestrictionExecutionReceiptContractVersion\" >= 1 AND " +
+                "\"RestrictionExecutionReceiptId\" IS NOT NULL AND " +
+                "\"RestrictionExecutionOwnerOperationId\" IS NOT NULL AND " +
+                "\"RestrictionExecutionResultingOwnerRevision\" >= 1 AND " +
+                "\"RestrictionExecutionResultingProjectionRevision\" >= 1 AND " +
+                "((\"RestrictionExecutionDirective\" = 1 AND " +
+                "\"RestrictionExecutionEffectiveRestricted\" = TRUE) OR " +
+                "(\"RestrictionExecutionDirective\" = 2 AND " +
+                "\"RestrictionExecutionEffectiveRestricted\" = FALSE)) AND " +
+                "\"RestrictionExecutionReceiptSha256\" IS NOT NULL AND " +
+                "char_length(\"RestrictionExecutionReceiptSha256\") = 64 AND " +
+                "length(trim(\"RestrictionExecutionExecutedBy\")) > 0 AND " +
+                "\"RestrictionExecutionCompletedAtUtc\" >= \"DecidedAtUtc\" AND " +
+                "\"RestrictionExecutionCompletedAtUtc\" <= \"LastChangedAtUtc\") OR " +
+                "((\"RequestedOperations\" <> 4 OR \"Status\" <> 9) AND " +
+                "\"RestrictionExecutionIdempotencyKey\" IS NULL AND " +
+                "\"RestrictionExecutionApprovalRevision\" IS NULL AND " +
+                "\"RestrictionExecutionDirective\" IS NULL AND " +
+                "\"RestrictionExecutionOwnerKey\" IS NULL AND " +
+                "\"RestrictionExecutionRecordType\" IS NULL AND " +
+                "\"RestrictionExecutionRecordId\" IS NULL AND " +
+                "\"RestrictionExecutionSelectedRecordVersion\" IS NULL AND " +
+                "\"RestrictionExecutionReceiptContractVersion\" IS NULL AND " +
+                "\"RestrictionExecutionReceiptId\" IS NULL AND " +
+                "\"RestrictionExecutionOwnerOperationId\" IS NULL AND " +
+                "\"RestrictionExecutionResultingOwnerRevision\" IS NULL AND " +
+                "\"RestrictionExecutionResultingProjectionRevision\" IS NULL AND " +
+                "\"RestrictionExecutionEffectiveRestricted\" IS NULL AND " +
+                "\"RestrictionExecutionReceiptSha256\" IS NULL AND " +
+                "\"RestrictionExecutionExecutedBy\" IS NULL AND " +
+                "\"RestrictionExecutionCompletedAtUtc\" IS NULL)");
+            table.HasCheckConstraint(
                 "CK_data_rights_cases_property_scope",
                 "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR " +
                 "(\"Kind\" IN (2, 3) AND \"PropertyId\" IS NULL)");
@@ -226,6 +267,47 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 .HasColumnName("ApprovalEvidenceEvaluatedAtUtc");
             evidence.Property(value => value.RequiresDistinctExecutor)
                 .HasColumnName("ApprovalEvidenceRequiresDistinctExecutor");
+        });
+        builder.OwnsOne(dataRightsCase => dataRightsCase.RestrictionExecutionProof, proof =>
+        {
+            proof.Property(value => value.IdempotencyKey)
+                .HasColumnName("RestrictionExecutionIdempotencyKey");
+            proof.Property(value => value.ApprovalRevision)
+                .HasColumnName("RestrictionExecutionApprovalRevision");
+            proof.Property(value => value.Directive)
+                .HasColumnName("RestrictionExecutionDirective")
+                .HasConversion<int>();
+            proof.Property(value => value.OwnerKey)
+                .HasColumnName("RestrictionExecutionOwnerKey")
+                .HasMaxLength(DataRightsSubjectCoordinate.OwnerKeyMaxLength);
+            proof.Property(value => value.RecordType)
+                .HasColumnName("RestrictionExecutionRecordType")
+                .HasMaxLength(DataRightsSubjectCoordinate.RecordTypeMaxLength);
+            proof.Property(value => value.RecordId)
+                .HasColumnName("RestrictionExecutionRecordId");
+            proof.Property(value => value.SelectedRecordVersion)
+                .HasColumnName("RestrictionExecutionSelectedRecordVersion");
+            proof.Property(value => value.ReceiptContractVersion)
+                .HasColumnName("RestrictionExecutionReceiptContractVersion");
+            proof.Property(value => value.ReceiptId)
+                .HasColumnName("RestrictionExecutionReceiptId");
+            proof.Property(value => value.OwnerOperationId)
+                .HasColumnName("RestrictionExecutionOwnerOperationId");
+            proof.Property(value => value.ResultingOwnerRevision)
+                .HasColumnName("RestrictionExecutionResultingOwnerRevision");
+            proof.Property(value => value.ResultingProjectionRevision)
+                .HasColumnName("RestrictionExecutionResultingProjectionRevision");
+            proof.Property(value => value.EffectiveRestricted)
+                .HasColumnName("RestrictionExecutionEffectiveRestricted");
+            proof.Property(value => value.ReceiptSha256)
+                .HasColumnName("RestrictionExecutionReceiptSha256")
+                .HasMaxLength(DataRightsRestrictionExecutionProof.Sha256Length)
+                .IsFixedLength();
+            proof.Property(value => value.ExecutedBy)
+                .HasColumnName("RestrictionExecutionExecutedBy")
+                .HasMaxLength(DataRightsCase.ActorIdMaxLength);
+            proof.Property(value => value.CompletedAtUtc)
+                .HasColumnName("RestrictionExecutionCompletedAtUtc");
         });
         builder.OwnsMany(dataRightsCase => dataRightsCase.SelectedSubjects, subjects =>
         {

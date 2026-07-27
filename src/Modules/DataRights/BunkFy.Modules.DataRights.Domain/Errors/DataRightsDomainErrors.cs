@@ -85,6 +85,15 @@ public static class DataRightsDomainErrors
     public static readonly Error AnonymisationSubjectCountInvalid = new(
         "DataRights.AnonymisationSubjectCountInvalid",
         "An anonymisation execution requires at least one selected subject.");
+    public static readonly Error RestrictionExecutionInvalid = new(
+        "DataRights.RestrictionExecutionInvalid",
+        "The case does not contain one executable processing restriction.");
+    public static readonly Error RestrictionExecutionProofInvalid = new(
+        "DataRights.RestrictionExecutionProofInvalid",
+        "The processing-restriction owner proof is invalid.");
+    public static readonly Error RestrictionExecutionConflict = new(
+        "DataRights.RestrictionExecutionConflict",
+        "The processing restriction was already executed with different coordinates.");
     public static readonly Error DecisionActorCannotExecute = new(
         "DataRights.DecisionActorCannotExecute",
         "The decision actor cannot execute this anonymisation.");

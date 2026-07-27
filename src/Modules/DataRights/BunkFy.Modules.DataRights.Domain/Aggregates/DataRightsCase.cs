@@ -33,6 +33,7 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
     public string? DecidedBy { get; private set; }
     public DateTimeOffset? DecidedAtUtc { get; private set; }
     public DataRightsApprovalPolicyEvidence? ApprovalPolicyEvidence { get; private set; }
+    public DataRightsRestrictionExecutionProof? RestrictionExecutionProof { get; private set; }
     public long? ExecutionRevision { get; private set; }
     public string? ExecutionStartedBy { get; private set; }
     public DateTimeOffset? ExecutionStartedAtUtc { get; private set; }
@@ -196,6 +197,12 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
         if (this.selectedSubjects.Count == 0)
         {
             return Result.Failure(DataRightsDomainErrors.SubjectSelectionRequired);
+        }
+
+        if (this.RequestedOperations == DataRightsCaseOperation.Restriction &&
+            this.selectedSubjects.Count != 1)
+        {
+            return Result.Failure(DataRightsDomainErrors.RestrictionExecutionInvalid);
         }
 
         this.Status = DataRightsCaseState.ReviewRequired;

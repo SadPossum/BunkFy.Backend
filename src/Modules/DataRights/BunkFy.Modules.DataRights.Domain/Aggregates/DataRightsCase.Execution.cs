@@ -1,11 +1,73 @@
 namespace BunkFy.Modules.DataRights.Domain.Aggregates;
 
 using BunkFy.Modules.DataRights.Domain.Errors;
+using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Results;
 
 public sealed partial class DataRightsCase
 {
+    public Result CompleteRestrictionExecution(
+        long expectedVersion,
+        DataRightsRestrictionExecutionProof proof,
+        DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(proof);
+
+        DataRightsSubjectCoordinate? subject = this.selectedSubjects.Count == 1
+            ? this.selectedSubjects[0]
+            : null;
+        if (this.Status == DataRightsCaseState.Completed &&
+            this.RestrictionExecutionProof is not null &&
+            subject is not null)
+        {
+            return this.RestrictionExecutionProof.Matches(
+                proof.IdempotencyKey,
+                proof.ApprovalRevision,
+                proof.Directive,
+                subject,
+                proof.ExecutedBy)
+                ? Result.Success()
+                : Result.Failure(DataRightsDomainErrors.RestrictionExecutionConflict);
+        }
+
+        Result ready = this.EnsureTransition(
+            expectedVersion,
+            proof.ExecutedBy,
+            nowUtc,
+            DataRightsCaseState.Approved);
+        if (ready.IsFailure)
+        {
+            return ready;
+        }
+
+        if (this.Decision != DataRightsCaseDecision.Approved ||
+            this.DecisionReason != DataRightsCaseDecisionReason.RequestValidated ||
+            this.RequestedOperations != DataRightsCaseOperation.Restriction ||
+            this.DecisionRevision != proof.ApprovalRevision ||
+            this.RestrictionAction != proof.Directive ||
+            subject is null ||
+            !proof.Matches(
+                proof.IdempotencyKey,
+                proof.ApprovalRevision,
+                proof.Directive,
+                subject,
+                proof.ExecutedBy) ||
+            proof.CompletedAtUtc > nowUtc)
+        {
+            return Result.Failure(DataRightsDomainErrors.RestrictionExecutionInvalid);
+        }
+
+        this.ExecutionStartedBy = proof.ExecutedBy;
+        this.ExecutionStartedAtUtc = proof.CompletedAtUtc;
+        this.RestrictionExecutionProof = proof;
+        this.Status = DataRightsCaseState.Completed;
+        this.CompleteChange(proof.ExecutedBy, nowUtc);
+        this.ExecutionRevision = this.Version;
+        return Result.Success();
+    }
+
     public Result CompleteAccessExport(
         long decisionRevision,
         string actorId,

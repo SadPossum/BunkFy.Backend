@@ -45,6 +45,7 @@
     <File Path="docs/planning/architecture-cleanup-task.md" />
     <File Path="docs/planning/data-rights-multi-owner-execution-task.md" />
     <File Path="docs/planning/data-rights-protected-export-artifacts-task.md" />
+    <File Path="docs/planning/data-rights-restriction-execution-task.md" />
     <File Path="docs/planning/development-guidelines.md" />
     <File Path="docs/planning/executable-personal-data-catalog-task.md" />
     <File Path="docs/planning/gma-access-control-properties-alignment.md" />

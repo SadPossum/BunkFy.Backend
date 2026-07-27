@@ -168,6 +168,7 @@ public sealed class ModuleBoundaryTests
         [
             "DataRightsCase",
             "DataRightsOperation",
+            "DataRightsRestriction",
             "DataRightsRequesterRelationship",
             "DataRightsAdminPermissionCodes"
         ];

@@ -25,6 +25,7 @@ public sealed class DataRightsApiSecurityTests
                 ["urn:test:acr:mfa"],
                 TimeSpan.FromMinutes(10));
             options.AnonymisationExecutionAssurance = assurance;
+            options.RestrictionExecutionAssurance = assurance;
             options.ExportGenerationAssurance = assurance;
             options.ExportDownloadAssurance = assurance;
         });
@@ -100,6 +101,15 @@ public sealed class DataRightsApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/execution");
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/restriction",
+            DataRightsAdminPermissionCodes.Restrict);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/restriction");
         AssertPermission(
             endpoints,
             HttpMethods.Get,
@@ -301,6 +311,11 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/execution",
             typeof(DataRightsExecutionDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/restriction",
+            typeof(DataRightsRestrictionExecutionDto));
         AssertProduces(
             endpoints,
             HttpMethods.Get,

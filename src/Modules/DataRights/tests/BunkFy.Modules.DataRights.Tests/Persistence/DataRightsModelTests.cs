@@ -76,6 +76,10 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_cases_approval_policy_evidence");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
+            constraint =>
+                constraint.Name == "CK_data_rights_cases_restriction_execution_proof");
         Assert.Equal(
             "\"Kind\" IN (1, 2, 3)",
             designEntity.GetCheckConstraints().Single(
@@ -580,6 +584,93 @@ public sealed class DataRightsModelTests
             "tenant-a");
         DataRightsCase restored = await reader.Cases.SingleAsync();
         Assert.Equal(DataRightsRestrictionAction.Release, restored.RestrictionAction);
+    }
+
+    [Fact]
+    public async Task Restriction_execution_proof_round_trips_with_the_case()
+    {
+        string databaseName = $"data-rights-restriction-proof-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        Guid propertyId = Guid.NewGuid();
+        DateTimeOffset now =
+            new(2026, 7, 27, 16, 30, 0, TimeSpan.Zero);
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Restriction,
+            DataRightsRequesterRelation.ControllerInitiated,
+            DataRightsRestrictionAction.Apply).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:privacy",
+            now.AddMinutes(-6)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy",
+            now.AddMinutes(-5)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            recordVersion: 3,
+            dataRightsCase.Version,
+            "user:privacy",
+            now.AddMinutes(-4)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy",
+            now.AddMinutes(-3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            now.AddMinutes(-2)).IsSuccess);
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            dataRightsCase.Version,
+            "user:decision-maker",
+            now.AddMinutes(-1)).IsSuccess);
+        DataRightsRestrictionExecutionProof proof =
+            DataRightsRestrictionExecutionProof.Create(
+                Guid.NewGuid(),
+                dataRightsCase.DecisionRevision!.Value,
+                DataRightsRestrictionAction.Apply,
+                dataRightsCase.SelectedSubjects.Single(),
+                receiptContractVersion: 1,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                resultingOwnerRevision: 2,
+                resultingProjectionRevision: 4,
+                effectiveRestricted: true,
+                new string('a', 64),
+                "user:executor",
+                now.AddSeconds(-5)).Value;
+        Assert.True(dataRightsCase.CompleteRestrictionExecution(
+            dataRightsCase.Version,
+            proof,
+            now).IsSuccess);
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        Assert.Equal(DataRightsCaseState.Completed, restored.Status);
+        Assert.NotNull(restored.RestrictionExecutionProof);
+        Assert.Equal(proof.IdempotencyKey, restored.RestrictionExecutionProof.IdempotencyKey);
+        Assert.Equal(proof.ReceiptSha256, restored.RestrictionExecutionProof.ReceiptSha256);
+        Assert.True(restored.RestrictionExecutionProof.EffectiveRestricted);
     }
 
     [Fact]

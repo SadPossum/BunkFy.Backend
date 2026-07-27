@@ -38,6 +38,12 @@ public static class GuestsApplicationErrors
     public static readonly Error RestrictionProjectionUnavailable = new(
         "Guests.RestrictionProjectionUnavailable",
         "The processing-restriction state is unavailable or unsupported.");
+    public static readonly Error RestrictionActiveStateInvalid = new(
+        "Guests.RestrictionActiveStateInvalid",
+        "The active processing-restriction state is inconsistent.");
+    public static readonly Error RestrictionOwnerProofInvalid = new(
+        "Guests.RestrictionOwnerProofInvalid",
+        "The committed processing-restriction proof is unavailable or inconsistent.");
     public static readonly Error RestrictionGuestVersionConflict = new(
         "Guests.RestrictionGuestVersionConflict",
         "The selected guest-profile version is stale.");

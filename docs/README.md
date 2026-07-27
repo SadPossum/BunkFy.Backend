@@ -52,6 +52,7 @@ Useful entry points:
 - [Executable Personal-Data Catalogue Task](planning/executable-personal-data-catalog-task.md)
 - [Data Rights Multi-Owner Execution Task](planning/data-rights-multi-owner-execution-task.md)
 - [Data Rights Protected Export Artifacts Task](planning/data-rights-protected-export-artifacts-task.md)
+- [Data Rights Restriction Execution Task](planning/data-rights-restriction-execution-task.md)
 - [Personal-Data Output Sink Enforcement Task](planning/personal-data-output-sink-enforcement-task.md)
 - [Production File Surface Lockdown Task](planning/production-file-surface-lockdown-task.md)
 - [Production Authentication Admission And Assurance Task](planning/production-authentication-admission-task.md)

@@ -465,6 +465,8 @@ public sealed class GuestsModule : IModule
         new(GuestsApplicationErrors.RestrictionRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new(GuestsApplicationErrors.RestrictionNotFound.Code, StatusCodes.Status404NotFound),
         new(GuestsApplicationErrors.RestrictionProjectionUnavailable.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionActiveStateInvalid.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.RestrictionOwnerProofInvalid.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.RestrictionGuestVersionConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.RestrictionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.RestrictionApprovalAlreadyUsed.Code, StatusCodes.Status409Conflict),

@@ -48,6 +48,7 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(BeginDataRightsDiscoveryCommand),
             typeof(CancelDataRightsCaseCommand),
             typeof(CreateDataRightsCaseCommand),
+            typeof(ExecuteDataRightsRestrictionCommand),
             typeof(RecordControllerRoutingCommand),
             typeof(RecordRequesterVerificationCommand),
             typeof(PrepareDataRightsExportDownloadCommand),
@@ -70,6 +71,10 @@ public sealed class DataRightsPersonalDataCatalogTests
         AssertBinding(
             typeof(DataRightsAnonymisationContributionRequest),
             nameof(DataRightsAnonymisationContributionRequest.ExecutingActorId),
+            PersonalDataSurface.IntegrationCommand);
+        AssertBinding(
+            typeof(DataRightsRestrictionContributionRequest),
+            nameof(DataRightsRestrictionContributionRequest.ExecutingActorId),
             PersonalDataSurface.IntegrationCommand);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.CreatedBy), PersonalDataSurface.Persistence);
         AssertBinding(
@@ -100,6 +105,10 @@ public sealed class DataRightsPersonalDataCatalogTests
         AssertBinding(
             typeof(DomainSubjectCoordinate),
             nameof(DomainSubjectCoordinate.SelectedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(DataRightsRestrictionExecutionProof),
+            nameof(DataRightsRestrictionExecutionProof.ExecutedBy),
             PersonalDataSurface.Persistence);
     }
 
@@ -157,6 +166,14 @@ public sealed class DataRightsPersonalDataCatalogTests
             nameof(DataRightsAnonymisationContributionRequest.Coordinate),
             PersonalDataSurface.IntegrationCommand);
         AssertBinding(
+            typeof(DataRightsRestrictionContributionRequest),
+            nameof(DataRightsRestrictionContributionRequest.Coordinate),
+            PersonalDataSurface.IntegrationCommand);
+        AssertBinding(
+            typeof(DataRightsRestrictionExecutionProof),
+            nameof(DataRightsRestrictionExecutionProof.RecordId),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
             typeof(DataRightsSelectedSubjectDto),
             nameof(DataRightsSelectedSubjectDto.SelectedAtUtc),
             PersonalDataSurface.ApiResponse);
@@ -207,6 +224,60 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsExportArtifact),
             nameof(DataRightsExportArtifact.PlaintextSha256),
             PersonalDataSurface.Persistence);
+    }
+
+    [Fact]
+    public void Restriction_execution_proof_is_explicitly_classified()
+    {
+        foreach (PropertyInfo property in typeof(DataRightsRestrictionContributionRequest)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(property => property.Name is not
+                         nameof(DataRightsRestrictionContributionRequest.Coordinate) and not
+                         nameof(DataRightsRestrictionContributionRequest.ExecutingActorId)))
+        {
+            AssertBinding(
+                typeof(DataRightsRestrictionContributionRequest),
+                property.Name,
+                PersonalDataSurface.IntegrationCommand);
+        }
+
+        foreach (PropertyInfo property in typeof(DataRightsRestrictionOwnerProof)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            AssertBinding(
+                typeof(DataRightsRestrictionOwnerProof),
+                property.Name,
+                PersonalDataSurface.ProjectionExport);
+        }
+
+        AssertBinding(
+            typeof(DataRightsRestrictionContributionResult),
+            nameof(DataRightsRestrictionContributionResult.OwnerProof),
+            PersonalDataSurface.ProjectionExport);
+        AssertBinding(
+            typeof(DataRightsRestrictionExecutionDto),
+            nameof(DataRightsRestrictionExecutionDto.Proof),
+            PersonalDataSurface.ApiResponse);
+        foreach (PropertyInfo property in typeof(DataRightsRestrictionExecutionProofDto)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            AssertBinding(
+                typeof(DataRightsRestrictionExecutionProofDto),
+                property.Name,
+                PersonalDataSurface.ApiResponse);
+        }
+
+        foreach (PropertyInfo property in typeof(DataRightsRestrictionExecutionProof)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(property => property.Name is not
+                         nameof(DataRightsRestrictionExecutionProof.RecordId) and not
+                         nameof(DataRightsRestrictionExecutionProof.ExecutedBy)))
+        {
+            AssertBinding(
+                typeof(DataRightsRestrictionExecutionProof),
+                property.Name,
+                PersonalDataSurface.Persistence);
+        }
     }
 
     [Fact]

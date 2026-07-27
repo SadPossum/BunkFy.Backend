@@ -35,7 +35,7 @@ public sealed class GuestProcessingRestrictionIntegrationTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Approved_apply_and_release_commit_owner_state_and_receipts()
+    public async Task Approved_data_rights_apply_and_release_complete_cases_and_owner_state()
     {
         await using IContainer nats = AuthTestContainers.CreateNatsContainer();
         await nats.StartAsync();
@@ -64,30 +64,47 @@ public sealed class GuestProcessingRestrictionIntegrationTests
 
         (GuestProfile profile, DataRightsCase applyCase, DataRightsCase releaseCase) =
             await SeedApprovedCasesAsync(api).ConfigureAwait(false);
-        GuestProcessingRestrictionReceiptDto applied;
+        Guid applyIdempotencyKey = Guid.NewGuid();
+        DataRightsRestrictionExecutionDto applied;
         using (HttpResponseMessage response = await AuthApiClient.PostJsonAsync(
                    client,
                    TenantId,
-                   $"/api/guests/properties/{PropertyId:D}/data-rights-restrictions",
+                   $"/api/data-rights/properties/{PropertyId:D}/cases/" +
+                   $"{applyCase.Id:D}/restriction",
                    new
                    {
-                       idempotencyKey = Guid.NewGuid(),
-                       caseId = applyCase.Id,
-                       approvalRevision = applyCase.DecisionRevision!.Value,
-                       guestId = profile.Id,
-                       expectedGuestVersion = profile.Version,
-                       expectedProjectionRevision = 0
+                       idempotencyKey = applyIdempotencyKey,
+                       expectedVersion = applyCase.Version
                    },
                    tokens.AccessToken).ConfigureAwait(false))
         {
-            applied = await ReadSuccessAsync<GuestProcessingRestrictionReceiptDto>(response)
+            applied = await ReadSuccessAsync<DataRightsRestrictionExecutionDto>(response)
                 .ConfigureAwait(false);
         }
 
-        Assert.Equal(GuestProcessingRestrictionActionDto.Apply, applied.Action);
-        Assert.True(applied.EffectiveRestricted);
-        Assert.Equal(1, applied.RestrictionVersion);
-        Assert.Equal(1, applied.ProjectionRevision);
+        Assert.Equal(DataRightsCaseStatus.Completed, applied.Case.Status);
+        Assert.Equal(DataRightsRestrictionDirective.Apply, applied.Proof.Directive);
+        Assert.True(applied.Proof.EffectiveRestricted);
+        Assert.Equal(1, applied.Proof.ResultingOwnerRevision);
+        Assert.Equal(1, applied.Proof.ResultingProjectionRevision);
+
+        using (HttpResponseMessage response = await AuthApiClient.PostJsonAsync(
+                   client,
+                   TenantId,
+                   $"/api/data-rights/properties/{PropertyId:D}/cases/" +
+                   $"{applyCase.Id:D}/restriction",
+                   new
+                   {
+                       idempotencyKey = applyIdempotencyKey,
+                       expectedVersion = applyCase.Version
+                   },
+                   tokens.AccessToken).ConfigureAwait(false))
+        {
+            DataRightsRestrictionExecutionDto replay =
+                await ReadSuccessAsync<DataRightsRestrictionExecutionDto>(response)
+                    .ConfigureAwait(false);
+            Assert.Equal(applied.Proof, replay.Proof);
+        }
 
         using (HttpResponseMessage response = await AuthApiClient.GetAsync(
                    client,
@@ -119,36 +136,31 @@ public sealed class GuestProcessingRestrictionIntegrationTests
                 await ReadSuccessAsync<GuestProcessingRestrictionListResponse>(response)
                     .ConfigureAwait(false);
             GuestProcessingRestrictionDto restriction = Assert.Single(active.Restrictions);
-            Assert.Equal(applied.RestrictionId, restriction.RestrictionId);
             Assert.Equal(applyCase.Id, restriction.ApplyCaseId);
         }
 
-        GuestProcessingRestrictionReceiptDto released;
+        DataRightsRestrictionExecutionDto released;
         using (HttpResponseMessage response = await AuthApiClient.PostJsonAsync(
                    client,
                    TenantId,
-                   $"/api/guests/properties/{PropertyId:D}/data-rights-restrictions/" +
-                   $"{applied.RestrictionId:D}/release",
+                   $"/api/data-rights/properties/{PropertyId:D}/cases/" +
+                   $"{releaseCase.Id:D}/restriction",
                    new
                    {
                        idempotencyKey = Guid.NewGuid(),
-                       caseId = releaseCase.Id,
-                       approvalRevision = releaseCase.DecisionRevision!.Value,
-                       guestId = profile.Id,
-                       expectedGuestVersion = profile.Version,
-                       expectedRestrictionVersion = applied.RestrictionVersion,
-                       expectedProjectionRevision = applied.ProjectionRevision
+                       expectedVersion = releaseCase.Version
                    },
                    tokens.AccessToken).ConfigureAwait(false))
         {
-            released = await ReadSuccessAsync<GuestProcessingRestrictionReceiptDto>(response)
+            released = await ReadSuccessAsync<DataRightsRestrictionExecutionDto>(response)
                 .ConfigureAwait(false);
         }
 
-        Assert.Equal(GuestProcessingRestrictionActionDto.Release, released.Action);
-        Assert.False(released.EffectiveRestricted);
-        Assert.Equal(2, released.RestrictionVersion);
-        Assert.Equal(2, released.ProjectionRevision);
+        Assert.Equal(DataRightsCaseStatus.Completed, released.Case.Status);
+        Assert.Equal(DataRightsRestrictionDirective.Release, released.Proof.Directive);
+        Assert.False(released.Proof.EffectiveRestricted);
+        Assert.Equal(2, released.Proof.ResultingOwnerRevision);
+        Assert.Equal(2, released.Proof.ResultingProjectionRevision);
 
         using (HttpResponseMessage response = await AuthApiClient.GetAsync(
                    client,
@@ -193,6 +205,14 @@ public sealed class GuestProcessingRestrictionIntegrationTests
                 .ThenBy(receipt => receipt.Id)
                 .ToArrayAsync()
                 .ConfigureAwait(false);
+        DataRightsDbContext dataRights =
+            verificationScope.ServiceProvider.GetRequiredService<DataRightsDbContext>();
+        DataRightsCase[] completedCases = await dataRights.Cases
+            .AsNoTracking()
+            .Where(item => item.Id == applyCase.Id || item.Id == releaseCase.Id)
+            .OrderBy(item => item.Id)
+            .ToArrayAsync()
+            .ConfigureAwait(false);
 
         Assert.Equal(GuestProcessingRestrictionState.Released, restrictionRow.Status);
         Assert.Equal(releaseCase.Id, restrictionRow.ReleaseCaseId);
@@ -203,6 +223,12 @@ public sealed class GuestProcessingRestrictionIntegrationTests
         Assert.Equal(2, receipts.Length);
         Assert.Contains(receipts, receipt => receipt.Action == GuestProcessingRestrictionAction.Apply);
         Assert.Contains(receipts, receipt => receipt.Action == GuestProcessingRestrictionAction.Release);
+        Assert.Equal(2, completedCases.Length);
+        Assert.All(completedCases, item =>
+        {
+            Assert.Equal(DataRightsCaseState.Completed, item.Status);
+            Assert.NotNull(item.RestrictionExecutionProof);
+        });
     }
 
     private static async Task<(GuestProfile Profile, DataRightsCase Apply, DataRightsCase Release)>

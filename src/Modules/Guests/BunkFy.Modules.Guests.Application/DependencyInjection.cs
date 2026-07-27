@@ -39,6 +39,10 @@ public static class DependencyInjection
                 GuestDataRightsAnonymisationContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
+                IDataRightsRestrictionContributor,
+                GuestDataRightsRestrictionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationRestoreContributor,
                 GuestDataRightsAnonymisationRestoreContributor>());
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, GuestPropertyCreatedHandler>(

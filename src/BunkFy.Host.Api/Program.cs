@@ -110,6 +110,7 @@ builder.Services.Configure<DataRightsApiSecurityOptions>(
     options =>
     {
         options.AnonymisationExecutionAssurance = destructiveOperationAssurance;
+        options.RestrictionExecutionAssurance = privilegedOperationAssurance;
         options.ExportGenerationAssurance = privilegedOperationAssurance;
         options.ExportDownloadAssurance = destructiveOperationAssurance;
     });
