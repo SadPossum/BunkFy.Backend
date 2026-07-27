@@ -15,6 +15,7 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
     IInventoryAvailabilityRepository availability,
     InventoryRetirementCoordinator retirements,
     IInventoryAllocationAmendmentDecisionRepository decisions,
+    IInventoryAllocationOperationLock operationLock,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -25,23 +26,23 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
         CancellationToken cancellationToken)
     {
         string fingerprint = Fingerprint(request);
-        InventoryAllocationAmendmentDecisionRecord? existing = await decisions
-            .GetAsync(request.AmendmentRequestId, cancellationToken)
-            .ConfigureAwait(false);
-        if (existing is not null)
+        if (await this.TryReplayExistingAsync(
+                request,
+                fingerprint,
+                cancellationToken).ConfigureAwait(false))
         {
-            if (string.Equals(existing.RequestFingerprint, fingerprint, StringComparison.Ordinal))
-            {
-                await this.PublishAsync(request, existing, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await this.PublishRejectedAsync(
-                    request,
-                    InventoryAllocationRejectionReason.RequestMismatch,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            return;
+        }
 
+        await operationLock.AcquireAsync(
+            request.ScopeId,
+            request.AllocationId,
+            cancellationToken).ConfigureAwait(false);
+        if (await this.TryReplayExistingAsync(
+                request,
+                fingerprint,
+                cancellationToken).ConfigureAwait(false))
+        {
             return;
         }
 
@@ -180,6 +181,43 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
             clock.UtcNow);
         await decisions.AddAsync(rejected, cancellationToken).ConfigureAwait(false);
         await this.PublishAsync(request, rejected, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<bool> TryReplayExistingAsync(
+        InventoryAllocationAmendmentRequestedIntegrationEvent request,
+        string fingerprint,
+        CancellationToken cancellationToken)
+    {
+        InventoryAllocationAmendmentDecisionRecord? existing =
+            await decisions
+                .GetAsync(
+                    request.AmendmentRequestId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        if (string.Equals(
+                existing.RequestFingerprint,
+                fingerprint,
+                StringComparison.Ordinal))
+        {
+            await this.PublishAsync(
+                request,
+                existing,
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await this.PublishRejectedAsync(
+                request,
+                InventoryAllocationRejectionReason.RequestMismatch,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     private Task PublishAsync(

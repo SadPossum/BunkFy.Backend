@@ -91,6 +91,9 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<Guid>("AllocationRequestId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateOnly>("Arrival")
                         .HasColumnType("date");
 
@@ -99,6 +102,9 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
 
                     b.Property<DateOnly>("Departure")
                         .HasColumnType("date");
+
+                    b.Property<bool>("IsAnonymised")
+                        .HasColumnType("boolean");
 
                     b.Property<Guid>("PropertyId")
                         .HasColumnType("uuid");
@@ -137,7 +143,10 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasIndex("ScopeId", "PropertyId", "Status", "Arrival", "Departure");
 
-                    b.ToTable("allocations", "inventory");
+                    b.ToTable("allocations", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_allocations_anonymisation_state", "(\"IsAnonymised\" = TRUE AND \"AnonymisedAtUtc\" IS NOT NULL) OR (\"IsAnonymised\" = FALSE AND \"AnonymisedAtUtc\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Inventory.Domain.Aggregates.ManualInventoryBlock", b =>
@@ -289,6 +298,275 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
                     b.ToTable("room_retirements", "inventory");
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("AllocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovalEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Disposition")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("OperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RemovedAmendmentDecisionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ResultingAllocationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ResultingReservationPseudonym")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedAllocationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "CanonicalSha256");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "AllocationId");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "AllocationId", "ResultingAllocationVersion")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CaseId", "ApprovalRevision", "OperationRevision", "AllocationId")
+                        .IsUnique();
+
+                    b.ToTable("allocation_anonymisation_receipts", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_allocation_anonymisation_receipts_actor", "length(trim(\"ActorId\")) > 0");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_receipts_counts", "\"RemovedAmendmentDecisionCount\" >= 0");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_receipts_digests", "char_length(\"ApprovalEvidenceSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_receipts_outcome", "\"Disposition\" = 1 AND \"Reason\" = 1");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_receipts_revisions", "\"ApprovalRevision\" >= 1 AND \"OperationRevision\" > \"ApprovalRevision\"");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_receipts_versions", "\"SelectedAllocationVersion\" >= 1 AND \"ResultingAllocationVersion\" = \"SelectedAllocationVersion\" + 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AllocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllocationPresent")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LedgerEntrySha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("OriginallyCompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("OwnerReceiptContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OwnerReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ResultingAllocationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ResultingReservationPseudonym")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("TenantSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TombstoneRevision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "AllocationId");
+
+                    b.HasIndex("ScopeId", "PropertyId", "AllocationId", "LedgerEntryId")
+                        .IsUnique();
+
+                    b.ToTable("allocation_anonymisation_restore_receipts", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_allocation_anonymisation_restore_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_restore_receipts_coordinates", "\"TenantSequence\" >= 1 AND \"OwnerReceiptContractVersion\" >= 1 AND \"ResultingAllocationVersion\" >= 1 AND \"TombstoneRevision\" >= 1");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_restore_receipts_digests", "char_length(\"LedgerEntrySha256\") = 64 AND char_length(\"OwnerReceiptSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_restore_receipts_identity", "\"LedgerEntryId\" = \"Id\"");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_restore_receipts_times", "\"ReplayedAtUtc\" >= \"OriginallyCompletedAtUtc\"");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllocationPresent")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OwnerReceiptContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OwnerReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ResultingAllocationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ResultingReservationPseudonym")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId", "LedgerEntryId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "CompletedAtUtc", "Id");
+
+                    b.ToTable("allocation_anonymisation_tombstones", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_allocation_anonymisation_tombstones_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_tombstones_receipt", "\"OwnerReceiptContractVersion\" >= 1 AND char_length(\"OwnerReceiptSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_tombstones_replay", "(\"LedgerEntryId\" IS NULL AND \"LastReplayedAtUtc\" IS NULL) OR (\"LedgerEntryId\" IS NOT NULL AND \"LastReplayedAtUtc\" IS NOT NULL AND \"LastReplayedAtUtc\" >= \"CompletedAtUtc\")");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_tombstones_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("CK_allocation_anonymisation_tombstones_version", "\"ResultingAllocationVersion\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Inventory.Domain.Entities.InventoryAllocationUnit", b =>
                 {
                     b.Property<string>("ScopeId")
@@ -351,6 +629,37 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ScopeId", "AllocationId", "DecidedAtUtc");
 
                     b.ToTable("allocation_amendment_decisions", "inventory");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Inventory.Persistence.InventoryAllocationOperationLock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AllocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "AllocationId")
+                        .IsUnique();
+
+                    b.ToTable("allocation_operation_locks", "inventory", t =>
+                        {
+                            t.HasCheckConstraint("CK_allocation_operation_locks_revision", "\"Revision\" >= 1");
+                        });
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Inventory.Persistence.InventoryBedTopology", b =>
@@ -718,6 +1027,26 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
                     b.HasOne("BunkFy.Modules.Inventory.Persistence.InventoryUnit", null)
                         .WithMany()
                         .HasForeignKey("ScopeId", "InventoryUnitId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "AllocationId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "AllocationId")
                         .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

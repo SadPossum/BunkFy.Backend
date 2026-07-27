@@ -29,6 +29,11 @@ internal sealed class InventoryAllocationRepository(InventoryDbContext dbContext
     public Task AddAsync(InventoryAllocation allocation, CancellationToken cancellationToken)
     {
         dbContext.Allocations.Add(allocation);
+        dbContext.AllocationOperationLocks.Add(
+            new(
+                allocation.Id,
+                allocation.ScopeId,
+                allocation.Id));
         return Task.CompletedTask;
     }
 

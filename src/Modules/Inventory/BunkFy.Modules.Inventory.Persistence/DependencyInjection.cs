@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Inventory.Persistence;
 
+using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -36,6 +37,24 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IInventoryAvailabilityProjectionExportSource, InventoryAvailabilityProjectionExportSource>();
         builder.Services.TryAddScoped<IInventoryAllocationRepository, InventoryAllocationRepository>();
         builder.Services.TryAddScoped<IInventoryAllocationAmendmentDecisionRepository, InventoryAllocationAmendmentDecisionRepository>();
+        builder.Services.TryAddScoped<
+            IInventoryAllocationOperationLock,
+            InventoryAllocationOperationLockRepository>();
+        builder.Services.TryAddScoped<
+            IInventoryAllocationAnonymisationRepository,
+            InventoryAllocationAnonymisationRepository>();
+        builder.Services.TryAddScoped<
+            IInventoryAllocationAnonymisationRestoreRepository,
+            InventoryAllocationAnonymisationRepository>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectDiscoveryContributor,
+                InventoryDataRightsDiscoveryContributor>());
+        InventoryDataRightsExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                InventoryDataRightsExportContributor>());
         builder.Services.TryAddScoped<IBedRetirementRepository, BedRetirementRepository>();
         builder.Services.TryAddScoped<IRoomRetirementRepository, RoomRetirementRepository>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, InventoryTopologyProjectionRebuildWriter>();

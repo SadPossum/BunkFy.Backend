@@ -567,6 +567,9 @@ public sealed class InventoryAuthorizationIntegrationTests
         {
             releaseScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
             InventoryDbContext inventoryDb = releaseScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+            await using var transaction = await inventoryDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             InventoryAllocation allocation = await inventoryDb.Allocations
                 .SingleAsync(item => item.ReservationId == RoomModeRaceReservation)
                 .ConfigureAwait(false);
@@ -583,6 +586,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                     allocation.Version),
                 CancellationToken.None).ConfigureAwait(false);
             await inventoryDb.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
 
             BedRetirementProcess process = await inventoryDb.BedRetirements
                 .SingleAsync(item => item.Id == topologyChangeId)
@@ -902,6 +906,11 @@ public sealed class InventoryAuthorizationIntegrationTests
         using (IServiceScope releaseScope = api.Services.CreateScope())
         {
             releaseScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext inventoryDb = releaseScope.ServiceProvider
+                .GetRequiredService<InventoryDbContext>();
+            await using var transaction = await inventoryDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             IIntegrationEventHandler<InventoryAllocationReleaseRequestedIntegrationEvent> releaseHandler =
                 ResolveInventoryHandler<InventoryAllocationReleaseRequestedIntegrationEvent>(releaseScope.ServiceProvider);
             await releaseHandler.HandleAsync(
@@ -914,9 +923,8 @@ public sealed class InventoryAuthorizationIntegrationTests
                     Guid.NewGuid(),
                     expectedAllocationVersion: 1),
                 CancellationToken.None).ConfigureAwait(false);
-            await releaseScope.ServiceProvider.GetRequiredService<InventoryDbContext>()
-                .SaveChangesAsync()
-                .ConfigureAwait(false);
+            await inventoryDb.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
         }
 
         Guid raceReservationOne = Guid.Parse("50000000-0000-0000-0000-000000000011");

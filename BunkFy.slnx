@@ -63,6 +63,7 @@
     <File Path="docs/planning/ingestion-sensitive-history-retention-task.md" />
     <File Path="docs/planning/ingestion-source-reprocessing-task.md" />
     <File Path="docs/planning/international-market-gate-task.md" />
+    <File Path="docs/planning/inventory-data-rights-owner-capability-task.md" />
     <File Path="docs/planning/inventory-module-task.md" />
     <File Path="docs/planning/inventory-personal-data-catalogue-task.md" />
     <File Path="docs/planning/inventory-room-retirement-and-throughput-hardening-task.md" />

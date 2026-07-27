@@ -36,4 +36,28 @@ public static class InventoryApplicationErrors
     public static readonly Error RoomRetirementRetryInvalid = new("Inventory.RoomRetirementRetryInvalid", "Only a rejected room retirement can be retried.");
     public static readonly Error RoomRetirementStillDraining = new("Inventory.RoomRetirementStillDraining", "Active reservations, inventory blocks, or bed retirements still depend on this room.");
     public static readonly Error RoomRetirementInProgress = new("Inventory.RoomRetirementInProgress", "The room is already being retired, so its beds cannot be retired independently.");
+    public static readonly Error AnonymisationRequestInvalid = new(
+        "Inventory.AnonymisationRequestInvalid",
+        "The inventory allocation anonymisation request is invalid.");
+    public static readonly Error DataRightsApprovalRequired = new(
+        "Inventory.DataRightsApprovalRequired",
+        "The inventory allocation operation requires a current approved data-rights case.");
+    public static readonly Error AllocationNotFound = new(
+        "Inventory.AllocationNotFound",
+        "The inventory allocation was not found.");
+    public static readonly Error AnonymisationIdempotencyConflict = new(
+        "Inventory.AnonymisationIdempotencyConflict",
+        "The anonymisation idempotency key is bound to a different inventory allocation request.");
+    public static readonly Error AnonymisationProofUnavailable = new(
+        "Inventory.AnonymisationProofUnavailable",
+        "The committed inventory allocation anonymisation result cannot be proven.");
+    public static readonly Error AnonymisationRestoreRequestInvalid = new(
+        "Inventory.AnonymisationRestoreRequestInvalid",
+        "The inventory allocation anonymisation restore request is invalid.");
+    public static readonly Error AnonymisationRestoreProofConflict = new(
+        "Inventory.AnonymisationRestoreProofConflict",
+        "The restored inventory allocation state conflicts with the protected anonymisation proof.");
+    public static Error AnonymisationBlocked(string reasonCode) => new(
+        $"Inventory.AnonymisationBlocked.{reasonCode}",
+        "The inventory allocation cannot be anonymised under its current owner state.");
 }

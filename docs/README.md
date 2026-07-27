@@ -28,6 +28,7 @@ Useful entry points:
 - [Inventory Topology Change Safety Task](planning/inventory-topology-change-safety-task.md)
 - [Inventory Room Retirement And Throughput Hardening Task](planning/inventory-room-retirement-and-throughput-hardening-task.md)
 - [Inventory Personal-Data Catalogue Task](planning/inventory-personal-data-catalogue-task.md)
+- [Inventory Data-Rights Owner Capability Task](planning/inventory-data-rights-owner-capability-task.md)
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)

@@ -9,7 +9,13 @@ internal sealed class InventoryAllocationConfiguration : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<InventoryAllocation> builder)
     {
-        builder.ToTable("allocations");
+        builder.ToTable("allocations", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_allocations_anonymisation_state",
+                "(\"IsAnonymised\" = TRUE AND \"AnonymisedAtUtc\" IS NOT NULL) OR " +
+                "(\"IsAnonymised\" = FALSE AND \"AnonymisedAtUtc\" IS NULL)");
+        });
         builder.HasKey(allocation => allocation.Id);
         builder.HasAlternateKey(allocation => new { allocation.ScopeId, allocation.Id });
         builder.Property(allocation => allocation.ScopeId).HasMaxLength(128).IsRequired();

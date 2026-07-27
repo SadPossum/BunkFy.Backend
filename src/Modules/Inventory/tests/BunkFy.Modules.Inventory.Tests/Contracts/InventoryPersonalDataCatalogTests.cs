@@ -8,6 +8,7 @@ using BunkFy.Modules.Inventory.Application.Ports;
 using BunkFy.Modules.Inventory.Application.Queries;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
+using BunkFy.Modules.Inventory.Domain.DataRights;
 using BunkFy.Modules.Inventory.Domain.Entities;
 using BunkFy.Modules.Inventory.Domain.Events;
 using BunkFy.Modules.Inventory.Persistence;
@@ -202,6 +203,10 @@ public sealed class InventoryPersonalDataCatalogTests
         typeof(InventoryAllocation),
         typeof(InventoryAllocationUnit),
         typeof(InventoryAllocationAmendmentDecision),
+        typeof(InventoryAllocationOperationLock),
+        typeof(InventoryAllocationAnonymisationReceipt),
+        typeof(InventoryAllocationAnonymisationTombstone),
+        typeof(InventoryAllocationAnonymisationRestoreReceipt),
         typeof(ManualInventoryBlock),
         typeof(BedRetirementProcess),
         typeof(RoomRetirementProcess)
@@ -231,7 +236,9 @@ public sealed class InventoryPersonalDataCatalogTests
                      typeof(RequestRoomRetirementCommand),
                      typeof(RetryBedRetirementCommand),
                      typeof(RetryRoomRetirementCommand),
-                     typeof(InventoryAllocationAmendmentDecisionRecord)
+                     typeof(InventoryAllocationAmendmentDecisionRecord),
+                     typeof(ApplyInventoryAllocationAnonymisationCommand),
+                     typeof(RestoreInventoryAllocationAnonymisationCommand)
                  })
         {
             yield return (PersonalDataSurface.ApplicationCommand, type);
@@ -275,6 +282,10 @@ public sealed class InventoryPersonalDataCatalogTests
         {
             yield return (PersonalDataSurface.ApiResponse, type);
         }
+
+        yield return (
+            PersonalDataSurface.DataRightsExport,
+            typeof(InventoryAllocationAnonymisationReceiptDto));
 
         yield return (PersonalDataSurface.AdminOutput, typeof(BedRetirementDto));
         yield return (PersonalDataSurface.AdminOutput, typeof(RoomRetirementDto));

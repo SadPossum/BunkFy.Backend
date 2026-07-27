@@ -133,14 +133,20 @@ The Inventory catalogue separates pure facility topology from person-linked
 operations. It classifies pseudonymous reservation/allocation relationships,
 stay and availability context, staff actor attribution, unstructured block and
 retirement reasons, topology-change processes, impact samples, projection
-exports, and the cross-module events needed by Reservations and Properties.
+exports, and the cross-module events needed by Reservations and Properties. It
+now also classifies the terminal allocation-anonymisation receipt, tombstone,
+restore proof, operation lock, and Data Rights command/export boundaries under
+a dedicated owner-proof policy.
 
-Executable guards cover every non-shadow member of six protected persistence
+Executable guards cover every non-shadow member of ten protected persistence
 types and every selected API, application, admin, export, domain-event, and
 integration-event member. They also keep affected reservation samples bounded,
 prohibit free-text reasons from broad outputs, exclude pure topology from the
-personal-data catalogue, and prove deterministic rendering. Version 3 of the
-block-created event removes an unused free-text reason from durable messaging.
+personal-data catalogue, and prove deterministic rendering. The owner workflow
+additionally proves exact-reservation discovery, bounded export, terminal-only
+anonymisation, idempotent canonical proof, restore replay, and suppression from
+ordinary reads after anonymisation. Version 3 of the block-created event removes
+an unused free-text reason from durable messaging.
 
 ## Properties Slice
 
@@ -240,15 +246,25 @@ Current Operations Notifications evidence:
 
 Current Inventory evidence:
 
-- Five field definitions resolve 481 concrete bindings across Inventory-owned
+- The published baseline has five field definitions resolving 481 concrete
+  bindings across Inventory-owned
   persistence, application/API/admin boundaries, projection exports, domain
   events, and produced or consumed integration events.
-- All eight catalogue guards, all 48 Inventory tests, all 53 Reservations
+- All eight baseline catalogue guards, all 48 Inventory tests, all 53 Reservations
   tests, all 21 Operations Notifications tests, all 58 architecture tests, all
   2,331 non-Docker tests, and all 33 Docker integration tests pass.
 - Published backend commit `c7db6b2e633e88442bad124c6c1f17b20589a2cd`
   passed exact Windows and Ubuntu validation in GitHub Actions run
   `29904293750`; Docker run `29904293838` also passed.
+- The current owner-capability extension has six field definitions resolving
+  582 concrete bindings, 63 green Inventory tests, 65 green architecture tests,
+  a synchronized solution, zero migration drift across every mounted GMA and
+  BunkFy context, 2,758 green non-Docker tests, and 59 green Docker integration
+  tests. Docker coverage includes preservation and operation-lock backfill for
+  an allocation created on the previous schema. The production-shaped preview
+  applied the migration to 14 existing allocations, backfilled all 14
+  operation-lock rows, passed same-origin health/smoke checks, and completed a
+  fresh Worker schedule cycle. Exact-commit CI remains pending publication.
 
 Current Properties evidence:
 

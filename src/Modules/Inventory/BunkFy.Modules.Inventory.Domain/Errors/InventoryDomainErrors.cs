@@ -25,6 +25,27 @@ public static class InventoryDomainErrors
     public static readonly Error AllocationUnitsInvalid = new("Inventory.AllocationUnitsInvalid", "Allocation units must contain unique, non-empty ids within the supported limit.");
     public static readonly Error AllocationRejectionRequired = new("Inventory.AllocationRejectionRequired", "A rejected allocation requires a rejection reason.");
     public static readonly Error AllocationNotActive = new("Inventory.AllocationNotActive", "The inventory allocation is not active.");
+    public static readonly Error AllocationAlreadyAnonymised = new(
+        "Inventory.AllocationAlreadyAnonymised",
+        "The inventory allocation is already anonymised.");
+    public static readonly Error AllocationNotEligibleForAnonymisation = new(
+        "Inventory.AllocationNotEligibleForAnonymisation",
+        "Only released or rejected inventory allocations can be anonymised.");
+    public static readonly Error AllocationAnonymisationProvenanceInvalid = new(
+        "Inventory.AllocationAnonymisationProvenanceInvalid",
+        "The inventory allocation anonymisation provenance is invalid.");
+    public static readonly Error AllocationAnonymisationRestoreStateInvalid = new(
+        "Inventory.AllocationAnonymisationRestoreStateInvalid",
+        "The inventory allocation cannot restore the requested anonymised state.");
+    public static readonly Error AllocationAnonymisationReceiptInvalid = new(
+        "Inventory.AllocationAnonymisationReceiptInvalid",
+        "The inventory allocation anonymisation receipt is invalid.");
+    public static readonly Error AllocationAnonymisationTombstoneInvalid = new(
+        "Inventory.AllocationAnonymisationTombstoneInvalid",
+        "The inventory allocation anonymisation tombstone is invalid.");
+    public static readonly Error AllocationAnonymisationRestoreReceiptInvalid = new(
+        "Inventory.AllocationAnonymisationRestoreReceiptInvalid",
+        "The inventory allocation anonymisation restore receipt is invalid.");
     public static readonly Error BedRetirementIdentityInvalid = new("Inventory.BedRetirementIdentityInvalid", "Bed retirement identity is invalid.");
     public static readonly Error BedRetirementRequestInvalid = new("Inventory.BedRetirementRequestInvalid", "Bed retirement reason and actor are required and must be within supported limits.");
     public static readonly Error BedRetirementTransitionInvalid = new("Inventory.BedRetirementTransitionInvalid", "The bed retirement process cannot perform this transition.");

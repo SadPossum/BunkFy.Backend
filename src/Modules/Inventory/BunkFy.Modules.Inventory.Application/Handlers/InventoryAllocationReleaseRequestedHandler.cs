@@ -14,6 +14,7 @@ internal sealed class InventoryAllocationReleaseRequestedHandler(
     IInventoryAllocationRepository allocations,
     IInventoryAvailabilityRepository availability,
     InventoryRetirementCoordinator retirements,
+    IInventoryAllocationOperationLock operationLock,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -23,6 +24,11 @@ internal sealed class InventoryAllocationReleaseRequestedHandler(
         InventoryAllocationReleaseRequestedIntegrationEvent request,
         CancellationToken cancellationToken)
     {
+        await operationLock.AcquireAsync(
+            request.ScopeId,
+            request.AllocationId,
+            cancellationToken).ConfigureAwait(false);
+
         InventoryAllocation? allocation = await allocations
             .GetAsync(request.AllocationId, cancellationToken)
             .ConfigureAwait(false);

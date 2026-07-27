@@ -4,6 +4,7 @@ using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
+using BunkFy.Modules.Inventory.Domain.DataRights;
 using BunkFy.Modules.Inventory.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,10 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     public DbSet<InventoryAllocation> Allocations => this.Set<InventoryAllocation>();
     public DbSet<InventoryAllocationUnit> AllocationUnits => this.Set<InventoryAllocationUnit>();
     public DbSet<InventoryAllocationAmendmentDecision> AllocationAmendmentDecisions => this.Set<InventoryAllocationAmendmentDecision>();
+    internal DbSet<InventoryAllocationOperationLock> AllocationOperationLocks => this.Set<InventoryAllocationOperationLock>();
+    public DbSet<InventoryAllocationAnonymisationReceipt> AllocationAnonymisationReceipts => this.Set<InventoryAllocationAnonymisationReceipt>();
+    public DbSet<InventoryAllocationAnonymisationTombstone> AllocationAnonymisationTombstones => this.Set<InventoryAllocationAnonymisationTombstone>();
+    public DbSet<InventoryAllocationAnonymisationRestoreReceipt> AllocationAnonymisationRestoreReceipts => this.Set<InventoryAllocationAnonymisationRestoreReceipt>();
     public DbSet<BedRetirementProcess> BedRetirements => this.Set<BedRetirementProcess>();
     public DbSet<RoomRetirementProcess> RoomRetirements => this.Set<RoomRetirementProcess>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();

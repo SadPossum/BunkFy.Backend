@@ -16,6 +16,8 @@ values are engineering defaults until country, retention, and rights approval.
 - explicit `Unconfigured`, `RoomLevel`, or `BedLevel` room sales mode;
 - manual half-open `[arrival, departure)` block groups targeting a property, configured building/floor, room, or unit;
 - durable, idempotent multi-unit reservation allocations and releases with concurrent-claim serialization;
+- exact-reservation Data Rights discovery/export plus terminal allocation
+  anonymisation and restore-safe owner proof;
 - date-range availability reads over the currently sellable units;
 - scoped `inventory.read`, `inventory.configure`, and `inventory.blocks.manage` permissions;
 - public API, Admin API, Admin CLI, PostgreSQL migration, NATS handlers, and worker rebuild composition;

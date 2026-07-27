@@ -51,6 +51,7 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
             availability,
             new InventoryRetirementCoordinator(bedRetirements, roomRetirements),
             decisions,
+            new NoopAllocationOperationLock(),
             new RecordingOutboxRegistry(outbox),
             new TestClock(),
             new TestIdGenerator());
@@ -247,6 +248,16 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
             this.Items.Add(decision.AmendmentRequestId, decision);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class NoopAllocationOperationLock
+        : IInventoryAllocationOperationLock
+    {
+        public Task AcquireAsync(
+            string tenantId,
+            Guid allocationId,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class RecordingOutbox : IOutboxWriter

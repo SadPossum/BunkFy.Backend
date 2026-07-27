@@ -6,6 +6,19 @@
   "approvalState": "engineering-default",
   "accessPolicies": [
     {
+      "id": "inventory-anonymisation-owner-proof",
+      "scope": "tenant-property-authorized-data-rights-operation",
+      "readers": [
+        "permission:data-rights.read",
+        "system:inventory.data-rights-export",
+        "system:inventory.anonymisation-proof"
+      ],
+      "writers": [
+        "permission:data-rights.execute",
+        "system:inventory.anonymisation"
+      ]
+    },
+    {
       "id": "inventory-guest-operations",
       "scope": "tenant-property-authorized-reservation-operations",
       "readers": [
@@ -60,11 +73,25 @@
       "legalHoldBehavior": "pause-approved-erasure"
     },
     {
+      "id": "inventory-anonymisation-owner-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "inventory-allocation-anonymisation-completed",
+      "endsAt": "approved-accountability-retention-completed",
+      "legalHoldBehavior": "retain-approved-minimum-proof"
+    },
+    {
       "id": "inventory-change-history",
       "approvalState": "engineering-default",
       "startsAt": "inventory-change-requested",
       "endsAt": "approved-erasure-or-operational-retention-completed",
       "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "inventory-data-rights-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "authorized-export-started",
+      "endsAt": "authorized-export-completed",
+      "legalHoldBehavior": "not-applicable"
     },
     {
       "id": "projection-rebuild-transfer",
@@ -104,6 +131,13 @@
       "erasure": "delete-or-pseudonymize-after-approved-reservation-retention"
     },
     {
+      "id": "inventory-anonymisation-accountability",
+      "export": "include-minimum-anonymisation-proof-in-authorized-case-ledger",
+      "correction": "immutable-owner-receipt-and-monotonic-tombstone-only",
+      "restriction": "exclude-anonymised-allocation-from-ordinary-surfaces",
+      "erasure": "retain-pii-free-proof-and-reapply-after-restore"
+    },
+    {
       "id": "operational-free-text",
       "export": "include-after-authorized-subject-review",
       "correction": "replace-through-authorized-inventory-workflow",
@@ -119,6 +153,460 @@
     }
   ],
   "fields": [
+    {
+      "id": "inventory.allocation-anonymisation-proof",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "allocation-anonymisation-accountability",
+        "restore-replay-safety",
+        "tamper-evident-owner-proof"
+      ],
+      "sources": [
+        "approved-data-rights-operation",
+        "inventory-owner-operation"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-anonymisation-owner-proof",
+      "countryPolicyKey": "inventory.guest-allocation",
+      "retentionPolicy": "inventory-anonymisation-owner-proof",
+      "rightsPolicy": "inventory-anonymisation-accountability",
+      "allowedSurfaces": [
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.ApplyInventoryAllocationAnonymisationCommand",
+          "member": "Request",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.RestoreInventoryAllocationAnonymisationCommand",
+          "member": "Request",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "AllocationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "CanonicalSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "CaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "ContractVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "Disposition",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "IdempotencyKey",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "OperationRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "Reason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "RemovedAmendmentDecisionCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "ResultingAllocationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "SelectedAllocationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "WorkItemId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "AllocationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "CaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "Disposition",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "IdempotencyKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "OperationRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "Reason",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "RemovedAmendmentDecisionCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "ResultingAllocationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "SelectedAllocationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "WorkItemId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "AllocationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "AllocationPresent",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "LedgerEntryId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "LedgerEntrySha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "OriginallyCompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "ReplayedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "ResultingAllocationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "TenantSequence",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "TombstoneRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "AllocationPresent",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "LastReplayedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "LedgerEntryId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "OwnerReceiptContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "OwnerReceiptId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "OwnerReceiptSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "ResultingAllocationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "Revision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
     {
       "id": "inventory.guest-allocation-operations",
       "dataSubject": "guest",
@@ -143,6 +631,7 @@
         "api-response",
         "application-command",
         "application-query",
+        "data-rights-export",
         "integration-event",
         "persistence",
         "projection-export"
@@ -1136,6 +1625,12 @@
         {
           "assembly": "BunkFy.Modules.Inventory.Domain",
           "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "AnonymisedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
           "member": "Arrival",
           "surface": "persistence"
         },
@@ -1155,6 +1650,12 @@
           "assembly": "BunkFy.Modules.Inventory.Domain",
           "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
           "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.InventoryAllocation",
+          "member": "IsAnonymised",
           "surface": "persistence"
         },
         {
@@ -1270,6 +1771,170 @@
           "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
           "member": "ScopeId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationOperationLock",
+          "member": "AllocationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationOperationLock",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationOperationLock",
+          "member": "Revision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationOperationLock",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "AllocationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "AllocationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "AmendmentRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "Confirmed",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "DecidedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "RejectionReason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "RequestFingerprint",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "AllocationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "AllocationRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "Arrival",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "Departure",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "InventoryUnitIds",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "Rejection",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "ReleasedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "ReleaseRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
         }
       ]
     },
@@ -1296,6 +1961,7 @@
         "admin-output",
         "api-response",
         "application-command",
+        "data-rights-export",
         "integration-event",
         "persistence",
         "projection-export"
@@ -1391,6 +2057,13 @@
           "member": "ReservationId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "ResultingReservationPseudonym",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
         },
         {
           "assembly": "BunkFy.Modules.Inventory.Contracts",
@@ -1490,10 +2163,45 @@
           "surface": "persistence"
         },
         {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "ResultingReservationPseudonym",
+          "surface": "persistence",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationRestoreReceipt",
+          "member": "ResultingReservationPseudonym",
+          "surface": "persistence",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
+          "member": "ResultingReservationPseudonym",
+          "surface": "persistence",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
           "assembly": "BunkFy.Modules.Inventory.Persistence",
           "type": "BunkFy.Modules.Inventory.Persistence.InventoryAllocationAmendmentDecision",
           "member": "ReservationId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-data-rights-export-fragment"
         }
       ]
     },
@@ -1672,7 +2380,8 @@
         "application-command",
         "domain-event",
         "integration-event",
-        "persistence"
+        "persistence",
+        "data-rights-export"
       ],
       "allowedBoundaries": [
         "cross-module",
@@ -1747,6 +2456,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto",
+          "member": "ActorId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
           "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent",
           "member": "ActorId",
           "surface": "integration-event",
@@ -1791,6 +2507,13 @@
           "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
           "member": "RequestedBy",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationReceipt",
+          "member": "ActorId",
+          "surface": "persistence",
+          "retentionPolicy": "inventory-anonymisation-owner-proof"
         },
         {
           "assembly": "BunkFy.Modules.Inventory.Domain",

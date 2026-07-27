@@ -5,7 +5,7 @@ using Gma.Framework.Results;
 using BunkFy.Modules.Inventory.Domain.Entities;
 using BunkFy.Modules.Inventory.Domain.Errors;
 
-public sealed class InventoryAllocation : ScopedAggregateRoot<Guid>
+public sealed partial class InventoryAllocation : ScopedAggregateRoot<Guid>
 {
     public const int MaximumUnits = 100;
     private readonly List<InventoryAllocationUnit> units = [];
@@ -48,6 +48,8 @@ public sealed class InventoryAllocation : ScopedAggregateRoot<Guid>
     public Guid? ReleaseRequestId { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? ReleasedAtUtc { get; private set; }
+    public bool IsAnonymised { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
     public IReadOnlyCollection<InventoryAllocationUnit> Units => this.units.AsReadOnly();
 
     public static Result<InventoryAllocation> CreateAccepted(
@@ -113,6 +115,12 @@ public sealed class InventoryAllocation : ScopedAggregateRoot<Guid>
 
     public Result Release(Guid releaseRequestId, long expectedVersion, DateTimeOffset nowUtc)
     {
+        if (this.IsAnonymised)
+        {
+            return Result.Failure(
+                InventoryDomainErrors.AllocationAlreadyAnonymised);
+        }
+
         if (this.Status == InventoryAllocationState.Rejected)
         {
             return Result.Failure(InventoryDomainErrors.AllocationNotActive);
@@ -147,6 +155,12 @@ public sealed class InventoryAllocation : ScopedAggregateRoot<Guid>
         DateOnly departure,
         IReadOnlyCollection<Guid> inventoryUnitIds)
     {
+        if (this.IsAnonymised)
+        {
+            return Result.Failure<InventoryAllocationAmendmentOutcome>(
+                InventoryDomainErrors.AllocationAlreadyAnonymised);
+        }
+
         if (amendmentRequestId == Guid.Empty)
         {
             return Result.Failure<InventoryAllocationAmendmentOutcome>(
