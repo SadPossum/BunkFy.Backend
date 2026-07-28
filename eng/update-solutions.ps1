@@ -269,8 +269,10 @@ if ($IncludeRootWorkspace) {
     }
 
     foreach ($item in @(
-        '.gitignore', '.gitmodules', 'Directory.Build.props', 'Directory.Packages.props',
-        'global.json', 'LICENSE', 'nuget.config', 'README.md', 'SECURITY.md'
+        '.gitignore', '.gitmodules', '.gma/release-evidence.json',
+        '.gma/repository-security.json', '.gma/security-exceptions.json',
+        'Directory.Build.props', 'Directory.Packages.props', 'global.json',
+        'LICENSE', 'nuget.config', 'README.md', 'SECURITY.md', 'SUPPORT.md'
     )) {
         if (Test-Path -LiteralPath (Join-Path $workspaceRoot $item) -PathType Leaf) {
             Add-SolutionEntry $workspaceFolders '/Solution Items/' File $item
