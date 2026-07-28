@@ -27,6 +27,12 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
             return Result.Success();
         }
 
+        Result started = application.BeginProvisioning(clock.UtcNow);
+        if (started.IsFailure)
+        {
+            return started;
+        }
+
         WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
             application.SourceId,
             cancellationToken).ConfigureAwait(false);
@@ -60,13 +66,6 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
             application.Fail(failureCode, clock.UtcNow);
             return Result.Failure(
                 WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
-        }
-
-        DateTimeOffset nowUtc = clock.UtcNow;
-        Result started = application.BeginProvisioning(nowUtc);
-        if (started.IsFailure)
-        {
-            return started;
         }
 
         if (!application.StaffMemberId.HasValue)

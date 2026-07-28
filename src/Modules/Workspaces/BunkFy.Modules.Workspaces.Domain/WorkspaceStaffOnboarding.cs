@@ -4,7 +4,7 @@ using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
-public sealed class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
+public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
 {
     private WorkspaceStaffOnboarding() { }
     private WorkspaceStaffOnboarding(Guid id, string scopeId) : base(id, scopeId) { }
@@ -92,7 +92,7 @@ public sealed class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         string? department,
         DateTimeOffset nowUtc)
     {
-        if (!this.IsAdmissible ||
+        if (this.Status != WorkspaceStaffOnboardingState.Submitted ||
             !TryNormalizeRequired(verifiedAccountEmail, WorkspaceStaffOnboardingRules.EmailMaxLength, out string? verifiedEmail) ||
             !TryNormalizeRequired(displayName, WorkspaceStaffOnboardingRules.DisplayNameMaxLength, out string? name) ||
             !TryNormalizeOptional(legalName, WorkspaceStaffOnboardingRules.LegalNameMaxLength, out string? normalizedLegalName) ||
@@ -112,21 +112,29 @@ public sealed class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
-    public Result BindClaim(Guid claimId, long claimVersion, DateTimeOffset nowUtc)
+    public Result ObserveInvitationAccepted(DateTimeOffset nowUtc)
     {
-        if (claimId == Guid.Empty || claimVersion <= 0 || !this.IsAdmissible)
+        if (this.SourceKind != WorkspaceStaffOnboardingSource.Invitation)
         {
             return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
         }
 
-        if (this.ClaimId.HasValue && this.ClaimId.Value != claimId)
+        if (this.Status is WorkspaceStaffOnboardingState.Provisioning or
+            WorkspaceStaffOnboardingState.StaffReady or
+            WorkspaceStaffOnboardingState.Failed or
+            WorkspaceStaffOnboardingState.Completed or
+            WorkspaceStaffOnboardingState.Superseded)
         {
-            return Result.Failure(WorkspaceStaffOnboardingErrors.ClaimConflict);
+            return Result.Success();
         }
 
-        this.ClaimId = claimId;
-        this.ClaimVersion = claimVersion;
-        this.Status = WorkspaceStaffOnboardingState.PendingApproval;
+        if (this.Status != WorkspaceStaffOnboardingState.Submitted)
+        {
+            return Result.Failure(WorkspaceStaffOnboardingErrors.Unavailable);
+        }
+
+        this.Status = WorkspaceStaffOnboardingState.Provisioning;
+        this.FailureCode = null;
         this.Advance(nowUtc);
         return Result.Success();
     }
@@ -144,24 +152,23 @@ public sealed class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
             return Result.Failure(WorkspaceStaffOnboardingErrors.Unavailable);
         }
 
-        if (this.Status is not (WorkspaceStaffOnboardingState.Submitted or
-            WorkspaceStaffOnboardingState.PendingApproval or
-            WorkspaceStaffOnboardingState.Failed or
-            WorkspaceStaffOnboardingState.Provisioning or
-            WorkspaceStaffOnboardingState.StaffReady))
+        if (this.Status is WorkspaceStaffOnboardingState.Submitted or
+            WorkspaceStaffOnboardingState.PendingApproval)
         {
             return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
         }
 
-        if (this.Status is not (WorkspaceStaffOnboardingState.Provisioning or
-            WorkspaceStaffOnboardingState.StaffReady))
+        if (this.Status == WorkspaceStaffOnboardingState.Failed)
         {
             this.Status = WorkspaceStaffOnboardingState.Provisioning;
             this.FailureCode = null;
             this.Advance(nowUtc);
         }
 
-        return Result.Success();
+        return this.Status is WorkspaceStaffOnboardingState.Provisioning or
+            WorkspaceStaffOnboardingState.StaffReady
+                ? Result.Success()
+                : Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
     }
 
     public Result MarkStaffReady(Guid staffMemberId, DateTimeOffset nowUtc)
@@ -215,22 +222,6 @@ public sealed class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
 
         this.Status = WorkspaceStaffOnboardingState.Failed;
         this.FailureCode = normalized;
-        this.Advance(nowUtc);
-        return Result.Success();
-    }
-
-    public Result Reject(long claimVersion, DateTimeOffset nowUtc)
-    {
-        if (claimVersion <= 0 || this.Status is WorkspaceStaffOnboardingState.Completed or
-            WorkspaceStaffOnboardingState.Superseded)
-        {
-            return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
-        }
-
-        this.ClaimVersion = claimVersion;
-        this.Status = WorkspaceStaffOnboardingState.Rejected;
-        this.FailureCode = null;
-        this.RedactApplicantData();
         this.Advance(nowUtc);
         return Result.Success();
     }

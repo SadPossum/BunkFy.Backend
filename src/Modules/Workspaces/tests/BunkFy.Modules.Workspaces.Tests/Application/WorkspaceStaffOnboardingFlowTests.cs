@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Workspaces.Tests;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Commands;
+using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
@@ -26,9 +27,68 @@ using Xunit;
 public sealed class WorkspaceStaffOnboardingFlowTests
 {
     [Fact]
+    public async Task Accepted_claim_event_records_its_version_before_provisioning()
+    {
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        FakeRepository applications = new(application);
+        FakeStaffProvisioner staff = new();
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            staff,
+            new FakeAccessControl());
+        OrganizationEnrollmentClaimStaffOnboardingHandler handler = provider
+            .GetRequiredService<OrganizationEnrollmentClaimStaffOnboardingHandler>();
+
+        await handler.HandleAsync(
+            new OrganizationEnrollmentClaimChangedIntegrationEvent(
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.Now.AddMinutes(1),
+                WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId,
+                Guid.NewGuid(),
+                application.SubjectId,
+                OrganizationEnrollmentClaimChange.Accepted,
+                OrganizationEnrollmentClaimStatus.Accepted,
+                Guid.NewGuid(),
+                1),
+            CancellationToken.None);
+
+        Assert.Equal(1, application.ClaimVersion);
+        Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
+        Assert.Equal(1, staff.CallCount);
+    }
+
+    [Fact]
+    public async Task Owner_retry_cannot_provision_before_authoritative_acceptance()
+    {
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        FakeRepository applications = new(application);
+        FakeStaffProvisioner staff = new();
+        FakeAccessControl access = new();
+        using ServiceProvider provider = CreateProvider(applications, staff, access);
+        ICommandHandler<RetryWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto> handler =
+            provider.GetRequiredService<ICommandHandler<RetryWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto>>();
+
+        Result<WorkspaceStaffOnboardingDto> result = await handler.HandleAsync(
+            new RetryWorkspaceStaffOnboardingCommand(application.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(WorkspaceStaffOnboardingErrors.StateConflict, result.Error);
+        Assert.Equal(WorkspaceStaffOnboardingState.Submitted, application.Status);
+        Assert.Equal(0, staff.CallCount);
+        Assert.Equal(0, access.AssignmentCallCount);
+    }
+
+    [Fact]
     public async Task Staff_failure_never_grants_workspace_access()
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
         FakeRepository applications = new(application);
         FakeStaffProvisioner staff = new() { ErrorCode = "Staff.EmployeeNumberConflict" };
         FakeAccessControl access = new();
@@ -51,6 +111,10 @@ public sealed class WorkspaceStaffOnboardingFlowTests
     public async Task Access_failure_retries_without_duplicate_staff_and_then_redacts_application()
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
         FakeRepository applications = new(application);
         Guid staffMemberId = Guid.NewGuid();
         FakeStaffProvisioner staff = new() { StaffMemberId = staffMemberId };
@@ -172,7 +236,10 @@ public sealed class WorkspaceStaffOnboardingFlowTests
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
         Guid claimId = Guid.NewGuid();
-        Assert.True(application.BindClaim(claimId, 1, WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        Assert.True(application.ObserveClaimRequested(
+            claimId,
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
         using ServiceProvider provider = CreateProvider(
             new FakeRepository(application),
             new FakeStaffProvisioner(),

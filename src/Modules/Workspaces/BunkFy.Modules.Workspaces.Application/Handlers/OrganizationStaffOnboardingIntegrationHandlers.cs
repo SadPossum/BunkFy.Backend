@@ -30,6 +30,12 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
                 integrationEvent.InvitationId,
                 integrationEvent.AcceptedSubjectId,
                 cancellationToken).ConfigureAwait(false);
+            if (application is not null)
+            {
+                Result accepted = application.ObserveInvitationAccepted(clock.UtcNow);
+                EnsureObserved(accepted, "invitation acceptance");
+            }
+
             await ProcessWhenPresentAsync(application, processor, logger, cancellationToken)
                 .ConfigureAwait(false);
             return;
@@ -50,6 +56,15 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
             {
                 application.Supersede(clock.UtcNow);
             }
+        }
+    }
+
+    private static void EnsureObserved(Result result, string observation)
+    {
+        if (result.IsFailure)
+        {
+            throw new InvalidOperationException(
+                $"Staff onboarding could not observe {observation}: '{result.Error.Code}'.");
         }
     }
 
@@ -100,33 +115,31 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
 
         if (integrationEvent.Change == OrganizationEnrollmentClaimChange.Requested)
         {
-            application.BindClaim(
+            Result requested = application.ObserveClaimRequested(
                 integrationEvent.ClaimId,
                 integrationEvent.ClaimVersion,
                 clock.UtcNow);
+            EnsureObserved(requested, "claim request");
             return;
         }
 
         if (integrationEvent.Change == OrganizationEnrollmentClaimChange.Rejected)
         {
-            application.Reject(integrationEvent.ClaimVersion, clock.UtcNow);
+            Result rejected = application.ObserveClaimRejected(
+                integrationEvent.ClaimId,
+                integrationEvent.ClaimVersion,
+                clock.UtcNow);
+            EnsureObserved(rejected, "claim rejection");
             return;
         }
 
         if (integrationEvent.Change == OrganizationEnrollmentClaimChange.Accepted)
         {
-            if (!application.ClaimId.HasValue)
-            {
-                Result bound = application.BindClaim(
-                    integrationEvent.ClaimId,
-                    integrationEvent.ClaimVersion,
-                    clock.UtcNow);
-                if (bound.IsFailure)
-                {
-                    throw new InvalidOperationException(
-                        $"Staff onboarding claim binding failed with '{bound.Error.Code}'.");
-                }
-            }
+            Result accepted = application.ObserveClaimAccepted(
+                integrationEvent.ClaimId,
+                integrationEvent.ClaimVersion,
+                clock.UtcNow);
+            EnsureObserved(accepted, "claim acceptance");
 
             Result processed = await processor.ProcessAsync(application, cancellationToken).ConfigureAwait(false);
             if (processed.IsFailure)
@@ -135,6 +148,15 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
                     "Staff onboarding remains recoverable after {ErrorCode}.",
                     processed.Error.Code);
             }
+        }
+    }
+
+    private static void EnsureObserved(Result result, string observation)
+    {
+        if (result.IsFailure)
+        {
+            throw new InvalidOperationException(
+                $"Staff onboarding could not observe {observation}: '{result.Error.Code}'.");
         }
     }
 }

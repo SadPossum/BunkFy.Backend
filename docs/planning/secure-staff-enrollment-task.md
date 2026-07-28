@@ -1,7 +1,8 @@
 # Secure Staff Enrollment Task
 
-Status: implementation complete; deployment smoke pending
+Status: implementation complete and ordering-hardened; deployment smoke pending
 Date: 2026-07-21
+Updated: 2026-07-28
 
 ## Goal
 
@@ -53,6 +54,14 @@ AccessControl remains authoritative for roles and assignments. BunkFy grants its
 7. Any failure before the assignment leaves the subject denied. A failure after assignment is replayed idempotently and converges to completed state.
 8. Rejection records a terminal result and redacts proposed profile/contact data. Expired, disabled, rotated, capacity-exhausted, duplicate, and replayed tokens remain Organizations decisions.
 
+Claim observations are monotonic. The accepted claim fact is stored before any
+Staff or AccessControl work begins, stale requested/rejected deliveries cannot
+regress a newer accepted version, and exact duplicates are idempotent. An owner
+retry is valid only after an authoritative invitation or claim acceptance has
+opened the provisioning path. A manual-approval profile becomes immutable when
+the claim is requested, so approval cannot provision fields changed after owner
+review.
+
 ## Security Invariants
 
 - Browser-supplied role, permission, property, workspace membership, subject, and verified-email claims are never authority.
@@ -63,6 +72,10 @@ AccessControl remains authoritative for roles and assignments. BunkFy grants its
 - Active membership without a completed onboarding process has no ordinary BunkFy role.
 - Owner provisioning and owner transfer remain separate governance paths.
 - Event handlers may observe different module commit order and must therefore be replay-safe and fail closed.
+- Operator retry cannot substitute for Organizations acceptance or provision a
+  submitted/pending application.
+- The Staff proposal reviewed for a pending manual claim is frozen until that
+  claim reaches a terminal decision.
 
 ## Delivery Slices
 
@@ -76,12 +89,22 @@ AccessControl remains authoritative for roles and assignments. BunkFy grants its
 
 - Named seed access profiles and exact property assignment plans now replace the original single constrained member baseline. Product-facing plan summaries and management UX remain in the access-profile slice.
 - Retention policy will set the bounded lifetime for terminal coordination audit rows; this slice redacts terminal applicant PII immediately.
+- Natural source expiry needs one generic GMA Organizations follow-up.
+  Organizations currently computes expiry during reads/admission and therefore
+  has no terminal expiry event for consumers. GMA should own durable expiry of
+  invitations/links and resolution of expired pending claims, then publish a
+  versioned payload-free lifecycle fact. Workspaces can consume that fact to
+  supersede its active plan/application and redact copied applicant PII. A
+  BunkFy timer must not infer another module's authoritative state.
 - Email delivery, reminder, and abuse-operations dashboards belong to deployment/notification work, not Organizations.
 
 ## Completion Evidence
 
 - GMA tests prove the hook is absent-by-default, additive, receives sanitized authoritative context, and cannot mutate Organizations state after denial.
 - BunkFy tests prove pending and failed workflows have no member role, successful retries create one Staff identity and one assignment, and rejection redacts PII.
+- Focused Workspaces tests prove acceptance-before-request delivery, stale and
+  duplicate claim handling, authoritative claim-version capture, and denied
+  owner retry before source acceptance.
 - PostgreSQL tests prove uniqueness, optimistic transitions, tenant isolation, restart recovery, and migration shape.
 - API, application, and event-handler tests cover the admission, claim binding, denial, retry, and partial-failure boundaries. A deployed multi-account smoke remains required for invitation and QR token lifecycle behavior across real redirects, broker delivery, and process restarts.
 - Architecture guards prove GMA has no BunkFy reference and BunkFy composition reaches Organizations through public contracts plus the explicit admission seam.
