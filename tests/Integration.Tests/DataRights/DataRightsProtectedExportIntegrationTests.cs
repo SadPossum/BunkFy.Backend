@@ -213,7 +213,10 @@ public sealed class DataRightsProtectedExportIntegrationTests
         string bucketName,
         byte[] plaintext)
     {
-        HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = Environments.Development
+        });
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = connectionString;
         builder.Configuration["FileManagement:Enabled"] = "true";

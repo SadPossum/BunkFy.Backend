@@ -7,6 +7,7 @@ using BunkFy.Extensions.Workspaces;
 using BunkFy.Host.Api;
 using BunkFy.Host.Api.Security;
 using BunkFy.Host.ServiceDefaults;
+using BunkFy.Host.ServiceDefaults.Production;
 using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Guests.Api;
@@ -78,17 +79,20 @@ AuthenticationAssuranceRequirement destructiveOperationAssurance =
     BunkFyAuthenticationAssurance.CreateDestructiveOperationRequirement(builder.Configuration);
 
 builder.Host.UseConfiguredSerilog();
+builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.PublicApi);
 
 builder.AddUserNotificationsCqrs();
 builder.AddUserNotificationsRealtime();
 builder.AddRedisCaching();
-if (builder.Configuration.GetValue<bool>("Ingestion:AdapterIngress:Enabled"))
+if (builder.Configuration.GetValue<bool>("Ingestion:AdapterIngress:Enabled") ||
+    builder.Configuration.GetValue<HttpRateLimitMode>("Http:RateLimiting:Mode") ==
+        HttpRateLimitMode.Distributed)
 {
     builder.AddRedisRateLimiting();
 }
 builder.AddCachingCqrs();
 builder.AddGmaInfrastructure();
-builder.AddBunkFyDataProtection();
+builder.AddGmaProductionDataProtection();
 builder.AddBunkFyCountryPolicies();
 builder.AddTenantSerilogRequestLogging();
 builder.AddTenantCaching();

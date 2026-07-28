@@ -13,5 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BunkFy.Host.ServiceDefaults\BunkFy.Host.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\src\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api.Production\Gma.Framework.Api.Production.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)FileManagement\Gma.Framework.FileManagement.Minio\Gma.Framework.FileManagement.Minio.csproj" />
   </ItemGroup>
 </Project>

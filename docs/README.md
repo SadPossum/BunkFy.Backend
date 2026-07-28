@@ -18,6 +18,8 @@ Useful entry points:
 - [GMA Durable Runtime Alignment](planning/gma-durable-runtime-alignment.md)
 - [Ingestion Runtime Baseline](operations/ingestion-runtime-baseline.md)
 - [Adapter Ingress Stop And Recovery](operations/adapter-ingress-stop-and-recovery.md)
+- [Hosted Production Deployment Contract](operations/hosted-production-deployment-contract.md)
+- [Hosted Production Foundation Task](planning/hosted-production-foundation-task.md)
 - [Pre-Module Readiness](planning/pre-module-readiness.md)
 - [Properties Module Task](planning/properties-module-task.md)
 - [Properties Follow-Up Notes](planning/properties-follow-up-notes.md)

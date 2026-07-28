@@ -36,6 +36,7 @@ using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
 using BunkFy.Parsers.ReservationMail;
 using BunkFy.Host.ServiceDefaults;
+using BunkFy.Host.ServiceDefaults.Production;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.OpenApi;
 using Gma.Framework.Api.Production;
@@ -58,6 +59,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
 
 builder.Host.UseConfiguredSerilog();
+builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.AdminApi);
 
 builder.Services.AddGmaAdministrationApi(builder.Configuration);
 builder.AddRedisCaching();

@@ -63,7 +63,8 @@ public sealed class HostCompositionGuardTests
             "builder.AddAuthModule(authProfile);",
             "builder.AddAuthTotpAuthenticator();",
             "builder.AddAuthOpenIdConnectProviders();",
-            "builder.AddBunkFyDataProtection();",
+            "builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.PublicApi);",
+            "builder.AddGmaProductionDataProtection();",
             "builder.AddMinioFileStorage();",
             "builder.AddUserNotificationsRealtime();",
             "builder.AddModule<NotificationsModule>();",
@@ -183,6 +184,62 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Production_host_defaults_preserve_explicit_deployment_and_storage_safety()
+    {
+        string[] apiSettingsPaths =
+        [
+            "src/BunkFy.Host.Api/appsettings.json",
+            "src/BunkFy.Host.AdminApi/appsettings.json"
+        ];
+
+        foreach (string path in apiSettingsPaths)
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read(path.Split('/')));
+            JsonElement deployment = document.RootElement
+                .GetProperty("BunkFy")
+                .GetProperty("Deployment");
+            JsonElement http = document.RootElement.GetProperty("Http");
+
+            Assert.Equal("Unspecified", deployment.GetProperty("Profile").GetString());
+            Assert.Equal("Unspecified", deployment.GetProperty("ApiTopology").GetString());
+            Assert.Equal("Unspecified", deployment.GetProperty("EdgeMode").GetString());
+            Assert.Equal("Unspecified", deployment.GetProperty("Runtime").GetString());
+            Assert.Equal(JsonValueKind.Null, deployment.GetProperty("SourceCommitSha").ValueKind);
+            Assert.Empty(
+                http.GetProperty("ForwardedHeaders")
+                    .GetProperty("KnownNetworks")
+                    .EnumerateArray());
+            Assert.Equal(
+                "InProcess",
+                http.GetProperty("RateLimiting").GetProperty("Mode").GetString());
+        }
+
+        string[] storageSettingsPaths =
+        [
+            "src/BunkFy.Host.Api/appsettings.json",
+            "src/BunkFy.Host.AdminApi/appsettings.json",
+            "src/BunkFy.Host.AdminCli/appsettings.json",
+            "src/BunkFy.Host.Worker/appsettings.json"
+        ];
+
+        foreach (string path in storageSettingsPaths)
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read(path.Split('/')));
+            JsonElement minio = document.RootElement
+                .GetProperty("FileManagement")
+                .GetProperty("Minio");
+
+            Assert.False(
+                minio.GetProperty("AllowInsecureTransportInProduction").GetBoolean());
+            Assert.False(
+                minio.GetProperty("AllowBucketCreationInProduction").GetBoolean());
+            Assert.False(minio.GetProperty("CreateBucketIfMissing").GetBoolean());
+        }
+    }
+
+    [Fact]
     public void Raw_email_storage_is_an_explicit_local_development_exception()
     {
         string[] settingsPaths =
@@ -215,16 +272,23 @@ public sealed class HostCompositionGuardTests
     [Fact]
     public void Public_api_protects_authentication_secrets_with_a_production_durable_key_ring()
     {
-        string composition = RepositoryPaths.Read(
+        string program = RepositoryPaths.Read(
             "src",
-            "BunkFy.Host.ServiceDefaults",
-            "DataProtectionExtensions.cs");
+            "BunkFy.Host.Api",
+            "Program.cs");
+        string composition = RepositoryPaths.Read(
+            "gma",
+            "framework",
+            "src",
+            "Api",
+            "Gma.Framework.Api.Production",
+            "ProductionDataProtectionDependencyInjection.cs");
         string developmentSettings = RepositoryPaths.Read(
             "src",
             "BunkFy.Host.Api",
             "appsettings.Development.json");
 
-        Assert.Contains("builder.Environment.IsProduction()", composition, StringComparison.Ordinal);
+        Assert.Contains("builder.AddGmaProductionDataProtection();", program, StringComparison.Ordinal);
         Assert.Contains("PersistKeysToFileSystem", composition, StringComparison.Ordinal);
         Assert.Contains("SetApplicationName", composition, StringComparison.Ordinal);
         Assert.Contains("\"KeyRingPath\": \".data/data-protection-keys\"", developmentSettings, StringComparison.Ordinal);
@@ -250,6 +314,10 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminApiModule<RetentionAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<WorkspacesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains(
+            "builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.AdminApi);",
+            adminApi,
+            StringComparison.Ordinal);
         Assert.Contains("builder.AddGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("app.UseGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<AccessControlAdminCliModule>();", adminCli, StringComparison.Ordinal);

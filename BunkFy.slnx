@@ -39,6 +39,7 @@
   </Folder>
   <Folder Name="/docs/operations/">
     <File Path="docs/operations/adapter-ingress-stop-and-recovery.md" />
+    <File Path="docs/operations/hosted-production-deployment-contract.md" />
     <File Path="docs/operations/ingestion-runtime-baseline.md" />
   </Folder>
   <Folder Name="/docs/planning/">
@@ -58,6 +59,7 @@
     <File Path="docs/planning/guest-data-rights-anonymisation-and-ledger-task.md" />
     <File Path="docs/planning/guest-data-rights-restriction-task.md" />
     <File Path="docs/planning/guest-records-module-task.md" />
+    <File Path="docs/planning/hosted-production-foundation-task.md" />
     <File Path="docs/planning/imap-reservation-mail-adapter-task.md" />
     <File Path="docs/planning/imap-reservation-mail-authentication-task.md" />
     <File Path="docs/planning/imap-reservation-mail-key-rotation-task.md" />
