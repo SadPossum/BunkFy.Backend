@@ -20,8 +20,10 @@ using BunkFy.Modules.Ingestion.Application.Credentials;
 using BunkFy.Modules.Ingestion.Application.Parsing;
 using BunkFy.Modules.Ingestion.Application.DataRights;
 using BunkFy.Modules.Ingestion.Application.Contributors;
+using BunkFy.Modules.Ingestion.Application.Ingress;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Retention.Contracts;
+using Gma.Framework.RateLimiting;
 
 public static class DependencyInjection
 {
@@ -51,6 +53,13 @@ public static class DependencyInjection
         services.TryAddScoped<IObservationParserRegistry, ObservationParserRegistry>();
         services.TryAddSingleton<IAdapterIngressTokenService, AdapterIngressTokenService>();
         services.TryAddScoped<IAdapterIngressAuthenticator, AdapterIngressAuthenticator>();
+        services.TryAddSingleton<IAdapterIngressAdmissionPolicy, ReservationAdapterIngressAdmissionPolicy>();
+        services.TryAddSingleton<UnavailableAdapterIngressRateLimitProvider>();
+        services.TryAddSingleton<IRateLimitProviderRegistration>(provider =>
+            provider.GetRequiredService<UnavailableAdapterIngressRateLimitProvider>());
+        services.TryAddSingleton<IMultiPartitionRateLimiter>(provider =>
+            provider.GetRequiredService<UnavailableAdapterIngressRateLimitProvider>());
+        services.TryAddScoped<IAdapterIngressGate, AdapterIngressGate>();
         services.TryAddScoped<ReservationObservationPayloadLoader>();
         services.TryAddScoped<ReservationExternalRequestPublisher>();
         services.AddIntegrationEventHandler<ObservationReceiptAcceptedIntegrationEvent, ObservationReceiptAcceptedHandler>(

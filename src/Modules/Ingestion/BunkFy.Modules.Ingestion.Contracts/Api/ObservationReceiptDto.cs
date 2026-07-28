@@ -42,7 +42,13 @@ public sealed record ObservationReceiptDto(
     ObservationReceiptStatus Status,
     string? RejectionReason,
     DateTimeOffset ReceivedAtUtc,
-    DateTimeOffset? ProcessedAtUtc);
+    DateTimeOffset? ProcessedAtUtc,
+    Guid? IngressCredentialId = null,
+    string? AdapterType = null,
+    int? AdapterProtocolVersion = null,
+    int? ConfigurationSchemaVersion = null,
+    string? SourceSystem = null,
+    string? CustomerOwner = null);
 
 public sealed record ObservationReceiptListResponse(
     IReadOnlyCollection<ObservationReceiptDto> Receipts,

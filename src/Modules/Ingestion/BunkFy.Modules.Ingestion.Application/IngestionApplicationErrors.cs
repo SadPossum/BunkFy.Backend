@@ -39,7 +39,11 @@ public static class IngestionApplicationErrors
     public static readonly Error IngressCredentialLimitReached = new("Ingestion.IngressCredentialLimitReached", "The adapter connection already has the maximum number of active ingress credentials.");
     public static readonly Error IngressCredentialUnauthorized = new("Ingestion.IngressCredentialUnauthorized", "The adapter ingress credential is invalid.");
     public static readonly Error IngressCredentialsRequirePushMode = new("Ingestion.IngressCredentialsRequirePushMode", "Adapter ingress credentials require push or remote polling execution mode.");
-    public static readonly Error IngressSubmissionInvalid = new("Ingestion.IngressSubmissionInvalid", "The adapter ingress submission exceeds the allowed record or payload limits.");
+    public static readonly Error IngressSubmissionInvalid = new("Ingestion.IngressSubmissionInvalid", "The adapter ingress submission is invalid or exceeds the allowed record or payload limits.");
+    public static readonly Error AdapterIngressQuotaExceeded = new("Ingestion.AdapterIngressQuotaExceeded", "The adapter ingress quota is exhausted. Retry after the current window.");
+    public static readonly Error AdapterIngressTenantSuspended = new("Ingestion.AdapterIngressTenantSuspended", "Third-party adapter ingress is suspended for this tenant.");
+    public static readonly Error AdapterIngressGloballyStopped = new("Ingestion.AdapterIngressGloballyStopped", "Third-party adapter ingress is temporarily stopped.");
+    public static readonly Error AdapterIngressControlUnavailable = new("Ingestion.AdapterIngressControlUnavailable", "Third-party adapter ingress admission is temporarily unavailable.");
     public static readonly Error RemoteLeaseClaimInvalid = new("Ingestion.RemoteLeaseClaimInvalid", "The remote adapter lease claim is invalid.");
     public static readonly Error RemoteLeaseDescriptorMismatch = new("Ingestion.RemoteLeaseDescriptorMismatch", "The remote adapter descriptor does not match the registered connection capability.");
     public static readonly Error RemoteLeaseUnavailable = new("Ingestion.RemoteLeaseUnavailable", "The remote adapter connection is currently assigned.");

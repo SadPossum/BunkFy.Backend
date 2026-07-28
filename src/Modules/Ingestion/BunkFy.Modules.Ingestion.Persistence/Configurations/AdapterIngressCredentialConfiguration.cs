@@ -31,6 +31,12 @@ internal sealed class AdapterIngressCredentialConfiguration
         builder.Property(credential => credential.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(credential => credential.Label)
             .HasMaxLength(AdapterIngressCredential.LabelMaxLength).IsRequired();
+        builder.Property(credential => credential.AdapterType)
+            .HasMaxLength(AdapterConnection.AdapterTypeMaxLength).IsRequired();
+        builder.Property(credential => credential.AdapterProtocolVersion).IsRequired();
+        builder.Property(credential => credential.ConfigurationSchemaVersion).IsRequired();
+        builder.Property(credential => credential.SourceSystem)
+            .HasMaxLength(AdapterIngressCredential.SourceSystemMaxLength).IsRequired();
         builder.Property(credential => credential.SecretHashAlgorithm)
             .HasMaxLength(AdapterIngressCredential.HashAlgorithmMaxLength).IsRequired();
         builder.Property(credential => credential.SecretHash)
@@ -61,6 +67,12 @@ internal sealed class AdapterIngressCredentialConfiguration
         {
             credential.ScopeId,
             credential.ConnectionId,
+            credential.CreatedAtUtc
+        });
+        builder.HasIndex(credential => new
+        {
+            credential.ScopeId,
+            credential.SourceSystem,
             credential.CreatedAtUtc
         });
         builder.HasOne<AdapterConnection>()

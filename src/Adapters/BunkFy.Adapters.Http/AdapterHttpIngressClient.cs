@@ -63,7 +63,7 @@ public sealed class AdapterHttpIngressClient : IAdapterPushObservationSink, IAda
                 else
                 {
                     throw new HttpRequestException(
-                        "The adapter ingress endpoint rejected the request.",
+                        $"The adapter ingress endpoint rejected the request with HTTP {(int)response.StatusCode}.",
                         inner: null,
                         response.StatusCode);
                 }

@@ -17,6 +17,9 @@ public static class IngestionAdminOperationNames
     public const string CredentialList = "ingestion.credentials.list";
     public const string CredentialCreate = "ingestion.credentials.create";
     public const string CredentialRevoke = "ingestion.credentials.revoke";
+    public const string IngressGlobalControlGet = "ingestion.ingress-global-control.get";
+    public const string IngressGlobalControlStop = "ingestion.ingress-global-control.stop";
+    public const string IngressGlobalControlResume = "ingestion.ingress-global-control.resume";
     public const string RunList = "ingestion.runs.list";
     public const string RunGet = "ingestion.runs.get";
     public const string RunEnqueue = "ingestion.runs.enqueue";

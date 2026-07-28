@@ -437,24 +437,28 @@ public sealed class IngestionMigrationIntegrationTests
         await upgraded.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO ingestion.adapter_ingress_credentials (
                 "Id", "ConnectionId", "Slot", "Label", "SecretHashAlgorithm", "SecretHash", "State",
-                "ExpiresAtUtc", "CreatedBy", "CreatedAtUtc", "Version", "ScopeId")
+                "ExpiresAtUtc", "CreatedBy", "CreatedAtUtc", "Version", "ScopeId",
+                "AdapterType", "AdapterProtocolVersion", "ConfigurationSchemaVersion", "SourceSystem")
             VALUES (
                 {credentialId}, {connectionId}, {1}, {"valid credential"},
                 {AdapterIngressCredential.Sha256HashAlgorithm},
                 {new byte[AdapterIngressCredential.SecretHashLength]}, {1},
-                {receivedAtUtc.AddDays(30)}, {"migration-test"}, {receivedAtUtc}, {1L}, {"tenant-a"});
+                {receivedAtUtc.AddDays(30)}, {"migration-test"}, {receivedAtUtc}, {1L}, {"tenant-a"},
+                {"fake.http"}, {1}, {1}, {"fake.http"});
             """);
 
         PostgresException duplicateActiveSlot = await Assert.ThrowsAsync<PostgresException>(() =>
             upgraded.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO ingestion.adapter_ingress_credentials (
                     "Id", "ConnectionId", "Slot", "Label", "SecretHashAlgorithm", "SecretHash", "State",
-                    "ExpiresAtUtc", "CreatedBy", "CreatedAtUtc", "Version", "ScopeId")
+                    "ExpiresAtUtc", "CreatedBy", "CreatedAtUtc", "Version", "ScopeId",
+                    "AdapterType", "AdapterProtocolVersion", "ConfigurationSchemaVersion", "SourceSystem")
                 VALUES (
                     {Guid.NewGuid()}, {connectionId}, {1}, {"duplicate slot"},
                     {AdapterIngressCredential.Sha256HashAlgorithm},
                     {new byte[AdapterIngressCredential.SecretHashLength]}, {1},
-                    {receivedAtUtc.AddDays(30)}, {"migration-test"}, {receivedAtUtc}, {1L}, {"tenant-a"});
+                    {receivedAtUtc.AddDays(30)}, {"migration-test"}, {receivedAtUtc}, {1L}, {"tenant-a"},
+                    {"fake.http"}, {1}, {1}, {"fake.http"});
                 """));
         Assert.Equal(PostgresErrorCodes.UniqueViolation, duplicateActiveSlot.SqlState);
 
@@ -462,11 +466,13 @@ public sealed class IngestionMigrationIntegrationTests
             upgraded.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO ingestion.adapter_ingress_credentials (
                     "Id", "ConnectionId", "Slot", "Label", "SecretHashAlgorithm", "SecretHash", "State",
-                    "ExpiresAtUtc", "CreatedBy", "CreatedAtUtc", "Version", "ScopeId")
+                    "ExpiresAtUtc", "CreatedBy", "CreatedAtUtc", "Version", "ScopeId",
+                    "AdapterType", "AdapterProtocolVersion", "ConfigurationSchemaVersion", "SourceSystem")
                 VALUES (
                     {Guid.NewGuid()}, {connectionId}, {2}, {"invalid digest"},
                     {AdapterIngressCredential.Sha256HashAlgorithm}, {new byte[31]}, {1},
-                    {receivedAtUtc.AddDays(30)}, {"migration-test"}, {receivedAtUtc}, {1L}, {"tenant-a"});
+                    {receivedAtUtc.AddDays(30)}, {"migration-test"}, {receivedAtUtc}, {1L}, {"tenant-a"},
+                    {"fake.http"}, {1}, {1}, {"fake.http"});
                 """));
         Assert.Equal(PostgresErrorCodes.CheckViolation, invalidCredential.SqlState);
 

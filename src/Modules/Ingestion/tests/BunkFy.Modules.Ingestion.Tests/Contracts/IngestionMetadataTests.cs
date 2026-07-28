@@ -17,16 +17,25 @@ public sealed class IngestionMetadataTests
     {
         IReadOnlyCollection<ModulePermissionDescriptor> permissions = IngestionModuleMetadata.Descriptor.GetPermissions();
 
-        Assert.Equal(10, permissions.Count);
+        Assert.Equal(12, permissions.Count);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.CredentialsManage);
+        Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.IngressControlManage);
+        ModulePermissionDescriptor globalControl = Assert.Single(
+            permissions,
+            permission => permission.Code == IngestionAdminPermissionCodes.IngressGlobalControlManage);
+        Assert.Equal(PermissionScopeRequirement.Global, globalControl.ScopeRequirement);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.RawPayloadsRead);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.SensitiveHistoryRead);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.RetentionManage);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.ReprocessingManage);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.LegalHoldsManage);
         Assert.Contains(permissions, permission => permission.Code == IngestionAdminPermissionCodes.ProposalsDecide);
-        Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
-        Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
+        Assert.All(
+            permissions.Where(permission => permission != globalControl),
+            permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
+        Assert.All(
+            permissions.Where(permission => permission != globalControl),
+            permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Ingestion.Tests.Api;
 
 using System.Reflection;
+using BunkFy.Adapter.Abstractions;
 using BunkFy.Modules.Ingestion.Api;
 using BunkFy.Modules.Ingestion.Application.Queries;
 using BunkFy.Modules.Ingestion.Contracts;
@@ -72,6 +73,85 @@ public sealed class IngestionApiSecurityTests
     }
 
     [Fact]
+    public async Task Tenant_ingress_control_endpoints_require_the_dedicated_permission()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new IngestionModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+        const string control = "/api/ingestion/adapter-ingress-control";
+        AssertPermission(
+            endpoints,
+            HttpMethods.Get,
+            control,
+            IngestionAdminPermissionCodes.IngressControlManage);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{control}/suspend",
+            IngestionAdminPermissionCodes.IngressControlManage);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{control}/resume",
+            IngestionAdminPermissionCodes.IngressControlManage);
+    }
+
+    [Fact]
+    public async Task Enabled_ingress_endpoints_apply_the_bounded_http_request_limit()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<IngestionAdapterIngressOptions>(options => options.Enabled = true);
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new IngestionModule().MapEndpoints(app);
+
+        RouteEndpoint endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>(), candidate =>
+                string.Equals(
+                    candidate.RoutePattern.RawText?.Trim('/'),
+                    "api/ingestion/adapter-ingress/connections/{connectionId:guid}/observations",
+                    StringComparison.Ordinal) &&
+                candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                    HttpMethods.Post,
+                    StringComparer.Ordinal) == true);
+        IRequestSizeLimitMetadata limit =
+            Assert.IsType<IRequestSizeLimitMetadata>(
+                endpoint.Metadata.GetMetadata<IRequestSizeLimitMetadata>(),
+                exactMatch: false);
+
+        Assert.Equal(
+            AdapterIngressContractLimits.MaximumHttpRequestBodyBytes,
+            limit.MaxRequestBodySize);
+    }
+
+    [Fact]
+    public void Public_submission_bounds_reject_oversized_batches_and_payloads()
+    {
+        AdapterIngressObservationRequest record = Record([0x7B, 0x7D]);
+        AdapterIngressSubmissionRequest oversizedBatch = new(
+            Enumerable.Range(0, AdapterProtocolLimits.MaximumRecordsPerSubmission + 1)
+                .Select(index => record with { OperationId = GuidFrom(index + 1) })
+                .ToArray());
+        AdapterIngressSubmissionRequest oversizedPayload = new(
+            [
+                Record(new byte[AdapterProtocolLimits.MaximumSubmissionPayloadBytes + 1])
+            ]);
+
+        Assert.False(IngestionModule.IsValidSubmission(oversizedBatch));
+        Assert.False(IngestionModule.IsValidSubmission(oversizedPayload));
+    }
+
+    [Fact]
     public void Raw_payload_download_is_an_opaque_non_cacheable_sandboxed_attachment()
     {
         MethodInfo method = typeof(IngestionModule).GetMethod(
@@ -122,5 +202,23 @@ public sealed class IngestionApiSecurityTests
             candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(method, StringComparer.Ordinal) == true);
         AccessPermissionMetadata permission = Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
         Assert.Equal(expectedPermission, permission.Permission.Value);
+    }
+
+    private static AdapterIngressObservationRequest Record(byte[] payload) => new(
+        Guid.NewGuid(),
+        "reservation.v1",
+        "external-1",
+        "revision-1",
+        DateTimeOffset.UtcNow,
+        DateTimeOffset.UtcNow,
+        "application/json",
+        payload,
+        AdapterPayloadHash.ComputeSha256(payload));
+
+    private static Guid GuidFrom(int value)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        BitConverter.TryWriteBytes(bytes, value);
+        return new Guid(bytes);
     }
 }

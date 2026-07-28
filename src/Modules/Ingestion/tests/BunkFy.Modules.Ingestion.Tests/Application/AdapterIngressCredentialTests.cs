@@ -5,6 +5,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application;
+using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Credentials;
 using BunkFy.Modules.Ingestion.Application.Handlers;
@@ -27,8 +28,8 @@ public sealed class AdapterIngressCredentialTests
         AdapterIngressTokenService tokens = new();
         TestClock clock = new();
         var created = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection), credentials, tokens, new TestScope(), clock,
-            new FixedIds()).HandleAsync(
+            new FakeConnectionRepository(connection), credentials, tokens, new TestDescriptors(),
+            new TestScope(), clock, new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "primary", Now.AddDays(30), "user:operator"),
             CancellationToken.None);
@@ -39,7 +40,8 @@ public sealed class AdapterIngressCredentialTests
         Assert.Single(credentials.Items);
 
         AdapterIngressAuthenticator authenticator = new(
-            new FakeConnectionRepository(connection), credentials, tokens, new TestScope(), clock);
+            new FakeConnectionRepository(connection), credentials, tokens, new TestDescriptors(),
+            new TestScope(), clock);
         var authenticated = await authenticator.AuthenticateAsync(
             connectionId, created.Value.Token, AdapterExecutionMode.Push, CancellationToken.None);
         var wrongMode = await authenticator.AuthenticateAsync(
@@ -55,6 +57,11 @@ public sealed class AdapterIngressCredentialTests
 
         Assert.True(authenticated.IsSuccess);
         Assert.Equal(created.Value.Credential.CredentialId, authenticated.Value.CredentialId);
+        Assert.Equal("fake.http", authenticated.Value.AdapterType);
+        Assert.Equal(1, authenticated.Value.AdapterProtocolVersion);
+        Assert.Equal(1, authenticated.Value.ConfigurationSchemaVersion);
+        Assert.Equal("fake.http", authenticated.Value.SourceSystem);
+        Assert.Equal("user:operator", authenticated.Value.CustomerOwner);
         Assert.Equal(1, credentials.AuthenticationMarks);
         Assert.Equal(IngestionApplicationErrors.IngressCredentialUnauthorized, wrongConnection.Error);
         Assert.Equal(IngestionApplicationErrors.IngressCredentialUnauthorized, wrongMode.Error);
@@ -68,6 +75,93 @@ public sealed class AdapterIngressCredentialTests
     }
 
     [Fact]
+    public async Task Credential_and_connection_must_match_the_resolved_tenant()
+    {
+        Guid connectionId = Guid.NewGuid();
+        AdapterConnection connection = CreateConnection(connectionId);
+        FakeCredentialRepository credentials = new();
+        AdapterIngressTokenService tokens = new();
+        TestClock clock = new();
+        var created =
+            await new CreateAdapterIngressCredentialCommandHandler(
+                new FakeConnectionRepository(connection),
+                credentials,
+                tokens,
+                new TestDescriptors(),
+                new TestScope("tenant-a"),
+                clock,
+                new FixedIds()).HandleAsync(
+                    new CreateAdapterIngressCredentialCommand(
+                        connection.PropertyId,
+                        connection.Id,
+                        "primary",
+                        Now.AddDays(30),
+                        "user:operator"),
+                    CancellationToken.None);
+        Assert.True(created.IsSuccess);
+
+        AdapterIngressAuthenticator authenticator = new(
+            new FakeConnectionRepository(connection),
+            credentials,
+            tokens,
+            new TestDescriptors(),
+            new TestScope("tenant-b"),
+            clock);
+
+        var result = await authenticator.AuthenticateAsync(
+            connectionId,
+            created.Value.Token,
+            AdapterExecutionMode.Push,
+            CancellationToken.None);
+
+        Assert.Equal(IngestionApplicationErrors.IngressCredentialUnauthorized, result.Error);
+        Assert.Equal(0, credentials.AuthenticationMarks);
+    }
+
+    [Fact]
+    public async Task Expired_credential_is_rejected_without_recording_authentication()
+    {
+        Guid connectionId = Guid.NewGuid();
+        AdapterConnection connection = CreateConnection(connectionId);
+        FakeCredentialRepository credentials = new();
+        AdapterIngressTokenService tokens = new();
+        TestClock clock = new();
+        var created = await new CreateAdapterIngressCredentialCommandHandler(
+            new FakeConnectionRepository(connection),
+            credentials,
+            tokens,
+            new TestDescriptors(),
+            new TestScope(),
+            clock,
+            new FixedIds()).HandleAsync(
+                new CreateAdapterIngressCredentialCommand(
+                    connection.PropertyId,
+                    connection.Id,
+                    "short-lived",
+                    Now.AddMinutes(5),
+                    "user:operator"),
+                CancellationToken.None);
+        Assert.True(created.IsSuccess);
+        clock.UtcNow = Now.AddMinutes(5);
+
+        AdapterIngressAuthenticator authenticator = new(
+            new FakeConnectionRepository(connection),
+            credentials,
+            tokens,
+            new TestDescriptors(),
+            new TestScope(),
+            clock);
+        var result = await authenticator.AuthenticateAsync(
+            connection.Id,
+            created.Value.Token,
+            AdapterExecutionMode.Push,
+            CancellationToken.None);
+
+        Assert.Equal(IngestionApplicationErrors.IngressCredentialUnauthorized, result.Error);
+        Assert.Equal(0, credentials.AuthenticationMarks);
+    }
+
+    [Fact]
     public async Task Remote_polling_credential_authenticates_only_the_remote_control_mode()
     {
         AdapterConnection connection = AdapterConnection.Create(
@@ -77,15 +171,16 @@ public sealed class AdapterIngressCredentialTests
         AdapterIngressTokenService tokens = new();
         TestClock clock = new();
         var created = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection), credentials, tokens, new TestScope(), clock,
-            new FixedIds()).HandleAsync(
+            new FakeConnectionRepository(connection), credentials, tokens, new TestDescriptors(),
+            new TestScope(), clock, new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "remote", Now.AddDays(30), "user:operator"),
             CancellationToken.None);
         Assert.True(created.IsSuccess);
 
         AdapterIngressAuthenticator authenticator = new(
-            new FakeConnectionRepository(connection), credentials, tokens, new TestScope(), clock);
+            new FakeConnectionRepository(connection), credentials, tokens, new TestDescriptors(),
+            new TestScope(), clock);
         var remote = await authenticator.AuthenticateAsync(
             connection.Id, created.Value.Token, AdapterExecutionMode.RemotePolling, CancellationToken.None);
         var directPush = await authenticator.AuthenticateAsync(
@@ -103,7 +198,7 @@ public sealed class AdapterIngressCredentialTests
         FakeCredentialRepository credentials = new() { ActiveCount = 5 };
         var result = await new CreateAdapterIngressCredentialCommandHandler(
             new FakeConnectionRepository(connection), credentials, new AdapterIngressTokenService(),
-            new TestScope(), new TestClock(), new FixedIds()).HandleAsync(
+            new TestDescriptors(), new TestScope(), new TestClock(), new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "overflow", null, "user:operator"),
             CancellationToken.None);
@@ -121,13 +216,96 @@ public sealed class AdapterIngressCredentialTests
         FakeCredentialRepository credentials = new();
         var result = await new CreateAdapterIngressCredentialCommandHandler(
             new FakeConnectionRepository(connection), credentials, new AdapterIngressTokenService(),
-            new TestScope(), new TestClock(), new FixedIds()).HandleAsync(
+            new TestDescriptors(), new TestScope(), new TestClock(), new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "invalid", null, "user:operator"),
             CancellationToken.None);
 
         Assert.Equal(IngestionApplicationErrors.IngressCredentialsRequirePushMode, result.Error);
         Assert.Empty(credentials.Items);
+    }
+
+    [Fact]
+    public async Task Disabled_connection_stops_authentication_without_marking_credential_use()
+    {
+        AdapterConnection connection = CreateConnection(Guid.NewGuid());
+        FakeCredentialRepository credentials = new();
+        AdapterIngressTokenService tokens = new();
+        TestClock clock = new();
+        var created = await new CreateAdapterIngressCredentialCommandHandler(
+            new FakeConnectionRepository(connection),
+            credentials,
+            tokens,
+            new TestDescriptors(),
+            new TestScope(),
+            clock,
+            new FixedIds()).HandleAsync(
+                new CreateAdapterIngressCredentialCommand(
+                    connection.PropertyId,
+                    connection.Id,
+                    "primary",
+                    Now.AddDays(30),
+                    "user:operator"),
+                CancellationToken.None);
+        Assert.True(created.IsSuccess);
+        Assert.True(connection.Disable(connection.Version, Now.AddMinutes(1)).IsSuccess);
+
+        AdapterIngressAuthenticator authenticator = new(
+            new FakeConnectionRepository(connection),
+            credentials,
+            tokens,
+            new TestDescriptors(),
+            new TestScope(),
+            clock);
+        var authenticated = await authenticator.AuthenticateAsync(
+            connection.Id,
+            created.Value.Token,
+            AdapterExecutionMode.Push,
+            CancellationToken.None);
+
+        Assert.Equal(IngestionApplicationErrors.IngressCredentialUnauthorized, authenticated.Error);
+        Assert.Equal(0, credentials.AuthenticationMarks);
+    }
+
+    [Fact]
+    public async Task Descriptor_version_drift_requires_credential_rotation()
+    {
+        AdapterConnection connection = CreateConnection(Guid.NewGuid());
+        FakeCredentialRepository credentials = new();
+        AdapterIngressTokenService tokens = new();
+        TestClock clock = new();
+        var created = await new CreateAdapterIngressCredentialCommandHandler(
+            new FakeConnectionRepository(connection),
+            credentials,
+            tokens,
+            new TestDescriptors(),
+            new TestScope(),
+            clock,
+            new FixedIds()).HandleAsync(
+                new CreateAdapterIngressCredentialCommand(
+                    connection.PropertyId,
+                    connection.Id,
+                    "primary",
+                    Now.AddDays(30),
+                    "user:operator"),
+                CancellationToken.None);
+        Assert.True(created.IsSuccess);
+
+        AdapterIngressAuthenticator authenticator = new(
+            new FakeConnectionRepository(connection),
+            credentials,
+            tokens,
+            new TestDescriptors(protocolVersion: 2),
+            new TestScope(),
+            clock);
+        var authenticated = await authenticator.AuthenticateAsync(
+            connection.Id,
+            created.Value.Token,
+            AdapterExecutionMode.Push,
+            CancellationToken.None);
+
+        Assert.Equal(IngestionApplicationErrors.IngressCredentialUnauthorized, authenticated.Error);
+        Assert.Equal(0, credentials.AuthenticationMarks);
     }
 
     private static AdapterConnection CreateConnection(Guid id) => AdapterConnection.Create(
@@ -187,15 +365,37 @@ public sealed class AdapterIngressCredentialTests
         }
     }
 
-    private sealed class TestScope : IScopeContext
+    private sealed class TestScope(string scopeId = "tenant-a") : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => "tenant-a";
+        public string ScopeId { get; } = scopeId;
     }
 
     private sealed class TestClock : ISystemClock
     {
-        public DateTimeOffset UtcNow => Now;
+        public DateTimeOffset UtcNow { get; set; } = Now;
+    }
+
+    private sealed class TestDescriptors(
+        int protocolVersion = 1,
+        int configurationSchemaVersion = 1)
+        : IAdapterDescriptorRegistry
+    {
+        private readonly AdapterDescriptor descriptor = new(
+            "fake.http",
+            protocolVersion,
+            configurationSchemaVersion,
+            [AdapterExecutionMode.Push, AdapterExecutionMode.RemotePolling]);
+
+        public IReadOnlyCollection<AdapterDescriptor> GetAll() => [this.descriptor];
+
+        public bool TryGet(string adapterType, out AdapterDescriptor? descriptor)
+        {
+            descriptor = string.Equals(adapterType, this.descriptor.AdapterType, StringComparison.Ordinal)
+                ? this.descriptor
+                : null;
+            return descriptor is not null;
+        }
     }
 
     private sealed class FixedIds : IIdGenerator

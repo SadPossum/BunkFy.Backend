@@ -8,7 +8,8 @@ public sealed record CreateAdapterIngressCredentialCommand(
     Guid ConnectionId,
     string Label,
     DateTimeOffset? ExpiresAtUtc,
-    string CreatedBy)
+    string CreatedBy,
+    string? SourceSystem = null)
     : ITransactionalCommand<CreateAdapterIngressCredentialResponse>;
 
 public sealed record RevokeAdapterIngressCredentialCommand(

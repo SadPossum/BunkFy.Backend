@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.AccessControl.AspNetCore;
+using Gma.Framework.AccessControl;
 using Gma.Framework.Api.Modules;
 using Gma.Framework.Api.Observability;
 using Gma.Framework.Api.Results;
@@ -14,11 +15,13 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Security;
 using Gma.Framework.Security.AspNetCore;
+using Gma.Framework.RateLimiting;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Application.Queries;
+using BunkFy.Modules.Ingestion.Application.Ingress;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -38,6 +41,21 @@ public sealed class IngestionModule : IModule
     {
         builder.SelectModuleProfile(IngestionProfiles.Default, "BunkFy.Modules.Ingestion.Api");
         builder.Services.AddOptions<IngestionApiSecurityOptions>();
+        builder.Services
+            .AddOptions<IngestionAdapterIngressOptions>()
+            .Bind(builder.Configuration.GetSection(IngestionAdapterIngressOptions.SectionName))
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IValidateOptions<IngestionAdapterIngressOptions>,
+                IngestionAdapterIngressOptionsValidator>());
+        builder.Services
+            .AddOptions<AdapterIngressQuotaOptions>()
+            .Bind(builder.Configuration.GetSection(AdapterIngressQuotaOptions.SectionName))
+            .Validate(
+                AdapterIngressQuotaOptions.IsValid,
+                "Adapter ingress quotas must be positive, bounded, and tenant limits must cover credential limits.")
+            .ValidateOnStart();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, IngestionPropertyAccessScopeResolver>());
         builder.Services.AddIngestionApplication();
@@ -53,6 +71,7 @@ public sealed class IngestionModule : IModule
         this.MapAdapterTypeEndpoints(endpoints);
         this.MapParserTypeEndpoints(endpoints);
         this.MapConnectionEndpoints(endpoints, credentialManagementAssurance);
+        this.MapIngressControlEndpoints(endpoints);
         this.MapIngressEndpoints(endpoints);
         this.MapRunEndpoints(endpoints);
         this.MapReceiptEndpoints(endpoints);
@@ -393,7 +412,8 @@ public sealed class IngestionModule : IModule
                     connectionId,
                     request.Label,
                     request.ExpiresAtUtc,
-                    $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}"),
+                    $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}",
+                    request.SourceSystem),
                 cancellationToken).ConfigureAwait(false);
             if (result.IsSuccess)
             {
@@ -451,6 +471,15 @@ public sealed class IngestionModule : IModule
         RouteGroupBuilder group = endpoints.MapGroup("/api/ingestion/adapter-ingress/connections")
             .WithModuleName(this.Name)
             .WithTags("Ingestion Adapter Ingress");
+        bool enabled = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<IngestionAdapterIngressOptions>>()
+            .Value
+            .Enabled;
+        if (!enabled)
+        {
+            MapDisabledIngressEndpoints(group);
+            return;
+        }
 
         group.MapPost("/{connectionId:guid}/observations", async (
             Guid connectionId,
@@ -483,6 +512,17 @@ public sealed class IngestionModule : IModule
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
+            IAdapterIngressAdmissionPolicy admission =
+                services.GetRequiredService<IAdapterIngressAdmissionPolicy>();
+            Result admissionResult = admission.Validate(request.Records);
+            if (admissionResult.IsFailure)
+            {
+                return Results.Problem(
+                    title: admissionResult.Error.Code,
+                    detail: admissionResult.Error.Message,
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
             List<AdapterObservationResult> results = [];
             foreach (AdapterIngressObservationRequest record in request.Records)
             {
@@ -498,7 +538,8 @@ public sealed class IngestionModule : IModule
                         record.ObservedAtUtc,
                         record.ContentType,
                         record.Payload,
-                        record.ContentSha256),
+                        record.ContentSha256,
+                        IngressProvenance: ToIngressProvenance(authenticated.Value)),
                     cancellationToken).ConfigureAwait(false);
                 results.Add(received.IsSuccess
                     ? received.Value
@@ -534,6 +575,17 @@ public sealed class IngestionModule : IModule
             }
 
             context.User = CreateAdapterPrincipal(identity);
+            IResult? gateRejection = await AdmitRemoteControlAsync(
+                identity,
+                AdapterIngressOperation.RemoteLeaseClaim,
+                context,
+                services,
+                cancellationToken).ConfigureAwait(false);
+            if (gateRejection is not null)
+            {
+                return gateRejection;
+            }
+
             try
             {
                 return (await dispatcher.SendAsync(
@@ -568,6 +620,17 @@ public sealed class IngestionModule : IModule
             }
 
             context.User = CreateAdapterPrincipal(identity);
+            IResult? gateRejection = await AdmitRemoteControlAsync(
+                identity,
+                AdapterIngressOperation.RemoteLeaseRenew,
+                context,
+                services,
+                cancellationToken).ConfigureAwait(false);
+            if (gateRejection is not null)
+            {
+                return gateRejection;
+            }
+
             try
             {
                 return (await dispatcher.SendAsync(
@@ -610,6 +673,17 @@ public sealed class IngestionModule : IModule
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
+            IAdapterIngressAdmissionPolicy admission =
+                services.GetRequiredService<IAdapterIngressAdmissionPolicy>();
+            Result admissionResult = admission.Validate(request.Records);
+            if (admissionResult.IsFailure)
+            {
+                return Results.Problem(
+                    title: admissionResult.Error.Code,
+                    detail: admissionResult.Error.Message,
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
             List<AdapterObservationResult> results = [];
             foreach (AdapterIngressObservationRequest record in request.Records)
             {
@@ -630,7 +704,8 @@ public sealed class IngestionModule : IModule
                             record.Payload,
                             record.ContentSha256,
                             RemoteLease: request.Lease,
-                            RemoteCredentialId: identity.CredentialId),
+                            RemoteCredentialId: identity.CredentialId,
+                            IngressProvenance: ToIngressProvenance(identity)),
                         cancellationToken).ConfigureAwait(false);
                 }
                 catch (OptimisticConcurrencyException)
@@ -704,6 +779,17 @@ public sealed class IngestionModule : IModule
             }
 
             context.User = CreateAdapterPrincipal(identity);
+            IResult? gateRejection = await AdmitRemoteControlAsync(
+                identity,
+                AdapterIngressOperation.RemoteLeaseComplete,
+                context,
+                services,
+                cancellationToken).ConfigureAwait(false);
+            if (gateRejection is not null)
+            {
+                return gateRejection;
+            }
+
             try
             {
                 return (await dispatcher.SendAsync(
@@ -717,6 +803,140 @@ public sealed class IngestionModule : IModule
         })
             .RequireTenantWithIndependentAuthentication()
             .WithMetadata(new RequestSizeLimitAttribute(32 * 1024L));
+    }
+
+    private static async Task<IResult?> AdmitRemoteControlAsync(
+        AdapterIngressIdentity identity,
+        AdapterIngressOperation operation,
+        HttpContext context,
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        IAdapterIngressGate gate = services.GetRequiredService<IAdapterIngressGate>();
+        AdapterIngressGateDecision decision = await gate.AdmitAsync(
+            identity,
+            operation,
+            permitCount: 1,
+            consumeQuota: true,
+            cancellationToken).ConfigureAwait(false);
+        if (decision.IsAllowed)
+        {
+            return null;
+        }
+
+        if (decision.RetryAfter is { } retryAfter)
+        {
+            context.Response.Headers.RetryAfter =
+                Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(
+                    System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        (string title, string detail, int statusCode) = decision.Outcome switch
+        {
+            AdapterIngressGateOutcome.QuotaRejected => (
+                IngestionApplicationErrors.AdapterIngressQuotaExceeded.Code,
+                IngestionApplicationErrors.AdapterIngressQuotaExceeded.Message,
+                StatusCodes.Status429TooManyRequests),
+            AdapterIngressGateOutcome.PolicyRejected
+                when decision.PolicyRejection == AdapterIngressPolicyRejection.TenantSuspended => (
+                    IngestionApplicationErrors.AdapterIngressTenantSuspended.Code,
+                    IngestionApplicationErrors.AdapterIngressTenantSuspended.Message,
+                    StatusCodes.Status503ServiceUnavailable),
+            AdapterIngressGateOutcome.PolicyRejected
+                when decision.PolicyRejection == AdapterIngressPolicyRejection.GlobalStopped => (
+                    IngestionApplicationErrors.AdapterIngressGloballyStopped.Code,
+                    IngestionApplicationErrors.AdapterIngressGloballyStopped.Message,
+                    StatusCodes.Status503ServiceUnavailable),
+            _ => (
+                IngestionApplicationErrors.AdapterIngressControlUnavailable.Code,
+                IngestionApplicationErrors.AdapterIngressControlUnavailable.Message,
+                StatusCodes.Status503ServiceUnavailable)
+        };
+        return Results.Problem(title: title, detail: detail, statusCode: statusCode);
+    }
+
+    private void MapIngressControlEndpoints(IEndpointRouteBuilder endpoints)
+    {
+        RouteGroupBuilder group = endpoints.MapGroup("/api/ingestion/adapter-ingress-control")
+            .WithModuleName(this.Name)
+            .WithTags("Ingestion Adapter Ingress Control")
+            .RequireAuthorization();
+
+        group.MapGet("", async (
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new GetAdapterIngressTenantControlQuery(),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .RequireTenant()
+            .RequireTenantPermission(IngestionAdminPermissionCodes.IngressControlManage);
+
+        group.MapPost("/suspend", async (
+            AdapterIngressControlDecisionRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            AccessSubject? subject = subjects.ResolveSubject(context);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await dispatcher.SendAsync(
+                new SuspendAdapterIngressTenantCommand(
+                    request.ExpectedVersion,
+                    request.ReasonCode,
+                    SubjectActor(subject)),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(IngestionAdminPermissionCodes.IngressControlManage);
+
+        group.MapPost("/resume", async (
+            AdapterIngressControlDecisionRequest request,
+            HttpContext context,
+            IAccessHttpSubjectResolver subjects,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            AccessSubject? subject = subjects.ResolveSubject(context);
+            if (subject is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            return (await dispatcher.SendAsync(
+                new ResumeAdapterIngressTenantCommand(
+                    request.ExpectedVersion,
+                    request.ReasonCode,
+                    SubjectActor(subject)),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .RequireTenant()
+            .RequireTenantPermission(IngestionAdminPermissionCodes.IngressControlManage);
+    }
+
+    private static string SubjectActor(AccessSubject subject) =>
+        $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
+
+    private static void MapDisabledIngressEndpoints(RouteGroupBuilder group)
+    {
+        static IResult Disabled(Guid connectionId)
+        {
+            _ = connectionId;
+            return Results.Problem(
+                title: "Ingestion.AdapterIngressDisabled",
+                detail: "Third-party adapter ingress is disabled.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        _ = group.MapPost("/{connectionId:guid}/observations", Disabled);
+        _ = group.MapPost("/{connectionId:guid}/remote-leases/claim", Disabled);
+        _ = group.MapPost("/{connectionId:guid}/remote-leases/renew", Disabled);
+        _ = group.MapPost("/{connectionId:guid}/remote-leases/observations", Disabled);
+        _ = group.MapPost("/{connectionId:guid}/remote-leases/complete", Disabled);
     }
 
     private static async Task<AdapterIngressIdentity?> AuthenticateAdapterAsync(
@@ -746,7 +966,7 @@ public sealed class IngestionModule : IModule
                (token = value.Parameter.Trim()).Length > 0;
     }
 
-    private static bool IsValidSubmission(AdapterIngressSubmissionRequest? request)
+    internal static bool IsValidSubmission(AdapterIngressSubmissionRequest? request)
     {
         if (request?.Records is null ||
             request.Records.Count is 0 or > AdapterProtocolLimits.MaximumRecordsPerSubmission ||
@@ -760,7 +980,7 @@ public sealed class IngestionModule : IModule
                AdapterProtocolLimits.MaximumSubmissionPayloadBytes;
     }
 
-    private static bool IsValidRemoteSubmission(AdapterRemoteObservationSubmissionRequest? request)
+    internal static bool IsValidRemoteSubmission(AdapterRemoteObservationSubmissionRequest? request)
     {
         if (request?.Lease is null || request.Lease.RunId == Guid.Empty || request.Lease.LeaseId == Guid.Empty ||
             request.Lease.LeaseEpoch <= 0 || request.Lease.WorkerId == Guid.Empty ||
@@ -780,6 +1000,14 @@ public sealed class IngestionModule : IModule
             new Claim("bunkfy_adapter_connection_id", identity.ConnectionId.ToString("D"))
         ],
         authenticationType: "BunkFy-Adapter"));
+
+    private static AdapterIngressProvenance ToIngressProvenance(AdapterIngressIdentity identity) => new(
+        identity.CredentialId,
+        identity.AdapterType,
+        identity.AdapterProtocolVersion,
+        identity.ConfigurationSchemaVersion,
+        identity.SourceSystem,
+        identity.CustomerOwner);
 
     private void MapRunEndpoints(IEndpointRouteBuilder endpoints)
     {
@@ -980,7 +1208,12 @@ public sealed class IngestionModule : IModule
 
     public sealed record CreateIngressCredentialRequest(
         string Label,
-        DateTimeOffset? ExpiresAtUtc = null);
+        DateTimeOffset? ExpiresAtUtc = null,
+        string? SourceSystem = null);
+
+    public sealed record AdapterIngressControlDecisionRequest(
+        long ExpectedVersion,
+        string ReasonCode);
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(IngestionApplicationErrors.AdapterTypeNotRegistered.Code, StatusCodes.Status400BadRequest),
@@ -992,6 +1225,10 @@ public sealed class IngestionModule : IModule
         new(IngestionApplicationErrors.ConnectionNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.IngressCredentialNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.IngressCredentialLimitReached.Code, StatusCodes.Status409Conflict),
+        new(IngestionApplicationErrors.AdapterIngressQuotaExceeded.Code, StatusCodes.Status429TooManyRequests),
+        new(IngestionApplicationErrors.AdapterIngressTenantSuspended.Code, StatusCodes.Status503ServiceUnavailable),
+        new(IngestionApplicationErrors.AdapterIngressGloballyStopped.Code, StatusCodes.Status503ServiceUnavailable),
+        new(IngestionApplicationErrors.AdapterIngressControlUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(IngestionApplicationErrors.IngressCredentialsRequirePushMode.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.RemoteLeaseClaimInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.RemoteLeaseDescriptorMismatch.Code, StatusCodes.Status409Conflict),
@@ -1015,6 +1252,11 @@ public sealed class IngestionModule : IModule
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.IngressCredentialExpiryInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.IngressCredentialActorInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.IngressCredentialAlreadyRevoked.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressControlDecisionInvalid.Code, StatusCodes.Status400BadRequest),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressTenantAlreadySuspended.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressTenantAlreadyActive.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressGlobalAlreadyStopped.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressGlobalAlreadyActive.Code, StatusCodes.Status409Conflict),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.RemoteLeaseIdentityInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.RemoteLeaseDurationInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.RemoteLeaseRequiresRemotePollingMode.Code, StatusCodes.Status409Conflict),

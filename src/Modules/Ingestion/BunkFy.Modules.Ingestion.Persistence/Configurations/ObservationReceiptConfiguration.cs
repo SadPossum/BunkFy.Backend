@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Ingestion.Persistence.Configurations;
 
 using BunkFy.Modules.Ingestion.Domain.Connections;
+using BunkFy.Modules.Ingestion.Domain.Credentials;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
 using BunkFy.Modules.Ingestion.Domain.Runs;
@@ -11,9 +12,19 @@ internal sealed class ObservationReceiptConfiguration : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<ObservationReceipt> builder)
     {
-        builder.ToTable("observation_receipts", table => table.HasCheckConstraint(
-            "CK_observation_receipts_policy_evidence",
-            "(\"JurisdictionPolicyId\" IS NULL AND \"PolicyOperatingCountryCode\" IS NULL AND " +
+        builder.ToTable("observation_receipts", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_observation_receipts_adapter_provenance",
+                "(\"AdapterType\" IS NULL AND \"AdapterProtocolVersion\" IS NULL AND " +
+                "\"AdapterConfigurationSchemaVersion\" IS NULL AND \"AdapterSourceSystem\" IS NULL AND " +
+                "\"AdapterCredentialId\" IS NULL AND \"AdapterCustomerOwner\" IS NULL) OR " +
+                "(\"AdapterType\" IS NOT NULL AND \"AdapterProtocolVersion\" > 0 AND " +
+                "\"AdapterConfigurationSchemaVersion\" > 0 AND \"AdapterSourceSystem\" IS NOT NULL AND " +
+                "(\"AdapterCredentialId\" IS NULL OR \"AdapterCustomerOwner\" IS NOT NULL))");
+            table.HasCheckConstraint(
+                "CK_observation_receipts_policy_evidence",
+                "(\"JurisdictionPolicyId\" IS NULL AND \"PolicyOperatingCountryCode\" IS NULL AND " +
             "\"JurisdictionPolicyVersion\" IS NULL AND \"PolicyDataRegionId\" IS NULL AND " +
             "\"PolicyTransferProfileId\" IS NULL AND \"PolicyRetentionPolicyId\" IS NULL AND " +
             "\"PolicyRetentionPolicyVersion\" IS NULL AND \"PolicyContentSha256\" IS NULL AND " +
@@ -31,7 +42,8 @@ internal sealed class ObservationReceiptConfiguration : IEntityTypeConfiguration
             "char_length(\"PolicyOperatingCountryCode\") = 2 AND char_length(\"PolicyContentSha256\") = 64 AND " +
             "\"PolicyEffectiveAtUtc\" < \"PolicyExpiresAtUtc\" AND " +
             "\"PolicyEvaluatedAtUtc\" >= \"PolicyEffectiveAtUtc\" AND " +
-            "\"PolicyEvaluatedAtUtc\" < \"PolicyExpiresAtUtc\")"));
+                "\"PolicyEvaluatedAtUtc\" < \"PolicyExpiresAtUtc\")");
+        });
         builder.HasKey(receipt => receipt.Id);
         builder.HasAlternateKey(receipt => new { receipt.ScopeId, receipt.Id });
         builder.Property(receipt => receipt.ScopeId).HasMaxLength(128).IsRequired();
@@ -40,6 +52,23 @@ internal sealed class ObservationReceiptConfiguration : IEntityTypeConfiguration
         builder.Property(receipt => receipt.SourceRevision).HasMaxLength(ObservationReceipt.SourceRevisionMaxLength);
         builder.Property(receipt => receipt.DeduplicationKey).HasMaxLength(ObservationReceipt.DeduplicationKeyMaxLength).IsRequired();
         builder.Property(receipt => receipt.ContentHash).HasMaxLength(ObservationReceipt.ContentHashLength).IsFixedLength().IsRequired();
+        builder.OwnsOne(receipt => receipt.AdapterProvenance, provenance =>
+        {
+            provenance.Property(value => value.CredentialId).HasColumnName("AdapterCredentialId");
+            provenance.Property(value => value.AdapterType)
+                .HasColumnName("AdapterType")
+                .HasMaxLength(AdapterConnection.AdapterTypeMaxLength);
+            provenance.Property(value => value.AdapterProtocolVersion)
+                .HasColumnName("AdapterProtocolVersion");
+            provenance.Property(value => value.ConfigurationSchemaVersion)
+                .HasColumnName("AdapterConfigurationSchemaVersion");
+            provenance.Property(value => value.SourceSystem)
+                .HasColumnName("AdapterSourceSystem")
+                .HasMaxLength(AdapterIngressCredential.SourceSystemMaxLength);
+            provenance.Property(value => value.CustomerOwner)
+                .HasColumnName("AdapterCustomerOwner")
+                .HasMaxLength(AdapterIngressCredential.ActorMaxLength);
+        });
         builder.Property(receipt => receipt.RawPayloadRetentionState).HasConversion<int>().IsRequired();
         builder.Property(receipt => receipt.RawPayloadVersion).IsConcurrencyToken().IsRequired();
         builder.Property(receipt => receipt.State).HasConversion<int>().IsRequired();

@@ -1,11 +1,14 @@
 namespace BunkFy.Adapter.Abstractions;
 
+using System.Text.Json.Serialization;
+
 public static class AdapterRemoteLeaseContractLimits
 {
     public const int MinimumLeaseSeconds = 30;
     public const int MaximumLeaseSeconds = 15 * 60;
 }
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record AdapterRemoteLeaseClaimRequest(
     Guid ClaimId,
     Guid WorkerId,
@@ -19,12 +22,14 @@ public sealed record AdapterRemoteLeaseClaimResponse(
     long LeaseEpoch,
     int RenewAfterSeconds);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record AdapterRemoteLeaseProof(
     Guid RunId,
     Guid LeaseId,
     long LeaseEpoch,
     Guid WorkerId);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record AdapterRemoteLeaseRenewRequest(
     AdapterRemoteLeaseProof Lease,
     int RequestedLeaseSeconds);
@@ -36,6 +41,7 @@ public sealed record AdapterRemoteLeaseRenewResponse(
     DateTimeOffset LeaseExpiresAtUtc,
     int RenewAfterSeconds);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record AdapterRemoteObservationSubmissionRequest(
     AdapterRemoteLeaseProof Lease,
     IReadOnlyCollection<AdapterIngressObservationRequest> Records,
@@ -44,6 +50,7 @@ public sealed record AdapterRemoteObservationSubmissionRequest(
 public sealed record AdapterRemoteObservationSubmissionResponse(
     AdapterObservationAcknowledgement Acknowledgement);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record AdapterRemoteRunCompletionRequest(
     AdapterRemoteLeaseProof Lease,
     AdapterRunOutcome Outcome,

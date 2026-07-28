@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Ingestion.Tests.Persistence;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
+using BunkFy.Modules.Ingestion.Domain.Controls;
 using BunkFy.Modules.Ingestion.Domain.Credentials;
 using BunkFy.Modules.Ingestion.Domain.DataRights;
 using BunkFy.Modules.Ingestion.Domain.LegalHolds;
@@ -55,6 +56,52 @@ public sealed class IngestionModelTests
             .FindProperty(nameof(LegalHold.Version))!.IsConcurrencyToken);
         Assert.True(dbContext.Model.FindEntityType(typeof(IngestionPropertyProjection))!
             .FindProperty(nameof(IngestionPropertyProjection.RetentionFenceVersion))!.IsConcurrencyToken);
+        Assert.True(dbContext.Model.FindEntityType(typeof(AdapterIngressTenantControl))!
+            .FindProperty(nameof(AdapterIngressTenantControl.Version))!.IsConcurrencyToken);
+        Assert.True(dbContext.Model.FindEntityType(typeof(AdapterIngressGlobalControl))!
+            .FindProperty(nameof(AdapterIngressGlobalControl.Version))!.IsConcurrencyToken);
+    }
+
+    [Fact]
+    public async Task Tenant_ingress_control_is_scope_filtered_while_global_stop_is_shared()
+    {
+        string databaseName = $"ingestion-controls-{Guid.NewGuid():N}";
+        DateTimeOffset now = new(2026, 7, 28, 12, 0, 0, TimeSpan.Zero);
+
+        await using (IngestionDbContext tenantA = CreateDbContext(databaseName, "tenant-a"))
+        {
+            tenantA.AdapterIngressTenantControls.Add(
+                AdapterIngressTenantControl.CreateSuspended(
+                    "tenant-a",
+                    "security.review",
+                    "user:tenant-a",
+                    now).Value);
+            tenantA.AdapterIngressGlobalControls.Add(
+                AdapterIngressGlobalControl.CreateStopped(
+                    "incident.active",
+                    "admin:operator",
+                    now).Value);
+            await tenantA.SaveChangesAsync();
+        }
+
+        await using (IngestionDbContext tenantB = CreateDbContext(databaseName, "tenant-b"))
+        {
+            Assert.Empty(await tenantB.AdapterIngressTenantControls.ToArrayAsync());
+            Assert.Single(await tenantB.AdapterIngressGlobalControls.ToArrayAsync());
+            tenantB.AdapterIngressTenantControls.Add(
+                AdapterIngressTenantControl.CreateSuspended(
+                    "tenant-b",
+                    "credential.compromise",
+                    "user:tenant-b",
+                    now.AddMinutes(1)).Value);
+            await tenantB.SaveChangesAsync();
+        }
+
+        await using IngestionDbContext tenantARead = CreateDbContext(databaseName, "tenant-a");
+        AdapterIngressTenantControl tenantControl =
+            Assert.Single(await tenantARead.AdapterIngressTenantControls.ToArrayAsync());
+        Assert.Equal("tenant-a", tenantControl.ScopeId);
+        Assert.Single(await tenantARead.AdapterIngressGlobalControls.ToArrayAsync());
     }
 
     [Fact]
@@ -221,6 +268,10 @@ public sealed class IngestionModelTests
         Assert.True(credential.FindProperty(nameof(AdapterIngressCredential.Version))!.IsConcurrencyToken);
         Assert.Equal(AdapterIngressCredential.SecretHashLength,
             credential.FindProperty(nameof(AdapterIngressCredential.SecretHash))!.GetMaxLength());
+        Assert.False(credential.FindProperty(nameof(AdapterIngressCredential.AdapterType))!.IsNullable);
+        Assert.False(credential.FindProperty(nameof(AdapterIngressCredential.AdapterProtocolVersion))!.IsNullable);
+        Assert.False(credential.FindProperty(nameof(AdapterIngressCredential.ConfigurationSchemaVersion))!.IsNullable);
+        Assert.False(credential.FindProperty(nameof(AdapterIngressCredential.SourceSystem))!.IsNullable);
         Assert.Contains(credential.GetForeignKeys(), foreignKey =>
             foreignKey.Properties.Select(property => property.Name)
                 .SequenceEqual(["ScopeId", "ConnectionId"]) &&
@@ -232,6 +283,26 @@ public sealed class IngestionModelTests
             index.IsUnique && index.GetFilter() == "\"State\" = 1" &&
             index.Properties.Select(property => property.Name)
                 .SequenceEqual(["ScopeId", "ConnectionId", "Slot"]));
+        Assert.Contains(credential.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "SourceSystem", "CreatedAtUtc"]));
+    }
+
+    [Fact]
+    public void Receipt_adapter_provenance_is_an_optional_owned_snapshot()
+    {
+        using IngestionDbContext dbContext = CreateDbContext();
+        IEntityType receipt = dbContext.Model.FindEntityType(typeof(ObservationReceipt))!;
+        INavigation provenance = receipt.FindNavigation(nameof(ObservationReceipt.AdapterProvenance))!;
+        IEntityType owned = provenance.TargetEntityType;
+
+        Assert.True(owned.IsOwned());
+        Assert.False(owned.FindProperty(nameof(ObservationAdapterProvenance.AdapterType))!.IsNullable);
+        Assert.False(owned.FindProperty(nameof(ObservationAdapterProvenance.AdapterProtocolVersion))!.IsNullable);
+        Assert.False(owned.FindProperty(nameof(ObservationAdapterProvenance.ConfigurationSchemaVersion))!.IsNullable);
+        Assert.False(owned.FindProperty(nameof(ObservationAdapterProvenance.SourceSystem))!.IsNullable);
+        Assert.True(owned.FindProperty(nameof(ObservationAdapterProvenance.CredentialId))!.IsNullable);
+        Assert.True(owned.FindProperty(nameof(ObservationAdapterProvenance.CustomerOwner))!.IsNullable);
     }
 
     [Fact]

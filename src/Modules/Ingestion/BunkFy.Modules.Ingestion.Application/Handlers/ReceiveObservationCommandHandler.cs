@@ -8,6 +8,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
+using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Application.Policies;
@@ -19,6 +20,7 @@ using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal sealed class ReceiveObservationCommandHandler(
     IAdapterConnectionRepository connections,
+    IAdapterDescriptorRegistry descriptors,
     IIngestionCountryPolicyAdmission countryPolicy,
     IIngestionRunRepository runs,
     IObservationReceiptRepository receipts,
@@ -29,7 +31,8 @@ internal sealed class ReceiveObservationCommandHandler(
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator,
-    IngestionAnonymisationBarrier anonymisationBarrier)
+    IngestionAnonymisationBarrier anonymisationBarrier,
+    IAdapterIngressGate ingressGate)
     : ICommandHandler<ReceiveObservationCommand, AdapterObservationResult>
 {
     public async Task<Result<AdapterObservationResult>> HandleAsync(
@@ -46,6 +49,12 @@ internal sealed class ReceiveObservationCommandHandler(
         if (connection is null)
         {
             return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ConnectionNotFound);
+        }
+
+        Result<ObservationAdapterProvenance> provenance = this.ResolveProvenance(connection, command);
+        if (provenance.IsFailure)
+        {
+            return Result.Failure<AdapterObservationResult>(provenance.Error);
         }
 
         bool hasAnyLineage = command.SourceReceiptId.HasValue || command.ReprocessingAttemptId.HasValue ||
@@ -220,9 +229,20 @@ internal sealed class ReceiveObservationCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (operationDuplicate is not null)
         {
-            return Matches(operationDuplicate, observation)
+            if (!Matches(operationDuplicate, observation))
+            {
+                return Result.Failure<AdapterObservationResult>(
+                    IngestionApplicationErrors.OperationIdentityConflict);
+            }
+
+            Result replayAdmission = await this.AdmitIngressAsync(
+                command,
+                connection,
+                consumeQuota: false,
+                cancellationToken).ConfigureAwait(false);
+            return replayAdmission.IsSuccess
                 ? Duplicate(observation.OperationId, operationDuplicate.Id)
-                : Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.OperationIdentityConflict);
+                : Result.Failure<AdapterObservationResult>(replayAdmission.Error);
         }
 
         string deduplicationKey = ObservationIdentity.CreateDeduplicationKey(
@@ -236,9 +256,30 @@ internal sealed class ReceiveObservationCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (sourceDuplicate is not null)
         {
-            return string.Equals(sourceDuplicate.ContentHash, observation.ContentSha256, StringComparison.Ordinal)
+            if (!string.Equals(sourceDuplicate.ContentHash, observation.ContentSha256, StringComparison.Ordinal))
+            {
+                return Result.Failure<AdapterObservationResult>(
+                    IngestionApplicationErrors.SourceRevisionConflict);
+            }
+
+            Result replayAdmission = await this.AdmitIngressAsync(
+                command,
+                connection,
+                consumeQuota: false,
+                cancellationToken).ConfigureAwait(false);
+            return replayAdmission.IsSuccess
                 ? Duplicate(observation.OperationId, sourceDuplicate.Id)
-                : Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.SourceRevisionConflict);
+                : Result.Failure<AdapterObservationResult>(replayAdmission.Error);
+        }
+
+        Result ingressAdmission = await this.AdmitIngressAsync(
+            command,
+            connection,
+            consumeQuota: true,
+            cancellationToken).ConfigureAwait(false);
+        if (ingressAdmission.IsFailure)
+        {
+            return Result.Failure<AdapterObservationResult>(ingressAdmission.Error);
         }
 
         string scopeId = scopeContext.ScopeId.Trim();
@@ -266,7 +307,8 @@ internal sealed class ReceiveObservationCommandHandler(
             command.ReprocessingAttemptId,
             command.ParserType,
             command.ParserVersion,
-            command.ParserOutputIndex);
+            command.ParserOutputIndex,
+            provenance.Value);
         if (created.IsFailure)
         {
             return Result.Failure<AdapterObservationResult>(created.Error);
@@ -297,6 +339,96 @@ internal sealed class ReceiveObservationCommandHandler(
             AdapterObservationDisposition.Accepted,
             receiptId,
             errorCode: null));
+    }
+
+    private Result<ObservationAdapterProvenance> ResolveProvenance(
+        AdapterConnection connection,
+        ReceiveObservationCommand command)
+    {
+        if (!descriptors.TryGet(connection.AdapterType, out AdapterDescriptor? descriptor) ||
+            descriptor is null)
+        {
+            return Result.Failure<ObservationAdapterProvenance>(
+                IngestionApplicationErrors.AdapterTypeNotRegistered);
+        }
+
+        if (command.IngressProvenance is not { } ingress)
+        {
+            return ObservationAdapterProvenance.Create(
+                credentialId: null,
+                descriptor.AdapterType,
+                descriptor.ProtocolVersion,
+                descriptor.ConfigurationSchemaVersion,
+                descriptor.AdapterType,
+                customerOwner: null);
+        }
+
+        if (!string.Equals(ingress.AdapterType, connection.AdapterType, StringComparison.Ordinal) ||
+            !string.Equals(ingress.AdapterType, descriptor.AdapterType, StringComparison.Ordinal) ||
+            ingress.AdapterProtocolVersion != descriptor.ProtocolVersion ||
+            ingress.ConfigurationSchemaVersion != descriptor.ConfigurationSchemaVersion ||
+            (command.RemoteCredentialId.HasValue &&
+             command.RemoteCredentialId != ingress.CredentialId))
+        {
+            return Result.Failure<ObservationAdapterProvenance>(
+                BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ReceiptProvenanceInvalid);
+        }
+
+        return ObservationAdapterProvenance.Create(
+            ingress.CredentialId,
+            ingress.AdapterType,
+            ingress.AdapterProtocolVersion,
+            ingress.ConfigurationSchemaVersion,
+            ingress.SourceSystem,
+            ingress.CustomerOwner);
+    }
+
+    private async Task<Result> AdmitIngressAsync(
+        ReceiveObservationCommand command,
+        AdapterConnection connection,
+        bool consumeQuota,
+        CancellationToken cancellationToken)
+    {
+        if (command.IngressProvenance is not { } ingress)
+        {
+            return Result.Success();
+        }
+
+        AdapterIngressIdentity identity = new(
+            connection.ScopeId,
+            connection.Id,
+            ingress.CredentialId,
+            connection.ExecutionMode,
+            ingress.AdapterType,
+            ingress.AdapterProtocolVersion,
+            ingress.ConfigurationSchemaVersion,
+            ingress.SourceSystem,
+            ingress.CustomerOwner);
+        AdapterIngressGateDecision decision = await ingressGate.AdmitAsync(
+            identity,
+            command.RemoteCredentialId.HasValue
+                ? AdapterIngressOperation.RemoteObservation
+                : AdapterIngressOperation.Observation,
+            permitCount: 1,
+            consumeQuota,
+            cancellationToken).ConfigureAwait(false);
+        if (decision.IsAllowed)
+        {
+            return Result.Success();
+        }
+
+        return Result.Failure(decision.Outcome switch
+        {
+            AdapterIngressGateOutcome.QuotaRejected =>
+                IngestionApplicationErrors.AdapterIngressQuotaExceeded,
+            AdapterIngressGateOutcome.PolicyRejected
+                when decision.PolicyRejection == AdapterIngressPolicyRejection.TenantSuspended =>
+                IngestionApplicationErrors.AdapterIngressTenantSuspended,
+            AdapterIngressGateOutcome.PolicyRejected
+                when decision.PolicyRejection == AdapterIngressPolicyRejection.GlobalStopped =>
+                IngestionApplicationErrors.AdapterIngressGloballyStopped,
+            _ => IngestionApplicationErrors.AdapterIngressControlUnavailable
+        });
     }
 
     private static bool Matches(

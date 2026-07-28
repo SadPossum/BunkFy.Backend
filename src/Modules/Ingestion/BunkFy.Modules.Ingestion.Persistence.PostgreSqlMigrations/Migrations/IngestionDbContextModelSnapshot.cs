@@ -123,11 +123,122 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)");
+
+                    b.Property<bool>("IsStopped")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("LastReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ResumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("StoppedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.HasKey("Id");
+
+                    b.ToTable("adapter_ingress_global_controls", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_adapter_ingress_global_controls_lifecycle", "(\"IsStopped\" AND \"StoppedAtUtc\" IS NOT NULL AND (\"ResumedAtUtc\" IS NULL OR \"StoppedAtUtc\" > \"ResumedAtUtc\")) OR (NOT \"IsStopped\" AND \"StoppedAtUtc\" IS NOT NULL AND \"ResumedAtUtc\" IS NOT NULL AND \"ResumedAtUtc\" >= \"StoppedAtUtc\")");
+
+                            t.HasCheckConstraint("CK_adapter_ingress_global_controls_singleton", "\"Id\" = 'adapter-ingress'");
+
+                            t.HasCheckConstraint("CK_adapter_ingress_global_controls_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("IsSuspended")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("LastReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ResumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("SuspendedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId")
+                        .IsUnique();
+
+                    b.ToTable("adapter_ingress_tenant_controls", "ingestion", t =>
+                        {
+                            t.HasCheckConstraint("CK_adapter_ingress_tenant_controls_identity", "\"Id\" = \"ScopeId\"");
+
+                            t.HasCheckConstraint("CK_adapter_ingress_tenant_controls_lifecycle", "(\"IsSuspended\" AND \"SuspendedAtUtc\" IS NOT NULL AND (\"ResumedAtUtc\" IS NULL OR \"SuspendedAtUtc\" > \"ResumedAtUtc\")) OR (NOT \"IsSuspended\" AND \"SuspendedAtUtc\" IS NOT NULL AND \"ResumedAtUtc\" IS NOT NULL AND \"ResumedAtUtc\" >= \"SuspendedAtUtc\")");
+
+                            t.HasCheckConstraint("CK_adapter_ingress_tenant_controls_version", "\"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Ingestion.Domain.Credentials.AdapterIngressCredential", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("AdapterProtocolVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AdapterType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("ConfigurationSchemaVersion")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("ConnectionId")
                         .HasColumnType("uuid");
@@ -176,6 +287,11 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<int>("Slot")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("State")
                         .HasColumnType("integer");
 
@@ -192,6 +308,8 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ScopeId", "ConnectionId", "Slot")
                         .IsUnique()
                         .HasFilter("\"State\" = 1");
+
+                    b.HasIndex("ScopeId", "SourceSystem", "CreatedAtUtc");
 
                     b.HasIndex("ScopeId", "ConnectionId", "State", "ExpiresAtUtc");
 
@@ -865,6 +983,8 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
 
                     b.ToTable("observation_receipts", "ingestion", t =>
                         {
+                            t.HasCheckConstraint("CK_observation_receipts_adapter_provenance", "(\"AdapterType\" IS NULL AND \"AdapterProtocolVersion\" IS NULL AND \"AdapterConfigurationSchemaVersion\" IS NULL AND \"AdapterSourceSystem\" IS NULL AND \"AdapterCredentialId\" IS NULL AND \"AdapterCustomerOwner\" IS NULL) OR (\"AdapterType\" IS NOT NULL AND \"AdapterProtocolVersion\" > 0 AND \"AdapterConfigurationSchemaVersion\" > 0 AND \"AdapterSourceSystem\" IS NOT NULL AND (\"AdapterCredentialId\" IS NULL OR \"AdapterCustomerOwner\" IS NOT NULL))");
+
                             t.HasCheckConstraint("CK_observation_receipts_policy_evidence", "(\"JurisdictionPolicyId\" IS NULL AND \"PolicyOperatingCountryCode\" IS NULL AND \"JurisdictionPolicyVersion\" IS NULL AND \"PolicyDataRegionId\" IS NULL AND \"PolicyTransferProfileId\" IS NULL AND \"PolicyRetentionPolicyId\" IS NULL AND \"PolicyRetentionPolicyVersion\" IS NULL AND \"PolicyContentSha256\" IS NULL AND \"PolicyPurposeCode\" IS NULL AND \"PolicyProcessingSurface\" IS NULL AND \"PolicySourceProvenance\" IS NULL AND \"PolicyEffectiveAtUtc\" IS NULL AND \"PolicyExpiresAtUtc\" IS NULL AND \"PolicyEvaluatedAtUtc\" IS NULL) OR (\"JurisdictionPolicyId\" IS NOT NULL AND \"PolicyOperatingCountryCode\" IS NOT NULL AND \"JurisdictionPolicyVersion\" IS NOT NULL AND \"PolicyDataRegionId\" IS NOT NULL AND \"PolicyTransferProfileId\" IS NOT NULL AND \"PolicyRetentionPolicyId\" IS NOT NULL AND \"PolicyRetentionPolicyVersion\" IS NOT NULL AND \"PolicyContentSha256\" IS NOT NULL AND \"PolicyPurposeCode\" IS NOT NULL AND \"PolicyProcessingSurface\" IS NOT NULL AND \"PolicySourceProvenance\" IS NOT NULL AND \"PolicyEffectiveAtUtc\" IS NOT NULL AND \"PolicyExpiresAtUtc\" IS NOT NULL AND \"PolicyEvaluatedAtUtc\" IS NOT NULL AND \"JurisdictionPolicyVersion\" > 0 AND \"PolicyRetentionPolicyVersion\" > 0 AND char_length(\"PolicyOperatingCountryCode\") = 2 AND char_length(\"PolicyContentSha256\") = 64 AND \"PolicyEffectiveAtUtc\" < \"PolicyExpiresAtUtc\" AND \"PolicyEvaluatedAtUtc\" >= \"PolicyEffectiveAtUtc\" AND \"PolicyEvaluatedAtUtc\" < \"PolicyExpiresAtUtc\")");
                         });
                 });
@@ -1752,6 +1872,48 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                         .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.OwnsOne("BunkFy.Modules.Ingestion.Domain.Receipts.ObservationAdapterProvenance", "AdapterProvenance", b1 =>
+                        {
+                            b1.Property<Guid>("ObservationReceiptId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("AdapterProtocolVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("AdapterProtocolVersion");
+
+                            b1.Property<string>("AdapterType")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("AdapterType");
+
+                            b1.Property<int>("ConfigurationSchemaVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("AdapterConfigurationSchemaVersion");
+
+                            b1.Property<Guid?>("CredentialId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("AdapterCredentialId");
+
+                            b1.Property<string>("CustomerOwner")
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("AdapterCustomerOwner");
+
+                            b1.Property<string>("SourceSystem")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("AdapterSourceSystem");
+
+                            b1.HasKey("ObservationReceiptId");
+
+                            b1.ToTable("observation_receipts", "ingestion");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ObservationReceiptId");
+                        });
+
                     b.OwnsOne("BunkFy.Modules.Ingestion.Domain.Receipts.ObservationCountryPolicyEvidence", "CountryPolicyEvidence", b1 =>
                         {
                             b1.Property<Guid>("ObservationReceiptId")
@@ -1839,6 +2001,8 @@ namespace BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("ObservationReceiptId");
                         });
+
+                    b.Navigation("AdapterProvenance");
 
                     b.Navigation("CountryPolicyEvidence");
                 });

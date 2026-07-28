@@ -72,6 +72,7 @@ public static class WorkspaceAccessRoles
         IngestionAdminPermissionCodes.Read,
         IngestionAdminPermissionCodes.ConnectionsManage,
         IngestionAdminPermissionCodes.CredentialsManage,
+        IngestionAdminPermissionCodes.IngressControlManage,
         IngestionAdminPermissionCodes.RunsManage,
         IngestionAdminPermissionCodes.RawPayloadsRead,
         IngestionAdminPermissionCodes.SensitiveHistoryRead,

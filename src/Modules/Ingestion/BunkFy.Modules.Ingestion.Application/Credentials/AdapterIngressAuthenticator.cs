@@ -6,12 +6,15 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Adapters;
+using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Credentials;
 
 internal sealed class AdapterIngressAuthenticator(
     IAdapterConnectionRepository connections,
     IAdapterIngressCredentialRepository credentials,
     IAdapterIngressTokenService tokens,
+    IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
     ISystemClock clock)
     : IAdapterIngressAuthenticator
@@ -31,14 +34,25 @@ internal sealed class AdapterIngressAuthenticator(
 
         try
         {
+            string scopeId = scopeContext.ScopeId.Trim();
             AdapterIngressCredential? credential = await credentials.GetForAuthenticationAsync(
                 connectionId, credentialId, cancellationToken).ConfigureAwait(false);
-            BunkFy.Modules.Ingestion.Domain.Connections.AdapterConnection? connection = await connections.GetAsync(
+            AdapterConnection? connection = await connections.GetAsync(
                 connectionId, cancellationToken).ConfigureAwait(false);
             if (credential is null ||
+                !string.Equals(credential.ScopeId, scopeId, StringComparison.Ordinal) ||
+                credential.ConnectionId != connectionId ||
+                connection is null ||
+                !string.Equals(connection.ScopeId, scopeId, StringComparison.Ordinal) ||
+                connection?.State != AdapterConnectionState.Enabled ||
                 connection?.ExecutionMode != requiredMode ||
                 !credential.CanAuthenticate(clock.UtcNow) ||
                 credential.SecretHashAlgorithm != AdapterIngressCredential.Sha256HashAlgorithm ||
+                !descriptors.TryGet(connection.AdapterType, out AdapterDescriptor? descriptor) ||
+                descriptor is null ||
+                !string.Equals(credential.AdapterType, descriptor.AdapterType, StringComparison.Ordinal) ||
+                credential.AdapterProtocolVersion != descriptor.ProtocolVersion ||
+                credential.ConfigurationSchemaVersion != descriptor.ConfigurationSchemaVersion ||
                 !tokens.Verify(credential.SecretHash, candidateHash))
             {
                 return Result.Failure<AdapterIngressIdentity>(IngestionApplicationErrors.IngressCredentialUnauthorized);
@@ -47,7 +61,15 @@ internal sealed class AdapterIngressAuthenticator(
             await credentials.MarkAuthenticatedAsync(
                 credential.Id, clock.UtcNow, cancellationToken).ConfigureAwait(false);
             return Result.Success(new AdapterIngressIdentity(
-                scopeContext.ScopeId.Trim(), connectionId, credential.Id, connection.ExecutionMode));
+                scopeId,
+                connectionId,
+                credential.Id,
+                connection.ExecutionMode,
+                credential.AdapterType,
+                credential.AdapterProtocolVersion,
+                credential.ConfigurationSchemaVersion,
+                credential.SourceSystem,
+                credential.CreatedBy));
         }
         finally
         {

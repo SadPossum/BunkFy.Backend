@@ -40,6 +40,7 @@ using BunkFy.Modules.Staff.Application;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Ingestion.Application;
+using BunkFy.Modules.Ingestion.Application.Ingress;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Retention.Application;
@@ -53,6 +54,7 @@ using BunkFy.Parsers.ReservationMail;
 using BunkFy.Host.ServiceDefaults;
 using Gma.Framework.Caching.Cqrs;
 using Gma.Framework.Caching.Redis;
+using Gma.Framework.RateLimiting.Redis;
 using Gma.Framework.Infrastructure;
 using Gma.Framework.FileManagement.Minio;
 using Gma.Framework.Messaging.Infrastructure;
@@ -81,6 +83,11 @@ public static class WorkerHostBuilderExtensions
         builder.AddBunkFyCountryPolicies();
 
         builder.AddRedisCaching();
+        if (workerOptions.Modules.Ingestion && HasRedisRateLimitingConnection(builder))
+        {
+            builder.AddRedisRateLimiting();
+        }
+
         builder.AddCachingCqrs();
         builder.AddGmaInfrastructure();
         builder.AddTenantCaching();
@@ -272,6 +279,13 @@ public static class WorkerHostBuilderExtensions
         {
             builder.AddMinioFileStorage();
             builder.SelectModuleProfile(IngestionProfiles.Default, "BunkFy.Host.Worker/Ingestion");
+            builder.Services
+                .AddOptions<AdapterIngressQuotaOptions>()
+                .Bind(builder.Configuration.GetSection(AdapterIngressQuotaOptions.SectionName))
+                .Validate(
+                    AdapterIngressQuotaOptions.IsValid,
+                    "Adapter ingress quotas must be positive, bounded, and tenant limits must cover credential limits.")
+                .ValidateOnStart();
             builder.Services.AddIngestionApplication();
             builder.Services.AddLocalAdapterConfigurationMaterials(builder.Configuration);
             builder.Services.AddFakeHttpAdapter();
@@ -326,5 +340,14 @@ public static class WorkerHostBuilderExtensions
                 "Adapters:JsonFileDrop:MaximumDeletesPerRun",
                 JsonFileDropAdapterOptions.DefaultMaximumDeletesPerRun),
             builder.Configuration.GetValue("Adapters:JsonFileDrop:RetentionEnabled", true));
+    }
+
+    private static bool HasRedisRateLimitingConnection(IHostApplicationBuilder builder)
+    {
+        RedisRateLimitingOptions options = builder.Configuration
+            .GetSection(RedisRateLimitingOptions.SectionName)
+            .Get<RedisRateLimitingOptions>() ?? new RedisRateLimitingOptions();
+        return !string.IsNullOrWhiteSpace(
+            builder.Configuration.GetConnectionString(options.ConnectionName));
     }
 }

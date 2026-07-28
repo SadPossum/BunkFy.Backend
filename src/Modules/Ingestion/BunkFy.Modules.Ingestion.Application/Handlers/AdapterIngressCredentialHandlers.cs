@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
+using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
@@ -7,6 +8,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Commands;
+using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Application.Queries;
 using BunkFy.Modules.Ingestion.Contracts;
@@ -17,6 +19,7 @@ internal sealed class CreateAdapterIngressCredentialCommandHandler(
     IAdapterConnectionRepository connections,
     IAdapterIngressCredentialRepository credentials,
     IAdapterIngressTokenService tokens,
+    IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
@@ -39,11 +42,18 @@ internal sealed class CreateAdapterIngressCredentialCommandHandler(
         }
 
         if (connection.ExecutionMode is not (
-            BunkFy.Adapter.Abstractions.AdapterExecutionMode.Push or
-            BunkFy.Adapter.Abstractions.AdapterExecutionMode.RemotePolling))
+            AdapterExecutionMode.Push or
+            AdapterExecutionMode.RemotePolling))
         {
             return Result.Failure<CreateAdapterIngressCredentialResponse>(
                 IngestionApplicationErrors.IngressCredentialsRequirePushMode);
+        }
+
+        if (!descriptors.TryGet(connection.AdapterType, out AdapterDescriptor? descriptor) ||
+            descriptor is null)
+        {
+            return Result.Failure<CreateAdapterIngressCredentialResponse>(
+                IngestionApplicationErrors.AdapterTypeNotRegistered);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -62,6 +72,10 @@ internal sealed class CreateAdapterIngressCredentialCommandHandler(
             credentialId,
             scopeContext.ScopeId,
             connection.Id,
+            descriptor.AdapterType,
+            descriptor.ProtocolVersion,
+            descriptor.ConfigurationSchemaVersion,
+            command.SourceSystem ?? descriptor.AdapterType,
             slot.Value,
             command.Label,
             token.HashAlgorithm,

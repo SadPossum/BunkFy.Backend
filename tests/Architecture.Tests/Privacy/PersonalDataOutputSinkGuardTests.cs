@@ -1,5 +1,6 @@
 namespace Architecture.Tests.Privacy;
 
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Architecture.Tests.Support;
 using BunkFy.DataGovernance;
@@ -140,6 +141,7 @@ public sealed class PersonalDataOutputSinkGuardTests
     [Fact]
     public void Product_code_does_not_define_unreviewed_custom_trace_or_metric_instruments()
     {
+        const string RegistryPath = "docs/operations/telemetry-instrument-catalog.v1.json";
         string[] roots =
         [
             "src/Adapters",
@@ -156,15 +158,98 @@ public sealed class PersonalDataOutputSinkGuardTests
             ".CreateHistogram<",
             ".CreateObservable"
         ];
-        string[] offenders = roots
+        string[] instrumentSources = roots
             .Where(root => Directory.Exists(RepositoryPaths.Resolve(root.Split('/'))))
             .SelectMany(root => RepositoryPaths.EnumerateFiles(root, "*.cs"))
             .Where(path => !RepositoryPaths.ToRepositoryPath(path).Contains("/tests/", StringComparison.Ordinal))
             .Where(path => forbiddenTokens.Any(token => File.ReadAllText(path).Contains(token, StringComparison.Ordinal)))
             .Select(RepositoryPaths.ToRepositoryPath)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Empty(offenders);
+        using JsonDocument registry = JsonDocument.Parse(
+            RepositoryPaths.Read(RegistryPath.Split('/')));
+        Assert.Equal(1, registry.RootElement.GetProperty("schemaVersion").GetInt32());
+
+        JsonElement[] registrations = registry.RootElement
+            .GetProperty("instruments")
+            .EnumerateArray()
+            .ToArray();
+        Assert.NotEmpty(registrations);
+
+        List<string> registeredSources = [];
+        foreach (JsonElement registration in registrations)
+        {
+            string source = RequiredString(registration, "source");
+            string reviewTask = RequiredString(registration, "reviewTask");
+            string verification = RequiredString(registration, "verification");
+            string[] dimensions = registration
+                .GetProperty("dimensions")
+                .EnumerateArray()
+                .Select(dimension => dimension.GetString() ?? string.Empty)
+                .ToArray();
+
+            Assert.StartsWith("src/", source, StringComparison.Ordinal);
+            Assert.True(File.Exists(RepositoryPaths.Resolve(source.Split('/'))), source);
+            Assert.True(File.Exists(RepositoryPaths.Resolve(reviewTask.Split('/'))), reviewTask);
+            Assert.True(File.Exists(RepositoryPaths.Resolve(verification.Split('/'))), verification);
+            Assert.False(string.IsNullOrWhiteSpace(RequiredString(registration, "meter")));
+            Assert.False(string.IsNullOrWhiteSpace(RequiredString(registration, "instrument")));
+            Assert.Equal("none", RequiredString(registration, "personalData"));
+            Assert.Equal("bounded-enum", RequiredString(registration, "cardinality"));
+            Assert.NotEmpty(dimensions);
+            Assert.DoesNotContain(dimensions, IsSensitiveMetricDimension);
+
+            registeredSources.Add(source);
+        }
+
+        string[] duplicateRegistrations = registeredSources
+            .GroupBy(source => source, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+        Assert.Empty(duplicateRegistrations);
+
+        Assert.Equal(
+            registeredSources.Order(StringComparer.Ordinal),
+            instrumentSources);
+    }
+
+    private static string RequiredString(JsonElement element, string propertyName) =>
+        element.GetProperty(propertyName).GetString()
+        ?? throw new InvalidOperationException($"Telemetry registry property '{propertyName}' is required.");
+
+    private static bool IsSensitiveMetricDimension(string dimension)
+    {
+        string[] sensitiveTokens =
+        [
+            "address",
+            "bed",
+            "correlation",
+            "credential",
+            "email",
+            "guest",
+            "hash",
+            "id",
+            "name",
+            "payload",
+            "phone",
+            "property",
+            "record",
+            "reservation",
+            "resource",
+            "room",
+            "scope",
+            "staff",
+            "subject",
+            "tenant",
+            "token",
+            "trace",
+            "user"
+        ];
+
+        return sensitiveTokens.Any(
+            token => dimension.Contains(token, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsSensitiveLogProperty(string name) =>

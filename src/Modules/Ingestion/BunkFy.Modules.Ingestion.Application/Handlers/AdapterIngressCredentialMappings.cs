@@ -17,5 +17,9 @@ internal static class AdapterIngressCredentialMappings
         credential.RevokedBy,
         credential.RevokedAtUtc,
         credential.LastAuthenticatedAtUtc,
-        credential.Version);
+        credential.Version,
+        credential.AdapterType,
+        credential.AdapterProtocolVersion,
+        credential.ConfigurationSchemaVersion,
+        credential.SourceSystem);
 }

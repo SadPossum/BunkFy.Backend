@@ -24,9 +24,12 @@ Staff, Workspaces, Inventory, Properties, and Operations Notifications.
 - No product field is allowed on `Log`, `Metric`, `Trace`, or `SupportBundle`.
 - Only the fifteen bounded Operations Notifications fields are allowed on the
   `Notification` surface.
-- BunkFy-owned metrics are emitted through GMA's bounded operation, result,
-  provider, status, and error-code dimensions.
-- BunkFy product code does not create custom activities or metric instruments.
+- BunkFy-owned metrics normally use GMA's bounded operation, result, provider,
+  status, and error-code dimensions.
+- Product code does not create custom activities. Product-specific metric
+  instruments require an entry in
+  `docs/operations/telemetry-instrument-catalog.v1.json`, an owning task, and a
+  focused test proving the exact bounded, non-personal dimensions.
 - Operations Notifications uses sealed typed navigation payloads and excludes
   direct identity, contact, preference, demographic, and free-text fields.
 
@@ -56,8 +59,8 @@ payloads, country rules, or retention decisions.
 
 ### BunkFy
 
-- The product-wide guard loads every authoritative source catalogue and
-  enforces the closed sink policy.
+- The product-wide guard loads every authoritative source catalogue and the
+  custom telemetry registry, enforcing both as closed policies.
 - BunkFy source may log stable identifiers and bounded codes only where the
   owning task explicitly permits them; it may not log raw exception objects or
   exception text.

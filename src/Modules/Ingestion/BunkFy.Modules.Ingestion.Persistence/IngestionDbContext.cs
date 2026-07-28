@@ -13,6 +13,7 @@ using BunkFy.Modules.Ingestion.Domain.LegalHolds;
 using BunkFy.Modules.Ingestion.Domain.Reprocessing;
 using BunkFy.Modules.Ingestion.Domain.DataRights;
 using BunkFy.Modules.Ingestion.Domain.Retention;
+using BunkFy.Modules.Ingestion.Domain.Controls;
 using Microsoft.EntityFrameworkCore;
 public sealed class IngestionDbContext(DbContextOptions<IngestionDbContext> options, IScopeContext scopeContext)
     : ScopeAwareDbContext<IngestionDbContext>(options, scopeContext)
@@ -21,6 +22,10 @@ public sealed class IngestionDbContext(DbContextOptions<IngestionDbContext> opti
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
     public DbSet<AdapterConnection> AdapterConnections => this.Set<AdapterConnection>();
     public DbSet<AdapterIngressCredential> AdapterIngressCredentials => this.Set<AdapterIngressCredential>();
+    public DbSet<AdapterIngressTenantControl> AdapterIngressTenantControls =>
+        this.Set<AdapterIngressTenantControl>();
+    public DbSet<AdapterIngressGlobalControl> AdapterIngressGlobalControls =>
+        this.Set<AdapterIngressGlobalControl>();
     public DbSet<IngestionPropertyProjection> PropertyProjections => this.Set<IngestionPropertyProjection>();
     public DbSet<IngestionProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>
         this.Set<IngestionProjectionRebuildCheckpoint>();

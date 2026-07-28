@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "instruments": [
+    {
+      "source": "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Ingress/AdapterIngressMetrics.cs",
+      "meter": "bunkfy.ingestion.adapter_ingress",
+      "instrument": "bunkfy.ingestion.adapter_ingress.decisions",
+      "kind": "counter",
+      "dimensions": [
+        "operation",
+        "outcome"
+      ],
+      "personalData": "none",
+      "cardinality": "bounded-enum",
+      "reviewTask": "docs/planning/adapter-ingress-trust-boundary-task.md",
+      "verification": "src/Modules/Ingestion/tests/BunkFy.Modules.Ingestion.Tests/Application/AdapterIngressMetricsTests.cs"
+    }
+  ]
+}

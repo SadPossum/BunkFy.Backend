@@ -10,6 +10,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application;
+using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.Connections;
@@ -44,6 +45,14 @@ public sealed class ReceiveObservationCommandHandlerTests
         Assert.Equal("adapter-ingress", evidence.ProcessingSurface);
         Assert.Equal("approved-adapter", evidence.SourceProvenance);
         Assert.Equal(Now, evidence.EvaluatedAtUtc);
+        ObservationAdapterProvenance provenance = Assert.IsType<ObservationAdapterProvenance>(
+            context.Receipts.Items[0].AdapterProvenance);
+        Assert.Null(provenance.CredentialId);
+        Assert.Equal("fake.http", provenance.AdapterType);
+        Assert.Equal(1, provenance.AdapterProtocolVersion);
+        Assert.Equal(1, provenance.ConfigurationSchemaVersion);
+        Assert.Equal("fake.http", provenance.SourceSystem);
+        Assert.Null(provenance.CustomerOwner);
         Assert.Single(context.RawPayloads.Writes);
         Assert.Equal(result.Value.ReceiptId, context.RawPayloads.Writes[0].PayloadId);
         Assert.IsType<ObservationReceiptAcceptedIntegrationEvent>(Assert.Single(context.Outbox.Events));
@@ -65,6 +74,40 @@ public sealed class ReceiveObservationCommandHandlerTests
         Assert.Single(context.RawPayloads.Writes);
         Assert.Single(context.Receipts.Items);
         Assert.Single(context.Outbox.Events);
+    }
+
+    [Fact]
+    public async Task Public_ingress_replay_checks_policy_without_consuming_quota_twice()
+    {
+        TestContext context = CreateContext();
+        ReceiveObservationCommand first = CreateCommand(context.Connection.Id) with
+        {
+            IngressProvenance = new AdapterIngressProvenance(
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                "fake.http",
+                1,
+                1,
+                "fake.http",
+                "user:owner")
+        };
+        ReceiveObservationCommand retry = first with { OperationId = Guid.NewGuid() };
+
+        Result<AdapterObservationResult> accepted = await context.Handler.HandleAsync(
+            first,
+            CancellationToken.None);
+        Result<AdapterObservationResult> duplicate = await context.Handler.HandleAsync(
+            retry,
+            CancellationToken.None);
+
+        Assert.True(accepted.IsSuccess);
+        Assert.True(duplicate.IsSuccess);
+        Assert.Equal(AdapterObservationDisposition.Duplicate, duplicate.Value.Disposition);
+        Assert.Collection(
+            context.IngressGate.Requests,
+            request => Assert.True(request.ConsumeQuota),
+            request => Assert.False(request.ConsumeQuota));
+        Assert.Single(context.RawPayloads.Writes);
+        Assert.Single(context.Receipts.Items);
     }
 
     [Fact]
@@ -224,8 +267,10 @@ public sealed class ReceiveObservationCommandHandlerTests
         FakeReprocessingAttemptRepository reprocessingAttempts = new();
         FakeRawPayloadStore rawPayloads = new();
         RecordingOutbox outbox = new();
+        RecordingIngressGate ingressGate = new();
         ServiceCollection services = new();
         services.AddSingleton<IAdapterConnectionRepository>(new FakeConnectionRepository(connection));
+        services.AddSingleton<IAdapterDescriptorRegistry>(new TestDescriptorRegistry());
         services.AddSingleton<IIngestionCountryPolicyAdmission>(
             new TestCountryPolicyAdmission(allowed: propertyActive));
         services.AddSingleton<IIngestionRunRepository>(new FakeRunRepository(run));
@@ -238,6 +283,7 @@ public sealed class ReceiveObservationCommandHandlerTests
         services.AddSingleton<IScopeContext>(new TestScopeContext());
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
+        services.AddSingleton<IAdapterIngressGate>(ingressGate);
         if (anonymisationBlocked)
         {
             services.AddBlockingAnonymisationBarrier();
@@ -254,6 +300,7 @@ public sealed class ReceiveObservationCommandHandlerTests
             reprocessingAttempts,
             rawPayloads,
             outbox,
+            ingressGate,
             provider.GetRequiredService<ICommandHandler<ReceiveObservationCommand, AdapterObservationResult>>());
     }
 
@@ -314,7 +361,30 @@ public sealed class ReceiveObservationCommandHandlerTests
         FakeReprocessingAttemptRepository ReprocessingAttempts,
         FakeRawPayloadStore RawPayloads,
         RecordingOutbox Outbox,
+        RecordingIngressGate IngressGate,
         ICommandHandler<ReceiveObservationCommand, AdapterObservationResult> Handler);
+
+    private sealed class RecordingIngressGate : IAdapterIngressGate
+    {
+        public List<IngressGateRequest> Requests { get; } = [];
+
+        public ValueTask<AdapterIngressGateDecision> AdmitAsync(
+            AdapterIngressIdentity identity,
+            AdapterIngressOperation operation,
+            int permitCount,
+            bool consumeQuota,
+            CancellationToken cancellationToken)
+        {
+            this.Requests.Add(new(identity, operation, permitCount, consumeQuota));
+            return ValueTask.FromResult(AdapterIngressGateDecision.Allowed());
+        }
+    }
+
+    private sealed record IngressGateRequest(
+        AdapterIngressIdentity Identity,
+        AdapterIngressOperation Operation,
+        int PermitCount,
+        bool ConsumeQuota);
 
     private sealed class FakeConnectionRepository(AdapterConnection connection) : IAdapterConnectionRepository
     {
@@ -472,6 +542,25 @@ public sealed class ReceiveObservationCommandHandlerTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class TestDescriptorRegistry : IAdapterDescriptorRegistry
+    {
+        private static readonly AdapterDescriptor Descriptor = new(
+            "fake.http",
+            1,
+            1,
+            [AdapterExecutionMode.Polling]);
+
+        public IReadOnlyCollection<AdapterDescriptor> GetAll() => [Descriptor];
+
+        public bool TryGet(string adapterType, out AdapterDescriptor? descriptor)
+        {
+            descriptor = string.Equals(adapterType, Descriptor.AdapterType, StringComparison.Ordinal)
+                ? Descriptor
+                : null;
+            return descriptor is not null;
+        }
     }
 
     private sealed class TestIdGenerator : IIdGenerator

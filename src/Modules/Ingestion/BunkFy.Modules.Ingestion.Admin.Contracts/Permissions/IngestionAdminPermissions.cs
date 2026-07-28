@@ -8,6 +8,7 @@ public static class IngestionAdminPermissions
     public static readonly AdminPermission Read = AdminPermission.Create(IngestionAdminPermissionCodes.Read);
     public static readonly AdminPermission ConnectionsManage = AdminPermission.Create(IngestionAdminPermissionCodes.ConnectionsManage);
     public static readonly AdminPermission CredentialsManage = AdminPermission.Create(IngestionAdminPermissionCodes.CredentialsManage);
+    public static readonly AdminPermission IngressGlobalControlManage = AdminPermission.Create(IngestionAdminPermissionCodes.IngressGlobalControlManage);
     public static readonly AdminPermission RunsManage = AdminPermission.Create(IngestionAdminPermissionCodes.RunsManage);
     public static readonly AdminPermission RawPayloadsRead = AdminPermission.Create(IngestionAdminPermissionCodes.RawPayloadsRead);
     public static readonly AdminPermission SensitiveHistoryRead = AdminPermission.Create(IngestionAdminPermissionCodes.SensitiveHistoryRead);

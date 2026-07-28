@@ -49,6 +49,7 @@ public static class WorkspaceAccessProfileSeeds
             StaffAdminPermissionCodes.ManageLifecycle,
             IngestionAdminPermissionCodes.Read,
             IngestionAdminPermissionCodes.ConnectionsManage,
+            IngestionAdminPermissionCodes.IngressControlManage,
             IngestionAdminPermissionCodes.RunsManage,
             IngestionAdminPermissionCodes.ProposalsDecide,
             RetentionPermissionCodes.Read

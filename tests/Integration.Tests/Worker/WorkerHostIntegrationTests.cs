@@ -280,12 +280,20 @@ public sealed class WorkerHostIntegrationTests
             .WithCommand("server", "/data", "--console-address", ":9001")
             .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(9000))
             .Build();
+        await using IContainer redis = new ContainerBuilder("redis:7.4-alpine")
+            .WithPortBinding(6379, assignRandomHostPort: true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(6379))
+            .Build();
 
         try
         {
-            await Task.WhenAll(postgreSql.StartAsync(), minio.StartAsync()).ConfigureAwait(false);
+            await Task.WhenAll(
+                postgreSql.StartAsync(),
+                minio.StartAsync(),
+                redis.StartAsync()).ConfigureAwait(false);
             using IHost worker = BuildFileDropWorker(
                 postgreSql.GetConnectionString(),
+                $"127.0.0.1:{redis.GetMappedPublicPort(6379)},abortConnect=false",
                 $"localhost:{minio.GetMappedPublicPort(9000)}",
                 $"bunkfy-file-drop-worker-{Guid.NewGuid():N}",
                 root);
@@ -378,6 +386,7 @@ public sealed class WorkerHostIntegrationTests
 
     private static IHost BuildFileDropWorker(
         string postgreSqlConnectionString,
+        string redisConnectionString,
         string minioEndpoint,
         string minioBucket,
         string fileDropRoot)
@@ -386,6 +395,7 @@ public sealed class WorkerHostIntegrationTests
             new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = postgreSqlConnectionString;
+        builder.Configuration["ConnectionStrings:redis"] = redisConnectionString;
         builder.Configuration["Tenancy:Enabled"] = "true";
         builder.Configuration["NatsJetStream:Enabled"] = "false";
         builder.Configuration["NatsConsumers:Enabled"] = "false";

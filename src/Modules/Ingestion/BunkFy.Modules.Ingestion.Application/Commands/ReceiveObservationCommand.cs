@@ -21,5 +21,14 @@ public sealed record ReceiveObservationCommand(
     int? ParserVersion = null,
     int? ParserOutputIndex = null,
     AdapterRemoteLeaseProof? RemoteLease = null,
-    Guid? RemoteCredentialId = null)
+    Guid? RemoteCredentialId = null,
+    AdapterIngressProvenance? IngressProvenance = null)
     : ITransactionalCommand<AdapterObservationResult>;
+
+public sealed record AdapterIngressProvenance(
+    Guid CredentialId,
+    string AdapterType,
+    int AdapterProtocolVersion,
+    int ConfigurationSchemaVersion,
+    string SourceSystem,
+    string CustomerOwner);

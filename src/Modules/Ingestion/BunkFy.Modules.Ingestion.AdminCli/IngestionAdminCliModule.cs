@@ -71,6 +71,12 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             CreateCredentialCreateCommand(commands.Services, globalOptions),
             CreateCredentialRevokeCommand(commands.Services, globalOptions)
         };
+        Command ingressControl = new("ingress-control", "Operate the all-tenant third-party ingress stop.")
+        {
+            CreateGlobalIngressControlStatusCommand(commands.Services, globalOptions),
+            CreateGlobalIngressControlStateCommand(commands.Services, globalOptions, stop: true),
+            CreateGlobalIngressControlStateCommand(commands.Services, globalOptions, stop: false)
+        };
         Command receipts = new("receipts", "Inspect durable observation receipts.")
         {
             CreateReceiptListCommand(commands.Services, globalOptions),
@@ -105,7 +111,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         };
         Command module = new(IngestionModuleMetadata.Name, "Ingestion administration operations.")
         {
-            adapterTypes, parserTypes, connections, credentials, runs, receipts, reprocessing, retention, legalHolds,
+            adapterTypes, parserTypes, connections, credentials, ingressControl, runs, receipts, reprocessing, retention, legalHolds,
             proposals
         };
         commands.AddCommand(this.Name, module);
@@ -134,6 +140,95 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             return result;
         },
         cancellationToken);
+
+    private static Task<int> ExecuteGlobalObjectAsync<T>(
+        IServiceProvider services,
+        AdminCliGlobalOptions globalOptions,
+        ParseResult parseResult,
+        string operationName,
+        AdminPermission permission,
+        Func<IServiceProvider, CancellationToken, Task<Result<T>>> execute,
+        CancellationToken cancellationToken) => services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
+        parseResult,
+        AdminOperation.Create(operationName, permission),
+        tenantId: null,
+        requireTenant: false,
+        async (provider, token) =>
+        {
+            Result<T> result = await execute(provider, token).ConfigureAwait(false);
+            if (result.IsSuccess)
+            {
+                AdminCliOutput.WriteObject(result.Value, Output(parseResult, globalOptions));
+            }
+
+            return result;
+        },
+        cancellationToken);
+
+    private static Command CreateGlobalIngressControlStatusCommand(
+        IServiceProvider services,
+        AdminCliGlobalOptions globalOptions)
+    {
+        Command command = new("status", "Show the all-tenant third-party ingress stop.");
+        command.SetAction((parse, token) => ExecuteGlobalObjectAsync(
+            services,
+            globalOptions,
+            parse,
+            IngestionAdminOperationNames.IngressGlobalControlGet,
+            IngestionAdminPermissions.IngressGlobalControlManage,
+            (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().QueryAsync(
+                new GetAdapterIngressGlobalControlQuery(),
+                ct),
+            token));
+        return command;
+    }
+
+    private static Command CreateGlobalIngressControlStateCommand(
+        IServiceProvider services,
+        AdminCliGlobalOptions globalOptions,
+        bool stop)
+    {
+        Option<long> version = RequiredLong("--expected-version");
+        Option<string> reason = RequiredString("--reason-code");
+        Option<bool> yes = new("--yes");
+        Command command = new(
+            stop ? "stop" : "resume",
+            stop
+                ? "Stop all third-party adapter ingress."
+                : "Clear the all-tenant third-party adapter ingress stop.")
+        {
+            version,
+            reason,
+            yes
+        };
+        command.SetAction((parse, token) => ExecuteGlobalObjectAsync<AdapterIngressGlobalControlDto>(
+            services,
+            globalOptions,
+            parse,
+            stop
+                ? IngestionAdminOperationNames.IngressGlobalControlStop
+                : IngestionAdminOperationNames.IngressGlobalControlResume,
+            IngestionAdminPermissions.IngressGlobalControlManage,
+            parse.GetValue(yes)
+                ? (provider, ct) => stop
+                    ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
+                        new StopAdapterIngressGloballyCommand(
+                            parse.GetRequiredValue(version),
+                            parse.GetRequiredValue(reason),
+                            $"admin-cli:{ResolveActor(parse, globalOptions)}"),
+                        ct)
+                    : provider.GetRequiredService<IRequestDispatcher>().SendAsync(
+                        new ResumeAdapterIngressGloballyCommand(
+                            parse.GetRequiredValue(version),
+                            parse.GetRequiredValue(reason),
+                            $"admin-cli:{ResolveActor(parse, globalOptions)}"),
+                        ct)
+                : (_, _) => Task.FromResult(
+                    Result.Failure<AdapterIngressGlobalControlDto>(
+                        AdminErrors.ConfirmationRequired)),
+            token));
+        return command;
+    }
 
     private static Result<T> ParseEnum<T>(string value)
         where T : struct, Enum =>
@@ -717,9 +812,10 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         Option<Guid> connection = RequiredGuid("--connection-id");
         Option<string> label = RequiredString("--label");
         Option<DateTimeOffset?> expires = new("--expires-at-utc");
+        Option<string?> sourceSystem = new("--source-system");
         Command command = new("create", "Create an adapter ingress credential and print its token once.")
         {
-            property, connection, label, expires
+            property, connection, label, expires, sourceSystem
         };
         command.SetAction((parse, token) => ExecuteObjectAsync(
             services,
@@ -733,7 +829,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                     parse.GetRequiredValue(connection),
                     parse.GetRequiredValue(label),
                     parse.GetValue(expires),
-                    $"admin-cli:{ResolveActor(parse, globalOptions)}"),
+                    $"admin-cli:{ResolveActor(parse, globalOptions)}",
+                    parse.GetValue(sourceSystem)),
                 ct),
             token));
         return command;

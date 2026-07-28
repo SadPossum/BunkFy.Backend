@@ -5,6 +5,8 @@ public static class IngestionAdminPermissionCodes
     public const string Read = IngestionModuleMetadata.Name + ".read";
     public const string ConnectionsManage = IngestionModuleMetadata.Name + ".connections.manage";
     public const string CredentialsManage = IngestionModuleMetadata.Name + ".credentials.manage";
+    public const string IngressControlManage = IngestionModuleMetadata.Name + ".ingress-control.manage";
+    public const string IngressGlobalControlManage = IngestionModuleMetadata.Name + ".ingress-global-control.manage";
     public const string RunsManage = IngestionModuleMetadata.Name + ".runs.manage";
     public const string RawPayloadsRead = IngestionModuleMetadata.Name + ".raw-payloads.read";
     public const string SensitiveHistoryRead = IngestionModuleMetadata.Name + ".sensitive-history.read";

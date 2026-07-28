@@ -27,7 +27,13 @@ public static class IngestionDomainErrors
     public static readonly Error IngressCredentialSecretInvalid = new("Ingestion.IngressCredentialSecretInvalid", "The adapter ingress credential secret material is invalid.");
     public static readonly Error IngressCredentialExpiryInvalid = new("Ingestion.IngressCredentialExpiryInvalid", "Adapter ingress credentials must expire between five minutes and 366 days after creation.");
     public static readonly Error IngressCredentialActorInvalid = new("Ingestion.IngressCredentialActorInvalid", "A valid adapter ingress credential actor is required.");
+    public static readonly Error IngressCredentialProvenanceInvalid = new("Ingestion.IngressCredentialProvenanceInvalid", "The adapter ingress credential provenance is invalid.");
     public static readonly Error IngressCredentialAlreadyRevoked = new("Ingestion.IngressCredentialAlreadyRevoked", "The adapter ingress credential is already revoked.");
+    public static readonly Error AdapterIngressControlDecisionInvalid = new("Ingestion.AdapterIngressControlDecisionInvalid", "A bounded reason code and actor are required for the adapter ingress control decision.");
+    public static readonly Error AdapterIngressTenantAlreadySuspended = new("Ingestion.AdapterIngressTenantAlreadySuspended", "Adapter ingress is already suspended for this tenant.");
+    public static readonly Error AdapterIngressTenantAlreadyActive = new("Ingestion.AdapterIngressTenantAlreadyActive", "Adapter ingress is already active for this tenant.");
+    public static readonly Error AdapterIngressGlobalAlreadyStopped = new("Ingestion.AdapterIngressGlobalAlreadyStopped", "All third-party adapter ingress is already stopped.");
+    public static readonly Error AdapterIngressGlobalAlreadyActive = new("Ingestion.AdapterIngressGlobalAlreadyActive", "The global third-party adapter ingress stop is already cleared.");
     public static readonly Error RemoteLeaseIdentityInvalid = new("Ingestion.RemoteLeaseIdentityInvalid", "The remote adapter lease identity is invalid.");
     public static readonly Error RemoteLeaseDurationInvalid = new("Ingestion.RemoteLeaseDurationInvalid", "The remote adapter lease duration is outside the supported bounds.");
     public static readonly Error RemoteLeaseRequiresRemotePollingMode = new("Ingestion.RemoteLeaseRequiresRemotePollingMode", "Remote adapter leases require remote polling execution mode.");
@@ -43,6 +49,7 @@ public static class IngestionDomainErrors
     public static readonly Error RunCountsInvalid = new("Ingestion.RunCountsInvalid", "Adapter run counts cannot be negative or inconsistent.");
     public static readonly Error ErrorCodeInvalid = new("Ingestion.ErrorCodeInvalid", "The adapter error code is invalid.");
     public static readonly Error ReceiptIdentityInvalid = new("Ingestion.ReceiptIdentityInvalid", "The observation receipt identity is invalid.");
+    public static readonly Error ReceiptProvenanceInvalid = new("Ingestion.ReceiptProvenanceInvalid", "The observation adapter provenance is invalid.");
     public static readonly Error PayloadInvalid = new("Ingestion.PayloadInvalid", "The observation payload reference or hash is invalid.");
     public static readonly Error CountryPolicyEvidenceInvalid = new(
         "Ingestion.CountryPolicyEvidenceInvalid",

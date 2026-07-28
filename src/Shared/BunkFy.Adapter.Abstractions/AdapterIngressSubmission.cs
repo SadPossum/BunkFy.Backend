@@ -1,11 +1,14 @@
 namespace BunkFy.Adapter.Abstractions;
 
+using System.Text.Json.Serialization;
+
 public static class AdapterIngressContractLimits
 {
     public const long MaximumHttpRequestBodyBytes = 24L * 1024 * 1024;
     public const long MaximumResponseBodyBytes = 256L * 1024;
 }
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record AdapterIngressObservationRequest(
     Guid OperationId,
     string RecordType,
@@ -33,6 +36,7 @@ public sealed record AdapterIngressObservationRequest(
     }
 }
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record AdapterIngressSubmissionRequest(
     IReadOnlyCollection<AdapterIngressObservationRequest> Records);
 

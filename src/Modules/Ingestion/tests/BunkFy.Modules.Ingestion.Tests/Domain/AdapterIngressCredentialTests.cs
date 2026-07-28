@@ -14,7 +14,8 @@ public sealed class AdapterIngressCredentialTests
     {
         byte[] hash = Enumerable.Repeat((byte)7, AdapterIngressCredential.SecretHashLength).ToArray();
         var created = AdapterIngressCredential.Create(
-            Guid.NewGuid(), "tenant-a", Guid.NewGuid(), 1, " booking webhook ",
+            Guid.NewGuid(), "tenant-a", Guid.NewGuid(), "fake.http", 1, 1, "booking",
+            1, " booking webhook ",
             AdapterIngressCredential.Sha256HashAlgorithm, hash,
             Now.AddDays(30), "user:operator", Now);
 
@@ -26,7 +27,8 @@ public sealed class AdapterIngressCredentialTests
         Assert.False(created.Value.CanAuthenticate(Now.AddDays(30)));
         Assert.Equal(IngestionDomainErrors.IngressCredentialExpiryInvalid,
             AdapterIngressCredential.Create(
-                Guid.NewGuid(), "tenant-a", Guid.NewGuid(), 1, "short",
+                Guid.NewGuid(), "tenant-a", Guid.NewGuid(), "fake.http", 1, 1, "booking",
+                1, "short",
                 AdapterIngressCredential.Sha256HashAlgorithm,
                 new byte[AdapterIngressCredential.SecretHashLength],
                 Now.AddMinutes(4), "user:operator", Now).Error);
@@ -36,7 +38,8 @@ public sealed class AdapterIngressCredentialTests
     public void Revocation_is_optimistic_terminal_and_preserves_audit_actor()
     {
         AdapterIngressCredential credential = AdapterIngressCredential.Create(
-            Guid.NewGuid(), "tenant-a", Guid.NewGuid(), 1, "mailbox",
+            Guid.NewGuid(), "tenant-a", Guid.NewGuid(), "fake.http", 1, 1, "mailbox",
+            1, "mailbox",
             AdapterIngressCredential.Sha256HashAlgorithm,
             new byte[AdapterIngressCredential.SecretHashLength],
             Now.AddDays(30), "user:creator", Now).Value;

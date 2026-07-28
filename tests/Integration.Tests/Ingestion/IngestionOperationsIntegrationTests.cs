@@ -44,12 +44,17 @@ using Xunit;
 public sealed class IngestionOperationsIntegrationTests
 {
     private const string TenantId = "a5000000-0000-0000-0000-000000000001";
+    private const string OtherTenantId = "a5000000-0000-0000-0000-000000000002";
     private const string AccessKey = "minioadmin";
     private const string SecretKey = "minioadmin";
     private static readonly Guid PropertyId = Guid.Parse("91000000-0000-0000-0000-000000000001");
     private static readonly Guid OtherPropertyId = Guid.Parse("91000000-0000-0000-0000-000000000002");
     private static readonly Guid PushConnectionId = Guid.Parse("91000000-0000-0000-0000-000000000003");
     private static readonly Guid RemoteConnectionId = Guid.Parse("91000000-0000-0000-0000-000000000004");
+    private static readonly Guid OtherTenantPropertyId =
+        Guid.Parse("91000000-0000-0000-0000-000000000005");
+    private static readonly Guid OtherTenantPushConnectionId =
+        Guid.Parse("91000000-0000-0000-0000-000000000006");
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -67,9 +72,20 @@ public sealed class IngestionOperationsIntegrationTests
             .WithCommand("server", "/data", "--console-address", ":9001")
             .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(9000))
             .Build();
-        await Task.WhenAll(nats.StartAsync(), postgreSql.StartAsync(), minio.StartAsync()).ConfigureAwait(false);
+        await using IContainer redis = new ContainerBuilder("redis:7.4-alpine")
+            .WithPortBinding(6379, assignRandomHostPort: true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(6379))
+            .Build();
+        await Task.WhenAll(
+                nats.StartAsync(),
+                postgreSql.StartAsync(),
+                minio.StartAsync(),
+                redis.StartAsync())
+            .ConfigureAwait(false);
         string connectionString = postgreSql.GetConnectionString();
         string minioEndpoint = $"localhost:{minio.GetMappedPublicPort(9000)}";
+        string redisConnectionString =
+            $"127.0.0.1:{redis.GetMappedPublicPort(6379)},abortConnect=false";
         string bucketName = $"bunkfy-ingestion-operations-{Guid.NewGuid():N}";
         await using AuthTestApplication api = new(
             "PostgreSql",
@@ -79,7 +95,8 @@ public sealed class IngestionOperationsIntegrationTests
             minioAccessKey: AccessKey,
             minioSecretKey: SecretKey,
             minioBucketName: bucketName,
-            minioCreateBucketIfMissing: true);
+            minioCreateBucketIfMissing: true,
+            adapterIngressRedisConnectionString: redisConnectionString);
         await api.MigratePropertiesAuthorizationDatabaseAsync().ConfigureAwait(false);
         await api.MigrateIngestionDatabaseAsync().ConfigureAwait(false);
         await using AdminCliTestApplication admin = new("PostgreSql", connectionString, includeIngestion: true);
@@ -202,7 +219,10 @@ public sealed class IngestionOperationsIntegrationTests
             $"/api/ingestion/properties/{PropertyId:D}/connections").ConfigureAwait(false);
         Assert.Equal(created.ConnectionId, Assert.Single(connections.Connections).ConnectionId);
         await SeedPushConnectionAsync(api).ConfigureAwait(false);
-        await ProveAdapterIngressAsync(api, admin, client).ConfigureAwait(false);
+        CreateAdapterIngressCredentialResponse otherTenantCredential =
+            await SeedOtherTenantIngressAsync(api).ConfigureAwait(false);
+        await ProveAdapterIngressAsync(api, admin, client, otherTenantCredential)
+            .ConfigureAwait(false);
         await SeedRemoteConnectionAsync(api).ConfigureAwait(false);
         await ProveRemoteAdapterLeasesAsync(api, client).ConfigureAwait(false);
         using (HttpResponseMessage connectionResponse = await client.GetAsync(
@@ -517,10 +537,23 @@ public sealed class IngestionOperationsIntegrationTests
         }
     }
 
-    private static async Task SeedPropertyProjectionAsync(AuthTestApplication api)
+    private static Task SeedPropertyProjectionAsync(AuthTestApplication api) =>
+        SeedPropertyProjectionAsync(
+            api,
+            TenantId,
+            PropertyId,
+            "Operations House",
+            "operations");
+
+    private static async Task SeedPropertyProjectionAsync(
+        AuthTestApplication api,
+        string tenantId,
+        Guid propertyId,
+        string propertyName,
+        string propertyCode)
     {
         using IServiceScope scope = api.Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(tenantId);
         IntegrationEventSubscription subscription = scope.ServiceProvider
             .GetRequiredService<IIntegrationEventSubscriptionRegistry>()
             .Subscriptions.Single(item => item.ConsumerModule == IngestionModuleMetadata.Name &&
@@ -528,13 +561,13 @@ public sealed class IngestionOperationsIntegrationTests
         var handler = (IIntegrationEventHandler<PropertyCreatedIntegrationEvent>)scope.ServiceProvider
             .GetRequiredService(subscription.HandlerType);
         await handler.HandleAsync(
-            new(Guid.NewGuid(), TenantId, DateTimeOffset.UtcNow, PropertyId, "Operations House", "operations",
+            new(Guid.NewGuid(), tenantId, DateTimeOffset.UtcNow, propertyId, propertyName, propertyCode,
                 "UTC", PropertyStatus.Active, 1), CancellationToken.None).ConfigureAwait(false);
         await CountryPolicyIntegrationTestData.ApplyActivationAsync(
             scope.ServiceProvider,
             IngestionModuleMetadata.Name,
-            TenantId,
-            PropertyId,
+            tenantId,
+            propertyId,
             2).ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>().SaveChangesAsync().ConfigureAwait(false);
     }
@@ -570,6 +603,15 @@ public sealed class IngestionOperationsIntegrationTests
             "admin", "roles", "assign", "--actor", "owner", "--target-kind", "admin-actor",
             "--target-id", adminActorId.ToString("D"), "--role", "ingestion-operator",
             "--scope", $"tenant:{TenantId}"));
+        await AssertAdminSuccessAsync(admin.ExecuteAsync(
+            "admin", "roles", "create", "--actor", "owner", "--name", "ingestion-ingress-controller"));
+        await AssertAdminSuccessAsync(admin.ExecuteAsync(
+            "admin", "roles", "grant", "--actor", "owner", "--role", "ingestion-ingress-controller",
+            "--permission", IngestionAdminPermissionCodes.IngressControlManage));
+        await AssertAdminSuccessAsync(admin.ExecuteAsync(
+            "admin", "roles", "assign", "--actor", "owner", "--target-kind", "user",
+            "--target-id", operatorId.ToString("D"), "--role", "ingestion-ingress-controller",
+            "--scope", $"tenant:{TenantId}"));
     }
 
     private static async Task GrantRawPayloadAccessAsync(AdminCliTestApplication admin) =>
@@ -579,14 +621,27 @@ public sealed class IngestionOperationsIntegrationTests
 
     private static async Task SeedPushConnectionAsync(AuthTestApplication api)
     {
-        using IServiceScope scope = api.Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
-        IngestionDbContext dbContext = scope.ServiceProvider.GetRequiredService<IngestionDbContext>();
-        AdapterConnection connection = AdapterConnection.Create(
-            PushConnectionId,
+        await SeedPushConnectionAsync(
+            api,
             TenantId,
             PropertyId,
-            "integration.push",
+            PushConnectionId).ConfigureAwait(false);
+    }
+
+    private static async Task SeedPushConnectionAsync(
+        AuthTestApplication api,
+        string tenantId,
+        Guid propertyId,
+        Guid connectionId)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(tenantId);
+        IngestionDbContext dbContext = scope.ServiceProvider.GetRequiredService<IngestionDbContext>();
+        AdapterConnection connection = AdapterConnection.Create(
+            connectionId,
+            tenantId,
+            propertyId,
+            FakeHttpAdapterDescriptor.Value.AdapterType,
             AdapterExecutionMode.Push,
             IngestionConflictPolicy.SuggestionsOnly,
             "configuration://integration-push",
@@ -594,6 +649,38 @@ public sealed class IngestionOperationsIntegrationTests
             DateTimeOffset.UtcNow).Value;
         dbContext.AdapterConnections.Add(connection);
         await dbContext.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    private static async Task<CreateAdapterIngressCredentialResponse> SeedOtherTenantIngressAsync(
+        AuthTestApplication api)
+    {
+        await SeedPropertyProjectionAsync(
+            api,
+            OtherTenantId,
+            OtherTenantPropertyId,
+            "Other Tenant House",
+            "other-tenant").ConfigureAwait(false);
+        await SeedPushConnectionAsync(
+            api,
+            OtherTenantId,
+            OtherTenantPropertyId,
+            OtherTenantPushConnectionId).ConfigureAwait(false);
+
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(OtherTenantId);
+        Result<CreateAdapterIngressCredentialResponse> created = await scope.ServiceProvider
+            .GetRequiredService<IRequestDispatcher>()
+            .SendAsync(
+                new CreateAdapterIngressCredentialCommand(
+                    OtherTenantPropertyId,
+                    OtherTenantPushConnectionId,
+                    "other tenant ingress",
+                    ExpiresAtUtc: null,
+                    CreatedBy: "integration:other-tenant"),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+        Assert.True(created.IsSuccess, created.Error.Message);
+        return created.Value;
     }
 
     private static async Task SeedRemoteConnectionAsync(AuthTestApplication api)
@@ -726,7 +813,7 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.True(takeover.LeaseEpoch > winner.LeaseEpoch);
             Assert.Equal("remote-cursor-1", takeover.Assignment.Checkpoint);
 
-            byte[] stalePayload = /*lang=json,strict*/ "{\"source\":\"stale-worker\"}"u8.ToArray();
+            byte[] stalePayload = CreateCanonicalReservationPayload(sourceSequence: 4);
             AdapterObservedRecord staleRecord = CreateIngressRecord(
                 Guid.Parse("92000000-0000-0000-0000-000000000004"),
                 stalePayload,
@@ -804,7 +891,8 @@ public sealed class IngestionOperationsIntegrationTests
     private static async Task ProveAdapterIngressAsync(
         AuthTestApplication api,
         AdminCliTestApplication admin,
-        HttpClient managementClient)
+        HttpClient managementClient,
+        CreateAdapterIngressCredentialResponse otherTenantCredential)
     {
         string credentialsPath =
             $"/api/ingestion/properties/{PropertyId:D}/connections/{PushConnectionId:D}/credentials";
@@ -818,6 +906,10 @@ public sealed class IngestionOperationsIntegrationTests
         }
 
         Assert.StartsWith("bfi_v1_", primary.Token, StringComparison.Ordinal);
+        Assert.Equal(FakeHttpAdapterDescriptor.Value.AdapterType, primary.Credential.AdapterType);
+        Assert.Equal(1, primary.Credential.AdapterProtocolVersion);
+        Assert.Equal(1, primary.Credential.ConfigurationSchemaVersion);
+        Assert.Equal(FakeHttpAdapterDescriptor.Value.AdapterType, primary.Credential.SourceSystem);
         AdapterIngressCredentialListResponse initialList = await GetAsync<AdapterIngressCredentialListResponse>(
             managementClient, credentialsPath).ConfigureAwait(false);
         AdapterIngressCredentialDto listedPrimary = Assert.Single(initialList.Credentials);
@@ -835,11 +927,16 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.DoesNotContain(primary.Token, cliList.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("secretHash", cliList.Output, StringComparison.OrdinalIgnoreCase);
 
-        byte[] payload = Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"source\":\"remote-push\"}");
+        byte[] payload = CreateCanonicalReservationPayload(sourceSequence: 1);
         Guid operationId = Guid.Parse("92000000-0000-0000-0000-000000000001");
         object submission = CreateIngressSubmission(operationId, payload, "remote-push-1");
         AdapterObservedRecord observedRecord = CreateIngressRecord(operationId, payload, "remote-push-1");
         using HttpClient ingressClient = api.CreateClient();
+        AdapterHttpIngressClient otherTenantIngress = CreateAdapterClient(
+            ingressClient,
+            otherTenantCredential.Token,
+            OtherTenantId,
+            OtherTenantPushConnectionId);
 
         using (HttpResponseMessage missing = await SendIngressAsync(
                    ingressClient, TenantId, PushConnectionId, token: null, submission).ConfigureAwait(false))
@@ -870,6 +967,19 @@ public sealed class IngestionOperationsIntegrationTests
         AdapterIngressSubmissionResponse duplicate = await primaryIngress.SubmitAsync(
             [observedRecord], CancellationToken.None).ConfigureAwait(false);
         Assert.Equal(AdapterObservationDisposition.Duplicate, Assert.Single(duplicate.Results).Disposition);
+        ObservationReceiptListResponse ingressReceipts = await GetAsync<ObservationReceiptListResponse>(
+            managementClient,
+            $"/api/ingestion/properties/{PropertyId:D}/receipts?connectionId={PushConnectionId:D}")
+            .ConfigureAwait(false);
+        ObservationReceiptDto ingressReceipt = Assert.Single(
+            ingressReceipts.Receipts,
+            receipt => receipt.ExternalId == "remote-push-1");
+        Assert.Equal(primary.Credential.CredentialId, ingressReceipt.IngressCredentialId);
+        Assert.Equal(primary.Credential.AdapterType, ingressReceipt.AdapterType);
+        Assert.Equal(primary.Credential.AdapterProtocolVersion, ingressReceipt.AdapterProtocolVersion);
+        Assert.Equal(primary.Credential.ConfigurationSchemaVersion, ingressReceipt.ConfigurationSchemaVersion);
+        Assert.Equal(primary.Credential.SourceSystem, ingressReceipt.SourceSystem);
+        Assert.Equal(primary.Credential.CreatedBy, ingressReceipt.CustomerOwner);
 
         CreateAdapterIngressCredentialResponse secondary = await PostAsync<CreateAdapterIngressCredentialResponse>(
             managementClient,
@@ -888,6 +998,121 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.Equal(HttpStatusCode.Unauthorized, revokedIngress.StatusCode);
         }
         AdapterHttpIngressClient secondaryIngress = CreateIngressClient(ingressClient, secondary.Token);
+        AdapterObservationResult otherTenantAfterRevocation = await SubmitCanonicalAsync(
+            otherTenantIngress,
+            sourceSequence: 10,
+            "other-after-credential-revocation").ConfigureAwait(false);
+        Assert.Equal(AdapterObservationDisposition.Accepted, otherTenantAfterRevocation.Disposition);
+
+        AdapterIngressTenantControlDto initialTenantControl =
+            await GetAsync<AdapterIngressTenantControlDto>(
+                managementClient,
+                "/api/ingestion/adapter-ingress-control").ConfigureAwait(false);
+        Assert.False(initialTenantControl.IsSuspended);
+        Assert.Equal(0, initialTenantControl.Version);
+        AdapterIngressTenantControlDto suspended = await PostAsync<AdapterIngressTenantControlDto>(
+            managementClient,
+            "/api/ingestion/adapter-ingress-control/suspend",
+            new
+            {
+                expectedVersion = initialTenantControl.Version,
+                reasonCode = "security.drill"
+            }).ConfigureAwait(false);
+        Assert.True(suspended.IsSuspended);
+        Assert.Equal(1, suspended.Version);
+
+        AdapterObservationResult tenantStopped = await SubmitCanonicalAsync(
+            secondaryIngress,
+            sourceSequence: 11,
+            "tenant-stopped").ConfigureAwait(false);
+        Assert.Equal(AdapterObservationDisposition.Rejected, tenantStopped.Disposition);
+        Assert.Equal(
+            AdapterErrorCode(IngestionApplicationErrors.AdapterIngressTenantSuspended),
+            tenantStopped.ErrorCode);
+        AdapterObservationResult otherTenantStillActive = await SubmitCanonicalAsync(
+            otherTenantIngress,
+            sourceSequence: 12,
+            "other-while-tenant-stopped").ConfigureAwait(false);
+        Assert.Equal(AdapterObservationDisposition.Accepted, otherTenantStillActive.Disposition);
+
+        AdminCliResult globalStatus = await admin.ExecuteAsync(
+            "ingestion", "ingress-control", "status",
+            "--actor", "owner",
+            "--output", "json");
+        Assert.Equal(AdminExitCodes.Success, globalStatus.ExitCode);
+        AdminCliResult globalConfirmationRequired = await admin.ExecuteAsync(
+            "ingestion", "ingress-control", "stop",
+            "--actor", "owner",
+            "--expected-version", "0",
+            "--reason-code", "incident.drill");
+        Assert.NotEqual(AdminExitCodes.Success, globalConfirmationRequired.ExitCode);
+        Assert.Contains(
+            AdminErrors.ConfirmationRequired.Message,
+            globalConfirmationRequired.Error,
+            StringComparison.Ordinal);
+        await AssertAdminSuccessAsync(admin.ExecuteAsync(
+            "ingestion", "ingress-control", "stop",
+            "--actor", "owner",
+            "--expected-version", "0",
+            "--reason-code", "incident.drill",
+            "--yes"));
+
+        AdapterObservationResult globalStoppedTenant = await SubmitCanonicalAsync(
+            secondaryIngress,
+            sourceSequence: 13,
+            "global-stopped-tenant").ConfigureAwait(false);
+        AdapterObservationResult globalStoppedOther = await SubmitCanonicalAsync(
+            otherTenantIngress,
+            sourceSequence: 14,
+            "global-stopped-other").ConfigureAwait(false);
+        Assert.Equal(AdapterObservationDisposition.Rejected, globalStoppedTenant.Disposition);
+        Assert.Equal(AdapterObservationDisposition.Rejected, globalStoppedOther.Disposition);
+        Assert.Equal(
+            AdapterErrorCode(IngestionApplicationErrors.AdapterIngressGloballyStopped),
+            globalStoppedTenant.ErrorCode);
+        Assert.Equal(
+            AdapterErrorCode(IngestionApplicationErrors.AdapterIngressGloballyStopped),
+            globalStoppedOther.ErrorCode);
+
+        await AssertAdminSuccessAsync(admin.ExecuteAsync(
+            "ingestion", "ingress-control", "resume",
+            "--actor", "owner",
+            "--expected-version", "1",
+            "--reason-code", "incident.resolved",
+            "--yes"));
+        AdapterObservationResult otherTenantRestored = await SubmitCanonicalAsync(
+            otherTenantIngress,
+            sourceSequence: 15,
+            "other-after-global-resume").ConfigureAwait(false);
+        Assert.Equal(AdapterObservationDisposition.Accepted, otherTenantRestored.Disposition);
+        AdapterObservationResult tenantStillSuspended = await SubmitCanonicalAsync(
+            secondaryIngress,
+            sourceSequence: 16,
+            "tenant-after-global-resume").ConfigureAwait(false);
+        Assert.Equal(AdapterObservationDisposition.Rejected, tenantStillSuspended.Disposition);
+        Assert.Equal(
+            AdapterErrorCode(IngestionApplicationErrors.AdapterIngressTenantSuspended),
+            tenantStillSuspended.ErrorCode);
+
+        AdapterIngressTenantControlDto resumed = await PostAsync<AdapterIngressTenantControlDto>(
+            managementClient,
+            "/api/ingestion/adapter-ingress-control/resume",
+            new
+            {
+                expectedVersion = suspended.Version,
+                reasonCode = "security.drill-complete"
+            }).ConfigureAwait(false);
+        Assert.False(resumed.IsSuspended);
+        Assert.Equal(2, resumed.Version);
+        AdapterObservationResult tenantRestored = await SubmitCanonicalAsync(
+            secondaryIngress,
+            sourceSequence: 17,
+            "tenant-after-resume").ConfigureAwait(false);
+        Assert.Equal(AdapterObservationDisposition.Accepted, tenantRestored.Disposition);
+        await ProveProviderLossIsolationAsync(
+            api,
+            managementClient,
+            secondary.Token).ConfigureAwait(false);
 
         MemoryCheckpointLease runtimeCheckpoint = new(PushConnectionId);
         StandaloneAdapterCycleRunner standaloneCycle = new(
@@ -899,7 +1124,7 @@ public sealed class IngestionOperationsIntegrationTests
                 TenantId,
                 PropertyId,
                 PushConnectionId,
-                "integration.push",
+                FakeHttpAdapterDescriptor.Value.AdapterType,
                 TimeSpan.FromMinutes(5)));
         AdapterRunCompletion standaloneCompletion = await standaloneCycle.RunAsync(CancellationToken.None)
             .ConfigureAwait(false);
@@ -929,15 +1154,7 @@ public sealed class IngestionOperationsIntegrationTests
                 disabledRecord.OperationId,
                 disabledRecord.Payload.ToArray(),
                 disabledRecord.ExternalRecordId)).ConfigureAwait(false);
-        string disabledBody = await disabledResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-        Assert.True(
-            disabledResponse.IsSuccessStatusCode,
-            $"Expected a shaped disabled-connection result but received {(int)disabledResponse.StatusCode}: {disabledBody}");
-        AdapterIngressSubmissionResponse rejected = (await disabledResponse.Content
-            .ReadFromJsonAsync<AdapterIngressSubmissionResponse>().ConfigureAwait(false))!;
-        AdapterObservationResult rejectedResult = Assert.Single(rejected.Results);
-        Assert.Equal(AdapterObservationDisposition.Rejected, rejectedResult.Disposition);
-        Assert.Equal("ingestion.connectionnotenabled", rejectedResult.ErrorCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, disabledResponse.StatusCode);
 
         AdapterIngressCredentialListResponse finalList = await GetAsync<AdapterIngressCredentialListResponse>(
             managementClient, credentialsPath).ConfigureAwait(false);
@@ -970,6 +1187,37 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Equal(0, await admin.CountAuditEntriesContainingAsync(secondary.Token).ConfigureAwait(false));
     }
 
+    private static async Task ProveProviderLossIsolationAsync(
+        AuthTestApplication api,
+        HttpClient managementClient,
+        string token)
+    {
+        using var unavailableApi = api.WithUnavailableAdapterIngressProvider();
+        using HttpClient unavailableIngressHttp = unavailableApi.CreateClient();
+        AdapterHttpIngressClient unavailableIngress = CreateIngressClient(
+            unavailableIngressHttp,
+            token);
+        AdapterObservationResult denied = await SubmitCanonicalAsync(
+            unavailableIngress,
+            sourceSequence: 18,
+            "provider-unavailable").ConfigureAwait(false);
+
+        Assert.Equal(AdapterObservationDisposition.Rejected, denied.Disposition);
+        Assert.Equal(
+            AdapterErrorCode(IngestionApplicationErrors.AdapterIngressControlUnavailable),
+            denied.ErrorCode);
+
+        using HttpClient staffClient = unavailableApi.CreateClient();
+        staffClient.DefaultRequestHeaders.Authorization =
+            managementClient.DefaultRequestHeaders.Authorization;
+        staffClient.DefaultRequestHeaders.Add("X-Tenant-Id", TenantId);
+        using HttpResponseMessage staffResponse = await staffClient.GetAsync(
+            $"/api/ingestion/properties/{PropertyId:D}/connections").ConfigureAwait(false);
+        Assert.True(
+            staffResponse.IsSuccessStatusCode,
+            await staffResponse.Content.ReadAsStringAsync().ConfigureAwait(false));
+    }
+
     private static object CreateIngressSubmission(Guid operationId, byte[] payload, string externalId) => new
     {
         records = new[]
@@ -977,7 +1225,7 @@ public sealed class IngestionOperationsIntegrationTests
             new
             {
                 operationId,
-                recordType = "integration.push.v1",
+                recordType = "reservation.v1",
                 externalRecordId = externalId,
                 sourceRevision = "1",
                 sourceUpdatedAtUtc = DateTimeOffset.UtcNow,
@@ -994,7 +1242,7 @@ public sealed class IngestionOperationsIntegrationTests
         byte[] payload,
         string externalId) => new(
             operationId,
-            "integration.push.v1",
+            "reservation.v1",
             externalId,
             "1",
             DateTimeOffset.UtcNow,
@@ -1004,16 +1252,42 @@ public sealed class IngestionOperationsIntegrationTests
             AdapterPayloadHash.ComputeSha256(payload));
 
     private static AdapterHttpIngressClient CreateIngressClient(HttpClient client, string token) =>
-        CreateAdapterClient(client, token, PushConnectionId);
+        CreateAdapterClient(client, token, TenantId, PushConnectionId);
+
+    private static async Task<AdapterObservationResult> SubmitCanonicalAsync(
+        AdapterHttpIngressClient client,
+        long sourceSequence,
+        string externalId)
+    {
+        byte[] payload = CreateCanonicalReservationPayload(sourceSequence);
+        AdapterIngressSubmissionResponse response = await client.SubmitAsync(
+            [CreateIngressRecord(Guid.NewGuid(), payload, externalId)],
+            CancellationToken.None).ConfigureAwait(false);
+        return Assert.Single(response.Results);
+    }
+
+    private static byte[] CreateCanonicalReservationPayload(long sourceSequence) =>
+        Encoding.UTF8.GetBytes($$"""
+            {"operation":"upsert","sourceSequence":{{sourceSequence}},"arrival":"2026-08-01","departure":"2026-08-03","inventoryUnitIds":["20000000-0000-0000-0000-000000000001"],"primaryGuestName":"Integration Guest","email":"guest@example.test","phone":null,"guestCount":1,"notes":null}
+            """);
+
+    private static string AdapterErrorCode(Error error) => error.Code.ToLowerInvariant();
 
     private static AdapterHttpIngressClient CreateAdapterClient(
         HttpClient client,
         string token,
+        Guid connectionId) =>
+        CreateAdapterClient(client, token, TenantId, connectionId);
+
+    private static AdapterHttpIngressClient CreateAdapterClient(
+        HttpClient client,
+        string token,
+        string tenantId,
         Guid connectionId) => new(
         client,
         new AdapterHttpIngressOptions(
             client.BaseAddress!,
-            TenantId,
+            tenantId,
             connectionId,
             maxAttempts: 2,
             retryBaseDelay: TimeSpan.FromMilliseconds(10),
@@ -1024,7 +1298,7 @@ public sealed class IngestionOperationsIntegrationTests
 
     private sealed class RemoteIntegrationRunner : IAdapterRunner
     {
-        private static readonly byte[] Payload = Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"source\":\"remote-leased-runtime\"}");
+        private static readonly byte[] Payload = CreateCanonicalReservationPayload(sourceSequence: 5);
 
         public AdapterDescriptor Descriptor => FakeHttpAdapterDescriptor.Value;
 
@@ -1037,7 +1311,7 @@ public sealed class IngestionOperationsIntegrationTests
             await Task.Delay(TimeSpan.FromSeconds(12), cancellationToken).ConfigureAwait(false);
             AdapterObservedRecord record = new(
                 Guid.Parse("92000000-0000-0000-0000-000000000005"),
-                "integration.remote.v1",
+                "reservation.v1",
                 "remote-leased-5",
                 "5",
                 DateTimeOffset.UtcNow,
@@ -1070,11 +1344,11 @@ public sealed class IngestionOperationsIntegrationTests
 
     private sealed class StandaloneIntegrationRunner : IAdapterRunner
     {
-        private static readonly byte[] Payload = Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"source\":\"standalone-runtime\"}");
+        private static readonly byte[] Payload = CreateCanonicalReservationPayload(sourceSequence: 3);
 
         public static AdapterObservedRecord Record { get; } = new(
             Guid.Parse("92000000-0000-0000-0000-000000000003"),
-            "integration.push.v1",
+            "reservation.v1",
             "remote-standalone-3",
             "3",
             DateTimeOffset.UtcNow,
@@ -1083,12 +1357,7 @@ public sealed class IngestionOperationsIntegrationTests
             Payload,
             AdapterPayloadHash.ComputeSha256(Payload));
 
-        public AdapterDescriptor Descriptor { get; } = new(
-            "integration.push",
-            protocolVersion: 1,
-            configurationSchemaVersion: 1,
-            [AdapterExecutionMode.Polling, AdapterExecutionMode.Push, AdapterExecutionMode.RemotePolling],
-            new AdapterPollingCapability(TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(5)));
+        public AdapterDescriptor Descriptor => FakeHttpAdapterDescriptor.Value;
 
         public async Task<AdapterRunCompletion> RunAsync(
             AdapterRunAssignment assignment,

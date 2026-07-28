@@ -16,4 +16,9 @@ public sealed record AdapterIngressIdentity(
     string ScopeId,
     Guid ConnectionId,
     Guid CredentialId,
-    AdapterExecutionMode ExecutionMode);
+    AdapterExecutionMode ExecutionMode,
+    string AdapterType,
+    int AdapterProtocolVersion,
+    int ConfigurationSchemaVersion,
+    string SourceSystem,
+    string CustomerOwner);

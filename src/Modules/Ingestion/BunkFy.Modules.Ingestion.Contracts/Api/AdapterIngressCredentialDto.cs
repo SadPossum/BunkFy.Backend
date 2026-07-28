@@ -20,7 +20,11 @@ public sealed record AdapterIngressCredentialDto(
     string? RevokedBy,
     DateTimeOffset? RevokedAtUtc,
     DateTimeOffset? LastAuthenticatedAtUtc,
-    long Version);
+    long Version,
+    string AdapterType = "",
+    int AdapterProtocolVersion = 0,
+    int ConfigurationSchemaVersion = 0,
+    string SourceSystem = "");
 
 public sealed record AdapterIngressCredentialListResponse(
     IReadOnlyCollection<AdapterIngressCredentialDto> Credentials,

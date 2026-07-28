@@ -40,6 +40,7 @@ public static class DependencyInjection
             provider.GetRequiredService<AdapterIngressCredentialRepository>());
         builder.Services.TryAddScoped<IAdapterIngressCredentialReader>(provider =>
             provider.GetRequiredService<AdapterIngressCredentialRepository>());
+        builder.Services.TryAddScoped<IAdapterIngressControlRepository, AdapterIngressControlRepository>();
         builder.Services.TryAddScoped<IngestionPropertyProjectionRepository>();
         builder.Services.TryAddScoped<IIngestionPropertyProjectionRepository>(provider =>
             provider.GetRequiredService<IngestionPropertyProjectionRepository>());

@@ -101,6 +101,7 @@ public sealed class AdapterHttpIngressClientTests
             client.SubmitAsync([CreateRecord()], CancellationToken.None));
 
         Assert.Equal(HttpStatusCode.Unauthorized, exception.StatusCode);
+        Assert.Contains("HTTP 401", exception.Message, StringComparison.Ordinal);
         Assert.DoesNotContain(Token, exception.ToString(), StringComparison.Ordinal);
         Assert.Single(handler.Requests);
     }

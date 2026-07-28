@@ -33,6 +33,8 @@ public static class IngestionModuleMetadata
             new ModulePermissionDescriptor(IngestionAdminPermissionCodes.Read, "Read ingestion connections, runs, receipts, and proposals.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(IngestionAdminPermissionCodes.ConnectionsManage, "Manage ingestion connections.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(IngestionAdminPermissionCodes.CredentialsManage, "Issue and revoke adapter ingress credentials.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(IngestionAdminPermissionCodes.IngressControlManage, "Suspend or resume third-party adapter ingress for the tenant.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(IngestionAdminPermissionCodes.IngressGlobalControlManage, "Operate the all-tenant third-party adapter ingress stop.", PermissionScopeRequirement.Global),
             new ModulePermissionDescriptor(IngestionAdminPermissionCodes.RunsManage, "Start, retry, or cancel ingestion runs.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(IngestionAdminPermissionCodes.RawPayloadsRead, "Read sensitive raw ingestion payloads.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(IngestionAdminPermissionCodes.SensitiveHistoryRead, "Read sensitive normalized ingestion history.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),

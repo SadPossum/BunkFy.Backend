@@ -47,6 +47,7 @@ using Gma.Framework.Notifications.Api;
 using Gma.Framework.Notifications.Cqrs;
 using Gma.Framework.Notifications.SignalR;
 using Gma.Framework.Realtime.Notifications;
+using Gma.Framework.RateLimiting.Redis;
 using Gma.Framework.Security;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Gma.Framework.Tenancy.Api.Serilog;
@@ -81,6 +82,10 @@ builder.Host.UseConfiguredSerilog();
 builder.AddUserNotificationsCqrs();
 builder.AddUserNotificationsRealtime();
 builder.AddRedisCaching();
+if (builder.Configuration.GetValue<bool>("Ingestion:AdapterIngress:Enabled"))
+{
+    builder.AddRedisRateLimiting();
+}
 builder.AddCachingCqrs();
 builder.AddGmaInfrastructure();
 builder.AddBunkFyDataProtection();

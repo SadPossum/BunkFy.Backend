@@ -104,7 +104,11 @@ internal sealed class AdapterIngressCredentialRepository(IngestionDbContext dbCo
                 credential.RevokedBy,
                 credential.RevokedAtUtc,
                 credential.LastAuthenticatedAtUtc,
-                credential.Version))
+                credential.Version,
+                credential.AdapterType,
+                credential.AdapterProtocolVersion,
+                credential.ConfigurationSchemaVersion,
+                credential.SourceSystem))
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
         return new AdapterIngressCredentialListResponse(

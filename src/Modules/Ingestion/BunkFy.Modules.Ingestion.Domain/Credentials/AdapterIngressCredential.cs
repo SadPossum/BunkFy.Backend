@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Domain.Credentials;
 
+using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Domain.Models;
 using Gma.Framework.Results;
 using BunkFy.Modules.Ingestion.Domain.Errors;
@@ -10,6 +11,7 @@ public sealed class AdapterIngressCredential : ScopedAggregateRoot<Guid>
     public const int ActorMaxLength = 200;
     public const int HashAlgorithmMaxLength = 32;
     public const int SecretHashLength = 32;
+    public const int SourceSystemMaxLength = 100;
     public const int MaximumActiveCredentialsPerConnection = 5;
     public const string Sha256HashAlgorithm = "sha256-v1";
     public static readonly TimeSpan DefaultLifetime = TimeSpan.FromDays(90);
@@ -24,6 +26,10 @@ public sealed class AdapterIngressCredential : ScopedAggregateRoot<Guid>
     }
 
     public Guid ConnectionId { get; private set; }
+    public string AdapterType { get; private set; } = string.Empty;
+    public int AdapterProtocolVersion { get; private set; }
+    public int ConfigurationSchemaVersion { get; private set; }
+    public string SourceSystem { get; private set; } = string.Empty;
     public int Slot { get; private set; }
     public string Label { get; private set; } = string.Empty;
     public string SecretHashAlgorithm { get; private set; } = string.Empty;
@@ -41,6 +47,10 @@ public sealed class AdapterIngressCredential : ScopedAggregateRoot<Guid>
         Guid id,
         string scopeId,
         Guid connectionId,
+        string adapterType,
+        int adapterProtocolVersion,
+        int configurationSchemaVersion,
+        string sourceSystem,
         int slot,
         string label,
         string secretHashAlgorithm,
@@ -50,6 +60,8 @@ public sealed class AdapterIngressCredential : ScopedAggregateRoot<Guid>
         DateTimeOffset nowUtc)
     {
         string normalizedLabel = label?.Trim() ?? string.Empty;
+        string normalizedAdapterType = adapterType?.Trim().ToLowerInvariant() ?? string.Empty;
+        string normalizedSourceSystem = sourceSystem?.Trim().ToLowerInvariant() ?? string.Empty;
         string normalizedAlgorithm = secretHashAlgorithm?.Trim().ToLowerInvariant() ?? string.Empty;
         string normalizedActor = createdBy?.Trim() ?? string.Empty;
         if (id == Guid.Empty || connectionId == Guid.Empty || string.IsNullOrWhiteSpace(scopeId) ||
@@ -61,6 +73,15 @@ public sealed class AdapterIngressCredential : ScopedAggregateRoot<Guid>
         if (normalizedLabel.Length is 0 or > LabelMaxLength)
         {
             return Result.Failure<AdapterIngressCredential>(IngestionDomainErrors.IngressCredentialLabelInvalid);
+        }
+
+        if (!IsStableKey(normalizedAdapterType, AdapterProtocolLimits.AdapterTypeMaxLength) ||
+            adapterProtocolVersion <= 0 ||
+            configurationSchemaVersion <= 0 ||
+            !IsStableKey(normalizedSourceSystem, SourceSystemMaxLength))
+        {
+            return Result.Failure<AdapterIngressCredential>(
+                IngestionDomainErrors.IngressCredentialProvenanceInvalid);
         }
 
         if (normalizedAlgorithm != Sha256HashAlgorithm || secretHash is null || secretHash.Length != SecretHashLength)
@@ -82,6 +103,10 @@ public sealed class AdapterIngressCredential : ScopedAggregateRoot<Guid>
         return Result.Success(new AdapterIngressCredential(id, scopeId.Trim())
         {
             ConnectionId = connectionId,
+            AdapterType = normalizedAdapterType,
+            AdapterProtocolVersion = adapterProtocolVersion,
+            ConfigurationSchemaVersion = configurationSchemaVersion,
+            SourceSystem = normalizedSourceSystem,
             Slot = slot,
             Label = normalizedLabel,
             SecretHashAlgorithm = normalizedAlgorithm,
@@ -119,4 +144,11 @@ public sealed class AdapterIngressCredential : ScopedAggregateRoot<Guid>
         this.Version++;
         return Result.Success();
     }
+
+    private static bool IsStableKey(string value, int maxLength) =>
+        value.Length is > 0 &&
+        value.Length <= maxLength &&
+        char.IsAsciiLetterOrDigit(value[0]) &&
+        value.All(character =>
+            char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_');
 }

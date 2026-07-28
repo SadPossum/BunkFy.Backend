@@ -43,6 +43,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         MapAdapterTypes(endpoints);
         MapParserTypes(endpoints);
         MapConnections(endpoints);
+        MapGlobalIngressControl(endpoints);
         MapRuns(endpoints);
         MapReceipts(endpoints);
         MapReprocessing(endpoints);
@@ -50,6 +51,92 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         MapLegalHolds(endpoints);
         MapProposals(endpoints);
     }
+
+    private static void MapGlobalIngressControl(IEndpointRouteBuilder endpoints)
+    {
+        RouteGroupBuilder group = endpoints.MapGroup("/api/admin/ingestion/adapter-ingress-control")
+            .WithModuleName(IngestionModuleMetadata.Name)
+            .WithTags("Ingestion Admin")
+            .RequireAuthorization();
+
+        group.MapGet("", async (
+            HttpContext context,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken token) =>
+            await executor.ExecuteAsync(
+                context,
+                AdminOperation.Create(
+                    IngestionAdminOperationNames.IngressGlobalControlGet,
+                    IngestionAdminPermissions.IngressGlobalControlManage),
+                requireTenant: false,
+                ct => dispatcher.QueryAsync(new GetAdapterIngressGlobalControlQuery(), ct),
+                token,
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+
+        group.MapPost("/stop", (
+            GlobalIngressControlRequest request,
+            HttpContext context,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken token) =>
+            ExecuteGlobalIngressControlAsync(
+                request,
+                stop: true,
+                context,
+                executor,
+                dispatcher,
+                token));
+
+        group.MapPost("/resume", (
+            GlobalIngressControlRequest request,
+            HttpContext context,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken token) =>
+            ExecuteGlobalIngressControlAsync(
+                request,
+                stop: false,
+                context,
+                executor,
+                dispatcher,
+                token));
+    }
+
+    private static Task<IResult> ExecuteGlobalIngressControlAsync(
+        GlobalIngressControlRequest request,
+        bool stop,
+        HttpContext context,
+        AdminApiExecutor executor,
+        IRequestDispatcher dispatcher,
+        CancellationToken token) =>
+        executor.ExecuteAsync(
+            context,
+            AdminOperation.Create(
+                stop
+                    ? IngestionAdminOperationNames.IngressGlobalControlStop
+                    : IngestionAdminOperationNames.IngressGlobalControlResume,
+                IngestionAdminPermissions.IngressGlobalControlManage),
+            requireTenant: false,
+            ct => request.Confirmed
+                ? stop
+                    ? dispatcher.SendAsync(
+                        new StopAdapterIngressGloballyCommand(
+                            request.ExpectedVersion,
+                            request.ReasonCode,
+                            Actor(context)),
+                        ct)
+                    : dispatcher.SendAsync(
+                        new ResumeAdapterIngressGloballyCommand(
+                            request.ExpectedVersion,
+                            request.ReasonCode,
+                            Actor(context)),
+                        ct)
+                : Task.FromResult(
+                    Result.Failure<AdapterIngressGlobalControlDto>(
+                        AdminErrors.ConfirmationRequired)),
+            token,
+            errorStatusCodes: ErrorStatusCodes);
 
     private static void MapParserTypes(IEndpointRouteBuilder endpoints)
     {
@@ -177,7 +264,12 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 {
                     Result<CreateAdapterIngressCredentialResponse> result = await dispatcher.SendAsync(
                         new CreateAdapterIngressCredentialCommand(
-                            propertyId, connectionId, request.Label, request.ExpiresAtUtc, Actor(context)), ct)
+                            propertyId,
+                            connectionId,
+                            request.Label,
+                            request.ExpiresAtUtc,
+                            Actor(context),
+                            request.SourceSystem), ct)
                         .ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
@@ -782,8 +874,15 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         int IntervalSeconds,
         int MaxAttempts,
         long ExpectedVersion);
-    public sealed record CreateIngressCredentialRequest(string Label, DateTimeOffset? ExpiresAtUtc = null);
+    public sealed record CreateIngressCredentialRequest(
+        string Label,
+        DateTimeOffset? ExpiresAtUtc = null,
+        string? SourceSystem = null);
     public sealed record RevokeIngressCredentialRequest(long ExpectedVersion, bool Confirmed);
+    public sealed record GlobalIngressControlRequest(
+        long ExpectedVersion,
+        string ReasonCode,
+        bool Confirmed);
     public sealed record EnqueueRunRequest(Guid ConnectionId, DateTimeOffset? ScheduledAtUtc = null,
         int MaxAttempts = 3, string? DeduplicationKey = null);
     public sealed record EnqueueReprocessingRequest(
@@ -858,6 +957,9 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.IngressCredentialExpiryInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.IngressCredentialActorInvalid.Code, StatusCodes.Status400BadRequest),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.IngressCredentialAlreadyRevoked.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressControlDecisionInvalid.Code, StatusCodes.Status400BadRequest),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressGlobalAlreadyStopped.Code, StatusCodes.Status409Conflict),
+        new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.AdapterIngressGlobalAlreadyActive.Code, StatusCodes.Status409Conflict),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConnectionAlreadyEnabled.Code, StatusCodes.Status409Conflict),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConnectionAlreadyDisabled.Code, StatusCodes.Status409Conflict),
         new(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConnectionMustBeDisabled.Code, StatusCodes.Status409Conflict),

@@ -12,6 +12,7 @@ using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.RateLimiting;
 using Gma.Framework.Results;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Application.Ports;
@@ -43,7 +44,8 @@ internal sealed class AuthTestApplication(
     string minioBucketName = "integration-test-files",
     bool minioCreateBucketIfMissing = false,
     DbCommandInterceptor? inventoryCommandInterceptor = null,
-    bool enableWorkspaceSelfService = false)
+    bool enableWorkspaceSelfService = false,
+    string? adapterIngressRedisConnectionString = null)
     : WebApplicationFactory<ApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -79,6 +81,12 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Auth:RefreshTokens:Pepper", AuthTestConfiguration.RefreshTokenPepper);
         builder.UseSetting("Auth:SelfRegistration:PasswordEnabled", "true");
         builder.UseSetting("Auth:SelfRegistration:ExternalEnabled", "true");
+        if (!string.IsNullOrWhiteSpace(adapterIngressRedisConnectionString))
+        {
+            builder.UseSetting("Ingestion:AdapterIngress:Enabled", "true");
+            builder.UseSetting("ConnectionStrings:redis", adapterIngressRedisConnectionString);
+        }
+
         if (enableWorkspaceSelfService)
         {
             builder.UseSetting("Organizations:SelfServiceCreationEnabled", "true");
@@ -119,6 +127,12 @@ internal sealed class AuthTestApplication(
                 ["FileManagement:AllowedContentTypes:1"] = "message/rfc822",
                 ["FileManagement:AllowedContentTypes:2"] = "application/octet-stream",
             };
+
+            if (!string.IsNullOrWhiteSpace(adapterIngressRedisConnectionString))
+            {
+                values["Ingestion:AdapterIngress:Enabled"] = "true";
+                values["ConnectionStrings:redis"] = adapterIngressRedisConnectionString;
+            }
 
             if (enableWorkspaceSelfService)
             {
@@ -265,6 +279,13 @@ internal sealed class AuthTestApplication(
             .Database.MigrateAsync().ConfigureAwait(false);
     }
 
+    public WebApplicationFactory<ApiAssemblyReference> WithUnavailableAdapterIngressProvider() =>
+        this.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IMultiPartitionRateLimiter>();
+            services.AddSingleton<IMultiPartitionRateLimiter, UnavailableRateLimiter>();
+        }));
+
     public async Task SeedOrganizationMembershipAsync(string tenantId, Guid subjectId)
     {
         if (!Guid.TryParse(tenantId, out Guid organizationId) || organizationId == Guid.Empty)
@@ -310,6 +331,14 @@ internal sealed class AuthTestApplication(
         }
 
         await dbContext.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    private sealed class UnavailableRateLimiter : IMultiPartitionRateLimiter
+    {
+        public ValueTask<MultiPartitionRateLimitDecision> AcquireAsync(
+            MultiPartitionRateLimitRequest request,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(MultiPartitionRateLimitDecision.ProviderUnavailable());
     }
 
     public async Task SetOrganizationMembershipSuspendedAsync(

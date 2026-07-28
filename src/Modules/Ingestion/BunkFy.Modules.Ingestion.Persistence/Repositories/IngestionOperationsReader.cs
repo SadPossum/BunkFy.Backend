@@ -449,7 +449,13 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
         (ObservationReceiptStatus)(int)receipt.State,
         receipt.RejectionReason,
         receipt.ReceivedAtUtc,
-        receipt.ProcessedAtUtc);
+        receipt.ProcessedAtUtc,
+        receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.CredentialId,
+        receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.AdapterType,
+        receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.AdapterProtocolVersion,
+        receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.ConfigurationSchemaVersion,
+        receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.SourceSystem,
+        receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.CustomerOwner);
 
     private static readonly Expression<Func<ObservationReprocessingAttempt, ObservationReprocessingAttemptDto>>
         ReprocessingAttemptProjection = attempt => new(

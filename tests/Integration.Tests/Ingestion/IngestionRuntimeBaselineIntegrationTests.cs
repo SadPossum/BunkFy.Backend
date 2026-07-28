@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using BunkFy.Adapter.Abstractions;
+using BunkFy.Adapters.FakeHttp;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
@@ -213,7 +214,7 @@ public sealed class IngestionRuntimeBaselineIntegrationTests(ITestOutputHelper o
             seed.ConnectionId,
             seed.TenantId,
             seed.PropertyId,
-            "runtime.push",
+            FakeHttpAdapterDescriptor.Value.AdapterType,
             AdapterExecutionMode.Push,
             IngestionConflictPolicy.SuggestionsOnly,
             "configuration://runtime",

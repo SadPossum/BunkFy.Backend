@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 6,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -13,6 +13,19 @@
       ],
       "writers": [
         "permission:ingestion.credentials.manage",
+        "system:ingestion"
+      ]
+    },
+    {
+      "id": "adapter-ingress-control",
+      "scope": "tenant-authorized-or-global-admin",
+      "readers": [
+        "permission:ingestion.ingress-control.manage",
+        "permission:ingestion.ingress-global-control.manage"
+      ],
+      "writers": [
+        "permission:ingestion.ingress-control.manage",
+        "permission:ingestion.ingress-global-control.manage",
         "system:ingestion"
       ]
     },
@@ -96,6 +109,14 @@
       "legalHoldBehavior": "pause-purge-or-redaction"
     },
     {
+      "id": "adapter-ingress-control-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "adapter-ingress-control-created",
+      "endsAt": "tenant-termination-or-approved-audit-expiry",
+      "duration": null,
+      "legalHoldBehavior": "pause-purge-or-redaction"
+    },
+    {
       "id": "ingestion-anonymisation-eligibility-evaluation",
       "approvalState": "engineering-default",
       "startsAt": "eligibility-evaluation-requested",
@@ -166,6 +187,13 @@
       "correction": "rotate-or-revoke",
       "restriction": "revoke",
       "erasure": "erase-secret-after-lifecycle"
+    },
+    {
+      "id": "adapter-ingress-control-rights",
+      "export": "include-with-authorized-operational-audit",
+      "correction": "append-a-new-control-transition",
+      "restriction": "retain-while-required-for-ingress-safety",
+      "erasure": "pseudonymize-actor-after-approved-audit-lifecycle"
     },
     {
       "id": "ingestion-anonymisation-eligibility-control",
@@ -389,6 +417,8 @@
         "credential-rotation"
       ],
       "sources": [
+        "ingestion-persistence",
+        "system-query",
         "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
@@ -398,9 +428,12 @@
       "retentionPolicy": "adapter-credential-lifecycle",
       "rightsPolicy": "credential-rights",
       "allowedSurfaces": [
-        "application-command"
+        "api-response",
+        "application-command",
+        "persistence"
       ],
       "allowedBoundaries": [
+        "customer-api",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -439,6 +472,34 @@
           "member": "CredentialId",
           "surface": "application-command",
           "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.AdapterIngressProvenance",
+          "member": "CredentialId",
+          "surface": "application-command",
+          "retentionPolicy": "operations-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressCredentialDto",
+          "member": "CredentialId",
+          "surface": "api-response",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptDto",
+          "member": "IngressCredentialId",
+          "surface": "api-response",
+          "retentionPolicy": "operations-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationAdapterProvenance",
+          "member": "CredentialId",
+          "surface": "persistence",
+          "retentionPolicy": "operations-lifecycle"
         }
       ]
     },
@@ -3222,6 +3283,67 @@
       ]
     },
     {
+      "id": "ingestion.operations.adapter-customer-owner",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "ingestion-processing",
+        "credential-rotation",
+        "operational-audit"
+      ],
+      "sources": [
+        "ingestion-persistence",
+        "system-workflow"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.AdapterIngressProvenance",
+          "member": "CustomerOwner",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressIdentity",
+          "member": "CustomerOwner",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptDto",
+          "member": "CustomerOwner",
+          "surface": "api-response",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationAdapterProvenance",
+          "member": "CustomerOwner",
+          "surface": "persistence",
+          "retentionPolicy": null
+        }
+      ]
+    },
+    {
       "id": "ingestion.operations.adapter-type",
       "dataSubject": "guest",
       "classification": "linked-operational",
@@ -3246,6 +3368,7 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "adapter-ingress",
+        "api-response",
         "application-command",
         "application-query",
         "file-ingress",
@@ -3253,6 +3376,7 @@
       ],
       "allowedBoundaries": [
         "adapter",
+        "customer-api",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -3318,6 +3442,84 @@
           "type": "BunkFy.Modules.Ingestion.Domain.Connections.AdapterConnection",
           "member": "AdapterType",
           "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.AdapterIngressProvenance",
+          "member": "AdapterType",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressIdentity",
+          "member": "AdapterType",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressCredentialDto",
+          "member": "AdapterType",
+          "surface": "api-response",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptDto",
+          "member": "AdapterType",
+          "surface": "api-response",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Credentials.AdapterIngressCredential",
+          "member": "AdapterType",
+          "surface": "persistence",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationAdapterProvenance",
+          "member": "AdapterType",
+          "surface": "persistence",
+          "retentionPolicy": null
+        }
+      ]
+    },
+    {
+      "id": "ingestion.operations.adapter-ingress-provenance",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "ingestion-processing",
+        "source-reconciliation",
+        "operational-audit"
+      ],
+      "sources": [
+        "system-workflow"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.ReceiveObservationCommand",
+          "member": "IngressProvenance",
+          "surface": "application-command",
           "retentionPolicy": null
         }
       ]
@@ -3999,7 +4201,10 @@
         "operational-audit"
       ],
       "sources": [
-        "adapter-submission"
+        "adapter-submission",
+        "ingestion-persistence",
+        "system-query",
+        "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
@@ -4008,10 +4213,14 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "adapter-ingress"
+        "adapter-ingress",
+        "api-response",
+        "application-command",
+        "persistence"
       ],
       "allowedBoundaries": [
         "adapter",
+        "customer-api",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -4028,6 +4237,48 @@
           "type": "BunkFy.Adapter.Abstractions.AdapterRemoteLeaseClaimRequest",
           "member": "ConfigurationSchemaVersion",
           "surface": "adapter-ingress",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.AdapterIngressProvenance",
+          "member": "ConfigurationSchemaVersion",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressIdentity",
+          "member": "ConfigurationSchemaVersion",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressCredentialDto",
+          "member": "ConfigurationSchemaVersion",
+          "surface": "api-response",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptDto",
+          "member": "ConfigurationSchemaVersion",
+          "surface": "api-response",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Credentials.AdapterIngressCredential",
+          "member": "ConfigurationSchemaVersion",
+          "surface": "persistence",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationAdapterProvenance",
+          "member": "ConfigurationSchemaVersion",
+          "surface": "persistence",
           "retentionPolicy": null
         }
       ]
@@ -8771,7 +9022,10 @@
         "operational-audit"
       ],
       "sources": [
-        "adapter-submission"
+        "adapter-submission",
+        "ingestion-persistence",
+        "system-query",
+        "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
@@ -8780,10 +9034,14 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "adapter-ingress"
+        "adapter-ingress",
+        "api-response",
+        "application-command",
+        "persistence"
       ],
       "allowedBoundaries": [
         "adapter",
+        "customer-api",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -8800,6 +9058,48 @@
           "type": "BunkFy.Adapter.Abstractions.AdapterRemoteLeaseClaimRequest",
           "member": "ProtocolVersion",
           "surface": "adapter-ingress",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.AdapterIngressProvenance",
+          "member": "AdapterProtocolVersion",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressIdentity",
+          "member": "AdapterProtocolVersion",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressCredentialDto",
+          "member": "AdapterProtocolVersion",
+          "surface": "api-response",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptDto",
+          "member": "AdapterProtocolVersion",
+          "surface": "api-response",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Credentials.AdapterIngressCredential",
+          "member": "AdapterProtocolVersion",
+          "surface": "persistence",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationAdapterProvenance",
+          "member": "AdapterProtocolVersion",
+          "surface": "persistence",
           "retentionPolicy": null
         }
       ]
@@ -11647,7 +11947,10 @@
         "operational-audit"
       ],
       "sources": [
-        "ingestion-persistence"
+        "adapter-submission",
+        "ingestion-persistence",
+        "system-query",
+        "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
@@ -11656,11 +11959,15 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "api-input",
+        "api-response",
+        "application-command",
         "data-rights-export",
         "persistence"
       ],
       "allowedBoundaries": [
         "cross-module",
+        "customer-api",
         "intra-module"
       ],
       "approvalState": "engineering-default",
@@ -11678,6 +11985,62 @@
           "member": "SourceSystem",
           "surface": "data-rights-export",
           "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Api",
+          "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+CreateIngressCredentialRequest",
+          "member": "SourceSystem",
+          "surface": "api-input",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.AdapterIngressProvenance",
+          "member": "SourceSystem",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.CreateAdapterIngressCredentialCommand",
+          "member": "SourceSystem",
+          "surface": "application-command",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressIdentity",
+          "member": "SourceSystem",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressCredentialDto",
+          "member": "SourceSystem",
+          "surface": "api-response",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.ObservationReceiptDto",
+          "member": "SourceSystem",
+          "surface": "api-response",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Credentials.AdapterIngressCredential",
+          "member": "SourceSystem",
+          "surface": "persistence",
+          "retentionPolicy": "adapter-credential-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Domain",
+          "type": "BunkFy.Modules.Ingestion.Domain.Receipts.ObservationAdapterProvenance",
+          "member": "SourceSystem",
+          "surface": "persistence",
+          "retentionPolicy": null
         }
       ]
     },
@@ -13777,6 +14140,172 @@
         { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.CompleteIngestionRetentionExecutionCommand", "member": "OutcomeCode", "surface": "application-command" },
         { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.IngestionRetentionExecutionStart", "member": "CompletedResult", "surface": "application-command" },
         { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Retention.IngestionRetentionExecution", "member": "OutcomeCode", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.adapter-ingress-control.actor",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "adapter-ingress-safety",
+        "abuse-prevention",
+        "operational-audit"
+      ],
+      "sources": ["system-workflow", "ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "adapter-ingress-control",
+      "countryPolicyKey": "ingestion.adapter-ingress-control",
+      "retentionPolicy": "adapter-ingress-control-lifecycle",
+      "rightsPolicy": "adapter-ingress-control-rights",
+      "allowedSurfaces": ["api-response", "application-command", "persistence"],
+      "allowedBoundaries": ["customer-api", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.SuspendAdapterIngressTenantCommand", "member": "Actor", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.ResumeAdapterIngressTenantCommand", "member": "Actor", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.StopAdapterIngressGloballyCommand", "member": "Actor", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.ResumeAdapterIngressGloballyCommand", "member": "Actor", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressTenantControlDto", "member": "LastChangedBy", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressGlobalControlDto", "member": "LastChangedBy", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "LastChangedBy", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "LastChangedBy", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.adapter-ingress-control.identity",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "adapter-ingress-safety",
+        "tenant-isolation",
+        "operational-audit"
+      ],
+      "sources": ["ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "adapter-ingress-control",
+      "countryPolicyKey": "ingestion.adapter-ingress-control",
+      "retentionPolicy": "adapter-ingress-control-lifecycle",
+      "rightsPolicy": "adapter-ingress-control-rights",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "Id", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.adapter-ingress-control.reason-code",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "adapter-ingress-safety",
+        "abuse-prevention",
+        "operational-audit"
+      ],
+      "sources": ["system-workflow", "ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "adapter-ingress-control",
+      "countryPolicyKey": "ingestion.adapter-ingress-control",
+      "retentionPolicy": "adapter-ingress-control-lifecycle",
+      "rightsPolicy": "adapter-ingress-control-rights",
+      "allowedSurfaces": ["api-input", "api-response", "application-command", "persistence"],
+      "allowedBoundaries": ["customer-api", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Api", "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+AdapterIngressControlDecisionRequest", "member": "ReasonCode", "surface": "api-input" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.SuspendAdapterIngressTenantCommand", "member": "ReasonCode", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.ResumeAdapterIngressTenantCommand", "member": "ReasonCode", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.StopAdapterIngressGloballyCommand", "member": "ReasonCode", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.ResumeAdapterIngressGloballyCommand", "member": "ReasonCode", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressTenantControlDto", "member": "LastReasonCode", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressGlobalControlDto", "member": "LastReasonCode", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "LastReasonCode", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "LastReasonCode", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.adapter-ingress-control.state",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "adapter-ingress-safety",
+        "abuse-prevention",
+        "operational-audit"
+      ],
+      "sources": ["system-generated", "system-query", "system-workflow", "ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "adapter-ingress-control",
+      "countryPolicyKey": "ingestion.adapter-ingress-control",
+      "retentionPolicy": "adapter-ingress-control-lifecycle",
+      "rightsPolicy": "adapter-ingress-control-rights",
+      "allowedSurfaces": ["api-response", "application-command", "persistence"],
+      "allowedBoundaries": ["customer-api", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressControlSnapshot", "member": "IsTenantSuspended", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressControlSnapshot", "member": "IsGlobalStopped", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressGateDecision", "member": "Outcome", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressGateDecision", "member": "PolicyRejection", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressGateDecision", "member": "RetryAfter", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Ports.AdapterIngressGateDecision", "member": "IsAllowed", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressTenantControlDto", "member": "IsSuspended", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressTenantControlDto", "member": "LastChangedAtUtc", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressTenantControlDto", "member": "SuspendedAtUtc", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressTenantControlDto", "member": "ResumedAtUtc", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressGlobalControlDto", "member": "IsStopped", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressGlobalControlDto", "member": "LastChangedAtUtc", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressGlobalControlDto", "member": "StoppedAtUtc", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressGlobalControlDto", "member": "ResumedAtUtc", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "IsSuspended", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "LastChangedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "SuspendedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "ResumedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "IsStopped", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "LastChangedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "StoppedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "ResumedAtUtc", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "ingestion.adapter-ingress-control.version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "adapter-ingress-safety",
+        "concurrency-control",
+        "operational-audit"
+      ],
+      "sources": ["system-workflow", "ingestion-persistence"],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "adapter-ingress-control",
+      "countryPolicyKey": "ingestion.adapter-ingress-control",
+      "retentionPolicy": "adapter-ingress-control-lifecycle",
+      "rightsPolicy": "adapter-ingress-control-rights",
+      "allowedSurfaces": ["api-input", "api-response", "application-command", "persistence"],
+      "allowedBoundaries": ["customer-api", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Ingestion.Api", "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+AdapterIngressControlDecisionRequest", "member": "ExpectedVersion", "surface": "api-input" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.SuspendAdapterIngressTenantCommand", "member": "ExpectedVersion", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.ResumeAdapterIngressTenantCommand", "member": "ExpectedVersion", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.StopAdapterIngressGloballyCommand", "member": "ExpectedVersion", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Application", "type": "BunkFy.Modules.Ingestion.Application.Commands.ResumeAdapterIngressGloballyCommand", "member": "ExpectedVersion", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressTenantControlDto", "member": "Version", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Contracts", "type": "BunkFy.Modules.Ingestion.Contracts.AdapterIngressGlobalControlDto", "member": "Version", "surface": "api-response" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressTenantControl", "member": "Version", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Ingestion.Domain", "type": "BunkFy.Modules.Ingestion.Domain.Controls.AdapterIngressGlobalControl", "member": "Version", "surface": "persistence" }
       ]
     }
   ]

@@ -31,6 +31,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
     public string? SourceRevision { get; private set; }
     public string DeduplicationKey { get; private set; } = string.Empty;
     public string ContentHash { get; private set; } = string.Empty;
+    public ObservationAdapterProvenance? AdapterProvenance { get; private set; }
     public ObservationCountryPolicyEvidence? CountryPolicyEvidence { get; private set; }
     public Guid RawPayloadFileId { get; private set; }
     public RawPayloadRetentionState RawPayloadRetentionState { get; private set; } = RawPayloadRetentionState.Available;
@@ -76,7 +77,8 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
         Guid? reprocessingAttemptId = null,
         string? parserType = null,
         int? parserVersion = null,
-        int? parserOutputIndex = null)
+        int? parserOutputIndex = null,
+        ObservationAdapterProvenance? adapterProvenance = null)
     {
         if (receiptId == Guid.Empty || runId == Guid.Empty || operationId == Guid.Empty)
         {
@@ -148,6 +150,7 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
             SourceRevision = normalizedRevision,
             DeduplicationKey = normalizedDeduplicationKey,
             ContentHash = normalizedHash,
+            AdapterProvenance = adapterProvenance,
             CountryPolicyEvidence = countryPolicyEvidence,
             RawPayloadFileId = rawPayloadFileId,
             RawPayloadRetainUntilUtc = rawPayloadRetainUntilUtc,
