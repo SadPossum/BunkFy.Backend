@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
+using Gma.Framework.Cqrs;
 using Gma.Framework.Naming;
 using Gma.Framework.Pagination;
 using Gma.Modules.AccessControl.Admin.Contracts;
