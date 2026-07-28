@@ -20,6 +20,9 @@ internal sealed class WorkspaceStaffAccessPlanConfiguration
             table.HasCheckConstraint(
                 "CK_staff_access_plans_version",
                 "\"Version\" >= 1");
+            table.HasCheckConstraint(
+                "CK_staff_access_plans_expiry_authority",
+                "\"Status\" <> 4 OR \"SourceExpiredAtUtc\" IS NOT NULL");
         });
         builder.HasKey(plan => plan.Id);
         builder.HasAlternateKey(plan => new { plan.ScopeId, plan.Id });
@@ -30,6 +33,7 @@ internal sealed class WorkspaceStaffAccessPlanConfiguration
         builder.Property(plan => plan.CreatedBySubjectId)
             .HasMaxLength(WorkspaceStaffAccessPlan.SubjectIdMaxLength).IsRequired();
         builder.Property(plan => plan.Status).HasConversion<int>().IsRequired();
+        builder.Property(plan => plan.SourceExpiredAtUtc);
         builder.Property(plan => plan.Version).IsConcurrencyToken().IsRequired();
         builder.HasIndex(plan => new
         {

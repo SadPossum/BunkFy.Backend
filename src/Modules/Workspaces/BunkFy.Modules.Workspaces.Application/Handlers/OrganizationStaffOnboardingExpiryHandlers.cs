@@ -32,6 +32,10 @@ internal sealed class OrganizationInvitationExpiredStaffOnboardingHandler(
         WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
             integrationEvent.InvitationId,
             cancellationToken).ConfigureAwait(false);
+        EnsureObserved(
+            plan?.ObserveSourceExpired(integrationEvent.ExpiresAtUtc, nowUtc) ??
+                Result.Success(),
+            "invitation access-plan source expiry");
         EnsureObserved(plan?.Expire(nowUtc) ?? Result.Success(), "invitation access-plan expiry");
     }
 
@@ -115,6 +119,11 @@ internal sealed class OrganizationEnrollmentClaimExpiredStaffOnboardingHandler(
         WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
             enrollmentLinkId,
             cancellationToken).ConfigureAwait(false);
+        if (plan?.SourceExpiredAtUtc is null)
+        {
+            return;
+        }
+
         EnsureObserved(plan?.Expire(nowUtc) ?? Result.Success(), "enrollment access-plan expiry");
     }
 }
@@ -126,13 +135,33 @@ internal sealed class OrganizationEnrollmentLinkExpiredStaffOnboardingHandler(
     ISystemClock clock)
     : IIntegrationEventHandler<OrganizationEnrollmentLinkExpiredIntegrationEvent>
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         OrganizationEnrollmentLinkExpiredIntegrationEvent integrationEvent,
-        CancellationToken cancellationToken) =>
-        OrganizationEnrollmentClaimExpiredStaffOnboardingHandler.ExpirePlanWhenUnusedAsync(
+        CancellationToken cancellationToken)
+    {
+        DateTimeOffset nowUtc = clock.UtcNow;
+        WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
+            integrationEvent.EnrollmentLinkId,
+            cancellationToken).ConfigureAwait(false);
+        EnsureObserved(
+            plan?.ObserveSourceExpired(integrationEvent.ExpiresAtUtc, nowUtc) ??
+                Result.Success(),
+            "enrollment access-plan source expiry");
+
+        await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler.ExpirePlanWhenUnusedAsync(
             applications,
             plans,
             integrationEvent.EnrollmentLinkId,
-            clock.UtcNow,
-            cancellationToken);
+            nowUtc,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void EnsureObserved(Result result, string observation)
+    {
+        if (result.IsFailure)
+        {
+            throw new InvalidOperationException(
+                $"Staff onboarding could not observe {observation}: '{result.Error.Code}'.");
+        }
+    }
 }

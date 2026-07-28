@@ -63,6 +63,21 @@ public sealed class WorkspacesModelTests
                 .GetMaxLength());
     }
 
+    [Fact]
+    public void Staff_access_plan_persists_source_expiry_and_is_concurrency_protected()
+    {
+        DbContextOptions<WorkspacesDbContext> options = new DbContextOptionsBuilder<WorkspacesDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        using WorkspacesDbContext context = new(options, new TestScopeContext());
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType entity = context.Model
+            .FindEntityType(typeof(WorkspaceStaffAccessPlan))!;
+
+        Assert.True(entity.FindProperty(nameof(WorkspaceStaffAccessPlan.Version))!.IsConcurrencyToken);
+        Assert.True(entity.FindProperty(nameof(WorkspaceStaffAccessPlan.SourceExpiredAtUtc))!.IsNullable);
+        Assert.NotEmpty(entity.GetDeclaredQueryFilters());
+    }
+
     private sealed class TestScopeContext : IScopeContext
     {
         public bool IsEnabled => true;

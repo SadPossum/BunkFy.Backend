@@ -35,9 +35,12 @@ Extensions require no change.
 - Link expiry also preserves an unbound `Submitted` application because its
   earlier claim-change fact may be lagging on another subscription. Global
   event ordering is not assumed.
-- An expired enrollment-link access plan becomes `Expired` after no active
-  onboarding remains. Claim-expiry handling performs the same cleanup so event
-  order does not leave an orphaned active plan.
+- Enrollment-link expiry is recorded on its access plan without terminating
+  valid pending onboarding. The plan becomes `Expired` only after the source
+  expiry has been observed and no active onboarding remains.
+- Claim expiry alone never retires a reusable access plan while its enrollment
+  link remains active. Claim-expiry handling only finalizes a plan whose source
+  expiry was already observed, so either event order converges safely.
 - Duplicate and stale expiry facts are idempotent and cannot regress a later
   onboarding state.
 

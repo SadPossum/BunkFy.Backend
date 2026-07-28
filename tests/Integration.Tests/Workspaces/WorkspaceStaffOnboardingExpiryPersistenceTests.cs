@@ -91,9 +91,10 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
         await dbContext.SaveChangesAsync().ConfigureAwait(false);
         dbContext.ChangeTracker.Clear();
 
-        Assert.Equal(
-            WorkspaceStaffAccessPlanState.Active,
-            (await dbContext.StaffAccessPlans.SingleAsync().ConfigureAwait(false)).Status);
+        WorkspaceStaffAccessPlan sourceExpiredPlan =
+            await dbContext.StaffAccessPlans.SingleAsync().ConfigureAwait(false);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, sourceExpiredPlan.Status);
+        Assert.Equal(nowUtc.AddMinutes(2), sourceExpiredPlan.SourceExpiredAtUtc);
         dbContext.ChangeTracker.Clear();
 
         var claimHandler = (IIntegrationEventHandler<OrganizationEnrollmentClaimExpiredIntegrationEvent>)

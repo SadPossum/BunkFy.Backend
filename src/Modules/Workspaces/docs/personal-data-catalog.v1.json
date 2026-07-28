@@ -1932,14 +1932,22 @@
       "rightsPolicy": "staff-employment-history",
       "allowedSurfaces": [
         "api-response",
-        "integration-event"
+        "integration-event",
+        "persistence"
       ],
       "allowedBoundaries": [
         "cross-module",
-        "customer-api"
+        "customer-api",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan",
+          "member": "SourceExpiredAtUtc",
+          "surface": "persistence"
+        },
         {
           "assembly": "BunkFy.Modules.Workspaces.Contracts",
           "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffJoinSourceDto",

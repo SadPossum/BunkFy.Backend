@@ -108,13 +108,22 @@ public sealed class WorkspaceStaffAccessPlanTests
             Assert.True(plan.Activate(Now.AddMinutes(1)).IsSuccess);
         }
 
-        Assert.True(plan.Expire(Now.AddMinutes(2)).IsSuccess);
+        Assert.True(plan.Expire(Now.AddMinutes(2)).IsFailure);
+        Assert.True(plan.ObserveSourceExpired(
+            Now.AddMinutes(2),
+            Now.AddMinutes(3)).IsSuccess);
+        Assert.True(plan.ObserveSourceExpired(
+            Now.AddMinutes(2),
+            Now.AddMinutes(4)).IsSuccess);
+        Assert.Equal(Now.AddMinutes(2), plan.SourceExpiredAtUtc);
+
+        Assert.True(plan.Expire(Now.AddMinutes(5)).IsSuccess);
         long expiredVersion = plan.Version;
-        Assert.True(plan.Expire(Now.AddMinutes(3)).IsSuccess);
-        Assert.True(plan.Supersede(Now.AddMinutes(4)).IsSuccess);
+        Assert.True(plan.Expire(Now.AddMinutes(6)).IsSuccess);
+        Assert.True(plan.Supersede(Now.AddMinutes(7)).IsSuccess);
 
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
         Assert.Equal(expiredVersion, plan.Version);
-        Assert.True(plan.Activate(Now.AddMinutes(5)).IsFailure);
+        Assert.True(plan.Activate(Now.AddMinutes(8)).IsFailure);
     }
 }

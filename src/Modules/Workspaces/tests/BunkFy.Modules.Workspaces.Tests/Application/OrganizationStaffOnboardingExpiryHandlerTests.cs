@@ -39,12 +39,13 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
 
         Assert.Equal(WorkspaceStaffOnboardingState.Expired, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Equal(Now, plan.SourceExpiredAtUtc);
         Assert.Null(application.DisplayName);
         Assert.Null(application.WorkEmail);
     }
 
     [Fact]
-    public async Task Claim_expiry_terminates_the_application_and_last_dependent_plan_once()
+    public async Task Claim_expiry_after_link_expiry_terminates_the_application_and_plan_once()
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
         Guid claimId = Guid.NewGuid();
@@ -52,9 +53,26 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         WorkspaceStaffAccessPlan plan = CreateActivePlan(
             WorkspaceStaffOnboardingSource.EnrollmentLink,
             application.SourceId);
+        FakeOnboardingRepository applications = new(application);
+        FakeAccessPlanRepository plans = new(plan);
+        OrganizationEnrollmentLinkExpiredStaffOnboardingHandler linkHandler = new(
+            applications,
+            plans,
+            new FakeClock());
+        await linkHandler.HandleAsync(
+            new OrganizationEnrollmentLinkExpiredIntegrationEvent(
+                Guid.NewGuid(),
+                Now.AddMinutes(1),
+                ScopeId,
+                OrganizationId,
+                application.SourceId,
+                Now,
+                2),
+            CancellationToken.None);
+
         OrganizationEnrollmentClaimExpiredStaffOnboardingHandler handler = new(
-            new FakeOnboardingRepository(application),
-            new FakeAccessPlanRepository(plan),
+            applications,
+            plans,
             new FakeClock());
         OrganizationEnrollmentClaimExpiredIntegrationEvent integrationEvent = new(
             Guid.NewGuid(),
@@ -73,10 +91,42 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
 
         Assert.Equal(WorkspaceStaffOnboardingState.Expired, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Equal(Now, plan.SourceExpiredAtUtc);
         Assert.Equal(applicationVersion, application.Version);
         Assert.Equal(planVersion, plan.Version);
         Assert.Null(application.VerifiedAccountEmail);
         Assert.Null(application.DisplayName);
+    }
+
+    [Fact]
+    public async Task Claim_expiry_preserves_the_reusable_plan_while_its_link_is_active()
+    {
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        Guid claimId = Guid.NewGuid();
+        Assert.True(application.ObserveClaimRequested(claimId, 1, Now).IsSuccess);
+        WorkspaceStaffAccessPlan plan = CreateActivePlan(
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            application.SourceId);
+        OrganizationEnrollmentClaimExpiredStaffOnboardingHandler handler = new(
+            new FakeOnboardingRepository(application),
+            new FakeAccessPlanRepository(plan),
+            new FakeClock());
+
+        await handler.HandleAsync(
+            new OrganizationEnrollmentClaimExpiredIntegrationEvent(
+                Guid.NewGuid(),
+                Now.AddMinutes(1),
+                ScopeId,
+                OrganizationId,
+                application.SourceId,
+                claimId,
+                Now,
+                2),
+            CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Expired, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, plan.Status);
+        Assert.Null(plan.SourceExpiredAtUtc);
     }
 
     [Fact]
@@ -126,6 +176,7 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
 
         Assert.Equal(WorkspaceStaffOnboardingState.PendingApproval, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Active, plan.Status);
+        Assert.Equal(Now, plan.SourceExpiredAtUtc);
     }
 
     [Fact]
@@ -157,6 +208,7 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
 
         Assert.Equal(WorkspaceStaffOnboardingState.PendingApproval, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Active, plan.Status);
+        Assert.Equal(Now, plan.SourceExpiredAtUtc);
     }
 
     [Fact]
@@ -183,6 +235,7 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
             CancellationToken.None);
 
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Equal(Now, plan.SourceExpiredAtUtc);
     }
 
     private static WorkspaceStaffAccessPlan CreateActivePlan(

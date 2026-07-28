@@ -20,6 +20,7 @@ public sealed class WorkspaceStaffAccessPlan : ScopedAggregateRoot<Guid>
     public string ProfileKey { get; private set; } = string.Empty;
     public string CreatedBySubjectId { get; private set; } = string.Empty;
     public WorkspaceStaffAccessPlanState Status { get; private set; }
+    public DateTimeOffset? SourceExpiredAtUtc { get; private set; }
     public long Version { get; private set; } = 1;
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset LastChangedAtUtc { get; private set; }
@@ -111,12 +112,44 @@ public sealed class WorkspaceStaffAccessPlan : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
+    public Result ObserveSourceExpired(
+        DateTimeOffset sourceExpiredAtUtc,
+        DateTimeOffset nowUtc)
+    {
+        if (this.Status is WorkspaceStaffAccessPlanState.Superseded or
+            WorkspaceStaffAccessPlanState.Expired)
+        {
+            return Result.Success();
+        }
+
+        if (sourceExpiredAtUtc == default)
+        {
+            return Result.Failure(WorkspaceStaffAccessPlanErrors.Invalid);
+        }
+
+        if (this.SourceExpiredAtUtc.HasValue)
+        {
+            return this.SourceExpiredAtUtc.Value == sourceExpiredAtUtc
+                ? Result.Success()
+                : Result.Failure(WorkspaceStaffAccessPlanErrors.StateConflict);
+        }
+
+        this.SourceExpiredAtUtc = sourceExpiredAtUtc;
+        this.Advance(nowUtc);
+        return Result.Success();
+    }
+
     public Result Expire(DateTimeOffset nowUtc)
     {
         if (this.Status is WorkspaceStaffAccessPlanState.Expired or
             WorkspaceStaffAccessPlanState.Superseded)
         {
             return Result.Success();
+        }
+
+        if (!this.SourceExpiredAtUtc.HasValue)
+        {
+            return Result.Failure(WorkspaceStaffAccessPlanErrors.StateConflict);
         }
 
         this.Status = WorkspaceStaffAccessPlanState.Expired;
