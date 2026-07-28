@@ -96,16 +96,17 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         {
             TextWriter originalOut = Console.Out;
             TextWriter originalError = Console.Error;
-            using StringWriter output = new();
-            using StringWriter error = new();
+            using ConcurrentTextWriter output = new();
+            using ConcurrentTextWriter error = new();
 
             Console.SetOut(output);
             Console.SetError(error);
 
+            int exitCode;
             try
             {
                 ParseResult parseResult = this.rootCommand.Parse(args);
-                int exitCode = await parseResult
+                exitCode = await parseResult
                     .InvokeAsync(
                         new InvocationConfiguration
                         {
@@ -113,17 +114,17 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
                         },
                         CancellationToken.None)
                     .ConfigureAwait(false);
-
-                return new AdminCliResult(
-                    exitCode,
-                    output.ToString(),
-                    error.ToString());
             }
             finally
             {
                 Console.SetOut(originalOut);
                 Console.SetError(originalError);
             }
+
+            return new AdminCliResult(
+                exitCode,
+                output.Snapshot(),
+                error.Snapshot());
         }
         finally
         {

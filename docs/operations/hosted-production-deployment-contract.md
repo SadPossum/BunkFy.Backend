@@ -154,6 +154,11 @@ includes client addresses or provider details.
 
 ## Rollout And Rollback
 
+The root `Product Image Evidence` workflow can produce candidate-only backend
+and web digests, SBOMs, scans, and build metadata. It does not publish an image,
+configure a registry, deploy an environment, or satisfy the private evidence
+listed below.
+
 1. Build once and record the source commit, immutable image digest, SBOM, and
    successful repository gates.
 2. Provision the bucket, key ring, secrets, trusted proxy entries, private

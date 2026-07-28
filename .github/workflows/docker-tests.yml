@@ -1,29 +1,6 @@
 name: Docker Tests
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/docker-tests.yml'
-      - 'docker-compose.yml'
-      - 'eng/test-docker.ps1'
-      - 'tests/Integration.Tests/**'
-      - 'src/**'
-      - 'gma/framework'
-      - 'gma/extensions/**'
-      - 'gma/modules/**'
-  push:
-    branches:
-      - dev
-      - main
-    paths:
-      - '.github/workflows/docker-tests.yml'
-      - 'docker-compose.yml'
-      - 'eng/test-docker.ps1'
-      - 'tests/Integration.Tests/**'
-      - 'src/**'
-      - 'gma/framework'
-      - 'gma/extensions/**'
-      - 'gma/modules/**'
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
