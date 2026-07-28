@@ -4,10 +4,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BunkFy.Host.AdminApi;
-using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Persistence.EntityFrameworkCore;
-using Gma.Framework.Results;
 using Gma.Framework.Security;
 using Gma.Modules.AccessControl.Application.Commands;
 using Gma.Modules.AccessControl.Persistence;
@@ -186,20 +184,6 @@ internal sealed class AdminApiTestApplication(
         }
     }
 
-    public async Task<Result<Unit>> UnassignGlobalAdminOwnerAsync(Guid actorId, string roleName)
-    {
-        using IServiceScope scope = this.Services.CreateScope();
-        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
-
-        return await dispatcher.SendAsync(
-            new UnassignRoleCommand(
-                AccessSubjectKind.AdminActor,
-                actorId.ToString(),
-                roleName,
-                AccessScope.Global),
-            CancellationToken.None).ConfigureAwait(false);
-    }
-
     public async Task<int> CountAuditEntriesAsync(string operation, string? errorCode = null)
     {
         IConfiguration configuration = this.CreatePersistenceConfiguration();
@@ -252,12 +236,15 @@ internal sealed class AdminApiTestApplication(
     {
         using IServiceScope scope = this.Services.CreateScope();
         ITokenService tokenService = scope.ServiceProvider.GetRequiredService<ITokenService>();
+        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
 
         return tokenService.GenerateAccessToken(new AccessTokenClaims(
             new MemberId(actorId),
             scopeId,
             new MemberSessionId(Guid.NewGuid()),
-            SessionAuthenticationEvidence.Password(DateTimeOffset.UtcNow)));
+            SessionAuthenticationEvidence.CompleteWithTotp(
+                SessionAuthenticationEvidence.Password(nowUtc),
+                nowUtc)));
     }
 
     public static string CreateAccessTokenWithoutTenantClaim(Guid actorId)
@@ -272,38 +259,38 @@ internal sealed class AdminApiTestApplication(
 
     public static string CreateAccessTokenWithActorClaim(string actorId, string? scopeId)
     {
-        SymmetricSecurityKey securityKey = new(Encoding.UTF8.GetBytes(JwtSigningKey));
-        SigningCredentials signingCredentials = new(securityKey, SecurityAlgorithms.HmacSha256);
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        List<Claim> claims =
-        [
-            new(ClaimTypes.NameIdentifier, actorId)
-        ];
-
-        if (scopeId is not null)
-        {
-            claims.Add(new Claim(GmaClaimNames.ScopeId, scopeId));
-        }
-
-        JwtSecurityToken token = new(
-            issuer: JwtIssuer,
-            audience: JwtAudience,
-            claims: claims,
-            notBefore: nowUtc.UtcDateTime,
-            expires: nowUtc.AddMinutes(15).UtcDateTime,
-            signingCredentials: signingCredentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return CreateJwt(actorId, scopeId);
     }
 
     private static string CreateJwt(Guid actorId, string? scopeId)
+    {
+        return CreateJwt(actorId.ToString(), scopeId);
+    }
+
+    private static string CreateJwt(string actorId, string? scopeId)
     {
         SymmetricSecurityKey securityKey = new(Encoding.UTF8.GetBytes(JwtSigningKey));
         SigningCredentials signingCredentials = new(securityKey, SecurityAlgorithms.HmacSha256);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         List<Claim> claims =
         [
-            new(ClaimTypes.NameIdentifier, actorId.ToString())
+            new(ClaimTypes.NameIdentifier, actorId),
+            new(
+                ApplicationClaimNames.AuthenticationContextReference,
+                AuthenticationContextReferences.MultiFactor),
+            new(
+                ApplicationClaimNames.AuthenticationTime,
+                nowUtc.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ClaimValueTypes.Integer64),
+            new(
+                ApplicationClaimNames.AuthenticationMethodReference,
+                AuthenticationMethodReferences.Password),
+            new(
+                ApplicationClaimNames.AuthenticationMethodReference,
+                AuthenticationMethodReferences.OneTimePassword),
+            new(
+                ApplicationClaimNames.AuthenticationMethodReference,
+                AuthenticationMethodReferences.MultiFactor)
         ];
 
         if (scopeId is not null)

@@ -6,10 +6,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
-using Gma.Framework.Cqrs;
 using Gma.Framework.Naming;
 using Gma.Framework.Pagination;
-using Gma.Framework.Results;
 using Gma.Modules.AccessControl.Admin.Contracts;
 using Gma.Modules.AccessControl.Application;
 using Gma.Modules.Administration.Admin.Contracts;
@@ -100,7 +98,7 @@ public sealed class AdminApiIntegrationTests
         Assert.Equal(HttpStatusCode.NotFound, bootstrapResponse.StatusCode);
 
         Guid ownerId = Guid.NewGuid();
-        Guid supportId = Guid.NewGuid();
+        Guid rejectedSupportId = Guid.NewGuid();
         await application.SeedOwnerAsync(ownerId).ConfigureAwait(false);
 
         using HttpClient ownerClient = application.CreateClient();
@@ -167,26 +165,35 @@ public sealed class AdminApiIntegrationTests
         await GrantAsync(ownerClient, AuthAdminPermissionCodes.MembersResetPassword);
         await GrantAsync(ownerClient, AuthAdminPermissionCodes.MembersRevokeSessions);
         await GrantAsync(ownerClient, AdministrationAdminPermissions.AuditRead.Code);
-        await AssertSuccess(ownerClient.PostAsJsonAsync(
+        using HttpResponseMessage globalSupportAssignment = await ownerClient.PostAsJsonAsync(
             "/api/admin/roles/support/assignments",
-            new { actorId = supportId.ToString(), scope = "global" }));
+            new { actorId = rejectedSupportId.ToString(), scope = "global" }).ConfigureAwait(false);
+        string globalSupportAssignmentBody = await globalSupportAssignment.Content
+            .ReadAsStringAsync()
+            .ConfigureAwait(false);
+        Assert.Equal(HttpStatusCode.Forbidden, globalSupportAssignment.StatusCode);
+        Assert.Contains(
+            AccessControlApplicationErrors.AssignmentRejected.Code,
+            globalSupportAssignmentBody,
+            StringComparison.Ordinal);
 
         Guid tenantAuditReaderId = Guid.NewGuid();
         await AssertSuccess(ownerClient.PostAsJsonAsync("/api/admin/roles", new { name = "tenant-audit-reader" }));
         await AssertSuccess(ownerClient.PostAsJsonAsync(
             "/api/admin/roles/tenant-audit-reader/permissions",
             new { permission = AdministrationAdminPermissions.AuditRead.Code }));
-        await AssertSuccess(ownerClient.PostAsJsonAsync(
+        using HttpResponseMessage standingTenantAuditAssignment = await ownerClient.PostAsJsonAsync(
             "/api/admin/roles/tenant-audit-reader/assignments",
-            new { actorId = tenantAuditReaderId.ToString(), scope = "tenant:tenant-admin" }));
-        using HttpClient tenantAuditReader = application.CreateClient();
-        tenantAuditReader.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-            "Bearer",
-            application.CreateAccessToken(tenantAuditReaderId, "tenant-admin"));
-        using HttpResponseMessage tenantScopedAuditDenied = await tenantAuditReader
-            .GetAsync("/api/admin/audit?tenant=tenant-admin")
+            new { actorId = tenantAuditReaderId.ToString(), scope = "tenant:tenant-admin" })
             .ConfigureAwait(false);
-        Assert.Equal(HttpStatusCode.Forbidden, tenantScopedAuditDenied.StatusCode);
+        string standingTenantAuditAssignmentBody = await standingTenantAuditAssignment.Content
+            .ReadAsStringAsync()
+            .ConfigureAwait(false);
+        Assert.Equal(HttpStatusCode.Forbidden, standingTenantAuditAssignment.StatusCode);
+        Assert.Contains(
+            AccessControlApplicationErrors.AssignmentRejected.Code,
+            standingTenantAuditAssignmentBody,
+            StringComparison.Ordinal);
 
         Guid productUserId = Guid.NewGuid();
         await AssertSuccess(ownerClient.PostAsJsonAsync("/api/admin/roles", new { name = "property-reader" }));
@@ -271,56 +278,56 @@ public sealed class AdminApiIntegrationTests
         Assert.Equal(HttpStatusCode.Forbidden, malformedUnauthorized.StatusCode);
         Assert.DoesNotContain("PasswordSourceConflict", malformedUnauthorizedBody, StringComparison.Ordinal);
 
-        using HttpClient supportOtherTenantClient = application.CreateClient();
-        supportOtherTenantClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+        using HttpClient ownerOtherTenantClient = application.CreateClient();
+        ownerOtherTenantClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            application.CreateAccessToken(supportId, "tenant-admin"));
-        supportOtherTenantClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-other");
+            application.CreateAccessToken(ownerId, "tenant-admin"));
+        ownerOtherTenantClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-other");
         using HttpResponseMessage crossTenantAllowed = await AssertSuccess(
-            supportOtherTenantClient.GetAsync("/api/admin/auth/members")).ConfigureAwait(false);
+            ownerOtherTenantClient.GetAsync("/api/admin/auth/members")).ConfigureAwait(false);
         JsonElement crossTenantJson = await ReadJsonAsync(crossTenantAllowed).ConfigureAwait(false);
         Assert.Equal(PageRequest.DefaultPage, crossTenantJson.GetProperty("page").GetInt32());
 
         using HttpClient invalidTenantClaimClient = application.CreateClient();
         invalidTenantClaimClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            AdminApiTestApplication.CreateAccessTokenWithTenantClaim(supportId, new string('x', ScopeIds.MaxLength + 1)));
+            AdminApiTestApplication.CreateAccessTokenWithTenantClaim(ownerId, new string('x', ScopeIds.MaxLength + 1)));
         invalidTenantClaimClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-admin");
         using HttpResponseMessage invalidTenantClaimAllowed = await AssertSuccess(
             invalidTenantClaimClient.GetAsync("/api/admin/auth/members")).ConfigureAwait(false);
         JsonElement invalidTenantClaimJson = await ReadJsonAsync(invalidTenantClaimAllowed).ConfigureAwait(false);
         Assert.Equal(PageRequest.DefaultPage, invalidTenantClaimJson.GetProperty("page").GetInt32());
 
-        using HttpClient supportClient = application.CreateClient();
-        supportClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+        using HttpClient scopedOwnerClient = application.CreateClient();
+        scopedOwnerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            application.CreateAccessToken(supportId, "tenant-admin"));
-        supportClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-admin");
+            application.CreateAccessToken(ownerId, "tenant-admin"));
+        scopedOwnerClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-admin");
 
-        using HttpClient supportWithoutTenantClaimClient = application.CreateClient();
-        supportWithoutTenantClaimClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+        using HttpClient ownerWithoutTenantClaimClient = application.CreateClient();
+        ownerWithoutTenantClaimClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            AdminApiTestApplication.CreateAccessTokenWithoutTenantClaim(supportId));
-        supportWithoutTenantClaimClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-admin");
+            AdminApiTestApplication.CreateAccessTokenWithoutTenantClaim(ownerId));
+        ownerWithoutTenantClaimClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-admin");
         using HttpResponseMessage missingTenantClaimAllowed = await AssertSuccess(
-            supportWithoutTenantClaimClient.GetAsync("/api/admin/auth/members")).ConfigureAwait(false);
+            ownerWithoutTenantClaimClient.GetAsync("/api/admin/auth/members")).ConfigureAwait(false);
         JsonElement missingTenantClaimJson = await ReadJsonAsync(missingTenantClaimAllowed).ConfigureAwait(false);
         Assert.Equal(PageRequest.DefaultPage, missingTenantClaimJson.GetProperty("page").GetInt32());
         Assert.Equal(PageRequest.DefaultPageSize, missingTenantClaimJson.GetProperty("pageSize").GetInt32());
 
         using HttpResponseMessage hugePagination = await AssertSuccess(
-            supportClient.GetAsync($"/api/admin/auth/members?page={int.MaxValue}&pageSize={int.MaxValue}")).ConfigureAwait(false);
+            scopedOwnerClient.GetAsync($"/api/admin/auth/members?page={int.MaxValue}&pageSize={int.MaxValue}")).ConfigureAwait(false);
         JsonElement hugePaginationJson = await ReadJsonAsync(hugePagination).ConfigureAwait(false);
         Assert.Equal(PageRequest.MaxPage, hugePaginationJson.GetProperty("page").GetInt32());
         Assert.Equal(PageRequest.MaxPageSize, hugePaginationJson.GetProperty("pageSize").GetInt32());
 
-        using HttpResponseMessage missingMember = await supportClient.GetAsync($"/api/admin/auth/members/{Guid.NewGuid()}").ConfigureAwait(false);
+        using HttpResponseMessage missingMember = await scopedOwnerClient.GetAsync($"/api/admin/auth/members/{Guid.NewGuid()}").ConfigureAwait(false);
         Assert.Equal(HttpStatusCode.NotFound, missingMember.StatusCode);
 
         int malformedPayloadAuditCountBefore = await application
             .CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate)
             .ConfigureAwait(false);
-        using HttpResponseMessage malformedUsernameType = await supportClient.PostAsJsonAsync(
+        using HttpResponseMessage malformedUsernameType = await scopedOwnerClient.PostAsJsonAsync(
             "/api/admin/auth/members",
             new
             {
@@ -339,7 +346,7 @@ public sealed class AdminApiIntegrationTests
         int generatedPasswordDisabledAuditCountBefore = await application
             .CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate, "Admin.GeneratedPasswordResponsesDisabled")
             .ConfigureAwait(false);
-        using HttpResponseMessage generatedPasswordDisabled = await supportClient.PostAsJsonAsync(
+        using HttpResponseMessage generatedPasswordDisabled = await scopedOwnerClient.PostAsJsonAsync(
             "/api/admin/auth/members",
             new
             {
@@ -352,14 +359,14 @@ public sealed class AdminApiIntegrationTests
             generatedPasswordDisabledAuditCountBefore + 1,
             await application.CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate, "Admin.GeneratedPasswordResponsesDisabled").ConfigureAwait(false));
 
-        using HttpClient supportWithoutTenantClient = application.CreateClient();
-        supportWithoutTenantClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+        using HttpClient ownerWithoutTenantClient = application.CreateClient();
+        ownerWithoutTenantClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            application.CreateAccessToken(supportId, "tenant-admin"));
+            application.CreateAccessToken(ownerId, "tenant-admin"));
         int generatedWithoutTenantAuditCountBefore = await application
             .CountAuditEntriesAsync(AuthAdminOperationNames.MembersCreate, "Admin.GeneratedPasswordResponsesDisabled")
             .ConfigureAwait(false);
-        using HttpResponseMessage missingTenant = await supportWithoutTenantClient.PostAsJsonAsync(
+        using HttpResponseMessage missingTenant = await ownerWithoutTenantClient.PostAsJsonAsync(
             "/api/admin/auth/members",
             new
             {
@@ -375,15 +382,15 @@ public sealed class AdminApiIntegrationTests
         using HttpRequestMessage multipleTenantRequest = new(HttpMethod.Get, "/api/admin/auth/members");
         multipleTenantRequest.Headers.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            application.CreateAccessToken(supportId, "tenant-admin"));
+            application.CreateAccessToken(ownerId, "tenant-admin"));
         multipleTenantRequest.Headers.Add("X-Tenant-Id", ["tenant-admin", "tenant-other"]);
         using HttpResponseMessage multipleTenant = await AssertSuccess(
-            supportClient.SendAsync(multipleTenantRequest)).ConfigureAwait(false);
+            scopedOwnerClient.SendAsync(multipleTenantRequest)).ConfigureAwait(false);
         JsonElement multipleTenantJson = await ReadJsonAsync(multipleTenant).ConfigureAwait(false);
         Assert.Equal(PageRequest.DefaultPage, multipleTenantJson.GetProperty("page").GetInt32());
 
         string manualPassword = $"Manual-password-{provider}-1!";
-        using HttpResponseMessage created = await AssertSuccess(supportClient.PostAsJsonAsync(
+        using HttpResponseMessage created = await AssertSuccess(scopedOwnerClient.PostAsJsonAsync(
             "/api/admin/auth/members",
             new
             {
@@ -396,7 +403,7 @@ public sealed class AdminApiIntegrationTests
         Guid memberId = createdJson.GetProperty("memberId").GetGuid();
         Assert.Equal(JsonValueKind.Null, createdJson.GetProperty("generatedPassword").ValueKind);
         Assert.Equal(0, await application.CountAuditEntriesContainingAsync(manualPassword).ConfigureAwait(false));
-        using HttpResponseMessage duplicateMember = await supportClient.PostAsJsonAsync(
+        using HttpResponseMessage duplicateMember = await scopedOwnerClient.PostAsJsonAsync(
             "/api/admin/auth/members",
             new
             {
@@ -409,14 +416,14 @@ public sealed class AdminApiIntegrationTests
         Assert.Equal(HttpStatusCode.Conflict, duplicateMember.StatusCode);
         Assert.Contains(AuthDomainErrors.UsernameAlreadyExists.Code, duplicateMemberBody, StringComparison.Ordinal);
 
-        using HttpResponseMessage listed = await AssertSuccess(supportClient.GetAsync("/api/admin/auth/members")).ConfigureAwait(false);
+        using HttpResponseMessage listed = await AssertSuccess(scopedOwnerClient.GetAsync("/api/admin/auth/members")).ConfigureAwait(false);
         JsonElement listJson = await ReadJsonAsync(listed).ConfigureAwait(false);
         Assert.True(listJson.GetProperty("totalCount").GetInt32() >= 1);
 
         int auditListCountBefore = await application
             .CountAuditEntriesAsync(AdministrationAdminOperationNames.AuditList)
             .ConfigureAwait(false);
-        using HttpResponseMessage auditPage = await AssertSuccess(supportClient.GetAsync(
+        using HttpResponseMessage auditPage = await AssertSuccess(scopedOwnerClient.GetAsync(
             $"/api/admin/audit?operation={AuthAdminOperationNames.MembersList}&limit=1"))
             .ConfigureAwait(false);
         JsonElement auditPageJson = await ReadJsonAsync(auditPage).ConfigureAwait(false);
@@ -428,31 +435,30 @@ public sealed class AdminApiIntegrationTests
             auditListCountBefore + 1,
             await application.CountAuditEntriesAsync(AdministrationAdminOperationNames.AuditList).ConfigureAwait(false));
 
-        using HttpResponseMessage tenantFilteredAuditPage = await AssertSuccess(supportClient.GetAsync(
+        using HttpResponseMessage tenantFilteredAuditPage = await AssertSuccess(scopedOwnerClient.GetAsync(
             $"/api/admin/audit?tenant=tenant-admin&operation={AuthAdminOperationNames.MembersList}&limit=1"))
             .ConfigureAwait(false);
         JsonElement tenantFilteredAuditPageJson = await ReadJsonAsync(tenantFilteredAuditPage).ConfigureAwait(false);
         Assert.Empty(tenantFilteredAuditPageJson.GetProperty("items").EnumerateArray());
 
-        using HttpResponseMessage invalidAuditCursor = await supportClient
+        using HttpResponseMessage invalidAuditCursor = await scopedOwnerClient
             .GetAsync("/api/admin/audit?cursor=bad!")
             .ConfigureAwait(false);
         Assert.Equal(HttpStatusCode.BadRequest, invalidAuditCursor.StatusCode);
 
-        using HttpResponseMessage purgeDenied = await supportClient.PostAsJsonAsync(
+        using HttpResponseMessage purgeDenied = await strangerClient.PostAsJsonAsync(
             "/api/admin/audit/purge",
             new { beforeUtc = DateTimeOffset.UtcNow.AddDays(-1), confirmed = true }).ConfigureAwait(false);
         Assert.Equal(HttpStatusCode.Forbidden, purgeDenied.StatusCode);
 
-        await GrantAsync(ownerClient, AdministrationAdminPermissions.AuditPurge.Code);
-        using HttpResponseMessage missingPurgeCutoff = await supportClient.PostAsJsonAsync(
+        using HttpResponseMessage missingPurgeCutoff = await scopedOwnerClient.PostAsJsonAsync(
             "/api/admin/audit/purge",
             new { confirmed = true }).ConfigureAwait(false);
         string missingPurgeCutoffBody = await missingPurgeCutoff.Content.ReadAsStringAsync().ConfigureAwait(false);
         Assert.Equal(HttpStatusCode.BadRequest, missingPurgeCutoff.StatusCode);
         Assert.Contains(AdministrationApplicationErrors.AuditPurgeCutoffInvalid.Code, missingPurgeCutoffBody, StringComparison.Ordinal);
 
-        using HttpResponseMessage purge = await AssertSuccess(supportClient.PostAsJsonAsync(
+        using HttpResponseMessage purge = await AssertSuccess(scopedOwnerClient.PostAsJsonAsync(
             "/api/admin/audit/purge",
             new { beforeUtc = DateTimeOffset.UtcNow.AddDays(-1), batchSize = 10, confirmed = true }))
             .ConfigureAwait(false);
@@ -462,7 +468,7 @@ public sealed class AdminApiIntegrationTests
         int confirmationAuditCountBefore = await application
             .CountAuditEntriesAsync(AuthAdminOperationNames.MembersDisable, AdminErrors.ConfirmationRequired.Code)
             .ConfigureAwait(false);
-        using HttpResponseMessage missingConfirmation = await supportClient.PostAsJsonAsync(
+        using HttpResponseMessage missingConfirmation = await scopedOwnerClient.PostAsJsonAsync(
             $"/api/admin/auth/members/{memberId}/disable",
             new { reason = "support request", confirmed = false }).ConfigureAwait(false);
         Assert.Equal(HttpStatusCode.BadRequest, missingConfirmation.StatusCode);
@@ -470,7 +476,7 @@ public sealed class AdminApiIntegrationTests
             confirmationAuditCountBefore + 1,
             await application.CountAuditEntriesAsync(AuthAdminOperationNames.MembersDisable, AdminErrors.ConfirmationRequired.Code).ConfigureAwait(false));
 
-        await AssertSuccess(supportClient.PostAsJsonAsync(
+        await AssertSuccess(scopedOwnerClient.PostAsJsonAsync(
             $"/api/admin/auth/members/{memberId}/disable",
             new { reason = "support request", confirmed = true }));
 
@@ -482,7 +488,7 @@ public sealed class AdminApiIntegrationTests
         using HttpClient generatedPasswordClient = generatedPasswordApplication.CreateClient();
         generatedPasswordClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            generatedPasswordApplication.CreateAccessToken(supportId, "tenant-admin"));
+            generatedPasswordApplication.CreateAccessToken(ownerId, "tenant-admin"));
         generatedPasswordClient.DefaultRequestHeaders.Add("X-Tenant-Id", "tenant-admin");
         using HttpResponseMessage generatedPasswordCreated = await AssertSuccess(generatedPasswordClient.PostAsJsonAsync(
             "/api/admin/auth/members",
@@ -496,28 +502,6 @@ public sealed class AdminApiIntegrationTests
         string? generatedPassword = generatedPasswordJson.GetProperty("generatedPassword").GetString();
         Assert.False(string.IsNullOrWhiteSpace(generatedPassword));
         Assert.Equal(0, await generatedPasswordApplication.CountAuditEntriesContainingAsync(generatedPassword).ConfigureAwait(false));
-
-        Guid backupOwnerId = Guid.NewGuid();
-        await AssertSuccess(ownerClient.PostAsJsonAsync("/api/admin/roles", new { name = "backup-owner" }));
-        await AssertSuccess(ownerClient.PostAsJsonAsync(
-            "/api/admin/roles/backup-owner/permissions",
-            new { permission = "*" }));
-        await AssertSuccess(ownerClient.PostAsJsonAsync(
-            "/api/admin/roles/backup-owner/assignments",
-            new
-            {
-                subjectKind = "admin-actor",
-                subjectId = backupOwnerId.ToString(),
-                scope = "global"
-            }));
-
-        Result<Unit>[] concurrentOwnerRemovals = await Task.WhenAll(
-            application.UnassignGlobalAdminOwnerAsync(ownerId, "owner"),
-            application.UnassignGlobalAdminOwnerAsync(backupOwnerId, "backup-owner"));
-
-        Assert.Single(concurrentOwnerRemovals, result => result.IsSuccess);
-        Result<Unit> protectedRemoval = Assert.Single(concurrentOwnerRemovals, result => result.IsFailure);
-        Assert.Equal(AccessControlApplicationErrors.LastOwnerProtected, protectedRemoval.Error);
     }
 
     private static Task<HttpResponseMessage> GrantAsync(HttpClient client, string permission) =>
