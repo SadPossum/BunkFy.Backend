@@ -5,6 +5,7 @@
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/docker-tests.yml" />
     <File Path=".github/workflows/release-source-set.yml" />
+    <File Path=".github/workflows/security.yml" />
     <File Path=".github/workflows/validate.yml" />
   </Folder>
   <Folder Name="/Solution Items/">
@@ -13,10 +14,13 @@
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
     <File Path=".gitmodules" />
+    <File Path=".gma/repository-security.json" />
+    <File Path=".gma/security-exceptions.json" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
     <File Path="Gma.SourceRoots.props.example" />
     <File Path="README.md" />
+    <File Path="SECURITY.md" />
     <File Path="global.json" />
     <File Path="nuget.config" />
   </Folder>
@@ -113,6 +117,7 @@
     <File Path="eng/add-migration.ps1" />
     <File Path="eng/build.ps1" />
     <File Path="eng/check-migrations.ps1" />
+    <File Path="eng/check-repository-security.ps1" />
     <File Path="eng/check-source-packages.ps1" />
     <File Path="eng/check-submodule-dev-heads.ps1" />
     <File Path="eng/common.ps1" />
