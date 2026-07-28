@@ -45,3 +45,10 @@ BunkFy is a staff/operator management system. Guest records may exist as PMS dat
 File management starts on MinIO rather than local disk. Local and development hosts should use the S3-compatible object-storage path from the beginning, with `Gma.Framework.FileManagement` staying as the app-facing storage contract.
 
 BunkFy-specific cross-module composition policies belong under `src/Extensions`. They may intentionally connect public contracts from multiple modules, but they do not own module data or move product policy into reusable GMA repositories.
+
+Security-relevant runtime paths use the GMA payload-free security-signal
+contract. Each owning module registers a finite set of static definitions and
+emits from an existing authoritative decision or durable receipt; shared
+ServiceDefaults supplies the logger/metric adapter. These signals are
+correlated telemetry, not domain truth, and never replace module audit ledgers,
+task state, or private incident-response operations.

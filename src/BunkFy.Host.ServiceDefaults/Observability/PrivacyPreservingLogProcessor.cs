@@ -71,6 +71,10 @@ internal sealed class PrivacyPreservingLogProcessor : BaseProcessor<LogRecord>
 
     private static bool IsSensitivePropertyName(string name) =>
         (!string.Equals(name, "TraceId", StringComparison.OrdinalIgnoreCase)
+         && !string.Equals(
+             name,
+             "IncidentCorrelationId",
+             StringComparison.OrdinalIgnoreCase)
          && name.EndsWith("Id", StringComparison.OrdinalIgnoreCase))
         || name.Contains("Tenant", StringComparison.OrdinalIgnoreCase)
         || name.Contains("Scope", StringComparison.OrdinalIgnoreCase)

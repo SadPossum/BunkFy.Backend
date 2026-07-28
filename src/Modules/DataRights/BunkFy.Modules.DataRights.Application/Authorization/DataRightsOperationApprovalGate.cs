@@ -5,12 +5,16 @@ using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
+using BunkFy.Modules.DataRights.Application.Security;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using Gma.Framework.Naming;
+using Gma.Framework.Observability;
 using SelectedSubject = Domain.Entities.DataRightsSubjectCoordinate;
 
-internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository cases)
+internal sealed class DataRightsOperationApprovalGate(
+    IDataRightsCaseRepository cases,
+    ISecuritySignalRecorder securitySignals)
     : IDataRightsOperationApprovalGate
 {
     public async Task<DataRightsOperationApprovalResult> EvaluateAsync(
@@ -21,7 +25,7 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
 
         if (!TryValidate(request, out string? tenantId, out string? ownerKey, out string? recordType))
         {
-            return DataRightsOperationApprovalResult.Denied(
+            return this.Denied(
                 DataRightsOperationApprovalDenial.InvalidRequest);
         }
 
@@ -32,7 +36,7 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
         if (dataRightsCase is null ||
             !string.Equals(dataRightsCase.ScopeId, tenantId, StringComparison.Ordinal))
         {
-            return DataRightsOperationApprovalResult.Denied(
+            return this.Denied(
                 DataRightsOperationApprovalDenial.CaseNotFound);
         }
 
@@ -40,20 +44,20 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
             dataRightsCase.Status is not DataRightsCaseState.Approved
                 and not DataRightsCaseState.Executing)
         {
-            return DataRightsOperationApprovalResult.Denied(
+            return this.Denied(
                 DataRightsOperationApprovalDenial.CaseNotApproved);
         }
 
         if (dataRightsCase.DecisionRevision != request.ApprovalRevision)
         {
-            return DataRightsOperationApprovalResult.Denied(
+            return this.Denied(
                 DataRightsOperationApprovalDenial.ApprovalRevisionMismatch);
         }
 
         if ((((DataRightsOperation)dataRightsCase.RequestedOperations) & request.Operation) !=
             request.Operation)
         {
-            return DataRightsOperationApprovalResult.Denied(
+            return this.Denied(
                 DataRightsOperationApprovalDenial.OperationNotApproved);
         }
 
@@ -61,7 +65,7 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
             (DataRightsRestrictionDirective)dataRightsCase.RestrictionAction !=
                 request.RestrictionDirective)
         {
-            return DataRightsOperationApprovalResult.Denied(
+            return this.Denied(
                 DataRightsOperationApprovalDenial.RestrictionDirectiveMismatch);
         }
 
@@ -70,21 +74,21 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
             DataRightsApprovalEvidence? approvalEvidence = dataRightsCase.ToApprovalEvidence();
             if (approvalEvidence is null)
             {
-                return DataRightsOperationApprovalResult.Denied(
+                return this.Denied(
                     DataRightsOperationApprovalDenial.ApprovalEvidenceMissing);
             }
 
             string executingActor = request.ExecutingActorId?.Trim() ?? string.Empty;
             if (executingActor.Length is 0 or > DataRightsCase.ActorIdMaxLength)
             {
-                return DataRightsOperationApprovalResult.Denied(
+                return this.Denied(
                     DataRightsOperationApprovalDenial.ExecutionActorRequired);
             }
 
             if (approvalEvidence.RequiresDistinctExecutor &&
                 string.Equals(executingActor, dataRightsCase.DecidedBy, StringComparison.Ordinal))
             {
-                return DataRightsOperationApprovalResult.Denied(
+                return this.Denied(
                     DataRightsOperationApprovalDenial.DecisionActorCannotExecute);
             }
         }
@@ -94,12 +98,23 @@ internal sealed class DataRightsOperationApprovalGate(IDataRightsCaseRepository 
             string.Equals(subject.RecordType, recordType, StringComparison.Ordinal) &&
             subject.RecordId == request.RecordId &&
             subject.RecordVersion == request.RecordVersion);
-        return subjectApproved
-            ? dataRightsCase.ToApprovalEvidence() is { } evidence
-                ? DataRightsOperationApprovalResult.ApprovedWithEvidence(evidence)
-                : DataRightsOperationApprovalResult.Approved
-            : DataRightsOperationApprovalResult.Denied(
+        if (!subjectApproved)
+        {
+            return this.Denied(
                 DataRightsOperationApprovalDenial.SubjectNotApproved);
+        }
+
+        return dataRightsCase.ToApprovalEvidence() is { } evidence
+            ? DataRightsOperationApprovalResult.ApprovedWithEvidence(evidence)
+            : DataRightsOperationApprovalResult.Approved;
+    }
+
+    private DataRightsOperationApprovalResult Denied(
+        DataRightsOperationApprovalDenial denial)
+    {
+        securitySignals.Record(
+            DataRightsApprovalSecuritySignalDefinitions.OperationApprovalDenied);
+        return DataRightsOperationApprovalResult.Denied(denial);
     }
 
     private static bool TryValidate(

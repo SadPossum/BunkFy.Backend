@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using BunkFy.Host.ServiceDefaults.Observability;
+using Gma.Framework.Observability;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -36,6 +37,10 @@ public sealed class ServiceDefaultsRegistrationTests
         Assert.Single(builder.Services, descriptor => descriptor.ServiceType == typeof(IConfigureOptions<ObservabilityOptions>));
         Assert.Single(builder.Services, HasService<IValidateOptions<ObservabilityOptions>, ObservabilityOptionsValidator>());
         Assert.Single(builder.Services, descriptor => descriptor.ServiceType.Name == "ServiceDefaultsRegistrationMarker");
+        ServiceDescriptor signalRecorder = Assert.Single(
+            builder.Services,
+            descriptor => descriptor.ServiceType == typeof(ISecuritySignalRecorder));
+        Assert.Equal("SecuritySignalRecorder", signalRecorder.ImplementationType?.Name);
     }
 
     [Theory]

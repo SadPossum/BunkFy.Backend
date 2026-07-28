@@ -8,6 +8,7 @@ using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
+using Gma.Framework.Observability;
 using Gma.Framework.Pagination;
 using Xunit;
 
@@ -23,7 +24,10 @@ public sealed class DataRightsOperationApprovalGateTests
         Guid propertyId = Guid.NewGuid();
         Guid recordId = Guid.NewGuid();
         DataRightsCase dataRightsCase = CreateApprovedCase(propertyId, recordId);
-        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        DataRightsOperationApprovalGate gate = new(
+            new StubCaseRepository(dataRightsCase),
+            securitySignals);
 
         DataRightsOperationApprovalResult result = await gate.EvaluateAsync(
             CreateRequest(dataRightsCase, propertyId, recordId),
@@ -31,6 +35,7 @@ public sealed class DataRightsOperationApprovalGateTests
 
         Assert.True(result.IsApproved);
         Assert.Equal(DataRightsOperationApprovalDenial.None, result.Denial);
+        Assert.Empty(securitySignals.Definitions);
     }
 
     [Fact]
@@ -43,7 +48,10 @@ public sealed class DataRightsOperationApprovalGateTests
             recordId,
             DataRightsCaseOperation.Restriction,
             DataRightsRestrictionAction.Apply);
-        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        DataRightsOperationApprovalGate gate = new(
+            new StubCaseRepository(dataRightsCase),
+            securitySignals);
         DataRightsOperationApprovalRequest applyRequest = CreateRequest(
             dataRightsCase,
             propertyId,
@@ -68,6 +76,12 @@ public sealed class DataRightsOperationApprovalGateTests
             DataRightsOperationApprovalDenial.RestrictionDirectiveMismatch,
             mismatched.Denial);
         Assert.Equal(DataRightsOperationApprovalDenial.InvalidRequest, unknown.Denial);
+        Assert.Equal(2, securitySignals.Definitions.Count);
+        Assert.All(
+            securitySignals.Definitions,
+            definition => Assert.Equal(
+                "data-rights.operation-approval-denied",
+                definition.Code));
     }
 
     [Theory]
@@ -85,7 +99,10 @@ public sealed class DataRightsOperationApprovalGateTests
         Guid propertyId = Guid.NewGuid();
         Guid recordId = Guid.NewGuid();
         DataRightsCase dataRightsCase = CreateApprovedCase(propertyId, recordId);
-        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        DataRightsOperationApprovalGate gate = new(
+            new StubCaseRepository(dataRightsCase),
+            securitySignals);
         DataRightsOperationApprovalRequest request = CreateRequest(
             dataRightsCase,
             propertyId,
@@ -103,6 +120,9 @@ public sealed class DataRightsOperationApprovalGateTests
 
         Assert.False(result.IsApproved);
         Assert.Equal(expectedDenial, result.Denial);
+        Assert.Equal(
+            "data-rights.operation-approval-denied",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
@@ -111,7 +131,10 @@ public sealed class DataRightsOperationApprovalGateTests
         Guid propertyId = Guid.NewGuid();
         Guid recordId = Guid.NewGuid();
         DataRightsCase dataRightsCase = CreateApprovedCase(propertyId, recordId);
-        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        DataRightsOperationApprovalGate gate = new(
+            new StubCaseRepository(dataRightsCase),
+            securitySignals);
         DataRightsOperationApprovalRequest request = CreateRequest(
             dataRightsCase,
             propertyId,
@@ -126,6 +149,9 @@ public sealed class DataRightsOperationApprovalGateTests
 
         Assert.False(result.IsApproved);
         Assert.Equal(DataRightsOperationApprovalDenial.InvalidRequest, result.Denial);
+        Assert.Equal(
+            "data-rights.operation-approval-denied",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
@@ -140,7 +166,10 @@ public sealed class DataRightsOperationApprovalGateTests
             5,
             "user:operator-b",
             Now.AddMinutes(5)).IsSuccess);
-        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        DataRightsOperationApprovalGate gate = new(
+            new StubCaseRepository(dataRightsCase),
+            securitySignals);
 
         DataRightsOperationApprovalResult result = await gate.EvaluateAsync(
             CreateRequest(dataRightsCase, propertyId, recordId),
@@ -148,6 +177,9 @@ public sealed class DataRightsOperationApprovalGateTests
 
         Assert.False(result.IsApproved);
         Assert.Equal(DataRightsOperationApprovalDenial.CaseNotApproved, result.Denial);
+        Assert.Equal(
+            "data-rights.operation-approval-denied",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
@@ -159,7 +191,10 @@ public sealed class DataRightsOperationApprovalGateTests
             propertyId,
             recordId,
             DataRightsCaseOperation.Anonymisation);
-        DataRightsOperationApprovalGate gate = new(new StubCaseRepository(dataRightsCase));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        DataRightsOperationApprovalGate gate = new(
+            new StubCaseRepository(dataRightsCase),
+            securitySignals);
         DataRightsOperationApprovalRequest request = CreateRequest(
             dataRightsCase,
             propertyId,
@@ -188,6 +223,7 @@ public sealed class DataRightsOperationApprovalGateTests
         Assert.Equal(
             DataRightsOperationApprovalDenial.ExecutionActorRequired,
             missingActor.Denial);
+        Assert.Equal(2, securitySignals.Definitions.Count);
     }
 
     private static DataRightsCase CreateApprovedCase(
@@ -297,5 +333,21 @@ public sealed class DataRightsOperationApprovalGateTests
             DataRightsCaseStatus? status,
             PageRequest pageRequest,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class RecordingSecuritySignalRecorder
+        : ISecuritySignalRecorder
+    {
+        public List<SecuritySignalDefinition> Definitions { get; } = [];
+
+        public SecuritySignalReceipt Record(
+            SecuritySignalDefinition definition,
+            Guid? correlationId = null)
+        {
+            this.Definitions.Add(definition);
+            return new(
+                correlationId?.ToString("N") ?? new string('0', 32),
+                true);
+        }
     }
 }

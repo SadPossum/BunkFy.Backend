@@ -1,6 +1,6 @@
 # Hosted Production Foundation Task
 
-Status: implementation complete; local gates passed
+Status: dependency candidates published; local and exact-commit gates passed
 Date: 2026-07-28
 
 ## Goal
@@ -234,6 +234,11 @@ Gaps confirmed by the audit:
   `eng/verify-operations.ps1` accepted the preview Compose contract. The
   unrelated user-edited root workspace solution was preserved rather than
   regenerated.
+- Exact-candidate GitHub Actions passed for GMA Framework `730e62a`, GMA
+  Skeleton `5a9e8f1` (validation, security baseline, and CodeQL), BunkFy
+  Backend `5118f5a` (validation and Docker), and BunkFy Web `6ad7a32`.
+  Product-root publication remains separate because its user-edited workspace
+  solution was intentionally not staged or regenerated.
 
 ## Deferred
 

@@ -4,12 +4,15 @@ using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Persistence.Security;
+using Gma.Framework.Observability;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Results;
 
 internal sealed class DataRightsExportAuditSink(
     DataRightsDbContext dbContext,
-    IIdGenerator ids) : IDataRightsExportAuditSink
+    IIdGenerator ids,
+    ISecuritySignalRecorder securitySignals) : IDataRightsExportAuditSink
 {
     public async Task RecordAsync(
         DataRightsExportAuditFact fact,
@@ -36,5 +39,14 @@ internal sealed class DataRightsExportAuditSink(
         dbContext.ExportAuditEntries.Add(created.Value);
         await dbContext.SaveChangesAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        SecuritySignalDefinition? signal =
+            DataRightsExportSecuritySignalDefinitions.ForAudit(
+                fact.Action,
+                fact.OutcomeCode);
+        if (signal is not null)
+        {
+            securitySignals.Record(signal);
+        }
     }
 }

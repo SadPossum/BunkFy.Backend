@@ -1,9 +1,11 @@
 namespace BunkFy.Modules.Retention.Application.Tasks;
 
 using BunkFy.Modules.Retention.Application.Commands;
+using BunkFy.Modules.Retention.Application.Security;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Retention.Domain.Models;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Observability;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Tasks;
@@ -12,7 +14,8 @@ using Gma.Framework.Tasks.Cqrs;
 internal sealed class ExecuteRetentionScheduleTaskHandler(
     ITaskCommandDispatcher commandDispatcher,
     IEnumerable<IRetentionExecutionContributor> contributors,
-    ISystemClock clock)
+    ISystemClock clock,
+    ISecuritySignalRecorder securitySignals)
     : ITaskHandler<ExecuteRetentionSchedulePayload>
 {
     public async Task HandleAsync(
@@ -104,6 +107,19 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
         if (ownerFailure is not null ||
             result.Status == RetentionContributionStatus.Failed)
         {
+            SecuritySignalDefinition signal =
+                ownerFailure is TimeoutException ||
+                string.Equals(
+                    result.OutcomeCode,
+                    "retention.owner-timeout",
+                    StringComparison.Ordinal)
+                    ? RetentionSecuritySignalDefinitions
+                        .ScheduledExecutionTimedOut
+                    : RetentionSecuritySignalDefinitions
+                        .ScheduledExecutionFailed;
+            securitySignals.Record(
+                signal,
+                context.CorrelationId ?? context.RunId);
             throw ownerFailure ??
                 new InvalidOperationException("Retention.OwnerReportedFailure");
         }

@@ -52,6 +52,38 @@ public sealed class PrivacyPreservingLogProcessorTests
         Assert.DoesNotContain(exceptionCanary, captured.Body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Exported_log_keeps_only_the_opaque_incident_correlation_identifier()
+    {
+        CapturingLogExporter exporter = new();
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(logging =>
+            logging.AddOpenTelemetry(options =>
+            {
+                options.ParseStateValues = true;
+                options.AddProcessor(new PrivacyPreservingLogProcessor());
+                options.AddProcessor(new SimpleLogRecordExportProcessor(exporter));
+            }));
+        ILogger logger = loggerFactory.CreateLogger("BunkFy.Tests.Security");
+
+        logger.LogWarning(
+            "Security signal {SecuritySignalCode}; incident {IncidentCorrelationId}; " +
+            "tenant {TenantId}; generic correlation {CorrelationId}.",
+            "retention.scheduled-execution-failed",
+            "0123456789abcdef0123456789abcdef",
+            "tenant-private",
+            "correlation-private");
+
+        CapturedLogRecord captured = Assert.Single(exporter.Records);
+        Assert.Contains(captured.Attributes, attribute =>
+            attribute.Key == "IncidentCorrelationId" &&
+            Equals(
+                attribute.Value,
+                "0123456789abcdef0123456789abcdef"));
+        Assert.DoesNotContain(
+            captured.Attributes,
+            attribute => attribute.Key is "TenantId" or "CorrelationId");
+    }
+
     private sealed class CapturingLogExporter : BaseExporter<LogRecord>
     {
         public List<CapturedLogRecord> Records { get; } = [];

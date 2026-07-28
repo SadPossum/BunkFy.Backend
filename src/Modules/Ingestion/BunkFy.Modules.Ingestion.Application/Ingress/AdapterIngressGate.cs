@@ -3,6 +3,8 @@ namespace BunkFy.Modules.Ingestion.Application.Ingress;
 using System.Security.Cryptography;
 using System.Text;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Security;
+using Gma.Framework.Observability;
 using Gma.Framework.RateLimiting;
 using Gma.Framework.Scoping;
 using Microsoft.Extensions.Options;
@@ -11,11 +13,13 @@ internal sealed class AdapterIngressGate(
     IAdapterIngressControlRepository controls,
     IMultiPartitionRateLimiter rateLimiter,
     IOptions<AdapterIngressQuotaOptions> options,
-    IScopeContext scopeContext)
+    IScopeContext scopeContext,
+    ISecuritySignalRecorder securitySignals)
     : IAdapterIngressGate
 {
     private static readonly TimeSpan Minute = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan Hour = TimeSpan.FromHours(1);
+    private readonly ISecuritySignalRecorder securitySignals = securitySignals;
 
     public async ValueTask<AdapterIngressGateDecision> AdmitAsync(
         AdapterIngressIdentity identity,
@@ -28,7 +32,7 @@ internal sealed class AdapterIngressGate(
             string.IsNullOrWhiteSpace(scopeContext.ScopeId) ||
             !string.Equals(scopeContext.ScopeId.Trim(), identity.ScopeId, StringComparison.Ordinal))
         {
-            return Record(
+            return this.Record(
                 operation,
                 AdapterIngressGateDecision.PolicyRejected(AdapterIngressPolicyRejection.ScopeMismatch));
         }
@@ -37,26 +41,30 @@ internal sealed class AdapterIngressGate(
             .ConfigureAwait(false);
         if (snapshot is null)
         {
-            return Record(operation, AdapterIngressGateDecision.ProviderUnavailable());
+            return this.Record(
+                operation,
+                AdapterIngressGateDecision.ProviderUnavailable());
         }
 
         if (snapshot.IsGlobalStopped)
         {
-            return Record(
+            return this.Record(
                 operation,
                 AdapterIngressGateDecision.PolicyRejected(AdapterIngressPolicyRejection.GlobalStopped));
         }
 
         if (snapshot.IsTenantSuspended)
         {
-            return Record(
+            return this.Record(
                 operation,
                 AdapterIngressGateDecision.PolicyRejected(AdapterIngressPolicyRejection.TenantSuspended));
         }
 
         if (!consumeQuota)
         {
-            return Record(operation, AdapterIngressGateDecision.Allowed());
+            return this.Record(
+                operation,
+                AdapterIngressGateDecision.Allowed());
         }
 
         AdapterIngressQuotaOptions quota = options.Value;
@@ -76,18 +84,30 @@ internal sealed class AdapterIngressGate(
         return decision.Outcome switch
         {
             MultiPartitionRateLimitOutcome.Acquired =>
-                Record(operation, AdapterIngressGateDecision.Allowed()),
+                this.Record(operation, AdapterIngressGateDecision.Allowed()),
             MultiPartitionRateLimitOutcome.Rejected when decision.RetryAfter.HasValue =>
-                Record(operation, AdapterIngressGateDecision.QuotaRejected(decision.RetryAfter.Value)),
-            _ => Record(operation, AdapterIngressGateDecision.ProviderUnavailable())
+                this.Record(
+                    operation,
+                    AdapterIngressGateDecision.QuotaRejected(
+                        decision.RetryAfter.Value)),
+            _ => this.Record(
+                operation,
+                AdapterIngressGateDecision.ProviderUnavailable())
         };
     }
 
-    private static AdapterIngressGateDecision Record(
+    private AdapterIngressGateDecision Record(
         AdapterIngressOperation operation,
         AdapterIngressGateDecision decision)
     {
         AdapterIngressMetrics.Record(operation, decision.Outcome);
+        SecuritySignalDefinition? signal =
+            IngestionSecuritySignalDefinitions.ForDecision(decision);
+        if (signal is not null)
+        {
+            this.securitySignals.Record(signal);
+        }
+
         return decision;
     }
 

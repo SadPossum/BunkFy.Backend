@@ -21,9 +21,11 @@ using BunkFy.Modules.Ingestion.Application.Parsing;
 using BunkFy.Modules.Ingestion.Application.DataRights;
 using BunkFy.Modules.Ingestion.Application.Contributors;
 using BunkFy.Modules.Ingestion.Application.Ingress;
+using BunkFy.Modules.Ingestion.Application.Security;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using Gma.Framework.RateLimiting;
+using Gma.Framework.Observability;
 
 public static class DependencyInjection
 {
@@ -31,6 +33,11 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddSecuritySignalCore();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ISecuritySignalDefinitionSource,
+                IngestionSecuritySignalDefinitions>());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(IngestionModuleMetadata.Descriptor);
         services.TryAddScoped<IIngestionCountryPolicyAdmission, IngestionCountryPolicyAdmission>();

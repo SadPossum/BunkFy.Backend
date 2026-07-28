@@ -15,5 +15,6 @@
     <ProjectReference Include="..\..\src\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api.Production\Gma.Framework.Api.Production.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)FileManagement\Gma.Framework.FileManagement.Minio\Gma.Framework.FileManagement.Minio.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Observability\Gma.Framework.Observability\Gma.Framework.Observability.csproj" />
   </ItemGroup>
 </Project>

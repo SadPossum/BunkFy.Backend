@@ -4,6 +4,7 @@ using BunkFy.Adapter.Abstractions;
 using BunkFy.Modules.Ingestion.Application.Ingress;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.Controls;
+using Gma.Framework.Observability;
 using Gma.Framework.RateLimiting;
 using Gma.Framework.Scoping;
 using Microsoft.Extensions.Options;
@@ -27,9 +28,13 @@ public sealed class AdapterIngressGateTests
     public async Task Tenant_suspension_denies_without_consuming_quota()
     {
         RecordingLimiter limiter = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
         AdapterIngressGate gate = CreateGate(
             limiter,
-            new AdapterIngressControlSnapshot(IsTenantSuspended: true, IsGlobalStopped: false));
+            new AdapterIngressControlSnapshot(
+                IsTenantSuspended: true,
+                IsGlobalStopped: false),
+            securitySignals);
 
         AdapterIngressGateDecision decision = await gate.AdmitAsync(
             Identity,
@@ -41,15 +46,22 @@ public sealed class AdapterIngressGateTests
         Assert.Equal(AdapterIngressGateOutcome.PolicyRejected, decision.Outcome);
         Assert.Equal(AdapterIngressPolicyRejection.TenantSuspended, decision.PolicyRejection);
         Assert.Empty(limiter.Requests);
+        Assert.Equal(
+            "ingestion.adapter-tenant-suspension-enforced",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
     public async Task Global_stop_takes_precedence_over_tenant_state()
     {
         RecordingLimiter limiter = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
         AdapterIngressGate gate = CreateGate(
             limiter,
-            new AdapterIngressControlSnapshot(IsTenantSuspended: true, IsGlobalStopped: true));
+            new AdapterIngressControlSnapshot(
+                IsTenantSuspended: true,
+                IsGlobalStopped: true),
+            securitySignals);
 
         AdapterIngressGateDecision decision = await gate.AdmitAsync(
             Identity,
@@ -61,13 +73,20 @@ public sealed class AdapterIngressGateTests
         Assert.Equal(AdapterIngressGateOutcome.PolicyRejected, decision.Outcome);
         Assert.Equal(AdapterIngressPolicyRejection.GlobalStopped, decision.PolicyRejection);
         Assert.Empty(limiter.Requests);
+        Assert.Equal(
+            "ingestion.adapter-global-stop-enforced",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
     public async Task Unavailable_control_store_denies_without_touching_the_limiter()
     {
         RecordingLimiter limiter = new();
-        AdapterIngressGate gate = CreateGate(limiter, snapshot: null);
+        RecordingSecuritySignalRecorder securitySignals = new();
+        AdapterIngressGate gate = CreateGate(
+            limiter,
+            snapshot: null,
+            securitySignals);
 
         AdapterIngressGateDecision decision = await gate.AdmitAsync(
             Identity,
@@ -78,6 +97,9 @@ public sealed class AdapterIngressGateTests
 
         Assert.Equal(AdapterIngressGateOutcome.ProviderUnavailable, decision.Outcome);
         Assert.Empty(limiter.Requests);
+        Assert.Equal(
+            "ingestion.adapter-admission-provider-unavailable",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
@@ -85,10 +107,12 @@ public sealed class AdapterIngressGateTests
     {
         RecordingLimiter limiter = new();
         TestControlRepository controls = new(new AdapterIngressControlSnapshot(false, false));
+        RecordingSecuritySignalRecorder securitySignals = new();
         AdapterIngressGate gate = CreateGate(
             limiter,
             controls,
-            new TestScopeContext("tenant-b"));
+            new TestScopeContext("tenant-b"),
+            securitySignals);
 
         AdapterIngressGateDecision decision = await gate.AdmitAsync(
             Identity,
@@ -101,15 +125,20 @@ public sealed class AdapterIngressGateTests
         Assert.Equal(AdapterIngressPolicyRejection.ScopeMismatch, decision.PolicyRejection);
         Assert.Equal(0, controls.AdmissionReadCount);
         Assert.Empty(limiter.Requests);
+        Assert.Equal(
+            "ingestion.adapter-scope-rejected",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
     public async Task Provider_unavailability_is_returned_fail_closed()
     {
         RecordingLimiter limiter = new(MultiPartitionRateLimitDecision.ProviderUnavailable());
+        RecordingSecuritySignalRecorder securitySignals = new();
         AdapterIngressGate gate = CreateGate(
             limiter,
-            new AdapterIngressControlSnapshot(false, false));
+            new AdapterIngressControlSnapshot(false, false),
+            securitySignals);
 
         AdapterIngressGateDecision decision = await gate.AdmitAsync(
             Identity,
@@ -120,15 +149,44 @@ public sealed class AdapterIngressGateTests
 
         Assert.Equal(AdapterIngressGateOutcome.ProviderUnavailable, decision.Outcome);
         Assert.Single(limiter.Requests);
+        Assert.Equal(
+            "ingestion.adapter-admission-provider-unavailable",
+            Assert.Single(securitySignals.Definitions).Code);
+    }
+
+    [Fact]
+    public async Task Quota_rejection_emits_one_bounded_signal()
+    {
+        RecordingLimiter limiter = new(
+            MultiPartitionRateLimitDecision.Rejected(TimeSpan.FromSeconds(10)));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        AdapterIngressGate gate = CreateGate(
+            limiter,
+            new AdapterIngressControlSnapshot(false, false),
+            securitySignals);
+
+        AdapterIngressGateDecision decision = await gate.AdmitAsync(
+            Identity,
+            AdapterIngressOperation.Observation,
+            permitCount: 1,
+            consumeQuota: true,
+            CancellationToken.None);
+
+        Assert.Equal(AdapterIngressGateOutcome.QuotaRejected, decision.Outcome);
+        Assert.Equal(
+            "ingestion.adapter-quota-rejected",
+            Assert.Single(securitySignals.Definitions).Code);
     }
 
     [Fact]
     public async Task Quota_request_combines_credential_and_tenant_partitions_without_raw_ids()
     {
         RecordingLimiter limiter = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
         AdapterIngressGate gate = CreateGate(
             limiter,
-            new AdapterIngressControlSnapshot(false, false));
+            new AdapterIngressControlSnapshot(false, false),
+            securitySignals);
 
         AdapterIngressGateDecision decision = await gate.AdmitAsync(
             Identity,
@@ -156,15 +214,18 @@ public sealed class AdapterIngressGateTests
                     partition.Identity,
                     StringComparison.Ordinal);
             });
+        Assert.Empty(securitySignals.Definitions);
     }
 
     [Fact]
     public async Task Replay_check_is_allowed_without_consuming_quota()
     {
         RecordingLimiter limiter = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
         AdapterIngressGate gate = CreateGate(
             limiter,
-            new AdapterIngressControlSnapshot(false, false));
+            new AdapterIngressControlSnapshot(false, false),
+            securitySignals);
 
         AdapterIngressGateDecision decision = await gate.AdmitAsync(
             Identity,
@@ -175,25 +236,30 @@ public sealed class AdapterIngressGateTests
 
         Assert.Equal(AdapterIngressGateOutcome.Allowed, decision.Outcome);
         Assert.Empty(limiter.Requests);
+        Assert.Empty(securitySignals.Definitions);
     }
 
     private static AdapterIngressGate CreateGate(
         RecordingLimiter limiter,
-        AdapterIngressControlSnapshot? snapshot) =>
+        AdapterIngressControlSnapshot? snapshot,
+        RecordingSecuritySignalRecorder? securitySignals = null) =>
         CreateGate(
             limiter,
             new TestControlRepository(snapshot),
-            new TestScopeContext(Identity.ScopeId));
+            new TestScopeContext(Identity.ScopeId),
+            securitySignals);
 
     private static AdapterIngressGate CreateGate(
         RecordingLimiter limiter,
         TestControlRepository controls,
-        TestScopeContext scopeContext) =>
+        TestScopeContext scopeContext,
+        RecordingSecuritySignalRecorder? securitySignals = null) =>
         new(
             controls,
             limiter,
             Options.Create(new AdapterIngressQuotaOptions()),
-            scopeContext);
+            scopeContext,
+            securitySignals ?? new RecordingSecuritySignalRecorder());
 
     private sealed class RecordingLimiter(
         MultiPartitionRateLimitDecision? decision = null)
@@ -235,5 +301,21 @@ public sealed class AdapterIngressGateTests
     {
         public bool IsEnabled => true;
         public string ScopeId { get; } = scopeId;
+    }
+
+    private sealed class RecordingSecuritySignalRecorder
+        : ISecuritySignalRecorder
+    {
+        public List<SecuritySignalDefinition> Definitions { get; } = [];
+
+        public SecuritySignalReceipt Record(
+            SecuritySignalDefinition definition,
+            Guid? correlationId = null)
+        {
+            this.Definitions.Add(definition);
+            return new(
+                correlationId?.ToString("N") ?? new string('0', 32),
+                true);
+        }
     }
 }

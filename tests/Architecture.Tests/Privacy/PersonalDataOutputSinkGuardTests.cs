@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Architecture.Tests.Support;
 using BunkFy.DataGovernance;
+using Gma.Framework.Observability;
 using Xunit;
 
 [Trait("Category", "Architecture")]
@@ -21,6 +22,29 @@ public sealed class PersonalDataOutputSinkGuardTests
         "retention.personal-data",
         "staff.personal-data",
         "workspaces.personal-data"
+    ];
+
+    private static readonly string[] ExpectedSecuritySignalSources =
+    [
+        "src/Modules/DataRights/BunkFy.Modules.DataRights.Application/Security/DataRightsApprovalSecuritySignalDefinitions.cs",
+        "src/Modules/DataRights/BunkFy.Modules.DataRights.Persistence/Security/DataRightsExportSecuritySignalDefinitions.cs",
+        "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Security/IngestionSecuritySignalDefinitions.cs",
+        "src/Modules/Retention/BunkFy.Modules.Retention.Application/Security/RetentionSecuritySignalDefinitions.cs"
+    ];
+
+    private static readonly string[] ExpectedSecuritySignalCodes =
+    [
+        "data-rights.export-download-completed",
+        "data-rights.export-generation-completed",
+        "data-rights.export-generation-failed",
+        "data-rights.operation-approval-denied",
+        "ingestion.adapter-admission-provider-unavailable",
+        "ingestion.adapter-global-stop-enforced",
+        "ingestion.adapter-quota-rejected",
+        "ingestion.adapter-scope-rejected",
+        "ingestion.adapter-tenant-suspension-enforced",
+        "retention.scheduled-execution-failed",
+        "retention.scheduled-execution-timed-out"
     ];
 
     private static readonly Regex LogInvocation = new(
@@ -41,6 +65,10 @@ public sealed class PersonalDataOutputSinkGuardTests
 
     private static readonly Regex MessageTemplateProperty = new(
         @"\{(?<name>[^}:,]+)",
+        RegexOptions.CultureInvariant);
+
+    private static readonly Regex SecuritySignalDefinition = new(
+        @"new\(\s*""(?<code>[a-z0-9.-]+)""\s*,\s*SecuritySignalCategory\.",
         RegexOptions.CultureInvariant);
 
     [Fact]
@@ -215,6 +243,73 @@ public sealed class PersonalDataOutputSinkGuardTests
             instrumentSources);
     }
 
+    [Fact]
+    public void Security_signal_evidence_is_closed_and_correlation_is_not_a_metric_dimension()
+    {
+        SecuritySignalRecord record = new(
+            new(
+                "architecture.payload-free",
+                SecuritySignalCategory.Privacy,
+                SecuritySignalSeverity.Warning),
+            "0123456789abcdef0123456789abcdef",
+            new DateTimeOffset(2026, 7, 28, 12, 0, 0, TimeSpan.Zero));
+        JsonElement json = JsonSerializer.SerializeToElement(record);
+
+        Assert.Equal(
+            [
+                "Category",
+                "IncidentCorrelationId",
+                "OccurredAtUtc",
+                "Severity",
+                "SignalCode"
+            ],
+            json.EnumerateObject()
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+
+        string metricsSource = RepositoryPaths.Read(
+            "gma",
+            "framework",
+            "src",
+            "Observability",
+            "Gma.Framework.Observability.Infrastructure",
+            "SecuritySignalMetrics.cs");
+        Assert.DoesNotContain(
+            "IncidentCorrelationId",
+            metricsSource,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "CorrelationId",
+            metricsSource,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Product_security_signal_definitions_are_static_and_module_owned()
+    {
+        string[] actualSources = RepositoryPaths
+            .EnumerateFiles("src/Modules", "*.cs")
+            .Where(path => File.ReadAllText(path).Contains(
+                "IReadOnlyCollection<SecuritySignalDefinition> Definitions",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            ExpectedSecuritySignalSources.Order(StringComparer.Ordinal),
+            actualSources);
+
+        string[] codes = actualSources
+            .SelectMany(path => SecuritySignalDefinition
+                .Matches(RepositoryPaths.Read(path.Split('/')))
+                .Select(match => match.Groups["code"].Value))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(ExpectedSecuritySignalCodes, codes);
+    }
+
     private static string RequiredString(JsonElement element, string propertyName) =>
         element.GetProperty(propertyName).GetString()
         ?? throw new InvalidOperationException($"Telemetry registry property '{propertyName}' is required.");
@@ -254,6 +349,10 @@ public sealed class PersonalDataOutputSinkGuardTests
 
     private static bool IsSensitiveLogProperty(string name) =>
         (!string.Equals(name, "TraceId", StringComparison.OrdinalIgnoreCase) &&
+         !string.Equals(
+             name,
+             "IncidentCorrelationId",
+             StringComparison.OrdinalIgnoreCase) &&
          name.EndsWith("Id", StringComparison.OrdinalIgnoreCase)) ||
         name.Contains("Tenant", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("Scope", StringComparison.OrdinalIgnoreCase) ||

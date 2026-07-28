@@ -2,11 +2,13 @@ namespace BunkFy.Modules.Retention.Application;
 
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Retention.Application.Handlers;
+using BunkFy.Modules.Retention.Application.Security;
 using BunkFy.Modules.Retention.Application.Tasks;
 using BunkFy.Modules.Retention.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
+using Gma.Framework.Observability;
 using Gma.Framework.Tasks;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +21,11 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddSecuritySignalCore();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ISecuritySignalDefinitionSource,
+                RetentionSecuritySignalDefinitions>());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddIntegrationEventHandler<
             OrganizationChangedIntegrationEvent,

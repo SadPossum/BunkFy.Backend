@@ -5,6 +5,7 @@ using BunkFy.Modules.Retention.Application.Tasks;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Retention.Domain.Models;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Observability;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Tasks;
@@ -21,6 +22,7 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
     public async Task Owner_result_is_completed_through_the_transactional_dispatcher()
     {
         FakeTaskDispatcher dispatcher = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
         TestContributor contributor = new(request => Task.FromResult(
             new RetentionContributionResult(
                 RetentionExecutionContract.CurrentVersion,
@@ -33,7 +35,8 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         ExecuteRetentionScheduleTaskHandler handler = new(
             dispatcher,
             [contributor],
-            new TestClock());
+            new TestClock(),
+            securitySignals);
         TaskExecutionContext context = Context();
 
         await handler.HandleAsync(
@@ -45,30 +48,66 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         Assert.Equal(context.RunId, dispatcher.Completed.ExecutionId);
         Assert.Equal(RetentionContributionStatus.Completed, dispatcher.Completed.Result.Status);
         Assert.Equal(2, dispatcher.Completed.Result.AffectedCount);
+        Assert.Empty(securitySignals.Records);
     }
 
     [Fact]
     public async Task Owner_exception_is_recorded_before_the_task_is_rethrown()
     {
         FakeTaskDispatcher dispatcher = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
         TestContributor contributor = new(_ =>
             throw new InvalidOperationException("owner failed"));
         ExecuteRetentionScheduleTaskHandler handler = new(
             dispatcher,
             [contributor],
-            new TestClock());
+            new TestClock(),
+            securitySignals);
+        TaskExecutionContext context = Context();
 
         InvalidOperationException exception =
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 handler.HandleAsync(
                     Payload(),
-                    Context(),
+                    context,
                     CancellationToken.None));
 
         Assert.Equal("owner failed", exception.Message);
         Assert.NotNull(dispatcher.Completed);
         Assert.Equal(RetentionContributionStatus.Failed, dispatcher.Completed.Result.Status);
         Assert.Equal("retention.owner-exception", dispatcher.Completed.Result.OutcomeCode);
+        SecuritySignalRecordCapture signal = Assert.Single(
+            securitySignals.Records);
+        Assert.Equal("retention.scheduled-execution-failed", signal.Definition.Code);
+        Assert.Equal(context.CorrelationId, signal.CorrelationId);
+    }
+
+    [Fact]
+    public async Task Owner_timeout_uses_the_run_id_when_task_correlation_is_missing()
+    {
+        FakeTaskDispatcher dispatcher = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
+        TestContributor contributor = new(_ =>
+            throw new TimeoutException("owner timed out"));
+        ExecuteRetentionScheduleTaskHandler handler = new(
+            dispatcher,
+            [contributor],
+            new TestClock(),
+            securitySignals);
+        TaskExecutionContext context = Context(includeCorrelation: false);
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            handler.HandleAsync(
+                Payload(),
+                context,
+                CancellationToken.None));
+
+        SecuritySignalRecordCapture signal = Assert.Single(
+            securitySignals.Records);
+        Assert.Equal(
+            "retention.scheduled-execution-timed-out",
+            signal.Definition.Code);
+        Assert.Equal(context.RunId, signal.CorrelationId);
     }
 
     private static ExecuteRetentionSchedulePayload Payload() => new(
@@ -77,7 +116,8 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         ExecutionPolicyVersion: 1,
         RetentionTargetScopeKind.Tenant);
 
-    private static TaskExecutionContext Context() => new(
+    private static TaskExecutionContext Context(
+        bool includeCorrelation = true) => new(
         Guid.NewGuid(),
         RetentionModuleMetadata.Name,
         ExecuteRetentionSchedulePayload.TaskName,
@@ -86,7 +126,7 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         "node-1",
         attempt: 1,
         scopeId: "tenant-a",
-        correlationId: Guid.NewGuid());
+        correlationId: includeCorrelation ? Guid.NewGuid() : null);
 
     private sealed class FakeTaskDispatcher : ITaskCommandDispatcher
     {
@@ -154,4 +194,24 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
     {
         public DateTimeOffset UtcNow => Now;
     }
+
+    private sealed class RecordingSecuritySignalRecorder
+        : ISecuritySignalRecorder
+    {
+        public List<SecuritySignalRecordCapture> Records { get; } = [];
+
+        public SecuritySignalReceipt Record(
+            SecuritySignalDefinition definition,
+            Guid? correlationId = null)
+        {
+            this.Records.Add(new(definition, correlationId));
+            return new(
+                correlationId?.ToString("N") ?? new string('0', 32),
+                true);
+        }
+    }
+
+    private sealed record SecuritySignalRecordCapture(
+        SecuritySignalDefinition Definition,
+        Guid? CorrelationId);
 }

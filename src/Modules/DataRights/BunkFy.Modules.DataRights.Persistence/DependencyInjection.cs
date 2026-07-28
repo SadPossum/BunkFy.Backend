@@ -2,10 +2,12 @@ namespace BunkFy.Modules.DataRights.Persistence;
 
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Persistence.Repositories;
+using BunkFy.Modules.DataRights.Persistence.Security;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Messaging;
+using Gma.Framework.Observability;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
 using BunkFy.Modules.Properties.Contracts;
@@ -22,6 +24,11 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        builder.Services.AddSecuritySignalCore();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ISecuritySignalDefinitionSource,
+                DataRightsExportSecuritySignalDefinitions>());
         builder.Services.AddPersistenceOptions(builder.Configuration);
         builder.Services.TryAddModuleDbContext<DataRightsDbContext>(options =>
             options.UseConfiguredProvider(

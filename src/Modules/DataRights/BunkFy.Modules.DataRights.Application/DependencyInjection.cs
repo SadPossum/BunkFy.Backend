@@ -4,6 +4,7 @@ using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Application.Handlers;
 using BunkFy.Modules.DataRights.Application.Policies;
 using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Application.Security;
 using BunkFy.Modules.DataRights.Application.Tasks;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
@@ -12,6 +13,7 @@ using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
+using Gma.Framework.Observability;
 using Gma.Framework.ProjectionRebuild.Tasks;
 using Gma.Framework.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +25,11 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddSecuritySignalCore();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ISecuritySignalDefinitionSource,
+                DataRightsApprovalSecuritySignalDefinitions>());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<IDataRightsOperationApprovalGate, DataRightsOperationApprovalGate>();
         services.AddScoped<

@@ -4,6 +4,7 @@
     <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api.Production\Gma.Framework.Api.Production.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)FileManagement\Gma.Framework.FileManagement.Minio\Gma.Framework.FileManagement.Minio.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Naming\Gma.Framework.Naming\Gma.Framework.Naming.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Observability\Gma.Framework.Observability.Infrastructure\Gma.Framework.Observability.Infrastructure.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Runtime\Gma.Framework.Runtime\Gma.Framework.Runtime.csproj" />
   </ItemGroup>
   <ItemGroup>
