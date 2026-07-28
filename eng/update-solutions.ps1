@@ -97,7 +97,8 @@ function Write-SolutionFile {
     }
     [void]$builder.AppendLine('</Solution>')
 
-    $expectedContent = $builder.ToString()
+    $expectedContent =
+        $builder.ToString().Replace("`r`n", "`n").TrimEnd() + "`n"
     if ($Check) {
         if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
             throw "Solution '$Path' does not exist. Run the solution synchronization tool without -Check."
