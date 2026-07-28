@@ -1,6 +1,6 @@
 namespace Integration.Tests;
 
-using BunkFy.Host.Api.Security;
+using BunkFy.Host.ServiceDefaults.Security;
 using Gma.Framework.Security;
 using Microsoft.Extensions.Configuration;
 using Xunit;

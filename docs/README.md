@@ -21,6 +21,7 @@ Useful entry points:
 - [Hosted Production Deployment Contract](operations/hosted-production-deployment-contract.md)
 - [Hosted Production Foundation Task](planning/hosted-production-foundation-task.md)
 - [Security Signals And Incident Correlation Task](planning/security-signals-and-incident-correlation-task.md)
+- [Scoped Support Administration Access Task](planning/support-admin-access-task.md)
 - [Pre-Module Readiness](planning/pre-module-readiness.md)
 - [Properties Module Task](planning/properties-module-task.md)
 - [Properties Follow-Up Notes](planning/properties-follow-up-notes.md)

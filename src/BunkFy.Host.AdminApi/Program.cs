@@ -12,8 +12,6 @@ using Gma.Modules.Organizations.AdminApi;
 using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.AdminApi;
 using Gma.Modules.TaskRuntime.Persistence;
-using BunkFy.Modules.DataRights.AdminApi;
-using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Properties.AdminApi;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Inventory.AdminApi;
@@ -35,8 +33,11 @@ using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
 using BunkFy.Parsers.ReservationMail;
+using BunkFy.Extensions.Workspaces;
 using BunkFy.Host.ServiceDefaults;
 using BunkFy.Host.ServiceDefaults.Production;
+using BunkFy.Host.ServiceDefaults.Security;
+using BunkFy.Host.AdminApi.Security;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.OpenApi;
 using Gma.Framework.Api.Production;
@@ -51,17 +52,24 @@ using Gma.Framework.Logging.Serilog;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Messaging.Nats.Aspire;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Security;
 using Gma.Framework.Tenancy.Api.Serilog;
 using Gma.Framework.Tenancy.Caching;
 using Gma.Framework.Tenancy.Messaging.Infrastructure;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
+AuthenticationAssuranceRequirement adminOperationAssurance =
+    BunkFyAuthenticationAssurance.CreateDestructiveOperationRequirement(builder.Configuration);
 
 builder.Host.UseConfiguredSerilog();
 builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.AdminApi);
 
 builder.Services.AddGmaAdministrationApi(builder.Configuration);
+builder.Services.AddBunkFyAdminApiResourceScopes();
+builder.Services.Configure<AdminApiOptions>(
+    options => options.AuthenticationAssurance = adminOperationAssurance);
+builder.Services.AddBunkFySupportAccess(builder.Configuration);
 builder.AddRedisCaching();
 builder.AddCachingCqrs();
 builder.AddGmaInfrastructure();
@@ -84,7 +92,6 @@ builder.AddAuthAdminApiModule(AuthProfile.Global(authScopeId));
 builder.AddAdminApiModule<NotificationsAdminApiModule>();
 builder.AddAdminApiModule<OrganizationsAdminApiModule>();
 builder.AddAdminApiModule<TaskRuntimeAdminApiModule>();
-builder.AddAdminApiModule<DataRightsAdminApiModule>();
 builder.AddAdminApiModule<PropertiesAdminApiModule>();
 builder.AddAdminApiModule<InventoryAdminApiModule>();
 builder.AddAdminApiModule<ReservationsAdminApiModule>();
@@ -102,7 +109,6 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<AuthDbContext>("auth-databa
 builder.Services.AddGmaEntityFrameworkReadinessCheck<NotificationsDbContext>("notifications-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<OrganizationsDbContext>("organizations-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<TaskRuntimeDbContext>("task-runtime-database");
-builder.Services.AddGmaEntityFrameworkReadinessCheck<DataRightsDbContext>("data-rights-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<PropertiesDbContext>("properties-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<InventoryDbContext>("inventory-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<ReservationsDbContext>("reservations-database");

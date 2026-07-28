@@ -26,8 +26,6 @@
     <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.AdminCli\Gma.Modules.Organizations.AdminCli.csproj" />
     <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.PostgreSqlMigrations\Gma.Modules.Organizations.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Persistence.SqlServerMigrations\Gma.Modules.Organizations.Persistence.SqlServerMigrations.csproj" />
-    <ProjectReference Include="..\Modules\DataRights\BunkFy.Modules.DataRights.AdminCli\BunkFy.Modules.DataRights.AdminCli.csproj" />
-    <ProjectReference Include="..\Modules\DataRights\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.AdminCli\BunkFy.Modules.Properties.AdminCli.csproj" />
     <ProjectReference Include="..\Modules\Properties\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations\BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Inventory\BunkFy.Modules.Inventory.AdminCli\BunkFy.Modules.Inventory.AdminCli.csproj" />
@@ -43,11 +41,13 @@
     <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.AdminCli\BunkFy.Modules.Retention.AdminCli.csproj" />
     <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.AdminCli\BunkFy.Modules.Workspaces.AdminCli.csproj" />
+    <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.FakeHttp\BunkFy.Adapters.FakeHttp.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.ImapReservationMail\BunkFy.Adapters.ImapReservationMail.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.JsonFileDrop\BunkFy.Adapters.JsonFileDrop.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Parsers.ReservationMail\BunkFy.Parsers.ReservationMail.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.Workspaces\BunkFy.Extensions.Workspaces.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Cli\Gma.Framework.Administration.Cli.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Caching\Gma.Framework.Caching.Cqrs\Gma.Framework.Caching.Cqrs.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Caching\Gma.Framework.Caching.Redis\Gma.Framework.Caching.Redis.csproj" />

@@ -16,6 +16,7 @@ public static class WorkspaceAccessRoles
     public const string Provisioner = "bunkfy-workspace-access-provisioner";
     public const string MembershipMarker = "bunkfy-workspace-member-v2";
     public const string LegacyMember = "bunkfy-workspace-member";
+    public const string CompanySupport = "bunkfy-company-support";
 
     public static IReadOnlyList<string> OwnerPermissions { get; } =
         [AccessControlPermissionGrants.OwnerWildcard];
@@ -96,6 +97,36 @@ public static class WorkspaceAccessRoles
         RetentionPermissionCodes.Manage,
         RetentionPermissionCodes.Retry
     ];
+
+    public static IReadOnlyList<string> CompanySupportPermissionCeiling { get; } =
+        DelegablePermissions
+            .Except(
+            [
+                GuestsAdminPermissionCodes.Archive,
+                GuestsAdminPermissionCodes.DataHoldsManage,
+                StaffAdminPermissionCodes.SensitiveProfileRead,
+                IngestionAdminPermissionCodes.CredentialsManage,
+                IngestionAdminPermissionCodes.RawPayloadsRead,
+                IngestionAdminPermissionCodes.SensitiveHistoryRead,
+                IngestionAdminPermissionCodes.RetentionManage,
+                IngestionAdminPermissionCodes.LegalHoldsManage,
+                DataRightsAdminPermissionCodes.Read,
+                DataRightsAdminPermissionCodes.Create,
+                DataRightsAdminPermissionCodes.Discover,
+                DataRightsAdminPermissionCodes.Review,
+                DataRightsAdminPermissionCodes.Decide,
+                DataRightsAdminPermissionCodes.Execute,
+                DataRightsAdminPermissionCodes.Export,
+                DataRightsAdminPermissionCodes.DownloadExport,
+                DataRightsAdminPermissionCodes.Restrict,
+                DataRightsAdminPermissionCodes.Erase,
+                DataRightsAdminPermissionCodes.TerminateTenant,
+                DataRightsAdminPermissionCodes.Manage,
+                RetentionPermissionCodes.Manage,
+                RetentionPermissionCodes.Retry
+            ],
+            StringComparer.Ordinal)
+            .ToArray();
 
     public static IReadOnlyList<string> ProvisionerPermissions { get; } =
         DelegablePermissions;

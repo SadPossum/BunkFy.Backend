@@ -5,7 +5,6 @@ using Gma.Modules.Auth.AdminCli;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.TaskRuntime.AdminCli;
 using Gma.Modules.Organizations.AdminCli;
-using BunkFy.Modules.DataRights.AdminCli;
 using BunkFy.Modules.Properties.AdminCli;
 using BunkFy.Modules.Inventory.AdminCli;
 using BunkFy.Modules.Reservations.AdminCli;
@@ -19,6 +18,8 @@ using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
 using BunkFy.Parsers.ReservationMail;
+using BunkFy.Extensions.Workspaces;
+using BunkFy.Host.AdminCli.Security;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -45,6 +46,8 @@ try
     string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
 
     builder.Services.AddGmaAdministrationCli();
+    builder.Services.AddBunkFyAdminCliResourceScopes();
+    builder.Services.AddBunkFySupportAccess(builder.Configuration);
     builder.AddRedisCaching();
     builder.AddCachingCqrs();
     builder.AddGmaInfrastructure();
@@ -62,7 +65,6 @@ try
     builder.AddAuthAdminModule(AuthProfile.Global(authScopeId));
     builder.AddAdminModule<OrganizationsAdminCliModule>();
     builder.AddAdminModule<TaskRuntimeAdminCliModule>();
-    builder.AddAdminModule<DataRightsAdminCliModule>();
     builder.AddAdminModule<PropertiesAdminCliModule>();
     builder.AddAdminModule<InventoryAdminCliModule>();
     builder.AddAdminModule<ReservationsAdminCliModule>();

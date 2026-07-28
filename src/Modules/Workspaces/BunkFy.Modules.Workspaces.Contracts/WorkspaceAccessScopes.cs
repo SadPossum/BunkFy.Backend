@@ -22,6 +22,19 @@ public static class WorkspaceAccessScopes
                string.Equals(scope.Segments[0].Name, SegmentName, StringComparison.Ordinal);
     }
 
+    public static bool IsWorkspaceOrPropertyScope(AccessScope scope)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        if (IsWorkspaceScope(scope))
+        {
+            return true;
+        }
+
+        return scope.Segments.Count == 2 &&
+            string.Equals(scope.Segments[0].Name, SegmentName, StringComparison.Ordinal) &&
+            IsPropertySegment(scope.Segments[1]);
+    }
+
     public static bool IsWorkspaceOrPropertyScope(AccessScope ownerScope, AccessScope assignmentScope)
     {
         ArgumentNullException.ThrowIfNull(ownerScope);
@@ -40,9 +53,11 @@ public static class WorkspaceAccessScopes
         }
 
         return assignmentScope.Segments.Count == 1 ||
-            string.Equals(
-                assignmentScope.Segments[1].Name,
-                PropertySegmentName,
-                StringComparison.Ordinal);
+            IsPropertySegment(assignmentScope.Segments[1]);
     }
+
+    private static bool IsPropertySegment(AccessScopeSegment segment) =>
+        string.Equals(segment.Name, PropertySegmentName, StringComparison.Ordinal) &&
+        Guid.TryParseExact(segment.Value, "D", out Guid propertyId) &&
+        propertyId != Guid.Empty;
 }

@@ -2,6 +2,7 @@ namespace BunkFy.Extensions.Workspaces;
 
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Messaging;
+using Gma.Framework.Observability;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Gma.Modules.Organizations.Application.Ports;
@@ -12,6 +13,32 @@ using Microsoft.Extensions.Options;
 
 public static class DependencyInjection
 {
+    public static IServiceCollection AddBunkFySupportAccess(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.AddOptions<BunkFySupportAccessOptions>()
+            .Bind(configuration.GetSection(BunkFySupportAccessOptions.SectionName))
+            .Validate(
+                options => options.MaximumGrantMinutes is >= 1 and <= 1440,
+                "BunkFy:SupportAccess:MaximumGrantMinutes must be from 1 through 1440.")
+            .ValidateOnStart();
+        services.AddSecuritySignalCore();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            ISecuritySignalDefinitionSource,
+            SupportAccessSecuritySignalDefinitions>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IAccessRoleAssignmentPolicy,
+            WorkspaceRoleAssignmentPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IAccessRoleAssignmentLifecycleObserver,
+            SupportAccessLifecycleObserver>());
+        return services;
+    }
+
     public static IServiceCollection AddBunkFyWorkspaces(
         this IServiceCollection services,
         Action<BunkFyWorkspacesOptions>? configure = null)

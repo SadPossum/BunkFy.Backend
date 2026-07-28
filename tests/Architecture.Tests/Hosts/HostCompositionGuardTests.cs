@@ -295,16 +295,27 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Admin_front_doors_compose_access_control_and_product_modules()
+    public void Admin_front_doors_compose_allowed_modules_and_exclude_data_rights()
     {
         string adminApi = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
         string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
+        string adminApiProject = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.AdminApi",
+            "BunkFy.Host.AdminApi.csproj");
+        string adminCliProject = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.AdminCli",
+            "BunkFy.Host.AdminCli.csproj");
 
         Assert.Contains("builder.AddAdminApiModule<AccessControlAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.Global(authScopeId));", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<NotificationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<OrganizationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
-        Assert.Contains("builder.AddAdminApiModule<DataRightsAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.DoesNotContain("DataRightsAdminApiModule", adminApi, StringComparison.Ordinal);
+        Assert.DoesNotContain("DataRightsDbContext", adminApi, StringComparison.Ordinal);
+        Assert.DoesNotContain("BunkFy.Modules.DataRights", adminApi, StringComparison.Ordinal);
+        Assert.DoesNotContain("Modules\\DataRights", adminApiProject, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<InventoryAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<ReservationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
@@ -323,7 +334,9 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminModule<AccessControlAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAuthAdminModule(AuthProfile.Global(authScopeId));", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<OrganizationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
-        Assert.Contains("builder.AddAdminModule<DataRightsAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.DoesNotContain("DataRightsAdminCliModule", adminCli, StringComparison.Ordinal);
+        Assert.DoesNotContain("BunkFy.Modules.DataRights", adminCli, StringComparison.Ordinal);
+        Assert.DoesNotContain("Modules\\DataRights", adminCliProject, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<PropertiesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<InventoryAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<ReservationsAdminCliModule>();", adminCli, StringComparison.Ordinal);

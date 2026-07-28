@@ -2,6 +2,9 @@ namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Ingestion.Contracts;
+using BunkFy.Modules.Retention.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;
@@ -82,5 +85,29 @@ public sealed class WorkspaceAccessProfileSeedTests
             Assert.DoesNotContain(
                 GuestsAdminPermissionCodes.DataHoldsManage,
                 profile.Permissions));
+    }
+
+    [Fact]
+    public void Company_support_role_has_a_bounded_non_sensitive_permission_ceiling()
+    {
+        HashSet<string> delegable = WorkspaceAccessRoles.DelegablePermissions
+            .ToHashSet(StringComparer.Ordinal);
+        IReadOnlyList<string> ceiling = WorkspaceAccessRoles.CompanySupportPermissionCeiling;
+
+        Assert.NotEmpty(ceiling);
+        Assert.Equal(ceiling.Count, ceiling.Distinct(StringComparer.Ordinal).Count());
+        Assert.DoesNotContain(ceiling, permission => !delegable.Contains(permission));
+        Assert.DoesNotContain(AccessControlPermissionGrants.OwnerWildcard, ceiling);
+        Assert.DoesNotContain(StaffAdminPermissionCodes.SensitiveProfileRead, ceiling);
+        Assert.DoesNotContain(IngestionAdminPermissionCodes.CredentialsManage, ceiling);
+        Assert.DoesNotContain(IngestionAdminPermissionCodes.RawPayloadsRead, ceiling);
+        Assert.DoesNotContain(IngestionAdminPermissionCodes.SensitiveHistoryRead, ceiling);
+        Assert.DoesNotContain(RetentionPermissionCodes.Manage, ceiling);
+        Assert.DoesNotContain(RetentionPermissionCodes.Retry, ceiling);
+        Assert.DoesNotContain(
+            ceiling,
+            permission => permission.StartsWith(
+                DataRightsModuleMetadata.Name + ".",
+                StringComparison.Ordinal));
     }
 }

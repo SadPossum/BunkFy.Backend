@@ -54,6 +54,7 @@
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations\Gma.Modules.TaskRuntime.Persistence.SqlServerMigrations.csproj" />
     <ProjectReference Include="$(GmaModuleTaskRuntimeRoot)Gma.Modules.TaskRuntime.Application\Gma.Modules.TaskRuntime.Application.csproj" />
     <ProjectReference Include="..\..\src\BunkFy.Host.Api\BunkFy.Host.Api.csproj" />
+    <ProjectReference Include="..\..\src\BunkFy.Host.AdminCli\BunkFy.Host.AdminCli.csproj" />
     <ProjectReference Include="..\..\src\BunkFy.Host.AdminApi\BunkFy.Host.AdminApi.csproj" />
     <ProjectReference Include="..\..\src\BunkFy.Host.Worker\BunkFy.Host.Worker.csproj" />
     <ProjectReference Include="..\..\src\Adapters\BunkFy.Adapters.Http\BunkFy.Adapters.Http.csproj" />

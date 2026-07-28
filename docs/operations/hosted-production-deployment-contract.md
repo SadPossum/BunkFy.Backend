@@ -30,6 +30,34 @@ The Admin API must have `Http:PrivateNetwork:Enabled=true`. This startup flag
 does not replace a private load balancer, firewall policy, VPN, or external
 reachability test.
 
+## Company Support Access
+
+The public code enforces recent strong authentication for Admin API operations,
+exact workspace/property authorization, finite compatibility-role leases, and
+payload-free elevation signals. The Administration audit retains the canonical
+resource scope used for each authorized or denied operation.
+
+Company identities may receive only the dedicated
+`bunkfy-company-support` role. Its product-owned permission ceiling excludes
+owner access, Data Rights and export operations, raw ingestion payloads,
+ingestion credentials and sensitive history, sensitive staff profiles, and
+privacy or retention controls. The role is not provisioned automatically; the
+private operator plane must provision a narrower role definition and the
+evaluated definition cannot expand during an active lease.
+
+Data Rights admin modules are deliberately not composed into BunkFy's Admin API
+or CLI. Company support therefore has no public admin route or command that can
+return guest export payload. The customer-facing Data Rights flow remains in
+the product API behind its case approval, selected-subject, permission, and
+authentication-assurance controls.
+
+A hosted deployment must keep company data access disabled until a private
+operator plane supplies named identities, ticket and reason ownership,
+requester/approver separation, lease reconciliation, emergency review,
+customer-visible history, and customer selection/preview proof for any future
+support export. Direct routine database or object-store access is outside this
+contract and must be prohibited by private infrastructure policy.
+
 ## Required Declaration
 
 Each Production API process supplies:

@@ -1,9 +1,9 @@
-namespace BunkFy.Host.Api.Security;
+namespace BunkFy.Host.ServiceDefaults.Security;
 
 using Gma.Framework.Security;
 using Microsoft.Extensions.Configuration;
 
-internal static class BunkFyAuthenticationAssurance
+public static class BunkFyAuthenticationAssurance
 {
     public const string MultiFactorContextReference = "urn:gma:acr:mfa";
     public const string TwoStepContextReference = "urn:gma:acr:two-step";
