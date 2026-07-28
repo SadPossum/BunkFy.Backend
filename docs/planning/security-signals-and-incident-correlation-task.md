@@ -1,6 +1,6 @@
 # Security Signals And Incident Correlation Task
 
-Status: in progress; runtime candidate locally verified, repository evidence pending
+Status: implementation complete; public repository evidence is retained by CI
 Date: 2026-07-28
 
 ## Goal
@@ -131,7 +131,8 @@ Published reusable dependencies:
   category/severity semantics typed through the record boundary;
 - GMA Auth `504452d` added the bounded password-proof rate-limit signal;
 - GMA-Skeleton `64198f0` composes the real recorder in ServiceDefaults and in
-  generated applications.
+  generated applications; `6e3e9de` added the closed, payload-free scanner
+  summary and retained it with the existing security evidence.
 
 Implemented in the BunkFy runtime candidate:
 
@@ -150,11 +151,16 @@ Implemented in the BunkFy runtime candidate:
 - no product metric was added, so the product telemetry instrument catalogue
   remains unchanged; the counter is the GMA-owned reusable instrument.
 - the complete non-Docker backend gate passes solution sync, a zero-warning
-  build, migration drift checks, architecture guards, and all eligible tests.
+  build, migration drift checks, architecture guards, and all eligible tests;
+- BunkFy root, Backend, and Web consume the exact GMA-Skeleton `ec0e134`
+  security-action candidate, which includes the payload-free summary, bounded
+  source/run provenance, protected detailed SARIF, and the existing SBOM;
+- product security and release workflows retain the complete action output
+  directory. Detailed findings remain workflow evidence and are never copied
+  into the aggregate summary.
 
-Slice 4, the payload-free repository secret-detection summary, remains pending.
-Exact-commit GitHub validation is recorded only after the final candidates are
-published.
+Exact workflow results are retained by GitHub Actions against the published
+candidate commits rather than copied into this implementation plan.
 
 ## Invariants
 
