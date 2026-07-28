@@ -21,6 +21,8 @@ using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.ObservationParsing;
 using BunkFy.Parsers.ReservationMail;
 using DotNet.Testcontainers.Builders;
@@ -131,6 +133,56 @@ public sealed class WorkerHostIntegrationTests
         Assert.Contains(
             subscriptions.Subscriptions,
             subscription => subscription.HandlerName == "bunkfy-reservation-confirmed-notification");
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void Worker_host_composes_organization_expiry_and_workspaces_consumers_once()
+    {
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
+        builder.Configuration["Persistence:Provider"] = "PostgreSql";
+        builder.Configuration["ConnectionStrings:PostgreSql"] =
+            "Host=localhost;Database=unused;Username=unused;Password=unused";
+        builder.Configuration["NatsJetStream:Enabled"] = "false";
+        builder.Configuration["NatsConsumers:Enabled"] = "false";
+        builder.Configuration["Tasks:Worker:Enabled"] = "false";
+        builder.Configuration["Worker:Modules:AccessControl"] = "true";
+        builder.Configuration["Worker:Modules:Auth"] = "true";
+        builder.Configuration["Worker:Modules:Organizations"] = "true";
+        builder.Configuration["Worker:Modules:Properties"] = "true";
+        builder.Configuration["Worker:Modules:Staff"] = "true";
+        builder.Configuration["Organizations:Lifecycle:Enabled"] = "true";
+        AuthTestConfiguration.ConfigureTokenHashing(builder.Configuration);
+        builder.Logging.ClearProviders();
+
+        builder.AddWorkerHost();
+        ModuleCompositionValidationResult result = builder.ValidateModuleComposition();
+        using IHost worker = builder.Build();
+        using IServiceScope scope = worker.Services.CreateScope();
+        IIntegrationEventSubscriptionRegistry subscriptions =
+            worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>();
+
+        Assert.True(result.IsValid, result.Report);
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>());
+        Assert.Single(
+            worker.Services.GetServices<IHostedService>(),
+            service => service.GetType().Name == "OrganizationsLifecycleService");
+        Assert.Contains(
+            subscriptions.Subscriptions,
+            subscription =>
+                subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
+                subscription.HandlerName == WorkspacesModuleMetadata.InvitationExpiredHandlerName);
+        Assert.Contains(
+            subscriptions.Subscriptions,
+            subscription =>
+                subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
+                subscription.HandlerName == WorkspacesModuleMetadata.EnrollmentClaimExpiredHandlerName);
+        Assert.Contains(
+            subscriptions.Subscriptions,
+            subscription =>
+                subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
+                subscription.HandlerName == WorkspacesModuleMetadata.EnrollmentLinkExpiredHandlerName);
     }
 
     [Fact]

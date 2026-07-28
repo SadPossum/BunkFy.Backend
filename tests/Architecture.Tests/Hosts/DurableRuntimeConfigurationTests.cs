@@ -69,6 +69,36 @@ public sealed class DurableRuntimeConfigurationTests
     }
 
     [Fact]
+    public void Organizations_expiry_is_bounded_and_owned_by_the_worker_composition()
+    {
+        using JsonDocument apiDocument = JsonDocument.Parse(
+            RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json"));
+        JsonElement apiOrganizations = apiDocument.RootElement.GetProperty("Organizations");
+        Assert.Equal(168, apiOrganizations.GetProperty("EnrollmentClaimLifetimeHours").GetInt32());
+        Assert.False(apiOrganizations.GetProperty("Lifecycle").GetProperty("Enabled").GetBoolean());
+
+        using JsonDocument workerDocument = JsonDocument.Parse(
+            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "appsettings.json"));
+        JsonElement workerLifecycle = workerDocument.RootElement
+            .GetProperty("Organizations")
+            .GetProperty("Lifecycle");
+        Assert.False(workerLifecycle.GetProperty("Enabled").GetBoolean());
+        Assert.True(workerLifecycle.GetProperty("BatchSize").GetInt32() > 0);
+        Assert.True(workerLifecycle.GetProperty("MaxBatchesPerCategoryPerCycle").GetInt32() > 0);
+        Assert.True(workerLifecycle.GetProperty("IntervalMinutes").GetInt32() > 0);
+
+        string composition = RepositoryPaths.Read(
+            "src",
+            "Shared",
+            "BunkFy.AppHost.Composition",
+            "BunkFyBackendComposition.cs");
+        Assert.Contains(
+            ".WithEnvironment(\"Organizations__Lifecycle__Enabled\", \"true\")",
+            composition,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Public_api_exposes_bounded_authentication_runtime_defaults()
     {
         using JsonDocument document = JsonDocument.Parse(

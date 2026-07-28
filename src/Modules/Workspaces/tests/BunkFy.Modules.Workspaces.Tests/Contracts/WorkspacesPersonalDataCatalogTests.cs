@@ -210,8 +210,11 @@ public sealed class WorkspacesPersonalDataCatalogTests
         foreach (Type type in new[]
                  {
                      typeof(OrganizationInvitationChangedIntegrationEvent),
+                     typeof(OrganizationInvitationExpiredIntegrationEvent),
                      typeof(OrganizationEnrollmentClaimChangedIntegrationEvent),
+                     typeof(OrganizationEnrollmentClaimExpiredIntegrationEvent),
                      typeof(OrganizationEnrollmentLinkChangedIntegrationEvent),
+                     typeof(OrganizationEnrollmentLinkExpiredIntegrationEvent),
                      typeof(OrganizationMembershipChangedIntegrationEvent),
                      typeof(StaffMemberLifecycleChangedIntegrationEvent)
                  })

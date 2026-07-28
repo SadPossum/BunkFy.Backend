@@ -16,7 +16,7 @@ internal sealed class WorkspaceStaffAccessPlanConfiguration
                 "\"SourceKind\" IN (1, 2)");
             table.HasCheckConstraint(
                 "CK_staff_access_plans_status",
-                "\"Status\" IN (1, 2, 3)");
+                "\"Status\" IN (1, 2, 3, 4)");
             table.HasCheckConstraint(
                 "CK_staff_access_plans_version",
                 "\"Version\" >= 1");

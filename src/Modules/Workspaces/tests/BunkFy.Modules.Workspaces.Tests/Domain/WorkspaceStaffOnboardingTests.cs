@@ -47,6 +47,23 @@ public sealed class WorkspaceStaffOnboardingTests
     }
 
     [Fact]
+    public void Invitation_expiry_is_terminal_idempotent_and_redacts_applicant_data()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication(
+            WorkspaceStaffOnboardingSource.Invitation);
+
+        Assert.True(application.Expire(Now.AddMinutes(1)).IsSuccess);
+        long expiredVersion = application.Version;
+        Assert.True(application.Expire(Now.AddMinutes(2)).IsSuccess);
+        Assert.True(application.Supersede(Now.AddMinutes(3)).IsSuccess);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Expired, application.Status);
+        Assert.Equal(expiredVersion, application.Version);
+        Assert.False(application.IsActive);
+        AssertApplicantDataRedacted(application);
+    }
+
+    [Fact]
     public void Failed_staff_ready_work_can_reenter_provisioning_without_losing_staff_identity()
     {
         WorkspaceStaffOnboarding application = CreateApplication();
@@ -123,6 +140,27 @@ public sealed class WorkspaceStaffOnboardingTests
 
         Assert.Equal(WorkspaceStaffOnboardingState.Rejected, application.Status);
         Assert.Equal(aggregateVersion, application.Version);
+        AssertApplicantDataRedacted(application);
+    }
+
+    [Fact]
+    public void Claim_expiry_is_monotonic_terminal_and_redacts_applicant_data()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication();
+        Guid claimId = Guid.NewGuid();
+        Assert.True(application.ObserveClaimRequested(claimId, 1, Now.AddMinutes(1)).IsSuccess);
+
+        Assert.True(application.ObserveClaimExpired(claimId, 2, Now.AddMinutes(2)).IsSuccess);
+        long expiredVersion = application.Version;
+        Assert.True(application.ObserveClaimExpired(claimId, 2, Now.AddMinutes(3)).IsSuccess);
+        Assert.True(application.ObserveClaimRequested(claimId, 1, Now.AddMinutes(4)).IsSuccess);
+        Assert.True(application.ObserveClaimAccepted(claimId, 1, Now.AddMinutes(5)).IsSuccess);
+        Assert.True(application.ObserveClaimRejected(claimId, 1, Now.AddMinutes(6)).IsSuccess);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Expired, application.Status);
+        Assert.Equal(2, application.ClaimVersion);
+        Assert.Equal(expiredVersion, application.Version);
+        Assert.False(application.IsActive);
         AssertApplicantDataRedacted(application);
     }
 

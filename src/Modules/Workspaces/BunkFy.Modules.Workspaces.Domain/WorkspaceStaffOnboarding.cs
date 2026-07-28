@@ -33,6 +33,12 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         WorkspaceStaffOnboardingState.Submitted or
         WorkspaceStaffOnboardingState.PendingApproval;
 
+    public bool IsActive => this.Status is not (
+        WorkspaceStaffOnboardingState.Completed or
+        WorkspaceStaffOnboardingState.Rejected or
+        WorkspaceStaffOnboardingState.Superseded or
+        WorkspaceStaffOnboardingState.Expired);
+
     public static Result<WorkspaceStaffOnboarding> Create(
         Guid id,
         string scopeId,
@@ -123,7 +129,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
             WorkspaceStaffOnboardingState.StaffReady or
             WorkspaceStaffOnboardingState.Failed or
             WorkspaceStaffOnboardingState.Completed or
-            WorkspaceStaffOnboardingState.Superseded)
+            WorkspaceStaffOnboardingState.Superseded or
+            WorkspaceStaffOnboardingState.Expired)
         {
             return Result.Success();
         }
@@ -147,7 +154,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         }
 
         if (this.Status is WorkspaceStaffOnboardingState.Rejected or
-            WorkspaceStaffOnboardingState.Superseded)
+            WorkspaceStaffOnboardingState.Superseded or
+            WorkspaceStaffOnboardingState.Expired)
         {
             return Result.Failure(WorkspaceStaffOnboardingErrors.Unavailable);
         }
@@ -215,7 +223,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
 
         if (this.Status is WorkspaceStaffOnboardingState.Completed or
             WorkspaceStaffOnboardingState.Rejected or
-            WorkspaceStaffOnboardingState.Superseded)
+            WorkspaceStaffOnboardingState.Superseded or
+            WorkspaceStaffOnboardingState.Expired)
         {
             return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
         }
@@ -230,12 +239,35 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
     {
         if (this.Status is WorkspaceStaffOnboardingState.Completed or
             WorkspaceStaffOnboardingState.Rejected or
-            WorkspaceStaffOnboardingState.Superseded)
+            WorkspaceStaffOnboardingState.Superseded or
+            WorkspaceStaffOnboardingState.Expired)
         {
             return Result.Success();
         }
 
         this.Status = WorkspaceStaffOnboardingState.Superseded;
+        this.FailureCode = null;
+        this.RedactApplicantData();
+        this.Advance(nowUtc);
+        return Result.Success();
+    }
+
+    public Result Expire(DateTimeOffset nowUtc)
+    {
+        if (this.Status is WorkspaceStaffOnboardingState.Completed or
+            WorkspaceStaffOnboardingState.Rejected or
+            WorkspaceStaffOnboardingState.Superseded or
+            WorkspaceStaffOnboardingState.Expired)
+        {
+            return Result.Success();
+        }
+
+        if (this.Status != WorkspaceStaffOnboardingState.Submitted)
+        {
+            return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
+        }
+
+        this.Status = WorkspaceStaffOnboardingState.Expired;
         this.FailureCode = null;
         this.RedactApplicantData();
         this.Advance(nowUtc);

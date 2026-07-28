@@ -100,12 +100,26 @@ public sealed class WorkspaceStaffAccessPlan : ScopedAggregateRoot<Guid>
 
     public Result Supersede(DateTimeOffset nowUtc)
     {
-        if (this.Status == WorkspaceStaffAccessPlanState.Superseded)
+        if (this.Status is WorkspaceStaffAccessPlanState.Superseded or
+            WorkspaceStaffAccessPlanState.Expired)
         {
             return Result.Success();
         }
 
         this.Status = WorkspaceStaffAccessPlanState.Superseded;
+        this.Advance(nowUtc);
+        return Result.Success();
+    }
+
+    public Result Expire(DateTimeOffset nowUtc)
+    {
+        if (this.Status is WorkspaceStaffAccessPlanState.Expired or
+            WorkspaceStaffAccessPlanState.Superseded)
+        {
+            return Result.Success();
+        }
+
+        this.Status = WorkspaceStaffAccessPlanState.Expired;
         this.Advance(nowUtc);
         return Result.Success();
     }

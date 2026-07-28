@@ -88,4 +88,33 @@ public sealed class WorkspaceStaffAccessPlanTests
             [propertyA, propertyB],
             "another-manager"));
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Expiry_is_terminal_and_idempotent(bool activateFirst)
+    {
+        WorkspaceStaffAccessPlan plan = WorkspaceStaffAccessPlan.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid().ToString("D"),
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "front-desk",
+            [],
+            "owner-a",
+            Now).Value;
+        if (activateFirst)
+        {
+            Assert.True(plan.Activate(Now.AddMinutes(1)).IsSuccess);
+        }
+
+        Assert.True(plan.Expire(Now.AddMinutes(2)).IsSuccess);
+        long expiredVersion = plan.Version;
+        Assert.True(plan.Expire(Now.AddMinutes(3)).IsSuccess);
+        Assert.True(plan.Supersede(Now.AddMinutes(4)).IsSuccess);
+
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Equal(expiredVersion, plan.Version);
+        Assert.True(plan.Activate(Now.AddMinutes(5)).IsFailure);
+    }
 }

@@ -47,7 +47,8 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
                 application.SourceId == sourceId &&
                 application.Status != WorkspaceStaffOnboardingState.Completed &&
                 application.Status != WorkspaceStaffOnboardingState.Rejected &&
-                application.Status != WorkspaceStaffOnboardingState.Superseded)
+                application.Status != WorkspaceStaffOnboardingState.Superseded &&
+                application.Status != WorkspaceStaffOnboardingState.Expired)
             .OrderBy(application => application.CreatedAtUtc)
             .ThenBy(application => application.Id)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);

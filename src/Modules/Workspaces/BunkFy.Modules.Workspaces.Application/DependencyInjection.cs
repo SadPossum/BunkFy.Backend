@@ -71,13 +71,28 @@ public static class DependencyInjection
             WorkspacesModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
         services.AddIntegrationEventHandler<
+            OrganizationInvitationExpiredIntegrationEvent,
+            OrganizationInvitationExpiredStaffOnboardingHandler>(
+            WorkspacesModuleMetadata.Name,
+            OrganizationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
             OrganizationEnrollmentClaimChangedIntegrationEvent,
             OrganizationEnrollmentClaimStaffOnboardingHandler>(
             WorkspacesModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
         services.AddIntegrationEventHandler<
+            OrganizationEnrollmentClaimExpiredIntegrationEvent,
+            OrganizationEnrollmentClaimExpiredStaffOnboardingHandler>(
+            WorkspacesModuleMetadata.Name,
+            OrganizationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
             OrganizationEnrollmentLinkChangedIntegrationEvent,
             OrganizationEnrollmentLinkStaffOnboardingHandler>(
+            WorkspacesModuleMetadata.Name,
+            OrganizationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            OrganizationEnrollmentLinkExpiredIntegrationEvent,
+            OrganizationEnrollmentLinkExpiredStaffOnboardingHandler>(
             WorkspacesModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
         services.AddIntegrationEventHandler<

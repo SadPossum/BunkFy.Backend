@@ -468,6 +468,7 @@ public sealed class HostCompositionGuardTests
             "Worker__Modules__Notifications",
             "Worker__Modules__AccessControl",
             "Worker__Modules__Organizations",
+            "Organizations__Lifecycle__Enabled",
             "Worker__Modules__Guests",
             "Worker__Modules__DataRights",
             "Worker__Modules__Staff",

@@ -13,17 +13,17 @@ internal sealed class WorkspaceStaffOnboardingConfiguration
         {
             table.HasCheckConstraint("CK_staff_onboarding_version", "\"Version\" >= 1");
             table.HasCheckConstraint("CK_staff_onboarding_source", "\"SourceKind\" IN (1, 2)");
-            table.HasCheckConstraint("CK_staff_onboarding_status", "\"Status\" BETWEEN 1 AND 8");
+            table.HasCheckConstraint("CK_staff_onboarding_status", "\"Status\" BETWEEN 1 AND 9");
             table.HasCheckConstraint("CK_staff_onboarding_claim",
                 "(\"ClaimId\" IS NULL AND \"ClaimVersion\" IS NULL) OR " +
                 "(\"ClaimId\" IS NOT NULL AND \"ClaimVersion\" > 0)");
             table.HasCheckConstraint("CK_staff_onboarding_staff",
                 "\"Status\" NOT IN (4, 5) OR \"StaffMemberId\" IS NOT NULL");
             table.HasCheckConstraint("CK_staff_onboarding_pending_profile",
-                "\"Status\" IN (5, 7, 8) OR " +
+                "\"Status\" IN (5, 7, 8, 9) OR " +
                 "(\"VerifiedAccountEmail\" IS NOT NULL AND \"DisplayName\" IS NOT NULL)");
             table.HasCheckConstraint("CK_staff_onboarding_terminal_redaction",
-                "\"Status\" NOT IN (5, 7, 8) OR " +
+                "\"Status\" NOT IN (5, 7, 8, 9) OR " +
                 "(\"VerifiedAccountEmail\" IS NULL AND \"DisplayName\" IS NULL AND " +
                 "\"LegalName\" IS NULL AND \"WorkEmail\" IS NULL AND \"WorkPhone\" IS NULL AND " +
                 "\"EmployeeNumber\" IS NULL AND \"JobTitle\" IS NULL AND \"Department\" IS NULL)");

@@ -1264,6 +1264,41 @@
       ]
     },
     {
+      "id": "workspaces.enrollment-claim-decision-expires-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "claim-expiry",
+        "onboarding-retention"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-event-input",
+      "countryPolicyKey": "workspaces.enrollment-claim-decision-expires-at",
+      "retentionPolicy": "integration-message-journal",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "integration-event"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "DecisionExpiresAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        }
+      ]
+    },
+    {
       "id": "workspaces.enrollment-claim-id",
       "dataSubject": "staff",
       "classification": "pseudonymous-identifier",
@@ -1309,6 +1344,13 @@
         {
           "assembly": "Gma.Modules.Organizations.Contracts",
           "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent",
+          "member": "ClaimId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
           "member": "ClaimId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
@@ -1406,6 +1448,13 @@
           "member": "ClaimVersion",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "ClaimVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
         }
       ]
     },
@@ -1469,6 +1518,27 @@
           "member": "EventId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationInvitationExpiredIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
         }
       ]
     },
@@ -1529,6 +1599,27 @@
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationInvitationExpiredIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
           "member": "OccurredAtUtc",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
@@ -1840,9 +1931,11 @@
       "retentionPolicy": "join-source-lifecycle",
       "rightsPolicy": "staff-employment-history",
       "allowedSurfaces": [
-        "api-response"
+        "api-response",
+        "integration-event"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api"
       ],
       "approvalState": "engineering-default",
@@ -1853,6 +1946,20 @@
           "member": "ExpiresAtUtc",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationInvitationExpiredIntegrationEvent",
+          "member": "ExpiresAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
+          "member": "ExpiresAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
         }
       ]
     },
@@ -2010,6 +2117,27 @@
         {
           "assembly": "Gma.Modules.Organizations.Contracts",
           "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkChangedIntegrationEvent",
+          "member": "EnrollmentLinkId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationInvitationExpiredIntegrationEvent",
+          "member": "InvitationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "EnrollmentLinkId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
           "member": "EnrollmentLinkId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
@@ -2387,6 +2515,20 @@
         {
           "assembly": "Gma.Modules.Organizations.Contracts",
           "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkChangedIntegrationEvent",
+          "member": "LinkVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationInvitationExpiredIntegrationEvent",
+          "member": "InvitationVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
           "member": "LinkVersion",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
@@ -3728,6 +3870,48 @@
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent",
           "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationInvitationExpiredIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationInvitationExpiredIntegrationEvent",
+          "member": "OrganizationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "OrganizationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
+          "member": "OrganizationId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
         }

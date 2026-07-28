@@ -166,6 +166,7 @@ public static class BunkFyBackendComposition
             .WithEnvironment("Worker__Modules__Auth", "true")
             .WithEnvironment("Worker__Modules__Notifications", "true")
             .WithEnvironment("Worker__Modules__Organizations", "true")
+            .WithEnvironment("Organizations__Lifecycle__Enabled", "true")
             .WithEnvironment("Worker__Modules__Properties", "true")
             .WithEnvironment("Worker__Modules__Inventory", "true")
             .WithEnvironment("Worker__Modules__Reservations", "true")

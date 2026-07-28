@@ -16,6 +16,7 @@ internal static class WorkspaceStaffAccessPlanMappings
             WorkspaceStaffAccessPlanState.Prepared => WorkspaceStaffAccessPlanStatus.Prepared,
             WorkspaceStaffAccessPlanState.Active => WorkspaceStaffAccessPlanStatus.Active,
             WorkspaceStaffAccessPlanState.Superseded => WorkspaceStaffAccessPlanStatus.Superseded,
+            WorkspaceStaffAccessPlanState.Expired => WorkspaceStaffAccessPlanStatus.Expired,
             _ => WorkspaceStaffAccessPlanStatus.Unknown
         },
         plan.Version,

@@ -15,8 +15,11 @@ public static class WorkspacesModuleMetadata
     public const string Name = "workspaces";
     public const string Schema = "workspaces";
     public const string InvitationChangedHandlerName = "staff-invitation-changed";
+    public const string InvitationExpiredHandlerName = "staff-invitation-expired";
     public const string EnrollmentClaimChangedHandlerName = "staff-enrollment-claim-changed";
+    public const string EnrollmentClaimExpiredHandlerName = "staff-enrollment-claim-expired";
     public const string EnrollmentLinkChangedHandlerName = "staff-enrollment-link-changed";
+    public const string EnrollmentLinkExpiredHandlerName = "staff-enrollment-link-expired";
     public const string MembershipAccessSeedHandlerName = "bunkfy-workspace-access-profile-seeds";
     public const string StaffAccessLifecycleHandlerName = "bunkfy-workspace-staff-access-lifecycle";
     public const string PropertyCreatedHandlerName = "workspace-property-created";
@@ -32,12 +35,21 @@ public static class WorkspacesModuleMetadata
         .WithSubscription<OrganizationInvitationChangedIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             InvitationChangedHandlerName)
+        .WithSubscription<OrganizationInvitationExpiredIntegrationEvent>(
+            OrganizationsModuleMetadata.Name,
+            InvitationExpiredHandlerName)
         .WithSubscription<OrganizationEnrollmentClaimChangedIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             EnrollmentClaimChangedHandlerName)
+        .WithSubscription<OrganizationEnrollmentClaimExpiredIntegrationEvent>(
+            OrganizationsModuleMetadata.Name,
+            EnrollmentClaimExpiredHandlerName)
         .WithSubscription<OrganizationEnrollmentLinkChangedIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             EnrollmentLinkChangedHandlerName)
+        .WithSubscription<OrganizationEnrollmentLinkExpiredIntegrationEvent>(
+            OrganizationsModuleMetadata.Name,
+            EnrollmentLinkExpiredHandlerName)
         .WithSubscription<OrganizationMembershipChangedIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             MembershipAccessSeedHandlerName)

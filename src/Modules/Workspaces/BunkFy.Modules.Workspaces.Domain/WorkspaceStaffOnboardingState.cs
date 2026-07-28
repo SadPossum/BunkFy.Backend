@@ -10,5 +10,6 @@ public enum WorkspaceStaffOnboardingState
     Completed = 5,
     Failed = 6,
     Rejected = 7,
-    Superseded = 8
+    Superseded = 8,
+    Expired = 9
 }
