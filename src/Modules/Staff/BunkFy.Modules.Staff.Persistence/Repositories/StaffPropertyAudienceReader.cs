@@ -20,6 +20,11 @@ internal sealed class StaffPropertyAudienceReader(StaffDbContext dbContext) : IS
             .Where(member => member.ScopeId == normalizedScopeId &&
                 member.Status == StaffMemberState.Active &&
                 member.AuthSubjectId != null &&
+                dbContext.ProcessingRestrictionProjections.Any(projection =>
+                    projection.StaffMemberId == member.Id &&
+                    projection.ContractVersion ==
+                        StaffProcessingRestrictionContract.CurrentVersion &&
+                    !projection.IsRestricted) &&
                 member.Assignments.Any(assignment =>
                     assignment.PropertyId == propertyId && assignment.IsCurrent))
             .Select(member => member.AuthSubjectId!)
@@ -39,7 +44,14 @@ internal sealed class StaffPropertyAudienceReader(StaffDbContext dbContext) : IS
 
         return dbContext.StaffMembers
             .AsNoTracking()
-            .Where(member => member.ScopeId == normalizedScopeId && member.Id == staffMemberId)
+            .Where(member =>
+                member.ScopeId == normalizedScopeId &&
+                member.Id == staffMemberId &&
+                dbContext.ProcessingRestrictionProjections.Any(projection =>
+                    projection.StaffMemberId == member.Id &&
+                    projection.ContractVersion ==
+                        StaffProcessingRestrictionContract.CurrentVersion &&
+                    !projection.IsRestricted))
             .Select(member => member.AuthSubjectId)
             .SingleOrDefaultAsync(cancellationToken);
     }

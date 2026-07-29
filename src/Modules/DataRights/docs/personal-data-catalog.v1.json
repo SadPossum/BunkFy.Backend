@@ -1232,6 +1232,13 @@
         {
           "assembly": "BunkFy.Modules.DataRights.Contracts",
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
+          "member": "CaseType",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.DataRights.Contracts",
+          "type": "BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest",
           "member": "TenantId",
           "surface": "integration-command",
           "retentionPolicy": "transient-request"

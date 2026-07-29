@@ -103,7 +103,7 @@ internal sealed class ApplyStaffDataRightsCorrectionCommandHandler(
                 StaffApplicationErrors.DataRightsApprovalRequired);
         }
 
-        StaffMember? member = await members.GetAsync(
+        StaffMember? member = await members.GetForDataRightsAsync(
             command.StaffMemberId,
             cancellationToken).ConfigureAwait(false);
         if (member is null)

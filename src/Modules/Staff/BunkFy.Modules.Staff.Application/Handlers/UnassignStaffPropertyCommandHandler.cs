@@ -17,7 +17,9 @@ internal sealed class UnassignStaffPropertyCommandHandler(IStaffMemberRepository
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(UnassignStaffPropertyCommand command,
         CancellationToken cancellationToken)
     {
-        StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
+        StaffMember? member = await members.GetForSafetyTransitionAsync(
+            command.StaffMemberId,
+            cancellationToken).ConfigureAwait(false);
         if (member is null)
         {
             return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);

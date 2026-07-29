@@ -14,6 +14,14 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
     public DbSet<StaffMember> StaffMembers => this.Set<StaffMember>();
     public DbSet<StaffDataRightsCorrectionReceipt> DataRightsCorrectionReceipts =>
         this.Set<StaffDataRightsCorrectionReceipt>();
+    public DbSet<StaffProcessingRestriction> ProcessingRestrictions =>
+        this.Set<StaffProcessingRestriction>();
+    public DbSet<StaffProcessingRestrictionProjection>
+        ProcessingRestrictionProjections =>
+        this.Set<StaffProcessingRestrictionProjection>();
+    public DbSet<StaffProcessingRestrictionReceipt>
+        ProcessingRestrictionReceipts =>
+        this.Set<StaffProcessingRestrictionReceipt>();
     public DbSet<StaffPropertyAssignment> PropertyAssignments => this.Set<StaffPropertyAssignment>();
     public DbSet<StaffPropertyProjection> PropertyProjections => this.Set<StaffPropertyProjection>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
@@ -23,7 +31,7 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        this.EnsureCorrectionReceiptsAreAppendOnly();
+        this.EnsureDataRightsReceiptsAreAppendOnly();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -31,7 +39,7 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
-        this.EnsureCorrectionReceiptsAreAppendOnly();
+        this.EnsureDataRightsReceiptsAreAppendOnly();
         return base.SaveChangesAsync(
             acceptAllChangesOnSuccess,
             cancellationToken);
@@ -44,16 +52,20 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
         this.ApplyScopeConventions(modelBuilder);
     }
 
-    private void EnsureCorrectionReceiptsAreAppendOnly()
+    private void EnsureDataRightsReceiptsAreAppendOnly()
     {
-        bool mutationRequested = this.ChangeTracker
+        bool correctionMutationRequested = this.ChangeTracker
             .Entries<StaffDataRightsCorrectionReceipt>()
             .Any(entry =>
                 entry.State is EntityState.Modified or EntityState.Deleted);
-        if (mutationRequested)
+        bool restrictionMutationRequested = this.ChangeTracker
+            .Entries<StaffProcessingRestrictionReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        if (correctionMutationRequested || restrictionMutationRequested)
         {
             throw new InvalidOperationException(
-                "Staff data-rights correction receipts are append-only.");
+                "Staff data-rights receipts are append-only.");
         }
     }
 }

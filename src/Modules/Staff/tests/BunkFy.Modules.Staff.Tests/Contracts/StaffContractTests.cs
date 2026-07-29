@@ -21,7 +21,7 @@ public sealed class StaffContractTests
         Assert.Contains(permissions, permission =>
             permission.Code == StaffAdminPermissionCodes.SensitiveProfileRead);
         Assert.Equal(3, StaffModuleMetadata.Descriptor.GetSubscriptions().Count);
-        Assert.Equal(6, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(7, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Contains(
             StaffModuleMetadata.Descriptor.GetPublishedEvents(),
             published =>
@@ -40,6 +40,7 @@ public sealed class StaffContractTests
             typeof(StaffMemberUpdatedIntegrationEvent), typeof(StaffMemberLifecycleChangedIntegrationEvent),
             typeof(StaffAuthSubjectChangedIntegrationEvent),
             typeof(StaffPropertyAssignmentChangedIntegrationEvent),
+            typeof(StaffProcessingRestrictionChangedIntegrationEvent),
             typeof(DataRightsTenantCorrectionAppliedIntegrationEvent)];
         Assert.All(eventTypes, eventType => Assert.DoesNotContain(eventType.GetProperties(),
             property => forbidden.Contains(property.Name, StringComparer.Ordinal)));

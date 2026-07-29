@@ -282,7 +282,9 @@ public sealed class DataRightsModule : IModule
 
         DataRightsDiscoveryEndpoints.Map(group);
         DataRightsExecutionEndpoints.Map(group, security.AnonymisationExecutionAssurance);
-        DataRightsRestrictionEndpoints.Map(group, security.RestrictionExecutionAssurance);
+        DataRightsRestrictionEndpoints.MapProperty(
+            group,
+            security.RestrictionExecutionAssurance);
         DataRightsCorrectionEndpoints.MapProperty(
             group,
             security.CorrectionExecutionAssurance);
@@ -293,6 +295,7 @@ public sealed class DataRightsModule : IModule
         DataRightsTenantEndpoints.Map(
             endpoints,
             this.Name,
+            security.RestrictionExecutionAssurance,
             security.CorrectionExecutionAssurance,
             security.ExportGenerationAssurance,
             security.ExportDownloadAssurance);

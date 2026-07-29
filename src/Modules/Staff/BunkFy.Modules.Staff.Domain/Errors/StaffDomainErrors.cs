@@ -41,4 +41,43 @@ public static class StaffDomainErrors
     public static readonly Error CorrectionReceiptFieldsInvalid = new(
         "Staff.CorrectionReceiptFieldsInvalid",
         "The correction receipt fields are invalid.");
+    public static readonly Error RestrictionProjectionIdentityInvalid = new(
+        "Staff.RestrictionProjectionIdentityInvalid",
+        "The processing-restriction projection identity is invalid.");
+    public static readonly Error RestrictionProjectionContractUnsupported = new(
+        "Staff.RestrictionProjectionContractUnsupported",
+        "The processing-restriction projection contract is unsupported.");
+    public static readonly Error RestrictionProjectionVersionConflict = new(
+        "Staff.RestrictionProjectionVersionConflict",
+        "The processing-restriction projection version has changed.");
+    public static readonly Error RestrictionProjectionTransitionInvalid = new(
+        "Staff.RestrictionProjectionTransitionInvalid",
+        "The processing-restriction transition is invalid.");
+    public static readonly Error RestrictionProjectionStateInvalid = new(
+        "Staff.RestrictionProjectionStateInvalid",
+        "The processing-restriction projection state is invalid.");
+    public static readonly Error RestrictionIdentityInvalid = new(
+        "Staff.RestrictionIdentityInvalid",
+        "The processing-restriction identity is invalid.");
+    public static readonly Error RestrictionApprovalInvalid = new(
+        "Staff.RestrictionApprovalInvalid",
+        "The processing-restriction approval coordinate is invalid.");
+    public static readonly Error RestrictionTransitionInvalid = new(
+        "Staff.RestrictionTransitionInvalid",
+        "The processing-restriction transition is invalid.");
+    public static readonly Error RestrictionVersionConflict = new(
+        "Staff.RestrictionVersionConflict",
+        "The processing-restriction version has changed.");
+    public static readonly Error RestrictionAlreadyReleased = new(
+        "Staff.RestrictionAlreadyReleased",
+        "The processing restriction is already released.");
+    public static readonly Error RestrictionReceiptIdentityInvalid = new(
+        "Staff.RestrictionReceiptIdentityInvalid",
+        "The processing-restriction receipt identity is invalid.");
+    public static readonly Error RestrictionReceiptVersionInvalid = new(
+        "Staff.RestrictionReceiptVersionInvalid",
+        "The processing-restriction receipt version is invalid.");
+    public static readonly Error RestrictionReceiptTransitionInvalid = new(
+        "Staff.RestrictionReceiptTransitionInvalid",
+        "The processing-restriction receipt transition is invalid.");
 }

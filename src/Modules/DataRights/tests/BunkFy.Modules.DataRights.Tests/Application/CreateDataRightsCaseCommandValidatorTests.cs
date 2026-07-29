@@ -10,6 +10,31 @@ using Xunit;
 public sealed class CreateDataRightsCaseCommandValidatorTests
 {
     [Theory]
+    [InlineData(DataRightsOperation.AccessExport, true)]
+    [InlineData(DataRightsOperation.Correction, true)]
+    [InlineData(DataRightsOperation.Restriction, true)]
+    [InlineData(DataRightsOperation.AccessExport | DataRightsOperation.Correction, false)]
+    public void Staff_rights_operations_match_supported_owner_capabilities(
+        DataRightsOperation operations,
+        bool expectedValid)
+    {
+        CreateDataRightsCaseCommand command = new(
+            DataRightsCaseScope.Staff,
+            operations,
+            operations == DataRightsOperation.Restriction
+                ? DataRightsRestrictionDirective.Apply
+                : DataRightsRestrictionDirective.Unknown,
+            DataRightsRequesterRelationship.ControllerInitiated,
+            "user:operator");
+
+        string[] errors = new CreateDataRightsCaseCommandValidator()
+            .Validate(command)
+            .ToArray();
+
+        Assert.Equal(expectedValid, errors.Length == 0);
+    }
+
+    [Theory]
     [InlineData(
         DataRightsOperation.Restriction,
         DataRightsRestrictionDirective.Unknown,

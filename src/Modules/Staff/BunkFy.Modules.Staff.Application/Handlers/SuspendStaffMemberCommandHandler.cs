@@ -18,7 +18,9 @@ internal sealed class SuspendStaffMemberCommandHandler(IStaffMemberRepository me
         SuspendStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
-        StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken)
+        StaffMember? member = await members.GetForSafetyTransitionAsync(
+            command.StaffMemberId,
+            cancellationToken)
             .ConfigureAwait(false);
         if (member is null)
         {

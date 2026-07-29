@@ -15,13 +15,14 @@ public sealed record DataRightsRestrictionContributionRequest(
     int ContractVersion,
     string TenantId,
     Guid IdempotencyKey,
-    Guid PropertyId,
+    Guid? PropertyId,
     Guid CaseId,
     long ApprovalRevision,
     DataRightsSubjectCoordinate Coordinate,
     DataRightsRestrictionDirective Directive,
     string ExecutingActorId,
-    DateTimeOffset DeadlineUtc);
+    DateTimeOffset DeadlineUtc,
+    DataRightsCaseType CaseType = DataRightsCaseType.GuestRights);
 
 public sealed record DataRightsRestrictionOwnerProof(
     int ReceiptContractVersion,
@@ -72,7 +73,7 @@ public enum DataRightsRestrictionContributionStatus
 
 public static class DataRightsRestrictionContract
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const int CodeMaxLength = 200;
     public const int Sha256Length = 64;
 }

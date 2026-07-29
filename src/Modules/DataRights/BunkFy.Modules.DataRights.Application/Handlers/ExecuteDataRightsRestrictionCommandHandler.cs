@@ -30,8 +30,14 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
         ExecuteDataRightsRestrictionCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.Scope is null)
+        {
+            return Result.Failure<DataRightsRestrictionExecutionDto>(
+                DataRightsApplicationErrors.RestrictionExecutionDenied);
+        }
+
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(command.PropertyId),
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)
@@ -45,9 +51,9 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
             : null;
         string actor = command.ActorId?.Trim() ?? string.Empty;
         if (command.IdempotencyKey == Guid.Empty ||
-            command.PropertyId == Guid.Empty ||
             actor.Length is 0 or > DataRightsCase.ActorIdMaxLength ||
-            dataRightsCase.PropertyId != command.PropertyId ||
+            dataRightsCase.Kind != (DataRightsCaseKind)command.Scope.CaseType ||
+            dataRightsCase.PropertyId != command.Scope.PropertyId ||
             dataRightsCase.RequestedOperations !=
                 DataRightsCaseOperation.Restriction ||
             dataRightsCase.DecisionRevision is not long approvalRevision ||
@@ -81,7 +87,7 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
             await approvalGate.EvaluateAsync(
                 new DataRightsOperationApprovalRequest(
                     dataRightsCase.ScopeId,
-                    command.PropertyId,
+                    command.Scope.PropertyId,
                     command.CaseId,
                     approvalRevision,
                     DataRightsOperation.Restriction,
@@ -89,7 +95,8 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                     subject.RecordType,
                     subject.RecordId,
                     subject.RecordVersion,
-                    directive),
+                    directive,
+                    CaseType: command.Scope.CaseType),
                 cancellationToken).ConfigureAwait(false);
         if (!approval.IsApproved)
         {
@@ -123,7 +130,7 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                     DataRightsRestrictionContract.CurrentVersion,
                     dataRightsCase.ScopeId,
                     command.IdempotencyKey,
-                    command.PropertyId,
+                    command.Scope.PropertyId,
                     command.CaseId,
                     approvalRevision,
                     new BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinate(
@@ -133,7 +140,8 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                         subject.RecordVersion),
                     directive,
                     actor,
-                    nowUtc.Add(OwnerDeadline)),
+                    nowUtc.Add(OwnerDeadline),
+                    command.Scope.CaseType),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (InvalidOperationException)

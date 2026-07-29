@@ -34,9 +34,11 @@ internal sealed class CreateDataRightsCaseCommandValidator
         }
 
         if (command.Scope?.CaseType == DataRightsCaseType.StaffRights &&
-            command.RequestedOperations != DataRightsOperation.AccessExport)
+            command.RequestedOperations is not DataRightsOperation.AccessExport
+                and not DataRightsOperation.Correction
+                and not DataRightsOperation.Restriction)
         {
-            yield return "StaffRights currently supports AccessExport only.";
+            yield return "StaffRights currently supports AccessExport, Correction, or Restriction only.";
         }
 
         bool restrictionRequested =

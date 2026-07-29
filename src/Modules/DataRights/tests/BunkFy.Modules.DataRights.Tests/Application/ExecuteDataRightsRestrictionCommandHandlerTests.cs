@@ -34,7 +34,7 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
             [contributor],
             new TestClock());
         ExecuteDataRightsRestrictionCommand command = new(
-            dataRightsCase.PropertyId!.Value,
+            DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
             Guid.NewGuid(),
             dataRightsCase.Version,
@@ -68,7 +68,7 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
             [contributor],
             new TestClock());
         ExecuteDataRightsRestrictionCommand command = new(
-            dataRightsCase.PropertyId!.Value,
+            DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
             Guid.NewGuid(),
             dataRightsCase.Version,
@@ -96,7 +96,7 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
             [contributor],
             new TestClock());
         ExecuteDataRightsRestrictionCommand command = new(
-            dataRightsCase.PropertyId!.Value,
+            DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
             Guid.NewGuid(),
             dataRightsCase.Version,
@@ -131,7 +131,7 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
 
         var denied = await handler.HandleAsync(
             new(
-                dataRightsCase.PropertyId!.Value,
+                DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
                 dataRightsCase.Id,
                 Guid.NewGuid(),
                 dataRightsCase.Version,
@@ -144,6 +144,37 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
         Assert.Null(dataRightsCase.RestrictionExecutionProof);
         Assert.Equal(0, contributor.CallCount);
+    }
+
+    [Fact]
+    public async Task Tenant_scoped_staff_restriction_preserves_absent_property()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedStaffCase(
+            DataRightsRestrictionAction.Apply);
+        RecordingApprovalGate gate = new(DataRightsOperationApprovalResult.Approved);
+        RecordingContributor contributor = new(
+            CompletedOwnerResult(effectiveRestricted: true),
+            "staff");
+        ExecuteDataRightsRestrictionCommandHandler handler = new(
+            new StubCaseRepository(dataRightsCase),
+            gate,
+            [contributor],
+            new TestClock());
+
+        var result = await handler.HandleAsync(
+            new ExecuteDataRightsRestrictionCommand(
+                DataRightsCaseScope.Staff,
+                dataRightsCase.Id,
+                Guid.NewGuid(),
+                dataRightsCase.Version,
+                "user:executor"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(DataRightsCaseType.StaffRights, gate.Request?.CaseType);
+        Assert.Null(gate.Request?.PropertyId);
+        Assert.Equal(DataRightsCaseType.StaffRights, contributor.Request?.CaseType);
+        Assert.Null(contributor.Request?.PropertyId);
     }
 
     private static DataRightsRestrictionContributionResult CompletedOwnerResult(
@@ -204,6 +235,50 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         return dataRightsCase;
     }
 
+    private static DataRightsCase CreateApprovedStaffCase(
+        DataRightsRestrictionAction action)
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseOperation.Restriction,
+            DataRightsRequesterRelation.ControllerInitiated,
+            action).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:privacy",
+            Now.AddMinutes(-6)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy",
+            Now.AddMinutes(-5)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            recordVersion: 3,
+            dataRightsCase.Version,
+            "user:privacy",
+            Now.AddMinutes(-4)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy",
+            Now.AddMinutes(-3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(-2)).IsSuccess);
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(-1)).IsSuccess);
+        return dataRightsCase;
+    }
+
     private sealed class StubCaseRepository(DataRightsCase dataRightsCase)
         : IDataRightsCaseRepository
     {
@@ -218,6 +293,7 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult<DataRightsCase?>(
                 caseId == dataRightsCase.Id &&
+                scope.CaseType == (DataRightsCaseType)dataRightsCase.Kind &&
                 scope.PropertyId == dataRightsCase.PropertyId
                     ? dataRightsCase
                     : null);
@@ -246,10 +322,11 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
     }
 
     private sealed class RecordingContributor(
-        DataRightsRestrictionContributionResult result)
+        DataRightsRestrictionContributionResult result,
+        string ownerKey = "guests")
         : IDataRightsRestrictionContributor
     {
-        public string OwnerKey => "guests";
+        public string OwnerKey => ownerKey;
         public int ContractVersion => DataRightsRestrictionContract.CurrentVersion;
         public int CallCount { get; private set; }
         public DataRightsRestrictionContributionRequest? Request { get; private set; }

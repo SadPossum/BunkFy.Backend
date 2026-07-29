@@ -517,22 +517,27 @@ public sealed class DataRightsCaseTests
     [Theory]
     [InlineData(
         DataRightsRequesterRelation.DataSubject,
-        DataRightsCaseOperation.AccessExport)]
+        DataRightsCaseOperation.AccessExport,
+        DataRightsRestrictionAction.None)]
     [InlineData(
         DataRightsRequesterRelation.AuthorizedRepresentative,
-        DataRightsCaseOperation.Correction)]
+        DataRightsCaseOperation.Correction,
+        DataRightsRestrictionAction.None)]
     [InlineData(
         DataRightsRequesterRelation.ControllerInitiated,
-        DataRightsCaseOperation.Correction)]
+        DataRightsCaseOperation.Restriction,
+        DataRightsRestrictionAction.Apply)]
     public void Staff_rights_case_request_accepts_one_supported_tenant_operation(
         DataRightsRequesterRelation requesterRelationship,
-        DataRightsCaseOperation operation)
+        DataRightsCaseOperation operation,
+        DataRightsRestrictionAction restrictionAction)
     {
         Result<DataRightsCaseRequest> result = DataRightsCaseRequest.Create(
             propertyId: null,
             DataRightsCaseKind.StaffRights,
             operation,
-            requesterRelationship);
+            requesterRelationship,
+            restrictionAction);
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.Value.PropertyId);

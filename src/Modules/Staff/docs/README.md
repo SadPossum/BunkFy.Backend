@@ -23,6 +23,12 @@ Profiles may be `Active`, `Suspended`, or `Departed`. Suspension is explicitly r
 
 `staff.read` exposes the operational directory only: display name, job title, department, status, and current assignment facts. Full profile reads require `staff.sensitive-profile.read`; the identity-bound self-service route remains available to the current Staff subject. Canonical profile/create/update/lifecycle routes require tenant scope. Property discovery and assignment routes require `tenant/property` scope. Property grants do not satisfy tenant operations.
 
+## Processing restrictions
+
+Approved tenant-scoped Staff data-rights cases can apply or release processing restrictions. Staff owns the reference-counted effective state and append-only transition receipts; Data Rights owns approval and orchestration. Missing or future projection contracts fail closed.
+
+Restricted staff members are excluded from directory/detail/self-service reads, profile and assignment writes, identity reconciliation, onboarding reconciliation, and operational notification audiences. Data-rights discovery, export, correction, and restriction execution remain available. Suspend, depart, and unassign remain available as safety-reducing transitions; resume and access-link changes remain blocked. Restriction does not mutate Auth credentials or AccessControl grants.
+
 ## Runtime
 
 The module is composed in public API, Admin API, Admin CLI, and the optional worker group. PostgreSQL migrations live in `BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations`. The worker consumes Properties lifecycle facts and runs `rebuild-staff-properties` to repair the local projection.

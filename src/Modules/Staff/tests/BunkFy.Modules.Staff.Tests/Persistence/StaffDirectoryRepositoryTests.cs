@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Staff.Tests.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Pagination;
@@ -23,6 +24,8 @@ public sealed class StaffDirectoryRepositoryTests
         Assign(member, firstPropertyId, isPrimary: true);
         Assign(member, secondPropertyId, isPrimary: false);
         dbContext.StaffMembers.Add(member);
+        dbContext.ProcessingRestrictionProjections.Add(
+            CreateRestrictionProjection(member));
         dbContext.PropertyProjections.AddRange(
             new StaffPropertyProjection("tenant-a", firstPropertyId, "First", PropertyStatus.Active, 1),
             new StaffPropertyProjection("tenant-a", secondPropertyId, "Second", PropertyStatus.Active, 1));
@@ -83,6 +86,14 @@ public sealed class StaffDirectoryRepositoryTests
             "user:owner",
             Guid.NewGuid(),
             new DateTimeOffset(2026, 7, 21, 9, 0, 0, TimeSpan.Zero)).IsSuccess);
+
+    private static StaffProcessingRestrictionProjection
+        CreateRestrictionProjection(StaffMember member) =>
+        StaffProcessingRestrictionProjection.Create(
+            member.ScopeId,
+            member.Id,
+            StaffProcessingRestrictionContract.CurrentVersion,
+            member.CreatedAtUtc).Value;
 
     private static StaffDbContext CreateDbContext() => new(
         new DbContextOptionsBuilder<StaffDbContext>()

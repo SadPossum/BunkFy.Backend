@@ -86,7 +86,7 @@ public sealed class DataRightsModelTests
                 constraint => constraint.Name == "CK_data_rights_cases_kind").Sql);
         Assert.Equal(
             "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
-            "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2))",
+            "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4))",
             designEntity.GetCheckConstraints().Single(
                 constraint => constraint.Name == "CK_data_rights_cases_operations").Sql);
         Assert.Equal(

@@ -17,7 +17,9 @@ internal sealed class DepartStaffMemberCommandHandler(IStaffMemberRepository mem
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(DepartStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
-        StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
+        StaffMember? member = await members.GetForSafetyTransitionAsync(
+            command.StaffMemberId,
+            cancellationToken).ConfigureAwait(false);
         if (member is null)
         {
             return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);

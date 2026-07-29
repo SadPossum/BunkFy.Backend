@@ -27,6 +27,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IStaffDataRightsCorrectionReceiptRepository,
             StaffDataRightsCorrectionReceiptRepository>();
+        builder.Services.TryAddScoped<
+            IStaffProcessingRestrictionRepository,
+            StaffProcessingRestrictionRepository>();
+        builder.Services.TryAddScoped<
+            IStaffProcessingRestrictionProjectionRepository,
+            StaffProcessingRestrictionProjectionRepository>();
+        builder.Services.TryAddScoped<
+            IStaffProcessingRestrictionGate,
+            StaffProcessingRestrictionGate>();
         builder.Services.TryAddScoped<IStaffPropertyAudienceReader, StaffPropertyAudienceReader>();
         builder.Services.TryAddScoped<IStaffPropertyProjectionRepository, StaffPropertyProjectionRepository>();
         builder.Services.TryAddEnumerable(

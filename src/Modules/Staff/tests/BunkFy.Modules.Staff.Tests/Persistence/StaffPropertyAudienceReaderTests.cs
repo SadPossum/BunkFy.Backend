@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Staff.Tests;
 
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -21,12 +23,33 @@ public sealed class StaffPropertyAudienceReaderTests
         StaffMember suspended = Create("Suspended", "user-suspended");
         StaffMember unlinked = Create("Unlinked", null);
         StaffMember otherProperty = Create("Elsewhere", "user-elsewhere");
+        StaffMember restricted = Create("Restricted", "user-restricted");
         Assign(included, propertyId);
         Assign(suspended, propertyId);
         Assign(unlinked, propertyId);
         Assign(otherProperty, Guid.NewGuid());
+        Assign(restricted, propertyId);
         suspended.Suspend(suspended.Version, "user:owner", "Leave", Guid.NewGuid(), Now.AddMinutes(1));
-        dbContext.StaffMembers.AddRange(included, suspended, unlinked, otherProperty);
+        dbContext.StaffMembers.AddRange(
+            included,
+            suspended,
+            unlinked,
+            otherProperty,
+            restricted);
+        dbContext.ProcessingRestrictionProjections.AddRange(
+            CreateRestrictionProjection(included),
+            CreateRestrictionProjection(suspended),
+            CreateRestrictionProjection(unlinked),
+            CreateRestrictionProjection(otherProperty),
+            CreateRestrictionProjection(restricted));
+        StaffProcessingRestrictionProjection restrictedProjection =
+            dbContext.ProcessingRestrictionProjections.Local.Single(
+                projection =>
+                    projection.StaffMemberId == restricted.Id);
+        Assert.True(restrictedProjection.Apply(
+            0,
+            StaffProcessingRestrictionContract.CurrentVersion,
+            Now.AddMinutes(1)).IsSuccess);
         await dbContext.SaveChangesAsync();
         var reader = new StaffPropertyAudienceReader(dbContext);
 
@@ -39,6 +62,8 @@ public sealed class StaffPropertyAudienceReaderTests
         Assert.Equal(
             "user-suspended",
             await reader.GetAuthSubjectIdAsync("tenant-a", suspended.Id, CancellationToken.None));
+        Assert.Null(
+            await reader.GetAuthSubjectIdAsync("tenant-a", restricted.Id, CancellationToken.None));
     }
 
     private static StaffDbContext CreateDbContext() => new(
@@ -74,6 +99,14 @@ public sealed class StaffPropertyAudienceReaderTests
             "user:owner",
             Guid.NewGuid(),
             Now);
+
+    private static StaffProcessingRestrictionProjection
+        CreateRestrictionProjection(StaffMember member) =>
+        StaffProcessingRestrictionProjection.Create(
+            member.ScopeId,
+            member.Id,
+            StaffProcessingRestrictionContract.CurrentVersion,
+            member.CreatedAtUtc).Value;
 
     private sealed class TestScopeContext : IScopeContext
     {

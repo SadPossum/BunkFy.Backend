@@ -79,7 +79,10 @@ public sealed class StaffPersonalDataCatalogTests
                  {
                      typeof(StaffMember),
                      typeof(StaffPropertyAssignment),
-                     typeof(StaffDataRightsCorrectionReceipt)
+                     typeof(StaffDataRightsCorrectionReceipt),
+                     typeof(StaffProcessingRestriction),
+                     typeof(StaffProcessingRestrictionProjection),
+                     typeof(StaffProcessingRestrictionReceipt)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;

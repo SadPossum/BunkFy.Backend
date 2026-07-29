@@ -5,30 +5,71 @@ using Microsoft.EntityFrameworkCore;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.DataRights;
+using Gma.Framework.Results;
 
-internal sealed class StaffMemberRepository(StaffDbContext dbContext) : IStaffMemberRepository
+internal sealed class StaffMemberRepository(StaffDbContext dbContext)
+    : IStaffMemberRepository
 {
-    public Task AddAsync(StaffMember member, CancellationToken cancellationToken)
+    public Task AddAsync(
+        StaffMember member,
+        CancellationToken cancellationToken)
     {
         dbContext.StaffMembers.Add(member);
+        Result<StaffProcessingRestrictionProjection> projection =
+            StaffProcessingRestrictionProjection.Create(
+                member.ScopeId,
+                member.Id,
+                StaffProcessingRestrictionContract.CurrentVersion,
+                member.CreatedAtUtc);
+        if (projection.IsFailure)
+        {
+            throw new InvalidOperationException(projection.Error.Code);
+        }
+
+        dbContext.ProcessingRestrictionProjections.Add(projection.Value);
         return Task.CompletedTask;
     }
 
-    public Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken) =>
-        dbContext.StaffMembers.Include(member => member.Assignments)
+    public Task<StaffMember?> GetAsync(
+        Guid staffMemberId,
+        CancellationToken cancellationToken) =>
+        this.OperationalMembers()
+            .Include(member => member.Assignments)
             .FirstOrDefaultAsync(member => member.Id == staffMemberId, cancellationToken);
+
+    public Task<StaffMember?> GetForDataRightsAsync(
+        Guid staffMemberId,
+        CancellationToken cancellationToken) =>
+        dbContext.StaffMembers
+            .Include(member => member.Assignments)
+            .FirstOrDefaultAsync(
+                member => member.Id == staffMemberId,
+                cancellationToken);
+
+    public Task<StaffMember?> GetForSafetyTransitionAsync(
+        Guid staffMemberId,
+        CancellationToken cancellationToken) =>
+        dbContext.StaffMembers
+            .Include(member => member.Assignments)
+            .FirstOrDefaultAsync(
+                member => member.Id == staffMemberId,
+                cancellationToken);
 
     public Task<StaffMember?> GetByAuthSubjectAsync(string authSubjectId, CancellationToken cancellationToken)
     {
         string normalized = authSubjectId.Trim();
-        return dbContext.StaffMembers.Include(member => member.Assignments)
+        return this.OperationalMembers()
+            .Include(member => member.Assignments)
             .FirstOrDefaultAsync(member => member.AuthSubjectId == normalized, cancellationToken);
     }
 
     public Task<StaffDirectoryMemberDto?> GetDirectoryAsync(
         Guid staffMemberId,
         CancellationToken cancellationToken) => ProjectDirectory(
-            dbContext.StaffMembers.AsNoTracking().Where(member => member.Id == staffMemberId),
+            this.OperationalMembers()
+                .AsNoTracking()
+                .Where(member => member.Id == staffMemberId),
             visiblePropertyId: null)
         .SingleOrDefaultAsync(cancellationToken);
 
@@ -36,7 +77,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext) : IStaffMe
         Guid propertyId,
         Guid staffMemberId,
         CancellationToken cancellationToken) => ProjectDirectory(
-            dbContext.StaffMembers.AsNoTracking().Where(member =>
+            this.OperationalMembers().AsNoTracking().Where(member =>
                 member.Id == staffMemberId &&
                 member.Assignments.Any(assignment =>
                     assignment.PropertyId == propertyId && assignment.IsCurrent) &&
@@ -51,7 +92,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext) : IStaffMe
         StaffStatus? status,
         PageRequest pageRequest,
         CancellationToken cancellationToken) => ListDirectoryCoreAsync(
-            dbContext.StaffMembers.AsNoTracking(),
+            this.OperationalMembers().AsNoTracking(),
             visiblePropertyId: null,
             search,
             status,
@@ -65,7 +106,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext) : IStaffMe
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
-        IQueryable<StaffMember> query = dbContext.StaffMembers.AsNoTracking()
+        IQueryable<StaffMember> query = this.OperationalMembers().AsNoTracking()
             .Where(member => member.Assignments.Any(assignment => assignment.PropertyId == propertyId &&
                     assignment.IsCurrent) &&
                 dbContext.PropertyProjections.Any(property => property.Id == propertyId &&
@@ -96,6 +137,14 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext) : IStaffMe
             member.AuthSubjectId == normalized &&
             (!exceptStaffMemberId.HasValue || member.Id != exceptStaffMemberId.Value), cancellationToken);
     }
+
+    private IQueryable<StaffMember> OperationalMembers() =>
+        dbContext.StaffMembers.Where(member =>
+            dbContext.ProcessingRestrictionProjections.Any(projection =>
+                projection.StaffMemberId == member.Id &&
+                projection.ContractVersion ==
+                    StaffProcessingRestrictionContract.CurrentVersion &&
+                !projection.IsRestricted));
 
     private static async Task<StaffDirectoryListResponse> ListDirectoryCoreAsync(
         IQueryable<StaffMember> query,

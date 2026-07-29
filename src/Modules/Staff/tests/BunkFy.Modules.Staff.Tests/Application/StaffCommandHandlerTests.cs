@@ -397,6 +397,16 @@ public sealed class StaffCommandHandlerTests
         public Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken) =>
             Task.FromResult(member?.Id == staffMemberId ? member : null);
 
+        public Task<StaffMember?> GetForDataRightsAsync(
+            Guid staffMemberId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(member?.Id == staffMemberId ? member : null);
+
+        public Task<StaffMember?> GetForSafetyTransitionAsync(
+            Guid staffMemberId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(member?.Id == staffMemberId ? member : null);
+
         public Task<StaffMember?> GetByAuthSubjectAsync(string authSubjectId,
             CancellationToken cancellationToken) => Task.FromResult(
             new[] { member, this.AddedMember }

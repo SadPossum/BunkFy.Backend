@@ -28,6 +28,25 @@ public sealed class StaffModelTests
         IEntityType designReceipt = dbContext.GetService<IDesignTimeModel>()
             .Model
             .FindEntityType(typeof(StaffDataRightsCorrectionReceipt))!;
+        IEntityType restriction = dbContext.Model.FindEntityType(
+            typeof(StaffProcessingRestriction))!;
+        IEntityType designRestriction = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(StaffProcessingRestriction))!;
+        IEntityType restrictionProjection = dbContext.Model.FindEntityType(
+            typeof(StaffProcessingRestrictionProjection))!;
+        IEntityType designRestrictionProjection =
+            dbContext.GetService<IDesignTimeModel>()
+                .Model
+                .FindEntityType(
+                    typeof(StaffProcessingRestrictionProjection))!;
+        IEntityType restrictionReceipt = dbContext.Model.FindEntityType(
+            typeof(StaffProcessingRestrictionReceipt))!;
+        IEntityType designRestrictionReceipt =
+            dbContext.GetService<IDesignTimeModel>()
+                .Model
+                .FindEntityType(
+                    typeof(StaffProcessingRestrictionReceipt))!;
 
         Assert.True(member.FindProperty(nameof(StaffMember.Version))!.IsConcurrencyToken);
         Assert.Equal(ValueGenerated.OnAdd, member.FindProperty(nameof(StaffMember.ProjectionOrdinal))!.ValueGenerated);
@@ -54,6 +73,39 @@ public sealed class StaffModelTests
             constraint =>
                 constraint.Name ==
                     "CK_staff_data_rights_correction_receipts_versions");
+        Assert.True(restriction.FindProperty(
+            nameof(StaffProcessingRestriction.Version))!.IsConcurrencyToken);
+        Assert.True(restrictionProjection.FindProperty(
+            nameof(StaffProcessingRestrictionProjection.Revision))!
+            .IsConcurrencyToken);
+        Assert.Equal(
+            ValueGenerated.OnAdd,
+            restrictionProjection.FindProperty(
+                nameof(StaffProcessingRestrictionProjection.ProjectionOrdinal))!
+                .ValueGenerated);
+        Assert.Contains(
+            restrictionReceipt.GetIndexes(),
+            index =>
+                index.IsUnique &&
+                index.Properties.Select(item => item.Name).SequenceEqual([
+                    nameof(StaffProcessingRestrictionReceipt.ScopeId),
+                    nameof(StaffProcessingRestrictionReceipt.IdempotencyKey)
+                ]));
+        Assert.Contains(
+            designRestriction.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                    "CK_staff_processing_restrictions_lifecycle");
+        Assert.Contains(
+            designRestrictionProjection.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                    "CK_staff_processing_restrictions_effective_state");
+        Assert.Contains(
+            designRestrictionReceipt.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                    "CK_staff_processing_restriction_receipts_versions");
     }
 
     [Fact]
@@ -83,6 +135,46 @@ public sealed class StaffModelTests
                     0,
                     TimeSpan.Zero)).Value;
         dbContext.DataRightsCorrectionReceipts.Add(receipt);
+        await dbContext.SaveChangesAsync();
+        dbContext.Entry(receipt).State = EntityState.Modified;
+
+        InvalidOperationException failure =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dbContext.SaveChangesAsync());
+
+        Assert.Contains("append-only", failure.Message);
+    }
+
+    [Fact]
+    public async Task Restriction_receipts_are_append_only()
+    {
+        await using StaffDbContext dbContext = CreateDbContext();
+        StaffProcessingRestrictionReceipt receipt =
+            StaffProcessingRestrictionReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                StaffProcessingRestrictionAction.Apply,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 2,
+                selectedStaffVersion: 3,
+                restrictionContractVersion: 1,
+                resultingRestrictionVersion: 1,
+                resultingProjectionRevision: 1,
+                effectiveRestricted: true,
+                "staff:privacy",
+                Guid.NewGuid(),
+                new DateTimeOffset(
+                    2026,
+                    7,
+                    29,
+                    12,
+                    0,
+                    0,
+                    TimeSpan.Zero)).Value;
+        dbContext.ProcessingRestrictionReceipts.Add(receipt);
         await dbContext.SaveChangesAsync();
         dbContext.Entry(receipt).State = EntityState.Modified;
 

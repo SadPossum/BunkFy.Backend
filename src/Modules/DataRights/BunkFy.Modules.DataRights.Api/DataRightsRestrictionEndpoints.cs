@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Api;
 
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Results;
@@ -15,7 +16,7 @@ using Microsoft.AspNetCore.Routing;
 
 internal static class DataRightsRestrictionEndpoints
 {
-    public static void Map(
+    public static void MapProperty(
         RouteGroupBuilder group,
         AuthenticationAssuranceRequirement? executionAssurance)
     {
@@ -38,7 +39,7 @@ internal static class DataRightsRestrictionEndpoints
                     ? Results.Unauthorized()
                     : (await dispatcher.SendAsync(
                         new ExecuteDataRightsRestrictionCommand(
-                            propertyId,
+                            DataRightsCaseScope.ForProperty(propertyId),
                             caseId,
                             request.IdempotencyKey,
                             request.ExpectedVersion,
@@ -51,6 +52,45 @@ internal static class DataRightsRestrictionEndpoints
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Restrict,
                 DataRightsPropertyAccessScopeResolver.ResolverName);
+        if (executionAssurance is not null)
+        {
+            execute.RequireAuthenticationAssurance(executionAssurance);
+        }
+    }
+
+    public static void MapTenant(
+        RouteGroupBuilder group,
+        AuthenticationAssuranceRequirement? executionAssurance)
+    {
+        RouteHandlerBuilder execute = group.MapPost(
+            "/{caseId:guid}/restriction",
+            async (
+                Guid caseId,
+                ExecuteDataRightsRestrictionRequest request,
+                HttpContext context,
+                IAccessHttpSubjectResolver subjectResolver,
+                IRequestDispatcher dispatcher,
+                CancellationToken cancellationToken) =>
+            {
+                DataRightsSensitiveResponseHeaders.Apply(context.Response);
+                string? actor = DataRightsEndpointSupport.ResolveActor(
+                    context,
+                    subjectResolver);
+                return actor is null
+                    ? Results.Unauthorized()
+                    : (await dispatcher.SendAsync(
+                        new ExecuteDataRightsRestrictionCommand(
+                            DataRightsCaseScope.Staff,
+                            caseId,
+                            request.IdempotencyKey,
+                            request.ExpectedVersion,
+                            actor),
+                        cancellationToken).ConfigureAwait(false))
+                        .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+            })
+            .Produces<DataRightsRestrictionExecutionDto>()
+            .RequireTenant()
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Restrict);
         if (executionAssurance is not null)
         {
             execute.RequireAuthenticationAssurance(executionAssurance);

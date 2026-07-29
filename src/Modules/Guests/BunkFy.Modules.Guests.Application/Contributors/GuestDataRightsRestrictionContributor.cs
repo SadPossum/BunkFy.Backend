@@ -36,6 +36,7 @@ internal sealed class GuestDataRightsRestrictionContributor(
             return DataRightsRestrictionContributionResult.Failed(
                 GuestsApplicationErrors.RestrictionRequestInvalid.Code);
         }
+        Guid propertyId = request.PropertyId!.Value;
 
         GuestProcessingRestrictionReceipt? replay =
             await restrictions.FindReceiptByIdempotencyKeyAsync(
@@ -47,7 +48,7 @@ internal sealed class GuestDataRightsRestrictionContributor(
         }
 
         GuestProcessingRestrictionProjection? projection = await projections.GetAsync(
-            request.PropertyId,
+            propertyId,
             request.Coordinate.RecordId,
             cancellationToken).ConfigureAwait(false);
         if (projection is null)
@@ -58,7 +59,7 @@ internal sealed class GuestDataRightsRestrictionContributor(
 
         IReadOnlyCollection<GuestProcessingRestriction> active =
             await restrictions.ListActiveAsync(
-                request.PropertyId,
+                propertyId,
                 request.Coordinate.RecordId,
                 ActiveRestrictionPage,
                 cancellationToken).ConfigureAwait(false);
@@ -69,7 +70,7 @@ internal sealed class GuestDataRightsRestrictionContributor(
                     await dispatcher.SendAsync(
                         new ApplyGuestProcessingRestrictionCommand(
                             request.IdempotencyKey,
-                            request.PropertyId,
+                            propertyId,
                             request.CaseId,
                             request.ApprovalRevision,
                             request.Coordinate.RecordId,
@@ -128,7 +129,7 @@ internal sealed class GuestDataRightsRestrictionContributor(
         await dispatcher.SendAsync(
             new ReleaseGuestProcessingRestrictionCommand(
                 request.IdempotencyKey,
-                request.PropertyId,
+                request.PropertyId!.Value,
                 restriction.Id,
                 request.CaseId,
                 request.ApprovalRevision,
@@ -144,9 +145,11 @@ internal sealed class GuestDataRightsRestrictionContributor(
         DateTimeOffset nowUtc) =>
         request is not null &&
         request.ContractVersion == DataRightsRestrictionContract.CurrentVersion &&
+        request.CaseType == DataRightsCaseType.GuestRights &&
         !string.IsNullOrWhiteSpace(request.TenantId) &&
         request.IdempotencyKey != Guid.Empty &&
-        request.PropertyId != Guid.Empty &&
+        request.PropertyId is Guid propertyId &&
+        propertyId != Guid.Empty &&
         request.CaseId != Guid.Empty &&
         request.ApprovalRevision > 0 &&
         string.Equals(
@@ -175,7 +178,7 @@ internal sealed class GuestDataRightsRestrictionContributor(
         return receipt.ReceiptId != Guid.Empty &&
             receipt.RestrictionId != Guid.Empty &&
             receipt.Action == expectedAction &&
-            receipt.PropertyId == request.PropertyId &&
+            receipt.PropertyId == request.PropertyId!.Value &&
             receipt.GuestId == request.Coordinate.RecordId &&
             receipt.CaseId == request.CaseId &&
             receipt.ApprovalRevision == request.ApprovalRevision &&

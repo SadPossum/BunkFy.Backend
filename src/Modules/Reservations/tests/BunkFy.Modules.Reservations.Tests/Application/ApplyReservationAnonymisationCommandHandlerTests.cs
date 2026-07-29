@@ -354,7 +354,7 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
             this.CallCount++;
             DataRightsApprovalEvidence? approvedEvidence = evidence is null
                 ? null
-                : evidence with { PropertyId = request.PropertyId };
+                : evidence with { PropertyId = request.PropertyId!.Value };
             return Task.FromResult(approvedEvidence is null
                 ? DataRightsOperationApprovalResult.Denied(
                     DataRightsOperationApprovalDenial.CaseNotApproved)

@@ -263,7 +263,7 @@ public sealed class
             this.CallCount++;
             DataRightsApprovalEvidence evidence = new(
                 SchemaVersion: 1,
-                request.PropertyId,
+                request.PropertyId!.Value,
                 PropertyVersion: 7,
                 OperatingCountryCode: "GB",
                 PolicyId: "gb-hostel",

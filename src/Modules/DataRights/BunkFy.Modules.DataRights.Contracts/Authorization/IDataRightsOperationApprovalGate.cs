@@ -9,7 +9,7 @@ public interface IDataRightsOperationApprovalGate
 
 public sealed record DataRightsOperationApprovalRequest(
     string TenantId,
-    Guid PropertyId,
+    Guid? PropertyId,
     Guid CaseId,
     long ApprovalRevision,
     DataRightsOperation Operation,
@@ -18,7 +18,8 @@ public sealed record DataRightsOperationApprovalRequest(
     Guid RecordId,
     long RecordVersion,
     DataRightsRestrictionDirective RestrictionDirective = DataRightsRestrictionDirective.Unknown,
-    string? ExecutingActorId = null);
+    string? ExecutingActorId = null,
+    DataRightsCaseType CaseType = DataRightsCaseType.GuestRights);
 
 public sealed record DataRightsOperationApprovalResult(
     bool IsApproved,

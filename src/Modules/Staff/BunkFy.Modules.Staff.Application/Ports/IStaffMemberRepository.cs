@@ -8,6 +8,12 @@ public interface IStaffMemberRepository
 {
     Task AddAsync(StaffMember member, CancellationToken cancellationToken);
     Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken);
+    Task<StaffMember?> GetForDataRightsAsync(
+        Guid staffMemberId,
+        CancellationToken cancellationToken);
+    Task<StaffMember?> GetForSafetyTransitionAsync(
+        Guid staffMemberId,
+        CancellationToken cancellationToken);
     Task<StaffMember?> GetByAuthSubjectAsync(string authSubjectId, CancellationToken cancellationToken);
     Task<StaffDirectoryMemberDto?> GetDirectoryAsync(Guid staffMemberId, CancellationToken cancellationToken);
     Task<StaffDirectoryMemberDto?> GetDirectoryAtPropertyAsync(

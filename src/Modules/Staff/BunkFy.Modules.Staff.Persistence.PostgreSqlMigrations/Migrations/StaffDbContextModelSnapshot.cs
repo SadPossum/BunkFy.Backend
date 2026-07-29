@@ -234,6 +234,197 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AppliedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("ApplyApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ApplyCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApplySelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ReleaseApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ReleaseCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ReleaseSelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReleasedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "ApplyCaseId", "ApplyApprovalRevision")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "ReleaseCaseId", "ReleaseApprovalRevision")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "Status", "AppliedAtUtc");
+
+                    b.ToTable("staff_processing_restrictions", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_processing_restrictions_apply_approval", "\"ApplyApprovalRevision\" >= 1 AND \"ApplySelectedStaffVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_staff_processing_restrictions_lifecycle", "(\"Status\" = 1 AND \"ReleaseCaseId\" IS NULL AND \"ReleaseApprovalRevision\" IS NULL AND \"ReleaseSelectedStaffVersion\" IS NULL AND \"ReleasedBy\" IS NULL AND \"ReleasedAtUtc\" IS NULL AND \"Version\" = 1) OR (\"Status\" = 2 AND \"ReleaseCaseId\" IS NOT NULL AND \"ReleaseApprovalRevision\" >= 1 AND \"ReleaseSelectedStaffVersion\" >= 1 AND \"ReleasedBy\" IS NOT NULL AND \"ReleasedAtUtc\" IS NOT NULL AND \"ReleasedAtUtc\" >= \"AppliedAtUtc\" AND \"Version\" >= 2)");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ActiveRestrictionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsRestricted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastTransitionAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ProjectionOrdinal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("ProjectionOrdinal"));
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ScopeId", "StaffMemberId");
+
+                    b.HasIndex("ProjectionOrdinal")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "IsRestricted", "StaffMemberId");
+
+                    b.ToTable("staff_processing_restriction_state", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_processing_restrictions_contract_version", "\"ContractVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_staff_processing_restrictions_effective_state", "(\"ActiveRestrictionCount\" = 0 AND NOT \"IsRestricted\") OR (\"ActiveRestrictionCount\" > 0 AND \"IsRestricted\")");
+
+                            t.HasCheckConstraint("CK_staff_processing_restrictions_revision", "\"Revision\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("EffectiveRestricted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RestrictionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ResultingProjectionRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResultingRestrictionVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CaseId", "ApprovalRevision");
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "CompletedAtUtc");
+
+                    b.ToTable("staff_processing_restriction_receipts", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_processing_restriction_receipts_versions", "\"ApprovalRevision\" >= 1 AND \"SelectedStaffVersion\" >= 1 AND \"ResultingProjectionRevision\" >= 1 AND ((\"Action\" = 1 AND \"ResultingRestrictionVersion\" = 1 AND \"EffectiveRestricted\") OR (\"Action\" = 2 AND \"ResultingRestrictionVersion\" >= 2))");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment", b =>
                 {
                     b.Property<string>("ScopeId")

@@ -138,7 +138,7 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_cases_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
 
-                            t.HasCheckConstraint("CK_data_rights_cases_operations", "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR (\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2))");
+                            t.HasCheckConstraint("CK_data_rights_cases_operations", "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR (\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4))");
 
                             t.HasCheckConstraint("CK_data_rights_cases_property_scope", "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"Kind\" IN (2, 3) AND \"PropertyId\" IS NULL)");
 

@@ -232,7 +232,7 @@ public sealed class GuestDataRightsRestrictionContributorTests
         DataRightsRestrictionContributionRequest request) =>
         GuestProcessingRestrictionProjection.Create(
             request.TenantId,
-            request.PropertyId,
+            request.PropertyId!.Value,
             request.Coordinate.RecordId,
             GuestProcessingRestrictionContract.CurrentVersion,
             Now.AddHours(-1)).Value;
@@ -242,7 +242,7 @@ public sealed class GuestDataRightsRestrictionContributorTests
         GuestProcessingRestriction.Create(
             Guid.NewGuid(),
             request.TenantId,
-            request.PropertyId,
+            request.PropertyId!.Value,
             request.Coordinate.RecordId,
             Guid.NewGuid(),
             request.ApprovalRevision - 1,
@@ -260,7 +260,7 @@ public sealed class GuestDataRightsRestrictionContributorTests
             request.IdempotencyKey,
             Guid.NewGuid(),
             action,
-            request.PropertyId,
+            request.PropertyId!.Value,
             request.Coordinate.RecordId,
             request.CaseId,
             request.ApprovalRevision,
@@ -284,7 +284,7 @@ public sealed class GuestDataRightsRestrictionContributorTests
             Guid.NewGuid(),
             restrictionId ?? Guid.NewGuid(),
             action,
-            request.PropertyId,
+            request.PropertyId!.Value,
             request.Coordinate.RecordId,
             request.CaseId,
             request.ApprovalRevision,

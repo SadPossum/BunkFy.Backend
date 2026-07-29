@@ -23,14 +23,19 @@ internal sealed class DataRightsOperationApprovalGate(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (!TryValidate(request, out string? tenantId, out string? ownerKey, out string? recordType))
+        if (!TryValidate(
+                request,
+                out string? tenantId,
+                out string? ownerKey,
+                out string? recordType,
+                out DataRightsCaseScope? scope))
         {
             return this.Denied(
                 DataRightsOperationApprovalDenial.InvalidRequest);
         }
 
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(request.PropertyId),
+            scope!,
             request.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null ||
@@ -121,9 +126,14 @@ internal sealed class DataRightsOperationApprovalGate(
         DataRightsOperationApprovalRequest request,
         out string? tenantId,
         out string? ownerKey,
-        out string? recordType)
+        out string? recordType,
+        out DataRightsCaseScope? scope)
     {
         bool tenantValid = TenantIds.TryNormalize(request.TenantId, out tenantId);
+        bool scopeValid = DataRightsCaseScope.TryCreate(
+            request.CaseType,
+            request.PropertyId,
+            out scope);
         ownerKey = request.OwnerKey?.Trim().ToLowerInvariant();
         recordType = request.RecordType?.Trim().ToLowerInvariant();
         int operation = (int)request.Operation;
@@ -132,7 +142,7 @@ internal sealed class DataRightsOperationApprovalGate(
                 or DataRightsRestrictionDirective.Release
             : request.RestrictionDirective == DataRightsRestrictionDirective.Unknown;
         return tenantValid &&
-            request.PropertyId != Guid.Empty &&
+            scopeValid &&
             request.CaseId != Guid.Empty &&
             request.ApprovalRevision > 0 &&
             operation is > 0 and <= (int)DataRightsOperation.Anonymisation &&

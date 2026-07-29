@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 3,
+  "catalogVersion": 4,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -87,6 +87,19 @@
         "subject:self",
         "system:workspace-staff-onboarding"
       ]
+    },
+    {
+      "id": "staff-processing-restrictions",
+      "scope": "tenant-approved-data-rights-operation",
+      "readers": [
+        "permission:data-rights.execute",
+        "system:staff.processing-restriction",
+        "system:staff.authorized-audience-reader"
+      ],
+      "writers": [
+        "permission:data-rights.execute",
+        "system:staff.processing-restriction"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -138,6 +151,27 @@
       "startsAt": "authorized-staff-export-assembly",
       "endsAt": "caller-completion-or-discard",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "staff-processing-restriction-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "staff-profile-created",
+      "endsAt": "approved-erasure-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "staff-processing-restriction-record",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-staff-restriction-applied",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
+      "id": "staff-processing-restriction-receipt",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-staff-restriction-transition-completed",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
     }
   ],
   "rightsPolicies": [
@@ -175,6 +209,13 @@
       "correction": "replace-before-submission",
       "restriction": "discard-request",
       "erasure": "discard-on-request-completion"
+    },
+    {
+      "id": "staff-processing-restriction-control",
+      "export": "include-current-state-in-authorized-staff-export",
+      "correction": "change-only-through-approved-restriction-workflow",
+      "restriction": "enforce-effective-processing-restriction",
+      "erasure": "remove-with-approved-subject-disposition"
     }
   ],
   "fields": [
@@ -5338,6 +5379,1332 @@
           "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
           "member": "ChangedFields",
           "surface": "domain-event"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.active-count",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "effective-restriction",
+        "reference-safe-release"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "ActiveRestrictionCount",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.contract-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "fail-closed-contract-versioning"
+      ],
+      "sources": [
+        "staff-restriction-contract"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-command",
+        "integration-event",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionGateRequest",
+          "member": "ContractVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionGateResult",
+          "member": "ObservedContractVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",
+          "member": "ContractVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffProcessingRestrictionChangedDomainEvent",
+          "member": "ContractVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.effective-state",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "effective-restriction",
+        "operational-suppression"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "IsRestricted",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "EffectiveRestricted",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "EffectiveRestricted",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",
+          "member": "IsRestricted",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffProcessingRestrictionChangedDomainEvent",
+          "member": "IsRestricted",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "EffectiveRestricted",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.staff-member-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-member-coordinate",
+        "effective-restriction"
+      ],
+      "sources": [
+        "staff-member"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "domain-event",
+        "integration-command",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "StaffMemberId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffProcessingRestrictionCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "StaffMemberId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionGateRequest",
+          "member": "StaffMemberId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",
+          "member": "StaffMemberId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffProcessingRestrictionChangedDomainEvent",
+          "member": "StaffMemberId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "StaffMemberId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.last-transition-at-utc",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "transition-ordering",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "staff-restriction-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "LastTransitionAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "AppliedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ReleasedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffProcessingRestrictionChangedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.projection-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "optimistic-concurrency",
+        "transition-ordering"
+      ],
+      "sources": [
+        "staff-restriction-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "domain-event",
+        "integration-event",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "Revision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "ResultingProjectionRevision",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffProcessingRestrictionCommand",
+          "member": "ExpectedProjectionRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "ExpectedProjectionRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ProjectionRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionGateResult",
+          "member": "ProjectionRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",
+          "member": "ProjectionRevision",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffProcessingRestrictionChangedDomainEvent",
+          "member": "ProjectionRevision",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ProjectionRevision",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.projection-ordinal",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "bounded-rebuild-ordering"
+      ],
+      "sources": [
+        "database-sequence"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "ProjectionOrdinal",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.tenant-scope-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-isolation",
+        "effective-restriction"
+      ],
+      "sources": [
+        "authenticated-tenant-context"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-lifecycle",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-command",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionProjection",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionGateRequest",
+          "member": "TenantId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffProcessingRestrictionChangedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.gate-decision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "fail-closed-operational-admission"
+      ],
+      "sources": [
+        "staff-restriction-gate"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "transient-response",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionGateResult",
+          "member": "Decision",
+          "surface": "projection-export"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionGateResult",
+          "member": "IsAllowed",
+          "surface": "projection-export"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.action",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "restriction-accountability",
+        "transition-disambiguation"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-receipt",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "Action",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "Action",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "Action",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.actor-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "operator-attribution",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "authenticated-operator"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "AppliedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ReleasedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "ActorId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffProcessingRestrictionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ActorId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ActorId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.approval-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ApplyApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ReleaseApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffProcessingRestrictionCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.case-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "case-traceability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ApplyCaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ReleaseCaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "CaseId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffProcessingRestrictionCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "CaseId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "CaseId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.event-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "event-idempotency",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "staff-restriction-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-receipt",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "EventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "EventId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffProcessingRestrictionChangedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "EventId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "restriction-identity",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "staff-restriction-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "RestrictionId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "RestrictionId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "RestrictionId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "RestrictionId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.idempotency-key",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "duplicate-prevention",
+        "idempotent-restriction-transition"
+      ],
+      "sources": [
+        "authorized-request"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-receipt",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "IdempotencyKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffProcessingRestrictionCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.receipt-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "receipt-retrieval",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "staff-restriction-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-receipt",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ReceiptId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "ReceiptId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.record-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "optimistic-concurrency",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "staff-restriction-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "ResultingRestrictionVersion",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "ExpectedRestrictionVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "RestrictionVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "RestrictionVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.selected-staff-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "stale-decision-prevention"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ApplySelectedStaffVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "ReleaseSelectedStaffVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestrictionReceipt",
+          "member": "SelectedStaffVersion",
+          "surface": "persistence",
+          "retentionPolicy": "staff-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffProcessingRestrictionCommand",
+          "member": "ExpectedStaffVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "ExpectedStaffVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "SelectedStaffVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionReceiptDto",
+          "member": "SelectedStaffVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "staff.restriction.status",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "restriction-lifecycle",
+        "effective-restriction"
+      ],
+      "sources": [
+        "staff-restriction-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction-state",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffProcessingRestriction",
+          "member": "Status",
+          "surface": "persistence"
         }
       ]
     }
