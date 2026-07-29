@@ -116,6 +116,14 @@ builder.Services.Configure<OrganizationsApiSecurityOptions>(
     options => options.GovernanceOperationsAssurance = privilegedOperationAssurance);
 builder.Services.Configure<IngestionApiSecurityOptions>(
     options => options.CredentialManagementAssurance = privilegedOperationAssurance);
+builder.Services.Configure<StaffApiSecurityOptions>(
+    options =>
+    {
+        options.EmploymentGovernanceAssurance =
+            privilegedOperationAssurance;
+        options.DataHoldReleaseAssurance =
+            privilegedOperationAssurance;
+    });
 builder.Services.Configure<DataRightsApiSecurityOptions>(
     options =>
     {

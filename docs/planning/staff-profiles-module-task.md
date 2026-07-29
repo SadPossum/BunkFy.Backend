@@ -95,7 +95,9 @@ The module consumes Properties created, updated, and retired events into a monot
 - Sensitive profile fields never appear in logs, operation names, event subjects, general event payloads, or error messages.
 - Staff lifecycle and Auth account lifecycle deliberately remain independent; APIs and docs must not imply otherwise.
 - Actor ids, reasons, identifiers, labels, paging, and search input are bounded.
-- Historical assignments and departed profiles are not erasure. Retention/anonymization is a later compliance workflow.
+- Historical assignments and departed profiles are not erasure. Export,
+  correction, and processing restriction now use explicit data-rights
+  workflows; retention/anonymization remains a later compliance workflow.
 
 ## Production Privacy Audit
 
@@ -113,9 +115,17 @@ The production privacy hardening slice is implemented:
 
 Directory queries project minimized DTOs directly in persistence and include current assignments only. Sensitive responses use `Cache-Control: no-store`; public management updates require both management and sensitive-profile permissions because they return the full profile. The frontend requests `/profile` only for authorized readers and no longer correlates workspace membership to Staff email or Auth-subject data through the broad directory.
 
-The versioned Staff catalogue currently contains 44 field definitions and 366 concrete bindings. Tests fail when a mapped Staff column, search copy, selected public/admin contract, cross-module request, domain event, or integration event gains an undocumented member. Direct identifiers, contact data, free text, search input, and structured payloads are prohibited from events, notifications, logs, metrics, traces, and support bundles.
+The versioned Staff catalogue currently contains 127 field definitions and 807
+concrete bindings. Tests fail when a mapped Staff column, search copy, selected
+public/admin contract, cross-module request, domain event, or integration event
+gains an undocumented member. Direct identifiers, contact data, free text,
+search input, and structured payloads are prohibited from events,
+notifications, logs, metrics, traces, and support bundles.
 
-Retention, anonymization, staff-data export, and legal-hold policy remain explicit later controls; a narrower read model is not an erasure workflow.
+Staff data export, correction, processing restriction, employment governance,
+and legal/data holds are implemented as explicit owner capabilities.
+Automatic retention and anonymization remain later controls; a narrower read
+model is not an erasure workflow.
 
 ## Verification
 

@@ -87,6 +87,38 @@ public sealed class WorkspaceAccessProfileSeedTests
                 profile.Permissions));
     }
 
+    [Theory]
+    [InlineData(StaffAdminPermissionCodes.EmploymentGovernanceManage)]
+    [InlineData(StaffAdminPermissionCodes.DataHoldsManage)]
+    public void Staff_governance_permissions_are_delegable_sensitive_and_never_seeded(
+        string permissionCode)
+    {
+        Assert.Contains(
+            permissionCode,
+            WorkspaceAccessRoles.DelegablePermissions);
+        Assert.DoesNotContain(
+            permissionCode,
+            WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.DoesNotContain(
+            permissionCode,
+            WorkspaceAccessRoles.CompanySupportPermissionCeiling);
+        Assert.All(WorkspaceAccessProfileSeeds.All, profile =>
+            Assert.DoesNotContain(
+                permissionCode,
+                profile.Permissions));
+
+        WorkspaceAccessPermissionDto permission = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All,
+            item => item.Code == permissionCode);
+        Assert.True(permission.IsSensitive);
+        Assert.Equal(
+            [
+                StaffAdminPermissionCodes.Read,
+                StaffAdminPermissionCodes.SensitiveProfileRead
+            ],
+            permission.RequiredPermissions);
+    }
+
     [Fact]
     public void Company_support_role_has_a_bounded_non_sensitive_permission_ceiling()
     {

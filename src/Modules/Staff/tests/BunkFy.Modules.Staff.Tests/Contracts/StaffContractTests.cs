@@ -6,20 +6,35 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Permissions;
 using Gma.Framework.Tasks;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Staff.Domain.Governance;
 using Xunit;
 
 [Trait("Category", "Unit")]
 public sealed class StaffContractTests
 {
     [Fact]
+    public void Employment_governance_contract_version_matches_domain_state()
+    {
+        Assert.Equal(
+            StaffEmploymentGovernance.ContractVersion,
+            StaffEmploymentGovernanceContract.CurrentVersion);
+    }
+
+    [Fact]
     public void Descriptor_exposes_scoped_permissions_property_subscriptions_and_rebuild_task()
     {
         IReadOnlyCollection<ModulePermissionDescriptor> permissions = StaffModuleMetadata.Descriptor.GetPermissions();
-        Assert.Equal(6, permissions.Count);
+        Assert.Equal(8, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped,
             permission.ScopeRequirement));
         Assert.Contains(permissions, permission =>
             permission.Code == StaffAdminPermissionCodes.SensitiveProfileRead);
+        Assert.Contains(permissions, permission =>
+            permission.Code ==
+                StaffAdminPermissionCodes.EmploymentGovernanceManage);
+        Assert.Contains(permissions, permission =>
+            permission.Code ==
+                StaffAdminPermissionCodes.DataHoldsManage);
         Assert.Equal(3, StaffModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Equal(7, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Contains(

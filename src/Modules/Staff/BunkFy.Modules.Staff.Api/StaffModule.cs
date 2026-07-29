@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using BunkFy.Modules.Staff.Application;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Persistence;
@@ -21,6 +22,7 @@ public sealed class StaffModule : IModule
         builder.SelectModuleProfile(StaffProfiles.Default, "BunkFy.Modules.Staff.Api");
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, StaffPropertyAccessScopeResolver>());
+        builder.Services.AddOptions<StaffApiSecurityOptions>();
         builder.Services.AddStaffApplication();
         builder.AddStaffPersistence();
     }
@@ -31,5 +33,11 @@ public sealed class StaffModule : IModule
         StaffMemberEndpoints.Map(endpoints, this.Name);
         StaffPropertyAssignmentEndpoints.Map(endpoints, this.Name);
         StaffDataRightsEndpoints.Map(endpoints, this.Name);
+        StaffGovernanceEndpoints.Map(
+            endpoints,
+            this.Name,
+            endpoints.ServiceProvider
+                .GetRequiredService<IOptions<StaffApiSecurityOptions>>()
+                .Value);
     }
 }

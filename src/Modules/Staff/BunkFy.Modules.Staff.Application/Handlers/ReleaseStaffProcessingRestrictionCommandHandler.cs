@@ -19,6 +19,7 @@ internal sealed class ReleaseStaffProcessingRestrictionCommandHandler(
     IStaffMemberRepository members,
     IStaffProcessingRestrictionProjectionRepository projections,
     IStaffProcessingRestrictionRepository restrictions,
+    IStaffOperationLock operationLock,
     IDataRightsOperationApprovalGate approvalGate,
     IScopeContext scopeContext,
     ISystemClock clock,
@@ -82,6 +83,25 @@ internal sealed class ReleaseStaffProcessingRestrictionCommandHandler(
         {
             return Result.Failure<StaffProcessingRestrictionReceiptDto>(
                 StaffApplicationErrors.DataRightsApprovalRequired);
+        }
+
+        if (!await operationLock.TryAcquireStaffMemberAsync(
+                scopeContext.ScopeId,
+                command.StaffMemberId,
+                cancellationToken).ConfigureAwait(false))
+        {
+            return Result.Failure<
+                StaffProcessingRestrictionReceiptDto>(
+                StaffApplicationErrors.StaffMemberNotFound);
+        }
+
+        existing = await restrictions
+            .FindReceiptByIdempotencyKeyAsync(
+                command.IdempotencyKey,
+                cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return Replay(existing, command, actorId);
         }
 
         StaffMember? member = await members.GetForDataRightsAsync(

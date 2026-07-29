@@ -153,6 +153,121 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffDataHold", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("PlacedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PlacedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReleasedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "State", "PlacedAtUtc", "Id");
+
+                    b.ToTable("staff_data_holds", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_data_holds_lifecycle", "(\"State\" = 1 AND \"Version\" = 1 AND \"ReleasedBy\" IS NULL AND \"ReleasedAtUtc\" IS NULL) OR (\"State\" = 2 AND \"Version\" = 2 AND \"ReleasedBy\" IS NOT NULL AND \"ReleasedAtUtc\" IS NOT NULL AND \"ReleasedAtUtc\" >= \"PlacedAtUtc\")");
+
+                            t.HasCheckConstraint("CK_staff_data_holds_state", "\"State\" IN (1, 2)");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffDataHoldReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("HoldId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("ResultingHoldVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "HoldId", "Action")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "CompletedAtUtc", "Id");
+
+                    b.ToTable("staff_data_hold_receipts", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_data_hold_receipts_action", "\"Action\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_staff_data_hold_receipts_versions", "\"SelectedStaffVersion\" >= 1 AND ((\"Action\" = 1 AND \"ResultingHoldVersion\" = 1) OR (\"Action\" = 2 AND \"ResultingHoldVersion\" = 2))");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -497,6 +612,155 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.Governance.StaffEmploymentGovernance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ConfiguredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ConfiguredBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("GovernanceContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("staff_employment_governance", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_employment_governance_contract", "\"GovernanceContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_employment_governance_policy", "char_length(\"OperatingCountryCode\") = 2 AND \"PolicyVersion\" >= 1 AND \"RetentionPolicyVersion\" >= 1 AND char_length(\"PolicyContentSha256\") = 64 AND \"PolicyEffectiveAtUtc\" < \"PolicyExpiresAtUtc\" AND \"PolicyEvaluatedAtUtc\" >= \"PolicyEffectiveAtUtc\" AND \"PolicyEvaluatedAtUtc\" < \"PolicyExpiresAtUtc\" AND \"ConfiguredAtUtc\" >= \"PolicyEvaluatedAtUtc\" AND \"ConfiguredAtUtc\" < \"PolicyExpiresAtUtc\"");
+
+                            t.HasCheckConstraint("CK_staff_employment_governance_versions", "\"SelectedStaffVersion\" >= 1 AND \"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.Governance.StaffEmploymentGovernanceChangeReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AcknowledgementsSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GovernanceContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PolicyContentSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("PreviousGovernanceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RequestSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("ResultingGovernanceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "CompletedAtUtc", "Id");
+
+                    b.ToTable("staff_employment_governance_change_receipts", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_employment_governance_receipts_contract", "\"GovernanceContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_employment_governance_receipts_digests", "char_length(\"PolicyContentSha256\") = 64 AND char_length(\"AcknowledgementsSha256\") = 64 AND char_length(\"RequestSha256\") = 64 AND char_length(\"ReceiptSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_staff_employment_governance_receipts_versions", "\"SelectedStaffVersion\" >= 1 AND \"PreviousGovernanceVersion\" >= 0 AND \"ResultingGovernanceVersion\" = \"PreviousGovernanceVersion\" + 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Persistence.Models.StaffOperationLock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "StaffMemberId")
+                        .IsUnique();
+
+                    b.ToTable("staff_operation_locks", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_operation_locks_coordinate", "\"Id\" = \"StaffMemberId\"");
+
+                            t.HasCheckConstraint("CK_staff_operation_locks_revision", "\"Revision\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Staff.Persistence.StaffProjectionRebuildCheckpoint", b =>
                 {
                     b.Property<string>("ScopeId")
@@ -695,6 +959,26 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                     b.ToTable("outbox_messages", "staff");
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffDataHold", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "StaffMemberId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffDataHoldReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Staff.Domain.DataRights.StaffDataHold", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "HoldId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment", b =>
                 {
                     b.HasOne("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", null)
@@ -702,6 +986,127 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                         .HasForeignKey("ScopeId", "StaffMemberId")
                         .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.Governance.StaffEmploymentGovernance", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.Staff.Domain.Governance.StaffEmploymentGovernance", "ScopeId", "Id")
+                        .HasPrincipalKey("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsOne("BunkFy.Modules.Staff.Domain.Governance.StaffEmploymentGovernanceBinding", "Binding", b1 =>
+                        {
+                            b1.Property<Guid>("StaffEmploymentGovernanceId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("ContentSha256")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("PolicyContentSha256");
+
+                            b1.Property<string>("DataRegionId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("DataRegionId");
+
+                            b1.Property<DateTimeOffset>("EvaluatedAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyEvaluatedAtUtc");
+
+                            b1.Property<string>("OperatingCountryCode")
+                                .IsRequired()
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)")
+                                .HasColumnName("OperatingCountryCode");
+
+                            b1.Property<DateTimeOffset>("PolicyEffectiveAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyEffectiveAtUtc");
+
+                            b1.Property<DateTimeOffset>("PolicyExpiresAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("PolicyExpiresAtUtc");
+
+                            b1.Property<string>("PolicyId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("PolicyId");
+
+                            b1.Property<int>("PolicyVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("PolicyVersion");
+
+                            b1.Property<string>("RetentionPolicyId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("RetentionPolicyId");
+
+                            b1.Property<int>("RetentionPolicyVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("RetentionPolicyVersion");
+
+                            b1.Property<string>("TransferProfileId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("TransferProfileId");
+
+                            b1.HasKey("StaffEmploymentGovernanceId");
+
+                            b1.ToTable("staff_employment_governance", "staff");
+
+                            b1.WithOwner()
+                                .HasForeignKey("StaffEmploymentGovernanceId");
+                        });
+
+                    b.OwnsMany("BunkFy.Modules.Staff.Domain.Governance.StaffEmploymentGovernanceAcknowledgement", "AcceptedAcknowledgements", b1 =>
+                        {
+                            b1.Property<string>("ScopeId")
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)");
+
+                            b1.Property<Guid>("StaffMemberId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("AcknowledgementId")
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)");
+
+                            b1.Property<int>("AcknowledgementVersion")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("ScopeId", "StaffMemberId", "AcknowledgementId", "AcknowledgementVersion");
+
+                            b1.HasIndex("ScopeId", "StaffMemberId");
+
+                            b1.ToTable("staff_employment_governance_acknowledgements", "staff");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ScopeId", "StaffMemberId")
+                                .HasPrincipalKey("ScopeId", "Id");
+                        });
+
+                    b.Navigation("AcceptedAcknowledgements");
+
+                    b.Navigation("Binding")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Persistence.Models.StaffOperationLock", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.Staff.Persistence.Models.StaffOperationLock", "ScopeId", "StaffMemberId")
+                        .HasPrincipalKey("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

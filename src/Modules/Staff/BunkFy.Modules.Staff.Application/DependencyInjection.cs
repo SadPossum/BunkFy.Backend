@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Staff.Application;
 
+using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Staff.Application.Contributors;
 using Gma.Framework.AccessControl;
@@ -19,6 +20,10 @@ public static class DependencyInjection
     public static IServiceCollection AddStaffApplication(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton(_ => CountryPolicyRegistry.Create(
+            [],
+            [],
+            CountryPolicyRuntimeMode.Engineering));
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<IStaffIdentityReconciler, StaffIdentityReconciler>();
         services.TryAddScoped<IStaffOnboardingProvisioner, StaffOnboardingProvisioner>();

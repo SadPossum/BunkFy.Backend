@@ -80,4 +80,43 @@ public static class StaffDomainErrors
     public static readonly Error RestrictionReceiptTransitionInvalid = new(
         "Staff.RestrictionReceiptTransitionInvalid",
         "The processing-restriction receipt transition is invalid.");
+    public static readonly Error EmploymentGovernanceIdentityInvalid = new(
+        "Staff.EmploymentGovernanceIdentityInvalid",
+        "The employment-governance identity is invalid.");
+    public static readonly Error EmploymentGovernanceBindingInvalid = new(
+        "Staff.EmploymentGovernanceBindingInvalid",
+        "The employment-governance policy binding is invalid.");
+    public static readonly Error EmploymentGovernanceAcknowledgementsInvalid = new(
+        "Staff.EmploymentGovernanceAcknowledgementsInvalid",
+        "The employment-governance acknowledgements are invalid.");
+    public static readonly Error EmploymentGovernanceLifecycleInvalid = new(
+        "Staff.EmploymentGovernanceLifecycleInvalid",
+        "The employment-governance lifecycle is invalid.");
+    public static readonly Error EmploymentGovernanceVersionConflict = new(
+        "Staff.EmploymentGovernanceVersionConflict",
+        "The employment-governance version has changed.");
+    public static readonly Error EmploymentGovernanceReceiptInvalid = new(
+        "Staff.EmploymentGovernanceReceiptInvalid",
+        "The employment-governance receipt is invalid.");
+    public static readonly Error DataHoldIdentityInvalid = new(
+        "Staff.DataHoldIdentityInvalid",
+        "The Staff data-hold identity is invalid.");
+    public static readonly Error DataHoldReasonCodeInvalid = new(
+        "Staff.DataHoldReasonCodeInvalid",
+        "The Staff data-hold reason code is invalid.");
+    public static readonly Error DataHoldLifecycleInvalid = new(
+        "Staff.DataHoldLifecycleInvalid",
+        "The Staff data-hold lifecycle is invalid.");
+    public static readonly Error DataHoldVersionConflict = new(
+        "Staff.DataHoldVersionConflict",
+        "The Staff data-hold version has changed.");
+    public static readonly Error DataHoldAlreadyReleased = new(
+        "Staff.DataHoldAlreadyReleased",
+        "The Staff data hold is already released.");
+    public static readonly Error DataHoldReceiptIdentityInvalid = new(
+        "Staff.DataHoldReceiptIdentityInvalid",
+        "The Staff data-hold receipt identity is invalid.");
+    public static readonly Error DataHoldReceiptTransitionInvalid = new(
+        "Staff.DataHoldReceiptTransitionInvalid",
+        "The Staff data-hold receipt transition is invalid.");
 }

@@ -20,6 +20,8 @@ Profiles may be `Active`, `Suspended`, or `Departed`. Suspension is explicitly r
 - `staff.manage`
 - `staff.assign-properties`
 - `staff.manage-lifecycle`
+- `staff.employment-governance.manage`
+- `staff.data-holds.manage`
 
 `staff.read` exposes the operational directory only: display name, job title, department, status, and current assignment facts. Full profile reads require `staff.sensitive-profile.read`; the identity-bound self-service route remains available to the current Staff subject. Canonical profile/create/update/lifecycle routes require tenant scope. Property discovery and assignment routes require `tenant/property` scope. Property grants do not satisfy tenant operations.
 
@@ -29,6 +31,20 @@ Approved tenant-scoped Staff data-rights cases can apply or release processing r
 
 Restricted staff members are excluded from directory/detail/self-service reads, profile and assignment writes, identity reconciliation, onboarding reconciliation, and operational notification audiences. Data-rights discovery, export, correction, and restriction execution remain available. Suspend, depart, and unassign remain available as safety-reducing transitions; resume and access-link changes remain blocked. Restriction does not mutate Auth credentials or AccessControl grants.
 
+## Data rights
+
+Staff is the tenant-scoped owner contributor for discovery, bounded export,
+correction, and processing restriction. Data Rights owns cases, requester
+verification, approval, orchestration, and central completion; it does not read
+Staff persistence.
+
+The guarded foundation for
+[Staff anonymisation](../../../docs/planning/staff-data-rights-anonymisation-task.md).
+provides explicit employment-governance evidence, independently releasable
+Staff holds, and per-member operation serialization. Anonymisation case
+admission and destructive mutation remain disabled until the later scope,
+owner-mutation, and restore slices are complete and verified.
+
 ## Runtime
 
 The module is composed in public API, Admin API, Admin CLI, and the optional worker group. PostgreSQL migrations live in `BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations`. The worker consumes Properties lifecycle facts and runs `rebuild-staff-properties` to repair the local projection.
@@ -37,4 +53,5 @@ General integration events carry only tenant, staff, lifecycle, Auth-correlation
 
 [`personal-data-catalog.v1.json`](personal-data-catalog.v1.json) is the executable Staff data contract. [`personal-data-inventory.v1.md`](personal-data-inventory.v1.md) is generated from it and checked by reflection tests against persistence, search copies, public/admin boundaries, cross-module requests, domain events, and integration events.
 
-Deferred work is tracked in [the Staff Profiles task](../../../docs/planning/staff-profiles-module-task.md).
+Broader deferred work is tracked in
+[the Staff Profiles task](../../../docs/planning/staff-profiles-module-task.md).

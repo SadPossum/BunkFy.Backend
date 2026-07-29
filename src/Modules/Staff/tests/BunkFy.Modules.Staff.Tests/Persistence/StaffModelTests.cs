@@ -7,8 +7,10 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Entities;
+using BunkFy.Modules.Staff.Domain.Governance;
 using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Staff.Persistence.Models;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -183,6 +185,239 @@ public sealed class StaffModelTests
                 () => dbContext.SaveChangesAsync());
 
         Assert.Contains("append-only", failure.Message);
+    }
+
+    [Fact]
+    public void Governance_holds_and_operation_lock_have_tenant_first_constraints()
+    {
+        using StaffDbContext dbContext = CreateDbContext();
+        IModel runtime = dbContext.Model;
+        IModel design = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType governance = runtime.FindEntityType(
+            typeof(StaffEmploymentGovernance))!;
+        IEntityType acknowledgement = runtime.FindEntityType(
+            typeof(StaffEmploymentGovernanceAcknowledgement))!;
+        IEntityType governanceReceipt = runtime.FindEntityType(
+            typeof(StaffEmploymentGovernanceChangeReceipt))!;
+        IEntityType hold = runtime.FindEntityType(typeof(StaffDataHold))!;
+        IEntityType holdReceipt = runtime.FindEntityType(
+            typeof(StaffDataHoldReceipt))!;
+        IEntityType operationLock = runtime.FindEntityType(
+            typeof(StaffOperationLock))!;
+
+        Assert.True(governance.FindProperty(
+            nameof(StaffEmploymentGovernance.Version))!
+            .IsConcurrencyToken);
+        Assert.Equal(
+            [
+                "ScopeId",
+                "StaffMemberId",
+                nameof(
+                    StaffEmploymentGovernanceAcknowledgement
+                        .AcknowledgementId),
+                nameof(
+                    StaffEmploymentGovernanceAcknowledgement
+                        .AcknowledgementVersion)
+            ],
+            acknowledgement.FindPrimaryKey()!.Properties
+                .Select(property => property.Name));
+        Assert.Contains(
+            governanceReceipt.GetIndexes(),
+            index =>
+                index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(
+                            StaffEmploymentGovernanceChangeReceipt
+                                .ScopeId),
+                        nameof(
+                            StaffEmploymentGovernanceChangeReceipt
+                                .IdempotencyKey)
+                    ]));
+        Assert.True(hold.FindProperty(nameof(StaffDataHold.Version))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            hold.GetIndexes(),
+            index => index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(StaffDataHold.ScopeId),
+                    nameof(StaffDataHold.StaffMemberId),
+                    nameof(StaffDataHold.State),
+                    nameof(StaffDataHold.PlacedAtUtc),
+                    nameof(StaffDataHold.Id)
+                ]));
+        Assert.Contains(
+            hold.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.PrincipalEntityType.ClrType ==
+                    typeof(StaffMember) &&
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffDataHold.ScopeId),
+                        nameof(StaffDataHold.StaffMemberId)
+                    ]));
+        Assert.Contains(
+            holdReceipt.GetIndexes(),
+            index =>
+                index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffDataHoldReceipt.ScopeId),
+                        nameof(StaffDataHoldReceipt.IdempotencyKey)
+                    ]));
+        Assert.Contains(
+            holdReceipt.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.PrincipalEntityType.ClrType ==
+                    typeof(StaffDataHold) &&
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffDataHoldReceipt.ScopeId),
+                        nameof(StaffDataHoldReceipt.HoldId)
+                    ]));
+        Assert.True(operationLock.FindProperty(
+            nameof(StaffOperationLock.Revision))!.IsConcurrencyToken);
+        Assert.Contains(
+            operationLock.GetIndexes(),
+            index =>
+                index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffOperationLock.ScopeId),
+                        nameof(StaffOperationLock.StaffMemberId)
+                    ]));
+        Assert.Contains(
+            operationLock.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.PrincipalEntityType.ClrType ==
+                    typeof(StaffMember) &&
+                foreignKey.DeleteBehavior == DeleteBehavior.Cascade &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffOperationLock.ScopeId),
+                        nameof(StaffOperationLock.StaffMemberId)
+                    ]));
+        Assert.Contains(
+            governance.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.PrincipalEntityType.ClrType ==
+                    typeof(StaffMember) &&
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffEmploymentGovernance.ScopeId),
+                        nameof(StaffEmploymentGovernance.Id)
+                    ]));
+
+        Assert.Contains(
+            design.FindEntityType(
+                    typeof(StaffEmploymentGovernance))!
+                .GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                    "CK_staff_employment_governance_policy");
+        Assert.Contains(
+            design.FindEntityType(typeof(StaffDataHold))!
+                .GetCheckConstraints(),
+            constraint =>
+                constraint.Name == "CK_staff_data_holds_lifecycle");
+        Assert.Contains(
+            design.FindEntityType(typeof(StaffOperationLock))!
+                .GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                    "CK_staff_operation_locks_revision");
+        Assert.Contains(
+            design.FindEntityType(typeof(StaffOperationLock))!
+                .GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                    "CK_staff_operation_locks_coordinate");
+    }
+
+    [Fact]
+    public async Task Governance_and_hold_receipts_are_append_only()
+    {
+        await using StaffDbContext governanceContext = CreateDbContext();
+        DateTimeOffset now = new(
+            2026,
+            7,
+            29,
+            12,
+            0,
+            0,
+            TimeSpan.Zero);
+        StaffEmploymentGovernance governance =
+            StaffEmploymentGovernance.Configure(
+                "tenant-a",
+                Guid.NewGuid(),
+                selectedStaffVersion: 3,
+                StaffEmploymentGovernanceBinding.Create(
+                    "GB",
+                    "staff-test",
+                    1,
+                    "eu-west-2",
+                    "uk-no-transfer",
+                    "staff-employment",
+                    1,
+                    new string('a', 64),
+                    now.AddDays(-1),
+                    now.AddDays(1),
+                    now).Value,
+                [],
+                "user:privacy",
+                now).Value;
+        StaffEmploymentGovernanceChangeReceipt governanceReceipt =
+            StaffEmploymentGovernanceChangeReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                governance,
+                previousGovernanceVersion: 0,
+                new string('b', 64),
+                "user:privacy",
+                now).Value;
+        governanceContext.EmploymentGovernance.Add(governance);
+        governanceContext.EmploymentGovernanceChangeReceipts.Add(
+            governanceReceipt);
+        await governanceContext.SaveChangesAsync();
+        governanceContext.Entry(governanceReceipt).State =
+            EntityState.Modified;
+
+        InvalidOperationException governanceFailure =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => governanceContext.SaveChangesAsync());
+        Assert.Contains("append-only", governanceFailure.Message);
+
+        await using StaffDbContext holdContext = CreateDbContext();
+        StaffDataHold hold = StaffDataHold.Place(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            "dispute",
+            "user:privacy",
+            now).Value;
+        StaffDataHoldReceipt holdReceipt =
+            StaffDataHoldReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                hold,
+                StaffDataHoldAction.Place,
+                selectedStaffVersion: 3,
+                "user:privacy",
+                now).Value;
+        holdContext.DataHolds.Add(hold);
+        holdContext.DataHoldReceipts.Add(holdReceipt);
+        await holdContext.SaveChangesAsync();
+        holdContext.Entry(holdReceipt).State = EntityState.Deleted;
+
+        InvalidOperationException holdFailure =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => holdContext.SaveChangesAsync());
+        Assert.Contains("append-only", holdFailure.Message);
     }
 
     private static StaffDbContext CreateDbContext() => new(

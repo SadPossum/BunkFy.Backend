@@ -1,6 +1,9 @@
 namespace BunkFy.Modules.Staff.Persistence.Repositories;
 
+using System.Globalization;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Domain.DataRights;
+using BunkFy.Modules.Staff.Domain.Governance;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +12,12 @@ internal sealed class StaffDataRightsExportContributor(
     IScopeContext scopeContext) : IDataRightsSubjectExportContributor
 {
     public const int MaximumAssignmentRecords = 1_000;
+    public const int MaximumHoldRecords =
+        StaffDataHold.MaximumRecordsPerStaffMember;
     public const string AssignmentRecordType = "staff-property-assignment";
+    public const string EmploymentGovernanceRecordType =
+        "staff-employment-governance";
+    public const string DataHoldRecordType = "staff-data-hold";
 
     public string OwnerKey => StaffDataRightsDiscoveryContributor.Owner;
 
@@ -102,6 +110,74 @@ internal sealed class StaffDataRightsExportContributor(
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
 
+        StaffEmploymentGovernance? governanceState =
+            await dbContext.EmploymentGovernance
+                .AsNoTracking()
+                .Include(item => item.AcceptedAcknowledgements)
+                .Where(item =>
+                    item.Id == coordinate.RecordId)
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+        StaffEmploymentGovernanceDataRightsExport? governance =
+            governanceState is null
+                ? null
+                : new StaffEmploymentGovernanceDataRightsExport(
+                    governanceState.Id,
+                    governanceState.GovernanceContractVersion,
+                    governanceState.SelectedStaffVersion,
+                    governanceState.Binding.OperatingCountryCode,
+                    governanceState.Binding.PolicyId,
+                    governanceState.Binding.PolicyVersion,
+                    governanceState.Binding.DataRegionId,
+                    governanceState.Binding.TransferProfileId,
+                    governanceState.Binding.RetentionPolicyId,
+                    governanceState.Binding.RetentionPolicyVersion,
+                    governanceState.Binding.ContentSha256,
+                    governanceState.Binding.PolicyEffectiveAtUtc,
+                    governanceState.Binding.PolicyExpiresAtUtc,
+                    governanceState.Binding.EvaluatedAtUtc,
+                    governanceState.AcceptedAcknowledgements
+                        .OrderBy(
+                            acknowledgement =>
+                                acknowledgement.AcknowledgementId,
+                            StringComparer.Ordinal)
+                        .ThenBy(
+                            acknowledgement =>
+                                acknowledgement
+                                    .AcknowledgementVersion)
+                        .Select(
+                            acknowledgement =>
+                                string.Create(
+                                    CultureInfo.InvariantCulture,
+                                    $"{acknowledgement.AcknowledgementId}:" +
+                                    $"{acknowledgement.AcknowledgementVersion}"))
+                        .ToArray(),
+                    governanceState.ConfiguredAtUtc,
+                    governanceState.Version);
+        StaffDataHoldDataRightsExport[] dataHolds =
+            await dbContext.DataHolds
+                .AsNoTracking()
+                .Where(hold =>
+                    hold.StaffMemberId == coordinate.RecordId)
+                .OrderBy(hold => hold.PlacedAtUtc)
+                .ThenBy(hold => hold.Id)
+                .Take(MaximumHoldRecords + 1)
+                .Select(hold =>
+                    new StaffDataHoldDataRightsExport(
+                        hold.Id,
+                        hold.StaffMemberId,
+                        hold.ReasonCode,
+                        hold.State,
+                        hold.PlacedAtUtc,
+                        hold.ReleasedAtUtc,
+                        hold.Version))
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (dataHolds.Length > MaximumHoldRecords)
+        {
+            return DataRightsSubjectExportResult.ScopeUnavailable();
+        }
+
         await sink.WriteAsync(
             StaffDataRightsExportSchema.CreateProfileRecord(snapshot.Profile),
             cancellationToken).ConfigureAwait(false);
@@ -111,6 +187,24 @@ internal sealed class StaffDataRightsExportContributor(
         {
             await sink.WriteAsync(
                 StaffDataRightsExportSchema.CreateAssignmentRecord(assignment),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        if (governance is not null)
+        {
+            await sink.WriteAsync(
+                StaffDataRightsExportSchema
+                    .CreateEmploymentGovernanceRecord(governance),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        foreach (StaffDataHoldDataRightsExport dataHold in dataHolds)
+        {
+            await sink.WriteAsync(
+                StaffDataRightsExportSchema
+                    .CreateDataHoldRecord(dataHold),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
         }

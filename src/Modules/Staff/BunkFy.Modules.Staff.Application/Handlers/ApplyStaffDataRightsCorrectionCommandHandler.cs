@@ -18,6 +18,7 @@ using Gma.Framework.Scoping;
 internal sealed class ApplyStaffDataRightsCorrectionCommandHandler(
     IStaffMemberRepository members,
     IStaffDataRightsCorrectionReceiptRepository receipts,
+    IStaffOperationLock operationLock,
     IDataRightsCorrectionExecutionGate executionGate,
     IScopeContext scopeContext,
     ISystemClock clock,
@@ -69,15 +70,7 @@ internal sealed class ApplyStaffDataRightsCorrectionCommandHandler(
                 cancellationToken).ConfigureAwait(false);
         if (existing is not null)
         {
-            return existing.MatchesReplay(
-                command.CaseId,
-                command.ApprovalRevision,
-                command.StaffMemberId,
-                command.ExpectedVersion,
-                requestSha256)
-                ? Result.Success(existing.ToDto())
-                : Result.Failure<StaffDataRightsCorrectionReceiptDto>(
-                    StaffApplicationErrors.CorrectionIdempotencyConflict);
+            return Replay(existing, command, requestSha256);
         }
 
         DataRightsCorrectionExecutionGateResult execution =
@@ -101,6 +94,24 @@ internal sealed class ApplyStaffDataRightsCorrectionCommandHandler(
         {
             return Result.Failure<StaffDataRightsCorrectionReceiptDto>(
                 StaffApplicationErrors.DataRightsApprovalRequired);
+        }
+
+        if (!await operationLock.TryAcquireStaffMemberAsync(
+                scopeContext.ScopeId,
+                command.StaffMemberId,
+                cancellationToken).ConfigureAwait(false))
+        {
+            return Result.Failure<
+                StaffDataRightsCorrectionReceiptDto>(
+                StaffApplicationErrors.StaffMemberNotFound);
+        }
+
+        existing = await receipts.FindByExecutionIdAsync(
+            command.ExecutionId,
+            cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return Replay(existing, command, requestSha256);
         }
 
         StaffMember? member = await members.GetForDataRightsAsync(
@@ -163,6 +174,20 @@ internal sealed class ApplyStaffDataRightsCorrectionCommandHandler(
             .ConfigureAwait(false);
         return Result.Success(created.Value.ToDto());
     }
+
+    private static Result<StaffDataRightsCorrectionReceiptDto> Replay(
+        StaffDataRightsCorrectionReceipt receipt,
+        ApplyStaffDataRightsCorrectionCommand command,
+        string requestSha256) =>
+        receipt.MatchesReplay(
+            command.CaseId,
+            command.ApprovalRevision,
+            command.StaffMemberId,
+            command.ExpectedVersion,
+            requestSha256)
+            ? Result.Success(receipt.ToDto())
+            : Result.Failure<StaffDataRightsCorrectionReceiptDto>(
+                StaffApplicationErrors.CorrectionIdempotencyConflict);
 
     private static DateTimeOffset ToPersistencePrecision(DateTimeOffset value)
     {

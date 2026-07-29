@@ -115,7 +115,14 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
             "example-hostel-policy.v1.json"));
         CountryPolicyPackArtifact artifact = CountryPolicyPackJson.Parse(bytes);
         CountryPolicyPackDocument document = artifact.Document;
+        const string propertyRetentionPolicyId =
+            "development-guest-operational";
         (string Id, int Version) retentionPolicy = document.RetentionRules
+            .Where(rule =>
+                string.Equals(
+                    rule.RetentionPolicyId,
+                    propertyRetentionPolicyId,
+                    StringComparison.Ordinal))
             .Select(rule => (
                 Id: rule.RetentionPolicyId,
                 Version: rule.RetentionPolicyVersion))

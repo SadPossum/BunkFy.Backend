@@ -8,4 +8,7 @@ public static class StaffAdminPermissionCodes
     public const string Manage = "staff.manage";
     public const string AssignProperties = "staff.assign-properties";
     public const string ManageLifecycle = "staff.manage-lifecycle";
+    public const string EmploymentGovernanceManage =
+        "staff.employment-governance.manage";
+    public const string DataHoldsManage = "staff.data-holds.manage";
 }

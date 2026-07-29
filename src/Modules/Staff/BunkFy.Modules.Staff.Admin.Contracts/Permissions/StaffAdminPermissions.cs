@@ -12,4 +12,9 @@ public static class StaffAdminPermissions
     public static readonly AdminPermission Manage = AdminPermission.Create(StaffAdminPermissionCodes.Manage);
     public static readonly AdminPermission AssignProperties = AdminPermission.Create(StaffAdminPermissionCodes.AssignProperties);
     public static readonly AdminPermission ManageLifecycle = AdminPermission.Create(StaffAdminPermissionCodes.ManageLifecycle);
+    public static readonly AdminPermission EmploymentGovernanceManage =
+        AdminPermission.Create(
+            StaffAdminPermissionCodes.EmploymentGovernanceManage);
+    public static readonly AdminPermission DataHoldsManage =
+        AdminPermission.Create(StaffAdminPermissionCodes.DataHoldsManage);
 }

@@ -159,6 +159,26 @@ public sealed class CountryPolicyRegistry
     public CountryPolicyDecision EvaluateActivation(CountryPolicyActivationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+        return this.EvaluateBinding(
+            new(
+                request.OperatingCountryCode,
+                request.PolicyId,
+                request.PolicyVersion,
+                request.DataRegionId,
+                request.TransferProfileId,
+                request.RetentionPolicyId,
+                request.RetentionPolicyVersion,
+                request.AcceptedAcknowledgements,
+                request.AccommodationType,
+                request.PurposeCode,
+                CountryPolicySurface.PropertyActivation,
+                request.SourceProvenance,
+                request.ObservedAtUtc));
+    }
+
+    public CountryPolicyDecision EvaluateBinding(CountryPolicyBindingRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
         CountryPolicyBinding provisional = new(
             request.OperatingCountryCode,
             request.PolicyId,
@@ -174,7 +194,7 @@ public sealed class CountryPolicyRegistry
             provisional,
             request.AccommodationType,
             request.PurposeCode,
-            CountryPolicySurface.PropertyActivation,
+            request.Surface,
             request.SourceProvenance,
             request.ObservedAtUtc,
             requireBindingDigest: false);
@@ -560,6 +580,21 @@ public sealed record CountryPolicyActivationRequest(
     IReadOnlyCollection<CountryPolicyAcknowledgement> AcceptedAcknowledgements,
     string AccommodationType,
     string PurposeCode,
+    string SourceProvenance,
+    DateTimeOffset ObservedAtUtc);
+
+public sealed record CountryPolicyBindingRequest(
+    string OperatingCountryCode,
+    string PolicyId,
+    int PolicyVersion,
+    string DataRegionId,
+    string TransferProfileId,
+    string RetentionPolicyId,
+    int RetentionPolicyVersion,
+    IReadOnlyCollection<CountryPolicyAcknowledgement> AcceptedAcknowledgements,
+    string AccommodationType,
+    string PurposeCode,
+    CountryPolicySurface Surface,
     string SourceProvenance,
     DateTimeOffset ObservedAtUtc);
 

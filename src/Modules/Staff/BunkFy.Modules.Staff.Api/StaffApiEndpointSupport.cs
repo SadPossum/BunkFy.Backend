@@ -8,8 +8,11 @@ using BunkFy.Modules.Staff.Application;
 
 internal static class StaffApiEndpointSupport
 {
-    public static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+    public static readonly ApiErrorStatusCodeMap ErrorStatusCodes =
+        CreateErrorStatusCodes(
         new(StaffApplicationErrors.StaffMemberNotFound.Code, StatusCodes.Status404NotFound),
+        new(StaffApplicationErrors.EmploymentGovernanceNotConfigured.Code, StatusCodes.Status404NotFound),
+        new(StaffApplicationErrors.DataHoldNotFound.Code, StatusCodes.Status404NotFound),
         new(StaffApplicationErrors.PropertyUnavailable.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.EmployeeNumberConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.AuthSubjectConflict.Code, StatusCodes.Status409Conflict),
@@ -19,7 +22,19 @@ internal static class StaffApiEndpointSupport
         new(StaffApplicationErrors.DataRightsApprovalRequired.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.CorrectionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.CorrectionNoChanges.Code, StatusCodes.Status409Conflict),
-        new(StaffApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest));
+        new(StaffApplicationErrors.EmploymentGovernanceStaffVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.EmploymentGovernanceVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.EmploymentGovernanceIdempotencyConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.DataHoldStaffVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.DataHoldStaffNotEligible.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.DataHoldLimitReached.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.DataHoldIdempotencyConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.DataHoldVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.DataHoldAlreadyReleased.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.EmploymentGovernanceRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.DataHoldRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.ConfirmationRequired.Code, StatusCodes.Status400BadRequest));
 
     public static string ResolveActor(HttpContext context, IAccessHttpSubjectResolver resolver)
     {
@@ -35,4 +50,15 @@ internal static class StaffApiEndpointSupport
         context.Response.Headers.Pragma = "no-cache";
         context.Response.Headers.Expires = "0";
     }
+
+    private static ApiErrorStatusCodeMap CreateErrorStatusCodes(
+        params ApiErrorStatusCode[] entries) =>
+        ApiErrorStatusCodeMap.Create(
+            entries.Concat(
+                StaffApplicationErrors
+                    .EmploymentGovernancePolicyDenials
+                    .Select(error => new ApiErrorStatusCode(
+                        error.Code,
+                        StatusCodes.Status409Conflict)))
+                .ToArray());
 }

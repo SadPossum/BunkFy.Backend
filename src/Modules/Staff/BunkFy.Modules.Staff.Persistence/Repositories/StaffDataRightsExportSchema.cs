@@ -72,6 +72,52 @@ internal static class StaffDataRightsExportSchema
                 (nameof(assignment.UnassignedAtVersion), assignment.UnassignedAtVersion)
             ]);
 
+    public static DataRightsExportRecord
+        CreateEmploymentGovernanceRecord(
+            StaffEmploymentGovernanceDataRightsExport governance) =>
+        CreateRecord(
+            StaffDataRightsExportContributor
+                .EmploymentGovernanceRecordType,
+            governance.StaffMemberId,
+            governance.Version,
+            typeof(StaffEmploymentGovernanceDataRightsExport),
+            [
+                (nameof(governance.StaffMemberId), governance.StaffMemberId),
+                (nameof(governance.ContractVersion), governance.ContractVersion),
+                (nameof(governance.SelectedStaffVersion), governance.SelectedStaffVersion),
+                (nameof(governance.OperatingCountryCode), governance.OperatingCountryCode),
+                (nameof(governance.PolicyId), governance.PolicyId),
+                (nameof(governance.PolicyVersion), governance.PolicyVersion),
+                (nameof(governance.DataRegionId), governance.DataRegionId),
+                (nameof(governance.TransferProfileId), governance.TransferProfileId),
+                (nameof(governance.RetentionPolicyId), governance.RetentionPolicyId),
+                (nameof(governance.RetentionPolicyVersion), governance.RetentionPolicyVersion),
+                (nameof(governance.PolicyContentSha256), governance.PolicyContentSha256),
+                (nameof(governance.PolicyEffectiveAtUtc), governance.PolicyEffectiveAtUtc),
+                (nameof(governance.PolicyExpiresAtUtc), governance.PolicyExpiresAtUtc),
+                (nameof(governance.EvaluatedAtUtc), governance.EvaluatedAtUtc),
+                (nameof(governance.AcceptedAcknowledgements), governance.AcceptedAcknowledgements),
+                (nameof(governance.ConfiguredAtUtc), governance.ConfiguredAtUtc),
+                (nameof(governance.Version), governance.Version)
+            ]);
+
+    public static DataRightsExportRecord CreateDataHoldRecord(
+        StaffDataHoldDataRightsExport hold) =>
+        CreateRecord(
+            StaffDataRightsExportContributor.DataHoldRecordType,
+            hold.HoldId,
+            hold.Version,
+            typeof(StaffDataHoldDataRightsExport),
+            [
+                (nameof(hold.HoldId), hold.HoldId),
+                (nameof(hold.StaffMemberId), hold.StaffMemberId),
+                (nameof(hold.ReasonCode), hold.ReasonCode),
+                (nameof(hold.Status), hold.Status),
+                (nameof(hold.PlacedAtUtc), hold.PlacedAtUtc),
+                (nameof(hold.ReleasedAtUtc), hold.ReleasedAtUtc),
+                (nameof(hold.Version), hold.Version)
+            ]);
+
     private static DataRightsExportRecord CreateRecord(
         string recordType,
         Guid recordId,
@@ -142,7 +188,9 @@ internal static class StaffDataRightsExportSchema
         Type[] sourceTypes =
         [
             typeof(StaffProfileDataRightsExport),
-            typeof(StaffAssignmentDataRightsExport)
+            typeof(StaffAssignmentDataRightsExport),
+            typeof(StaffEmploymentGovernanceDataRightsExport),
+            typeof(StaffDataHoldDataRightsExport)
         ];
         HashSet<string> expectedMembers = sourceTypes
             .SelectMany(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public)

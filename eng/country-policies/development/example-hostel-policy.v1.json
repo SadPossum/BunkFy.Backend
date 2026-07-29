@@ -61,6 +61,24 @@
       "allowedSourceProvenance": [ "retention-worker" ]
     },
     {
+      "purposeCode": "staff-employment-governance",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "staff-data-rights-anonymisation",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "erasure" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "staff-profile-retention",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "retention" ],
+      "allowedSourceProvenance": [ "retention-worker" ]
+    },
+    {
       "purposeCode": "reservation-retention",
       "legalRuleReferenceKeys": [ "development-only-example" ],
       "allowedSurfaces": [ "retention" ],
@@ -98,6 +116,13 @@
       "dataClass": "reservation-operational",
       "trigger": "reservation-ended",
       "period": "365.00:00:00"
+    },
+    {
+      "retentionPolicyId": "development-staff-employment",
+      "retentionPolicyVersion": 1,
+      "dataClass": "staff-employment",
+      "trigger": "employment-ended",
+      "period": "2555.00:00:00"
     }
   ],
   "rightsRule": {

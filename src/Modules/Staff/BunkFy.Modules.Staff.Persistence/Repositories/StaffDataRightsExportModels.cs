@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Persistence.Repositories;
 
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.Models;
 
 internal sealed record StaffProfileDataRightsExport(
     Guid StaffMemberId,
@@ -36,3 +37,31 @@ internal sealed record StaffAssignmentDataRightsExport(
 {
     public long RecordVersion => this.UnassignedAtVersion ?? this.AssignedAtVersion;
 }
+
+internal sealed record StaffEmploymentGovernanceDataRightsExport(
+    Guid StaffMemberId,
+    int ContractVersion,
+    long SelectedStaffVersion,
+    string OperatingCountryCode,
+    string PolicyId,
+    int PolicyVersion,
+    string DataRegionId,
+    string TransferProfileId,
+    string RetentionPolicyId,
+    int RetentionPolicyVersion,
+    string PolicyContentSha256,
+    DateTimeOffset PolicyEffectiveAtUtc,
+    DateTimeOffset PolicyExpiresAtUtc,
+    DateTimeOffset EvaluatedAtUtc,
+    string[] AcceptedAcknowledgements,
+    DateTimeOffset ConfiguredAtUtc,
+    long Version);
+
+internal sealed record StaffDataHoldDataRightsExport(
+    Guid HoldId,
+    Guid StaffMemberId,
+    string ReasonCode,
+    StaffDataHoldState Status,
+    DateTimeOffset PlacedAtUtc,
+    DateTimeOffset? ReleasedAtUtc,
+    long Version);

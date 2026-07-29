@@ -34,6 +34,15 @@ public static class DependencyInjection
             IStaffProcessingRestrictionProjectionRepository,
             StaffProcessingRestrictionProjectionRepository>();
         builder.Services.TryAddScoped<
+            IStaffEmploymentGovernanceRepository,
+            StaffEmploymentGovernanceRepository>();
+        builder.Services.TryAddScoped<
+            IStaffDataHoldRepository,
+            StaffDataHoldRepository>();
+        builder.Services.TryAddScoped<
+            IStaffOperationLock,
+            StaffOperationLockRepository>();
+        builder.Services.TryAddScoped<
             IStaffProcessingRestrictionGate,
             StaffProcessingRestrictionGate>();
         builder.Services.TryAddScoped<IStaffPropertyAudienceReader, StaffPropertyAudienceReader>();

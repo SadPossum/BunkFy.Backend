@@ -43,6 +43,8 @@ public static class WorkspaceAccessPermissionCatalogue
         Permission(StaffAdminPermissionCodes.Manage, "Staff", "Edit staff profiles", "Update staff employment and contact details.", sensitive: true, requires: [StaffAdminPermissionCodes.Read]),
         Permission(StaffAdminPermissionCodes.AssignProperties, "Staff", "Assign staff to properties", "Change which properties a staff member can work with.", requires: [StaffAdminPermissionCodes.Read]),
         Permission(StaffAdminPermissionCodes.ManageLifecycle, "Staff", "Manage employment status", "Suspend, restore, or end staff employment.", sensitive: true, requires: [StaffAdminPermissionCodes.Read]),
+        Permission(StaffAdminPermissionCodes.EmploymentGovernanceManage, "Staff", "Manage employment governance", "Bind a staff profile to approved employment jurisdiction, transfer, and retention policy evidence.", sensitive: true, requires: [StaffAdminPermissionCodes.Read, StaffAdminPermissionCodes.SensitiveProfileRead]),
+        Permission(StaffAdminPermissionCodes.DataHoldsManage, "Staff", "Manage Staff data holds", "Place, review, and release holds that block Staff anonymisation and retention.", sensitive: true, requires: [StaffAdminPermissionCodes.Read, StaffAdminPermissionCodes.SensitiveProfileRead]),
 
         Permission(IngestionAdminPermissionCodes.Read, "Integrations", "View integrations", "View connections, runs, receipts, and suggested changes."),
         Permission(IngestionAdminPermissionCodes.ConnectionsManage, "Integrations", "Manage connections", "Create and configure reservation-source connections.", requires: [IngestionAdminPermissionCodes.Read]),

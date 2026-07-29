@@ -8,6 +8,8 @@ using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
+using BunkFy.Modules.Staff.Domain.Models;
+using BunkFy.Modules.Staff.Domain.ValueObjects;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -116,6 +118,57 @@ public sealed class ApplyStaffDataRightsCorrectionCommandHandlerTests
     }
 
     [Fact]
+    public async Task Receipt_committed_while_waiting_for_lock_is_replayed()
+    {
+        StaffMember member = CreateMember();
+        ApplyStaffDataRightsCorrectionCommand command =
+            Command(member, member.Version) with
+            {
+                DisplayName = "Ada Lovelace"
+            };
+        StaffProfileCorrection requested = StaffProfileCorrection.Create(
+            command.DisplayName,
+            command.LegalName,
+            command.WorkEmail,
+            command.WorkPhone,
+            command.EmployeeNumber,
+            command.JobTitle,
+            command.Department).Value;
+        StaffDataRightsCorrectionReceipt committed =
+            StaffDataRightsCorrectionReceipt.Create(
+                Guid.NewGuid(),
+                member.ScopeId,
+                command.ExecutionId,
+                command.CaseId,
+                command.ApprovalRevision,
+                member.Id,
+                command.ExpectedVersion,
+                command.ExpectedVersion + 1,
+                [StaffProfileField.DisplayName],
+                StaffDataRightsCorrectionFingerprint.Compute(requested),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Now).Value;
+        InMemoryReceiptRepository receipts = new(committed);
+        ApplyStaffDataRightsCorrectionCommandHandler handler =
+            CreateHandler(
+                member,
+                receipts,
+                new RecordingExecutionGate());
+
+        Result<StaffDataRightsCorrectionReceiptDto> result =
+            await handler.HandleAsync(
+                command,
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(committed.Id, result.Value.ReceiptId);
+        Assert.Equal(2, receipts.LookupCount);
+        Assert.Equal(command.ExpectedVersion, member.Version);
+        Assert.Equal("Ada", member.DisplayName);
+    }
+
+    [Fact]
     public async Task Denied_or_no_op_correction_does_not_create_receipt()
     {
         StaffMember member = CreateMember();
@@ -156,6 +209,7 @@ public sealed class ApplyStaffDataRightsCorrectionCommandHandlerTests
         RecordingExecutionGate gate) => new(
         new InMemoryMemberRepository(member),
         receipts,
+        new NoopStaffOperationLock(),
         gate,
         new TestScopeContext(),
         new TestClock(),
@@ -212,18 +266,26 @@ public sealed class ApplyStaffDataRightsCorrectionCommandHandlerTests
         }
     }
 
-    private sealed class InMemoryReceiptRepository
+    private sealed class InMemoryReceiptRepository(
+        StaffDataRightsCorrectionReceipt? delayedReceipt = null)
         : IStaffDataRightsCorrectionReceiptRepository
     {
         public StaffDataRightsCorrectionReceipt? Receipt { get; private set; }
+        public int LookupCount { get; private set; }
 
         public Task<StaffDataRightsCorrectionReceipt?> FindByExecutionIdAsync(
             Guid executionId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(
-                this.Receipt?.ExecutionId == executionId
-                    ? this.Receipt
+            CancellationToken cancellationToken)
+        {
+            this.LookupCount++;
+            StaffDataRightsCorrectionReceipt? visible =
+                this.Receipt ??
+                (this.LookupCount >= 2 ? delayedReceipt : null);
+            return Task.FromResult(
+                visible?.ExecutionId == executionId
+                    ? visible
                     : null);
+        }
 
         public Task AddAsync(
             StaffDataRightsCorrectionReceipt receipt,

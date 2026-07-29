@@ -11,7 +11,9 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Entities;
+using BunkFy.Modules.Staff.Domain.Governance;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Staff.Persistence.Models;
 using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
@@ -28,6 +30,11 @@ public sealed class StaffPersonalDataCatalogTests
         ["Assignments", "Department", "DisplayName", "JobTitle", "StaffMemberId", "Status", "Version"];
     private static readonly string[] ExpectedDirectoryAssignmentProperties =
         ["AssignmentId", "EffectiveFrom", "IsPrimary", "PropertyId", "PropertyJobTitle"];
+    private static readonly Dictionary<Type, string[]> ExpectedEfShadowRelationshipProperties = new()
+    {
+        [typeof(StaffEmploymentGovernanceBinding)] = ["StaffEmploymentGovernanceId"],
+        [typeof(StaffEmploymentGovernanceAcknowledgement)] = ["ScopeId", "StaffMemberId"]
+    };
 
     private static readonly Dictionary<Type, HashSet<string>> NonPersonalMembers = new()
     {
@@ -37,8 +44,14 @@ public sealed class StaffPersonalDataCatalogTests
         [typeof(ListStaffMembersAtPropertyQuery)] = new(
             [nameof(ListStaffMembersAtPropertyQuery.Page), nameof(ListStaffMembersAtPropertyQuery.PageSize)],
             StringComparer.Ordinal),
+        [typeof(ListStaffDataHoldsQuery)] = new(
+            [nameof(ListStaffDataHoldsQuery.Page), nameof(ListStaffDataHoldsQuery.PageSize)],
+            StringComparer.Ordinal),
         [typeof(StaffDirectoryListResponse)] = new(
             [nameof(StaffDirectoryListResponse.Page), nameof(StaffDirectoryListResponse.PageSize)],
+            StringComparer.Ordinal),
+        [typeof(StaffDataHoldListResponse)] = new(
+            [nameof(StaffDataHoldListResponse.Page), nameof(StaffDataHoldListResponse.PageSize)],
             StringComparer.Ordinal),
         [typeof(StaffIdentityReconciliationResult)] = new(
             [nameof(StaffIdentityReconciliationResult.IsSuccess), nameof(StaffIdentityReconciliationResult.ErrorCode)],
@@ -55,6 +68,9 @@ public sealed class StaffPersonalDataCatalogTests
             StringComparer.Ordinal),
         [typeof(StaffAdminApiModule.StaffDepartureRequest)] = new(
             [nameof(StaffAdminApiModule.StaffDepartureRequest.Confirmed)],
+            StringComparer.Ordinal),
+        [typeof(ReleaseStaffDataHoldRequest)] = new(
+            [nameof(ReleaseStaffDataHoldRequest.Confirmed)],
             StringComparer.Ordinal)
     };
 
@@ -82,11 +98,30 @@ public sealed class StaffPersonalDataCatalogTests
                      typeof(StaffDataRightsCorrectionReceipt),
                      typeof(StaffProcessingRestriction),
                      typeof(StaffProcessingRestrictionProjection),
-                     typeof(StaffProcessingRestrictionReceipt)
+                     typeof(StaffProcessingRestrictionReceipt),
+                     typeof(StaffEmploymentGovernance),
+                     typeof(StaffEmploymentGovernanceBinding),
+                     typeof(StaffEmploymentGovernanceAcknowledgement),
+                     typeof(StaffEmploymentGovernanceChangeReceipt),
+                     typeof(StaffDataHold),
+                     typeof(StaffDataHoldReceipt),
+                     typeof(StaffOperationLock)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
-            foreach (IProperty property in model.GetProperties())
+            string[] expectedShadowProperties =
+                ExpectedEfShadowRelationshipProperties.GetValueOrDefault(entityType) ?? [];
+            string[] actualShadowProperties = model.GetProperties()
+                .Where(property => property.PropertyInfo is null)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            Assert.Equal(
+                expectedShadowProperties.Order(StringComparer.Ordinal),
+                actualShadowProperties);
+
+            foreach (IProperty property in model.GetProperties()
+                         .Where(property => property.PropertyInfo is not null))
             {
                 AssertBinding(entityType, property.Name, PersonalDataSurface.Persistence);
             }
@@ -120,6 +155,12 @@ public sealed class StaffPersonalDataCatalogTests
             typeof(StaffAssignmentDataRightsExport),
             PersonalDataSurface.DataRightsExport,
             nameof(StaffAssignmentDataRightsExport.RecordVersion));
+        AssertType(
+            typeof(StaffEmploymentGovernanceDataRightsExport),
+            PersonalDataSurface.DataRightsExport);
+        AssertType(
+            typeof(StaffDataHoldDataRightsExport),
+            PersonalDataSurface.DataRightsExport);
     }
 
     [Fact]

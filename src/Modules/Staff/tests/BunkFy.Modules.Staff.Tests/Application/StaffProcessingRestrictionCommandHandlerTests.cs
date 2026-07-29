@@ -35,6 +35,7 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
             new RecordingMemberRepository(member),
             new RecordingProjectionRepository(projection),
             restrictions,
+            new NoopStaffOperationLock(),
             approvalGate,
             new TestScopeContext(),
             new TestClock(),
@@ -74,6 +75,64 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
     }
 
     [Fact]
+    public async Task Apply_replays_receipt_committed_while_waiting_for_lock()
+    {
+        StaffMember member = CreateMember();
+        StaffProcessingRestrictionProjection projection =
+            CreateProjection(member);
+        ApplyStaffProcessingRestrictionCommand command = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            4,
+            member.Id,
+            member.Version,
+            ExpectedProjectionRevision: 0,
+            "user:privacy");
+        StaffProcessingRestrictionReceipt committed =
+            StaffProcessingRestrictionReceipt.Create(
+                Guid.NewGuid(),
+                member.ScopeId,
+                command.IdempotencyKey,
+                Guid.NewGuid(),
+                StaffProcessingRestrictionAction.Apply,
+                member.Id,
+                command.CaseId,
+                command.ApprovalRevision,
+                command.ExpectedStaffVersion,
+                StaffProcessingRestrictionContract.CurrentVersion,
+                resultingRestrictionVersion: 1,
+                resultingProjectionRevision: 1,
+                effectiveRestricted: true,
+                command.ActorId,
+                Guid.NewGuid(),
+                Now).Value;
+        RecordingRestrictionRepository restrictions = new(
+            receipts: [committed],
+            receiptVisibleOnLookup: 2);
+        ApplyStaffProcessingRestrictionCommandHandler handler = new(
+            new RecordingMemberRepository(member),
+            new RecordingProjectionRepository(projection),
+            restrictions,
+            new NoopStaffOperationLock(),
+            new RecordingApprovalGate(),
+            new TestScopeContext(),
+            new TestClock(),
+            new TestIdGenerator());
+
+        Result<StaffProcessingRestrictionReceiptDto> result =
+            await handler.HandleAsync(
+                command,
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(committed.Id, result.Value.ReceiptId);
+        Assert.Equal(2, restrictions.ReceiptLookupCount);
+        Assert.False(projection.IsRestricted);
+        Assert.Equal(0, projection.Revision);
+        Assert.Empty(restrictions.Rows);
+    }
+
+    [Fact]
     public async Task Changed_apply_retry_is_rejected_without_another_transition()
     {
         StaffMember member = CreateMember();
@@ -84,6 +143,7 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
             new RecordingMemberRepository(member),
             new RecordingProjectionRepository(projection),
             restrictions,
+            new NoopStaffOperationLock(),
             new RecordingApprovalGate(),
             new TestScopeContext(),
             new TestClock(),
@@ -146,6 +206,7 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
             new RecordingMemberRepository(member),
             new RecordingProjectionRepository(projection),
             restrictions,
+            new NoopStaffOperationLock(),
             approvalGate,
             new TestScopeContext(),
             new TestClock(),
@@ -184,6 +245,82 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
     }
 
     [Fact]
+    public async Task Release_replays_receipt_committed_while_waiting_for_lock()
+    {
+        StaffMember member = CreateMember();
+        StaffProcessingRestrictionProjection projection =
+            CreateProjection(member);
+        StaffProcessingRestriction restriction = CreateRestriction(
+            member,
+            Guid.NewGuid(),
+            approvalRevision: 2,
+            Now.AddMinutes(-20));
+        Assert.True(
+            projection.Apply(
+                expectedRevision: 0,
+                supportedContractVersion:
+                    StaffProcessingRestrictionContract.CurrentVersion,
+                occurredAtUtc: Now.AddMinutes(-20)).IsSuccess);
+        ReleaseStaffProcessingRestrictionCommand command = new(
+            Guid.NewGuid(),
+            restriction.Id,
+            Guid.NewGuid(),
+            8,
+            member.Id,
+            member.Version,
+            restriction.Version,
+            projection.Revision,
+            "user:decision-maker");
+        StaffProcessingRestrictionReceipt committed =
+            StaffProcessingRestrictionReceipt.Create(
+                Guid.NewGuid(),
+                member.ScopeId,
+                command.IdempotencyKey,
+                restriction.Id,
+                StaffProcessingRestrictionAction.Release,
+                member.Id,
+                command.CaseId,
+                command.ApprovalRevision,
+                command.ExpectedStaffVersion,
+                StaffProcessingRestrictionContract.CurrentVersion,
+                resultingRestrictionVersion:
+                    command.ExpectedRestrictionVersion + 1,
+                resultingProjectionRevision:
+                    command.ExpectedProjectionRevision + 1,
+                effectiveRestricted: false,
+                command.ActorId,
+                Guid.NewGuid(),
+                Now).Value;
+        RecordingRestrictionRepository restrictions = new(
+            rows: [restriction],
+            receipts: [committed],
+            receiptVisibleOnLookup: 2);
+        ReleaseStaffProcessingRestrictionCommandHandler handler = new(
+            new RecordingMemberRepository(member),
+            new RecordingProjectionRepository(projection),
+            restrictions,
+            new NoopStaffOperationLock(),
+            new RecordingApprovalGate(),
+            new TestScopeContext(),
+            new TestClock(),
+            new TestIdGenerator());
+
+        Result<StaffProcessingRestrictionReceiptDto> result =
+            await handler.HandleAsync(
+                command,
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(committed.Id, result.Value.ReceiptId);
+        Assert.Equal(2, restrictions.ReceiptLookupCount);
+        Assert.Equal(
+            StaffProcessingRestrictionState.Active,
+            restriction.Status);
+        Assert.True(projection.IsRestricted);
+        Assert.Equal(1, projection.Revision);
+    }
+
+    [Fact]
     public async Task Denied_approval_does_not_change_projection_or_owner_state()
     {
         StaffMember member = CreateMember();
@@ -194,6 +331,7 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
             new RecordingMemberRepository(member),
             new RecordingProjectionRepository(projection),
             restrictions,
+            new NoopStaffOperationLock(),
             new RecordingApprovalGate(isApproved: false),
             new TestScopeContext(),
             new TestClock(),
@@ -338,19 +476,29 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
     }
 
     private sealed class RecordingRestrictionRepository(
-        IEnumerable<StaffProcessingRestriction>? rows = null)
+        IEnumerable<StaffProcessingRestriction>? rows = null,
+        IEnumerable<StaffProcessingRestrictionReceipt>? receipts = null,
+        int receiptVisibleOnLookup = 1)
         : IStaffProcessingRestrictionRepository
     {
         public List<StaffProcessingRestriction> Rows { get; } =
             rows?.ToList() ?? [];
-        public List<StaffProcessingRestrictionReceipt> Receipts { get; } = [];
+        public List<StaffProcessingRestrictionReceipt> Receipts { get; } =
+            receipts?.ToList() ?? [];
+        public int ReceiptLookupCount { get; private set; }
 
         public Task<StaffProcessingRestrictionReceipt?>
             FindReceiptByIdempotencyKeyAsync(
                 Guid idempotencyKey,
-                CancellationToken cancellationToken) =>
-            Task.FromResult(this.Receipts.SingleOrDefault(receipt =>
-                receipt.IdempotencyKey == idempotencyKey));
+                CancellationToken cancellationToken)
+        {
+            this.ReceiptLookupCount++;
+            return Task.FromResult(
+                this.ReceiptLookupCount < receiptVisibleOnLookup
+                    ? null
+                    : this.Receipts.SingleOrDefault(receipt =>
+                        receipt.IdempotencyKey == idempotencyKey));
+        }
 
         public Task<StaffProcessingRestriction?> FindByApplyApprovalAsync(
             Guid staffMemberId,

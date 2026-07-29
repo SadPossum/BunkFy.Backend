@@ -184,6 +184,43 @@ public sealed class CountryPolicyEngineTests
     }
 
     [Fact]
+    public void Explicit_binding_evaluates_the_requested_surface_without_changing_activation_semantics()
+    {
+        CountryPolicyPackArtifact artifact = Parse();
+        CountryPolicyRegistry registry = ProductionRegistry(artifact);
+        CountryPolicyActivationRequest activation = ValidActivation();
+
+        CountryPolicyDecision operationBinding = registry.EvaluateBinding(
+            new(
+                activation.OperatingCountryCode,
+                activation.PolicyId,
+                activation.PolicyVersion,
+                activation.DataRegionId,
+                activation.TransferProfileId,
+                activation.RetentionPolicyId,
+                activation.RetentionPolicyVersion,
+                activation.AcceptedAcknowledgements,
+                "hostel",
+                "reservation-management",
+                CountryPolicySurface.ApiWrite,
+                "workspace-staff",
+                EvaluationTime));
+        CountryPolicyDecision activationBinding =
+            registry.EvaluateActivation(activation);
+
+        Assert.True(operationBinding.IsAllowed);
+        Assert.Equal(
+            CountryPolicySurface.ApiWrite,
+            Assert.IsType<CountryPolicyEvidence>(
+                operationBinding.Evidence).Surface);
+        Assert.True(activationBinding.IsAllowed);
+        Assert.Equal(
+            CountryPolicySurface.PropertyActivation,
+            Assert.IsType<CountryPolicyEvidence>(
+                activationBinding.Evidence).Surface);
+    }
+
+    [Fact]
     public void Operation_revalidates_the_persisted_digest_and_current_effective_interval()
     {
         CountryPolicyPackArtifact artifact = Parse();

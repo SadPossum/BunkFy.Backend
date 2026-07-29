@@ -2,8 +2,12 @@ namespace BunkFy.Modules.Staff.Tests.Persistence;
 
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Entities;
+using BunkFy.Modules.Staff.Domain.Governance;
+using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -17,7 +21,7 @@ public sealed class StaffDataRightsExportContributorTests
         new(2026, 7, 27, 11, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Export_is_catalogue_versioned_and_contains_profile_and_assignment_history()
+    public async Task Export_is_catalogue_versioned_and_contains_profile_governance_assignments_and_holds()
     {
         await using StaffDbContext dbContext = CreateDbContext("tenant-a");
         StaffMember member = CreateMember("tenant-a");
@@ -40,7 +44,30 @@ public sealed class StaffDataRightsExportContributorTests
             "Moved to another property.",
             Guid.NewGuid(),
             Now.AddMinutes(2)).IsSuccess);
+        StaffEmploymentGovernance governance = CreateGovernance(
+            member,
+            Now.AddMinutes(3));
+        StaffDataHold activeHold = StaffDataHold.Place(
+            Guid.NewGuid(),
+            "tenant-a",
+            member.Id,
+            StaffDataHoldReasonCodes.RegulatoryRequest,
+            "user:privacy",
+            Now.AddMinutes(4)).Value;
+        StaffDataHold releasedHold = StaffDataHold.Place(
+            Guid.NewGuid(),
+            "tenant-a",
+            member.Id,
+            StaffDataHoldReasonCodes.Dispute,
+            "user:privacy",
+            Now.AddMinutes(5)).Value;
+        Assert.True(releasedHold.Release(
+            expectedVersion: 1,
+            "user:decision-maker",
+            Now.AddMinutes(6)).IsSuccess);
         dbContext.StaffMembers.Add(member);
+        dbContext.EmploymentGovernance.Add(governance);
+        dbContext.DataHolds.AddRange(activeHold, releasedHold);
         await dbContext.SaveChangesAsync();
         StaffDataRightsExportContributor contributor =
             new(dbContext, new TestScopeContext("tenant-a"));
@@ -52,15 +79,21 @@ public sealed class StaffDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(2, result.RecordCount);
+        Assert.Equal(5, result.RecordCount);
         Assert.Equal("staff.personal-data", contributor.Descriptor.CatalogId);
-        Assert.Equal(4, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(5, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             StaffDataRightsExportSchema.ExportSchemaId,
             contributor.Descriptor.ExportSchemaId);
         Assert.DoesNotContain("staff.scope-id", contributor.Descriptor.FieldIds);
         Assert.DoesNotContain("staff.audit-actor-id", contributor.Descriptor.FieldIds);
         Assert.DoesNotContain("staff.change-reason", contributor.Descriptor.FieldIds);
+        Assert.DoesNotContain(
+            "staff.governance.actor-id",
+            contributor.Descriptor.FieldIds);
+        Assert.DoesNotContain(
+            "staff.data-hold.actor-id",
+            contributor.Descriptor.FieldIds);
 
         DataRightsExportRecord profileRecord = Assert.Single(
             sink.Records,
@@ -80,6 +113,44 @@ public sealed class StaffDataRightsExportContributorTests
         Assert.Equal(propertyId, Field(assignmentRecord, "staff.property-id").GetGuid());
         Assert.False(Field(assignmentRecord, "staff.assignment-is-current").GetBoolean());
         Assert.Equal(assignment.UnassignedAtVersion, assignmentRecord.RecordVersion);
+
+        DataRightsExportRecord governanceRecord = Assert.Single(
+            sink.Records,
+            record =>
+                record.RecordType ==
+                    StaffDataRightsExportContributor
+                        .EmploymentGovernanceRecordType);
+        Assert.Equal(member.Id, governanceRecord.RecordId);
+        Assert.Equal(
+            "GB",
+            Field(
+                governanceRecord,
+                "staff.governance.operating-country-code")
+                .GetString());
+        Assert.Equal(
+            "operator-notice:1",
+            Assert.Single(
+                Field(
+                        governanceRecord,
+                        "staff.governance.accepted-acknowledgements")
+                    .EnumerateArray()).GetString());
+
+        DataRightsExportRecord[] holdRecords = sink.Records
+            .Where(record =>
+                record.RecordType ==
+                    StaffDataRightsExportContributor.DataHoldRecordType)
+            .ToArray();
+        Assert.Equal(2, holdRecords.Length);
+        Assert.Contains(holdRecords, record =>
+            Field(record, "staff.data-hold.reason-code")
+                .GetString() ==
+            StaffDataHoldReasonCodes.RegulatoryRequest);
+        Assert.All(holdRecords, record =>
+            Assert.DoesNotContain(
+                record.Fields,
+                field =>
+                    field.FieldId ==
+                    "staff.data-hold.actor-id"));
     }
 
     [Fact]
@@ -160,6 +231,47 @@ public sealed class StaffDataRightsExportContributorTests
         Assert.Empty(sink.Records);
     }
 
+    [Fact]
+    public async Task Hold_limit_is_checked_before_any_export_record_is_written()
+    {
+        await using StaffDbContext dbContext =
+            CreateDbContext("tenant-a");
+        StaffMember member = CreateMember("tenant-a");
+        dbContext.StaffMembers.Add(member);
+        for (int index = 0;
+             index <=
+             StaffDataRightsExportContributor.MaximumHoldRecords;
+             index++)
+        {
+            dbContext.DataHolds.Add(StaffDataHold.Place(
+                Guid.NewGuid(),
+                "tenant-a",
+                member.Id,
+                StaffDataHoldReasonCodes.LegalObligation,
+                "user:privacy",
+                Now.AddSeconds(index + 1)).Value);
+        }
+
+        await dbContext.SaveChangesAsync();
+        StaffDataRightsExportContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result =
+            await contributor.ExportAsync(
+                Request(
+                    "tenant-a",
+                    member.Id,
+                    member.Version),
+                sink,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsSubjectExportStatus.ScopeUnavailable,
+            result.Status);
+        Assert.Empty(sink.Records);
+    }
+
     private static DataRightsSubjectExportRequest Request(
         string tenantId,
         Guid staffMemberId,
@@ -189,6 +301,47 @@ public sealed class StaffDataRightsExportContributorTests
             "user:test",
             Guid.NewGuid(),
             Now).Value;
+
+    private static StaffEmploymentGovernance CreateGovernance(
+        StaffMember member,
+        DateTimeOffset configuredAtUtc) =>
+        StaffEmploymentGovernance.Configure(
+            member.ScopeId,
+            member.Id,
+            member.Version,
+            StaffEmploymentGovernanceBinding.Create(
+                "GB",
+                "staff-test",
+                1,
+                "eu-west-2",
+                "uk-no-transfer",
+                "staff-employment",
+                1,
+                new string('a', 64),
+                new DateTimeOffset(
+                    2026,
+                    1,
+                    1,
+                    0,
+                    0,
+                    0,
+                    TimeSpan.Zero),
+                new DateTimeOffset(
+                    2027,
+                    1,
+                    1,
+                    0,
+                    0,
+                    0,
+                    TimeSpan.Zero),
+                configuredAtUtc.AddMinutes(-1)).Value,
+            [
+                StaffEmploymentGovernanceAcknowledgement.Create(
+                    "operator-notice",
+                    1).Value
+            ],
+            "user:privacy",
+            configuredAtUtc).Value;
 
     private static JsonElement Field(DataRightsExportRecord record, string fieldId) =>
         Assert.Single(record.Fields, field => field.FieldId == fieldId).Value;

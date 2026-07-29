@@ -1,6 +1,6 @@
 # Staff Data Rights Restriction Task
 
-Status: planned; implementation in progress
+Status: complete; locally and exactly published verification passed
 Date: 2026-07-29
 
 ## Goal
@@ -201,7 +201,7 @@ otherwise complete.
 
 - Staff anonymisation, tombstones, protected ledger deltas, and restore;
 - employment jurisdiction and country-specific restriction adjudication;
-- automatic Staff retention and legal holds;
+- automatic Staff retention and anonymisation;
 - coordinated Auth disablement, Organizations membership changes, or
   AccessControl revocation;
 - assignment-history correction;

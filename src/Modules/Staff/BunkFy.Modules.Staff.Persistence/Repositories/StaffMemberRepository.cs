@@ -6,6 +6,7 @@ using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
+using BunkFy.Modules.Staff.Persistence.Models;
 using Gma.Framework.Results;
 
 internal sealed class StaffMemberRepository(StaffDbContext dbContext)
@@ -16,6 +17,11 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
         CancellationToken cancellationToken)
     {
         dbContext.StaffMembers.Add(member);
+        dbContext.OperationLocks.Add(
+            new StaffOperationLock(
+                member.Id,
+                member.ScopeId,
+                member.Id));
         Result<StaffProcessingRestrictionProjection> projection =
             StaffProcessingRestrictionProjection.Create(
                 member.ScopeId,

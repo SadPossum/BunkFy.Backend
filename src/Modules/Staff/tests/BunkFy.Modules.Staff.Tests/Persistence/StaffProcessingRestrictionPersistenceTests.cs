@@ -4,6 +4,7 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Staff.Persistence.Models;
 using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Pagination;
 using Gma.Framework.Scoping;
@@ -17,7 +18,7 @@ public sealed class StaffProcessingRestrictionPersistenceTests
         new(2026, 7, 29, 13, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Member_creation_initializes_an_unrestricted_projection()
+    public async Task Member_creation_initializes_projection_and_operation_lock()
     {
         TestScopeContext scope = new();
         await using StaffDbContext dbContext = CreateDbContext(scope);
@@ -36,6 +37,11 @@ public sealed class StaffProcessingRestrictionPersistenceTests
         Assert.False(projection.IsRestricted);
         Assert.Equal(0, projection.ActiveRestrictionCount);
         Assert.Equal(0, projection.Revision);
+        StaffOperationLock resourceLock =
+            await dbContext.OperationLocks.SingleAsync();
+        Assert.Equal(member.Id, resourceLock.Id);
+        Assert.Equal(member.Id, resourceLock.StaffMemberId);
+        Assert.Equal(1, resourceLock.Revision);
     }
 
     [Fact]

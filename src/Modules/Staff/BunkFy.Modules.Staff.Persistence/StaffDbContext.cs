@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Entities;
+using BunkFy.Modules.Staff.Domain.Governance;
+using BunkFy.Modules.Staff.Persistence.Models;
 
 public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, IScopeContext scopeContext)
     : ScopeAwareDbContext<StaffDbContext>(options, scopeContext)
@@ -22,6 +24,17 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
     public DbSet<StaffProcessingRestrictionReceipt>
         ProcessingRestrictionReceipts =>
         this.Set<StaffProcessingRestrictionReceipt>();
+    public DbSet<StaffEmploymentGovernance> EmploymentGovernance =>
+        this.Set<StaffEmploymentGovernance>();
+    public DbSet<StaffEmploymentGovernanceChangeReceipt>
+        EmploymentGovernanceChangeReceipts =>
+        this.Set<StaffEmploymentGovernanceChangeReceipt>();
+    public DbSet<StaffDataHold> DataHolds =>
+        this.Set<StaffDataHold>();
+    public DbSet<StaffDataHoldReceipt> DataHoldReceipts =>
+        this.Set<StaffDataHoldReceipt>();
+    internal DbSet<StaffOperationLock> OperationLocks =>
+        this.Set<StaffOperationLock>();
     public DbSet<StaffPropertyAssignment> PropertyAssignments => this.Set<StaffPropertyAssignment>();
     public DbSet<StaffPropertyProjection> PropertyProjections => this.Set<StaffPropertyProjection>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
@@ -62,7 +75,18 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
             .Entries<StaffProcessingRestrictionReceipt>()
             .Any(entry =>
                 entry.State is EntityState.Modified or EntityState.Deleted);
-        if (correctionMutationRequested || restrictionMutationRequested)
+        bool governanceMutationRequested = this.ChangeTracker
+            .Entries<StaffEmploymentGovernanceChangeReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        bool holdReceiptMutationRequested = this.ChangeTracker
+            .Entries<StaffDataHoldReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        if (correctionMutationRequested ||
+            restrictionMutationRequested ||
+            governanceMutationRequested ||
+            holdReceiptMutationRequested)
         {
             throw new InvalidOperationException(
                 "Staff data-rights receipts are append-only.");
