@@ -10,8 +10,9 @@ internal sealed class StaffDataRightsDiscoveryContributor(
     StaffDbContext dbContext,
     IScopeContext scopeContext) : IDataRightsSubjectDiscoveryContributor
 {
-    public const string Owner = StaffModuleMetadata.Name;
-    public const string ProfileRecordType = "staff-member";
+    public const string Owner = StaffDataRightsCoordinates.Owner;
+    public const string ProfileRecordType =
+        StaffDataRightsCoordinates.StaffMemberRecordType;
 
     public string OwnerKey => Owner;
 

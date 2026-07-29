@@ -93,7 +93,8 @@ public sealed class DataRightsCaseRequest
         }
 
         if (kind == DataRightsCaseKind.StaffRights &&
-            requestedOperations != DataRightsCaseOperation.AccessExport)
+            requestedOperations is not DataRightsCaseOperation.AccessExport
+                and not DataRightsCaseOperation.Correction)
         {
             return Result.Failure<DataRightsCaseRequest>(
                 DataRightsDomainErrors.StaffRightsOperationsInvalid);

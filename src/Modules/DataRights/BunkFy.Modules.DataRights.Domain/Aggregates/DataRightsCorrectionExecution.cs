@@ -9,7 +9,7 @@ using Gma.Framework.Results;
 
 public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
 {
-    public const int CurrentContractVersion = 1;
+    public const int CurrentContractVersion = 2;
     public const int FieldPolicyKeyMaxLength = 120;
     public const int DigestLength = 64;
     public static readonly TimeSpan MaximumClaimLifetime = TimeSpan.FromMinutes(15);
@@ -22,7 +22,8 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
     }
 
     public int ContractVersion { get; private set; }
-    public Guid PropertyId { get; private set; }
+    public DataRightsCaseKind CaseKind { get; private set; }
+    public Guid? PropertyId { get; private set; }
     public Guid CaseId { get; private set; }
     public long SelectedCaseVersion { get; private set; }
     public long ExecutionRevision { get; private set; }
@@ -48,7 +49,8 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
     public static Result<DataRightsCorrectionExecution> Create(
         Guid executionId,
         string tenantId,
-        Guid propertyId,
+        DataRightsCaseKind caseKind,
+        Guid? propertyId,
         Guid caseId,
         long selectedCaseVersion,
         long executionRevision,
@@ -64,7 +66,7 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
         string policy = NormalizeFieldPolicy(fieldPolicyKey);
         string actor = executedBy?.Trim() ?? string.Empty;
         if (executionId == Guid.Empty ||
-            propertyId == Guid.Empty ||
+            !IsScopeValid(caseKind, propertyId) ||
             caseId == Guid.Empty ||
             selectedCaseVersion < 1 ||
             executionRevision != selectedCaseVersion + 1 ||
@@ -85,6 +87,7 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
         return Result.Success(new DataRightsCorrectionExecution(executionId, scopeId)
         {
             ContractVersion = CurrentContractVersion,
+            CaseKind = caseKind,
             PropertyId = propertyId,
             CaseId = caseId,
             SelectedCaseVersion = selectedCaseVersion,
@@ -104,7 +107,8 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
 
     public bool MatchesClaim(
         Guid executionId,
-        Guid propertyId,
+        DataRightsCaseKind caseKind,
+        Guid? propertyId,
         Guid caseId,
         long selectedCaseVersion,
         long approvalRevision,
@@ -112,6 +116,7 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
         string fieldPolicyKey,
         string executedBy) =>
         this.Id == executionId &&
+        this.CaseKind == caseKind &&
         this.PropertyId == propertyId &&
         this.CaseId == caseId &&
         this.SelectedCaseVersion == selectedCaseVersion &&
@@ -127,7 +132,8 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
         string.Equals(this.ExecutedBy, executedBy?.Trim(), StringComparison.Ordinal);
 
     public bool MatchesAuthorization(
-        Guid propertyId,
+        DataRightsCaseKind caseKind,
+        Guid? propertyId,
         Guid caseId,
         long approvalRevision,
         Guid executionId,
@@ -138,6 +144,7 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
         string fieldPolicyKey,
         string executedBy) =>
         this.Id == executionId &&
+        this.CaseKind == caseKind &&
         this.PropertyId == propertyId &&
         this.CaseId == caseId &&
         this.ApprovalRevision == approvalRevision &&
@@ -156,7 +163,8 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
 
     public bool MatchesCompletion(
         Guid executionId,
-        Guid propertyId,
+        DataRightsCaseKind caseKind,
+        Guid? propertyId,
         Guid caseId,
         long approvalRevision,
         string ownerKey,
@@ -165,6 +173,7 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
         long selectedRecordVersion,
         string fieldPolicyKey) =>
         this.Id == executionId &&
+        this.CaseKind == caseKind &&
         this.PropertyId == propertyId &&
         this.CaseId == caseId &&
         this.ApprovalRevision == approvalRevision &&
@@ -279,4 +288,16 @@ public sealed class DataRightsCorrectionExecution : ScopedAggregateRoot<Guid>
             ? normalized
             : string.Empty;
     }
+
+    private static bool IsScopeValid(
+        DataRightsCaseKind caseKind,
+        Guid? propertyId) =>
+        caseKind switch
+        {
+            DataRightsCaseKind.GuestRights =>
+                propertyId is Guid value && value != Guid.Empty,
+            DataRightsCaseKind.StaffRights or DataRightsCaseKind.TenantTermination =>
+                propertyId is null,
+            _ => false
+        };
 }

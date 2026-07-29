@@ -1,5 +1,7 @@
 namespace BunkFy.Modules.Staff.Application;
 
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Application.Contributors;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
@@ -24,6 +26,10 @@ public static class DependencyInjection
             IStaffPropertyAssignmentProvisioner,
             StaffPropertyAssignmentProvisioner>();
         services.TryAddScoped<StaffLifecyclePolicyEvaluator>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsCorrectionPolicyContributor,
+                StaffDataRightsCorrectionPolicyContributor>());
         services.AddGmaAccessControlPermissionPolicies(StaffModuleMetadata.Descriptor);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, StaffPropertyCreatedHandler>(
             StaffModuleMetadata.Name, PropertiesModuleMetadata.Name);

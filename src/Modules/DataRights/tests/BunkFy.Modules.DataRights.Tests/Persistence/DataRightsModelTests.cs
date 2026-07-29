@@ -86,7 +86,7 @@ public sealed class DataRightsModelTests
                 constraint => constraint.Name == "CK_data_rights_cases_kind").Sql);
         Assert.Equal(
             "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
-            "(\"Kind\" = 3 AND \"RequestedOperations\" = 1)",
+            "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2))",
             designEntity.GetCheckConstraints().Single(
                 constraint => constraint.Name == "CK_data_rights_cases_operations").Sql);
         Assert.Equal(
@@ -144,14 +144,24 @@ public sealed class DataRightsModelTests
         Assert.Contains(correctionExecution.GetIndexes(), index =>
             index.Properties.Select(item => item.Name).SequenceEqual([
                 nameof(DataRightsCorrectionExecution.ScopeId),
+                nameof(DataRightsCorrectionExecution.CaseKind),
                 nameof(DataRightsCorrectionExecution.PropertyId),
                 nameof(DataRightsCorrectionExecution.State),
                 nameof(DataRightsCorrectionExecution.ExpiresAtUtc)
             ]));
+        Assert.True(
+            correctionExecution
+                .FindProperty(nameof(DataRightsCorrectionExecution.PropertyId))!
+                .IsNullable);
         Assert.Contains(
             designCorrectionExecution.GetCheckConstraints(),
             constraint =>
                 constraint.Name == "CK_data_rights_correction_executions_contract");
+        Assert.Contains(
+            designCorrectionExecution.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                    "CK_data_rights_correction_executions_coordinates");
         Assert.Contains(
             designCorrectionExecution.GetCheckConstraints(),
             constraint =>

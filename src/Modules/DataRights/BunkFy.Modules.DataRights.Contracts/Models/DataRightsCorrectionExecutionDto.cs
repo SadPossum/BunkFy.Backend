@@ -7,7 +7,8 @@ public sealed record DataRightsCorrectionExecutionDto(
 public sealed record DataRightsCorrectionExecutionDetailsDto(
     Guid ExecutionId,
     Guid CaseId,
-    Guid PropertyId,
+    DataRightsCaseType CaseType,
+    Guid? PropertyId,
     long SelectedCaseVersion,
     long ExecutionRevision,
     long ApprovalRevision,

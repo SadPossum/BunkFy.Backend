@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Tests.Api;
 
 using System.Reflection;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Staff.Api;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.AccessControl;
@@ -53,6 +54,16 @@ public sealed class StaffApiSecurityTests
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Get, member);
         AssertResponse<StaffMemberDto>(endpoints, HttpMethods.Get, $"{member}/profile");
         AssertResponse<StaffMemberDto>(endpoints, HttpMethods.Put, member);
+        const string correction = "/api/staff/data-rights-corrections";
+        AssertPermissions(
+            endpoints,
+            HttpMethods.Post,
+            correction,
+            DataRightsAdminPermissionCodes.Execute);
+        AssertResponse<StaffDataRightsCorrectionReceiptDto>(
+            endpoints,
+            HttpMethods.Post,
+            correction);
     }
 
     [Fact]

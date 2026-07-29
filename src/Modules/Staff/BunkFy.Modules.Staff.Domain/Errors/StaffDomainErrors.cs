@@ -29,4 +29,16 @@ public static class StaffDomainErrors
     public static readonly Error AssignmentNotFound = new("Staff.AssignmentNotFound", "The current property assignment was not found.");
     public static readonly Error AssignmentAlreadyExists = new("Staff.AssignmentAlreadyExists", "A current assignment for this property already exists.");
     public static readonly Error PrimaryAssignmentExists = new("Staff.PrimaryAssignmentExists", "A current primary property assignment already exists.");
+    public static readonly Error CorrectionNoChanges = new(
+        "Staff.CorrectionNoChanges",
+        "The correction does not change the staff profile.");
+    public static readonly Error CorrectionReceiptIdentityInvalid = new(
+        "Staff.CorrectionReceiptIdentityInvalid",
+        "The correction receipt identity is invalid.");
+    public static readonly Error CorrectionReceiptVersionInvalid = new(
+        "Staff.CorrectionReceiptVersionInvalid",
+        "The correction receipt versions are invalid.");
+    public static readonly Error CorrectionReceiptFieldsInvalid = new(
+        "Staff.CorrectionReceiptFieldsInvalid",
+        "The correction receipt fields are invalid.");
 }

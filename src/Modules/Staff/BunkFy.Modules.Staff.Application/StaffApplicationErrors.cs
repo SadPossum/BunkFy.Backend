@@ -13,7 +13,17 @@ public static class StaffApplicationErrors
     public static readonly Error LifecycleTransitionDenied = new("Staff.LifecycleTransitionDenied", "The staff lifecycle change is not allowed by the workspace policy.");
     public static readonly Error LifecycleCoordinationPending = new("Staff.LifecycleCoordinationPending", "Workspace access could not be coordinated yet. Retry the staff lifecycle change.");
     public static readonly Error WorkspaceOwnerProtected = new("Staff.WorkspaceOwnerProtected", "Transfer workspace ownership before changing this staff member's lifecycle.");
+    public static readonly Error DataRightsApprovalRequired = new(
+        "Staff.DataRightsApprovalRequired",
+        "An active approved data-rights correction execution is required.");
+    public static readonly Error CorrectionIdempotencyConflict = new(
+        "Staff.CorrectionIdempotencyConflict",
+        "The correction execution was already used for different coordinates.");
+    public static readonly Error CorrectionRequestInvalid = new(
+        "Staff.CorrectionRequestInvalid",
+        "The correction request is invalid.");
     public static Error VersionConflict => StaffDomainErrors.VersionConflict;
     public static Error StaffSuspended => StaffDomainErrors.StaffSuspended;
     public static Error StaffDeparted => StaffDomainErrors.StaffDeparted;
+    public static Error CorrectionNoChanges => StaffDomainErrors.CorrectionNoChanges;
 }

@@ -15,7 +15,11 @@ internal static class StaffApiEndpointSupport
         new(StaffApplicationErrors.AuthSubjectConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffSuspended.Code, StatusCodes.Status409Conflict),
-        new(StaffApplicationErrors.StaffDeparted.Code, StatusCodes.Status409Conflict));
+        new(StaffApplicationErrors.StaffDeparted.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.DataRightsApprovalRequired.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.CorrectionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.CorrectionNoChanges.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest));
 
     public static string ResolveActor(HttpContext context, IAccessHttpSubjectResolver resolver)
     {

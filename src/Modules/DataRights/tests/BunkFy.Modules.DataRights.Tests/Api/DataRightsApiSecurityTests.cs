@@ -158,6 +158,7 @@ public sealed class DataRightsApiSecurityTests
         {
             AuthenticationAssuranceRequirement assurance = new(
                 maxAuthenticationAge: TimeSpan.FromMinutes(10));
+            options.CorrectionExecutionAssurance = assurance;
             options.ExportGenerationAssurance = assurance;
             options.ExportDownloadAssurance = assurance;
         });
@@ -222,6 +223,14 @@ public sealed class DataRightsApiSecurityTests
                 DataRightsAdminPermissionCodes.Discover),
             (
                 HttpMethods.Get,
+                $"{cases}/{{caseId:guid}}/correction",
+                DataRightsAdminPermissionCodes.Execute),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/correction",
+                DataRightsAdminPermissionCodes.Execute),
+            (
+                HttpMethods.Get,
                 $"{cases}/{{caseId:guid}}/export",
                 DataRightsAdminPermissionCodes.Export),
             (
@@ -255,6 +264,10 @@ public sealed class DataRightsApiSecurityTests
                 endpoint.RoutePattern.RawText?.StartsWith(
                     $"{cases}/{{caseId:guid}}/execution",
                     StringComparison.Ordinal) == true);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/correction");
         AssertAssurance(
             endpoints,
             HttpMethods.Post,

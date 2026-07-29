@@ -9,6 +9,7 @@ internal static class DataRightsCorrectionExecutionMappings
         this DataRightsCorrectionExecution execution) => new(
         execution.Id,
         execution.CaseId,
+        (DataRightsCaseType)execution.CaseKind,
         execution.PropertyId,
         execution.SelectedCaseVersion,
         execution.ExecutionRevision,

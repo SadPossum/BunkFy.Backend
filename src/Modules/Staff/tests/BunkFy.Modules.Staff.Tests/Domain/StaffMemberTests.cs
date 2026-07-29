@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Staff.Tests;
 
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.Models;
+using BunkFy.Modules.Staff.Domain.ValueObjects;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -96,6 +98,95 @@ public sealed class StaffMemberTests
             member.Version, "user:owner", "Transferred", Guid.NewGuid(), Now).Error.Code);
         Assert.Equal("Staff.AssignmentDateInvalid", member.Depart(default, member.Version,
             "user:owner", "Contract ended", Guid.NewGuid(), [], Now).Error.Code);
+    }
+
+    [Fact]
+    public void Approved_correction_updates_departed_profile_without_changing_lifecycle()
+    {
+        StaffMember member = Create("Ada", "EMP-1", "account-1");
+        Guid propertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            "Manager",
+            isPrimary: true,
+            new DateOnly(2026, 7, 1),
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        Assert.True(member.Depart(
+            new DateOnly(2026, 7, 12),
+            member.Version,
+            "user:owner",
+            "Contract ended",
+            Guid.NewGuid(),
+            [Guid.NewGuid()],
+            Now.AddHours(1)).IsSuccess);
+        long selectedVersion = member.Version;
+        StaffProfileCorrection correction = StaffProfileCorrection.Create(
+            " Ada Lovelace ",
+            "Augusta Ada King",
+            "ADA.NEW@EXAMPLE.TEST",
+            workPhone: null,
+            "EMP-2",
+            "Principal Manager",
+            "Operations").Value;
+
+        var corrected = member.ApplyDataRightsCorrection(
+            correction,
+            selectedVersion,
+            "user:privacy",
+            Guid.NewGuid(),
+            Now.AddHours(2));
+
+        Assert.True(corrected.IsSuccess, corrected.Error.Code);
+        Assert.Equal(selectedVersion + 1, member.Version);
+        Assert.Equal(StaffMemberState.Departed, member.Status);
+        Assert.Equal("account-1", member.AuthSubjectId);
+        Assert.Equal("ADA LOVELACE", member.DisplayNameSearch);
+        Assert.Equal("ada.new@example.test", member.WorkEmail);
+        Assert.False(member.Assignments.Single().IsCurrent);
+        Assert.Equal(
+            [
+                StaffProfileField.DisplayName,
+                StaffProfileField.LegalName,
+                StaffProfileField.WorkEmail,
+                StaffProfileField.EmployeeNumber,
+                StaffProfileField.JobTitle
+            ],
+            corrected.Value.ChangedFields);
+    }
+
+    [Fact]
+    public void Approved_correction_rejects_stale_or_no_op_profile()
+    {
+        StaffMember member = Create("Ada", "EMP-1", "account-1");
+        StaffProfileCorrection same = StaffProfileCorrection.Create(
+            member.DisplayName,
+            member.LegalName,
+            member.WorkEmail,
+            member.WorkPhone,
+            member.EmployeeNumber,
+            member.JobTitle,
+            member.Department).Value;
+
+        Assert.Equal(
+            "Staff.CorrectionNoChanges",
+            member.ApplyDataRightsCorrection(
+                same,
+                member.Version,
+                "user:privacy",
+                Guid.NewGuid(),
+                Now.AddMinutes(1)).Error.Code);
+        Assert.Equal(
+            "Staff.VersionConflict",
+            member.ApplyDataRightsCorrection(
+                same,
+                expectedVersion: 99,
+                "user:privacy",
+                Guid.NewGuid(),
+                Now.AddMinutes(1)).Error.Code);
     }
 
     private static StaffMember Create(string name, string? employeeNumber, string? subject) =>

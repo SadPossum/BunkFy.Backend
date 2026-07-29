@@ -35,7 +35,7 @@ public sealed class DataRightsCorrectionExecutionTests
             clock);
         Guid executionId = Guid.NewGuid();
         StartDataRightsCorrectionExecutionCommand command = new(
-            dataRightsCase.PropertyId!.Value,
+            DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
             executionId,
             dataRightsCase.Version,
@@ -59,6 +59,107 @@ public sealed class DataRightsCorrectionExecutionTests
     }
 
     [Fact]
+    public async Task Tenant_staff_claim_gate_and_completion_preserve_tenant_scope()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedStaffCase();
+        StubCorrectionExecutionRepository executions = new();
+        MutableClock clock = new(Now);
+        StartDataRightsCorrectionExecutionCommandHandler starter = new(
+            new StubCaseRepository(dataRightsCase),
+            executions,
+            [new StaffCorrectionPolicy()],
+            clock);
+        Guid executionId = Guid.NewGuid();
+        Result<DataRightsCorrectionExecutionDto> started =
+            await starter.HandleAsync(
+                new(
+                    DataRightsCaseScope.Staff,
+                    dataRightsCase.Id,
+                    executionId,
+                    dataRightsCase.Version,
+                    "user:executor"),
+                CancellationToken.None);
+        DomainSubject subject = dataRightsCase.SelectedSubjects.Single();
+        DataRightsCorrectionExecutionGate gate = new(
+            new StubCaseRepository(dataRightsCase),
+            executions,
+            clock);
+
+        DataRightsCorrectionExecutionGateResult allowed =
+            await gate.EvaluateAsync(
+                new(
+                    dataRightsCase.ScopeId,
+                    DataRightsCaseType.StaffRights,
+                    PropertyId: null,
+                    dataRightsCase.Id,
+                    dataRightsCase.DecisionRevision!.Value,
+                    executionId,
+                    new(
+                        subject.OwnerKey,
+                        subject.RecordType,
+                        subject.RecordId,
+                        subject.RecordVersion),
+                    StaffCorrectionPolicy.PolicyKey,
+                    "user:executor"),
+                CancellationToken.None);
+
+        Assert.True(started.IsSuccess, started.Error.Code);
+        Assert.Equal(DataRightsCaseType.StaffRights, started.Value.Execution.CaseType);
+        Assert.Null(started.Value.Execution.PropertyId);
+        Assert.True(allowed.IsAllowed);
+
+        DataRightsTenantCorrectionAppliedIntegrationEvent applied = new(
+            Guid.NewGuid(),
+            dataRightsCase.ScopeId,
+            Now.AddMinutes(1),
+            executionId,
+            DataRightsCaseType.StaffRights,
+            dataRightsCase.Id,
+            dataRightsCase.DecisionRevision.Value,
+            subject.OwnerKey,
+            subject.RecordType,
+            subject.RecordId,
+            subject.RecordVersion,
+            subject.RecordVersion + 1,
+            StaffCorrectionPolicy.PolicyKey,
+            receiptContractVersion: 1,
+            Guid.NewGuid(),
+            ["staff.profile.display-name"]);
+        DataRightsCorrectionCompletionCoordinator coordinator = new(
+            new StubCaseRepository(dataRightsCase),
+            executions,
+            new MutableClock(Now.AddSeconds(30)));
+        DataRightsTenantCorrectionAppliedIntegrationEvent futureApplied = new(
+            Guid.NewGuid(),
+            dataRightsCase.ScopeId,
+            Now.AddMinutes(2),
+            executionId,
+            DataRightsCaseType.StaffRights,
+            dataRightsCase.Id,
+            dataRightsCase.DecisionRevision.Value,
+            subject.OwnerKey,
+            subject.RecordType,
+            subject.RecordId,
+            subject.RecordVersion,
+            subject.RecordVersion + 1,
+            StaffCorrectionPolicy.PolicyKey,
+            receiptContractVersion: 1,
+            applied.ReceiptId,
+            ["staff.profile.display-name"]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => coordinator.CompleteAsync(
+                futureApplied,
+                CancellationToken.None));
+        await coordinator.CompleteAsync(applied, CancellationToken.None);
+
+        Assert.Equal(DataRightsCaseState.Completed, dataRightsCase.Status);
+        Assert.Equal(
+            DataRightsCorrectionExecutionState.Completed,
+            executions.Execution!.State);
+    }
+
+    [Fact]
     public async Task Replay_fails_closed_when_case_no_longer_matches_claim_revision()
     {
         DataRightsCase dataRightsCase = CreateApprovedCase();
@@ -69,7 +170,7 @@ public sealed class DataRightsCorrectionExecutionTests
             [new GuestCorrectionPolicy()],
             new MutableClock(Now));
         StartDataRightsCorrectionExecutionCommand command = new(
-            dataRightsCase.PropertyId!.Value,
+            DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
             Guid.NewGuid(),
             dataRightsCase.Version,
@@ -106,7 +207,7 @@ public sealed class DataRightsCorrectionExecutionTests
         Guid executionId = Guid.NewGuid();
         Assert.True((await starter.HandleAsync(
             new(
-                dataRightsCase.PropertyId!.Value,
+                DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
                 dataRightsCase.Id,
                 executionId,
                 dataRightsCase.Version,
@@ -119,6 +220,7 @@ public sealed class DataRightsCorrectionExecutionTests
             clock);
         DataRightsCorrectionExecutionGateRequest request = new(
             dataRightsCase.ScopeId,
+            DataRightsCaseType.GuestRights,
             dataRightsCase.PropertyId.Value,
             dataRightsCase.Id,
             dataRightsCase.DecisionRevision!.Value,
@@ -170,7 +272,7 @@ public sealed class DataRightsCorrectionExecutionTests
             [new GuestCorrectionPolicy()],
             new MutableClock(Now));
         StartDataRightsCorrectionExecutionCommand command = new(
-            dataRightsCase.PropertyId!.Value,
+            DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
             executionId,
             dataRightsCase.Version,
@@ -282,6 +384,48 @@ public sealed class DataRightsCorrectionExecutionTests
         return dataRightsCase;
     }
 
+    private static DataRightsCase CreateApprovedStaffCase()
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseOperation.Correction,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:privacy",
+            Now.AddMinutes(-6)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy",
+            Now.AddMinutes(-5)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            recordVersion: 3,
+            dataRightsCase.Version,
+            "user:privacy",
+            Now.AddMinutes(-4)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy",
+            Now.AddMinutes(-3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(-2)).IsSuccess);
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(-1)).IsSuccess);
+        return dataRightsCase;
+    }
+
     private sealed class GuestCorrectionPolicy : IDataRightsCorrectionPolicyContributor
     {
         public const string PolicyKey = "guests.guest-profile.correction.v1";
@@ -289,6 +433,16 @@ public sealed class DataRightsCorrectionExecutionTests
         public int ContractVersion => DataRightsCorrectionContract.CurrentVersion;
         public string OwnerKey => "guests";
         public string RecordType => "guest-profile";
+        public string FieldPolicyKey => PolicyKey;
+    }
+
+    private sealed class StaffCorrectionPolicy : IDataRightsCorrectionPolicyContributor
+    {
+        public const string PolicyKey = "staff.staff-member.correction.v1";
+
+        public int ContractVersion => DataRightsCorrectionContract.CurrentVersion;
+        public string OwnerKey => "staff";
+        public string RecordType => "staff-member";
         public string FieldPolicyKey => PolicyKey;
     }
 
@@ -308,24 +462,20 @@ public sealed class DataRightsCorrectionExecutionTests
         }
 
         public Task<DataRightsCorrectionExecution?> GetAsync(
-            Guid propertyId,
             Guid caseId,
             Guid executionId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                this.Execution?.PropertyId == propertyId &&
-                this.Execution.CaseId == caseId &&
+                this.Execution?.CaseId == caseId &&
                 this.Execution.Id == executionId
                     ? this.Execution
                     : null);
 
         public Task<DataRightsCorrectionExecution?> GetByCaseAsync(
-            Guid propertyId,
             Guid caseId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                this.Execution?.PropertyId == propertyId &&
-                this.Execution.CaseId == caseId
+                this.Execution?.CaseId == caseId
                     ? this.Execution
                     : null);
     }
@@ -343,6 +493,7 @@ public sealed class DataRightsCorrectionExecutionTests
             Guid caseId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
+                scope.CaseType == (DataRightsCaseType)dataRightsCase.Kind &&
                 scope.PropertyId == dataRightsCase.PropertyId &&
                 caseId == dataRightsCase.Id
                     ? dataRightsCase

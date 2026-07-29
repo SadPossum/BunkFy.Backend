@@ -20,7 +20,8 @@ public interface IDataRightsCorrectionExecutionGate
 
 public sealed record DataRightsCorrectionExecutionGateRequest(
     string TenantId,
-    Guid PropertyId,
+    DataRightsCaseType CaseType,
+    Guid? PropertyId,
     Guid CaseId,
     long ApprovalRevision,
     Guid ExecutionId,
@@ -59,7 +60,7 @@ public enum DataRightsCorrectionExecutionDenial
 
 public static class DataRightsCorrectionContract
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const int OwnerKeyMaxLength = 100;
     public const int RecordTypeMaxLength = 100;
     public const int FieldPolicyKeyMaxLength = 120;

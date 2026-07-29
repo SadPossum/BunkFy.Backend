@@ -24,7 +24,11 @@ internal sealed class DataRightsCorrectionExecutionConfiguration
                 "\"SelectedRecordVersion\" >= 1 AND \"Version\" >= 1");
             table.HasCheckConstraint(
                 "CK_data_rights_correction_executions_coordinates",
-                "\"PropertyId\" IS NOT NULL AND \"CaseId\" IS NOT NULL AND " +
+                $"((\"CaseKind\" = {(int)DataRightsCaseKind.GuestRights} AND " +
+                "\"PropertyId\" IS NOT NULL) OR " +
+                $"(\"CaseKind\" IN ({(int)DataRightsCaseKind.TenantTermination}, " +
+                $"{(int)DataRightsCaseKind.StaffRights}) AND \"PropertyId\" IS NULL)) AND " +
+                "\"CaseId\" IS NOT NULL AND " +
                 "\"RecordId\" IS NOT NULL AND length(trim(\"OwnerKey\")) > 0 AND " +
                 "length(trim(\"RecordType\")) > 0 AND " +
                 "length(trim(\"FieldPolicyKey\")) > 0 AND " +
@@ -52,6 +56,7 @@ internal sealed class DataRightsCorrectionExecutionConfiguration
         builder.HasAlternateKey(execution => new { execution.ScopeId, execution.Id });
         builder.Property(execution => execution.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(execution => execution.ContractVersion).IsRequired();
+        builder.Property(execution => execution.CaseKind).HasConversion<int>().IsRequired();
         builder.Property(execution => execution.OwnerKey)
             .HasMaxLength(DataRightsSubjectCoordinate.OwnerKeyMaxLength)
             .IsRequired();
@@ -82,6 +87,7 @@ internal sealed class DataRightsCorrectionExecutionConfiguration
         builder.HasIndex(execution => new
         {
             execution.ScopeId,
+            execution.CaseKind,
             execution.PropertyId,
             execution.State,
             execution.ExpiresAtUtc

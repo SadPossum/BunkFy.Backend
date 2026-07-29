@@ -502,7 +502,8 @@ public sealed class DataRightsCaseTests
             DataRightsCaseRequest.Create(
                 propertyId: null,
                 DataRightsCaseKind.StaffRights,
-                DataRightsCaseOperation.Correction,
+                DataRightsCaseOperation.AccessExport |
+                    DataRightsCaseOperation.Correction,
                 DataRightsRequesterRelation.DataSubject).Error.Code);
         Assert.Equal(
             "DataRights.StaffRightsRequesterInvalid",
@@ -514,22 +515,29 @@ public sealed class DataRightsCaseTests
     }
 
     [Theory]
-    [InlineData(DataRightsRequesterRelation.DataSubject)]
-    [InlineData(DataRightsRequesterRelation.AuthorizedRepresentative)]
-    [InlineData(DataRightsRequesterRelation.ControllerInitiated)]
-    public void Staff_rights_case_request_accepts_tenant_scoped_access_export(
-        DataRightsRequesterRelation requesterRelationship)
+    [InlineData(
+        DataRightsRequesterRelation.DataSubject,
+        DataRightsCaseOperation.AccessExport)]
+    [InlineData(
+        DataRightsRequesterRelation.AuthorizedRepresentative,
+        DataRightsCaseOperation.Correction)]
+    [InlineData(
+        DataRightsRequesterRelation.ControllerInitiated,
+        DataRightsCaseOperation.Correction)]
+    public void Staff_rights_case_request_accepts_one_supported_tenant_operation(
+        DataRightsRequesterRelation requesterRelationship,
+        DataRightsCaseOperation operation)
     {
         Result<DataRightsCaseRequest> result = DataRightsCaseRequest.Create(
             propertyId: null,
             DataRightsCaseKind.StaffRights,
-            DataRightsCaseOperation.AccessExport,
+            operation,
             requesterRelationship);
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.Value.PropertyId);
         Assert.Equal(DataRightsCaseKind.StaffRights, result.Value.Kind);
-        Assert.Equal(DataRightsCaseOperation.AccessExport, result.Value.RequestedOperations);
+        Assert.Equal(operation, result.Value.RequestedOperations);
         Assert.Equal(requesterRelationship, result.Value.RequesterRelationship);
     }
 

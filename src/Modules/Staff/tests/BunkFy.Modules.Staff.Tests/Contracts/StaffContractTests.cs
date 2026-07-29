@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Staff.Tests;
 
+using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Permissions;
@@ -20,7 +21,12 @@ public sealed class StaffContractTests
         Assert.Contains(permissions, permission =>
             permission.Code == StaffAdminPermissionCodes.SensitiveProfileRead);
         Assert.Equal(3, StaffModuleMetadata.Descriptor.GetSubscriptions().Count);
-        Assert.Equal(5, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(6, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Contains(
+            StaffModuleMetadata.Descriptor.GetPublishedEvents(),
+            published =>
+                published.EventType ==
+                    DataRightsTenantCorrectionAppliedIntegrationEvent.EventType);
         Assert.Single(StaffModuleMetadata.Descriptor.GetTasks());
         Assert.Single(StaffModuleMetadata.Descriptor.GetCompositionProfiles());
     }
@@ -32,7 +38,9 @@ public sealed class StaffContractTests
             "EmployeeNumber", "JobTitle", "Department", "Reason"];
         Type[] eventTypes = [typeof(StaffMemberCreatedIntegrationEvent),
             typeof(StaffMemberUpdatedIntegrationEvent), typeof(StaffMemberLifecycleChangedIntegrationEvent),
-            typeof(StaffAuthSubjectChangedIntegrationEvent), typeof(StaffPropertyAssignmentChangedIntegrationEvent)];
+            typeof(StaffAuthSubjectChangedIntegrationEvent),
+            typeof(StaffPropertyAssignmentChangedIntegrationEvent),
+            typeof(DataRightsTenantCorrectionAppliedIntegrationEvent)];
         Assert.All(eventTypes, eventType => Assert.DoesNotContain(eventType.GetProperties(),
             property => forbidden.Contains(property.Name, StringComparer.Ordinal)));
         Assert.EndsWith(".staff.member-created.v1", StaffIntegrationSubjects.CreateMemberCreated(),

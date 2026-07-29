@@ -18,11 +18,18 @@ internal sealed class GetDataRightsCorrectionExecutionQueryHandler(
         GetDataRightsCorrectionExecutionQuery query,
         CancellationToken cancellationToken)
     {
+        if (query.Scope is null)
+        {
+            return Result.Failure<DataRightsCorrectionExecutionDetailsDto>(
+                DataRightsApplicationErrors.CorrectionExecutionNotFound);
+        }
+
         DataRightsCorrectionExecution? execution = await executions.GetByCaseAsync(
-            query.PropertyId,
             query.CaseId,
             cancellationToken).ConfigureAwait(false);
-        return execution is null
+        return execution is null ||
+            (DataRightsCaseType)execution.CaseKind != query.Scope.CaseType ||
+            execution.PropertyId != query.Scope.PropertyId
             ? Result.Failure<DataRightsCorrectionExecutionDetailsDto>(
                 DataRightsApplicationErrors.CorrectionExecutionNotFound)
             : Result.Success(execution.ToDto());

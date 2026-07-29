@@ -138,7 +138,7 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_cases_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
 
-                            t.HasCheckConstraint("CK_data_rights_cases_operations", "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR (\"Kind\" = 3 AND \"RequestedOperations\" = 1)");
+                            t.HasCheckConstraint("CK_data_rights_cases_operations", "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR (\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2))");
 
                             t.HasCheckConstraint("CK_data_rights_cases_property_scope", "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"Kind\" IN (2, 3) AND \"PropertyId\" IS NULL)");
 
@@ -173,6 +173,9 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                     b.Property<Guid>("CaseId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("CaseKind")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("ChangedFieldCount")
                         .HasColumnType("integer");
@@ -212,7 +215,7 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<Guid>("PropertyId")
+                    b.Property<Guid?>("PropertyId")
                         .HasColumnType("uuid");
 
                     b.Property<int?>("ReceiptContractVersion")
@@ -262,13 +265,13 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ScopeId", "CaseId")
                         .IsUnique();
 
-                    b.HasIndex("ScopeId", "PropertyId", "State", "ExpiresAtUtc");
+                    b.HasIndex("ScopeId", "CaseKind", "PropertyId", "State", "ExpiresAtUtc");
 
                     b.ToTable("correction_executions", "data-rights", t =>
                         {
-                            t.HasCheckConstraint("CK_data_rights_correction_executions_contract", "\"ContractVersion\" = 1");
+                            t.HasCheckConstraint("CK_data_rights_correction_executions_contract", "\"ContractVersion\" = 2");
 
-                            t.HasCheckConstraint("CK_data_rights_correction_executions_coordinates", "\"PropertyId\" IS NOT NULL AND \"CaseId\" IS NOT NULL AND \"RecordId\" IS NOT NULL AND length(trim(\"OwnerKey\")) > 0 AND length(trim(\"RecordType\")) > 0 AND length(trim(\"FieldPolicyKey\")) > 0 AND length(trim(\"ExecutedBy\")) > 0");
+                            t.HasCheckConstraint("CK_data_rights_correction_executions_coordinates", "((\"CaseKind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"CaseKind\" IN (2, 3) AND \"PropertyId\" IS NULL)) AND \"CaseId\" IS NOT NULL AND \"RecordId\" IS NOT NULL AND length(trim(\"OwnerKey\")) > 0 AND length(trim(\"RecordType\")) > 0 AND length(trim(\"FieldPolicyKey\")) > 0 AND length(trim(\"ExecutedBy\")) > 0");
 
                             t.HasCheckConstraint("CK_data_rights_correction_executions_revisions", "\"SelectedCaseVersion\" >= 1 AND \"ExecutionRevision\" = \"SelectedCaseVersion\" + 1 AND \"ApprovalRevision\" >= 1 AND \"SelectedRecordVersion\" >= 1 AND \"Version\" >= 1");
 

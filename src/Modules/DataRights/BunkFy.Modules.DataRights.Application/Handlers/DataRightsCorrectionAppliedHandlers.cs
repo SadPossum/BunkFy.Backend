@@ -4,6 +4,7 @@ using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Models;
 using Gma.Framework.Messaging;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
@@ -34,6 +35,19 @@ internal sealed class ReservationDataRightsCorrectionAppliedHandler(
         coordinator.CompleteAsync(integrationEvent, cancellationToken);
 }
 
+[IntegrationEventHandler(
+    DataRightsModuleMetadata.StaffCorrectionAppliedHandlerName,
+    RequiresExplicitProducerBinding = true)]
+internal sealed class StaffDataRightsCorrectionAppliedHandler(
+    DataRightsCorrectionCompletionCoordinator coordinator)
+    : IIntegrationEventHandler<DataRightsTenantCorrectionAppliedIntegrationEvent>
+{
+    public Task HandleAsync(
+        DataRightsTenantCorrectionAppliedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        coordinator.CompleteAsync(integrationEvent, cancellationToken);
+}
+
 internal sealed class DataRightsCorrectionCompletionCoordinator(
     IDataRightsCaseRepository cases,
     IDataRightsCorrectionExecutionRepository executions,
@@ -45,33 +59,99 @@ internal sealed class DataRightsCorrectionCompletionCoordinator(
         DataRightsCorrectionAppliedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
-        DataRightsCorrectionExecution? execution = await executions.GetAsync(
-            integrationEvent.PropertyId,
-            integrationEvent.CaseId,
-            integrationEvent.ExecutionId,
-            cancellationToken).ConfigureAwait(false);
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        ArgumentNullException.ThrowIfNull(integrationEvent);
+        await this.CompleteAsync(
             DataRightsCaseScope.ForProperty(integrationEvent.PropertyId),
-            integrationEvent.CaseId,
-            cancellationToken).ConfigureAwait(false);
-        if (execution is null ||
-            dataRightsCase is null ||
-            !string.Equals(
-                execution.ScopeId,
+            new CorrectionCompletion(
                 integrationEvent.TenantId,
-                StringComparison.Ordinal) ||
-            !execution.MatchesCompletion(
                 integrationEvent.ExecutionId,
-                integrationEvent.PropertyId,
                 integrationEvent.CaseId,
                 integrationEvent.ApprovalRevision,
                 integrationEvent.OwnerKey,
                 integrationEvent.RecordType,
                 integrationEvent.RecordId,
                 integrationEvent.SelectedRecordVersion,
-                integrationEvent.FieldPolicyKey) ||
+                integrationEvent.CurrentRecordVersion,
+                integrationEvent.FieldPolicyKey,
+                integrationEvent.ReceiptContractVersion,
+                integrationEvent.ReceiptId,
+                integrationEvent.ChangedFieldKeys.Count,
+                integrationEvent.ChangedFieldsSha256,
+                integrationEvent.ReceiptSha256,
+                integrationEvent.OccurredAtUtc),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task CompleteAsync(
+        DataRightsTenantCorrectionAppliedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(integrationEvent);
+        if (!DataRightsCaseScope.TryCreate(
+                integrationEvent.CaseType,
+                propertyId: null,
+                out DataRightsCaseScope? scope))
+        {
+            throw new InvalidOperationException(
+                "DataRights.CorrectionCompletionCoordinatesInvalid");
+        }
+
+        await this.CompleteAsync(
+            scope!,
+            new CorrectionCompletion(
+                integrationEvent.TenantId,
+                integrationEvent.ExecutionId,
+                integrationEvent.CaseId,
+                integrationEvent.ApprovalRevision,
+                integrationEvent.OwnerKey,
+                integrationEvent.RecordType,
+                integrationEvent.RecordId,
+                integrationEvent.SelectedRecordVersion,
+                integrationEvent.CurrentRecordVersion,
+                integrationEvent.FieldPolicyKey,
+                integrationEvent.ReceiptContractVersion,
+                integrationEvent.ReceiptId,
+                integrationEvent.ChangedFieldKeys.Count,
+                integrationEvent.ChangedFieldsSha256,
+                integrationEvent.ReceiptSha256,
+                integrationEvent.OccurredAtUtc),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task CompleteAsync(
+        DataRightsCaseScope scope,
+        CorrectionCompletion completion,
+        CancellationToken cancellationToken)
+    {
+        DataRightsCorrectionExecution? execution = await executions.GetAsync(
+            completion.CaseId,
+            completion.ExecutionId,
+            cancellationToken).ConfigureAwait(false);
+        DataRightsCase? dataRightsCase = await cases.GetAsync(
+            scope,
+            completion.CaseId,
+            cancellationToken).ConfigureAwait(false);
+        if (execution is null ||
+            dataRightsCase is null ||
+            !string.Equals(
+                execution.ScopeId,
+                completion.TenantId,
+                StringComparison.Ordinal) ||
+            !execution.MatchesCompletion(
+                completion.ExecutionId,
+                (DataRightsCaseKind)scope.CaseType,
+                scope.PropertyId,
+                completion.CaseId,
+                completion.ApprovalRevision,
+                completion.OwnerKey,
+                completion.RecordType,
+                completion.RecordId,
+                completion.SelectedRecordVersion,
+                completion.FieldPolicyKey) ||
             dataRightsCase.ExecutionRevision != execution.ExecutionRevision ||
-            integrationEvent.OccurredAtUtc > clock.UtcNow)
+            completion.OccurredAtUtc >
+                clock.UtcNow.Add(
+                    DataRightsCase.MaximumCorrectionCompletionClockSkew))
         {
             throw new InvalidOperationException(
                 "DataRights.CorrectionCompletionCoordinatesInvalid");
@@ -79,13 +159,13 @@ internal sealed class DataRightsCorrectionCompletionCoordinator(
 
         Result ownerCompleted = execution.Complete(
             execution.Version,
-            integrationEvent.ReceiptContractVersion,
-            integrationEvent.ReceiptId,
-            integrationEvent.CurrentRecordVersion,
-            integrationEvent.ChangedFieldKeys.Count,
-            integrationEvent.ChangedFieldsSha256,
-            integrationEvent.ReceiptSha256,
-            integrationEvent.OccurredAtUtc);
+            completion.ReceiptContractVersion,
+            completion.ReceiptId,
+            completion.CurrentRecordVersion,
+            completion.ChangedFieldCount,
+            completion.ChangedFieldsSha256,
+            completion.ReceiptSha256,
+            completion.OccurredAtUtc);
         if (ownerCompleted.IsFailure)
         {
             throw new InvalidOperationException(ownerCompleted.Error.Code);
@@ -93,13 +173,31 @@ internal sealed class DataRightsCorrectionCompletionCoordinator(
 
         Result caseCompleted = dataRightsCase.CompleteCorrectionExecution(
             dataRightsCase.Version,
-            integrationEvent.ApprovalRevision,
+            completion.ApprovalRevision,
             SystemActor,
-            integrationEvent.OccurredAtUtc,
+            completion.OccurredAtUtc,
             clock.UtcNow);
         if (caseCompleted.IsFailure)
         {
             throw new InvalidOperationException(caseCompleted.Error.Code);
         }
     }
+
+    private sealed record CorrectionCompletion(
+        string TenantId,
+        Guid ExecutionId,
+        Guid CaseId,
+        long ApprovalRevision,
+        string OwnerKey,
+        string RecordType,
+        Guid RecordId,
+        long SelectedRecordVersion,
+        long CurrentRecordVersion,
+        string FieldPolicyKey,
+        int ReceiptContractVersion,
+        Guid ReceiptId,
+        int ChangedFieldCount,
+        string ChangedFieldsSha256,
+        string ReceiptSha256,
+        DateTimeOffset OccurredAtUtc);
 }

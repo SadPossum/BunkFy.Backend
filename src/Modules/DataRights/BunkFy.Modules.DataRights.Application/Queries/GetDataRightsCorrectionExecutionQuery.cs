@@ -1,8 +1,9 @@
 namespace BunkFy.Modules.DataRights.Application.Queries;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.DataRights.Application.Models;
 using Gma.Framework.Cqrs;
 
 public sealed record GetDataRightsCorrectionExecutionQuery(
-    Guid PropertyId,
+    DataRightsCaseScope Scope,
     Guid CaseId) : IQuery<DataRightsCorrectionExecutionDetailsDto>;

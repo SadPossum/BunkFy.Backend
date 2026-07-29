@@ -28,8 +28,14 @@ internal sealed class StartDataRightsCorrectionExecutionCommandHandler(
         StartDataRightsCorrectionExecutionCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.Scope is null)
+        {
+            return Result.Failure<DataRightsCorrectionExecutionDto>(
+                DataRightsApplicationErrors.CorrectionExecutionDenied);
+        }
+
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(command.PropertyId),
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)
@@ -43,9 +49,9 @@ internal sealed class StartDataRightsCorrectionExecutionCommandHandler(
             : null;
         string actor = command.ActorId?.Trim() ?? string.Empty;
         if (command.ExecutionId == Guid.Empty ||
-            command.PropertyId == Guid.Empty ||
             actor.Length is 0 or > DataRightsCase.ActorIdMaxLength ||
-            dataRightsCase.PropertyId != command.PropertyId ||
+            dataRightsCase.PropertyId != command.Scope.PropertyId ||
+            (DataRightsCaseType)dataRightsCase.Kind != command.Scope.CaseType ||
             dataRightsCase.RequestedOperations != DataRightsCaseOperation.Correction ||
             dataRightsCase.DecisionRevision is not long approvalRevision ||
             subject is null)
@@ -55,7 +61,6 @@ internal sealed class StartDataRightsCorrectionExecutionCommandHandler(
         }
 
         DataRightsCorrectionExecution? existing = await executions.GetByCaseAsync(
-            command.PropertyId,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (existing is not null)
@@ -95,7 +100,8 @@ internal sealed class StartDataRightsCorrectionExecutionCommandHandler(
             DataRightsCorrectionExecution.Create(
                 command.ExecutionId,
                 dataRightsCase.ScopeId,
-                command.PropertyId,
+                dataRightsCase.Kind,
+                command.Scope.PropertyId,
                 command.CaseId,
                 command.ExpectedVersion,
                 dataRightsCase.Version,
@@ -139,7 +145,8 @@ internal sealed class StartDataRightsCorrectionExecutionCommandHandler(
         if (!caseMatchesClaim ||
             !existing.MatchesClaim(
                 command.ExecutionId,
-                command.PropertyId,
+                dataRightsCase.Kind,
+                command.Scope.PropertyId,
                 command.CaseId,
                 command.ExpectedVersion,
                 currentApprovalRevision,

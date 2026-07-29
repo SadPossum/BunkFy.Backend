@@ -28,8 +28,11 @@ public static class DataRightsModuleMetadata
         "guest-correction-applied";
     public const string ReservationCorrectionAppliedHandlerName =
         "reservation-correction-applied";
+    public const string StaffCorrectionAppliedHandlerName =
+        "staff-correction-applied";
     public const string GuestsProducerModuleName = "guests";
     public const string ReservationsProducerModuleName = "reservations";
+    public const string StaffProducerModuleName = "staff";
     public const string PropertiesProjectionName = "properties";
     public const int PropertiesProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
@@ -83,6 +86,9 @@ public static class DataRightsModuleMetadata
         .WithSubscription<DataRightsCorrectionAppliedIntegrationEvent>(
             ReservationsProducerModuleName,
             ReservationCorrectionAppliedHandlerName)
+        .WithSubscription<DataRightsTenantCorrectionAppliedIntegrationEvent>(
+            StaffProducerModuleName,
+            StaffCorrectionAppliedHandlerName)
         .WithTask<RebuildDataRightsPropertiesPayload>()
         .WithTask<ExecuteDataRightsAnonymisationPayload>()
         .WithTask<GenerateDataRightsExportPayload>()

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 2,
+  "catalogVersion": 3,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -14,6 +14,18 @@
       ],
       "writers": [
         "system:staff-domain"
+      ]
+    },
+    {
+      "id": "staff-data-rights-correction-receipts",
+      "scope": "tenant-approved-data-rights-operation",
+      "readers": [
+        "permission:data-rights.execute",
+        "system:staff.data-rights-correction"
+      ],
+      "writers": [
+        "permission:data-rights.execute",
+        "system:staff.data-rights-correction"
       ]
     },
     {
@@ -100,6 +112,13 @@
       "legalHoldBehavior": "pause-approved-erasure"
     },
     {
+      "id": "staff-data-rights-correction-receipt",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-staff-correction-completed",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
       "id": "transient-request",
       "approvalState": "engineering-default",
       "startsAt": "request-accepted",
@@ -128,6 +147,13 @@
       "correction": "correct-authoritative-account-source",
       "restriction": "retain-minimum-required-audit-attribution",
       "erasure": "pseudonymize-subject-to-minimum-audit-receipt"
+    },
+    {
+      "id": "staff-data-rights-correction-accountability",
+      "export": "include-minimum-coordinate-in-authorized-case-ledger",
+      "correction": "immutable-append-superseding-receipt",
+      "restriction": "retain-minimum-approved-operation-proof",
+      "erasure": "pseudonymize-subject-coordinate-while-preserving-operation-proof"
     },
     {
       "id": "staff-employment-history",
@@ -554,6 +580,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
@@ -1053,6 +1086,20 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "Department",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "Department",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
           "member": "Department",
@@ -1305,6 +1352,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "DisplayName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "DisplayName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
@@ -1655,6 +1716,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "EmployeeNumber",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "EmployeeNumber",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
@@ -2737,6 +2812,20 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "JobTitle",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "JobTitle",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
           "member": "JobTitle",
@@ -2878,6 +2967,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "LegalName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "LegalName",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
@@ -3386,6 +3489,62 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "SelectedRecordVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "SelectedRecordVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "CurrentRecordVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "CurrentRecordVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "SelectedRecordVersion",
+          "surface": "persistence",
+          "retentionPolicy": "staff-data-rights-correction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "CurrentRecordVersion",
+          "surface": "persistence",
+          "retentionPolicy": "staff-data-rights-correction-receipt"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest",
           "member": "ExpectedVersion",
@@ -3667,6 +3826,7 @@
       "rightsPolicy": "staff-profile-editable",
       "allowedSurfaces": [
         "admin-output",
+        "api-input",
         "api-response",
         "application-command",
         "application-query",
@@ -3683,6 +3843,41 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "StaffMemberId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "StaffMemberId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "StaffMemberId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence",
+          "retentionPolicy": "staff-data-rights-correction-receipt"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
@@ -3978,6 +4173,20 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "WorkEmail",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "WorkEmail",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
           "member": "WorkEmail",
@@ -4131,6 +4340,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "WorkPhone",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "WorkPhone",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
@@ -4572,6 +4795,549 @@
           "member": "UnassignedAtVersion",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.execution-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "idempotent-correction"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "ExecutionId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "ExecutionId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ExecutionId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ExecutionId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "ExecutionId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.case-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "case-traceability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "CaseId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "CaseId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "CaseId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "CaseId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.approval-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "accountability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
+          "member": "ApprovalRevision",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.receipt-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "correction-accountability",
+        "receipt-retrieval"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ReceiptId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ReceiptId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.changed-field-set",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "correction-accountability",
+        "semantic-change-traceability"
+      ],
+      "sources": [
+        "staff-profile-domain-outcome"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ChangedFieldKeys",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "ChangedFieldKeys",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "ChangedFieldsMask",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.completed-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "correction-accountability",
+        "operation-ordering"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsCorrectionReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.request-fingerprint",
+      "dataSubject": "staff",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": [
+        "idempotent-correction",
+        "request-integrity"
+      ],
+      "sources": [
+        "derived-from-authorized-request"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "RequestSha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.tenant-scope-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-isolation",
+        "approved-operation-binding"
+      ],
+      "sources": [
+        "system-derived"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights.correction-completion-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "correction-accountability",
+        "cross-module-completion"
+      ],
+      "sources": [
+        "approved-data-rights-case",
+        "staff-owner-receipt",
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "domain-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "ProfileEventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt",
+          "member": "CompletionEventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "ExecutionId",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "ReceiptId",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "CaseId",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "ApprovalRevision",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "StaffMemberId",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "SelectedRecordVersion",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "CurrentRecordVersion",
+          "surface": "domain-event"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Events.StaffDataRightsCorrectionAppliedDomainEvent",
+          "member": "ChangedFields",
+          "surface": "domain-event"
         }
       ]
     }

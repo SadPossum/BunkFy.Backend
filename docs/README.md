@@ -36,6 +36,7 @@ Useful entry points:
 - [Inventory Data-Rights Owner Capability Task](planning/inventory-data-rights-owner-capability-task.md)
 - [Tenant-Scoped Data Rights Cases Task](planning/tenant-scoped-data-rights-cases-task.md)
 - [Staff Data Rights Owner Capability Task](planning/staff-data-rights-owner-capability-task.md)
+- [Staff Data Rights Correction Task](planning/staff-data-rights-correction-task.md)
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)

@@ -21,7 +21,10 @@ internal sealed class DataRightsCorrectionExecutionGate(
         ArgumentNullException.ThrowIfNull(request);
 
         if (!TenantIds.TryNormalize(request.TenantId, out string? tenantId) ||
-            request.PropertyId == Guid.Empty ||
+            !DataRightsCaseScope.TryCreate(
+                request.CaseType,
+                request.PropertyId,
+                out DataRightsCaseScope? scope) ||
             request.CaseId == Guid.Empty ||
             request.ApprovalRevision < 1 ||
             request.ExecutionId == Guid.Empty ||
@@ -34,7 +37,6 @@ internal sealed class DataRightsCorrectionExecutionGate(
         }
 
         DataRightsCorrectionExecution? execution = await executions.GetAsync(
-            request.PropertyId,
             request.CaseId,
             request.ExecutionId,
             cancellationToken).ConfigureAwait(false);
@@ -52,7 +54,7 @@ internal sealed class DataRightsCorrectionExecutionGate(
         }
 
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(request.PropertyId),
+            scope!,
             request.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null ||
@@ -70,6 +72,7 @@ internal sealed class DataRightsCorrectionExecutionGate(
         }
 
         if (!execution.MatchesAuthorization(
+                (DataRightsCaseKind)request.CaseType,
                 request.PropertyId,
                 request.CaseId,
                 request.ApprovalRevision,

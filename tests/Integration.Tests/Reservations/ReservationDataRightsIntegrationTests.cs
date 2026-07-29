@@ -2,6 +2,7 @@ namespace Integration.Tests;
 
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -132,7 +133,7 @@ public sealed class ReservationDataRightsIntegrationTests
         Guid executionId = Guid.NewGuid();
         Result<DataRightsCorrectionExecutionDto> execution = await dispatcher.SendAsync(
             new StartDataRightsCorrectionExecutionCommand(
-                propertyId,
+                DataRightsCaseScope.ForProperty(propertyId),
                 dataRightsCase.Id,
                 executionId,
                 dataRightsCase.Version,

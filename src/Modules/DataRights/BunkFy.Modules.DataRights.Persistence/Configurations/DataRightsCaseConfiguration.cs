@@ -17,7 +17,7 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             table.HasCheckConstraint(
                 "CK_data_rights_cases_operations",
                 "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
-                "(\"Kind\" = 3 AND \"RequestedOperations\" = 1)");
+                "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2))");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_restriction_directive",
                 "((\"RequestedOperations\" & 4) = 0 AND \"RestrictionDirective\" = 0) OR " +

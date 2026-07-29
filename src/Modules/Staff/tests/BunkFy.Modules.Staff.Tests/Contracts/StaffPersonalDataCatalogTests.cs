@@ -9,6 +9,7 @@ using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Queries;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Entities;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Staff.Persistence.Repositories;
@@ -74,7 +75,12 @@ public sealed class StaffPersonalDataCatalogTests
     public void Every_staff_owned_personal_persistence_member_is_classified()
     {
         using StaffDbContext dbContext = CreateDbContext();
-        foreach (Type entityType in new[] { typeof(StaffMember), typeof(StaffPropertyAssignment) })
+        foreach (Type entityType in new[]
+                 {
+                     typeof(StaffMember),
+                     typeof(StaffPropertyAssignment),
+                     typeof(StaffDataRightsCorrectionReceipt)
+                 })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
             foreach (IProperty property in model.GetProperties())

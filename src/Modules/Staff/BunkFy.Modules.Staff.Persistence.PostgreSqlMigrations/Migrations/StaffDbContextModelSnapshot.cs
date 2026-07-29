@@ -153,6 +153,87 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ChangedFieldsMask")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CompletionEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("CurrentRecordVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ExecutionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProfileEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RequestSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedRecordVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "CompletionEventId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ExecutionId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ProfileEventId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CaseId", "ApprovalRevision");
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "CurrentRecordVersion");
+
+                    b.ToTable("data_rights_correction_receipts", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_data_rights_correction_receipts_approval", "\"ApprovalRevision\" >= 1");
+
+                            t.HasCheckConstraint("CK_staff_data_rights_correction_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_data_rights_correction_receipts_digest", "char_length(\"RequestSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_staff_data_rights_correction_receipts_fields", "\"ChangedFieldsMask\" BETWEEN 1 AND 127");
+
+                            t.HasCheckConstraint("CK_staff_data_rights_correction_receipts_versions", "\"SelectedRecordVersion\" >= 1 AND \"CurrentRecordVersion\" = \"SelectedRecordVersion\" + 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment", b =>
                 {
                     b.Property<string>("ScopeId")

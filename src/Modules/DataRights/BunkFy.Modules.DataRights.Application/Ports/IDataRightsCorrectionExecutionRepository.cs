@@ -9,13 +9,11 @@ public interface IDataRightsCorrectionExecutionRepository
         CancellationToken cancellationToken);
 
     Task<DataRightsCorrectionExecution?> GetAsync(
-        Guid propertyId,
         Guid caseId,
         Guid executionId,
         CancellationToken cancellationToken);
 
     Task<DataRightsCorrectionExecution?> GetByCaseAsync(
-        Guid propertyId,
         Guid caseId,
         CancellationToken cancellationToken);
 }

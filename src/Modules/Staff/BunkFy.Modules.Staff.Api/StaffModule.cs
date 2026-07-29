@@ -30,5 +30,6 @@ public sealed class StaffModule : IModule
         StaffSelfServiceEndpoints.Map(endpoints, this.Name);
         StaffMemberEndpoints.Map(endpoints, this.Name);
         StaffPropertyAssignmentEndpoints.Map(endpoints, this.Name);
+        StaffDataRightsEndpoints.Map(endpoints, this.Name);
     }
 }

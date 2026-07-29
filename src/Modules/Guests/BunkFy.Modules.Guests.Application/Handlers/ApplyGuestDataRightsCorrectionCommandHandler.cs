@@ -79,6 +79,7 @@ internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
             await executionGate.EvaluateAsync(
             new(
                 scopeContext.ScopeId,
+                DataRightsCaseType.GuestRights,
                 command.PropertyId,
                 command.CaseId,
                 command.ApprovalRevision,

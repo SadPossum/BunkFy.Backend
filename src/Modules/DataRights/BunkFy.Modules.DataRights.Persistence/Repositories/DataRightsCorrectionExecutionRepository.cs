@@ -17,24 +17,19 @@ internal sealed class DataRightsCorrectionExecutionRepository(
     }
 
     public Task<DataRightsCorrectionExecution?> GetAsync(
-        Guid propertyId,
         Guid caseId,
         Guid executionId,
         CancellationToken cancellationToken) =>
         dbContext.CorrectionExecutions.FirstOrDefaultAsync(
             execution =>
-                execution.PropertyId == propertyId &&
                 execution.CaseId == caseId &&
                 execution.Id == executionId,
             cancellationToken);
 
     public Task<DataRightsCorrectionExecution?> GetByCaseAsync(
-        Guid propertyId,
         Guid caseId,
         CancellationToken cancellationToken) =>
         dbContext.CorrectionExecutions.FirstOrDefaultAsync(
-            execution =>
-                execution.PropertyId == propertyId &&
-                execution.CaseId == caseId,
+            execution => execution.CaseId == caseId,
             cancellationToken);
 }

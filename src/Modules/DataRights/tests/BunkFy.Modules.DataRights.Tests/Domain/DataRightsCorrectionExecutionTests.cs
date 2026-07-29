@@ -41,6 +41,7 @@ public sealed class DataRightsCorrectionExecutionTests
         DataRightsCorrectionExecution execution = DataRightsCorrectionExecution.Create(
             Guid.NewGuid(),
             dataRightsCase.ScopeId,
+            dataRightsCase.Kind,
             dataRightsCase.PropertyId!.Value,
             dataRightsCase.Id,
             selectedCaseVersion,
@@ -53,6 +54,7 @@ public sealed class DataRightsCorrectionExecutionTests
             Now.AddMinutes(10)).Value;
 
         Assert.True(execution.MatchesAuthorization(
+            dataRightsCase.Kind,
             dataRightsCase.PropertyId.Value,
             dataRightsCase.Id,
             dataRightsCase.DecisionRevision.Value,
@@ -64,6 +66,7 @@ public sealed class DataRightsCorrectionExecutionTests
             "GUESTS.GUEST-PROFILE.CORRECTION.V1",
             "user:executor"));
         Assert.False(execution.MatchesAuthorization(
+            dataRightsCase.Kind,
             dataRightsCase.PropertyId.Value,
             dataRightsCase.Id,
             dataRightsCase.DecisionRevision.Value,
@@ -108,6 +111,7 @@ public sealed class DataRightsCorrectionExecutionTests
         DataRightsCorrectionExecution execution = DataRightsCorrectionExecution.Create(
             Guid.NewGuid(),
             dataRightsCase.ScopeId,
+            dataRightsCase.Kind,
             dataRightsCase.PropertyId!.Value,
             dataRightsCase.Id,
             selectedCaseVersion,

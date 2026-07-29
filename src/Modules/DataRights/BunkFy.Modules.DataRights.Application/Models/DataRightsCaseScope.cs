@@ -29,4 +29,22 @@ public sealed record DataRightsCaseScope
         ArgumentOutOfRangeException.ThrowIfEqual(propertyId, Guid.Empty);
         return new DataRightsCaseScope(DataRightsCaseType.GuestRights, propertyId);
     }
+
+    public static bool TryCreate(
+        DataRightsCaseType caseType,
+        Guid? propertyId,
+        out DataRightsCaseScope? scope)
+    {
+        scope = caseType switch
+        {
+            DataRightsCaseType.GuestRights
+                when propertyId is Guid value && value != Guid.Empty =>
+                ForProperty(value),
+            DataRightsCaseType.StaffRights when propertyId is null => Staff,
+            DataRightsCaseType.TenantTermination when propertyId is null =>
+                TenantTermination,
+            _ => null
+        };
+        return scope is not null;
+    }
 }

@@ -6,6 +6,9 @@ using Gma.Framework.Results;
 
 public sealed partial class DataRightsCase
 {
+    public static readonly TimeSpan MaximumCorrectionCompletionClockSkew =
+        TimeSpan.FromMinutes(1);
+
     public Result BeginCorrectionExecution(
         long expectedVersion,
         string actorId,
@@ -68,7 +71,8 @@ public sealed partial class DataRightsCase
             this.DecisionRevision != approvalRevision ||
             this.ExecutionStartedAtUtc is null ||
             completedAtUtc < this.ExecutionStartedAtUtc ||
-            completedAtUtc > nowUtc)
+            completedAtUtc >
+                nowUtc.Add(MaximumCorrectionCompletionClockSkew))
         {
             return Result.Failure(DataRightsDomainErrors.CorrectionExecutionInvalid);
         }

@@ -4,6 +4,7 @@ using Gma.Framework.Naming;
 using Gma.Framework.Results;
 using BunkFy.Modules.Staff.Domain.Errors;
 using BunkFy.Modules.Staff.Domain.Events;
+using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Domain.ValueObjects;
 
 public sealed partial class StaffMember
@@ -81,6 +82,63 @@ public sealed partial class StaffMember
         return Result.Success();
     }
 
+    public Result<StaffDataRightsCorrectionOutcome> ApplyDataRightsCorrection(
+        StaffProfileCorrection correction,
+        long expectedVersion,
+        string actorId,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(correction);
+        if (expectedVersion != this.Version)
+        {
+            return Result.Failure<StaffDataRightsCorrectionOutcome>(
+                StaffDomainErrors.VersionConflict);
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure<StaffDataRightsCorrectionOutcome>(
+                StaffDomainErrors.EventIdRequired);
+        }
+
+        Result<StaffActorId> actor = StaffActorId.Create(actorId);
+        if (actor.IsFailure)
+        {
+            return Result.Failure<StaffDataRightsCorrectionOutcome>(actor.Error);
+        }
+
+        Result<StaffProfile> profile = correction.ApplyTo(this.AuthSubjectId);
+        if (profile.IsFailure)
+        {
+            return Result.Failure<StaffDataRightsCorrectionOutcome>(profile.Error);
+        }
+
+        StaffProfileField[] changedFields = this.GetChangedFields(profile.Value);
+        if (changedFields.Length == 0)
+        {
+            return Result.Failure<StaffDataRightsCorrectionOutcome>(
+                StaffDomainErrors.CorrectionNoChanges);
+        }
+
+        long previousVersion = this.Version;
+        this.ApplyProfile(profile.Value);
+        this.Advance(actor.Value, nowUtc);
+        this.RaiseDomainEvent(new StaffMemberUpdatedDomainEvent(
+            eventId,
+            nowUtc,
+            this.ScopeId,
+            this.Id,
+            this.Status,
+            this.Version));
+        return Result.Success(new StaffDataRightsCorrectionOutcome(
+            previousVersion,
+            this.Version,
+            changedFields,
+            eventId,
+            nowUtc));
+    }
+
     public Result SetAuthSubject(string? authSubjectId, long expectedVersion, string actorId,
         Guid eventId, DateTimeOffset nowUtc)
     {
@@ -111,5 +169,38 @@ public sealed partial class StaffMember
         this.RaiseDomainEvent(new StaffAuthSubjectChangedDomainEvent(eventId, nowUtc, this.ScopeId,
             this.Id, this.AuthSubjectId, this.Version));
         return Result.Success();
+    }
+
+    private StaffProfileField[] GetChangedFields(StaffProfile profile)
+    {
+        List<StaffProfileField> changed = [];
+        AddIfChanged(
+            changed,
+            StaffProfileField.DisplayName,
+            this.DisplayName,
+            profile.DisplayName);
+        AddIfChanged(changed, StaffProfileField.LegalName, this.LegalName, profile.LegalName);
+        AddIfChanged(changed, StaffProfileField.WorkEmail, this.WorkEmail, profile.WorkEmail);
+        AddIfChanged(changed, StaffProfileField.WorkPhone, this.WorkPhone, profile.WorkPhone);
+        AddIfChanged(
+            changed,
+            StaffProfileField.EmployeeNumber,
+            this.EmployeeNumber,
+            profile.EmployeeNumber);
+        AddIfChanged(changed, StaffProfileField.JobTitle, this.JobTitle, profile.JobTitle);
+        AddIfChanged(changed, StaffProfileField.Department, this.Department, profile.Department);
+        return [.. changed];
+    }
+
+    private static void AddIfChanged(
+        List<StaffProfileField> changed,
+        StaffProfileField field,
+        string? current,
+        string? requested)
+    {
+        if (!string.Equals(current, requested, StringComparison.Ordinal))
+        {
+            changed.Add(field);
+        }
     }
 }

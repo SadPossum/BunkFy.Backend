@@ -110,6 +110,45 @@ public sealed class DataRightsCorrectionContractTests
         Assert.Equal(expected.ReceiptSha256, actual.ReceiptSha256);
     }
 
+    [Fact]
+    public void Tenant_applied_event_is_scope_explicit_and_round_trips()
+    {
+        DataRightsTenantCorrectionAppliedIntegrationEvent expected = new(
+            Guid.NewGuid(),
+            "tenant-a",
+            Now,
+            Guid.NewGuid(),
+            DataRightsCaseType.StaffRights,
+            Guid.NewGuid(),
+            approvalRevision: 4,
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            selectedRecordVersion: 7,
+            currentRecordVersion: 8,
+            "staff.staff-member.correction.v1",
+            receiptContractVersion: 1,
+            Guid.NewGuid(),
+            ["staff.profile.work-email", "staff.profile.display-name"]);
+
+        string payload = JsonSerializer.Serialize(expected, TransportJsonOptions);
+        DataRightsTenantCorrectionAppliedIntegrationEvent? actual =
+            JsonSerializer.Deserialize<DataRightsTenantCorrectionAppliedIntegrationEvent>(
+                payload,
+                TransportJsonOptions);
+
+        Assert.NotNull(actual);
+        Assert.Equal(DataRightsCaseType.StaffRights, actual.CaseType);
+        Assert.Equal(expected.ExecutionId, actual.ExecutionId);
+        Assert.Equal(expected.CaseId, actual.CaseId);
+        Assert.Equal(expected.ChangedFieldKeys, actual.ChangedFieldKeys);
+        Assert.Equal(expected.ChangedFieldsSha256, actual.ChangedFieldsSha256);
+        Assert.Equal(expected.ReceiptSha256, actual.ReceiptSha256);
+        Assert.DoesNotContain(
+            actual.GetType().GetProperties(),
+            property => property.Name == "PropertyId");
+    }
+
     private static DataRightsCorrectionAppliedIntegrationEvent Create(
         Guid eventId,
         Guid executionId,

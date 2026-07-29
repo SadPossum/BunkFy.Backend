@@ -84,6 +84,11 @@ public static class DependencyInjection
             ReservationDataRightsCorrectionAppliedHandler>(
                 DataRightsModuleMetadata.Name,
                 DataRightsModuleMetadata.ReservationsProducerModuleName);
+        services.AddIntegrationEventHandler<
+            DataRightsTenantCorrectionAppliedIntegrationEvent,
+            StaffDataRightsCorrectionAppliedHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.StaffProducerModuleName);
         services.AddGmaAccessControlPermissionPolicies(DataRightsModuleMetadata.Descriptor);
         return services;
     }

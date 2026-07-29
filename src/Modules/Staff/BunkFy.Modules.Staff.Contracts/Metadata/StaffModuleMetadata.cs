@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Staff.Contracts;
 
+using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Messaging;
 using Gma.Framework.Modules;
@@ -37,6 +38,7 @@ public static class StaffModuleMetadata
         .WithPublishedEvent<StaffMemberLifecycleChangedIntegrationEvent>()
         .WithPublishedEvent<StaffAuthSubjectChangedIntegrationEvent>()
         .WithPublishedEvent<StaffPropertyAssignmentChangedIntegrationEvent>()
+        .WithPublishedEvent<DataRightsTenantCorrectionAppliedIntegrationEvent>()
         .WithTask<RebuildStaffPropertiesPayload>()
         .WithProfile(StaffProfiles.Default)
         .Build();
