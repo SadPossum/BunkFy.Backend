@@ -10,6 +10,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Cqrs;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -36,7 +37,8 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             dispatcher,
             [contributor],
             new TestClock(),
-            securitySignals);
+            securitySignals,
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
         TaskExecutionContext context = Context();
 
         await handler.HandleAsync(
@@ -62,7 +64,8 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             dispatcher,
             [contributor],
             new TestClock(),
-            securitySignals);
+            securitySignals,
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
         TaskExecutionContext context = Context();
 
         InvalidOperationException exception =
@@ -93,7 +96,8 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             dispatcher,
             [contributor],
             new TestClock(),
-            securitySignals);
+            securitySignals,
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
         TaskExecutionContext context = Context(includeCorrelation: false);
 
         await Assert.ThrowsAsync<TimeoutException>(() =>
