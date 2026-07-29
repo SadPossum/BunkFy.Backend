@@ -26,7 +26,7 @@ Engineering metadata is not legal or country-launch approval.
 | transient-request | engineering-default | request-accepted | request-completed | not-applicable |
 | transient-response | engineering-default | response-created | response-completed | not-applicable |
 | workspace-access-history | engineering-default | access-record-created | approved-erasure-or-employment-retention-completed | pause-approved-erasure |
-| workspace-onboarding-applicant-copy | engineering-default | onboarding-submitted | onboarding-terminal-profile-redaction | retain-only-approved-minimum |
+| workspace-onboarding-applicant-copy | engineering-default | onboarding-submitted | onboarding-terminal-or-source-expired-profile-redaction | retain-only-approved-minimum |
 | workspace-onboarding-lifecycle | engineering-default | onboarding-submitted | approved-erasure-or-employment-retention-completed | pause-approved-erasure |
 
 ## Rights Policies

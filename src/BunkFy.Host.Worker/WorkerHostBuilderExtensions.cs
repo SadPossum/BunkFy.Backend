@@ -201,7 +201,9 @@ public static class WorkerHostBuilderExtensions
                 builder.SelectModuleProfile(
                     WorkspacesProfiles.Default,
                     "BunkFy.Host.Worker/Workspaces");
-                builder.Services.AddWorkspacesApplication(authScopeId);
+                builder.Services.AddWorkspacesApplication(
+                    builder.Configuration,
+                    authScopeId);
                 if (workerOptions.TaskWorkerEnabled)
                 {
                     builder.Services.AddWorkspacesTaskHandlers();

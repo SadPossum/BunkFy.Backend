@@ -18,7 +18,9 @@ public sealed class WorkspacesModule : IModule
         builder.SelectModuleProfile(WorkspacesProfiles.Default, "BunkFy.Modules.Workspaces.Api");
         string globalAuthScopeId = builder.Configuration["Auth:GlobalScopeId"] ??
             AuthProfile.DefaultGlobalScopeId;
-        builder.Services.AddWorkspacesApplication(globalAuthScopeId);
+        builder.Services.AddWorkspacesApplication(
+            builder.Configuration,
+            globalAuthScopeId);
         builder.AddWorkspacesPersistence();
     }
 

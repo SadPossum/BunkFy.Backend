@@ -4,8 +4,10 @@ using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Application.Contributors;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Tasks;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -15,20 +17,31 @@ using Gma.Framework.Messaging;
 using Gma.Framework.ProjectionRebuild.Tasks;
 using Gma.Framework.Tasks;
 using Gma.Modules.Organizations.Contracts;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 public static class DependencyInjection
 {
     public static IServiceCollection AddWorkspacesApplication(
         this IServiceCollection services,
+        IConfiguration configuration,
         string globalAuthScopeId)
     {
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
         ArgumentException.ThrowIfNullOrWhiteSpace(globalAuthScopeId);
 
         services.Configure<WorkspaceStaffOnboardingOptions>(
             options => options.GlobalAuthScopeId = globalAuthScopeId.Trim());
+        services.AddOptions<WorkspaceStaffOnboardingRetentionOptions>()
+            .Bind(configuration.GetSection(
+                WorkspaceStaffOnboardingRetentionOptions.SectionName))
+            .ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<WorkspaceStaffOnboardingRetentionOptions>,
+            WorkspaceStaffOnboardingRetentionOptionsValidator>());
         AddDelegatedPermissionPolicies(services);
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<IWorkspaceAuthoritativeScope, WorkspaceAuthoritativeScope>();
@@ -65,6 +78,9 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IOrganizationJoinAdmissionPolicy,
             WorkspaceStaffJoinAdmissionPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IRetentionExecutionContributor,
+            WorkspaceStaffOnboardingRetentionContributor>());
         services.AddIntegrationEventHandler<
             OrganizationInvitationChangedIntegrationEvent,
             OrganizationInvitationStaffOnboardingHandler>(

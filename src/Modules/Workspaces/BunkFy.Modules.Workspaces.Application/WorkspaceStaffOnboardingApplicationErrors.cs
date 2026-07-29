@@ -12,4 +12,13 @@ public static class WorkspaceStaffOnboardingApplicationErrors
     public static readonly Error AccessPlanUnavailable = new(
         "Workspaces.StaffAccessPlanUnavailable",
         "The workspace Staff access plan is unavailable.");
+    public static readonly Error RetentionCoordinateInvalid = new(
+        "Workspaces.StaffOnboardingRetentionCoordinateInvalid",
+        "The Staff onboarding retention coordinate is invalid.");
+    public static readonly Error RetentionClaimInconsistent = new(
+        "Workspaces.StaffOnboardingRetentionClaimInconsistent",
+        "The authoritative enrollment claim is inconsistent with Staff onboarding.");
+    public static readonly Error RetentionPlanInconsistent = new(
+        "Workspaces.StaffOnboardingRetentionPlanInconsistent",
+        "The Staff onboarding access plan is inconsistent with retention reconciliation.");
 }

@@ -7,10 +7,13 @@ using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Time;
 
 internal sealed class RetryWorkspaceStaffOnboardingCommandHandler(
     IWorkspaceStaffOnboardingRepository applications,
-    WorkspaceStaffOnboardingProcessor processor)
+    IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingProcessor processor,
+    ISystemClock clock)
     : ICommandHandler<RetryWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto>
 {
     public async Task<Result<WorkspaceStaffOnboardingDto>> HandleAsync(
@@ -27,6 +30,19 @@ internal sealed class RetryWorkspaceStaffOnboardingCommandHandler(
         }
 
         Result processed = await processor.ProcessAsync(application, cancellationToken).ConfigureAwait(false);
+        if (processed.IsSuccess &&
+            application.SourceKind == WorkspaceStaffOnboardingSource.EnrollmentLink)
+        {
+            await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
+                .ExpirePlanWhenUnusedAsync(
+                    applications,
+                    plans,
+                    application.SourceId,
+                    clock.UtcNow,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         return processed.IsSuccess
             ? Result.Success(application.ToDto())
             : Result.Failure<WorkspaceStaffOnboardingDto>(processed.Error);

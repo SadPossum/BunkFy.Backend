@@ -130,7 +130,7 @@
       "id": "workspace-onboarding-applicant-copy",
       "approvalState": "engineering-default",
       "startsAt": "onboarding-submitted",
-      "endsAt": "onboarding-terminal-profile-redaction",
+      "endsAt": "onboarding-terminal-or-source-expired-profile-redaction",
       "legalHoldBehavior": "retain-only-approved-minimum"
     },
     {

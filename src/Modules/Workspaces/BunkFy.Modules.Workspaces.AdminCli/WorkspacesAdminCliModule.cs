@@ -27,7 +27,9 @@ public sealed class WorkspacesAdminCliModule : IAdminCliModule
         builder.SelectModuleProfile(WorkspacesProfiles.Default, "BunkFy.Modules.Workspaces.AdminCli");
         string globalAuthScopeId = builder.Configuration["Auth:GlobalScopeId"] ??
             AuthProfile.DefaultGlobalScopeId;
-        builder.Services.AddWorkspacesApplication(globalAuthScopeId);
+        builder.Services.AddWorkspacesApplication(
+            builder.Configuration,
+            globalAuthScopeId);
         builder.AddWorkspacesPersistence();
     }
 

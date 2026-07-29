@@ -14,9 +14,20 @@ module. The generated
 reflection tests against every selected mapped member and public contract.
 
 Copied applicant identity and contact fields are transient onboarding data.
-Completion, rejection, and supersession redact those fields from the Workspaces
-record; the Staff module becomes authoritative after successful provisioning.
-Sensitive API and Admin API responses are explicitly non-cacheable.
+Completion, rejection, supersession, invitation expiry, and claim expiry
+redact those fields from the Workspaces record; the Staff module becomes
+authoritative after successful provisioning. Unclaimed enrollment-link
+staging is also reconciled by the tenant-scoped Retention schedule after the
+source expires. Workspaces checks the exact Organizations claim before
+redaction and reports an operational failure instead of deleting data when
+the authoritative history window has lapsed. Sensitive API and Admin API
+responses are explicitly non-cacheable.
+
+The engineering defaults live under
+`Workspaces:StaffOnboardingRetention`: a two-hour source-expiry grace period,
+a 20-hour authoritative-inspection ceiling, a 60-minute schedule interval,
+and a batch size of 50. The authority ceiling must remain below
+Organizations' minimum one-day enrollment-history guarantee.
 
 The catalogue contains engineering defaults only. It does not approve legal
 bases, retention periods, country operation, or data-subject exceptions.

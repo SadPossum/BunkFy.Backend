@@ -1,7 +1,9 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
+using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Persistence;
+using BunkFy.Modules.Workspaces.Persistence.Repositories;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -75,12 +77,138 @@ public sealed class WorkspacesModelTests
 
         Assert.True(entity.FindProperty(nameof(WorkspaceStaffAccessPlan.Version))!.IsConcurrencyToken);
         Assert.True(entity.FindProperty(nameof(WorkspaceStaffAccessPlan.SourceExpiredAtUtc))!.IsNullable);
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(WorkspaceStaffAccessPlan.ScopeId),
+                nameof(WorkspaceStaffAccessPlan.SourceKind),
+                nameof(WorkspaceStaffAccessPlan.SourceExpiredAtUtc),
+                nameof(WorkspaceStaffAccessPlan.Id)]));
         Assert.NotEmpty(entity.GetDeclaredQueryFilters());
     }
 
-    private sealed class TestScopeContext : IScopeContext
+    [Fact]
+    public async Task Staff_onboarding_retention_candidates_are_tenant_isolated_ordered_and_bounded()
     {
-        public bool IsEnabled => true;
-        public string ScopeId => WorkspaceStaffOnboardingTests.OrganizationId.ToString("D");
+        string databaseName = Guid.NewGuid().ToString("N");
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(databaseName)
+                .Options;
+        Guid tenantA = WorkspaceStaffOnboardingTests.OrganizationId;
+        Guid tenantB = Guid.Parse("10000000-0000-0000-0000-000000000099");
+        DateTimeOffset nowUtc = WorkspaceStaffOnboardingTests.Now.AddDays(7);
+        (WorkspaceStaffOnboarding First, WorkspaceStaffAccessPlan FirstPlan) =
+            CreateRetentionPair(
+                tenantA,
+                Guid.Parse("30000000-0000-0000-0000-000000000001"),
+                Guid.Parse("40000000-0000-0000-0000-000000000001"),
+                nowUtc.AddHours(-5));
+        (WorkspaceStaffOnboarding Second, WorkspaceStaffAccessPlan SecondPlan) =
+            CreateRetentionPair(
+                tenantA,
+                Guid.Parse("30000000-0000-0000-0000-000000000002"),
+                Guid.Parse("40000000-0000-0000-0000-000000000002"),
+                nowUtc.AddHours(-4));
+        (WorkspaceStaffOnboarding Fresh, WorkspaceStaffAccessPlan FreshPlan) =
+            CreateRetentionPair(
+                tenantA,
+                Guid.Parse("30000000-0000-0000-0000-000000000003"),
+                Guid.Parse("40000000-0000-0000-0000-000000000003"),
+                nowUtc.AddHours(-1));
+        (WorkspaceStaffOnboarding Other, WorkspaceStaffAccessPlan OtherPlan) =
+            CreateRetentionPair(
+                tenantB,
+                Guid.Parse("30000000-0000-0000-0000-000000000004"),
+                Guid.Parse("40000000-0000-0000-0000-000000000004"),
+                nowUtc.AddHours(-8));
+
+        await using (WorkspacesDbContext seed = new(
+            options,
+            new TestScopeContext(enabled: false, scopeId: null)))
+        {
+            seed.AddRange(
+                First, FirstPlan,
+                Second, SecondPlan,
+                Fresh, FreshPlan,
+                Other, OtherPlan);
+            await seed.SaveChangesAsync();
+        }
+
+        await using WorkspacesDbContext context = new(
+            options,
+            new TestScopeContext(enabled: true, tenantA.ToString("D")));
+        WorkspaceStaffOnboardingRetentionRepository repository = new(context);
+
+        IReadOnlyList<WorkspaceStaffOnboardingRetentionCandidate> candidates =
+            await repository.ListEligibleAsync(
+                tenantA.ToString("D"),
+                nowUtc.AddHours(-2),
+                2,
+                CancellationToken.None);
+        IReadOnlyList<WorkspaceStaffOnboardingRetentionCandidate> otherTenant =
+            await repository.ListEligibleAsync(
+                tenantB.ToString("D"),
+                nowUtc.AddHours(-2),
+                2,
+                CancellationToken.None);
+
+        Assert.Collection(
+            candidates,
+            candidate => Assert.Equal(First.Id, candidate.ApplicationId),
+            candidate => Assert.Equal(Second.Id, candidate.ApplicationId));
+        Assert.Empty(otherTenant);
+    }
+
+    private static (
+        WorkspaceStaffOnboarding Application,
+        WorkspaceStaffAccessPlan Plan) CreateRetentionPair(
+            Guid tenantId,
+            Guid applicationId,
+            Guid sourceId,
+            DateTimeOffset sourceExpiredAtUtc)
+    {
+        string scopeId = tenantId.ToString("D");
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboarding.Create(
+            applicationId,
+            scopeId,
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            sourceId,
+            WorkspaceStaffOnboardingTests.SubjectId,
+            "verified@example.test",
+            "Ada Operator",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            WorkspaceStaffOnboardingTests.Now).Value;
+        WorkspaceStaffAccessPlan plan = WorkspaceStaffAccessPlan.Create(
+            sourceId,
+            scopeId,
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "front-desk",
+            [],
+            WorkspaceStaffOnboardingTests.SubjectId,
+            WorkspaceStaffOnboardingTests.Now).Value;
+        Assert.True(plan.Activate(
+            WorkspaceStaffOnboardingTests.Now.AddSeconds(1)).IsSuccess);
+        Assert.True(plan.ObserveSourceExpired(
+            sourceExpiredAtUtc,
+            sourceExpiredAtUtc).IsSuccess);
+        return (application, plan);
+    }
+
+    private sealed class TestScopeContext(
+        bool enabled = true,
+        string? scopeId = null)
+        : IScopeContext
+    {
+        public bool IsEnabled => enabled;
+        public string? ScopeId => scopeId ??
+            (enabled
+                ? WorkspaceStaffOnboardingTests.OrganizationId.ToString("D")
+                : null);
     }
 }

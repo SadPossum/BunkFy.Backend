@@ -19,6 +19,7 @@ using Gma.Framework.Scoping;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Organizations.Contracts;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Xunit;
@@ -36,6 +37,12 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             applications,
             staff,
             new FakeAccessControl());
+        WorkspaceStaffAccessPlan acceptedPlan = (await provider
+            .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
+            .GetAsync(application.SourceId, CancellationToken.None))!;
+        Assert.True(acceptedPlan.ObserveSourceExpired(
+            WorkspaceStaffOnboardingTests.Now,
+            WorkspaceStaffOnboardingTests.Now).IsSuccess);
         OrganizationEnrollmentClaimStaffOnboardingHandler handler = provider
             .GetRequiredService<OrganizationEnrollmentClaimStaffOnboardingHandler>();
 
@@ -56,7 +63,46 @@ public sealed class WorkspaceStaffOnboardingFlowTests
 
         Assert.Equal(1, application.ClaimVersion);
         Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, acceptedPlan.Status);
         Assert.Equal(1, staff.CallCount);
+    }
+
+    [Fact]
+    public async Task Rejected_claim_event_finalizes_a_source_expired_access_plan()
+    {
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        FakeRepository applications = new(application);
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            new FakeStaffProvisioner(),
+            new FakeAccessControl());
+        WorkspaceStaffAccessPlan plan = (await provider
+            .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
+            .GetAsync(application.SourceId, CancellationToken.None))!;
+        Assert.True(plan.ObserveSourceExpired(
+            WorkspaceStaffOnboardingTests.Now,
+            WorkspaceStaffOnboardingTests.Now).IsSuccess);
+        OrganizationEnrollmentClaimStaffOnboardingHandler handler = provider
+            .GetRequiredService<OrganizationEnrollmentClaimStaffOnboardingHandler>();
+
+        await handler.HandleAsync(
+            new OrganizationEnrollmentClaimChangedIntegrationEvent(
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.Now.AddMinutes(1),
+                WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId,
+                Guid.NewGuid(),
+                application.SubjectId,
+                OrganizationEnrollmentClaimChange.Rejected,
+                OrganizationEnrollmentClaimStatus.Rejected,
+                null,
+                1),
+            CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Rejected, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Null(application.DisplayName);
     }
 
     [Fact]
@@ -120,12 +166,19 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         FakeStaffProvisioner staff = new() { StaffMemberId = staffMemberId };
         FakeAccessControl access = new() { FailAssignments = true };
         using ServiceProvider provider = CreateProvider(applications, staff, access);
+        WorkspaceStaffAccessPlan retryPlan = (await provider
+            .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
+            .GetAsync(application.SourceId, CancellationToken.None))!;
+        Assert.True(retryPlan.ObserveSourceExpired(
+            WorkspaceStaffOnboardingTests.Now,
+            WorkspaceStaffOnboardingTests.Now).IsSuccess);
         ICommandHandler<RetryWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto> handler =
             provider.GetRequiredService<ICommandHandler<RetryWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto>>();
 
         Result<WorkspaceStaffOnboardingDto> first = await handler.HandleAsync(
             new RetryWorkspaceStaffOnboardingCommand(application.Id),
             CancellationToken.None);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, retryPlan.Status);
         access.FailAssignments = false;
         Result<WorkspaceStaffOnboardingDto> retried = await handler.HandleAsync(
             new RetryWorkspaceStaffOnboardingCommand(application.Id),
@@ -147,6 +200,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                     call.Scope);
             });
         Assert.Equal(WorkspaceStaffOnboardingStatus.Completed, retried.Value.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, retryPlan.Status);
         Assert.Equal(staffMemberId, retried.Value.StaffMemberId);
         Assert.Null(retried.Value.VerifiedAccountEmail);
         Assert.Null(retried.Value.DisplayName);
@@ -308,7 +362,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<ISystemClock>(new FakeClock());
         services.AddSingleton<IIdGenerator>(new FakeIdGenerator());
         services.AddSingleton<IUnitOfWork>(new TestUnitOfWork());
-        services.AddWorkspacesApplication("global");
+        services.AddWorkspacesApplication(new ConfigurationBuilder().Build(), "global");
         return services.BuildServiceProvider();
     }
 

@@ -30,6 +30,9 @@ public static class DependencyInjection
             IWorkspaceStaffOnboardingRepository,
             WorkspaceStaffOnboardingRepository>();
         builder.Services.TryAddScoped<
+            IWorkspaceStaffOnboardingRetentionRepository,
+            WorkspaceStaffOnboardingRetentionRepository>();
+        builder.Services.TryAddScoped<
             IWorkspaceStaffAccessProcessRepository,
             WorkspaceStaffAccessProcessRepository>();
         builder.Services.TryAddScoped<

@@ -93,6 +93,7 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
 [IntegrationEventHandler(WorkspacesModuleMetadata.EnrollmentClaimChangedHandlerName)]
 internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
+    IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffOnboardingProcessor processor,
     ISystemClock clock,
     ILogger<OrganizationEnrollmentClaimStaffOnboardingHandler> logger)
@@ -113,12 +114,13 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
             return;
         }
 
+        DateTimeOffset nowUtc = clock.UtcNow;
         if (integrationEvent.Change == OrganizationEnrollmentClaimChange.Requested)
         {
             Result requested = application.ObserveClaimRequested(
                 integrationEvent.ClaimId,
                 integrationEvent.ClaimVersion,
-                clock.UtcNow);
+                nowUtc);
             EnsureObserved(requested, "claim request");
             return;
         }
@@ -128,8 +130,16 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
             Result rejected = application.ObserveClaimRejected(
                 integrationEvent.ClaimId,
                 integrationEvent.ClaimVersion,
-                clock.UtcNow);
+                nowUtc);
             EnsureObserved(rejected, "claim rejection");
+            await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
+                .ExpirePlanWhenUnusedAsync(
+                    applications,
+                    plans,
+                    application.SourceId,
+                    nowUtc,
+                    cancellationToken)
+                .ConfigureAwait(false);
             return;
         }
 
@@ -138,7 +148,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
             Result accepted = application.ObserveClaimAccepted(
                 integrationEvent.ClaimId,
                 integrationEvent.ClaimVersion,
-                clock.UtcNow);
+                nowUtc);
             EnsureObserved(accepted, "claim acceptance");
 
             Result processed = await processor.ProcessAsync(application, cancellationToken).ConfigureAwait(false);
@@ -148,6 +158,15 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
                     "Staff onboarding remains recoverable after {ErrorCode}.",
                     processed.Error.Code);
             }
+
+            await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
+                .ExpirePlanWhenUnusedAsync(
+                    applications,
+                    plans,
+                    application.SourceId,
+                    nowUtc,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
     }
 

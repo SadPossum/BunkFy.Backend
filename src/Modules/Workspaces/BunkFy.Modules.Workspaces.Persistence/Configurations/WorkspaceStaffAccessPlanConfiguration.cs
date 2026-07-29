@@ -42,6 +42,13 @@ internal sealed class WorkspaceStaffAccessPlanConfiguration
             plan.CreatedAtUtc,
             plan.Id
         });
+        builder.HasIndex(plan => new
+        {
+            plan.ScopeId,
+            plan.SourceKind,
+            plan.SourceExpiredAtUtc,
+            plan.Id
+        });
         builder.HasMany(plan => plan.Properties)
             .WithOne()
             .HasForeignKey(property => new { property.ScopeId, property.PlanId })

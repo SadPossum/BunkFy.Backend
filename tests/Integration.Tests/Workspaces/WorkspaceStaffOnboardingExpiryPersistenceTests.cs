@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using BunkFy.Host.Worker;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
@@ -9,6 +10,7 @@ using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Organizations.Contracts;
+using Gma.Modules.Organizations.Persistence;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +42,9 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
         scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(scopeId);
         WorkspacesDbContext dbContext = scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>();
         await dbContext.Database.MigrateAsync().ConfigureAwait(false);
+        OrganizationsDbContext organizationsDbContext =
+            scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>();
+        await organizationsDbContext.Database.MigrateAsync().ConfigureAwait(false);
 
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboarding.Create(
             applicationId,
@@ -133,6 +138,80 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
         Assert.Null(persisted.WorkEmail);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, persistedPlan.Status);
         Assert.Empty(active);
+
+        Guid abandonedLinkId = Guid.NewGuid();
+        Guid abandonedApplicationId = Guid.NewGuid();
+        DateTimeOffset retentionNowUtc = DateTimeOffset.UtcNow;
+        WorkspaceStaffOnboarding abandoned = WorkspaceStaffOnboarding.Create(
+            abandonedApplicationId,
+            scopeId,
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            abandonedLinkId,
+            Guid.NewGuid().ToString("D"),
+            "abandoned@example.test",
+            "Abandoned Applicant",
+            null,
+            "abandoned.staff@example.test",
+            null,
+            null,
+            null,
+            null,
+            retentionNowUtc.AddHours(-4)).Value;
+        WorkspaceStaffAccessPlan abandonedPlan = WorkspaceStaffAccessPlan.Create(
+            abandonedLinkId,
+            scopeId,
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "front-desk",
+            [],
+            Guid.NewGuid().ToString("D"),
+            retentionNowUtc.AddHours(-4)).Value;
+        Assert.True(abandonedPlan.Activate(
+            retentionNowUtc.AddHours(-4).AddSeconds(1)).IsSuccess);
+        Assert.True(abandonedPlan.ObserveSourceExpired(
+            retentionNowUtc.AddHours(-3),
+            retentionNowUtc.AddHours(-3)).IsSuccess);
+        dbContext.StaffOnboardingApplications.Add(abandoned);
+        dbContext.StaffAccessPlans.Add(abandonedPlan);
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        dbContext.ChangeTracker.Clear();
+
+        IRetentionExecutionContributor contributor = scope.ServiceProvider
+            .GetServices<IRetentionExecutionContributor>()
+            .Single(item =>
+                item.Schedule.OwnerKey == "workspaces" &&
+                item.Schedule.DataClassKey == "staff-onboarding-staging");
+        DateTimeOffset retentionStartedAtUtc = DateTimeOffset.UtcNow;
+        RetentionContributionResult retentionResult = await contributor.ExecuteAsync(
+            new(
+                RetentionExecutionContract.CurrentVersion,
+                Guid.NewGuid(),
+                scopeId,
+                null,
+                "workspaces",
+                "staff-onboarding-staging",
+                1,
+                1,
+                retentionStartedAtUtc,
+                retentionStartedAtUtc.AddMinutes(10)),
+            CancellationToken.None).ConfigureAwait(false);
+        dbContext.ChangeTracker.Clear();
+
+        WorkspaceStaffOnboarding redacted = await dbContext.StaffOnboardingApplications
+            .SingleAsync(item => item.Id == abandonedApplicationId)
+            .ConfigureAwait(false);
+        WorkspaceStaffAccessPlan finalizedPlan = await dbContext.StaffAccessPlans
+            .SingleAsync(item => item.Id == abandonedLinkId)
+            .ConfigureAwait(false);
+
+        Assert.Equal(RetentionContributionStatus.Completed, retentionResult.Status);
+        Assert.Equal(1, retentionResult.ScannedCount);
+        Assert.Equal(1, retentionResult.AffectedCount);
+        Assert.Equal(WorkspaceStaffOnboardingState.Expired, redacted.Status);
+        Assert.Null(redacted.VerifiedAccountEmail);
+        Assert.Null(redacted.DisplayName);
+        Assert.Null(redacted.WorkEmail);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, finalizedPlan.Status);
     }
 
     private static IHost CreateWorker(string connectionString)
