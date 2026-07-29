@@ -5,12 +5,14 @@ using System.Text.Json;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.Reservations.Api;
 using BunkFy.Modules.Reservations.Application.Commands;
+using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Application.Queries;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
+using BunkFy.Modules.Reservations.Domain.Retention;
 using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
@@ -263,6 +265,12 @@ public sealed class ReservationsPersonalDataCatalogTests
 
         foreach (Type type in new[]
                  {
+                     typeof(BeginReservationRetentionExecutionCommand),
+                     typeof(ReservationRetentionExecutionStart),
+                     typeof(ApplyReservationRetentionCommand),
+                     typeof(ReservationRetentionMutationResult),
+                     typeof(CompleteReservationRetentionExecutionCommand),
+                     typeof(ReservationRetentionEligibilityResult),
                      typeof(ReservationInventoryAllocationWriteModel),
                      typeof(ReservationReminderSource),
                      typeof(ReservationArrivalReminderDispatch),
@@ -344,6 +352,9 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationAnonymisationReceipt),
         typeof(ReservationAnonymisationTombstone),
         typeof(ReservationAnonymisationRestoreReceipt),
+        typeof(ReservationRetentionExecution),
+        typeof(ReservationRetentionSweepCheckpoint),
+        typeof(ReservationRetentionAnonymisationReceipt),
         typeof(ReservationDataHold),
         typeof(ReservationDataHoldReceipt),
         typeof(ReservationProcessingRestriction),

@@ -223,6 +223,12 @@ internal static class CountryPolicyIntegrationTestData
               "allowedSourceProvenance": [ "retention-worker" ]
             },
             {
+              "purposeCode": "reservation-retention",
+              "legalRuleReferenceKeys": [ "integration-retention" ],
+              "allowedSurfaces": [ "retention" ],
+              "allowedSourceProvenance": [ "retention-worker" ]
+            },
+            {
               "purposeCode": "reservation-management",
               "legalRuleReferenceKeys": [ "integration-customer-instruction" ],
               "allowedSurfaces": [ "api-write" ],
@@ -246,6 +252,13 @@ internal static class CountryPolicyIntegrationTestData
               "retentionPolicyVersion": 1,
               "dataClass": "guest-operational",
               "trigger": "stay-ended",
+              "period": "365.00:00:00"
+            },
+            {
+              "retentionPolicyId": "integration-guest-operational",
+              "retentionPolicyVersion": 1,
+              "dataClass": "reservation-operational",
+              "trigger": "reservation-ended",
               "period": "365.00:00:00"
             }
           ],

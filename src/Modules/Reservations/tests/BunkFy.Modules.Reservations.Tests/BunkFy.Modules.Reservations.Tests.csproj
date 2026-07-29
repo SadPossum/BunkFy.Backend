@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Retention\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.Api\BunkFy.Modules.Reservations.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.Application\BunkFy.Modules.Reservations.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />

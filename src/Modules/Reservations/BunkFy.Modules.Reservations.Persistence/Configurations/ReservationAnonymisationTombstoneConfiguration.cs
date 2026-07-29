@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Reservations.Persistence.Configurations;
 
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -20,6 +21,9 @@ internal sealed class ReservationAnonymisationTombstoneConfiguration
                 table.HasCheckConstraint(
                     "CK_reservation_anonymisation_tombstones_revision",
                     "\"Revision\" >= 1");
+                table.HasCheckConstraint(
+                    "CK_reservation_anonymisation_tombstones_authority",
+                    $"\"Authority\" IN ({(int)ReservationAnonymisationAuthority.DataRights}, {(int)ReservationAnonymisationAuthority.Retention})");
                 table.HasCheckConstraint(
                     "CK_reservation_anonymisation_tombstones_receipt",
                     "\"OwnerReceiptContractVersion\" >= 1 AND " +
@@ -48,6 +52,9 @@ internal sealed class ReservationAnonymisationTombstoneConfiguration
         });
         builder.Property(tombstone => tombstone.Revision)
             .IsConcurrencyToken()
+            .IsRequired();
+        builder.Property(tombstone => tombstone.Authority)
+            .HasConversion<int>()
             .IsRequired();
         builder.Property(tombstone => tombstone.OwnerReceiptSha256)
             .HasMaxLength(ReservationAnonymisationReceipt.Sha256Length)

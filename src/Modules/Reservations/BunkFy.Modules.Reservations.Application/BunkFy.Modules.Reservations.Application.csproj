@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
     <ProjectReference Include="..\..\Inventory\BunkFy.Modules.Inventory.Contracts\BunkFy.Modules.Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\Properties\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
+    <ProjectReference Include="..\..\Retention\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
   <ItemGroup>

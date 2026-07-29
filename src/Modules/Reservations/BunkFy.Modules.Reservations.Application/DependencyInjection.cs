@@ -12,6 +12,7 @@ using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Application.Tasks;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
@@ -19,6 +20,7 @@ using Gma.Framework.ProjectionRebuild.Tasks;
 using Gma.Framework.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 public static class DependencyInjection
 {
     public static IServiceCollection AddReservationsApplication(this IServiceCollection services)
@@ -31,10 +33,24 @@ public static class DependencyInjection
             [],
             [],
             CountryPolicyRuntimeMode.Engineering));
+        services.AddOptions<ReservationRetentionOptions>()
+            .BindConfiguration(
+                ReservationRetentionOptions.SectionName)
+            .ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IValidateOptions<ReservationRetentionOptions>,
+                ReservationRetentionOptionsValidator>());
         services.TryAddScoped<IReservationCountryPolicyAdmission, ReservationCountryPolicyAdmission>();
         services.TryAddScoped<
             IReservationAnonymisationEligibilityEvaluator,
             ReservationAnonymisationEligibilityEvaluator>();
+        services.TryAddScoped<
+            ReservationRetentionEligibilityEvaluator>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IRetentionExecutionContributor,
+                ReservationRetentionContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationContributor,

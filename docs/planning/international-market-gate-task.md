@@ -127,6 +127,13 @@ An activation request supplies every selector explicitly:
 - accepted acknowledgement ids/versions;
 - expected property version.
 
+`RetentionPolicyId` and `RetentionPolicyVersion` select a versioned retention
+rule set, not one data class. Rules within that set are uniquely identified by
+the full policy id, version, data class, and trigger tuple. A single immutable
+property binding can therefore resolve Guest, Reservation, and later
+owner-specific rules without silent rebinding; an exact duplicate tuple remains
+invalid.
+
 The decision engine receives the binding, operation purpose, processing surface,
 source provenance and observed UTC time. It returns either an immutable approved
 decision or a denial with a stable reason code. Approved decisions include only

@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
+using BunkFy.Modules.Reservations.Domain.Retention;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
@@ -35,6 +36,14 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
     public DbSet<ReservationAnonymisationRestoreReceipt>
         AnonymisationRestoreReceipts =>
         this.Set<ReservationAnonymisationRestoreReceipt>();
+    public DbSet<ReservationRetentionExecution> RetentionExecutions =>
+        this.Set<ReservationRetentionExecution>();
+    public DbSet<ReservationRetentionSweepCheckpoint>
+        RetentionSweepCheckpoints =>
+        this.Set<ReservationRetentionSweepCheckpoint>();
+    public DbSet<ReservationRetentionAnonymisationReceipt>
+        RetentionAnonymisationReceipts =>
+        this.Set<ReservationRetentionAnonymisationReceipt>();
     public DbSet<RequestedInventoryUnit> RequestedInventoryUnits => this.Set<RequestedInventoryUnit>();
     public DbSet<ReservationGuest> ReservationGuests => this.Set<ReservationGuest>();
     public DbSet<ReservationGuestProfileProjection> GuestProfileProjections => this.Set<ReservationGuestProfileProjection>();
@@ -119,6 +128,17 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         {
             throw new InvalidOperationException(
                 "Reservation anonymisation restore receipts are append-only.");
+        }
+
+        bool retentionReceiptMutationRequested = this.ChangeTracker
+            .Entries<ReservationRetentionAnonymisationReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or
+                    EntityState.Deleted);
+        if (retentionReceiptMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Reservation retention anonymisation receipts are append-only.");
         }
 
         bool tombstoneDeletionRequested = this.ChangeTracker

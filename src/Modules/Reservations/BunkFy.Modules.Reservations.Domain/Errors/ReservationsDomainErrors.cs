@@ -55,6 +55,12 @@ public static class ReservationsDomainErrors
     public static readonly Error ReservationAnonymisationTombstoneInvalid = new("Reservations.ReservationAnonymisationTombstoneInvalid", "The reservation anonymisation tombstone is invalid.");
     public static readonly Error ReservationAnonymisationRestoreReceiptInvalid = new("Reservations.ReservationAnonymisationRestoreReceiptInvalid", "The reservation anonymisation restore receipt is invalid.");
     public static readonly Error ReservationAnonymisationRestoreStateInvalid = new("Reservations.ReservationAnonymisationRestoreStateInvalid", "The restored reservation state cannot be reconciled with the protected anonymisation proof.");
+    public static readonly Error RetentionExecutionCoordinateInvalid = new("Reservations.RetentionExecutionCoordinateInvalid", "The reservation retention execution coordinate is invalid.");
+    public static readonly Error RetentionExecutionTransitionInvalid = new("Reservations.RetentionExecutionTransitionInvalid", "The reservation retention execution transition is invalid.");
+    public static readonly Error RetentionExecutionResultInvalid = new("Reservations.RetentionExecutionResultInvalid", "The reservation retention execution result is invalid.");
+    public static readonly Error RetentionCheckpointInvalid = new("Reservations.RetentionCheckpointInvalid", "The reservation retention checkpoint is invalid.");
+    public static readonly Error RetentionCheckpointConflict = new("Reservations.RetentionCheckpointConflict", "The reservation retention checkpoint has changed.");
+    public static readonly Error RetentionReceiptInvalid = new("Reservations.RetentionReceiptInvalid", "The reservation retention receipt is invalid.");
     public static readonly Error AllocationAmendmentInProgress = new("Reservations.AllocationAmendmentInProgress", "An allocation-affecting reservation amendment is already in progress.");
     public static readonly Error AllocationAmendmentInvalid = new("Reservations.AllocationAmendmentInvalid", "The allocation-affecting reservation amendment is invalid.");
     public static readonly Error StayBusinessDateInvalid = new("Reservations.StayBusinessDateInvalid", "The business date is not valid for this stay transition.");

@@ -35,6 +35,10 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
                 "CK_reservations_anonymisation_state",
                 "(\"IsAnonymised\" = TRUE AND \"AnonymisedAtUtc\" IS NOT NULL) OR " +
                 "(\"IsAnonymised\" = FALSE AND \"AnonymisedAtUtc\" IS NULL)");
+            table.HasCheckConstraint(
+                "CK_reservations_terminal_time",
+                "(\"Status\" IN (3, 5, 8, 10) AND \"TerminalAtUtc\" IS NOT NULL) OR " +
+                "(\"Status\" NOT IN (3, 5, 8, 10) AND \"TerminalAtUtc\" IS NULL)");
         });
         builder.HasKey(reservation => reservation.Id);
         builder.HasAlternateKey(reservation => new { reservation.ScopeId, reservation.Id });
@@ -114,6 +118,13 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
             reservation.Status,
             reservation.Arrival,
             reservation.Departure
+        });
+        builder.HasIndex(reservation => new
+        {
+            reservation.ScopeId,
+            reservation.ProjectionOrdinal,
+            reservation.TerminalAtUtc,
+            reservation.IsAnonymised
         });
         builder.HasMany(reservation => reservation.RequestedUnits)
             .WithOne()

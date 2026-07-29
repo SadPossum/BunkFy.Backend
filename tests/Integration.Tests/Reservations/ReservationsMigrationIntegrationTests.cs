@@ -394,7 +394,9 @@ public sealed class ReservationsMigrationIntegrationTests
             await upgraded.AnonymisationTombstones
                 .AsNoTracking()
                 .SingleAsync(item => item.Id == reservationId);
-        Assert.Equal(1, tombstone.ContractVersion);
+        Assert.Equal(
+            ReservationAnonymisationTombstone.CurrentContractVersion,
+            tombstone.ContractVersion);
         Assert.Equal(1, tombstone.Revision);
         Assert.Equal(propertyId, tombstone.PropertyId);
         Assert.Equal(receiptId, tombstone.OwnerReceiptId);

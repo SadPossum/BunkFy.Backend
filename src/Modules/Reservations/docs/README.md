@@ -38,6 +38,12 @@ retention, and rights policies receive production approval.
 - catalogue-driven, transient DataRights export of Reservations-owned booking,
   pending amendment, Guest-link, details-history, adapter-receipt, and reminder
   records without staff actor attribution;
+- immutable terminal lifecycle timestamps plus tenant-fair, country-policy
+  retention scans that recheck property policy, processing restriction,
+  pending operations, and owner-local holds before mutation;
+- Reservations-owned automatic anonymisation execution, checkpoint, receipt,
+  and authority-separated tombstone proof, exposed to the Retention control
+  plane only through bounded contract outcomes;
 
 The local Inventory projection validates unit/property relationships and supports management reads, but it is advisory for availability. Only an Inventory allocation outcome can confirm a reservation.
 
@@ -46,6 +52,13 @@ The local Inventory projection validates unit/property relationships and support
 Compose Properties, Inventory, Reservations, and Guests in the Worker with NATS consumers, task scheduling, and publishing enabled. The normal Aspire graph enables all four. Reservations rebuild tasks source Inventory availability, Guest eligibility, and property time zones from their owning modules. A minute-level scoped task reads only the indexed due-reminder ledger and publishes reminder events through the Reservations outbox; the Notifications extension owns staff/owner fan-out and delivery preferences.
 
 All Reservations-owned tables use the `reservations` schema. Lifecycle state shapes are protected by PostgreSQL constraints. The module has no foreign keys or writes into another module's schema.
+
+The Reservations retention contributor registers one tenant-scoped schedule for
+`reservation-operational`. It scans terminal rows by monotonic projection
+ordinal, mutates only a bounded batch, and persists its cursor and proof in the
+Reservations schema. `Reservations:Retention` may tune the interval, scan
+size, and mutation batch size; validated conservative defaults apply when the
+section is omitted.
 
 The Guest restriction projection starts empty after its migration by design.
 Until `rebuild-reservation-guest-restrictions` completes for a tenant, missing

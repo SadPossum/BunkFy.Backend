@@ -263,6 +263,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("TerminalAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -280,6 +283,8 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
 
                     b.HasIndex("ScopeId", "SourceSystem", "SourceReference")
                         .IsUnique();
+
+                    b.HasIndex("ScopeId", "ProjectionOrdinal", "TerminalAtUtc", "IsAnonymised");
 
                     b.HasIndex("ScopeId", "PropertyId", "EmailSearch", "Id");
 
@@ -302,6 +307,8 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                             t.HasCheckConstraint("CK_reservations_no_show_complete", "(\"Status\" = 8 AND \"NoShowBusinessDate\" IS NOT NULL AND \"NoShowAtUtc\" IS NOT NULL AND \"NoShowBy\" IS NOT NULL AND length(trim(\"NoShowBy\")) > 0) OR (\"Status\" <> 8 AND \"NoShowBusinessDate\" IS NULL AND \"NoShowAtUtc\" IS NULL AND \"NoShowBy\" IS NULL)");
 
                             t.HasCheckConstraint("CK_reservations_pending_stay_complete", "(\"Status\" IN (7, 9) AND \"PendingStayBusinessDate\" IS NOT NULL AND \"PendingStayActorId\" IS NOT NULL AND length(trim(\"PendingStayActorId\")) > 0 AND \"ReleaseRequestId\" IS NOT NULL) OR (\"Status\" NOT IN (7, 9) AND \"PendingStayBusinessDate\" IS NULL AND \"PendingStayActorId\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_reservations_terminal_time", "(\"Status\" IN (3, 5, 8, 10) AND \"TerminalAtUtc\" IS NOT NULL) OR (\"Status\" NOT IN (3, 5, 8, 10) AND \"TerminalAtUtc\" IS NULL)");
                         });
                 });
 
@@ -525,6 +532,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Authority")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -576,7 +586,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
 
                     b.ToTable("reservation_anonymisation_tombstones", "reservations", t =>
                         {
-                            t.HasCheckConstraint("CK_reservation_anonymisation_tombstones_contract", "\"ContractVersion\" = 1");
+                            t.HasCheckConstraint("CK_reservation_anonymisation_tombstones_authority", "\"Authority\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_reservation_anonymisation_tombstones_contract", "\"ContractVersion\" = 2");
 
                             t.HasCheckConstraint("CK_reservation_anonymisation_tombstones_receipt", "\"OwnerReceiptContractVersion\" >= 1 AND char_length(\"OwnerReceiptSha256\") = 64");
 
@@ -1088,6 +1100,236 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                             t.HasCheckConstraint("CK_reservation_guests_link_version", "\"LinkVersion\" >= 1");
 
                             t.HasCheckConstraint("CK_reservation_guests_unlink_snapshot", "(\"IsCurrent\" = TRUE AND \"UnlinkedBy\" IS NULL AND \"UnlinkedAtUtc\" IS NULL AND \"UnlinkedArrival\" IS NULL AND \"UnlinkedDeparture\" IS NULL AND \"UnlinkedReservationStatus\" IS NULL) OR (\"IsCurrent\" = FALSE AND \"UnlinkedBy\" IS NOT NULL AND \"UnlinkedAtUtc\" IS NOT NULL AND \"UnlinkedArrival\" IS NOT NULL AND \"UnlinkedDeparture\" IS NOT NULL AND \"UnlinkedReservationStatus\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ExecutionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PolicyEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("RedactedHistoryCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReducedExternalOperationCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RemovedGuestLinkCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ResultingDetailsRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResultingReservationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RetentionDeadlineUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedDetailsRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SelectedReservationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SuppressedReminderCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("TerminalAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "ReservationId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ExecutionId", "ReservationId")
+                        .IsUnique();
+
+                    b.ToTable("reservation_retention_anonymisation_receipts", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservation_retention_receipts_actor", "\"ActorId\" = 'system:retention'");
+
+                            t.HasCheckConstraint("CK_reservation_retention_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_reservation_retention_receipts_counts", "\"RedactedHistoryCount\" >= 1 AND \"RemovedGuestLinkCount\" >= 0 AND \"ReducedExternalOperationCount\" >= 0 AND \"SuppressedReminderCount\" >= 0");
+
+                            t.HasCheckConstraint("CK_reservation_retention_receipts_deadline", "\"RetentionDeadlineUtc\" >= \"TerminalAtUtc\" AND \"CompletedAtUtc\" >= \"RetentionDeadlineUtc\"");
+
+                            t.HasCheckConstraint("CK_reservation_retention_receipts_digests", "char_length(\"PolicyEvidenceSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_reservation_retention_receipts_versions", "\"SelectedReservationVersion\" >= 1 AND \"ResultingReservationVersion\" = \"SelectedReservationVersion\" + 1 AND \"SelectedDetailsRevision\" >= 1 AND \"ResultingDetailsRevision\" = \"SelectedDetailsRevision\" + 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AffectedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DataClassKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("DeadlineUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ExecutionPolicyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("HoldReviewDueAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OutcomeCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("RemainingCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ScannedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("StartingProjectionOrdinal")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId", "DataClassKey", "CompletedAtUtc", "Id");
+
+                    b.ToTable("reservation_retention_executions", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservation_retention_executions_counts", "\"AffectedCount\" >= 0 AND (\"ScannedCount\" IS NULL OR \"ScannedCount\" >= 0) AND (\"RemainingCount\" IS NULL OR \"RemainingCount\" >= 0) AND (\"ScannedCount\" IS NULL OR \"AffectedCount\" <= \"ScannedCount\")");
+
+                            t.HasCheckConstraint("CK_reservation_retention_executions_cursor", "\"StartingProjectionOrdinal\" >= 0");
+
+                            t.HasCheckConstraint("CK_reservation_retention_executions_key", "\"DataClassKey\" ~ '^[A-Za-z0-9.-]+$'");
+
+                            t.HasCheckConstraint("CK_reservation_retention_executions_policy", "\"ExecutionPolicyVersion\" >= 1 AND \"Attempt\" >= 1 AND \"DeadlineUtc\" > \"StartedAtUtc\"");
+
+                            t.HasCheckConstraint("CK_reservation_retention_executions_state", "(\"State\" = 1 AND \"CompletedAtUtc\" IS NULL AND \"ScannedCount\" IS NULL AND \"RemainingCount\" IS NULL AND \"OutcomeCode\" IS NULL AND \"HoldReviewDueAtUtc\" IS NULL) OR (\"State\" IN (2, 3, 4) AND \"CompletedAtUtc\" BETWEEN \"StartedAtUtc\" AND \"DeadlineUtc\" AND \"ScannedCount\" IS NOT NULL AND \"RemainingCount\" IS NOT NULL AND \"OutcomeCode\" ~ '^[A-Za-z0-9.-]+$' AND ((\"State\" = 3 AND \"HoldReviewDueAtUtc\" IS NOT NULL) OR (\"State\" <> 3 AND \"HoldReviewDueAtUtc\" IS NULL)))");
+
+                            t.HasCheckConstraint("CK_reservation_retention_executions_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("AfterProjectionOrdinal")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DataClassKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("ExecutionPolicyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("LastExecutionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "DataClassKey", "ExecutionPolicyVersion")
+                        .IsUnique();
+
+                    b.ToTable("reservation_retention_sweep_checkpoints", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservation_retention_checkpoints_cursor", "\"AfterProjectionOrdinal\" >= 0");
+
+                            t.HasCheckConstraint("CK_reservation_retention_checkpoints_key", "\"DataClassKey\" ~ '^[A-Za-z0-9.-]+$'");
+
+                            t.HasCheckConstraint("CK_reservation_retention_checkpoints_policy", "\"ExecutionPolicyVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_reservation_retention_checkpoints_version", "\"Version\" >= 1");
                         });
                 });
 
@@ -1802,6 +2044,23 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         .HasForeignKey("ScopeId", "ReservationId")
                         .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "ExecutionId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BunkFy.Modules.Reservations.Domain.Aggregates.Reservation", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt", "ScopeId", "ReservationId")
+                        .HasPrincipalKey("BunkFy.Modules.Reservations.Domain.Aggregates.Reservation", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

@@ -97,6 +97,7 @@
     <File Path="docs/planning/properties-personal-data-catalogue-task.md" />
     <File Path="docs/planning/properties-topology-lifecycle-task.md" />
     <File Path="docs/planning/remote-adapter-lease-task.md" />
+    <File Path="docs/planning/reservation-record-retention-task.md" />
     <File Path="docs/planning/reservations-data-rights-workflow-task.md" />
     <File Path="docs/planning/reservations-module-task.md" />
     <File Path="docs/planning/reservations-pii-minimization-task.md" />

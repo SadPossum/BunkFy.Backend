@@ -115,6 +115,12 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
             "example-hostel-policy.v1.json"));
         CountryPolicyPackArtifact artifact = CountryPolicyPackJson.Parse(bytes);
         CountryPolicyPackDocument document = artifact.Document;
+        (string Id, int Version) retentionPolicy = document.RetentionRules
+            .Select(rule => (
+                Id: rule.RetentionPolicyId,
+                Version: rule.RetentionPolicyVersion))
+            .Distinct()
+            .Single();
         CountryPolicyRegistry registry = CountryPolicyRegistry.Create(
             [artifact],
             [new(
@@ -130,8 +136,8 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
             document.PolicyVersion,
             document.PermittedDataRegions.Single(),
             document.PermittedTransferProfiles.Single(),
-            document.RetentionRules.Single().RetentionPolicyId,
-            document.RetentionRules.Single().RetentionPolicyVersion,
+            retentionPolicy.Id,
+            retentionPolicy.Version,
             document.RequiredAcknowledgements.Select(acknowledgement =>
                 new CountryPolicyAcknowledgement(
                     acknowledgement.AcknowledgementId,

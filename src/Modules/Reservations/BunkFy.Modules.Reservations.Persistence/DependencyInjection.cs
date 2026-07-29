@@ -52,6 +52,12 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IReservationAnonymisationEligibilityRepository,
             ReservationAnonymisationEligibilityRepository>();
+        builder.Services.TryAddScoped<
+            IReservationRetentionCandidateRepository,
+            ReservationRetentionCandidateRepository>();
+        builder.Services.TryAddScoped<
+            IReservationRetentionExecutionRepository,
+            ReservationRetentionExecutionRepository>();
         builder.Services.TryAddScoped<ReservationAnonymisationRepository>();
         builder.Services.TryAddScoped<
             IReservationAnonymisationRepository>(services =>

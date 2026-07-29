@@ -96,6 +96,15 @@ public static class ReservationsApplicationErrors
     public static readonly Error AnonymisationRestoreProofConflict = new(
         "Reservations.AnonymisationRestoreProofConflict",
         "The restored reservation state conflicts with the protected anonymisation proof.");
+    public static readonly Error RetentionExecutionNotFound = new(
+        "Reservations.RetentionExecutionNotFound",
+        "The reservation retention execution was not found.");
+    public static readonly Error RetentionProofConflict = new(
+        "Reservations.RetentionProofConflict",
+        "The reservation retention proof is missing or conflicts with owner state.");
+    public static readonly Error RetentionMutationInvalid = new(
+        "Reservations.RetentionMutationInvalid",
+        "The reservation retention mutation request is invalid.");
     public static Error AnonymisationBlocked(
         ReservationAnonymisationBlockerCode blockerCode) => new(
         $"Reservations.AnonymisationBlocked.{blockerCode}",

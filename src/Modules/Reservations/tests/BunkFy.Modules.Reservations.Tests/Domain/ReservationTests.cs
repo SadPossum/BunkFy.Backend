@@ -20,6 +20,7 @@ public sealed class ReservationTests
         Reservation reservation = CreateReservation().Value;
 
         Assert.Equal(ReservationState.PendingAllocation, reservation.Status);
+        Assert.Null(reservation.TerminalAtUtc);
         Assert.Equal(1, reservation.Version);
         Assert.Equal(1, reservation.DetailsRevision);
         Assert.Equal(ReservationDetailsChangeOrigin.Staff, reservation.LastDetailsChangeOrigin);
@@ -61,6 +62,7 @@ public sealed class ReservationTests
             Now).IsSuccess);
 
         Assert.Equal(ReservationState.AllocationRejected, reservation.Status);
+        Assert.Equal(Now, reservation.TerminalAtUtc);
         Assert.Equal(ReservationAllocationRejection.AllocationConflict, reservation.AllocationRejection);
         Assert.Equal(
             ReservationsDomainErrors.InvalidTransition,
@@ -85,6 +87,7 @@ public sealed class ReservationTests
             ReservationReleaseCompletion.Cancelled,
             reservation.CompleteAllocationRelease(releaseRequestId, Guid.NewGuid(), Now).Value);
         Assert.Equal(ReservationState.Cancelled, reservation.Status);
+        Assert.Equal(Now, reservation.TerminalAtUtc);
         Assert.IsType<ReservationCancelledDomainEvent>(reservation.DomainEvents.Last());
         long completedVersion = reservation.Version;
         Assert.Equal(
@@ -136,6 +139,7 @@ public sealed class ReservationTests
             reservation.CompleteAllocationRelease(
                 releaseRequestId, Guid.NewGuid(), Now.AddHours(4)).Value);
         Assert.Equal(ReservationState.CheckedOut, reservation.Status);
+        Assert.Equal(Now.AddHours(4), reservation.TerminalAtUtc);
         Assert.Equal(checkoutDate, reservation.CheckedOutBusinessDate);
         Assert.Equal("staff:supervisor", reservation.CheckedOutBy);
         Assert.IsType<ReservationCheckedOutDomainEvent>(reservation.DomainEvents.Last());
@@ -170,6 +174,7 @@ public sealed class ReservationTests
             ReservationReleaseCompletion.NoShow,
             reservation.CompleteAllocationRelease(releaseRequestId, Guid.NewGuid(), Now.AddMinutes(1)).Value);
         Assert.Equal(ReservationState.NoShow, reservation.Status);
+        Assert.Equal(Now.AddMinutes(1), reservation.TerminalAtUtc);
         Assert.Equal(businessDate, reservation.NoShowBusinessDate);
         Assert.Equal("staff:front-desk", reservation.NoShowBy);
         Assert.IsType<ReservationNoShowDomainEvent>(Assert.Single(reservation.DomainEvents));
@@ -252,7 +257,45 @@ public sealed class ReservationTests
             Now).IsSuccess);
 
         Assert.Equal(ReservationState.Cancelled, reservation.Status);
+        Assert.Equal(Now, reservation.TerminalAtUtc);
         Assert.IsType<ReservationCancelledDomainEvent>(Assert.Single(reservation.DomainEvents));
+    }
+
+    [Fact]
+    public void First_terminal_timestamp_survives_later_terminal_edits()
+    {
+        Reservation reservation = CreateReservation().Value;
+        Assert.True(reservation.RejectAllocation(
+            RequestId,
+            ReservationAllocationRejection.AllocationConflict,
+            Guid.NewGuid(),
+            Now).IsSuccess);
+
+        Assert.Equal(
+            ReservationDetailsChangeOutcome.Changed,
+            reservation.UpdateGuestDetails(
+                "Corrected guest",
+                null,
+                null,
+                1,
+                null,
+                reservation.DetailsRevision,
+                ReservationDetailsChangeOrigin.Staff,
+                "staff:supervisor",
+                null,
+                null,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Now.AddHours(1)).Value);
+        Assert.True(reservation.RequestCancellation(
+            reservation.Version,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Now.AddHours(2)).IsSuccess);
+
+        Assert.Equal(ReservationState.Cancelled, reservation.Status);
+        Assert.Equal(Now, reservation.TerminalAtUtc);
+        Assert.Equal(Now.AddHours(2), reservation.UpdatedAtUtc);
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 8,
+  "catalogVersion": 9,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -141,6 +141,28 @@
         "permission:data-rights.execute",
         "system:reservations.anonymisation"
       ]
+    },
+    {
+      "id": "reservation-retention-execution",
+      "scope": "tenant-internal-retention-worker",
+      "readers": [
+        "system:reservations.retention",
+        "system:retention.scheduler"
+      ],
+      "writers": [
+        "system:reservations.retention",
+        "system:retention.scheduler"
+      ]
+    },
+    {
+      "id": "reservation-retention-proof",
+      "scope": "tenant-internal-retention-owner-proof",
+      "readers": [
+        "system:reservations.retention"
+      ],
+      "writers": [
+        "system:reservations.retention"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -255,6 +277,20 @@
       "startsAt": "reservation-anonymisation-completed",
       "endsAt": "approved-accountability-retention-completed",
       "legalHoldBehavior": "retain-approved-minimum-proof"
+    },
+    {
+      "id": "reservation-retention-execution-evidence",
+      "approvalState": "engineering-default",
+      "startsAt": "reservation-retention-execution-started",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-schedule-and-execution-evidence"
+    },
+    {
+      "id": "reservation-retention-anonymisation-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "reservation-retention-anonymisation-completed",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-irreversible-operation-proof"
     }
   ],
   "rightsPolicies": [
@@ -327,6 +363,20 @@
       "correction": "append-superseding-owner-proof",
       "restriction": "retain-minimum-approved-owner-proof",
       "erasure": "retain-non-personal-minimum-owner-proof"
+    },
+    {
+      "id": "reservation-retention-control",
+      "export": "not-in-current-subject-export",
+      "correction": "retry-through-the-same-execution-coordinate",
+      "restriction": "block-destructive-mutation-while-any-independent-hold-is-active",
+      "erasure": "dispose-execution-evidence-after-approved-audit-lifecycle"
+    },
+    {
+      "id": "reservation-retention-proof-control",
+      "export": "not-in-current-subject-export-or-protected-replay-ledger",
+      "correction": "immutable-owner-receipt-and-authority-bound-tombstone-only",
+      "restriction": "exclude-terminal-record-from-ordinary-surfaces",
+      "erasure": "retain-pii-free-local-proof-after-anonymisation"
     }
   ],
   "fields": [
@@ -14031,6 +14081,645 @@
           "member": "ReplayedAtUtc",
           "surface": "persistence",
           "retentionPolicy": "reservation-anonymisation-owner-proof"
+        }
+      ]
+    },
+    {
+      "id": "reservation.retention.execution-coordinate",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-execution",
+        "retention-idempotency",
+        "fair-retention-scanning",
+        "operational-audit"
+      ],
+      "sources": [
+        "retention-control-plane",
+        "reservations-persistence"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-retention-execution",
+      "countryPolicyKey": "reservation.retention.reservation-operational",
+      "retentionPolicy": "reservation-retention-execution-evidence",
+      "rightsPolicy": "reservation-retention-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.BeginReservationRetentionExecutionCommand",
+          "member": "Request",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationRetentionCommand",
+          "member": "ExecutionId",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "ExecutionId",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "DataClassKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "DataClassKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "LastExecutionId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ExecutionId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.retention.execution-lifecycle",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "retention-execution",
+        "legal-hold-enforcement",
+        "fair-retention-scanning",
+        "operational-audit"
+      ],
+      "sources": [
+        "retention-control-plane",
+        "reservations-persistence",
+        "system-clock"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-retention-execution",
+      "countryPolicyKey": "reservation.retention.reservation-operational",
+      "retentionPolicy": "reservation-retention-execution-evidence",
+      "rightsPolicy": "reservation-retention-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReservationRetentionExecutionStart",
+          "member": "DispatchRequired",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReservationRetentionExecutionStart",
+          "member": "StartingProjectionOrdinal",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReservationRetentionExecutionStart",
+          "member": "AffectedCount",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReservationRetentionExecutionStart",
+          "member": "CompletedResult",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReservationRetentionMutationResult",
+          "member": "Status",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReservationRetentionMutationResult",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Policies.ReservationRetentionEligibilityResult",
+          "member": "Status",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Policies.ReservationRetentionEligibilityResult",
+          "member": "TerminalAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Policies.ReservationRetentionEligibilityResult",
+          "member": "RetentionDeadlineUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Policies.ReservationRetentionEligibilityResult",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "State",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "ScannedCount",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "RemainingCount",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "CompletedAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "ExpectedAfterProjectionOrdinal",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "NextAfterProjectionOrdinal",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "ExecutionPolicyVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "ExecutionPolicyVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "Attempt",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "StartingProjectionOrdinal",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "State",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "StartedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "DeadlineUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "AffectedCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "ScannedCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "RemainingCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "AfterProjectionOrdinal",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "UpdatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionSweepCheckpoint",
+          "member": "Version",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.retention.execution-outcome",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "retention-execution",
+        "retention-health",
+        "operational-audit"
+      ],
+      "sources": [
+        "reservations-retention-evaluation",
+        "reservations-persistence"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-retention-execution",
+      "countryPolicyKey": "reservation.retention.reservation-operational",
+      "retentionPolicy": "reservation-retention-execution-evidence",
+      "rightsPolicy": "reservation-retention-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReservationRetentionMutationResult",
+          "member": "Failure",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Policies.ReservationRetentionEligibilityResult",
+          "member": "Code",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "OutcomeCode",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionExecution",
+          "member": "OutcomeCode",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.retention.reservation-coordinate",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-candidate-selection",
+        "retention-idempotency",
+        "immutable-scope-proof"
+      ],
+      "sources": [
+        "reservations-current-projections",
+        "reservations-persistence"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-retention-proof",
+      "countryPolicyKey": "reservation.retention.reservation-operational",
+      "retentionPolicy": "reservation-retention-anonymisation-proof",
+      "rightsPolicy": "reservation-retention-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationRetentionCommand",
+          "member": "PropertyId",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationRetentionCommand",
+          "member": "ReservationId",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationRetentionCommand",
+          "member": "ExpectedReservationVersion",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationRetentionCommand",
+          "member": "ExpectedDetailsRevision",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ReservationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "SelectedReservationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ResultingReservationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "SelectedDetailsRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ResultingDetailsRevision",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.retention.anonymisation-proof",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-anonymisation",
+        "immutable-owner-proof",
+        "operational-audit"
+      ],
+      "sources": [
+        "country-policy-evaluation",
+        "reservations-retention-execution",
+        "system-clock"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-retention-proof",
+      "countryPolicyKey": "reservation.retention.reservation-operational",
+      "retentionPolicy": "reservation-retention-anonymisation-proof",
+      "rightsPolicy": "reservation-retention-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Policies.ReservationRetentionEligibilityResult",
+          "member": "PolicyEvidenceSha256",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "TerminalAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "TerminalAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "RetentionDeadlineUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "PolicyEvidenceSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "RedactedHistoryCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "RemovedGuestLinkCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ReducedExternalOperationCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "SuppressedReminderCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "EventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "ActorId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.retention.anonymisation-authority",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "anonymisation-authority-separation",
+        "restore-safety",
+        "operational-audit"
+      ],
+      "sources": [
+        "reservations-anonymisation-workflow"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-retention-proof",
+      "countryPolicyKey": "reservation.retention.reservation-operational",
+      "retentionPolicy": "reservation-retention-anonymisation-proof",
+      "rightsPolicy": "reservation-retention-proof-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.DataRights.ReservationAnonymisationTombstone",
+          "member": "Authority",
+          "surface": "persistence"
         }
       ]
     }

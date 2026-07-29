@@ -10,12 +10,14 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Cqrs;
+using Microsoft.Extensions.Logging;
 
 internal sealed class ExecuteRetentionScheduleTaskHandler(
     ITaskCommandDispatcher commandDispatcher,
     IEnumerable<IRetentionExecutionContributor> contributors,
     ISystemClock clock,
-    ISecuritySignalRecorder securitySignals)
+    ISecuritySignalRecorder securitySignals,
+    ILogger<ExecuteRetentionScheduleTaskHandler> logger)
     : ITaskHandler<ExecuteRetentionSchedulePayload>
 {
     public async Task HandleAsync(
@@ -79,6 +81,14 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
             exception is not OperationCanceledException ||
             !cancellationToken.IsCancellationRequested)
         {
+            logger.LogError(
+                exception,
+                "Retention owner {OwnerKey} failed for data class " +
+                "{DataClassKey} in execution {ExecutionId}, attempt {Attempt}",
+                payload.OwnerKey,
+                payload.DataClassKey,
+                context.RunId,
+                context.Attempt);
             ownerFailure = exception;
             result = new(
                 RetentionExecutionContract.CurrentVersion,

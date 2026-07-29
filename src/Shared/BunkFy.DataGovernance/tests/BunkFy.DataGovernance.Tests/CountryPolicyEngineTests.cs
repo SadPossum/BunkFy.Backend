@@ -258,6 +258,85 @@ public sealed class CountryPolicyEngineTests
         Assert.Equal(TimeSpan.FromDays(365), rule.Period);
     }
 
+    [Fact]
+    public void Retention_policy_binding_can_authorize_multiple_data_class_rules()
+    {
+        CountryPolicyPackArtifact source = Parse();
+        CountryPolicyRetentionRule reservationRule =
+            source.Document.RetentionRules[0] with
+            {
+                DataClass = "reservation-operational",
+                Trigger = "reservation-ended"
+            };
+        CountryPolicyPackDocument document = source.Document with
+        {
+            PurposeRules =
+            [
+                .. source.Document.PurposeRules,
+                new()
+                {
+                    PurposeCode = "reservation-retention",
+                    LegalRuleReferenceKeys = ["storage-limitation"],
+                    AllowedSurfaces = [CountryPolicySurface.Retention],
+                    AllowedSourceProvenance = ["retention-worker"]
+                }
+            ],
+            RetentionRules =
+            [
+                .. source.Document.RetentionRules,
+                reservationRule
+            ]
+        };
+        CountryPolicyPackArtifact artifact =
+            new(document, source.ContentSha256);
+        CountryPolicyRegistry registry = ProductionRegistry(artifact);
+        CountryPolicyBinding binding =
+            Assert.IsType<CountryPolicyEvidence>(
+                registry.EvaluateActivation(ValidActivation()).Evidence)
+                .ToBinding();
+
+        CountryPolicyRetentionDecision decision =
+            registry.EvaluateRetention(
+                ValidRetention(binding) with
+                {
+                    PurposeCode = "reservation-retention",
+                    DataClass = reservationRule.DataClass,
+                    Trigger = reservationRule.Trigger
+                });
+
+        Assert.True(decision.IsAllowed);
+        CountryPolicyRetentionRuleEvidence evidence =
+            Assert.IsType<CountryPolicyRetentionRuleEvidence>(
+                decision.RetentionRule);
+        Assert.Equal("reservation-operational", evidence.DataClass);
+        Assert.Equal("reservation-ended", evidence.Trigger);
+        Assert.Single(
+            Assert.Single(registry.ListPolicies()).RetentionPolicies);
+    }
+
+    [Fact]
+    public void Validator_rejects_duplicate_retention_rule_coordinates()
+    {
+        CountryPolicyPackDocument document = Parse().Document;
+        CountryPolicyPackDocument invalid = document with
+        {
+            RetentionRules =
+            [
+                document.RetentionRules[0],
+                document.RetentionRules[0]
+            ]
+        };
+
+        IReadOnlyList<string> errors =
+            CountryPolicyPackValidator.Validate(invalid);
+
+        Assert.Contains(
+            errors,
+            error => error.Contains(
+                "Duplicate retention rule",
+                StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("other-class", "stay-ended")]
     [InlineData("guest-operational", "profile-created")]

@@ -226,6 +226,7 @@ public sealed partial class Reservation
         if (this.Status == ReservationState.AllocationRejected)
         {
             this.Status = ReservationState.Cancelled;
+            this.MarkTerminal(nowUtc);
             this.Version++;
             this.UpdatedAtUtc = nowUtc;
             this.RaiseDomainEvent(new ReservationCancelledDomainEvent(
@@ -334,6 +335,7 @@ public sealed partial class Reservation
         this.LastReleaseRejectionCode = null;
         this.Version++;
         this.UpdatedAtUtc = nowUtc;
+        this.MarkTerminal(nowUtc);
         switch (completion)
         {
             case ReservationReleaseCompletion.Cancelled:

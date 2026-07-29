@@ -92,6 +92,7 @@ public sealed partial class Reservation
         this.Version++;
         this.UpdatedAtUtc = nowUtc;
         this.Status = cancellationWasRequested ? ReservationState.Cancelled : ReservationState.AllocationRejected;
+        this.MarkTerminal(nowUtc);
         if (cancellationWasRequested)
         {
             string? cancellationActorId = this.PendingCancellationActorId;

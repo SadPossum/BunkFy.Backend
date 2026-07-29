@@ -165,10 +165,12 @@ public static class CountryPolicyPackValidator
                 errors.Add($"{path}.Period must be a positive invariant TimeSpan value.");
             }
 
-            string identity = $"{rule.RetentionPolicyId}|{rule.RetentionPolicyVersion}";
+            string identity =
+                $"{rule.RetentionPolicyId}|{rule.RetentionPolicyVersion}|" +
+                $"{rule.DataClass}|{rule.Trigger}";
             if (!identities.Add(identity))
             {
-                errors.Add($"Duplicate retention policy '{identity}'.");
+                errors.Add($"Duplicate retention rule '{identity}'.");
             }
         }
     }

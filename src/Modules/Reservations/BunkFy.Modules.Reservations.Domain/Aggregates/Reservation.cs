@@ -136,6 +136,7 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
     public long ProjectionOrdinal { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
+    public DateTimeOffset? TerminalAtUtc { get; private set; }
     public DateTimeOffset? AnonymisedAtUtc { get; private set; }
     public bool IsAnonymised { get; private set; }
     public IReadOnlyCollection<RequestedInventoryUnit> RequestedUnits => this.requestedUnits.AsReadOnly();
@@ -164,6 +165,14 @@ public sealed partial class Reservation : ScopedAggregateRoot<Guid>
 
     private static string? NormalizeSearch(string? value) =>
         NormalizeOptional(value)?.ToUpperInvariant();
+
+    private void MarkTerminal(DateTimeOffset occurredAtUtc)
+    {
+        if (!this.TerminalAtUtc.HasValue)
+        {
+            this.TerminalAtUtc = occurredAtUtc.ToUniversalTime();
+        }
+    }
 
     private void ClearPendingAllocationAmendment()
     {

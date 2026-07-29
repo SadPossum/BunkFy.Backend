@@ -17,7 +17,16 @@ using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Retention;
 using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.Events;
+using BunkFy.Modules.Reservations.Domain.Models;
+using BunkFy.Modules.Reservations.Domain.Retention;
+using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Retention.Domain.Aggregates;
 using BunkFy.Modules.Retention.Domain.Models;
@@ -50,6 +59,11 @@ public sealed class RetentionControlPlaneIntegrationTests
     private const string GuestRetentionCompletedOutcome =
         "guests.guest-operational.completed";
     private const string GuestRetentionOwner = "guests";
+    private const string ReservationOperationalDataClass =
+        "reservation-operational";
+    private const string ReservationRetentionCompletedOutcome =
+        "reservations.reservation-operational.completed";
+    private const string ReservationRetentionOwner = "reservations";
     private static readonly Guid HeldPropertyId =
         Guid.Parse("9b000000-0000-0000-0000-000000000011");
     private static readonly Guid UnheldPropertyId =
@@ -89,7 +103,7 @@ public sealed class RetentionControlPlaneIntegrationTests
             IReadOnlyList<TaskRun> scheduledRuns =
                 await WaitForScheduledRunsAsync(
                     worker,
-                    expectedCount: 6,
+                    expectedCount: 8,
                     TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             Assert.All(
@@ -111,6 +125,12 @@ public sealed class RetentionControlPlaneIntegrationTests
                 worker,
                 held).ConfigureAwait(false);
             await AssertGuestRetentionOutcomeAsync(
+                worker,
+                unheld).ConfigureAwait(false);
+            await AssertReservationRetentionOutcomeAsync(
+                worker,
+                held).ConfigureAwait(false);
+            await AssertReservationRetentionOutcomeAsync(
                 worker,
                 unheld).ConfigureAwait(false);
 
@@ -180,8 +200,10 @@ public sealed class RetentionControlPlaneIntegrationTests
             "retention-integration-scheduler";
         builder.Configuration["Worker:Modules:Guests"] = "true";
         builder.Configuration["Worker:Modules:Ingestion"] = "true";
+        builder.Configuration["Worker:Modules:Inventory"] = "true";
         builder.Configuration["Worker:Modules:Organizations"] = "true";
         builder.Configuration["Worker:Modules:Properties"] = "true";
+        builder.Configuration["Worker:Modules:Reservations"] = "true";
         builder.Configuration["Worker:Modules:Retention"] = "true";
         builder.Configuration["Worker:Modules:TaskRuntime"] = "true";
         builder.Configuration["FileManagement:Enabled"] = "true";
@@ -199,6 +221,12 @@ public sealed class RetentionControlPlaneIntegrationTests
         builder.Configuration[
             "FileManagement:Minio:CreateBucketIfMissing"] = "false";
         builder.Logging.ClearProviders();
+        builder.Logging.AddSimpleConsole(options =>
+            options.SingleLine = true);
+        builder.Logging.SetMinimumLevel(LogLevel.Error);
+        builder.Logging.AddFilter(
+            "Microsoft.EntityFrameworkCore",
+            LogLevel.None);
 
         builder.AddWorkerHost();
         CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
@@ -214,6 +242,11 @@ public sealed class RetentionControlPlaneIntegrationTests
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<InventoryDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<ReservationsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<RetentionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
@@ -280,14 +313,29 @@ public sealed class RetentionControlPlaneIntegrationTests
             scope.ServiceProvider,
             subscriptions,
             propertyCreated).ConfigureAwait(false);
+        await ApplyReservationPropertyCreatedAsync(
+            scope.ServiceProvider,
+            subscriptions,
+            propertyCreated).ConfigureAwait(false);
         await CountryPolicyIntegrationTestData.ApplyActivationAsync(
             scope.ServiceProvider,
             GuestsModuleMetadata.Name,
             tenantId,
             propertyId,
             propertyVersion: 2).ConfigureAwait(false);
+        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
+            scope.ServiceProvider,
+            ReservationsModuleMetadata.Name,
+            tenantId,
+            propertyId,
+            propertyVersion: 2).ConfigureAwait(false);
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+        Guid reservationId = await SeedReservationAsync(
+            scope.ServiceProvider,
+            tenantId,
+            propertyId,
+            nowUtc).ConfigureAwait(false);
         DateTimeOffset proposalCreatedAtUtc = nowUtc.AddDays(-10);
         DateTimeOffset proposalCompletedAtUtc =
             proposalCreatedAtUtc.AddDays(1);
@@ -434,7 +482,8 @@ public sealed class RetentionControlPlaneIntegrationTests
             propertyId,
             proposal.Id,
             legalHold?.Id,
-            guestId);
+            guestId,
+            reservationId);
     }
 
     private static async Task ApplyGuestPropertyCreatedAsync(
@@ -458,6 +507,80 @@ public sealed class RetentionControlPlaneIntegrationTests
             CancellationToken.None).ConfigureAwait(false);
         await guests.SaveChangesAsync().ConfigureAwait(false);
         await transaction.CommitAsync().ConfigureAwait(false);
+    }
+
+    private static async Task ApplyReservationPropertyCreatedAsync(
+        IServiceProvider services,
+        IIntegrationEventSubscriptionRegistry subscriptions,
+        PropertyCreatedIntegrationEvent propertyCreated)
+    {
+        IntegrationEventSubscription subscription =
+            subscriptions.Subscriptions.Single(item =>
+                item.ConsumerModule ==
+                    ReservationsModuleMetadata.Name &&
+                item.EventType ==
+                    typeof(PropertyCreatedIntegrationEvent));
+        var handler =
+            (IIntegrationEventHandler<PropertyCreatedIntegrationEvent>)
+            services.GetRequiredService(subscription.HandlerType);
+        await handler.HandleAsync(
+            propertyCreated,
+            CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private static async Task<Guid> SeedReservationAsync(
+        IServiceProvider services,
+        string tenantId,
+        Guid propertyId,
+        DateTimeOffset nowUtc)
+    {
+        Guid detailsEventId = Guid.NewGuid();
+        DateOnly departure = DateOnly.FromDateTime(
+            nowUtc.UtcDateTime.AddDays(-400));
+        Reservation reservation = Reservation.Create(
+            Guid.NewGuid(),
+            tenantId,
+            propertyId,
+            Guid.NewGuid(),
+            departure.AddDays(-2),
+            departure,
+            [Guid.NewGuid()],
+            "Reservation Retention Candidate",
+            "reservation-retention@example.test",
+            "+44 20 7946 0123",
+            guestCount: 1,
+            ReservationSource.Direct,
+            sourceSystem: null,
+            sourceReference: null,
+            notes: "Sensitive reservation retention note",
+            Guid.NewGuid(),
+            detailsEventId,
+            ReservationDetailsChangeOrigin.Staff,
+            initialDetailsActorId: "integration:retention",
+            initialAdapterConnectionId: null,
+            initialExternalOperationId: null,
+            Guid.NewGuid(),
+            nowUtc.AddDays(-500)).Value;
+        ReservationDetailsChangedDomainEvent detailsChanged =
+            Assert.Single(
+                reservation.DomainEvents
+                    .OfType<ReservationDetailsChangedDomainEvent>());
+        Assert.True(reservation.RejectAllocation(
+            reservation.AllocationRequestId,
+            ReservationAllocationRejection.AllocationConflict,
+            Guid.NewGuid(),
+            nowUtc.AddDays(-400)).IsSuccess);
+
+        await services.GetRequiredService<IReservationRepository>()
+            .AddAsync(reservation, CancellationToken.None)
+            .ConfigureAwait(false);
+        await services
+            .GetRequiredService<IReservationDetailsHistoryWriter>()
+            .AppendAsync(detailsChanged, CancellationToken.None)
+            .ConfigureAwait(false);
+        await services.GetRequiredService<ReservationsDbContext>()
+            .SaveChangesAsync().ConfigureAwait(false);
+        return reservation.Id;
     }
 
     private static async Task<IReadOnlyList<TaskRun>>
@@ -526,13 +649,20 @@ public sealed class RetentionControlPlaneIntegrationTests
             .RetentionExecutions.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == run.Id)
             .ConfigureAwait(false);
+        ReservationRetentionExecution? reservationOwner =
+            await scope.ServiceProvider
+                .GetRequiredService<ReservationsDbContext>()
+                .RetentionExecutions.AsNoTracking()
+                .SingleOrDefaultAsync(item => item.Id == run.Id)
+                .ConfigureAwait(false);
 
         return $"Retention run {run.Id} failed: {run.LastError}; " +
             $"scope={run.ScopeId}; attempts={run.Attempts}; " +
             $"payload={run.Payload}; " +
             $"central={Describe(central)}; " +
             $"ingestionOwner={Describe(owner)}; " +
-            $"guestOwner={Describe(guestOwner)}";
+            $"guestOwner={Describe(guestOwner)}; " +
+            $"reservationOwner={Describe(reservationOwner)}";
     }
 
     private static string Describe(RetentionExecution? execution) =>
@@ -550,6 +680,16 @@ public sealed class RetentionControlPlaneIntegrationTests
               $"outcome:{execution.OutcomeCode ?? "none"}";
 
     private static string Describe(GuestRetentionExecution? execution) =>
+        execution is null
+            ? "missing"
+            : $"state:{execution.State},attempt:{execution.Attempt}," +
+              $"affected:{execution.AffectedCount}," +
+              $"scanned:{execution.ScannedCount?.ToString(CultureInfo.InvariantCulture) ?? "none"}," +
+              $"remaining:{execution.RemainingCount?.ToString(CultureInfo.InvariantCulture) ?? "none"}," +
+              $"outcome:{execution.OutcomeCode ?? "none"}";
+
+    private static string Describe(
+        ReservationRetentionExecution? execution) =>
         execution is null
             ? "missing"
             : $"state:{execution.State},attempt:{execution.Attempt}," +
@@ -652,7 +792,7 @@ public sealed class RetentionControlPlaneIntegrationTests
                 .AsNoTracking()
                 .OrderBy(state => state.DataClassKey)
                 .ToArrayAsync().ConfigureAwait(false);
-        Assert.Equal(3, scheduleStates.Length);
+        Assert.Equal(4, scheduleStates.Length);
         Assert.Contains(
             scheduleStates,
             state => state.DataClassKey == RawPayloadDataClass);
@@ -661,6 +801,12 @@ public sealed class RetentionControlPlaneIntegrationTests
             state =>
                 state.OwnerKey == GuestRetentionOwner &&
                 state.DataClassKey == GuestOperationalDataClass);
+        Assert.Contains(
+            scheduleStates,
+            state =>
+                state.OwnerKey == ReservationRetentionOwner &&
+                state.DataClassKey ==
+                    ReservationOperationalDataClass);
         RetentionScheduleState sensitive = Assert.Single(
             scheduleStates,
             state => state.DataClassKey == SensitiveHistoryDataClass);
@@ -773,6 +919,108 @@ public sealed class RetentionControlPlaneIntegrationTests
         Assert.True(tombstone.MatchesRetention(receipt));
     }
 
+    private static async Task AssertReservationRetentionOutcomeAsync(
+        IHost worker,
+        SeededCandidate candidate)
+    {
+        using IServiceScope scope = worker.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(candidate.TenantId);
+        RetentionScheduleState schedule = await scope.ServiceProvider
+            .GetRequiredService<RetentionDbContext>()
+            .ScheduleStates.AsNoTracking()
+            .SingleAsync(state =>
+                state.OwnerKey == ReservationRetentionOwner &&
+                state.DataClassKey ==
+                    ReservationOperationalDataClass)
+            .ConfigureAwait(false);
+        Assert.Equal(RetentionExecutionState.Completed, schedule.State);
+        Assert.Equal(
+            ReservationRetentionCompletedOutcome,
+            schedule.OutcomeCode);
+        Assert.Equal(1, schedule.LastAffectedCount);
+        Assert.Equal(1, schedule.LastScannedCount);
+        Assert.Equal(0, schedule.LastRemainingCount);
+
+        ReservationsDbContext reservations =
+            scope.ServiceProvider
+                .GetRequiredService<ReservationsDbContext>();
+        ReservationRetentionExecution owner =
+            await reservations.RetentionExecutions
+                .AsNoTracking()
+                .SingleAsync(execution =>
+                    execution.Id == schedule.LastExecutionId)
+                .ConfigureAwait(false);
+        Assert.Equal(
+            ReservationRetentionExecutionState.Completed,
+            owner.State);
+        Assert.Equal(
+            ReservationRetentionCompletedOutcome,
+            owner.OutcomeCode);
+        Assert.Equal(1, owner.AffectedCount);
+        Assert.Equal(1, owner.ScannedCount);
+        Assert.Equal(0, owner.RemainingCount);
+
+        Reservation reservation = await reservations.Reservations
+            .AsNoTracking()
+            .SingleAsync(item =>
+                item.Id == candidate.ReservationId)
+            .ConfigureAwait(false);
+        Assert.True(reservation.IsAnonymised);
+        Assert.Equal(
+            Reservation.AnonymisedGuestName,
+            reservation.PrimaryGuestName);
+        Assert.Null(reservation.Email);
+        Assert.Null(reservation.Phone);
+        Assert.Null(reservation.SourceReference);
+        Assert.Null(reservation.Notes);
+        Assert.NotNull(reservation.TerminalAtUtc);
+
+        ReservationRetentionAnonymisationReceipt receipt =
+            await reservations.RetentionAnonymisationReceipts
+                .AsNoTracking()
+                .SingleAsync(item =>
+                    item.ReservationId ==
+                        candidate.ReservationId)
+                .ConfigureAwait(false);
+        Assert.Equal(owner.Id, receipt.ExecutionId);
+        Assert.Equal(2, receipt.RedactedHistoryCount);
+        ReservationAnonymisationTombstone tombstone =
+            await reservations.AnonymisationTombstones
+                .AsNoTracking()
+                .SingleAsync(item =>
+                    item.Id == candidate.ReservationId)
+                .ConfigureAwait(false);
+        Assert.Equal(
+            ReservationAnonymisationAuthority.Retention,
+            tombstone.Authority);
+        Assert.True(tombstone.MatchesRetention(receipt));
+
+        ReservationDetailsHistoryEntry[] history =
+            await reservations.ReservationDetailsHistory
+                .AsNoTracking()
+                .Where(item =>
+                    item.ReservationId ==
+                        candidate.ReservationId)
+                .ToArrayAsync().ConfigureAwait(false);
+        Assert.Equal(2, history.Length);
+        string historyJson = string.Join(
+            '\n',
+            history.Select(item => item.AfterSnapshotJson));
+        Assert.DoesNotContain(
+            "Reservation Retention Candidate",
+            historyJson,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "reservation-retention@example.test",
+            historyJson,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Sensitive reservation retention note",
+            historyJson,
+            StringComparison.Ordinal);
+    }
+
     private static async Task ReleaseLegalHoldAsync(
         IHost worker,
         SeededCandidate held)
@@ -830,5 +1078,6 @@ public sealed class RetentionControlPlaneIntegrationTests
         Guid PropertyId,
         Guid ProposalId,
         Guid? LegalHoldId,
-        Guid? GuestId);
+        Guid? GuestId,
+        Guid ReservationId);
 }

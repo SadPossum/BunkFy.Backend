@@ -143,8 +143,12 @@ public sealed class CountryPolicyRegistry
                 [.. policy.Artifact.Document.AccommodationTypes],
                 [.. policy.Artifact.Document.PermittedDataRegions],
                 [.. policy.Artifact.Document.PermittedTransferProfiles],
-                [.. policy.Artifact.Document.RetentionRules.Select(rule =>
-                    new CountryPolicyRetentionDescriptor(rule.RetentionPolicyId, rule.RetentionPolicyVersion))],
+                [.. policy.Artifact.Document.RetentionRules
+                    .Select(rule =>
+                        new CountryPolicyRetentionDescriptor(
+                            rule.RetentionPolicyId,
+                            rule.RetentionPolicyVersion))
+                    .Distinct()],
                 [.. policy.Artifact.Document.RequiredAcknowledgements.Select(requirement =>
                     new CountryPolicyAcknowledgement(requirement.AcknowledgementId, requirement.AcknowledgementVersion))]))
             .OrderBy(policy => policy.OperatingCountryCode, StringComparer.Ordinal)

@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Reservations.Domain.DataRights;
 
 using BunkFy.Modules.Reservations.Domain.Errors;
+using BunkFy.Modules.Reservations.Domain.Models;
+using BunkFy.Modules.Reservations.Domain.Retention;
 using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
@@ -8,7 +10,7 @@ using Gma.Framework.Results;
 public sealed class ReservationAnonymisationTombstone
     : ScopedAggregateRoot<Guid>
 {
-    public const int CurrentContractVersion = 1;
+    public const int CurrentContractVersion = 2;
 
     private ReservationAnonymisationTombstone() { }
 
@@ -21,6 +23,7 @@ public sealed class ReservationAnonymisationTombstone
 
     public int ContractVersion { get; private set; }
     public long Revision { get; private set; }
+    public ReservationAnonymisationAuthority Authority { get; private set; }
     public Guid PropertyId { get; private set; }
     public int OwnerReceiptContractVersion { get; private set; }
     public Guid OwnerReceiptId { get; private set; }
@@ -53,6 +56,43 @@ public sealed class ReservationAnonymisationTombstone
         {
             ContractVersion = CurrentContractVersion,
             Revision = 1,
+            Authority = ReservationAnonymisationAuthority.DataRights,
+            PropertyId = receipt.PropertyId,
+            OwnerReceiptContractVersion = receipt.ContractVersion,
+            OwnerReceiptId = receipt.Id,
+            OwnerReceiptSha256 = receipt.CanonicalSha256,
+            ResultingReservationVersion =
+                receipt.ResultingReservationVersion,
+            ResultingDetailsRevision = receipt.ResultingDetailsRevision,
+            CompletedAtUtc = receipt.CompletedAtUtc.ToUniversalTime()
+        });
+    }
+
+    public static Result<ReservationAnonymisationTombstone>
+        CreateForRetention(
+            ReservationRetentionAnonymisationReceipt receipt)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+        if (!receipt.MatchesOwnerProof(
+                receipt.ContractVersion,
+                receipt.Id,
+                receipt.PropertyId,
+                receipt.ReservationId,
+                receipt.ResultingReservationVersion,
+                receipt.ResultingDetailsRevision,
+                receipt.CanonicalSha256,
+                receipt.CompletedAtUtc))
+        {
+            return Invalid();
+        }
+
+        return Result.Success(new ReservationAnonymisationTombstone(
+            receipt.ReservationId,
+            receipt.ScopeId)
+        {
+            ContractVersion = CurrentContractVersion,
+            Revision = 1,
+            Authority = ReservationAnonymisationAuthority.Retention,
             PropertyId = receipt.PropertyId,
             OwnerReceiptContractVersion = receipt.ContractVersion,
             OwnerReceiptId = receipt.Id,
@@ -103,6 +143,7 @@ public sealed class ReservationAnonymisationTombstone
         {
             ContractVersion = CurrentContractVersion,
             Revision = 1,
+            Authority = ReservationAnonymisationAuthority.DataRights,
             PropertyId = propertyId,
             OwnerReceiptContractVersion = ownerReceiptContractVersion,
             OwnerReceiptId = ownerReceiptId,
@@ -127,7 +168,9 @@ public sealed class ReservationAnonymisationTombstone
         DateTimeOffset replayedAtUtc)
     {
         DateTimeOffset restoredAtUtc = replayedAtUtc.ToUniversalTime();
-        if (!this.MatchesOwnerProof(
+        if (this.Authority !=
+                ReservationAnonymisationAuthority.DataRights ||
+            !this.MatchesOwnerProof(
                 propertyId,
                 ownerReceiptContractVersion,
                 ownerReceiptId,
@@ -163,6 +206,21 @@ public sealed class ReservationAnonymisationTombstone
     public bool Matches(
         ReservationAnonymisationReceipt receipt) =>
         receipt is not null &&
+        this.Authority == ReservationAnonymisationAuthority.DataRights &&
+        this.Id == receipt.ReservationId &&
+        this.MatchesOwnerProof(
+            receipt.PropertyId,
+            receipt.ContractVersion,
+            receipt.Id,
+            receipt.CanonicalSha256,
+            receipt.ResultingReservationVersion,
+            receipt.ResultingDetailsRevision,
+            receipt.CompletedAtUtc);
+
+    public bool MatchesRetention(
+        ReservationRetentionAnonymisationReceipt receipt) =>
+        receipt is not null &&
+        this.Authority == ReservationAnonymisationAuthority.Retention &&
         this.Id == receipt.ReservationId &&
         this.MatchesOwnerProof(
             receipt.PropertyId,
@@ -183,6 +241,7 @@ public sealed class ReservationAnonymisationTombstone
         long? resultingDetailsRevision,
         DateTimeOffset originallyCompletedAtUtc,
         Guid ledgerEntryId) =>
+        this.Authority == ReservationAnonymisationAuthority.DataRights &&
         this.Id == reservationId &&
         this.LedgerEntryId == ledgerEntryId &&
         this.LastReplayedAtUtc.HasValue &&
