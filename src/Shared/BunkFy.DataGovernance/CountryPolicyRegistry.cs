@@ -194,6 +194,77 @@ public sealed class CountryPolicyRegistry
             requireBindingDigest: true);
     }
 
+    public CountryPolicyRetentionDecision EvaluateRetention(
+        CountryPolicyRetentionRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!IsKey(request.DataClass) || !IsKey(request.Trigger))
+        {
+            return CountryPolicyRetentionDecision.Deny(
+                CountryPolicyDecisionReason.InvalidRequest);
+        }
+
+        CountryPolicyDecision operation = this.EvaluateOperation(
+            new(
+                request.Binding,
+                request.AccommodationType,
+                request.PurposeCode,
+                CountryPolicySurface.Retention,
+                request.SourceProvenance,
+                request.ObservedAtUtc));
+        if (!operation.IsAllowed || operation.Evidence is null)
+        {
+            return CountryPolicyRetentionDecision.Deny(operation.Reason);
+        }
+
+        CountryPolicyEvidence evidence = operation.Evidence;
+        CountryPolicyIdentity identity = new(
+            evidence.PolicyId,
+            evidence.PolicyVersion);
+        if (!this.policies.TryGetValue(identity, out RegisteredPolicy? registered))
+        {
+            return CountryPolicyRetentionDecision.Deny(
+                CountryPolicyDecisionReason.UnknownPolicy);
+        }
+
+        CountryPolicyRetentionRule? rule = registered.Artifact.Document
+            .RetentionRules
+            .SingleOrDefault(candidate =>
+                string.Equals(
+                    candidate.RetentionPolicyId,
+                    evidence.RetentionPolicyId,
+                    StringComparison.Ordinal) &&
+                candidate.RetentionPolicyVersion ==
+                    evidence.RetentionPolicyVersion &&
+                string.Equals(
+                    candidate.DataClass,
+                    request.DataClass,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    candidate.Trigger,
+                    request.Trigger,
+                    StringComparison.Ordinal));
+        if (rule is null ||
+            !TimeSpan.TryParse(
+                rule.Period,
+                CultureInfo.InvariantCulture,
+                out TimeSpan period) ||
+            period <= TimeSpan.Zero)
+        {
+            return CountryPolicyRetentionDecision.Deny(
+                CountryPolicyDecisionReason.RetentionPolicyNotPermitted);
+        }
+
+        return CountryPolicyRetentionDecision.Allow(
+            evidence,
+            new(
+                rule.RetentionPolicyId,
+                rule.RetentionPolicyVersion,
+                rule.DataClass,
+                rule.Trigger,
+                period));
+    }
+
     private CountryPolicyDecision Evaluate(
         CountryPolicyBinding binding,
         string accommodationType,
@@ -496,6 +567,15 @@ public sealed record CountryPolicyOperationRequest(
     string SourceProvenance,
     DateTimeOffset ObservedAtUtc);
 
+public sealed record CountryPolicyRetentionRequest(
+    CountryPolicyBinding? Binding,
+    string AccommodationType,
+    string PurposeCode,
+    string SourceProvenance,
+    string DataClass,
+    string Trigger,
+    DateTimeOffset ObservedAtUtc);
+
 public sealed record CountryPolicyBinding(
     string OperatingCountryCode,
     string PolicyId,
@@ -571,6 +651,56 @@ public sealed record CountryPolicyDecision
         return new(false, reason, null);
     }
 }
+
+public sealed record CountryPolicyRetentionDecision
+{
+    private CountryPolicyRetentionDecision(
+        bool isAllowed,
+        CountryPolicyDecisionReason reason,
+        CountryPolicyEvidence? evidence,
+        CountryPolicyRetentionRuleEvidence? retentionRule)
+    {
+        this.IsAllowed = isAllowed;
+        this.Reason = reason;
+        this.Evidence = evidence;
+        this.RetentionRule = retentionRule;
+    }
+
+    public bool IsAllowed { get; }
+    public CountryPolicyDecisionReason Reason { get; }
+    public CountryPolicyEvidence? Evidence { get; }
+    public CountryPolicyRetentionRuleEvidence? RetentionRule { get; }
+
+    public static CountryPolicyRetentionDecision Allow(
+        CountryPolicyEvidence evidence,
+        CountryPolicyRetentionRuleEvidence retentionRule) =>
+        new(
+            true,
+            CountryPolicyDecisionReason.Allowed,
+            evidence ?? throw new ArgumentNullException(nameof(evidence)),
+            retentionRule ??
+                throw new ArgumentNullException(nameof(retentionRule)));
+
+    public static CountryPolicyRetentionDecision Deny(
+        CountryPolicyDecisionReason reason)
+    {
+        if (!Enum.IsDefined(reason) ||
+            reason is CountryPolicyDecisionReason.Unknown or
+                CountryPolicyDecisionReason.Allowed)
+        {
+            throw new ArgumentOutOfRangeException(nameof(reason));
+        }
+
+        return new(false, reason, null, null);
+    }
+}
+
+public sealed record CountryPolicyRetentionRuleEvidence(
+    string RetentionPolicyId,
+    int RetentionPolicyVersion,
+    string DataClass,
+    string Trigger,
+    TimeSpan Period);
 
 public enum CountryPolicyDecisionReason
 {

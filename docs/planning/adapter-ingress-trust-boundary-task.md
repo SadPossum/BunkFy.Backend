@@ -1,6 +1,6 @@
 # Adapter Ingress Trust Boundary Task
 
-Status: implementation and local verification complete; exact-candidate CI pending
+Status: published; local and exact-candidate verification complete
 Date: 2026-07-28
 
 ## Goal
@@ -212,7 +212,9 @@ drill must:
   exposed the new tenant-control endpoint filter order; after correction, that
   exact Docker-backed operations and stop/recovery drill passes in isolation.
 - Solution graph synchronization and `git diff --check` pass.
-- Exact published-commit GitHub Actions evidence remains pending.
+- Backend commit `4a117a3467040bd4e5ae8079042dcc6a27fb40d1`
+  passed exact-candidate validation in GitHub Actions run `30323427207` and
+  the complete Docker gate in run `30323427193`.
 
 ## Non-Goals
 
@@ -228,6 +230,7 @@ drill must:
 
 ## Completion
 
-SP-005 is complete only when both slices, the adversarial suite, the stop drill,
-and exact release-candidate CI evidence pass. Until then, production
-third-party ingress remains disabled.
+The public SP-005 engineering slice is complete: both slices, the adversarial
+suite, the stop drill, and exact release-candidate CI passed. Production
+third-party ingress remains disabled until a deployment deliberately composes
+the distributed provider and private operational controls.

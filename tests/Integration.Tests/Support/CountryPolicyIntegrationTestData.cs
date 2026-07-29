@@ -217,6 +217,12 @@ internal static class CountryPolicyIntegrationTestData
               "allowedSourceProvenance": [ "authorized-workspace-operator" ]
             },
             {
+              "purposeCode": "guest-profile-retention",
+              "legalRuleReferenceKeys": [ "integration-retention" ],
+              "allowedSurfaces": [ "retention" ],
+              "allowedSourceProvenance": [ "retention-worker" ]
+            },
+            {
               "purposeCode": "reservation-management",
               "legalRuleReferenceKeys": [ "integration-customer-instruction" ],
               "allowedSurfaces": [ "api-write" ],

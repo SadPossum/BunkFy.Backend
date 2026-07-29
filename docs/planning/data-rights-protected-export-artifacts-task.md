@@ -1,7 +1,6 @@
 # Data Rights Protected Export Artifacts Task
 
-Status: implementation slices 1 through 3 complete; initial publication
-complete; exact-candidate Docker correction pending
+Status: complete; local and exact-candidate verification passed
 
 ## Goal
 
@@ -211,7 +210,7 @@ are green. It must not expose a workflow that stops at approval.
    tests.
 3. [x] Add the Guest/Staff operator workflow, live status refresh, download
    step-up handling, and focused frontend/browser tests.
-4. [ ] Run the complete candidate gates once, publish in dependency order,
+4. [x] Run the complete candidate gates once, publish in dependency order,
    and verify GitHub Actions for the exact published commits once.
 
 Only one numbered implementation slice is active at a time.
@@ -370,9 +369,9 @@ expensive gates.
   both prerequisite transitions, and the focused integration-project build
   passes with zero warnings. Production fail-closed validation is unchanged.
 - GMA source and all nested GMA pointers remain unchanged.
-- The failed Docker workflow is the only complete gate to repeat for the
-  replacement candidate. Exact replacement-commit GitHub Actions remain
-  pending.
+- Replacement backend commit `0165302f34258feb04a00fab36255211493276ca`
+  passed exact-candidate validation in GitHub Actions run `30254840283` and
+  the corrected Docker gate in run `30254840230`.
 
 ## Deferred
 

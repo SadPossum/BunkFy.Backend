@@ -99,6 +99,58 @@ public sealed partial class GuestProfile
             nowUtc);
     }
 
+    public Result<GuestProfileAnonymisationOutcome> AnonymiseForRetention(
+        long expectedVersion,
+        string actorId,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        if (expectedVersion != this.Version)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.VersionConflict);
+        }
+
+        if (this.Status == GuestProfileState.Anonymised)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.GuestAlreadyAnonymised);
+        }
+
+        if (this.Status is not (
+                GuestProfileState.Active or
+                GuestProfileState.Archived))
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.GuestNotRetainable);
+        }
+
+        Result<string> actor = NormalizeActor(actorId);
+        if (actor.IsFailure)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                actor.Error);
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.EventIdRequired);
+        }
+
+        if (nowUtc == default)
+        {
+            return Result.Failure<GuestProfileAnonymisationOutcome>(
+                GuestsDomainErrors.AnonymisationTimestampInvalid);
+        }
+
+        return this.ApplyAnonymisedState(
+            actor.Value,
+            eventId,
+            nowUtc,
+            nowUtc);
+    }
+
     public Result<GuestProfileAnonymisationOutcome> RestoreAnonymisation(
         string actorId,
         Guid eventId,

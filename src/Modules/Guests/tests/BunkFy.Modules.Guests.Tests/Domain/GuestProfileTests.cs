@@ -1,8 +1,10 @@
 namespace BunkFy.Modules.Guests.Tests;
 
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Events;
 using BunkFy.Modules.Guests.Domain.Models;
+using BunkFy.Modules.Guests.Domain.Retention;
 using BunkFy.Modules.Guests.Domain.ValueObjects;
 using Gma.Framework.Results;
 using Xunit;
@@ -369,6 +371,64 @@ public sealed class GuestProfileTests
             Assert.IsType<GuestProfileAnonymisedDomainEvent>(
                 Assert.Single(restored.DomainEvents));
         Assert.Equal(replayedAtUtc, domainEvent.OccurredAtUtc);
+    }
+
+    [Fact]
+    public void Retention_anonymises_archived_profile_with_distinct_proof()
+    {
+        GuestProfile profile = Create(
+            "Archived guest",
+            "archived@example.test",
+            "+1 555 0199");
+        Assert.True(profile.Archive(
+            profile.Version,
+            "user:operator",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        long selectedVersion = profile.Version;
+        Guid executionId = Guid.NewGuid();
+        Guid eventId = Guid.NewGuid();
+        DateTimeOffset completedAtUtc = Now.AddYears(2);
+
+        GuestProfileAnonymisationOutcome outcome =
+            profile.AnonymiseForRetention(
+                selectedVersion,
+                "system:retention",
+                eventId,
+                completedAtUtc).Value;
+        GuestRetentionAnonymisationReceipt receipt =
+            GuestRetentionAnonymisationReceipt.Create(
+                Guid.NewGuid(),
+                profile.ScopeId,
+                executionId,
+                profile.Id,
+                selectedVersion,
+                outcome.CurrentVersion,
+                affectedPropertyCount: 1,
+                completedAtUtc.AddDays(-1),
+                new string('a', 64),
+                eventId,
+                "system:retention",
+                completedAtUtc).Value;
+        GuestAnonymisationTombstone tombstone =
+            GuestAnonymisationTombstone.CreateForRetention(
+                profile.ScopeId,
+                receipt).Value;
+
+        Assert.True(profile.MatchesAnonymisedState(
+            outcome.CurrentVersion,
+            completedAtUtc));
+        Assert.Equal(
+            GuestAnonymisationAuthority.Retention,
+            tombstone.Authority);
+        Assert.True(tombstone.MatchesRetention(receipt));
+        Assert.Equal(
+            "Guests.AnonymisationTombstoneInvalid",
+            tombstone.AttachRestoreProof(
+                Guid.NewGuid(),
+                completedAtUtc,
+                receipt.CanonicalSha256,
+                completedAtUtc).Error.Code);
     }
 
     private static GuestProfile Create(string displayName, string? email, string? phone) => GuestProfile.Create(

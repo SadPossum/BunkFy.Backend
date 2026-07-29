@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Guests.Persistence.Configurations;
 
+using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -38,6 +39,8 @@ internal sealed class GuestPropertyProjectionConfiguration : IEntityTypeConfigur
         builder.HasKey(property => new { property.ScopeId, property.Id });
         builder.Property(property => property.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(property => property.Name).HasMaxLength(256);
+        builder.Property(property => property.TimeZoneId)
+            .HasMaxLength(PropertiesContractLimits.TimeZoneIdMaxLength);
         builder.Property(property => property.Status).HasConversion<int>().IsRequired();
         builder.Property(property => property.TopologySourceVersion).IsConcurrencyToken().IsRequired();
         builder.Property(property => property.PolicySourceVersion).IsConcurrencyToken().IsRequired();

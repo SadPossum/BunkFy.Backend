@@ -21,7 +21,11 @@ internal sealed class GuestPropertyProjectionRepository(
             property.ScopeId,
             property.PropertyId,
             cancellationToken).ConfigureAwait(false);
-        current.ApplyTopology(property.Name, property.Status, property.SourceVersion);
+        current.ApplyTopology(
+            property.Name,
+            property.TimeZoneId,
+            property.Status,
+            property.SourceVersion);
     }
 
     public async Task ApplyPolicyAsync(
@@ -79,6 +83,7 @@ internal sealed class GuestPropertyProjectionRepository(
             scopeId,
             propertyId,
             null,
+            timeZoneId: null,
             PropertyStatus.Unknown,
             0);
         dbContext.PropertyProjections.Add(current);

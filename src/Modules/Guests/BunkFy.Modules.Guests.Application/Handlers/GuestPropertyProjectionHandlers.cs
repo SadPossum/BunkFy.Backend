@@ -15,6 +15,7 @@ internal sealed class GuestPropertyCreatedHandler(IGuestPropertyProjectionReposi
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
                 integrationEvent.Name,
+                integrationEvent.TimeZoneId,
                 integrationEvent.Status,
                 integrationEvent.PropertyVersion),
             cancellationToken);
@@ -30,6 +31,7 @@ internal sealed class GuestPropertyUpdatedHandler(IGuestPropertyProjectionReposi
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
                 integrationEvent.Name,
+                integrationEvent.TimeZoneId,
                 integrationEvent.Status,
                 integrationEvent.PropertyVersion),
             cancellationToken);
@@ -45,6 +47,7 @@ internal sealed class GuestPropertyRetiredHandler(IGuestPropertyProjectionReposi
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
                 string.Empty,
+                TimeZoneId: null,
                 PropertyStatus.Retired,
                 integrationEvent.PropertyVersion),
             cancellationToken);

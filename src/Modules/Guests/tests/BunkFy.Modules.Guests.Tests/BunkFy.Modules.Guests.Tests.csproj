@@ -13,6 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Retention\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Guests.Api\BunkFy.Modules.Guests.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Guests.Application\BunkFy.Modules.Guests.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Guests.Contracts\BunkFy.Modules.Guests.Contracts.csproj" />

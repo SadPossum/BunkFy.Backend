@@ -4,11 +4,13 @@ using System.Reflection;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.Guests.Api;
 using BunkFy.Modules.Guests.Application.Commands;
+using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Application.Queries;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Events;
+using BunkFy.Modules.Guests.Domain.Retention;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -51,7 +53,10 @@ public sealed class GuestsPersonalDataCatalogTests
                      typeof(GuestDataHoldReceipt),
                      typeof(GuestAnonymisationReceipt),
                      typeof(GuestAnonymisationTombstone),
-                     typeof(GuestAnonymisationRestoreReceipt)
+                     typeof(GuestAnonymisationRestoreReceipt),
+                     typeof(GuestRetentionExecution),
+                     typeof(GuestRetentionSweepCheckpoint),
+                     typeof(GuestRetentionAnonymisationReceipt)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
@@ -90,6 +95,24 @@ public sealed class GuestsPersonalDataCatalogTests
         AssertType(typeof(ReleaseGuestDataHoldCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ApplyGuestAnonymisationCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(RestoreGuestAnonymisationCommand), PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(BeginGuestRetentionExecutionCommand),
+            PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(GuestRetentionExecutionStart),
+            PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(ApplyGuestRetentionCommand),
+            PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(GuestRetentionMutationResult),
+            PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(CompleteGuestRetentionExecutionCommand),
+            PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(GuestRetentionEligibilityResult),
+            PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(GetGuestProfileQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(typeof(GetGuestStayHistoryQuery), PersonalDataSurface.ApplicationQuery);
         AssertType(

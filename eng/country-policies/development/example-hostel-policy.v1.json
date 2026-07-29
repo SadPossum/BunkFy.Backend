@@ -55,6 +55,12 @@
       "allowedSourceProvenance": [ "authorized-workspace-operator" ]
     },
     {
+      "purposeCode": "guest-profile-retention",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "retention" ],
+      "allowedSourceProvenance": [ "retention-worker" ]
+    },
+    {
       "purposeCode": "reservation-management",
       "legalRuleReferenceKeys": [ "development-only-example" ],
       "allowedSurfaces": [ "api-write" ],

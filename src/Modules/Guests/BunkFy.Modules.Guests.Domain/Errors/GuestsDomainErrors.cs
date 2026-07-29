@@ -42,6 +42,27 @@ public static class GuestsDomainErrors
     public static readonly Error AnonymisationRestoreReceiptInvalid = new(
         "Guests.AnonymisationRestoreReceiptInvalid",
         "The Guest anonymisation restore receipt is invalid.");
+    public static readonly Error RetentionExecutionCoordinateInvalid = new(
+        "Guests.RetentionExecutionCoordinateInvalid",
+        "The Guest retention execution coordinate is invalid.");
+    public static readonly Error RetentionExecutionTransitionInvalid = new(
+        "Guests.RetentionExecutionTransitionInvalid",
+        "The Guest retention execution transition is invalid.");
+    public static readonly Error RetentionExecutionResultInvalid = new(
+        "Guests.RetentionExecutionResultInvalid",
+        "The Guest retention execution result is invalid.");
+    public static readonly Error RetentionCheckpointInvalid = new(
+        "Guests.RetentionCheckpointInvalid",
+        "The Guest retention sweep checkpoint is invalid.");
+    public static readonly Error RetentionCheckpointConflict = new(
+        "Guests.RetentionCheckpointConflict",
+        "The Guest retention sweep checkpoint has changed.");
+    public static readonly Error RetentionReceiptInvalid = new(
+        "Guests.RetentionReceiptInvalid",
+        "The Guest retention receipt is invalid.");
+    public static readonly Error GuestNotRetainable = new(
+        "Guests.GuestNotRetainable",
+        "The Guest profile cannot be anonymised by retention.");
     public static readonly Error CorrectionReceiptIdentityInvalid = new(
         "Guests.CorrectionReceiptIdentityInvalid",
         "The correction receipt identity is invalid.");

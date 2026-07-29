@@ -46,6 +46,12 @@ public static class DependencyInjection
             IGuestAnonymisationExecutionBoundary,
             GuestAnonymisationExecutionBoundary>();
         builder.Services.TryAddScoped<
+            IGuestRetentionCandidateRepository,
+            GuestRetentionCandidateRepository>();
+        builder.Services.TryAddScoped<
+            IGuestRetentionExecutionRepository,
+            GuestRetentionExecutionRepository>();
+        builder.Services.TryAddScoped<
             IGuestDataRightsCorrectionReceiptRepository,
             GuestDataRightsCorrectionReceiptRepository>();
         builder.Services.TryAddScoped<

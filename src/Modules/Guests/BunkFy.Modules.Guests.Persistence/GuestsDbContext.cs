@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Persistence;
 
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
+using BunkFy.Modules.Guests.Domain.Retention;
 using BunkFy.Modules.Guests.Persistence.Models;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -29,6 +30,13 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
     public DbSet<GuestAnonymisationRestoreReceipt>
         AnonymisationRestoreReceipts =>
             this.Set<GuestAnonymisationRestoreReceipt>();
+    public DbSet<GuestRetentionExecution> RetentionExecutions =>
+        this.Set<GuestRetentionExecution>();
+    public DbSet<GuestRetentionSweepCheckpoint> RetentionSweepCheckpoints =>
+        this.Set<GuestRetentionSweepCheckpoint>();
+    public DbSet<GuestRetentionAnonymisationReceipt>
+        RetentionAnonymisationReceipts =>
+            this.Set<GuestRetentionAnonymisationReceipt>();
     internal DbSet<GuestOperationLock> OperationLocks => this.Set<GuestOperationLock>();
     public DbSet<GuestPropertyProjection> PropertyProjections => this.Set<GuestPropertyProjection>();
     public DbSet<GuestStayHistoryEntry> StayHistory => this.Set<GuestStayHistoryEntry>();
@@ -38,7 +46,7 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        this.EnsureRestoreReceiptsAreAppendOnly();
+        this.EnsureImmutableReceiptsAreAppendOnly();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -46,7 +54,7 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
-        this.EnsureRestoreReceiptsAreAppendOnly();
+        this.EnsureImmutableReceiptsAreAppendOnly();
         return base.SaveChangesAsync(
             acceptAllChangesOnSuccess,
             cancellationToken);
@@ -59,17 +67,22 @@ public sealed class GuestsDbContext(DbContextOptions<GuestsDbContext> options, I
         this.ApplyScopeConventions(modelBuilder);
     }
 
-    private void EnsureRestoreReceiptsAreAppendOnly()
+    private void EnsureImmutableReceiptsAreAppendOnly()
     {
-        bool mutationRequested = this.ChangeTracker
+        bool restoreMutationRequested = this.ChangeTracker
             .Entries<GuestAnonymisationRestoreReceipt>()
             .Any(entry =>
                 entry.State is EntityState.Modified or
                     EntityState.Deleted);
-        if (mutationRequested)
+        bool retentionMutationRequested = this.ChangeTracker
+            .Entries<GuestRetentionAnonymisationReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or
+                    EntityState.Deleted);
+        if (restoreMutationRequested || retentionMutationRequested)
         {
             throw new InvalidOperationException(
-                "Guest anonymisation restore receipts are append-only.");
+                "Guest anonymisation receipts are append-only.");
         }
     }
 }

@@ -64,6 +64,14 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - explicit stay-projection contract versions so unknown future projection
   semantics block destructive eligibility instead of being interpreted
   optimistically;
+- tenant-scoped automatic retention for the country-policy data class
+  `guest-operational`, using a persisted fair-scan cursor, bounded set-based
+  discovery, exact retry receipts, active-hold enforcement, and the latest
+  applicable property-local stay deadline;
+- authority-bound automatic anonymisation proof that cannot be replayed as a
+  DataRights approval. The proof is currently local to Guests and is
+  deliberately excluded from the DataRights subject export and protected
+  replay ledger;
 - PII-free profile and reservation/stay integration contracts;
 - monotonic stay history that retains inactive replaced links for audit without granting visibility;
 - local Properties projection plus task-driven rebuilds for Properties and Reservation stay history;
@@ -71,8 +79,9 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 
 Reservations owns booking roles and current participant links. Guests owns profiles, visibility associations, and its history projection. Neither module writes the other's schema or uses cross-module foreign keys.
 
-Identity documents, consent and retention workflows, duplicate merge/split,
-entity resolution, guest flags, preferences, and guest accounts remain deferred.
+Identity documents, consent, orphan-profile retention triggers, duplicate
+merge/split, entity resolution, guest flags, preferences, and guest accounts
+remain deferred.
 Protected export artifacts and download surfaces remain owned by DataRights.
 Reservations owns its local restriction-eligibility projection and rechecks
 this module's authoritative gate before every new canonical Guest link.

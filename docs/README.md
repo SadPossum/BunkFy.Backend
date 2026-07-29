@@ -69,6 +69,7 @@ Useful entry points:
 - [Guest Data Rights And Lifecycle Workflow Task](planning/guest-data-rights-and-lifecycle-workflow-task.md)
 - [Guest Data Rights Anonymisation And Ledger Task](planning/guest-data-rights-anonymisation-and-ledger-task.md)
 - [Guest Data Rights Restriction Task](planning/guest-data-rights-restriction-task.md)
+- [Guest Record Retention Task](planning/guest-record-retention-task.md)
 - [Data Rights Module](../src/Modules/DataRights/docs/README.md)
 - [Ingestion Module Task](planning/ingestion-module-task.md)
 - [Ingestion Data Rights Workflow Task](planning/ingestion-data-rights-workflow-task.md)

@@ -229,6 +229,55 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Guest_retention_stays_product_owned_and_contract_coupled()
+    {
+        ProjectFile guestsApplication = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Modules.Guests.Application",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            guestsApplication.ProjectReferences,
+            reference => reference.EndsWith(
+                "BunkFy.Modules.Retention.Contracts\\BunkFy.Modules.Retention.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            guestsApplication.ProjectReferences,
+            reference =>
+                reference.Contains(
+                    "BunkFy.Modules.Retention.Application",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Retention.Domain",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Retention.Persistence",
+                    StringComparison.OrdinalIgnoreCase));
+
+        string[] retentionImplementationOffenders =
+            RepositoryPaths.EnumerateFiles(
+                    "src/Modules/Retention",
+                    "*.cs")
+                .Where(path => File.ReadAllText(path).Contains(
+                    "BunkFy.Modules.Guests.",
+                    StringComparison.Ordinal))
+                .Select(RepositoryPaths.ToRepositoryPath)
+                .ToArray();
+        Assert.Empty(retentionImplementationOffenders);
+
+        string[] gmaOffenders = RepositoryPaths.EnumerateFiles(
+                "gma",
+                "*.cs")
+            .Where(path => File.ReadAllText(path).Contains(
+                "GuestRetention",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+        Assert.Empty(gmaOffenders);
+    }
+
+    [Fact]
     public void Remote_adapter_lease_protocol_stays_in_shared_runtime_transport_and_ingestion()
     {
         string[] allowedRoots =

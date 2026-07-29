@@ -232,6 +232,62 @@ public sealed class CountryPolicyEngineTests
         Assert.Equal(CountryPolicyDecisionReason.InvalidRequest, unbounded.Reason);
     }
 
+    [Fact]
+    public void Retention_resolves_the_exact_authorized_rule()
+    {
+        CountryPolicyPackArtifact artifact = Parse();
+        CountryPolicyRegistry registry = ProductionRegistry(artifact);
+        CountryPolicyBinding binding = Assert.IsType<CountryPolicyEvidence>(
+            registry.EvaluateActivation(ValidActivation()).Evidence).ToBinding();
+
+        CountryPolicyRetentionDecision decision = registry.EvaluateRetention(
+            ValidRetention(binding));
+
+        Assert.True(decision.IsAllowed);
+        Assert.Equal(CountryPolicyDecisionReason.Allowed, decision.Reason);
+        Assert.Equal(
+            CountryPolicySurface.Retention,
+            Assert.IsType<CountryPolicyEvidence>(decision.Evidence).Surface);
+        CountryPolicyRetentionRuleEvidence rule =
+            Assert.IsType<CountryPolicyRetentionRuleEvidence>(
+                decision.RetentionRule);
+        Assert.Equal("guest-operational", rule.RetentionPolicyId);
+        Assert.Equal(1, rule.RetentionPolicyVersion);
+        Assert.Equal("guest-operational", rule.DataClass);
+        Assert.Equal("stay-ended", rule.Trigger);
+        Assert.Equal(TimeSpan.FromDays(365), rule.Period);
+    }
+
+    [Theory]
+    [InlineData("other-class", "stay-ended")]
+    [InlineData("guest-operational", "profile-created")]
+    [InlineData("Guest-Operational", "stay-ended")]
+    public void Retention_fails_closed_for_mismatched_or_invalid_rule_coordinates(
+        string dataClass,
+        string trigger)
+    {
+        CountryPolicyPackArtifact artifact = Parse();
+        CountryPolicyRegistry registry = ProductionRegistry(artifact);
+        CountryPolicyBinding binding = Assert.IsType<CountryPolicyEvidence>(
+            registry.EvaluateActivation(ValidActivation()).Evidence).ToBinding();
+
+        CountryPolicyRetentionDecision decision = registry.EvaluateRetention(
+            ValidRetention(binding) with
+            {
+                DataClass = dataClass,
+                Trigger = trigger
+            });
+
+        Assert.False(decision.IsAllowed);
+        Assert.Null(decision.Evidence);
+        Assert.Null(decision.RetentionRule);
+        Assert.Equal(
+            dataClass == "Guest-Operational"
+                ? CountryPolicyDecisionReason.InvalidRequest
+                : CountryPolicyDecisionReason.RetentionPolicyNotPermitted,
+            decision.Reason);
+    }
+
     [Theory]
     [InlineData(OperationMismatch.UnknownPolicy, CountryPolicyDecisionReason.UnknownPolicy)]
     [InlineData(OperationMismatch.Country, CountryPolicyDecisionReason.CountryMismatch)]
@@ -315,6 +371,17 @@ public sealed class CountryPolicyEngineTests
             "workspace-staff",
             EvaluationTime);
 
+    private static CountryPolicyRetentionRequest ValidRetention(
+        CountryPolicyBinding binding) =>
+        new(
+            binding,
+            "hostel",
+            "guest-profile-retention",
+            "retention-worker",
+            "guest-operational",
+            "stay-ended",
+            EvaluationTime);
+
     private const string ValidPackJson = """
         {
           "schemaVersion": 1,
@@ -346,6 +413,12 @@ public sealed class CountryPolicyEngineTests
               "legalRuleReferenceKeys": [ "customer-instruction" ],
               "allowedSurfaces": [ "api-write", "adapter-ingress" ],
               "allowedSourceProvenance": [ "workspace-staff", "approved-adapter" ]
+            },
+            {
+              "purposeCode": "guest-profile-retention",
+              "legalRuleReferenceKeys": [ "storage-limitation" ],
+              "allowedSurfaces": [ "retention" ],
+              "allowedSourceProvenance": [ "retention-worker" ]
             }
           ],
           "retentionRules": [

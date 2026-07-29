@@ -23,6 +23,9 @@ internal sealed class GuestAnonymisationTombstoneConfiguration
                 "CK_guest_anonymisation_tombstones_state",
                 $"\"State\" = {(int)GuestAnonymisationTombstoneState.Anonymised}");
             table.HasCheckConstraint(
+                "CK_guest_anonymisation_tombstones_authority",
+                $"\"Authority\" IN ({(int)GuestAnonymisationAuthority.DataRights}, {(int)GuestAnonymisationAuthority.Retention})");
+            table.HasCheckConstraint(
                 "CK_guest_anonymisation_tombstones_receipt_digest",
                 $"char_length(\"OwnerReceiptSha256\") = {GuestAnonymisationReceipt.Sha256Length}");
         });
@@ -37,6 +40,9 @@ internal sealed class GuestAnonymisationTombstoneConfiguration
             .IsConcurrencyToken()
             .IsRequired();
         builder.Property(tombstone => tombstone.State)
+            .HasConversion<int>()
+            .IsRequired();
+        builder.Property(tombstone => tombstone.Authority)
             .HasConversion<int>()
             .IsRequired();
         builder.Property(tombstone => tombstone.OwnerReceiptSha256)

@@ -1,6 +1,6 @@
 # Automatic Retention Control Plane Task
 
-Status: implementation and local verification complete
+Status: published; local and exact-candidate verification complete
 
 ## Outcome
 
@@ -125,6 +125,9 @@ Verified on 2026-07-28:
   7 minutes 35 seconds.
 - The web application passed contract drift, 20 test files with 130 tests,
   and its production build.
+- Replacement backend commit `5c98f9c1d2377aac2bf931bd47f0b9149ed6d3af`
+  passed exact-candidate validation in GitHub Actions run `30310570086` and
+  the corrected Docker gate in run `30310569950`.
 
 ## Acceptance
 

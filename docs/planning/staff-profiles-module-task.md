@@ -1,6 +1,6 @@
 # Staff Profiles Module Task
 
-Status: privacy hardening implemented and locally verified; exact-commit CI pending
+Status: published; local and exact-commit verification complete
 Date: 2026-07-21
 
 ## Goal
@@ -126,6 +126,9 @@ Retention, anonymization, staff-data export, and legal-hold policy remain explic
 - API authorization tests prove tenant grants, descendant property grants, property-only denial for tenant writes, cross-property denial, and no access escalation from Staff assignment;
 - a real PostgreSQL/NATS scenario proves property projection, profile creation, assignment, scoped discovery, suspension/resume, unassignment history, duplicate delivery, and cross-tenant isolation;
 - migration upgrade, migration drift, build, non-Docker tests, Docker tests, package audits, and GMA submodule checks pass.
+- Backend commit `a8f99a8167570b8f1d3c5506a3d91aac13f65157`
+  passed exact-candidate validation in GitHub Actions run `29844155913` and
+  the complete Docker gate in run `29844155848`.
 
 ## Deferred
 

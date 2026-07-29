@@ -42,6 +42,12 @@ internal sealed class GuestProfileConfiguration : IEntityTypeConfiguration<Guest
         builder.Property(profile => profile.Version).IsConcurrencyToken().IsRequired();
         builder.Property(profile => profile.ProjectionOrdinal).ValueGeneratedOnAdd().IsRequired();
         builder.HasIndex(profile => profile.ProjectionOrdinal).IsUnique();
+        builder.HasIndex(profile => new
+        {
+            profile.ScopeId,
+            profile.Status,
+            profile.ProjectionOrdinal
+        });
         builder.Property(profile => profile.CreatedBy).HasMaxLength(GuestProfile.ActorIdMaxLength).IsRequired();
         builder.Property(profile => profile.LastChangedBy).HasMaxLength(GuestProfile.ActorIdMaxLength).IsRequired();
         builder.HasIndex(profile => new

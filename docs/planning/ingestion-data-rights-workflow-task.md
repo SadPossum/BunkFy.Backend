@@ -1,7 +1,7 @@
 # Ingestion Data Rights Workflow Task
 
-Status: first three implementation slices complete; fourth staged
-irreversible-reduction slice planned
+Status: all Ingestion owner slices implemented and exact-candidate verified;
+multi-account browser proof is tracked separately
 
 ## Outcome
 
@@ -614,6 +614,9 @@ is introduced.
   immutable proof, protected replay, historical migration, fail-closed
   downgrade and normal Ingestion behavior. The direct and transitive NuGet
   audit reports no known vulnerable packages.
+- Replacement backend commit `fd28b61db7a7e42b814aa6594b2a5106358b365d`
+  passed exact-candidate validation in GitHub Actions run `30219783076` and
+  the complete Docker gate in run `30219783111`.
 
 ## Non-Goals
 

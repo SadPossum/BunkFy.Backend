@@ -1,6 +1,6 @@
 # Support And Admin Access Task
 
-Status: local verification complete; exact candidate CI pending
+Status: published; local and exact-candidate verification complete
 Date: 2026-07-28
 
 ## Goal
@@ -89,7 +89,7 @@ generic role grant is an approved support request.
 5. [x] Add payload-free support-elevation signals and clock-controlled evidence.
 6. [x] Audit DataRights/Admin export paths and deny company payload export until a
    private customer selection/preview authorization is presented.
-7. [ ] Run one coherent non-Docker slice gate, then relational/Docker proof once,
+7. [x] Run one coherent non-Docker slice gate, then relational/Docker proof once,
    then exact candidate CI once.
 
 ## Acceptance Evidence
@@ -124,8 +124,9 @@ generic role grant is an approved support request.
 - BunkFy's synchronized 283-project composition builds without warnings, every
   migration drift check passes, all 70 architecture guards pass, and the
   remaining host integration assemblies pass;
-- exact published-commit CI remains pending and is intentionally run once
-  after dependency-order publication.
+- replacement backend commit `3cd7b8e6d949abef91aa004ea1a75ef8fce8c306`
+  passed exact-candidate validation in GitHub Actions run `30350945864` and
+  the corrected Docker gate in run `30350945838`.
 
 ## Explicitly Deferred
 

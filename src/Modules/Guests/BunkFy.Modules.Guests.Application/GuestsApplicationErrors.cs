@@ -103,4 +103,13 @@ public static class GuestsApplicationErrors
     public static Error AnonymisationBlocked(GuestAnonymisationBlockerCode blocker) => new(
         $"Guests.AnonymisationBlocked.{blocker}",
         "The Guest anonymisation is blocked by current owner state or policy.");
+    public static readonly Error RetentionExecutionNotFound = new(
+        "Guests.RetentionExecutionNotFound",
+        "The Guest retention execution was not found.");
+    public static readonly Error RetentionMutationInvalid = new(
+        "Guests.RetentionMutationInvalid",
+        "The Guest retention mutation request is invalid.");
+    public static readonly Error RetentionProofConflict = new(
+        "Guests.RetentionProofConflict",
+        "The Guest retention proof is unavailable or inconsistent.");
 }

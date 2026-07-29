@@ -13,8 +13,26 @@ public sealed record GuestPropertyTopologyWriteModel(
     string ScopeId,
     Guid PropertyId,
     string Name,
+    string? TimeZoneId,
     PropertyStatus Status,
-    long SourceVersion);
+    long SourceVersion)
+{
+    public GuestPropertyTopologyWriteModel(
+        string scopeId,
+        Guid propertyId,
+        string name,
+        PropertyStatus status,
+        long sourceVersion)
+        : this(
+            scopeId,
+            propertyId,
+            name,
+            TimeZoneInfo.Utc.Id,
+            status,
+            sourceVersion)
+    {
+    }
+}
 
 public sealed record GuestPropertyPolicyWriteModel(
     string ScopeId,
