@@ -82,12 +82,9 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
             !cancellationToken.IsCancellationRequested)
         {
             logger.LogError(
-                exception,
-                "Retention owner {OwnerKey} failed for data class " +
-                "{DataClassKey} in execution {ExecutionId}, attempt {Attempt}",
+                "Retention owner {OwnerKey} failed for data class {DataClassKey} at attempt {Attempt}",
                 payload.OwnerKey,
                 payload.DataClassKey,
-                context.RunId,
                 context.Attempt);
             ownerFailure = exception;
             result = new(
