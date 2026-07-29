@@ -1155,7 +1155,7 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
 
         Result<DataRightsExecutionDto> started = await dispatcher.SendAsync(
             new StartDataRightsAnonymisationExecutionCommand(
-                PropertyId,
+                DataRightsCaseScope.ForProperty(PropertyId),
                 dataRightsCase.Id,
                 Guid.NewGuid(),
                 approved.Value.Version,

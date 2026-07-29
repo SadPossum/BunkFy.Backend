@@ -37,6 +37,7 @@ public sealed class DataRightsProcessingLedgerEntryTests
 
         Assert.Equal(first.EntrySha256, replay.EntrySha256);
         Assert.True(first.HasValidCanonicalDigest());
+        Assert.True(first.MatchesExecutionProof(workItem));
         Assert.Equal(workItem.Id, first.WorkItemId);
         Assert.Equal(workItem.CaseId, first.CaseId);
         Assert.Equal(workItem.ExecutionRevision, first.OperationRevision);
@@ -44,7 +45,8 @@ public sealed class DataRightsProcessingLedgerEntryTests
         Assert.Equal(workItem.OwnerReceiptSha256, first.OwnerReceiptSha256);
         Assert.Equal(workItem.ResultingRecordVersion, first.ResultingRecordVersion);
         Assert.Equal(
-            DataRightsProcessingLedgerEntry.CurrentContractVersion,
+            DataRightsProcessingLedgerEntry
+                .GuestResultVersionContractVersion,
             first.ContractVersion);
         Assert.Equal(pseudonym.KeyVersion, first.RecordPseudonymKeyVersion);
         Assert.Equal(pseudonym.Sha256, first.RecordPseudonymSha256);
@@ -137,6 +139,114 @@ public sealed class DataRightsProcessingLedgerEntryTests
         Assert.Equal(1, restored.ContractVersion);
         Assert.Null(restored.ResultingRecordVersion);
         Assert.True(restored.HasValidCanonicalDigest());
+    }
+
+    [Fact]
+    public void Version_two_snapshot_preserves_its_original_digest_contract()
+    {
+        DataRightsProcessingLedgerSnapshot snapshot = new(
+            ContractVersion: 2,
+            EntryId: Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            ScopeId: "tenant-a",
+            TenantSequence: 1,
+            WorkItemId: Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            CaseId: Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            ApprovalRevision: 6,
+            OperationRevision: 7,
+            Operation: DataRightsCaseOperation.Anonymisation,
+            RoutingPropertyId: Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            OwnerKey: "guests",
+            RecordType: "guest-profile",
+            RecordPseudonymKeyVersion: 1,
+            RecordPseudonymSha256: new string('c', 64),
+            DispositionCode: "guests.completed",
+            ReasonCode: "guests.profile-anonymised",
+            CompletedAtUtc: new(
+                2026,
+                7,
+                25,
+                12,
+                4,
+                0,
+                TimeSpan.Zero),
+            PolicyEvidenceSchemaVersion: 1,
+            PolicyId: "approved-policy",
+            PolicyVersion: 3,
+            PolicyContentSha256: new string('a', 64),
+            RetentionPolicyId: "guest-retention",
+            RetentionPolicyVersion: 2,
+            OwnerReceiptContractVersion: 1,
+            OwnerReceiptId: Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            OwnerReceiptSha256: new string('b', 64),
+            PreviousEntrySha256:
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+            EntrySha256:
+                "465bcf7dbdf887dee1bfcaf8b57f066572a82246472fbe560980aadc7ea82d1c",
+            ReplayOfLedgerEntryId: null,
+            SupersedesLedgerEntryId: null,
+            ResultingRecordVersion: 5);
+
+        DataRightsProcessingLedgerEntry restored =
+            DataRightsProcessingLedgerEntry.Restore(snapshot).Value;
+
+        Assert.Equal(2, restored.ContractVersion);
+        Assert.Equal(5, restored.ResultingRecordVersion);
+        Assert.True(restored.HasValidCanonicalDigest());
+    }
+
+    [Fact]
+    public void Version_three_snapshot_freezes_scoped_policy_evidence()
+    {
+        DataRightsExecutionWorkItem workItem =
+            CreateStaffOwnerProofWorkItem();
+        DataRightsProcessingLedgerEntry entry =
+            DataRightsProcessingLedgerEntry.Create(
+                Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                tenantSequence: 1,
+                workItem,
+                DataRightsRecordPseudonym.Create(
+                    3,
+                    new string('c', 64)).Value,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256).Value;
+        DataRightsProcessingLedgerSnapshot snapshot = entry.Freeze();
+
+        Assert.Equal(
+            DataRightsProcessingLedgerEntry.CurrentContractVersion,
+            entry.ContractVersion);
+        Assert.Equal(DataRightsCaseKind.StaffRights, entry.CaseKind);
+        Assert.Equal(DataRightsCaseScopeKind.Tenant, entry.ScopeKind);
+        Assert.Null(entry.RoutingPropertyId);
+        Assert.Equal(0, entry.PolicyPropertyVersion);
+        Assert.Equal("GB", entry.PolicyOperatingCountryCode);
+        Assert.Equal(
+            workItem.PolicyStateBindingsJson,
+            entry.PolicyStateBindingsJson);
+        Assert.Equal(
+            workItem.PolicyStateBindingsSha256,
+            entry.PolicyStateBindingsSha256);
+        Assert.Equal(
+            "4a78aac8d4cb58bbfd453cde158ac29142b4391493d19ce7223b4e44fea155d4",
+            entry.EntrySha256);
+        Assert.True(entry.MatchesExecutionProof(workItem));
+        Assert.False(entry.MatchesExecutionProof(
+            CreateStaffOwnerProofWorkItem("US")));
+        Assert.Equal(
+            snapshot,
+            DataRightsProcessingLedgerEntry.Restore(snapshot).Value.Freeze());
+        Assert.True(DataRightsProcessingLedgerEntry.Restore(
+            snapshot with
+            {
+                RoutingPropertyId =
+                    Guid.Parse("99999999-9999-9999-9999-999999999999")
+            }).IsFailure);
+        Assert.True(DataRightsProcessingLedgerEntry.Restore(
+            snapshot with { PolicyOperatingCountryCode = "US" }).IsFailure);
+        Assert.True(DataRightsProcessingLedgerEntry.Restore(
+            snapshot with
+            {
+                PolicyStateBindingsJson = "[null]",
+                PolicyStateBindingsSha256 = new string('f', 64)
+            }).IsFailure);
     }
 
     [Fact]
@@ -257,7 +367,7 @@ public sealed class DataRightsProcessingLedgerEntryTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
-            propertyId,
+            DataRightsExecutionScope.ForProperty(propertyId),
             approvalRevision: 6,
             executionRevision: 7,
             DataRightsCaseOperation.Anonymisation,
@@ -265,5 +375,87 @@ public sealed class DataRightsProcessingLedgerEntryTests
             policy,
             "user:executor",
             Now.AddMinutes(1)).Value;
+    }
+
+    private static DataRightsExecutionWorkItem
+        CreateStaffOwnerProofWorkItem(string operatingCountryCode = "GB")
+    {
+        DataRightsSubjectCoordinate subject =
+            DataRightsSubjectCoordinate.Create(
+                "staff",
+                "staff-member",
+                Guid.Parse(
+                    "66666666-6666-6666-6666-666666666666"),
+                8,
+                "user:selector",
+                Now).Value;
+        DataRightsApprovalPolicyEvidence policy =
+            DataRightsApprovalPolicyEvidence.CreateScoped(
+                DataRightsCaseKind.StaffRights,
+                DataRightsCaseScopeKind.Tenant,
+                propertyId: null,
+                propertyVersion: 0,
+                operatingCountryCode,
+                "approved-staff-policy",
+                3,
+                "staff-retention",
+                2,
+                new string('a', 64),
+                "staff-data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                "staff-employment",
+                "employment-ended",
+                Now.AddDays(-8),
+                Now.AddDays(-1),
+                Now,
+                [
+                    DataRightsApprovalEvidenceBinding.Create(
+                        "staff.record",
+                        8,
+                        new string('d', 64)).Value,
+                    DataRightsApprovalEvidenceBinding.Create(
+                        "staff.governance",
+                        2,
+                        new string('e', 64)).Value
+                ]).Value;
+        DataRightsExecutionWorkItem workItem =
+            DataRightsExecutionWorkItem.Prepare(
+                Guid.Parse(
+                    "22222222-2222-2222-2222-222222222222"),
+                "tenant-a",
+                Guid.Parse(
+                    "33333333-3333-3333-3333-333333333333"),
+                Guid.Parse(
+                    "44444444-4444-4444-4444-444444444444"),
+                Guid.Parse(
+                    "55555555-5555-5555-5555-555555555555"),
+                DataRightsExecutionScope.Staff,
+                approvalRevision: 6,
+                executionRevision: 7,
+                DataRightsCaseOperation.Anonymisation,
+                subject,
+                policy,
+                "user:executor",
+                Now.AddMinutes(1)).Value;
+        Guid taskRunId =
+            Guid.Parse("77777777-7777-7777-7777-777777777777");
+        Assert.True(workItem.BeginProcessing(
+            taskRunId,
+            taskAttempt: 1,
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.True(workItem.RecordOwnerProof(
+            workItem.Version,
+            taskRunId,
+            taskAttempt: 1,
+            receiptContractVersion: 1,
+            Guid.Parse("88888888-8888-8888-8888-888888888888"),
+            resultingRecordVersion: 9,
+            "staff.completed",
+            "staff.member-anonymised",
+            new string('b', 64),
+            Now.AddMinutes(3),
+            Now.AddMinutes(4)).IsSuccess);
+        return workItem;
     }
 }

@@ -14,6 +14,12 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
         builder.ToTable("execution_work_items", table =>
         {
             table.HasCheckConstraint(
+                "CK_data_rights_execution_work_items_scope",
+                "(\"CaseKind\" = 1 AND \"ScopeKind\" = 1 AND " +
+                "\"PropertyId\" IS NOT NULL) OR " +
+                "(\"CaseKind\" IN (2, 3) AND \"ScopeKind\" = 2 AND " +
+                "\"PropertyId\" IS NULL)");
+            table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_revisions",
                 "\"ApprovalRevision\" >= 1 AND \"ExecutionRevision\" > \"ApprovalRevision\"");
             table.HasCheckConstraint(
@@ -25,11 +31,38 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
                 "length(trim(\"RecordType\")) > 0 AND \"SelectedRecordVersion\" >= 1");
             table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_policy",
-                "\"PolicyEvidenceSchemaVersion\" = 1 AND " +
+                "\"PolicyEvidenceSchemaVersion\" IN (1, 2) AND " +
+                "\"PolicyPropertyVersion\" >= 0 AND " +
+                $"char_length(\"PolicyOperatingCountryCode\") = {DataRightsApprovalPolicyEvidence.CountryCodeLength} AND " +
                 "length(trim(\"PolicyId\")) > 0 AND \"PolicyVersion\" >= 1 AND " +
                 "length(trim(\"RetentionPolicyId\")) > 0 AND " +
                 "\"RetentionPolicyVersion\" >= 1 AND " +
-                $"char_length(\"PolicyContentSha256\") = {DataRightsApprovalPolicyEvidence.ContentSha256Length}");
+                $"char_length(\"PolicyContentSha256\") = {DataRightsApprovalPolicyEvidence.ContentSha256Length} AND " +
+                "length(trim(\"PolicyPurposeCode\")) > 0 AND " +
+                "\"PolicySurface\" = 'erasure' AND " +
+                "length(trim(\"PolicySourceProvenance\")) > 0 AND " +
+                "\"PolicyEvaluatedAtUtc\" IS NOT NULL AND " +
+                "length(\"PolicyStateBindingsJson\") > 0 AND " +
+                $"length(\"PolicyStateBindingsJson\") <= {DataRightsApprovalPolicyEvidence.StateBindingsJsonMaxLength} AND " +
+                $"char_length(\"PolicyStateBindingsSha256\") = {DataRightsApprovalPolicyEvidence.ContentSha256Length} AND " +
+                "\"PolicyRequiresDistinctExecutor\" AND " +
+                "((\"PolicyEvidenceSchemaVersion\" = 1 AND " +
+                "\"CaseKind\" = 1 AND \"ScopeKind\" = 1 AND " +
+                "\"PolicyPropertyVersion\" >= 1 AND " +
+                "\"PolicyRetentionDataClass\" = '' AND " +
+                "\"PolicyRetentionTrigger\" = '' AND " +
+                "\"PolicyRetentionTriggeredAtUtc\" IS NULL AND " +
+                "\"PolicyRetentionDeadlineUtc\" IS NULL) OR " +
+                "(\"PolicyEvidenceSchemaVersion\" = 2 AND " +
+                "((\"ScopeKind\" = 1 AND \"PolicyPropertyVersion\" >= 1) OR " +
+                "(\"ScopeKind\" = 2 AND \"PolicyPropertyVersion\" = 0)) AND " +
+                "length(trim(\"PolicyRetentionDataClass\")) > 0 AND " +
+                "length(trim(\"PolicyRetentionTrigger\")) > 0 AND " +
+                "\"PolicyRetentionTriggeredAtUtc\" IS NOT NULL AND " +
+                "\"PolicyRetentionDeadlineUtc\" > " +
+                    "\"PolicyRetentionTriggeredAtUtc\" AND " +
+                "\"PolicyRetentionDeadlineUtc\" <= " +
+                    "\"PolicyEvaluatedAtUtc\"))");
             table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_state",
                 "\"State\" BETWEEN 1 AND 7");
@@ -89,6 +122,12 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
         builder.Property(workItem => workItem.ScopeId)
             .HasMaxLength(128)
             .IsRequired();
+        builder.Property(workItem => workItem.CaseKind)
+            .HasConversion<int>()
+            .IsRequired();
+        builder.Property(workItem => workItem.ScopeKind)
+            .HasConversion<int>()
+            .IsRequired();
         builder.Property(workItem => workItem.Operation)
             .HasConversion<int>()
             .IsRequired();
@@ -101,12 +140,39 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
         builder.Property(workItem => workItem.PolicyId)
             .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength)
             .IsRequired();
+        builder.Property(workItem => workItem.PolicyOperatingCountryCode)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.CountryCodeLength)
+            .IsFixedLength()
+            .IsRequired();
         builder.Property(workItem => workItem.RetentionPolicyId)
             .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength)
             .IsRequired();
         builder.Property(workItem => workItem.PolicyContentSha256)
             .HasMaxLength(DataRightsApprovalPolicyEvidence.ContentSha256Length)
             .IsFixedLength()
+            .IsRequired();
+        builder.Property(workItem => workItem.PolicyPurposeCode)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength)
+            .IsRequired();
+        builder.Property(workItem => workItem.PolicySurface)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength)
+            .IsRequired();
+        builder.Property(workItem => workItem.PolicySourceProvenance)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength)
+            .IsRequired();
+        builder.Property(workItem => workItem.PolicyRetentionDataClass)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength)
+            .IsRequired();
+        builder.Property(workItem => workItem.PolicyRetentionTrigger)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength)
+            .IsRequired();
+        builder.Property(workItem => workItem.PolicyStateBindingsSha256)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.ContentSha256Length)
+            .IsFixedLength()
+            .IsRequired();
+        builder.Property(workItem => workItem.PolicyStateBindingsJson)
+            .HasMaxLength(
+                DataRightsApprovalPolicyEvidence.StateBindingsJsonMaxLength)
             .IsRequired();
         builder.Property(workItem => workItem.State)
             .HasConversion<int>()
@@ -153,6 +219,8 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
         builder.HasIndex(workItem => new
         {
             workItem.ScopeId,
+            workItem.CaseKind,
+            workItem.ScopeKind,
             workItem.PropertyId,
             workItem.State,
             workItem.CreatedAtUtc,

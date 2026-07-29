@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.DataRights.Application.Ports;
 
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 
 public interface IDataRightsExecutionBatchRepository
@@ -9,7 +10,7 @@ public interface IDataRightsExecutionBatchRepository
         CancellationToken cancellationToken);
 
     Task<DataRightsExecutionBatch?> GetByCaseAsync(
-        Guid propertyId,
+        DataRightsCaseScope scope,
         Guid caseId,
         CancellationToken cancellationToken);
 }

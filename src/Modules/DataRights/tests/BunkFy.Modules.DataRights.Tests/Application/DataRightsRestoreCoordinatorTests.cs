@@ -82,6 +82,62 @@ public sealed class DataRightsRestoreCoordinatorTests
         Assert.Equal(ledger.ResultingRecordVersion, contributor.ResultingRecordVersion);
     }
 
+    [Fact]
+    public async Task Version_three_fails_closed_before_replay_envelope_decryption()
+    {
+        HmacDataRightsRecordPseudonymizer pseudonymizer =
+            ProtectedLedgerTestData.CreatePseudonymizer((1, 'a'));
+        AesGcmDataRightsReplayEnvelopeProtector envelopeProtector =
+            ProtectedLedgerTestData.CreateProtector(
+                pseudonymizer,
+                activeKeyVersion: 1,
+                (1, 'r'));
+        Guid recordId = Guid.NewGuid();
+        DataRightsProcessingLedgerEntry ledger =
+            ProtectedLedgerTestData.CreateStaffLedger(
+                pseudonymizer,
+                "tenant-a",
+                sequence: 1,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+                recordId);
+        DataRightsLedgerDeltaCursor targetCursor = new(
+            TenantSequence: 1,
+            ledger.EntrySha256,
+            StorageMacSha256: new string('c', 64));
+        List<string> calls = [];
+        StubReplayProtector replayProtector = new(recordId);
+        DataRightsRestoreCoordinator coordinator = new(
+            new RecordingDispatcher(targetCursor, calls),
+            new StubDeltaStore(
+                ProtectedLedgerTestData.CreateDelta(
+                    envelopeProtector,
+                    ledger,
+                    recordId),
+                targetCursor,
+                calls),
+            replayProtector,
+            [],
+            new TestScopeContext(),
+            new FixedTimeProvider(
+                ProtectedLedgerTestData.Now.AddHours(2)));
+
+        Result<Unit> result = await coordinator.ReconcileAsync(
+            new DataRightsRestoreScope(
+                DataRightsRestoreScope.CurrentContractVersion,
+                "tenant-a",
+                new DataRightsLedgerDeltaCheckpoint(
+                    DataRightsLedgerDeltaCheckpoint.CurrentContractVersion,
+                    targetCursor,
+                    IntegrityKeyVersion: 1,
+                    CheckpointMacSha256: new string('d', 64))),
+            scopeSnapshotSha256: new string('e', 64),
+            CancellationToken.None);
+
+        Assert.Equal("DataRights.RestoreOwnerUnavailable", result.Error.Code);
+        Assert.Equal(["query", "read", "prepare"], calls);
+        Assert.Equal(0, replayProtector.UnprotectCount);
+    }
+
     private sealed class RecordingDispatcher(
         DataRightsLedgerDeltaCursor target,
         List<string> calls)
@@ -180,10 +236,15 @@ public sealed class DataRightsRestoreCoordinatorTests
     private sealed class StubReplayProtector(Guid recordId)
         : IDataRightsReplayEnvelopeProtector
     {
+        public int UnprotectCount { get; private set; }
+
         public Result<Guid> Unprotect(
             DataRightsProcessingLedgerSnapshot ledger,
-            DataRightsProtectedReplayEnvelope envelope) =>
-            Result.Success(recordId);
+            DataRightsProtectedReplayEnvelope envelope)
+        {
+            this.UnprotectCount++;
+            return Result.Success(recordId);
+        }
 
         public Result<DataRightsProtectedReplayEnvelope> Protect(
             DataRightsProcessingLedgerSnapshot ledger,

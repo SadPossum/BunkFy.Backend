@@ -86,7 +86,7 @@ public sealed class DataRightsModelTests
                 constraint => constraint.Name == "CK_data_rights_cases_kind").Sql);
         Assert.Equal(
             "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
-            "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4))",
+            "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4, 16))",
             designEntity.GetCheckConstraints().Single(
                 constraint => constraint.Name == "CK_data_rights_cases_operations").Sql);
         Assert.Equal(
@@ -199,6 +199,14 @@ public sealed class DataRightsModelTests
             constraint =>
                 constraint.Name ==
                 "CK_data_rights_execution_batches_subject_count");
+        Assert.Contains(
+            designBatch.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_execution_batches_scope");
+        Assert.True(
+            batch.FindProperty(nameof(DataRightsExecutionBatch.PropertyId))!
+                .IsNullable);
         IEntityType workItem =
             dbContext.Model.FindEntityType(typeof(DataRightsExecutionWorkItem))!;
         IEntityType designWorkItem = dbContext.GetService<IDesignTimeModel>()
@@ -226,6 +234,28 @@ public sealed class DataRightsModelTests
             DataRightsExecutionWorkItem.OutcomeCodeMaxLength,
             workItem.FindProperty(nameof(DataRightsExecutionWorkItem.OutcomeCode))!
                 .GetMaxLength());
+        Assert.Equal(
+            DataRightsApprovalPolicyEvidence.CountryCodeLength,
+            workItem.FindProperty(
+                nameof(DataRightsExecutionWorkItem.PolicyOperatingCountryCode))!
+                .GetMaxLength());
+        Assert.Equal(
+            DataRightsApprovalPolicyEvidence.StateBindingsJsonMaxLength,
+            workItem.FindProperty(
+                nameof(DataRightsExecutionWorkItem.PolicyStateBindingsJson))!
+                .GetMaxLength());
+        Assert.Equal(
+            DataRightsApprovalPolicyEvidence.ContentSha256Length,
+            workItem.FindProperty(
+                nameof(DataRightsExecutionWorkItem.PolicyStateBindingsSha256))!
+                .GetMaxLength());
+        Assert.True(
+            workItem.FindProperty(
+                nameof(DataRightsExecutionWorkItem.PropertyId))!.IsNullable);
+        Assert.False(
+            workItem.FindProperty(
+                nameof(DataRightsExecutionWorkItem.PolicyStateBindingsJson))!
+                .IsNullable);
         Assert.Contains(workItem.GetIndexes(), index =>
             index.IsUnique &&
             index.Properties.Select(item => item.Name).SequenceEqual([
@@ -255,6 +285,9 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designWorkItem.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_execution_work_items_policy");
+        Assert.Contains(
+            designWorkItem.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_execution_work_items_scope");
         Assert.Contains(
             designWorkItem.GetCheckConstraints(),
             constraint => constraint.Name == "CK_data_rights_execution_work_items_state");
@@ -809,6 +842,150 @@ public sealed class DataRightsModelTests
     }
 
     [Fact]
+    public async Task Staff_anonymisation_evidence_round_trips_in_tenant_scope()
+    {
+        string databaseName =
+            $"data-rights-staff-evidence-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DateTimeOffset now =
+            new(2026, 7, 29, 12, 0, 0, TimeSpan.Zero);
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            now).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator",
+            now.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            8,
+            2,
+            "user:operator",
+            now.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            3,
+            "user:operator",
+            now.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            4,
+            "user:decision-maker",
+            now.AddMinutes(4)).IsSuccess);
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.CreateScoped(
+                DataRightsCaseKind.StaffRights,
+                DataRightsCaseScopeKind.Tenant,
+                propertyId: null,
+                propertyVersion: 0,
+                "GB",
+                "approved-staff-policy",
+                3,
+                "staff-retention",
+                2,
+                new string('c', 64),
+                "staff-data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                "staff-employment",
+                "employment-ended",
+                now.AddDays(-8),
+                now.AddDays(-1),
+                now.AddMinutes(5),
+                [
+                    DataRightsApprovalEvidenceBinding.Create(
+                        "staff.record",
+                        8,
+                        new string('d', 64)).Value,
+                    DataRightsApprovalEvidenceBinding.Create(
+                        "staff.governance",
+                        2,
+                        new string('e', 64)).Value
+                ]).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            5,
+            "user:decision-maker",
+            now.AddMinutes(5),
+            evidence).IsSuccess);
+        Assert.True(dataRightsCase.BeginAnonymisationExecution(
+            6,
+            "user:executor",
+            now.AddMinutes(6)).IsSuccess);
+        DataRightsExecutionWorkItem workItem =
+            DataRightsExecutionWorkItem.Prepare(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                dataRightsCase.Id,
+                DataRightsExecutionScope.Staff,
+                approvalRevision: 6,
+                executionRevision: 7,
+                DataRightsCaseOperation.Anonymisation,
+                Assert.Single(dataRightsCase.SelectedSubjects),
+                evidence,
+                "user:executor",
+                now.AddMinutes(6)).Value;
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            writer.ExecutionWorkItems.Add(workItem);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        DataRightsApprovalPolicyEvidence restoredEvidence =
+            Assert.IsType<DataRightsApprovalPolicyEvidence>(
+                restored.ApprovalPolicyEvidence);
+        Assert.True(restoredEvidence.HasValidShape());
+        Assert.Equal(
+            DataRightsCaseKind.StaffRights,
+            restoredEvidence.CaseKind);
+        Assert.Equal(
+            DataRightsCaseScopeKind.Tenant,
+            restoredEvidence.ScopeKind);
+        Assert.Null(restoredEvidence.PropertyId);
+        Assert.Equal(
+            ["staff.governance", "staff.record"],
+            restoredEvidence.StateBindings.Select(binding => binding.Key));
+        Assert.Equal(
+            evidence.StateBindingsSha256,
+            restoredEvidence.StateBindingsSha256);
+        DataRightsExecutionWorkItem restoredWorkItem =
+            await reader.ExecutionWorkItems.SingleAsync();
+        Assert.Equal(
+            DataRightsCaseKind.StaffRights,
+            restoredWorkItem.CaseKind);
+        Assert.Equal(
+            DataRightsCaseScopeKind.Tenant,
+            restoredWorkItem.ScopeKind);
+        Assert.Null(restoredWorkItem.PropertyId);
+        Assert.Equal(
+            evidence.StateBindingsJson,
+            restoredWorkItem.PolicyStateBindingsJson);
+        Assert.True(restoredWorkItem.MatchesPolicyEvidence(
+            restoredEvidence));
+    }
+
+    [Fact]
     public async Task Prepared_anonymisation_execution_round_trips_and_is_tenant_isolated()
     {
         string databaseName = $"data-rights-execution-{Guid.NewGuid():N}";
@@ -841,6 +1018,12 @@ public sealed class DataRightsModelTests
             Assert.Equal(restoredCase.Id, restoredWorkItem.CaseId);
             Assert.Equal(restoredCase.ExecutionRevision, restoredWorkItem.ExecutionRevision);
             Assert.Equal("approved-policy", restoredWorkItem.PolicyId);
+            Assert.Equal(12, restoredWorkItem.PolicyPropertyVersion);
+            Assert.Equal("GB", restoredWorkItem.PolicyOperatingCountryCode);
+            Assert.True(restoredWorkItem.PolicyRequiresDistinctExecutor);
+            Assert.True(restoredWorkItem.MatchesPolicyEvidence(
+                Assert.IsType<DataRightsApprovalPolicyEvidence>(
+                    restoredCase.ApprovalPolicyEvidence)));
         }
 
         await using DataRightsDbContext tenantB = CreateDbContext(
@@ -917,6 +1100,25 @@ public sealed class DataRightsModelTests
                 designEntity.GetCheckConstraints(),
                 constraint =>
                     constraint.Name == "CK_data_rights_processing_ledger_chain");
+            Assert.Contains(
+                designEntity.GetCheckConstraints(),
+                constraint =>
+                    constraint.Name ==
+                    "CK_data_rights_processing_ledger_scope");
+            Assert.Contains(
+                designEntity.GetCheckConstraints(),
+                constraint =>
+                    constraint.Name ==
+                    "CK_data_rights_processing_ledger_policy");
+            Assert.True(
+                entity.FindProperty(
+                    nameof(DataRightsProcessingLedgerEntry.RoutingPropertyId))!
+                    .IsNullable);
+            Assert.Equal(
+                DataRightsApprovalPolicyEvidence.StateBindingsJsonMaxLength,
+                entity.FindProperty(
+                    nameof(DataRightsProcessingLedgerEntry.PolicyStateBindingsJson))!
+                    .GetMaxLength());
             Assert.Empty(entity.GetForeignKeys());
 
             writer.Cases.Add(dataRightsCase);
@@ -1051,7 +1253,7 @@ public sealed class DataRightsModelTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             dataRightsCase.Id,
-            propertyId,
+            DataRightsExecutionScope.ForProperty(propertyId),
             6,
             7,
             DataRightsCaseOperation.Anonymisation,

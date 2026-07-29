@@ -95,7 +95,8 @@ public sealed class DataRightsCaseRequest
         if (kind == DataRightsCaseKind.StaffRights &&
             requestedOperations is not DataRightsCaseOperation.AccessExport
                 and not DataRightsCaseOperation.Correction
-                and not DataRightsCaseOperation.Restriction)
+                and not DataRightsCaseOperation.Restriction
+                and not DataRightsCaseOperation.Anonymisation)
         {
             return Result.Failure<DataRightsCaseRequest>(
                 DataRightsDomainErrors.StaffRightsOperationsInvalid);

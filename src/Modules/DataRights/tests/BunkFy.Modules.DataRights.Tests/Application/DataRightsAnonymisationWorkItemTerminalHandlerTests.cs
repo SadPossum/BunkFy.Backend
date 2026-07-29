@@ -61,7 +61,7 @@ public sealed class DataRightsAnonymisationWorkItemTerminalHandlerTests
             fixture.Batch.Id,
             workItem.Id,
             fixture.Case.Id,
-            fixture.Batch.PropertyId,
+            fixture.Batch.PropertyId!.Value,
             fixture.Batch.ExecutionRevision);
 
     private static ExecutionFixture CreateFixture()
@@ -137,7 +137,7 @@ public sealed class DataRightsAnonymisationWorkItemTerminalHandlerTests
             dataRightsCase.ScopeId,
             Guid.NewGuid(),
             dataRightsCase.Id,
-            propertyId,
+            DataRightsExecutionScope.ForProperty(propertyId),
             approvalRevision: 7,
             executionRevision: 8,
             selectedSubjectCount: 2,
@@ -151,7 +151,7 @@ public sealed class DataRightsAnonymisationWorkItemTerminalHandlerTests
                 batch.Id,
                 Guid.NewGuid(),
                 dataRightsCase.Id,
-                propertyId,
+                DataRightsExecutionScope.ForProperty(propertyId),
                 approvalRevision: 7,
                 executionRevision: 8,
                 DataRightsCaseOperation.Anonymisation,
@@ -228,11 +228,13 @@ public sealed class DataRightsAnonymisationWorkItemTerminalHandlerTests
             throw new NotSupportedException();
 
         public Task<DataRightsExecutionBatch?> GetByCaseAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                batch.PropertyId == propertyId && batch.CaseId == caseId
+                batch.CaseKind == (DataRightsCaseKind)scope.CaseType &&
+                batch.PropertyId == scope.PropertyId &&
+                batch.CaseId == caseId
                     ? batch
                     : null);
     }
@@ -247,25 +249,28 @@ public sealed class DataRightsAnonymisationWorkItemTerminalHandlerTests
             throw new NotSupportedException();
 
         public Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             Guid batchId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
                 (IReadOnlyCollection<DataRightsExecutionWorkItem>)workItems
                     .Where(item =>
-                        item.PropertyId == propertyId &&
+                        item.CaseKind ==
+                            (DataRightsCaseKind)scope.CaseType &&
+                        item.PropertyId == scope.PropertyId &&
                         item.CaseId == caseId &&
                         item.BatchId == batchId)
                     .ToArray());
 
         public Task<DataRightsExecutionWorkItem?> GetAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             Guid workItemId,
             CancellationToken cancellationToken) =>
             Task.FromResult(workItems.SingleOrDefault(item =>
-                item.PropertyId == propertyId &&
+                item.CaseKind == (DataRightsCaseKind)scope.CaseType &&
+                item.PropertyId == scope.PropertyId &&
                 item.CaseId == caseId &&
                 item.Id == workItemId));
     }

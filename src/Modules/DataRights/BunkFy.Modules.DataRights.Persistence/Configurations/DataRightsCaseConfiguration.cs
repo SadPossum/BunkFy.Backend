@@ -17,7 +17,7 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             table.HasCheckConstraint(
                 "CK_data_rights_cases_operations",
                 "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
-                "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4))");
+                "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4, 16))");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_restriction_directive",
                 "((\"RequestedOperations\" & 4) = 0 AND \"RestrictionDirective\" = 0) OR " +
@@ -85,24 +85,65 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             table.HasCheckConstraint(
                 "CK_data_rights_cases_approval_policy_evidence",
                 "(\"Decision\" = 1 AND \"RequestedOperations\" = 16 AND " +
-                "\"ApprovalEvidenceSchemaVersion\" = 1 AND " +
-                "\"ApprovalEvidencePropertyId\" = \"PropertyId\" AND " +
-                "\"ApprovalEvidencePropertyVersion\" > 0 AND " +
+                "\"ApprovalEvidenceSchemaVersion\" IN (1, 2) AND " +
+                "\"ApprovalEvidenceCaseKind\" = \"Kind\" AND " +
                 "\"ApprovalEvidenceOperatingCountryCode\" IS NOT NULL AND " +
                 "char_length(\"ApprovalEvidenceOperatingCountryCode\") = 2 AND " +
                 "\"ApprovalEvidencePolicyId\" IS NOT NULL AND " +
+                "length(trim(\"ApprovalEvidencePolicyId\")) > 0 AND " +
                 "\"ApprovalEvidencePolicyVersion\" > 0 AND " +
                 "\"ApprovalEvidenceRetentionPolicyId\" IS NOT NULL AND " +
+                "length(trim(\"ApprovalEvidenceRetentionPolicyId\")) > 0 AND " +
                 "\"ApprovalEvidenceRetentionPolicyVersion\" > 0 AND " +
                 "\"ApprovalEvidenceContentSha256\" IS NOT NULL AND " +
                 "char_length(\"ApprovalEvidenceContentSha256\") = 64 AND " +
-                "\"ApprovalEvidencePurposeCode\" = 'data-rights-anonymisation' AND " +
+                "\"ApprovalEvidencePurposeCode\" IS NOT NULL AND " +
+                "length(trim(\"ApprovalEvidencePurposeCode\")) > 0 AND " +
                 "\"ApprovalEvidenceSurface\" = 'erasure' AND " +
-                "\"ApprovalEvidenceSourceProvenance\" = 'authorized-workspace-operator' AND " +
+                "\"ApprovalEvidenceSourceProvenance\" IS NOT NULL AND " +
+                "length(trim(\"ApprovalEvidenceSourceProvenance\")) > 0 AND " +
                 "\"ApprovalEvidenceEvaluatedAtUtc\" IS NOT NULL AND " +
-                "\"ApprovalEvidenceRequiresDistinctExecutor\" = TRUE) OR " +
+                "\"ApprovalEvidenceRequiresDistinctExecutor\" = TRUE AND " +
+                "((\"ApprovalEvidenceSchemaVersion\" = 1 AND " +
+                "\"Kind\" = 1 AND \"ApprovalEvidenceScopeKind\" = 1 AND " +
+                "\"ApprovalEvidencePropertyId\" = \"PropertyId\" AND " +
+                "\"ApprovalEvidencePropertyVersion\" > 0 AND " +
+                "\"ApprovalEvidencePurposeCode\" = 'data-rights-anonymisation' AND " +
+                "\"ApprovalEvidenceSourceProvenance\" = " +
+                    "'authorized-workspace-operator' AND " +
+                "\"ApprovalEvidenceRetentionDataClass\" = '' AND " +
+                "\"ApprovalEvidenceRetentionTrigger\" = '' AND " +
+                "\"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NULL AND " +
+                "\"ApprovalEvidenceRetentionDeadlineUtc\" IS NULL AND " +
+                "\"ApprovalEvidenceStateBindingsJson\" = '[]' AND " +
+                "\"ApprovalEvidenceStateBindingsSha256\" IS NOT NULL AND " +
+                "char_length(\"ApprovalEvidenceStateBindingsSha256\") = 64) OR " +
+                "(\"ApprovalEvidenceSchemaVersion\" = 2 AND " +
+                "((\"Kind\" = 1 AND \"ApprovalEvidenceScopeKind\" = 1 AND " +
+                "\"ApprovalEvidencePropertyId\" = \"PropertyId\" AND " +
+                "\"ApprovalEvidencePropertyVersion\" > 0) OR " +
+                "(\"Kind\" IN (2, 3) AND " +
+                "\"ApprovalEvidenceScopeKind\" = 2 AND " +
+                "\"PropertyId\" IS NULL AND " +
+                "\"ApprovalEvidencePropertyId\" IS NULL AND " +
+                "\"ApprovalEvidencePropertyVersion\" = 0)) AND " +
+                "\"ApprovalEvidenceRetentionDataClass\" IS NOT NULL AND " +
+                "length(trim(\"ApprovalEvidenceRetentionDataClass\")) > 0 AND " +
+                "\"ApprovalEvidenceRetentionTrigger\" IS NOT NULL AND " +
+                "length(trim(\"ApprovalEvidenceRetentionTrigger\")) > 0 AND " +
+                "\"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NOT NULL AND " +
+                "\"ApprovalEvidenceRetentionDeadlineUtc\" > " +
+                    "\"ApprovalEvidenceRetentionTriggeredAtUtc\" AND " +
+                "\"ApprovalEvidenceRetentionDeadlineUtc\" <= " +
+                    "\"ApprovalEvidenceEvaluatedAtUtc\" AND " +
+                "\"ApprovalEvidenceStateBindingsJson\" IS NOT NULL AND " +
+                "char_length(\"ApprovalEvidenceStateBindingsJson\") > 2 AND " +
+                "\"ApprovalEvidenceStateBindingsSha256\" IS NOT NULL AND " +
+                "char_length(\"ApprovalEvidenceStateBindingsSha256\") = 64))) OR " +
                 "((\"Decision\" <> 1 OR \"RequestedOperations\" <> 16) AND " +
                 "\"ApprovalEvidenceSchemaVersion\" IS NULL AND " +
+                "\"ApprovalEvidenceCaseKind\" IS NULL AND " +
+                "\"ApprovalEvidenceScopeKind\" IS NULL AND " +
                 "\"ApprovalEvidencePropertyId\" IS NULL AND " +
                 "\"ApprovalEvidencePropertyVersion\" IS NULL AND " +
                 "\"ApprovalEvidenceOperatingCountryCode\" IS NULL AND " +
@@ -114,7 +155,13 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "\"ApprovalEvidencePurposeCode\" IS NULL AND " +
                 "\"ApprovalEvidenceSurface\" IS NULL AND " +
                 "\"ApprovalEvidenceSourceProvenance\" IS NULL AND " +
+                "\"ApprovalEvidenceRetentionDataClass\" IS NULL AND " +
+                "\"ApprovalEvidenceRetentionTrigger\" IS NULL AND " +
+                "\"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NULL AND " +
+                "\"ApprovalEvidenceRetentionDeadlineUtc\" IS NULL AND " +
                 "\"ApprovalEvidenceEvaluatedAtUtc\" IS NULL AND " +
+                "\"ApprovalEvidenceStateBindingsJson\" IS NULL AND " +
+                "\"ApprovalEvidenceStateBindingsSha256\" IS NULL AND " +
                 "\"ApprovalEvidenceRequiresDistinctExecutor\" IS NULL)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_restriction_execution_proof",
@@ -234,6 +281,12 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
         {
             evidence.Property(value => value.SchemaVersion)
                 .HasColumnName("ApprovalEvidenceSchemaVersion");
+            evidence.Property(value => value.CaseKind)
+                .HasColumnName("ApprovalEvidenceCaseKind")
+                .HasConversion<int>();
+            evidence.Property(value => value.ScopeKind)
+                .HasColumnName("ApprovalEvidenceScopeKind")
+                .HasConversion<int>();
             evidence.Property(value => value.PropertyId)
                 .HasColumnName("ApprovalEvidencePropertyId");
             evidence.Property(value => value.PropertyVersion)
@@ -263,10 +316,31 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             evidence.Property(value => value.SourceProvenance)
                 .HasColumnName("ApprovalEvidenceSourceProvenance")
                 .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.RetentionDataClass)
+                .HasColumnName("ApprovalEvidenceRetentionDataClass")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.RetentionTrigger)
+                .HasColumnName("ApprovalEvidenceRetentionTrigger")
+                .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+            evidence.Property(value => value.RetentionTriggeredAtUtc)
+                .HasColumnName("ApprovalEvidenceRetentionTriggeredAtUtc");
+            evidence.Property(value => value.RetentionDeadlineUtc)
+                .HasColumnName("ApprovalEvidenceRetentionDeadlineUtc");
             evidence.Property(value => value.EvaluatedAtUtc)
                 .HasColumnName("ApprovalEvidenceEvaluatedAtUtc");
+            evidence.Property(value => value.StateBindingsJson)
+                .HasColumnName("ApprovalEvidenceStateBindingsJson")
+                .HasMaxLength(
+                    DataRightsApprovalPolicyEvidence
+                        .StateBindingsJsonMaxLength);
+            evidence.Property(value => value.StateBindingsSha256)
+                .HasColumnName("ApprovalEvidenceStateBindingsSha256")
+                .HasMaxLength(
+                    DataRightsApprovalPolicyEvidence.ContentSha256Length)
+                .IsFixedLength();
             evidence.Property(value => value.RequiresDistinctExecutor)
                 .HasColumnName("ApprovalEvidenceRequiresDistinctExecutor");
+            evidence.Ignore(value => value.StateBindings);
         });
         builder.OwnsOne(dataRightsCase => dataRightsCase.RestrictionExecutionProof, proof =>
         {

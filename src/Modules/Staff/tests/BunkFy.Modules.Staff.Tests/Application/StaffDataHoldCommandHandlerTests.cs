@@ -294,6 +294,12 @@ public sealed class StaffDataHoldCommandHandlerTests
     {
         public int CallCount { get; private set; }
 
+        public Task<long?> GetStaffMemberRevisionAsync(
+            string tenantId,
+            Guid staffMemberId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<long?>(memberExists ? 1 : null);
+
         public Task<bool> TryAcquireStaffMemberAsync(
             string tenantId,
             Guid staffMemberId,

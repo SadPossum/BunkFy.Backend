@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.DataRights.Tests.Domain;
 
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -16,13 +18,15 @@ public sealed class DataRightsExecutionBatchTests
         Guid idempotencyKey = Guid.NewGuid();
         Guid caseId = Guid.NewGuid();
         Guid propertyId = Guid.NewGuid();
+        DataRightsExecutionScope executionScope =
+            DataRightsExecutionScope.ForProperty(propertyId);
 
         DataRightsExecutionBatch batch = DataRightsExecutionBatch.Prepare(
             id,
             " tenant-a ",
             idempotencyKey,
             caseId,
-            propertyId,
+            executionScope,
             approvalRevision: 7,
             executionRevision: 8,
             selectedSubjectCount: 3,
@@ -32,8 +36,16 @@ public sealed class DataRightsExecutionBatchTests
         Assert.Equal("tenant-a", batch.ScopeId);
         Assert.Equal(3, batch.SelectedSubjectCount);
         Assert.Equal("user:executor", batch.CreatedBy);
-        Assert.True(batch.Matches(idempotencyKey, caseId, propertyId, 8));
-        Assert.False(batch.Matches(Guid.NewGuid(), caseId, propertyId, 8));
+        Assert.True(batch.Matches(
+            idempotencyKey,
+            caseId,
+            executionScope,
+            8));
+        Assert.False(batch.Matches(
+            Guid.NewGuid(),
+            caseId,
+            executionScope,
+            8));
     }
 
     [Theory]
@@ -48,11 +60,40 @@ public sealed class DataRightsExecutionBatchTests
                 "tenant-a",
                 Guid.NewGuid(),
                 Guid.NewGuid(),
-                Guid.NewGuid(),
+                DataRightsExecutionScope.ForProperty(Guid.NewGuid()),
                 approvalRevision: 7,
                 executionRevision: 8,
                 selectedSubjectCount,
                 "user:executor",
                 Now).Error.Code);
+    }
+
+    [Fact]
+    public void Preparation_supports_staff_tenant_scope()
+    {
+        DataRightsExecutionBatch batch = DataRightsExecutionBatch.Prepare(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            DataRightsExecutionScope.Staff,
+            approvalRevision: 7,
+            executionRevision: 8,
+            selectedSubjectCount: 1,
+            "user:executor",
+            Now).Value;
+
+        Assert.Equal(
+            DataRightsCaseKind.StaffRights,
+            batch.CaseKind);
+        Assert.Equal(
+            DataRightsCaseScopeKind.Tenant,
+            batch.ScopeKind);
+        Assert.Null(batch.PropertyId);
+        Assert.True(batch.Matches(
+            batch.IdempotencyKey,
+            batch.CaseId,
+            DataRightsExecutionScope.Staff,
+            batch.ExecutionRevision));
     }
 }

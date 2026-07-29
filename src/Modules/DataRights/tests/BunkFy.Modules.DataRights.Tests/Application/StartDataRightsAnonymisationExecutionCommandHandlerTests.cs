@@ -44,7 +44,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
 
         Result<DataRightsExecutionDto> result = await handler.HandleAsync(
             new(
-                dataRightsCase.PropertyId!.Value,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
                 dataRightsCase.Id,
                 idempotencyKey,
                 6,
@@ -106,7 +107,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
 
         Result<DataRightsExecutionDto> result = await handler.HandleAsync(
             new(
-                dataRightsCase.PropertyId!.Value,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
                 dataRightsCase.Id,
                 Guid.NewGuid(),
                 dataRightsCase.Version,
@@ -149,7 +151,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
             gate,
             Guid.NewGuid());
         StartDataRightsAnonymisationExecutionCommand command = new(
-            dataRightsCase.PropertyId!.Value,
+            DataRightsCaseScope.ForProperty(
+                dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
             idempotencyKey,
             6,
@@ -185,7 +188,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
 
         Assert.True((await handler.HandleAsync(
             new(
-                dataRightsCase.PropertyId!.Value,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
                 dataRightsCase.Id,
                 Guid.NewGuid(),
                 6,
@@ -193,7 +197,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
             CancellationToken.None)).IsSuccess);
         Result<DataRightsExecutionDto> conflict = await handler.HandleAsync(
             new(
-                dataRightsCase.PropertyId!.Value,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
                 dataRightsCase.Id,
                 Guid.NewGuid(),
                 6,
@@ -221,7 +226,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
 
         Result<DataRightsExecutionDto> result = await handler.HandleAsync(
             new(
-                dataRightsCase.PropertyId!.Value,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
                 dataRightsCase.Id,
                 Guid.NewGuid(),
                 6,
@@ -232,6 +238,79 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         Assert.Equal(DataRightsApplicationErrors.AnonymisationExecutionDenied.Code, result.Error.Code);
         Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
         Assert.Null(dataRightsCase.ExecutionRevision);
+        Assert.Empty(workItems.Added);
+    }
+
+    [Fact]
+    public async Task Scope_confused_approval_evidence_fails_closed()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedAnonymisation();
+        DataRightsApprovalEvidence confused =
+            dataRightsCase.ToApprovalEvidence()! with
+            {
+                CaseType = DataRightsCaseType.StaffRights,
+                ScopeKind = DataRightsExecutionScopeKind.Tenant
+            };
+        StubWorkItemRepository workItems = new();
+        StartDataRightsAnonymisationExecutionCommandHandler handler =
+            CreateHandler(
+                dataRightsCase,
+                workItems,
+                new RecordingApprovalGate(
+                    DataRightsOperationApprovalResult
+                        .ApprovedWithEvidence(confused)),
+                Guid.NewGuid());
+
+        Result<DataRightsExecutionDto> result = await handler.HandleAsync(
+            new(
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
+                dataRightsCase.Id,
+                Guid.NewGuid(),
+                dataRightsCase.Version,
+                "user:executor"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors.AnonymisationExecutionDenied,
+            result.Error);
+        Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
+        Assert.Empty(workItems.Added);
+    }
+
+    [Fact]
+    public async Task Contradictory_legacy_binding_digest_fails_closed()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedAnonymisation();
+        DataRightsApprovalEvidence contradictory =
+            dataRightsCase.ToApprovalEvidence()! with
+            {
+                StateBindingsSha256 = new string('f', 64)
+            };
+        StubWorkItemRepository workItems = new();
+        StartDataRightsAnonymisationExecutionCommandHandler handler =
+            CreateHandler(
+                dataRightsCase,
+                workItems,
+                new RecordingApprovalGate(
+                    DataRightsOperationApprovalResult
+                        .ApprovedWithEvidence(contradictory)),
+                Guid.NewGuid());
+
+        Result<DataRightsExecutionDto> result = await handler.HandleAsync(
+            new(
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
+                dataRightsCase.Id,
+                Guid.NewGuid(),
+                dataRightsCase.Version,
+                "user:executor"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors.AnonymisationExecutionDenied,
+            result.Error);
+        Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
         Assert.Empty(workItems.Added);
     }
 
@@ -363,25 +442,29 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         }
 
         public Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             Guid batchId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
                 (IReadOnlyCollection<DataRightsExecutionWorkItem>)this.Added
                     .Where(item =>
-                        item.PropertyId == propertyId &&
+                        item.CaseKind ==
+                            (DataRightsCaseKind)scope.CaseType &&
+                        item.PropertyId == scope.PropertyId &&
                         item.CaseId == caseId &&
                         item.BatchId == batchId)
                     .ToArray());
 
         public Task<DataRightsExecutionWorkItem?> GetAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             Guid workItemId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                this.Item?.PropertyId == propertyId &&
+                this.Item?.CaseKind ==
+                    (DataRightsCaseKind)scope.CaseType &&
+                this.Item.PropertyId == scope.PropertyId &&
                 this.Item.CaseId == caseId &&
                 this.Item.Id == workItemId
                     ? this.Item
@@ -429,11 +512,14 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         }
 
         public Task<DataRightsExecutionBatch?> GetByCaseAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                this.batch?.PropertyId == propertyId && this.batch.CaseId == caseId
+                this.batch?.CaseKind ==
+                    (DataRightsCaseKind)scope.CaseType &&
+                this.batch.PropertyId == scope.PropertyId &&
+                this.batch.CaseId == caseId
                     ? this.batch
                     : null);
     }

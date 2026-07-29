@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Api;
 
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
@@ -30,7 +31,9 @@ internal static class DataRightsExecutionEndpoints
         {
             DataRightsSensitiveResponseHeaders.Apply(context.Response);
             return (await dispatcher.QueryAsync(
-                new GetDataRightsExecutionQuery(propertyId, caseId),
+                new GetDataRightsExecutionQuery(
+                    DataRightsCaseScope.ForProperty(propertyId),
+                    caseId),
                 cancellationToken).ConfigureAwait(false))
                 .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
         })
@@ -57,7 +60,7 @@ internal static class DataRightsExecutionEndpoints
                     ? Results.Unauthorized()
                     : (await dispatcher.SendAsync(
                         new StartDataRightsAnonymisationExecutionCommand(
-                            propertyId,
+                            DataRightsCaseScope.ForProperty(propertyId),
                             caseId,
                             request.IdempotencyKey,
                             request.ExpectedVersion,

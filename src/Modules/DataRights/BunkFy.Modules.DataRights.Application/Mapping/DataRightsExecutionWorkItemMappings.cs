@@ -40,5 +40,22 @@ public static class DataRightsExecutionWorkItemMappings
         workItem.OutcomeCode,
         workItem.OutcomeAtUtc,
         workItem.CreatedAtUtc,
-        workItem.Version);
+        workItem.Version,
+        (DataRightsCaseType)workItem.CaseKind,
+        (DataRightsExecutionScopeKind)workItem.ScopeKind,
+        workItem.PolicyPurposeCode,
+        workItem.PolicySurface,
+        workItem.PolicySourceProvenance,
+        EmptyToNull(workItem.PolicyRetentionDataClass),
+        EmptyToNull(workItem.PolicyRetentionTrigger),
+        workItem.PolicyRetentionTriggeredAtUtc,
+        workItem.PolicyRetentionDeadlineUtc,
+        workItem.PolicyEvaluatedAtUtc,
+        workItem.PolicyStateBindingsSha256,
+        workItem.PolicyPropertyVersion,
+        workItem.PolicyOperatingCountryCode,
+        workItem.PolicyRequiresDistinctExecutor);
+
+    private static string? EmptyToNull(string value) =>
+        value.Length == 0 ? null : value;
 }

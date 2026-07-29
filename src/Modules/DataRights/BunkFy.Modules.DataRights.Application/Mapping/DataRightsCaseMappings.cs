@@ -46,5 +46,28 @@ public static class DataRightsCaseMappings
                 dataRightsCase.ApprovalPolicyEvidence.Surface,
                 dataRightsCase.ApprovalPolicyEvidence.SourceProvenance,
                 dataRightsCase.ApprovalPolicyEvidence.EvaluatedAtUtc,
-                dataRightsCase.ApprovalPolicyEvidence.RequiresDistinctExecutor);
+                dataRightsCase.ApprovalPolicyEvidence.RequiresDistinctExecutor,
+                (DataRightsCaseType)
+                    dataRightsCase.ApprovalPolicyEvidence.CaseKind,
+                (DataRightsExecutionScopeKind)
+                    dataRightsCase.ApprovalPolicyEvidence.ScopeKind,
+                EmptyToNull(
+                    dataRightsCase.ApprovalPolicyEvidence
+                        .RetentionDataClass),
+                EmptyToNull(
+                    dataRightsCase.ApprovalPolicyEvidence.RetentionTrigger),
+                dataRightsCase.ApprovalPolicyEvidence
+                    .RetentionTriggeredAtUtc,
+                dataRightsCase.ApprovalPolicyEvidence.RetentionDeadlineUtc,
+                dataRightsCase.ApprovalPolicyEvidence.StateBindings
+                    .Select(binding => new DataRightsApprovalEvidenceBinding(
+                        binding.Key,
+                        binding.Version,
+                        binding.Sha256))
+                    .ToArray(),
+                dataRightsCase.ApprovalPolicyEvidence
+                    .StateBindingsSha256);
+
+    private static string? EmptyToNull(string value) =>
+        value.Length == 0 ? null : value;
 }

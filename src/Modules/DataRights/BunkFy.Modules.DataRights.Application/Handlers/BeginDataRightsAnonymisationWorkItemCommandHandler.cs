@@ -2,11 +2,13 @@ namespace BunkFy.Modules.DataRights.Application.Handlers;
 
 using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Messaging;
 using Gma.Framework.Results;
@@ -34,11 +36,11 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(command.PropertyId),
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionWorkItem? workItem = await workItems.GetAsync(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
@@ -48,9 +50,11 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
                 DataRightsApplicationErrors.ExecutionNotFound);
         }
 
+        DataRightsExecutionScope executionScope =
+            command.Scope.ToExecutionScope();
         if (!workItem.HasExecutionCoordinates(
                 command.CaseId,
-                command.PropertyId,
+                executionScope,
                 command.ApprovalRevision,
                 command.ExecutionRevision) ||
             workItem.Operation != DataRightsCaseOperation.Anonymisation ||
@@ -80,7 +84,7 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
         DataRightsOperationApprovalResult approval = await approvalGate.EvaluateAsync(
             new DataRightsOperationApprovalRequest(
                 dataRightsCase.ScopeId,
-                command.PropertyId,
+                command.Scope.PropertyId,
                 command.CaseId,
                 command.ApprovalRevision,
                 DataRightsOperation.Anonymisation,
@@ -103,7 +107,7 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
         DataRightsApprovalEvidence evidence = approval.ApprovalEvidence;
         if (dataRightsCase.ApprovalPolicyEvidence is not { } frozenEvidence ||
             !DataRightsApprovalEvidenceComparer.Matches(frozenEvidence, evidence) ||
-            !MatchesFrozenEvidence(workItem, evidence))
+            !workItem.MatchesPolicyEvidence(frozenEvidence))
         {
             return await this.BlockAsync(
                 workItem,
@@ -113,12 +117,18 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
                 cancellationToken).ConfigureAwait(false);
         }
 
+        if (command.Scope.PropertyId is not Guid routingPropertyId)
+        {
+            return Result.Failure<DataRightsAnonymisationWorkItemStart>(
+                DataRightsApplicationErrors.ExecutionCoordinateInvalid);
+        }
+
         DataRightsAnonymisationContributionRequest request = new(
             workItem.OwnerContractVersion,
             dataRightsCase.ScopeId,
             workItem.Id,
             workItem.IdempotencyKey,
-            command.PropertyId,
+            routingPropertyId,
             command.CaseId,
             command.ApprovalRevision,
             command.ExecutionRevision,
@@ -141,6 +151,12 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
+        if (workItem.PropertyId is not Guid propertyId)
+        {
+            return Result.Failure<DataRightsAnonymisationWorkItemStart>(
+                DataRightsApplicationErrors.ExecutionCoordinateInvalid);
+        }
+
         Result blocked = workItem.RecordBlocked(
             workItem.Version,
             command.TaskRunId,
@@ -160,27 +176,11 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
                 workItem.BatchId,
                 workItem.Id,
                 workItem.CaseId,
-                workItem.PropertyId,
+                propertyId,
                 workItem.ExecutionRevision),
             cancellationToken).ConfigureAwait(false);
         return Result.Success(
             DataRightsAnonymisationWorkItemStart.Terminal(workItem.Version));
     }
 
-    private static bool MatchesFrozenEvidence(
-        DataRightsExecutionWorkItem workItem,
-        DataRightsApprovalEvidence evidence) =>
-        evidence.SchemaVersion == workItem.PolicyEvidenceSchemaVersion &&
-        evidence.PropertyId == workItem.PropertyId &&
-        string.Equals(evidence.PolicyId, workItem.PolicyId, StringComparison.Ordinal) &&
-        evidence.PolicyVersion == workItem.PolicyVersion &&
-        string.Equals(
-            evidence.RetentionPolicyId,
-            workItem.RetentionPolicyId,
-            StringComparison.Ordinal) &&
-        evidence.RetentionPolicyVersion == workItem.RetentionPolicyVersion &&
-        string.Equals(
-            evidence.ContentSha256,
-            workItem.PolicyContentSha256,
-            StringComparison.Ordinal);
 }

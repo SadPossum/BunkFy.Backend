@@ -32,7 +32,7 @@ public sealed class DataRightsExecutionWorkItemTests
             Guid.NewGuid(),
             idempotencyKey,
             Guid.NewGuid(),
-            propertyId,
+            DataRightsExecutionScope.ForProperty(propertyId),
             approvalRevision: 6,
             executionRevision: 7,
             DataRightsCaseOperation.Anonymisation,
@@ -51,14 +51,81 @@ public sealed class DataRightsExecutionWorkItemTests
         Assert.Equal("guest-profile", workItem.RecordType);
         Assert.Equal(subject.RecordId, workItem.RecordId);
         Assert.Equal(4, workItem.SelectedRecordVersion);
+        Assert.Equal(DataRightsCaseKind.GuestRights, workItem.CaseKind);
+        Assert.Equal(DataRightsCaseScopeKind.Property, workItem.ScopeKind);
+        Assert.Equal(propertyId, workItem.PropertyId);
+        Assert.Equal(9, workItem.PolicyPropertyVersion);
+        Assert.Equal("GB", workItem.PolicyOperatingCountryCode);
         Assert.Equal("approved-policy", workItem.PolicyId);
         Assert.Equal(3, workItem.PolicyVersion);
         Assert.Equal("guest-retention", workItem.RetentionPolicyId);
         Assert.Equal(2, workItem.RetentionPolicyVersion);
         Assert.Equal(new string('a', 64), workItem.PolicyContentSha256);
+        Assert.Equal(
+            policy.StateBindingsJson,
+            workItem.PolicyStateBindingsJson);
+        Assert.Equal(
+            policy.StateBindingsSha256,
+            workItem.PolicyStateBindingsSha256);
+        Assert.True(workItem.PolicyRequiresDistinctExecutor);
+        Assert.True(workItem.MatchesPolicyEvidence(policy));
+        Assert.False(workItem.MatchesPolicyEvidence(
+            DataRightsApprovalPolicyEvidence.Create(
+                propertyId,
+                propertyVersion: 10,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('a', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                Now).Value));
         Assert.Equal("user:executor", workItem.CreatedBy);
         Assert.True(workItem.HasIdempotencyKey(idempotencyKey));
         Assert.False(workItem.HasIdempotencyKey(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void Preparation_supports_staff_tenant_policy_evidence()
+    {
+        DataRightsSubjectCoordinate subject =
+            DataRightsSubjectCoordinate.Create(
+                "staff",
+                "staff-member",
+                Guid.NewGuid(),
+                8,
+                "user:selector",
+                Now).Value;
+        DataRightsApprovalPolicyEvidence policy = CreateStaffPolicy();
+
+        DataRightsExecutionWorkItem workItem =
+            DataRightsExecutionWorkItem.Prepare(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                DataRightsExecutionScope.Staff,
+                approvalRevision: 6,
+                executionRevision: 7,
+                DataRightsCaseOperation.Anonymisation,
+                subject,
+                policy,
+                "user:executor",
+                Now.AddMinutes(1)).Value;
+
+        Assert.Equal(DataRightsCaseKind.StaffRights, workItem.CaseKind);
+        Assert.Equal(DataRightsCaseScopeKind.Tenant, workItem.ScopeKind);
+        Assert.Null(workItem.PropertyId);
+        Assert.Equal(0, workItem.PolicyPropertyVersion);
+        Assert.Equal("staff-employment", workItem.PolicyRetentionDataClass);
+        Assert.Equal(policy.StateBindingsJson, workItem.PolicyStateBindingsJson);
+        Assert.True(workItem.MatchesPolicyEvidence(policy));
+        Assert.False(workItem.MatchesPolicyEvidence(
+            CreatePolicy(Guid.NewGuid())));
     }
 
     [Fact]
@@ -220,7 +287,7 @@ public sealed class DataRightsExecutionWorkItemTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),
-                propertyId,
+                DataRightsExecutionScope.ForProperty(propertyId),
                 6,
                 7,
                 DataRightsCaseOperation.Correction,
@@ -236,7 +303,7 @@ public sealed class DataRightsExecutionWorkItemTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),
-                propertyId,
+                DataRightsExecutionScope.ForProperty(propertyId),
                 6,
                 7,
                 DataRightsCaseOperation.Anonymisation,
@@ -261,6 +328,33 @@ public sealed class DataRightsExecutionWorkItemTests
             "authorized-workspace-operator",
             Now).Value;
 
+    private static DataRightsApprovalPolicyEvidence CreateStaffPolicy() =>
+        DataRightsApprovalPolicyEvidence.CreateScoped(
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseScopeKind.Tenant,
+            propertyId: null,
+            propertyVersion: 0,
+            "GB",
+            "approved-staff-policy",
+            3,
+            "staff-retention",
+            2,
+            new string('a', 64),
+            "staff-data-rights-anonymisation",
+            "erasure",
+            "authorized-workspace-operator",
+            "staff-employment",
+            "employment-ended",
+            Now.AddDays(-8),
+            Now.AddDays(-1),
+            Now,
+            [
+                DataRightsApprovalEvidenceBinding.Create(
+                    "staff.record",
+                    8,
+                    new string('d', 64)).Value
+            ]).Value;
+
     private static DataRightsExecutionWorkItem CreateWorkItem()
     {
         Guid propertyId = Guid.NewGuid();
@@ -277,7 +371,7 @@ public sealed class DataRightsExecutionWorkItemTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
-            propertyId,
+            DataRightsExecutionScope.ForProperty(propertyId),
             approvalRevision: 6,
             executionRevision: 7,
             DataRightsCaseOperation.Anonymisation,

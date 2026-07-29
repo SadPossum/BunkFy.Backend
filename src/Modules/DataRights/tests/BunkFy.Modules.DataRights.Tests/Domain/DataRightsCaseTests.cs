@@ -213,6 +213,30 @@ public sealed class DataRightsCaseTests
                 "user:decision-maker",
                 Now.AddMinutes(5)).Error.Code);
 
+        DataRightsApprovalPolicyEvidence wrongScopeEvidence =
+            DataRightsApprovalPolicyEvidence.Create(
+                Guid.NewGuid(),
+                9,
+                "GB",
+                "approved-policy",
+                3,
+                "guest-retention",
+                2,
+                new string('a', 64),
+                "data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                Now.AddMinutes(5)).Value;
+        Assert.Equal(
+            "DataRights.ApprovalPolicyEvidenceInvalid",
+            dataRightsCase.RecordDecision(
+                DataRightsCaseDecision.Approved,
+                DataRightsCaseDecisionReason.RequestValidated,
+                5,
+                "user:decision-maker",
+                Now.AddMinutes(5),
+                wrongScopeEvidence).Error.Code);
+
         DataRightsApprovalPolicyEvidence evidence =
             DataRightsApprovalPolicyEvidence.Create(
                 propertyId,
@@ -527,6 +551,10 @@ public sealed class DataRightsCaseTests
         DataRightsRequesterRelation.ControllerInitiated,
         DataRightsCaseOperation.Restriction,
         DataRightsRestrictionAction.Apply)]
+    [InlineData(
+        DataRightsRequesterRelation.ControllerInitiated,
+        DataRightsCaseOperation.Anonymisation,
+        DataRightsRestrictionAction.None)]
     public void Staff_rights_case_request_accepts_one_supported_tenant_operation(
         DataRightsRequesterRelation requesterRelationship,
         DataRightsCaseOperation operation,

@@ -26,9 +26,9 @@ public sealed class DataRightsPersistenceRetryBehaviorTests
             new TestScopeContext());
         DataRightsPersistenceRetryBehavior<
             StartDataRightsAnonymisationExecutionCommand,
-            DataRightsExecutionDto> behavior = new(dbContext, _ => true);
+        DataRightsExecutionDto> behavior = new(dbContext, _ => true);
         StartDataRightsAnonymisationExecutionCommand command = new(
-            Guid.NewGuid(),
+            DataRightsCaseScope.ForProperty(Guid.NewGuid()),
             Guid.NewGuid(),
             Guid.NewGuid(),
             6,

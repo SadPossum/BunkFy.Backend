@@ -103,6 +103,61 @@ public sealed class
         Assert.False(active.IsAnonymised);
     }
 
+    [Fact]
+    public async Task Tenant_scoped_policy_evidence_is_rejected_before_mutation()
+    {
+        InventoryAllocation allocation = CreateReleased();
+        RecordingRepository repository = new(allocation);
+        DataRightsAnonymisationContributionRequest request =
+            CreateRequest(allocation);
+        request = request with
+        {
+            RoutingPolicy = request.RoutingPolicy with
+            {
+                CaseType = DataRightsCaseType.StaffRights,
+                ScopeKind = DataRightsExecutionScopeKind.Tenant
+            }
+        };
+
+        Result<InventoryAllocationAnonymisationReceiptDto> result =
+            await CreateHandler(repository).HandleAsync(
+                new(request),
+                CancellationToken.None);
+
+        Assert.Equal(
+            InventoryApplicationErrors.AnonymisationRequestInvalid,
+            result.Error);
+        Assert.False(allocation.IsAnonymised);
+        Assert.Equal(0, repository.AddCount);
+    }
+
+    [Fact]
+    public async Task Contradictory_legacy_binding_digest_is_rejected_before_mutation()
+    {
+        InventoryAllocation allocation = CreateReleased();
+        RecordingRepository repository = new(allocation);
+        DataRightsAnonymisationContributionRequest request =
+            CreateRequest(allocation);
+        request = request with
+        {
+            RoutingPolicy = request.RoutingPolicy with
+            {
+                StateBindingsSha256 = new string('f', 64)
+            }
+        };
+
+        Result<InventoryAllocationAnonymisationReceiptDto> result =
+            await CreateHandler(repository).HandleAsync(
+                new(request),
+                CancellationToken.None);
+
+        Assert.Equal(
+            InventoryApplicationErrors.AnonymisationRequestInvalid,
+            result.Error);
+        Assert.False(allocation.IsAnonymised);
+        Assert.Equal(0, repository.AddCount);
+    }
+
     private static
         ApplyInventoryAllocationAnonymisationCommandHandler
         CreateHandler(RecordingRepository repository) =>

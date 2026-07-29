@@ -1,8 +1,12 @@
 namespace BunkFy.Modules.DataRights.Tests.Persistence;
 
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Nodes;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Domain.Entities;
+using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -125,6 +129,157 @@ public sealed class LocalFileDataRightsLedgerDeltaStoreTests
         Assert.Equal(1, recovered.Cursor.TenantSequence);
         Assert.Equal(ledger.EntrySha256, recovered.Cursor.EntrySha256);
         Assert.True(File.Exists(checkpointPath));
+    }
+
+    [Fact]
+    public async Task Legacy_version_one_record_uses_its_original_delta_bytes()
+    {
+        await using TestDirectory directory = new();
+        StoreFixture fixture = CreateFixture(directory.Path);
+        DataRightsProcessingLedgerEntry ledger =
+            CreateLegacyVersionOneLedger(fixture);
+        Guid recordId =
+            Guid.Parse("66666666-6666-6666-6666-666666666666");
+        _ = await fixture.Store.AppendAsync(
+            ProtectedLedgerTestData.CreateDelta(
+                fixture.Protector,
+                ledger,
+                recordId),
+            CancellationToken.None);
+        string recordPath = Directory.GetFiles(
+            directory.Path,
+            "*.delta.json",
+            SearchOption.AllDirectories).Single();
+        RewriteAsLegacyVersionOneRecord(recordPath);
+        File.Delete(Directory.GetFiles(
+            directory.Path,
+            "checkpoint.json",
+            SearchOption.AllDirectories).Single());
+
+        DataRightsLedgerDeltaCheckpoint checkpoint =
+            await fixture.Store.ReadTrustedCheckpointAsync(
+                "tenant-a",
+                CancellationToken.None);
+        DataRightsLedgerDeltaPage page = await fixture.Store.ReadAfterAsync(
+            "tenant-a",
+            DataRightsLedgerDeltaCursor.Genesis,
+            pageSize: 1,
+            CancellationToken.None);
+
+        Assert.Equal(1, checkpoint.Cursor.TenantSequence);
+        Assert.Equal(ledger.EntrySha256, checkpoint.Cursor.EntrySha256);
+        Assert.Equal(1, Assert.Single(page.Deltas).Ledger.ContractVersion);
+    }
+
+    [Fact]
+    public async Task Legacy_version_one_record_rejects_delta_tampering()
+    {
+        await using TestDirectory directory = new();
+        StoreFixture fixture = CreateFixture(directory.Path);
+        DataRightsProcessingLedgerEntry ledger =
+            CreateLegacyVersionOneLedger(fixture);
+        Guid recordId =
+            Guid.Parse("66666666-6666-6666-6666-666666666666");
+        _ = await fixture.Store.AppendAsync(
+            ProtectedLedgerTestData.CreateDelta(
+                fixture.Protector,
+                ledger,
+                recordId),
+            CancellationToken.None);
+        string recordPath = Directory.GetFiles(
+            directory.Path,
+            "*.delta.json",
+            SearchOption.AllDirectories).Single();
+        RewriteAsLegacyVersionOneRecord(recordPath);
+        JsonObject record = JsonNode.Parse(
+            await File.ReadAllTextAsync(
+                recordPath,
+                CancellationToken.None))!.AsObject();
+        record["delta"]!["ledger"]!["reasonCode"] =
+            "guests.tampered";
+        await File.WriteAllTextAsync(
+            recordPath,
+            record.ToJsonString(),
+            CancellationToken.None);
+        File.Delete(Directory.GetFiles(
+            directory.Path,
+            "checkpoint.json",
+            SearchOption.AllDirectories).Single());
+
+        DataRightsLedgerDeltaStoreException failure =
+            await Assert.ThrowsAsync<DataRightsLedgerDeltaStoreException>(
+                () => fixture.Store.ReadTrustedCheckpointAsync(
+                    "tenant-a",
+                    CancellationToken.None));
+
+        Assert.Equal(
+            LocalFileDataRightsLedgerDeltaStore.IntegrityCode,
+            failure.Code);
+    }
+
+    [Fact]
+    public async Task Scoped_version_three_record_round_trips_and_rejects_tampering()
+    {
+        await using TestDirectory directory = new();
+        StoreFixture fixture = CreateFixture(directory.Path);
+        Guid recordId = Guid.NewGuid();
+        DataRightsProcessingLedgerEntry ledger =
+            ProtectedLedgerTestData.CreateStaffLedger(
+                fixture.Pseudonymizer,
+                "tenant-a",
+                sequence: 1,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+                recordId);
+        _ = await fixture.Store.AppendAsync(
+            ProtectedLedgerTestData.CreateDelta(
+                fixture.Protector,
+                ledger,
+                recordId),
+            CancellationToken.None);
+
+        DataRightsLedgerDeltaPage page = await fixture.Store.ReadAfterAsync(
+            "tenant-a",
+            DataRightsLedgerDeltaCursor.Genesis,
+            pageSize: 1,
+            CancellationToken.None);
+
+        DataRightsProcessingLedgerSnapshot restored =
+            Assert.Single(page.Deltas).Ledger;
+        Assert.Equal(3, restored.ContractVersion);
+        Assert.Equal(DataRightsCaseKind.StaffRights, restored.CaseKind);
+        Assert.Equal(DataRightsCaseScopeKind.Tenant, restored.ScopeKind);
+        Assert.Null(restored.RoutingPropertyId);
+        Assert.Equal("GB", restored.PolicyOperatingCountryCode);
+        Assert.NotNull(restored.PolicyStateBindingsJson);
+
+        string recordPath = Directory.GetFiles(
+            directory.Path,
+            "*.delta.json",
+            SearchOption.AllDirectories).Single();
+        JsonObject persisted = JsonNode.Parse(
+            await File.ReadAllTextAsync(
+                recordPath,
+                CancellationToken.None))!.AsObject();
+        persisted["delta"]!["ledger"]!["policyOperatingCountryCode"] =
+            "US";
+        await File.WriteAllTextAsync(
+            recordPath,
+            persisted.ToJsonString(),
+            CancellationToken.None);
+        File.Delete(Directory.GetFiles(
+            directory.Path,
+            "checkpoint.json",
+            SearchOption.AllDirectories).Single());
+
+        DataRightsLedgerDeltaStoreException failure =
+            await Assert.ThrowsAsync<DataRightsLedgerDeltaStoreException>(
+                () => fixture.Store.ReadTrustedCheckpointAsync(
+                    "tenant-a",
+                    CancellationToken.None));
+
+        Assert.Equal(
+            LocalFileDataRightsLedgerDeltaStore.IntegrityCode,
+            failure.Code);
     }
 
     [Fact]
@@ -411,6 +566,130 @@ public sealed class LocalFileDataRightsLedgerDeltaStoreTests
             new TestHostEnvironment(path, Environments.Development),
             new FixedTimeProvider(ProtectedLedgerTestData.Now));
         return new(store, pseudonymizer, protector);
+    }
+
+    private static DataRightsProcessingLedgerEntry
+        CreateLegacyVersionOneLedger(StoreFixture fixture)
+    {
+        Guid recordId =
+            Guid.Parse("66666666-6666-6666-6666-666666666666");
+        DataRightsProcessingLedgerSnapshot current =
+            ProtectedLedgerTestData.CreateLedger(
+                fixture.Pseudonymizer,
+                "tenant-a",
+                sequence: 1,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+                recordId).Freeze();
+        DataRightsProcessingLedgerSnapshot unsigned = current with
+        {
+            ContractVersion = 1,
+            ResultingRecordVersion = null,
+            EntrySha256 =
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256
+        };
+        DataRightsProcessingLedgerSnapshot legacy = unsigned with
+        {
+            EntrySha256 = ComputeLegacyVersionOneLedgerSha256(unsigned)
+        };
+        return DataRightsProcessingLedgerEntry.Restore(legacy).Value;
+    }
+
+    private static void RewriteAsLegacyVersionOneRecord(string recordPath)
+    {
+        JsonObject record = JsonNode.Parse(
+            File.ReadAllText(recordPath))!.AsObject();
+        JsonObject delta = record["delta"]!.AsObject();
+        _ = delta["ledger"]!.AsObject().Remove(
+            "resultingRecordVersion");
+        string rawDelta = delta.ToJsonString();
+        string canonical = string.Join(
+            '\n',
+            "bunkfy.data-rights.local-ledger-delta.record.v1",
+            record["storageContractVersion"]!.GetValue<int>().ToString(
+                CultureInfo.InvariantCulture),
+            record["integrityKeyVersion"]!.GetValue<int>().ToString(
+                CultureInfo.InvariantCulture),
+            record["previousStorageMacSha256"]!.GetValue<string>(),
+            record["flushedAtUtc"]!.GetValue<DateTimeOffset>()
+                .ToUniversalTime()
+                .ToString("O", CultureInfo.InvariantCulture),
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(rawDelta)));
+        byte[] key = Encoding.UTF8.GetBytes(new string('i', 32));
+        byte[] digest = HMACSHA256.HashData(
+            key,
+            Encoding.UTF8.GetBytes(canonical));
+        try
+        {
+            record["storageMacSha256"] =
+                Convert.ToHexStringLower(digest);
+            File.WriteAllText(recordPath, record.ToJsonString());
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+            CryptographicOperations.ZeroMemory(digest);
+        }
+    }
+
+    private static string ComputeLegacyVersionOneLedgerSha256(
+        DataRightsProcessingLedgerSnapshot snapshot)
+    {
+        StringBuilder canonical = new();
+        Append(canonical, snapshot.ContractVersion);
+        Append(canonical, snapshot.EntryId.ToString("N"));
+        Append(canonical, snapshot.ScopeId);
+        Append(canonical, snapshot.TenantSequence);
+        Append(canonical, snapshot.WorkItemId.ToString("N"));
+        Append(canonical, snapshot.CaseId.ToString("N"));
+        Append(canonical, snapshot.ApprovalRevision);
+        Append(canonical, snapshot.OperationRevision);
+        Append(canonical, (int)snapshot.Operation);
+        Append(canonical, snapshot.RoutingPropertyId!.Value.ToString("N"));
+        Append(canonical, snapshot.OwnerKey);
+        Append(canonical, snapshot.RecordType);
+        Append(canonical, snapshot.RecordPseudonymKeyVersion);
+        Append(canonical, snapshot.RecordPseudonymSha256);
+        Append(canonical, snapshot.DispositionCode);
+        Append(canonical, snapshot.ReasonCode);
+        Append(
+            canonical,
+            snapshot.CompletedAtUtc.ToUniversalTime().ToString(
+                "O",
+                CultureInfo.InvariantCulture));
+        Append(canonical, snapshot.PolicyEvidenceSchemaVersion);
+        Append(canonical, snapshot.PolicyId);
+        Append(canonical, snapshot.PolicyVersion);
+        Append(canonical, snapshot.PolicyContentSha256);
+        Append(canonical, snapshot.RetentionPolicyId);
+        Append(canonical, snapshot.RetentionPolicyVersion);
+        Append(canonical, snapshot.OwnerReceiptContractVersion);
+        Append(canonical, snapshot.OwnerReceiptId.ToString("N"));
+        Append(canonical, snapshot.OwnerReceiptSha256);
+        Append(canonical, snapshot.PreviousEntrySha256);
+        Append(canonical, "-");
+        Append(canonical, "-");
+        byte[] digest = SHA256.HashData(
+            Encoding.UTF8.GetBytes(canonical.ToString()));
+        try
+        {
+            return Convert.ToHexStringLower(digest);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(digest);
+        }
+    }
+
+    private static void Append(StringBuilder target, long value) =>
+        Append(
+            target,
+            value.ToString(CultureInfo.InvariantCulture));
+
+    private static void Append(StringBuilder target, string value)
+    {
+        target.Append(value.Length.ToString(CultureInfo.InvariantCulture));
+        target.Append(':');
+        target.Append(value);
     }
 
     private sealed record StoreFixture(

@@ -22,7 +22,9 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
     public Guid BatchId { get; private set; }
     public Guid IdempotencyKey { get; private set; }
     public Guid CaseId { get; private set; }
-    public Guid PropertyId { get; private set; }
+    public DataRightsCaseKind CaseKind { get; private set; }
+    public DataRightsCaseScopeKind ScopeKind { get; private set; }
+    public Guid? PropertyId { get; private set; }
     public long ApprovalRevision { get; private set; }
     public long ExecutionRevision { get; private set; }
     public DataRightsCaseOperation Operation { get; private set; }
@@ -31,11 +33,37 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
     public Guid RecordId { get; private set; }
     public long SelectedRecordVersion { get; private set; }
     public int PolicyEvidenceSchemaVersion { get; private set; }
+    public long PolicyPropertyVersion { get; private set; }
+    public string PolicyOperatingCountryCode { get; private set; } =
+        string.Empty;
     public string PolicyId { get; private set; } = string.Empty;
     public int PolicyVersion { get; private set; }
     public string RetentionPolicyId { get; private set; } = string.Empty;
     public int RetentionPolicyVersion { get; private set; }
     public string PolicyContentSha256 { get; private set; } = string.Empty;
+    public string PolicyPurposeCode { get; private set; } = string.Empty;
+    public string PolicySurface { get; private set; } = string.Empty;
+    public string PolicySourceProvenance { get; private set; } =
+        string.Empty;
+    public string PolicyRetentionDataClass { get; private set; } =
+        string.Empty;
+    public string PolicyRetentionTrigger { get; private set; } =
+        string.Empty;
+    public DateTimeOffset? PolicyRetentionTriggeredAtUtc
+    {
+        get;
+        private set;
+    }
+    public DateTimeOffset? PolicyRetentionDeadlineUtc
+    {
+        get;
+        private set;
+    }
+    public DateTimeOffset PolicyEvaluatedAtUtc { get; private set; }
+    public string PolicyStateBindingsJson { get; private set; } = string.Empty;
+    public string PolicyStateBindingsSha256 { get; private set; } =
+        string.Empty;
+    public bool PolicyRequiresDistinctExecutor { get; private set; }
     public int OwnerContractVersion { get; private set; }
     public DataRightsExecutionWorkItemState State { get; private set; }
     public int AttemptCount { get; private set; }
@@ -61,7 +89,7 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
         Guid batchId,
         Guid idempotencyKey,
         Guid caseId,
-        Guid propertyId,
+        DataRightsExecutionScope executionScope,
         long approvalRevision,
         long executionRevision,
         DataRightsCaseOperation operation,
@@ -72,12 +100,12 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
     {
         ArgumentNullException.ThrowIfNull(subject);
         ArgumentNullException.ThrowIfNull(policyEvidence);
+        ArgumentNullException.ThrowIfNull(executionScope);
 
         if (id == Guid.Empty ||
             batchId == Guid.Empty ||
             idempotencyKey == Guid.Empty ||
             caseId == Guid.Empty ||
-            propertyId == Guid.Empty ||
             approvalRevision <= 0 ||
             executionRevision <= approvalRevision ||
             operation != DataRightsCaseOperation.Anonymisation)
@@ -100,8 +128,11 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
         }
 
         if (nowUtc == default ||
-            policyEvidence.PropertyId != propertyId ||
-            policyEvidence.SchemaVersion != DataRightsApprovalPolicyEvidence.CurrentSchemaVersion)
+            !executionScope.Matches(
+                policyEvidence.CaseKind,
+                policyEvidence.ScopeKind,
+                policyEvidence.PropertyId) ||
+            !policyEvidence.HasValidShape())
         {
             return Result.Failure<DataRightsExecutionWorkItem>(
                 DataRightsDomainErrors.ExecutionCoordinateInvalid);
@@ -112,7 +143,9 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
             BatchId = batchId,
             IdempotencyKey = idempotencyKey,
             CaseId = caseId,
-            PropertyId = propertyId,
+            CaseKind = executionScope.CaseKind,
+            ScopeKind = executionScope.ScopeKind,
+            PropertyId = executionScope.PropertyId,
             ApprovalRevision = approvalRevision,
             ExecutionRevision = executionRevision,
             Operation = operation,
@@ -121,11 +154,30 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
             RecordId = subject.RecordId,
             SelectedRecordVersion = subject.RecordVersion,
             PolicyEvidenceSchemaVersion = policyEvidence.SchemaVersion,
+            PolicyPropertyVersion = policyEvidence.PropertyVersion,
+            PolicyOperatingCountryCode =
+                policyEvidence.OperatingCountryCode,
             PolicyId = policyEvidence.PolicyId,
             PolicyVersion = policyEvidence.PolicyVersion,
             RetentionPolicyId = policyEvidence.RetentionPolicyId,
             RetentionPolicyVersion = policyEvidence.RetentionPolicyVersion,
             PolicyContentSha256 = policyEvidence.ContentSha256,
+            PolicyPurposeCode = policyEvidence.PurposeCode,
+            PolicySurface = policyEvidence.Surface,
+            PolicySourceProvenance = policyEvidence.SourceProvenance,
+            PolicyRetentionDataClass =
+                policyEvidence.RetentionDataClass,
+            PolicyRetentionTrigger = policyEvidence.RetentionTrigger,
+            PolicyRetentionTriggeredAtUtc =
+                policyEvidence.RetentionTriggeredAtUtc,
+            PolicyRetentionDeadlineUtc =
+                policyEvidence.RetentionDeadlineUtc,
+            PolicyEvaluatedAtUtc = policyEvidence.EvaluatedAtUtc,
+            PolicyStateBindingsJson = policyEvidence.StateBindingsJson,
+            PolicyStateBindingsSha256 =
+                policyEvidence.StateBindingsSha256,
+            PolicyRequiresDistinctExecutor =
+                policyEvidence.RequiresDistinctExecutor,
             OwnerContractVersion = CurrentOwnerContractVersion,
             State = DataRightsExecutionWorkItemState.Prepared,
             CreatedBy = normalizedActor,
@@ -138,15 +190,81 @@ public sealed class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
 
     public bool HasExecutionCoordinates(
         Guid caseId,
-        Guid propertyId,
+        DataRightsExecutionScope executionScope,
         long approvalRevision,
         long executionRevision) =>
         caseId != Guid.Empty &&
-        propertyId != Guid.Empty &&
+        executionScope is not null &&
         this.CaseId == caseId &&
-        this.PropertyId == propertyId &&
+        executionScope.Matches(
+            this.CaseKind,
+            this.ScopeKind,
+            this.PropertyId) &&
         this.ApprovalRevision == approvalRevision &&
         this.ExecutionRevision == executionRevision;
+
+    public bool MatchesPolicyEvidence(
+        DataRightsApprovalPolicyEvidence evidence) =>
+        evidence is not null &&
+        evidence.HasValidShape() &&
+        this.PolicyEvidenceSchemaVersion == evidence.SchemaVersion &&
+        this.CaseKind == evidence.CaseKind &&
+        this.ScopeKind == evidence.ScopeKind &&
+        this.PropertyId == evidence.PropertyId &&
+        this.PolicyPropertyVersion == evidence.PropertyVersion &&
+        string.Equals(
+            this.PolicyOperatingCountryCode,
+            evidence.OperatingCountryCode,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.PolicyId,
+            evidence.PolicyId,
+            StringComparison.Ordinal) &&
+        this.PolicyVersion == evidence.PolicyVersion &&
+        string.Equals(
+            this.RetentionPolicyId,
+            evidence.RetentionPolicyId,
+            StringComparison.Ordinal) &&
+        this.RetentionPolicyVersion == evidence.RetentionPolicyVersion &&
+        string.Equals(
+            this.PolicyContentSha256,
+            evidence.ContentSha256,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.PolicyPurposeCode,
+            evidence.PurposeCode,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.PolicySurface,
+            evidence.Surface,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.PolicySourceProvenance,
+            evidence.SourceProvenance,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.PolicyRetentionDataClass,
+            evidence.RetentionDataClass,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.PolicyRetentionTrigger,
+            evidence.RetentionTrigger,
+            StringComparison.Ordinal) &&
+        this.PolicyRetentionTriggeredAtUtc ==
+            evidence.RetentionTriggeredAtUtc &&
+        this.PolicyRetentionDeadlineUtc ==
+            evidence.RetentionDeadlineUtc &&
+        this.PolicyEvaluatedAtUtc == evidence.EvaluatedAtUtc &&
+        string.Equals(
+            this.PolicyStateBindingsJson,
+            evidence.StateBindingsJson,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            this.PolicyStateBindingsSha256,
+            evidence.StateBindingsSha256,
+            StringComparison.Ordinal) &&
+        this.PolicyRequiresDistinctExecutor ==
+            evidence.RequiresDistinctExecutor;
 
     public bool IsOwnerDispatchTerminal =>
         this.State is DataRightsExecutionWorkItemState.OwnerProofRecorded

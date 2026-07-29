@@ -125,7 +125,8 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
         new(
             fixture.WorkItem.Id,
             fixture.Case.Id,
-            fixture.WorkItem.PropertyId,
+            DataRightsCaseScope.ForProperty(
+                fixture.WorkItem.PropertyId!.Value),
             fixture.WorkItem.ApprovalRevision,
             fixture.WorkItem.ExecutionRevision,
             fixture.TaskRunId);
@@ -198,7 +199,7 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 dataRightsCase.Id,
-                propertyId,
+                DataRightsExecutionScope.ForProperty(propertyId),
                 approvalRevision: 6,
                 dataRightsCase.ExecutionRevision!.Value,
                 DataRightsCaseOperation.Anonymisation,
@@ -275,25 +276,29 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
             throw new NotSupportedException();
 
         public Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             Guid batchId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
                 (IReadOnlyCollection<DataRightsExecutionWorkItem>)(
-                    workItem.PropertyId == propertyId &&
+                    workItem.CaseKind ==
+                        (DataRightsCaseKind)scope.CaseType &&
+                    workItem.PropertyId == scope.PropertyId &&
                     workItem.CaseId == caseId &&
                     workItem.BatchId == batchId
                         ? [workItem]
                         : []));
 
         public Task<DataRightsExecutionWorkItem?> GetAsync(
-            Guid propertyId,
+            DataRightsCaseScope scope,
             Guid caseId,
             Guid workItemId,
             CancellationToken cancellationToken) =>
             Task.FromResult(
-                workItem.PropertyId == propertyId &&
+                workItem.CaseKind ==
+                    (DataRightsCaseKind)scope.CaseType &&
+                workItem.PropertyId == scope.PropertyId &&
                 workItem.CaseId == caseId &&
                 workItem.Id == workItemId
                     ? workItem

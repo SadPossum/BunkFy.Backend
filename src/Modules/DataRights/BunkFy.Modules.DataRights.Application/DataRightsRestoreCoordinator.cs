@@ -150,6 +150,16 @@ internal sealed class DataRightsRestoreCoordinator(
             }
 
             DataRightsProcessingLedgerEntry ledger = restored.Value;
+            if (ledger.ContractVersion >
+                    DataRightsProcessingLedgerEntry
+                        .GuestResultVersionContractVersion ||
+                ledger.RoutingPropertyId is not Guid propertyId)
+            {
+                return Result.Failure<
+                    IReadOnlyList<DataRightsRestoreOwnerProofBinding>>(
+                        DataRightsApplicationErrors.RestoreOwnerUnavailable);
+            }
+
             Result<Guid> recordId = replayProtector.Unprotect(
                 delta.Ledger,
                 delta.ReplayEnvelope);
@@ -179,7 +189,7 @@ internal sealed class DataRightsRestoreCoordinator(
                         ledger.Id,
                         ledger.TenantSequence,
                         ledger.EntrySha256,
-                        ledger.RoutingPropertyId,
+                        propertyId,
                         ledger.OwnerKey,
                         ledger.RecordType,
                         recordId.Value,

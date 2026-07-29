@@ -1,12 +1,13 @@
 namespace BunkFy.Modules.DataRights.Application.Commands;
 
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Cqrs;
 
 internal sealed record RecordDataRightsAnonymisationOwnerResultCommand(
     Guid WorkItemId,
     Guid CaseId,
-    Guid PropertyId,
+    DataRightsCaseScope Scope,
     long ApprovalRevision,
     long ExecutionRevision,
     Guid TaskRunId,

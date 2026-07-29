@@ -8,22 +8,31 @@ internal sealed class StaffOperationLockRepository(
     StaffDbContext dbContext)
     : IStaffOperationLock
 {
+    public Task<long?> GetStaffMemberRevisionAsync(
+        string tenantId,
+        Guid staffMemberId,
+        CancellationToken cancellationToken)
+    {
+        string scopeId = this.ValidateCoordinates(
+            tenantId,
+            staffMemberId);
+        return dbContext.Set<StaffOperationLock>()
+            .AsNoTracking()
+            .Where(resourceLock =>
+                resourceLock.ScopeId == scopeId &&
+                resourceLock.StaffMemberId == staffMemberId)
+            .Select(resourceLock => (long?)resourceLock.Revision)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<bool> TryAcquireStaffMemberAsync(
         string tenantId,
         Guid staffMemberId,
         CancellationToken cancellationToken)
     {
-        string scopeId = tenantId?.Trim() ?? string.Empty;
-        if (scopeId.Length == 0 ||
-            !string.Equals(
-                scopeId,
-                dbContext.CurrentScopeId,
-                StringComparison.Ordinal) ||
-            staffMemberId == Guid.Empty)
-        {
-            throw new InvalidOperationException(
-                "A scoped Staff operation lock requires valid coordinates.");
-        }
+        string scopeId = this.ValidateCoordinates(
+            tenantId,
+            staffMemberId);
 
         if (dbContext.Database.IsRelational() &&
             dbContext.Database.CurrentTransaction is null)
@@ -92,5 +101,24 @@ internal sealed class StaffOperationLockRepository(
         await dbContext.SaveChangesAsync(cancellationToken)
             .ConfigureAwait(false);
         return true;
+    }
+
+    private string ValidateCoordinates(
+        string tenantId,
+        Guid staffMemberId)
+    {
+        string scopeId = tenantId?.Trim() ?? string.Empty;
+        if (scopeId.Length == 0 ||
+            !string.Equals(
+                scopeId,
+                dbContext.CurrentScopeId,
+                StringComparison.Ordinal) ||
+            staffMemberId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "A scoped Staff operation lock requires valid coordinates.");
+        }
+
+        return scopeId;
     }
 }

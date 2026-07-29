@@ -13,6 +13,8 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Xunit;
+using SelectedSubject =
+    BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 
 [Trait("Category", "Unit")]
 public sealed class RecordDataRightsDecisionCommandHandlerTests
@@ -171,7 +173,10 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
         public int EvaluationCount { get; private set; }
 
         public Task<Result<DataRightsApprovalPolicyEvidence>> EvaluateAsync(
-            Guid propertyId,
+            string tenantId,
+            DataRightsCaseScope scope,
+            Guid caseId,
+            IReadOnlyCollection<SelectedSubject> subjects,
             CancellationToken cancellationToken)
         {
             this.EvaluationCount++;

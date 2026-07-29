@@ -25,12 +25,14 @@ internal sealed class DataRightsAnonymisationWorkItemTerminalHandler(
         DataRightsAnonymisationWorkItemTerminalIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
+        DataRightsCaseScope scope =
+            DataRightsCaseScope.ForProperty(integrationEvent.PropertyId);
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(integrationEvent.PropertyId),
+            scope,
             integrationEvent.CaseId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionBatch? batch = await batches.GetByCaseAsync(
-            integrationEvent.PropertyId,
+            scope,
             integrationEvent.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null ||
@@ -45,7 +47,7 @@ internal sealed class DataRightsAnonymisationWorkItemTerminalHandler(
 
         IReadOnlyCollection<DataRightsExecutionWorkItem> executionItems =
             await workItems.ListByBatchAsync(
-                integrationEvent.PropertyId,
+                scope,
                 integrationEvent.CaseId,
                 integrationEvent.BatchId,
                 cancellationToken).ConfigureAwait(false);

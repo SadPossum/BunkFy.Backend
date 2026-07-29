@@ -31,7 +31,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(command.PropertyId),
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)
@@ -40,22 +40,32 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
                 DataRightsApplicationErrors.CaseNotFound);
         }
 
+        // Tenant execution stays closed until a versioned tenant owner
+        // protocol is registered by the owning module.
+        if (command.Scope.CaseType != DataRightsCaseType.GuestRights)
+        {
+            return Result.Failure<DataRightsExecutionDto>(
+                DataRightsApplicationErrors.AnonymisationExecutionDenied);
+        }
+
+        DataRightsExecutionScope executionScope =
+            command.Scope.ToExecutionScope();
         DataRightsExecutionBatch? existing = await batches.GetByCaseAsync(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (existing is not null)
         {
             IReadOnlyCollection<DataRightsExecutionWorkItem> existingItems =
                 await workItems.ListByBatchAsync(
-                    command.PropertyId,
+                    command.Scope,
                     command.CaseId,
                     existing.Id,
                     cancellationToken).ConfigureAwait(false);
             return existing.Matches(
                     command.IdempotencyKey,
                     command.CaseId,
-                    command.PropertyId,
+                    executionScope,
                     dataRightsCase.ExecutionRevision) &&
                 MatchesBatch(existing, existingItems)
                 ? Result.Success(ToExecution(dataRightsCase, existing, existingItems))
@@ -77,7 +87,12 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
             .ToArray();
         DataRightsApprovalPolicyEvidence? evidence = dataRightsCase.ApprovalPolicyEvidence;
         if (evidence is null ||
-            dataRightsCase.PropertyId != command.PropertyId ||
+            !executionScope.Matches(
+                dataRightsCase.Kind,
+                dataRightsCase.PropertyId.HasValue
+                    ? DataRightsCaseScopeKind.Property
+                    : DataRightsCaseScopeKind.Tenant,
+                dataRightsCase.PropertyId) ||
             dataRightsCase.DecisionRevision is not long approvalRevision)
         {
             return Result.Failure<DataRightsExecutionDto>(
@@ -89,7 +104,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
             DataRightsOperationApprovalResult approval = await approvalGate.EvaluateAsync(
                 new DataRightsOperationApprovalRequest(
                     dataRightsCase.ScopeId,
-                    command.PropertyId,
+                    command.Scope.PropertyId,
                     command.CaseId,
                     approvalRevision,
                     DataRightsOperation.Anonymisation,
@@ -126,7 +141,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
             dataRightsCase.ScopeId,
             command.IdempotencyKey,
             dataRightsCase.Id,
-            command.PropertyId,
+            executionScope,
             approvalRevision,
             dataRightsCase.ExecutionRevision!.Value,
             subjects.Length,
@@ -149,7 +164,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
                         command.IdempotencyKey,
                         subject),
                     dataRightsCase.Id,
-                    command.PropertyId,
+                    executionScope,
                     approvalRevision,
                     dataRightsCase.ExecutionRevision.Value,
                     DataRightsCaseOperation.Anonymisation,
@@ -177,7 +192,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
                     nowUtc,
                     prepared.Id,
                     dataRightsCase.Id,
-                    command.PropertyId,
+                    command.Scope.PropertyId!.Value,
                     approvalRevision,
                     prepared.ExecutionRevision),
                 cancellationToken).ConfigureAwait(false);
@@ -196,6 +211,8 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
         workItems.All(workItem =>
             workItem.BatchId == batch.Id &&
             workItem.CaseId == batch.CaseId &&
+            workItem.CaseKind == batch.CaseKind &&
+            workItem.ScopeKind == batch.ScopeKind &&
             workItem.PropertyId == batch.PropertyId &&
             workItem.ApprovalRevision == batch.ApprovalRevision &&
             workItem.ExecutionRevision == batch.ExecutionRevision &&

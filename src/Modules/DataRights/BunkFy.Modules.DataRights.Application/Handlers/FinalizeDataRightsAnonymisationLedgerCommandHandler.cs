@@ -2,6 +2,7 @@ namespace BunkFy.Modules.DataRights.Application.Handlers;
 
 using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -31,11 +32,11 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(command.PropertyId),
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionWorkItem? workItem = await workItems.GetAsync(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
@@ -45,9 +46,11 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
                 DataRightsApplicationErrors.ExecutionNotFound);
         }
 
+        DataRightsExecutionScope executionScope =
+            command.Scope.ToExecutionScope();
         if (!workItem.HasExecutionCoordinates(
                 command.CaseId,
-                command.PropertyId,
+                executionScope,
                 command.ApprovalRevision,
                 command.ExecutionRevision) ||
             workItem.Operation != DataRightsCaseOperation.Anonymisation ||
@@ -91,7 +94,7 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
 
             ledger = created.Value;
         }
-        else if (!MatchesOwnerProof(ledger, workItem))
+        else if (!ledger.MatchesExecutionProof(workItem))
         {
             return Result.Failure<Unit>(
                 DataRightsApplicationErrors.ProcessingLedgerConflict);
@@ -134,6 +137,12 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
 
         if (!wasCompleted)
         {
+            if (workItem.PropertyId is not Guid propertyId)
+            {
+                return Result.Failure<Unit>(
+                    DataRightsApplicationErrors.ExecutionCoordinateInvalid);
+            }
+
             await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
                 new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
                         ids.NewId(),
@@ -142,7 +151,7 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
                         workItem.BatchId,
                         workItem.Id,
                         workItem.CaseId,
-                        workItem.PropertyId,
+                        propertyId,
                         workItem.ExecutionRevision),
                 cancellationToken).ConfigureAwait(false);
         }
@@ -185,21 +194,6 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
             pseudonym.Value,
             previousEntrySha256);
     }
-
-    private static bool MatchesOwnerProof(
-        DataRightsProcessingLedgerEntry ledger,
-        DataRightsExecutionWorkItem workItem) =>
-        ledger.WorkItemId == workItem.Id &&
-        ledger.CaseId == workItem.CaseId &&
-        ledger.ApprovalRevision == workItem.ApprovalRevision &&
-        ledger.OperationRevision == workItem.ExecutionRevision &&
-        ledger.OwnerReceiptContractVersion ==
-            workItem.OwnerReceiptContractVersion &&
-        ledger.OwnerReceiptId == workItem.OwnerReceiptId &&
-        string.Equals(
-            ledger.OwnerReceiptSha256,
-            workItem.OwnerReceiptSha256,
-            StringComparison.Ordinal);
 
     private static bool HasMatchingDurabilityProof(
         DataRightsLedgerDeltaAppendReceipt receipt,

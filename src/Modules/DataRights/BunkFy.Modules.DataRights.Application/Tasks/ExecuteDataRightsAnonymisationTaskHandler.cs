@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Application.Tasks;
 
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using Gma.Framework.Cqrs;
@@ -28,7 +29,7 @@ internal sealed class ExecuteDataRightsAnonymisationTaskHandler(
                 new BeginDataRightsAnonymisationWorkItemCommand(
                     payload.WorkItemId,
                     payload.CaseId,
-                    payload.PropertyId,
+                    DataRightsCaseScope.ForProperty(payload.PropertyId),
                     payload.ApprovalRevision,
                     payload.ExecutionRevision,
                     context.RunId,
@@ -56,7 +57,7 @@ internal sealed class ExecuteDataRightsAnonymisationTaskHandler(
                 new FinalizeDataRightsAnonymisationLedgerCommand(
                     payload.WorkItemId,
                     payload.CaseId,
-                    payload.PropertyId,
+                    DataRightsCaseScope.ForProperty(payload.PropertyId),
                     payload.ApprovalRevision,
                     payload.ExecutionRevision,
                     context.RunId),
@@ -114,7 +115,7 @@ internal sealed class ExecuteDataRightsAnonymisationTaskHandler(
                 new RecordDataRightsAnonymisationOwnerResultCommand(
                     payload.WorkItemId,
                     payload.CaseId,
-                    payload.PropertyId,
+                    DataRightsCaseScope.ForProperty(payload.PropertyId),
                     payload.ApprovalRevision,
                     payload.ExecutionRevision,
                     context.RunId,

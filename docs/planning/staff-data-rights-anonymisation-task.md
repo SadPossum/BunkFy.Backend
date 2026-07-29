@@ -1,6 +1,6 @@
 # Staff Data Rights Anonymisation Task
 
-Status: planned; prerequisite foundation implemented and verified
+Status: in progress; foundation and scope slices implemented and verified
 Date: 2026-07-29
 
 ## Outcome
@@ -237,6 +237,49 @@ those bytes and invalidate valid history. The implementation must therefore
 verify the exact stored nested payload or use an explicit legacy serializer for
 old contract versions. Permissive fallback verification is prohibited.
 
+## Scope Slice State
+
+The scope slice now implements:
+
+- tenant-scoped Staff anonymisation case admission;
+- exactly-one contributor selection by case type, owner, and record type;
+- Staff-owned lifecycle, governance, restriction, hold, retention, and
+  operation-lock evidence;
+- schema-versioned frozen approval evidence with bounded canonical state
+  bindings;
+- explicit case and scope coordinates on execution batches and work items;
+- a version 3 ledger contract for scoped evidence while preserving version 1
+  and 2 Guest canonical digests;
+- exact-byte verification of historical protected-delta payloads; and
+- PostgreSQL promotion and guarded downgrade of existing Guest execution data.
+
+Destructive Staff execution remains intentionally denied. Existing owner
+requests, terminal events, and restore contributors are property-scoped
+version 1 contracts. Data Rights must not dispatch Staff work until the owner
+mutation slice supplies versioned tenant-capable contracts and Staff registers
+the corresponding owner.
+
+Version 3 restore also remains intentionally closed before replay-envelope
+decryption. This prevents a scoped ledger entry from being replayed through
+the Guest property protocol while the synchronous Workspaces access-denial
+step is still unavailable.
+
+### Deployment Contract
+
+The scoped-execution migration is intentionally fail closed rather than
+rolling-write compatible with an older Data Rights binary. Before applying it:
+
+1. stop Data Rights mutation traffic and pause its worker/restore processing;
+2. drain active Data Rights transactions and already-dispatched work;
+3. apply the migration;
+4. deploy the matching API and worker version together; and
+5. complete ledger/readiness checks before resuming traffic.
+
+Do not add compatibility defaults or triggers that fabricate scope or policy
+evidence for an old writer. Downgrade is supported only while no schema 2
+approval, tenant-scoped execution, or version 3 ledger entry exists; the
+migration rejects an unsafe downgrade.
+
 ## Restore Safety
 
 A database restored from before anonymisation may resurrect both Staff PII and
@@ -302,8 +345,29 @@ backfill, authoritative export, concurrent serialization, and downgrade
 protection. No GMA framework change was required for this product-specific
 foundation.
 
+### Scope Verification
+
+The scope slice passed the complete non-Docker repository gate on 2026-07-29
+with `eng/verify.ps1 -SkipRestore`, covering solution/source-package guards,
+the build, migration drift, architecture boundaries, and all 36 non-Docker test
+projects. The final integration tail was also rechecked directly: 39 tests
+passed with no failures or skips.
+
+Focused proof passed for Data Rights (243 tests), Staff (94 tests), and
+Inventory (67 tests). The exact PostgreSQL migration scenario
+`DataRightsPersistenceIntegrationTests.Execution_batch_migration_promotes_only_ledger_proven_legacy_success`
+passed against the upgraded schema. It proves ledger-backed legacy promotion,
+version 1 and 2 compatibility, fail-closed malformed-row handling, append-only
+trigger restoration, and guarded downgrade behavior. The migration model has
+no pending changes. All mounted GMA repositories remained clean; this slice
+required no GMA change.
+
 ## Deferred
 
+- versioned tenant-capable approval-gate, owner-request, terminal-event, and
+  restore contracts;
+- Staff owner mutation under the per-member operation lock, with exact
+  re-evaluation of every frozen state binding;
 - automatic Staff retention scheduling and worker execution;
 - production legal approval of country-policy content;
 - payroll, tax, identity-document, contract, signature, and benefits records;

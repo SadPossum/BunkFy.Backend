@@ -2,13 +2,18 @@ namespace BunkFy.Modules.DataRights.Tests.Application;
 
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Application;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Policies;
 using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Xunit;
+using SelectedSubject =
+    BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsAnonymisationApprovalPolicyTests
@@ -24,11 +29,15 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
             CreatePolicy();
         DataRightsAnonymisationApprovalPolicy policy = new(
             new StubPropertyRepository(CreateSnapshot(binding)),
+            [],
             registry,
             new TestClock());
 
         Result<DataRightsApprovalPolicyEvidence> result = await policy.EvaluateAsync(
-            propertyId,
+            "tenant-a",
+            DataRightsCaseScope.ForProperty(propertyId),
+            Guid.NewGuid(),
+            [],
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -68,11 +77,15 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
                 processingStatus,
                 binding,
                 7)),
+            [],
             registry,
             new TestClock());
 
         Result<DataRightsApprovalPolicyEvidence> result = await policy.EvaluateAsync(
+            "tenant-a",
+            DataRightsCaseScope.ForProperty(Guid.NewGuid()),
             Guid.NewGuid(),
+            [],
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -92,11 +105,15 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
                 PropertyProcessingStatus.Enabled,
                 binding,
                 7)),
+            [],
             CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),
             new TestClock());
 
         Result<DataRightsApprovalPolicyEvidence> result = await policy.EvaluateAsync(
+            "tenant-a",
+            DataRightsCaseScope.ForProperty(Guid.NewGuid()),
             Guid.NewGuid(),
+            [],
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -104,6 +121,156 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
             DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied.Code,
             result.Error.Code);
     }
+
+    [Fact]
+    public async Task Staff_owner_policy_mints_tenant_scoped_bound_evidence()
+    {
+        Guid staffMemberId = Guid.NewGuid();
+        SelectedSubject subject = SelectedSubject.Create(
+            "staff",
+            "staff-member",
+            staffMemberId,
+            12,
+            "user:selector",
+            Now.AddMinutes(-2)).Value;
+        StubPolicyContributor contributor = new(
+            ApprovedStaffContribution());
+        DataRightsAnonymisationApprovalPolicy policy = new(
+            new StubPropertyRepository(property: null),
+            [contributor],
+            CountryPolicyRegistry.Create(
+                [],
+                [],
+                CountryPolicyRuntimeMode.Engineering),
+            new TestClock());
+
+        Result<DataRightsApprovalPolicyEvidence> result =
+            await policy.EvaluateAsync(
+                "tenant-a",
+                DataRightsCaseScope.Staff,
+                Guid.NewGuid(),
+                [subject],
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            DataRightsApprovalPolicyEvidence.CurrentSchemaVersion,
+            result.Value.SchemaVersion);
+        Assert.Equal(DataRightsCaseKind.StaffRights, result.Value.CaseKind);
+        Assert.Equal(
+            DataRightsCaseScopeKind.Tenant,
+            result.Value.ScopeKind);
+        Assert.Null(result.Value.PropertyId);
+        Assert.Equal(0, result.Value.PropertyVersion);
+        Assert.Equal(
+            ["staff.governance", "staff.record"],
+            result.Value.StateBindings.Select(binding => binding.Key));
+        Assert.True(result.Value.HasValidShape());
+        Assert.Equal(1, contributor.EvaluationCount);
+    }
+
+    [Fact]
+    public async Task Duplicate_staff_policy_contributors_fail_closed()
+    {
+        SelectedSubject subject = SelectedSubject.Create(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            12,
+            "user:selector",
+            Now.AddMinutes(-2)).Value;
+        StubPolicyContributor first = new(ApprovedStaffContribution());
+        StubPolicyContributor second = new(ApprovedStaffContribution());
+        DataRightsAnonymisationApprovalPolicy policy = new(
+            new StubPropertyRepository(property: null),
+            [first, second],
+            CountryPolicyRegistry.Create(
+                [],
+                [],
+                CountryPolicyRuntimeMode.Engineering),
+            new TestClock());
+
+        Result<DataRightsApprovalPolicyEvidence> result =
+            await policy.EvaluateAsync(
+                "tenant-a",
+                DataRightsCaseScope.Staff,
+                Guid.NewGuid(),
+                [subject],
+                CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied.Code,
+            result.Error.Code);
+        Assert.Equal(0, first.EvaluationCount);
+        Assert.Equal(0, second.EvaluationCount);
+    }
+
+    [Fact]
+    public async Task Malformed_staff_policy_contribution_fails_closed()
+    {
+        DataRightsAnonymisationPolicyContributionResult approved =
+            ApprovedStaffContribution();
+        StubPolicyContributor contributor = new(
+            approved with
+            {
+                Evidence = approved.Evidence! with
+                {
+                    StateBindings = null!
+                }
+            });
+        DataRightsAnonymisationApprovalPolicy policy = new(
+            new StubPropertyRepository(property: null),
+            [contributor],
+            CountryPolicyRegistry.Create(
+                [],
+                [],
+                CountryPolicyRuntimeMode.Engineering),
+            new TestClock());
+        SelectedSubject subject = SelectedSubject.Create(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            12,
+            "user:selector",
+            Now.AddMinutes(-2)).Value;
+
+        Result<DataRightsApprovalPolicyEvidence> result =
+            await policy.EvaluateAsync(
+                "tenant-a",
+                DataRightsCaseScope.Staff,
+                Guid.NewGuid(),
+                [subject],
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied.Code,
+            result.Error.Code);
+    }
+
+    private static DataRightsAnonymisationPolicyContributionResult
+        ApprovedStaffContribution() =>
+        DataRightsAnonymisationPolicyContributionResult.Approved(
+            new(
+                "GB",
+                "development-example-hostel",
+                1,
+                "development-staff-employment",
+                1,
+                new string('a', 64),
+                "staff-data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                "staff-employment",
+                "employment-ended",
+                Now.AddDays(-8),
+                Now.AddDays(-1),
+                Now,
+                [
+                    new("staff.record", 12, new string('b', 64)),
+                    new("staff.governance", 3, new string('c', 64))
+                ],
+                RequiresDistinctExecutor: true));
 
     private static (
         CountryPolicyRegistry Registry,
@@ -194,5 +361,31 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class StubPolicyContributor(
+        DataRightsAnonymisationPolicyContributionResult result)
+        : IDataRightsAnonymisationPolicyContributor
+    {
+        public int ContractVersion =>
+            DataRightsAnonymisationPolicyContract.CurrentVersion;
+
+        public DataRightsCaseType CaseType =>
+            DataRightsCaseType.StaffRights;
+
+        public string OwnerKey => "staff";
+
+        public string RecordType => "staff-member";
+
+        public int EvaluationCount { get; private set; }
+
+        public Task<DataRightsAnonymisationPolicyContributionResult>
+            EvaluateAsync(
+                DataRightsAnonymisationPolicyContributionRequest request,
+                CancellationToken cancellationToken)
+        {
+            this.EvaluationCount++;
+            return Task.FromResult(result);
+        }
     }
 }

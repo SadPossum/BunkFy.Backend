@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.DataRights.Domain.Aggregates;
 
 using BunkFy.Modules.DataRights.Domain.Errors;
+using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
@@ -13,7 +15,9 @@ public sealed class DataRightsExecutionBatch : ScopedAggregateRoot<Guid>
 
     public Guid IdempotencyKey { get; private set; }
     public Guid CaseId { get; private set; }
-    public Guid PropertyId { get; private set; }
+    public DataRightsCaseKind CaseKind { get; private set; }
+    public DataRightsCaseScopeKind ScopeKind { get; private set; }
+    public Guid? PropertyId { get; private set; }
     public long ApprovalRevision { get; private set; }
     public long ExecutionRevision { get; private set; }
     public int SelectedSubjectCount { get; private set; }
@@ -26,17 +30,18 @@ public sealed class DataRightsExecutionBatch : ScopedAggregateRoot<Guid>
         string tenantId,
         Guid idempotencyKey,
         Guid caseId,
-        Guid propertyId,
+        DataRightsExecutionScope executionScope,
         long approvalRevision,
         long executionRevision,
         int selectedSubjectCount,
         string actorId,
         DateTimeOffset nowUtc)
     {
+        ArgumentNullException.ThrowIfNull(executionScope);
+
         if (id == Guid.Empty ||
             idempotencyKey == Guid.Empty ||
             caseId == Guid.Empty ||
-            propertyId == Guid.Empty ||
             approvalRevision <= 0 ||
             executionRevision <= approvalRevision ||
             selectedSubjectCount is <= 0 or > DataRightsCase.MaxSelectedSubjects)
@@ -68,7 +73,9 @@ public sealed class DataRightsExecutionBatch : ScopedAggregateRoot<Guid>
         {
             IdempotencyKey = idempotencyKey,
             CaseId = caseId,
-            PropertyId = propertyId,
+            CaseKind = executionScope.CaseKind,
+            ScopeKind = executionScope.ScopeKind,
+            PropertyId = executionScope.PropertyId,
             ApprovalRevision = approvalRevision,
             ExecutionRevision = executionRevision,
             SelectedSubjectCount = selectedSubjectCount,
@@ -80,14 +87,17 @@ public sealed class DataRightsExecutionBatch : ScopedAggregateRoot<Guid>
     public bool Matches(
         Guid idempotencyKey,
         Guid caseId,
-        Guid propertyId,
+        DataRightsExecutionScope executionScope,
         long? executionRevision) =>
         idempotencyKey != Guid.Empty &&
         caseId != Guid.Empty &&
-        propertyId != Guid.Empty &&
+        executionScope is not null &&
         executionRevision.HasValue &&
         this.IdempotencyKey == idempotencyKey &&
         this.CaseId == caseId &&
-        this.PropertyId == propertyId &&
+        executionScope.Matches(
+            this.CaseKind,
+            this.ScopeKind,
+            this.PropertyId) &&
         this.ExecutionRevision == executionRevision.Value;
 }

@@ -50,11 +50,16 @@ public sealed partial class DataRightsCase
         bool approvesAnonymisation = decision == DataRightsCaseDecision.Approved &&
             this.RequestedOperations == DataRightsCaseOperation.Anonymisation;
         bool requestsAnonymisation = (this.RequestedOperations & DataRightsCaseOperation.Anonymisation) != 0;
-        if ((approvesAnonymisation && approvalPolicyEvidence is null) ||
+        if ((approvesAnonymisation &&
+                (approvalPolicyEvidence is null ||
+                 !this.MatchesApprovalEvidence(approvalPolicyEvidence))) ||
             (!approvesAnonymisation && approvalPolicyEvidence is not null) ||
             (decision == DataRightsCaseDecision.Approved &&
              requestsAnonymisation &&
-             this.RequestedOperations != DataRightsCaseOperation.Anonymisation))
+             this.RequestedOperations != DataRightsCaseOperation.Anonymisation) ||
+            (approvesAnonymisation &&
+             this.Kind == DataRightsCaseKind.StaffRights &&
+             this.selectedSubjects.Count != 1))
         {
             return Result.Failure(DataRightsDomainErrors.ApprovalPolicyEvidenceInvalid);
         }
@@ -80,4 +85,19 @@ public sealed partial class DataRightsCase
         (decision == DataRightsCaseDecision.Denied &&
             reason is >= DataRightsCaseDecisionReason.IdentityOrAuthorityNotEstablished
                 and <= DataRightsCaseDecisionReason.UnsupportedOperation);
+
+    private bool MatchesApprovalEvidence(
+        DataRightsApprovalPolicyEvidence evidence)
+    {
+        if (!evidence.HasValidShape() ||
+            evidence.CaseKind != this.Kind ||
+            evidence.PropertyId != this.PropertyId)
+        {
+            return false;
+        }
+
+        return this.PropertyId.HasValue
+            ? evidence.ScopeKind == DataRightsCaseScopeKind.Property
+            : evidence.ScopeKind == DataRightsCaseScopeKind.Tenant;
+    }
 }

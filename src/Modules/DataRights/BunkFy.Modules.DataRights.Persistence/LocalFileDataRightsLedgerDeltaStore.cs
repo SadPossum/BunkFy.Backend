@@ -608,33 +608,43 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
         CancellationToken cancellationToken)
     {
         string path = RecordPath(directoryPath, sequence);
-        LocalLedgerDeltaRecord record = await ReadJsonAsync<
-            LocalLedgerDeltaRecord>(
+        LocalLedgerDeltaRecordReadResult readResult =
+            await ReadRecordJsonAsync(
                 path,
                 MaximumRecordBytes,
                 cancellationToken).ConfigureAwait(false);
-        if (record.StorageContractVersion != StorageContractVersion ||
-            record.Delta is null ||
-            !record.Delta.HasValidProof() ||
-            record.Delta.Ledger.TenantSequence != sequence ||
-            !string.Equals(
-                record.Delta.Ledger.ScopeId,
-                scopeId,
-                StringComparison.Ordinal) ||
-            !IsSha256(record.PreviousStorageMacSha256) ||
-            !IsSha256(record.StorageMacSha256))
+        try
         {
-            throw Integrity("A local ledger delta record is invalid.");
-        }
+            LocalLedgerDeltaRecord record = readResult.Record;
+            if (record.StorageContractVersion != StorageContractVersion ||
+                record.Delta is null ||
+                !record.Delta.HasValidProof() ||
+                record.Delta.Ledger.TenantSequence != sequence ||
+                !string.Equals(
+                    record.Delta.Ledger.ScopeId,
+                    scopeId,
+                    StringComparison.Ordinal) ||
+                !IsSha256(record.PreviousStorageMacSha256) ||
+                !IsSha256(record.StorageMacSha256))
+            {
+                throw Integrity("A local ledger delta record is invalid.");
+            }
 
-        string expectedMac = this.ComputeStorageMac(record);
-        if (!FixedTimeHexEquals(expectedMac, record.StorageMacSha256))
+            string expectedMac = this.ComputeStorageMac(
+                record,
+                readResult.RawDeltaBytes);
+            if (!FixedTimeHexEquals(expectedMac, record.StorageMacSha256))
+            {
+                throw Integrity(
+                    "A local ledger delta record failed integrity verification.");
+            }
+
+            return record;
+        }
+        finally
         {
-            throw Integrity(
-                "A local ledger delta record failed integrity verification.");
+            CryptographicOperations.ZeroMemory(readResult.RawDeltaBytes);
         }
-
-        return record;
     }
 
     private async Task<LocalLedgerCheckpointRecord> ReadCheckpointAsync(
@@ -732,6 +742,20 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
         byte[] payload = JsonSerializer.SerializeToUtf8Bytes(
             record.Delta,
             SerializerOptions);
+        try
+        {
+            return this.ComputeStorageMac(record, payload);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(payload);
+        }
+    }
+
+    private string ComputeStorageMac(
+        LocalLedgerDeltaRecord record,
+        byte[] rawDeltaBytes)
+    {
         string canonical = string.Join(
             '\n',
             StorageMacDomain,
@@ -743,8 +767,7 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
             record.FlushedAtUtc.ToUniversalTime().ToString(
                 "O",
                 CultureInfo.InvariantCulture),
-            Convert.ToBase64String(payload));
-        CryptographicOperations.ZeroMemory(payload);
+            Convert.ToBase64String(rawDeltaBytes));
         return this.ComputeMac(record.IntegrityKeyVersion, canonical);
     }
 
@@ -828,6 +851,58 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
                 IntegrityCode,
                 "A local ledger delta file is malformed.",
                 exception);
+        }
+    }
+
+    private static async Task<LocalLedgerDeltaRecordReadResult>
+        ReadRecordJsonAsync(
+            string path,
+            int maximumBytes,
+            CancellationToken cancellationToken)
+    {
+        RejectReparsePointIfPresent(path, "ledger delta file");
+        FileInfo file = new(path);
+        if (!file.Exists || file.Length <= 0 || file.Length > maximumBytes)
+        {
+            throw Integrity("A local ledger delta file has an invalid size.");
+        }
+
+        byte[] bytes = await File.ReadAllBytesAsync(
+            path,
+            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(bytes);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty(
+                    "delta",
+                    out JsonElement delta) ||
+                delta.ValueKind != JsonValueKind.Object)
+            {
+                throw Integrity(
+                    "A local ledger delta record is malformed.");
+            }
+
+            LocalLedgerDeltaRecord record =
+                JsonSerializer.Deserialize<LocalLedgerDeltaRecord>(
+                    bytes,
+                    SerializerOptions)
+                ?? throw Integrity(
+                    "A local ledger delta file is empty.");
+            return new(
+                record,
+                Encoding.UTF8.GetBytes(delta.GetRawText()));
+        }
+        catch (JsonException exception)
+        {
+            throw new DataRightsLedgerDeltaStoreException(
+                IntegrityCode,
+                "A local ledger delta file is malformed.",
+                exception);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(bytes);
         }
     }
 
@@ -1199,6 +1274,10 @@ internal sealed class LocalFileDataRightsLedgerDeltaStore
     private sealed record RestoreScopeManifest(
         IReadOnlyList<DataRightsRestoreScope> Scopes,
         string SnapshotSha256);
+
+    private sealed record LocalLedgerDeltaRecordReadResult(
+        LocalLedgerDeltaRecord Record,
+        byte[] RawDeltaBytes);
 }
 
 internal sealed record LocalLedgerDeltaRecord(

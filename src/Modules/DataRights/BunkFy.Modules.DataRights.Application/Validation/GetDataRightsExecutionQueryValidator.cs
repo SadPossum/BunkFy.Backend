@@ -8,9 +8,9 @@ internal sealed class GetDataRightsExecutionQueryValidator
 {
     public IEnumerable<string> Validate(GetDataRightsExecutionQuery query)
     {
-        if (query.PropertyId == Guid.Empty)
+        if (query.Scope is null)
         {
-            yield return "PropertyId is required.";
+            yield return "Scope is required.";
         }
 
         if (query.CaseId == Guid.Empty)

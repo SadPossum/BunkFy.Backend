@@ -14,5 +14,7 @@ public static class DataRightsExecutionBatchMappings
         batch.ExecutionRevision,
         batch.SelectedSubjectCount,
         batch.CreatedAtUtc,
-        batch.Version);
+        batch.Version,
+        (DataRightsCaseType)batch.CaseKind,
+        (DataRightsExecutionScopeKind)batch.ScopeKind);
 }

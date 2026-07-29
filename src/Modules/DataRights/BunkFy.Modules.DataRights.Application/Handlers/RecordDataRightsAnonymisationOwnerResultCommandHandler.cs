@@ -2,10 +2,12 @@ namespace BunkFy.Modules.DataRights.Application.Handlers;
 
 using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Messaging;
 using Gma.Framework.Results;
@@ -25,11 +27,11 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(command.PropertyId),
+            command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionWorkItem? workItem = await workItems.GetAsync(
-            command.PropertyId,
+            command.Scope,
             command.CaseId,
             command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
@@ -38,9 +40,11 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
             return Result.Failure<Unit>(DataRightsApplicationErrors.ExecutionNotFound);
         }
 
+        DataRightsExecutionScope executionScope =
+            command.Scope.ToExecutionScope();
         if (!workItem.HasExecutionCoordinates(
                 command.CaseId,
-                command.PropertyId,
+                executionScope,
                 command.ApprovalRevision,
                 command.ExecutionRevision) ||
             workItem.OwnerContractVersion != command.Result.ContractVersion)
@@ -94,6 +98,12 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
         if (workItem.State is DataRightsExecutionWorkItemState.Blocked
                 or DataRightsExecutionWorkItemState.Failed)
         {
+            if (workItem.PropertyId is not Guid propertyId)
+            {
+                return Result.Failure<Unit>(
+                    DataRightsApplicationErrors.ExecutionCoordinateInvalid);
+            }
+
             await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
                 new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
                     ids.NewId(),
@@ -102,7 +112,7 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
                     workItem.BatchId,
                     workItem.Id,
                     workItem.CaseId,
-                    workItem.PropertyId,
+                    propertyId,
                     workItem.ExecutionRevision),
                 cancellationToken).ConfigureAwait(false);
         }

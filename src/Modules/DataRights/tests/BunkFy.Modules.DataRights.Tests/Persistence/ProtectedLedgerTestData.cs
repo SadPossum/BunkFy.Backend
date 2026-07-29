@@ -68,6 +68,28 @@ internal static class ProtectedLedgerTestData
             previousEntrySha256).Value;
     }
 
+    internal static DataRightsProcessingLedgerEntry CreateStaffLedger(
+        IDataRightsRecordPseudonymizer pseudonymizer,
+        string scopeId,
+        long sequence,
+        string previousEntrySha256,
+        Guid recordId)
+    {
+        DataRightsExecutionWorkItem workItem =
+            CreateCompletedStaffWorkItem(scopeId, recordId);
+        DataRightsRecordPseudonym pseudonym = pseudonymizer.CreateActive(
+            scopeId,
+            workItem.OwnerKey,
+            workItem.RecordType,
+            recordId).Value;
+        return DataRightsProcessingLedgerEntry.Create(
+            Guid.NewGuid(),
+            sequence,
+            workItem,
+            pseudonym,
+            previousEntrySha256).Value;
+    }
+
     internal static DataRightsLedgerDelta CreateDelta(
         AesGcmDataRightsReplayEnvelopeProtector protector,
         DataRightsProcessingLedgerEntry ledger,
@@ -113,7 +135,7 @@ internal static class ProtectedLedgerTestData
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 Guid.NewGuid(),
-                propertyId,
+                DataRightsExecutionScope.ForProperty(propertyId),
                 approvalRevision: 6,
                 executionRevision: 7,
                 DataRightsCaseOperation.Anonymisation,
@@ -135,6 +157,83 @@ internal static class ProtectedLedgerTestData
             resultingRecordVersion: 5,
             "guests.completed",
             "guests.profile-anonymised",
+            new string('b', 64),
+            Now.AddMinutes(3),
+            Now.AddMinutes(4));
+        return workItem;
+    }
+
+    private static DataRightsExecutionWorkItem CreateCompletedStaffWorkItem(
+        string scopeId,
+        Guid recordId)
+    {
+        DataRightsSubjectCoordinate subject =
+            DataRightsSubjectCoordinate.Create(
+                "staff",
+                "staff-member",
+                recordId,
+                8,
+                "user:selector",
+                Now).Value;
+        DataRightsApprovalPolicyEvidence policy =
+            DataRightsApprovalPolicyEvidence.CreateScoped(
+                DataRightsCaseKind.StaffRights,
+                DataRightsCaseScopeKind.Tenant,
+                propertyId: null,
+                propertyVersion: 0,
+                "GB",
+                "approved-staff-policy",
+                3,
+                "staff-retention",
+                2,
+                new string('a', 64),
+                "staff-data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                "staff-employment",
+                "employment-ended",
+                Now.AddDays(-8),
+                Now.AddDays(-1),
+                Now,
+                [
+                    DataRightsApprovalEvidenceBinding.Create(
+                        "staff.record",
+                        8,
+                        new string('d', 64)).Value,
+                    DataRightsApprovalEvidenceBinding.Create(
+                        "staff.governance",
+                        2,
+                        new string('e', 64)).Value
+                ]).Value;
+        DataRightsExecutionWorkItem workItem =
+            DataRightsExecutionWorkItem.Prepare(
+                Guid.NewGuid(),
+                scopeId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                DataRightsExecutionScope.Staff,
+                approvalRevision: 6,
+                executionRevision: 7,
+                DataRightsCaseOperation.Anonymisation,
+                subject,
+                policy,
+                "user:executor",
+                Now.AddMinutes(1)).Value;
+        Guid taskRunId = Guid.NewGuid();
+        _ = workItem.BeginProcessing(
+            taskRunId,
+            taskAttempt: 1,
+            Now.AddMinutes(2));
+        _ = workItem.RecordOwnerProof(
+            workItem.Version,
+            taskRunId,
+            taskAttempt: 1,
+            receiptContractVersion: 1,
+            Guid.NewGuid(),
+            resultingRecordVersion: 9,
+            "staff.completed",
+            "staff.member-anonymised",
             new string('b', 64),
             Now.AddMinutes(3),
             Now.AddMinutes(4));

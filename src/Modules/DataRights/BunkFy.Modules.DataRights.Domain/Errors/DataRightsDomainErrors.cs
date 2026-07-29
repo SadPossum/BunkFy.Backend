@@ -36,7 +36,7 @@ public static class DataRightsDomainErrors
         "A staff data-rights case must be initiated by the data subject, an authorized representative, or the controller.");
     public static readonly Error StaffRightsOperationsInvalid = new(
         "DataRights.StaffRightsOperationsInvalid",
-        "A staff data-rights case currently supports access export only.");
+        "A staff data-rights case requires one supported operation.");
     public static readonly Error TenantTerminationRequesterInvalid = new(
         "DataRights.TenantTerminationRequesterInvalid",
         "Tenant termination must be initiated by the controller or tenant owner.");

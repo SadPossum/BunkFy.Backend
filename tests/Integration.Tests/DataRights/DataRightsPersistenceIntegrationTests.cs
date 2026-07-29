@@ -1,5 +1,6 @@
 namespace Integration.Tests;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
@@ -21,6 +22,8 @@ public sealed class DataRightsPersistenceIntegrationTests
         "20260726022029_AddProcessingLedgerResultVersion";
     private const string BeforeStaffRightsMigration =
         "20260726214049_AddDataRightsExecutionBatches";
+    private const string BeforeScopedAnonymisationExecutionMigration =
+        "20260729131757_AllowStaffRestrictionCases";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -197,7 +200,7 @@ public sealed class DataRightsPersistenceIntegrationTests
                     "tenant-a",
                     executionIdempotencyKey,
                     anonymisationCase.Id,
-                    propertyId,
+                    DataRightsExecutionScope.ForProperty(propertyId),
                     approvalRevision: 6,
                     executionRevision: 7,
                     selectedSubjectCount: 1,
@@ -210,7 +213,7 @@ public sealed class DataRightsPersistenceIntegrationTests
                     executionBatchId,
                     executionIdempotencyKey,
                     anonymisationCase.Id,
-                    propertyId,
+                    DataRightsExecutionScope.ForProperty(propertyId),
                     approvalRevision: 6,
                     executionRevision: 7,
                     DataRightsCaseOperation.Anonymisation,
@@ -491,15 +494,131 @@ public sealed class DataRightsPersistenceIntegrationTests
                 .SingleAsync(item => item.Id == workItemId);
             DataRightsCase dataRightsCase = await upgraded.Cases
                 .SingleAsync(item => item.Id == caseId);
+            DataRightsProcessingLedgerEntry ledger =
+                await upgraded.ProcessingLedgerEntries
+                    .SingleAsync(item => item.Id == ledgerEntryId);
 
             Assert.Equal(idempotencyKey, batch.IdempotencyKey);
             Assert.Equal(1, batch.SelectedSubjectCount);
+            Assert.Equal(DataRightsCaseKind.GuestRights, batch.CaseKind);
+            Assert.Equal(DataRightsCaseScopeKind.Property, batch.ScopeKind);
+            Assert.Equal(propertyId, batch.PropertyId);
             Assert.Equal(batch.Id, workItem.BatchId);
             Assert.Equal(DataRightsExecutionWorkItemState.Completed, workItem.State);
+            Assert.Equal(DataRightsCaseKind.GuestRights, workItem.CaseKind);
+            Assert.Equal(DataRightsCaseScopeKind.Property, workItem.ScopeKind);
+            Assert.Equal(8, workItem.PolicyPropertyVersion);
+            Assert.Equal("GB", workItem.PolicyOperatingCountryCode);
+            Assert.Equal(
+                "data-rights-anonymisation",
+                workItem.PolicyPurposeCode);
+            Assert.Equal("erasure", workItem.PolicySurface);
+            Assert.Equal(
+                "authorized-workspace-operator",
+                workItem.PolicySourceProvenance);
+            Assert.Equal("[]", workItem.PolicyStateBindingsJson);
+            Assert.Equal(
+                DataRightsApprovalEvidence.EmptyStateBindingsSha256,
+                workItem.PolicyStateBindingsSha256);
+            Assert.True(workItem.PolicyRequiresDistinctExecutor);
             Assert.Equal(DataRightsCaseState.Completed, dataRightsCase.Status);
             Assert.Equal("system:data-rights-migration", dataRightsCase.LastChangedBy);
             Assert.Equal(outcomeAtUtc, dataRightsCase.LastChangedAtUtc);
             Assert.Equal(8, dataRightsCase.Version);
+            DataRightsApprovalPolicyEvidence approvalEvidence =
+                Assert.IsType<DataRightsApprovalPolicyEvidence>(
+                    dataRightsCase.ApprovalPolicyEvidence);
+            Assert.Equal(DataRightsCaseKind.GuestRights, approvalEvidence.CaseKind);
+            Assert.Equal(
+                DataRightsCaseScopeKind.Property,
+                approvalEvidence.ScopeKind);
+            Assert.Equal("[]", approvalEvidence.StateBindingsJson);
+            Assert.True(workItem.MatchesPolicyEvidence(approvalEvidence));
+            Assert.Equal(
+                DataRightsProcessingLedgerEntry
+                    .GuestResultVersionContractVersion,
+                ledger.ContractVersion);
+            Assert.Equal(DataRightsCaseKind.Unknown, ledger.CaseKind);
+            Assert.Equal(DataRightsCaseScopeKind.Unknown, ledger.ScopeKind);
+            Assert.Null(ledger.PolicyPropertyVersion);
+            Assert.Equal(entrySha256, ledger.EntrySha256);
+
+            PostgresException appendOnly =
+                await Assert.ThrowsAsync<PostgresException>(
+                    () => upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                        UPDATE "data-rights"."processing_ledger_entries"
+                        SET "EntrySha256" = "EntrySha256"
+                        WHERE "Id" = {ledgerEntryId}
+                        """));
+            Assert.Equal("P0001", appendOnly.SqlState);
+            Assert.Contains("append-only", appendOnly.MessageText);
+
+            IMigrator migrator = upgraded.Database.GetService<IMigrator>();
+            upgraded.ChangeTracker.Clear();
+            await migrator.MigrateAsync(
+                BeforeScopedAnonymisationExecutionMigration);
+            await migrator.MigrateAsync();
+
+            DataRightsExecutionWorkItem roundTripped =
+                await upgraded.ExecutionWorkItems
+                    .SingleAsync(item => item.Id == workItemId);
+            Assert.Equal(
+                DataRightsApprovalEvidence.EmptyStateBindingsSha256,
+                roundTripped.PolicyStateBindingsSha256);
+
+            Guid scopedLedgerEntryId = Guid.NewGuid();
+            Guid scopedWorkItemId = Guid.NewGuid();
+            Guid scopedOwnerReceiptId = Guid.NewGuid();
+            string scopedBindingsJson =
+                """[{"key":"staff.record","version":1,"sha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}]""";
+            await upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "data-rights"."processing_ledger_entries" (
+                    "Id", "ContractVersion", "TenantSequence", "WorkItemId",
+                    "CaseId", "ApprovalRevision", "OperationRevision", "Operation",
+                    "CaseKind", "ScopeKind", "RoutingPropertyId", "OwnerKey",
+                    "RecordType", "RecordPseudonymKeyVersion",
+                    "RecordPseudonymSha256", "DispositionCode", "ReasonCode",
+                    "CompletedAtUtc", "PolicyEvidenceSchemaVersion", "PolicyId",
+                    "PolicyVersion", "PolicyContentSha256", "RetentionPolicyId",
+                    "RetentionPolicyVersion", "PolicyPropertyVersion",
+                    "PolicyOperatingCountryCode", "PolicyPurposeCode",
+                    "PolicySurface", "PolicySourceProvenance",
+                    "PolicyRetentionDataClass", "PolicyRetentionTrigger",
+                    "PolicyRetentionTriggeredAtUtc", "PolicyRetentionDeadlineUtc",
+                    "PolicyEvaluatedAtUtc", "PolicyStateBindingsJson",
+                    "PolicyStateBindingsSha256", "PolicyRequiresDistinctExecutor",
+                    "OwnerReceiptContractVersion", "OwnerReceiptId",
+                    "OwnerReceiptSha256", "ResultingRecordVersion",
+                    "PreviousEntrySha256", "EntrySha256",
+                    "ReplayOfLedgerEntryId", "SupersedesLedgerEntryId", "ScopeId")
+                VALUES (
+                    {scopedLedgerEntryId}, 3, 2, {scopedWorkItemId}, {caseId},
+                    6, 7, {(int)DataRightsCaseOperation.Anonymisation},
+                    {(int)DataRightsCaseKind.StaffRights},
+                    {(int)DataRightsCaseScopeKind.Tenant}, NULL, {"staff"},
+                    {"staff-member"}, 1, {new string('e', 64)},
+                    {"staff.completed"}, {"staff.member-anonymised"},
+                    {outcomeAtUtc.AddDays(2)}, 2,
+                    {"integration-hostel-baseline"}, 1, {policySha256},
+                    {"integration-staff-employment"}, 1, 0, {"GB"},
+                    {"staff-data-rights-anonymisation"}, {"erasure"},
+                    {"authorized-workspace-operator"}, {"staff-employment"},
+                    {"employment-ended"}, {outcomeAtUtc},
+                    {outcomeAtUtc.AddDays(1)}, {outcomeAtUtc.AddDays(2)},
+                    {scopedBindingsJson}, {new string('f', 64)}, TRUE, 1,
+                    {scopedOwnerReceiptId}, {new string('b', 64)}, 2,
+                    {entrySha256}, {new string('f', 64)}, NULL, NULL,
+                    {"tenant-a"});
+                """);
+
+            PostgresException unsafeDowngrade =
+                await Assert.ThrowsAsync<PostgresException>(
+                    () => migrator.MigrateAsync(
+                        BeforeScopedAnonymisationExecutionMigration));
+            Assert.Equal("P0001", unsafeDowngrade.SqlState);
+            Assert.Contains(
+                "version 3 processing-ledger",
+                unsafeDowngrade.MessageText);
         }
     }
 

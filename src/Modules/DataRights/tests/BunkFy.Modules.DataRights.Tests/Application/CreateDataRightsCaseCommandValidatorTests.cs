@@ -13,6 +13,7 @@ public sealed class CreateDataRightsCaseCommandValidatorTests
     [InlineData(DataRightsOperation.AccessExport, true)]
     [InlineData(DataRightsOperation.Correction, true)]
     [InlineData(DataRightsOperation.Restriction, true)]
+    [InlineData(DataRightsOperation.Anonymisation, true)]
     [InlineData(DataRightsOperation.AccessExport | DataRightsOperation.Correction, false)]
     public void Staff_rights_operations_match_supported_owner_capabilities(
         DataRightsOperation operations,

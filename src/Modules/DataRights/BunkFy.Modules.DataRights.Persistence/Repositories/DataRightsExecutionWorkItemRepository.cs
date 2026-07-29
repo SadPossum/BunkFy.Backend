@@ -1,7 +1,10 @@
 namespace BunkFy.Modules.DataRights.Persistence.Repositories;
 
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Models;
+using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed class DataRightsExecutionWorkItemRepository(DataRightsDbContext dbContext)
@@ -16,13 +19,21 @@ internal sealed class DataRightsExecutionWorkItemRepository(DataRightsDbContext 
     }
 
     public async Task<IReadOnlyCollection<DataRightsExecutionWorkItem>> ListByBatchAsync(
-        Guid propertyId,
+        DataRightsCaseScope scope,
         Guid caseId,
         Guid batchId,
-        CancellationToken cancellationToken) =>
-        await dbContext.ExecutionWorkItems
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        DataRightsCaseScopeKind scopeKind = scope.IsTenant
+            ? DataRightsCaseScopeKind.Tenant
+            : DataRightsCaseScopeKind.Property;
+        return await dbContext.ExecutionWorkItems
             .Where(workItem =>
-                workItem.PropertyId == propertyId &&
+                workItem.CaseKind ==
+                    (DataRightsCaseKind)scope.CaseType &&
+                workItem.ScopeKind == scopeKind &&
+                workItem.PropertyId == scope.PropertyId &&
                 workItem.CaseId == caseId &&
                 workItem.BatchId == batchId)
             .OrderBy(workItem => workItem.OwnerKey)
@@ -30,16 +41,26 @@ internal sealed class DataRightsExecutionWorkItemRepository(DataRightsDbContext 
             .ThenBy(workItem => workItem.RecordId)
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
 
     public Task<DataRightsExecutionWorkItem?> GetAsync(
-        Guid propertyId,
+        DataRightsCaseScope scope,
         Guid caseId,
         Guid workItemId,
-        CancellationToken cancellationToken) =>
-        dbContext.ExecutionWorkItems.SingleOrDefaultAsync(
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        DataRightsCaseScopeKind scopeKind = scope.IsTenant
+            ? DataRightsCaseScopeKind.Tenant
+            : DataRightsCaseScopeKind.Property;
+        return dbContext.ExecutionWorkItems.SingleOrDefaultAsync(
             workItem =>
-                workItem.PropertyId == propertyId &&
+                workItem.CaseKind ==
+                    (DataRightsCaseKind)scope.CaseType &&
+                workItem.ScopeKind == scopeKind &&
+                workItem.PropertyId == scope.PropertyId &&
                 workItem.CaseId == caseId &&
                 workItem.Id == workItemId,
             cancellationToken);
+    }
 }

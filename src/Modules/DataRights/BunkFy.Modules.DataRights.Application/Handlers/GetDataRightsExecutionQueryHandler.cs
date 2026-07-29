@@ -20,7 +20,7 @@ internal sealed class GetDataRightsExecutionQueryHandler(
         CancellationToken cancellationToken)
     {
         DataRightsCase? dataRightsCase = await cases.GetAsync(
-            DataRightsCaseScope.ForProperty(query.PropertyId),
+            query.Scope,
             query.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)
@@ -30,7 +30,7 @@ internal sealed class GetDataRightsExecutionQueryHandler(
         }
 
         DataRightsExecutionBatch? batch = await batches.GetByCaseAsync(
-            query.PropertyId,
+            query.Scope,
             query.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (batch is null)
@@ -41,7 +41,7 @@ internal sealed class GetDataRightsExecutionQueryHandler(
 
         IReadOnlyCollection<DataRightsExecutionWorkItem> executionItems =
             await workItems.ListByBatchAsync(
-                query.PropertyId,
+                query.Scope,
                 query.CaseId,
                 batch.Id,
                 cancellationToken).ConfigureAwait(false);

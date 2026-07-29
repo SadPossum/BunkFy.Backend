@@ -17,8 +17,12 @@ internal static class InventoryAnonymisationPolicyEvidence
         string country = NormalizeUpper(
             evidence.OperatingCountryCode);
         string digest = NormalizeLower(evidence.ContentSha256);
-        return evidence.SchemaVersion > 0 &&
-            evidence.PropertyId != Guid.Empty &&
+        return evidence.SchemaVersion == 1 &&
+            evidence.CaseType == DataRightsCaseType.GuestRights &&
+            evidence.ScopeKind ==
+                DataRightsExecutionScopeKind.Property &&
+            evidence.PropertyId is Guid propertyId &&
+            propertyId != Guid.Empty &&
             evidence.PropertyVersion > 0 &&
             country.Length == 2 &&
             country.All(character =>
@@ -31,7 +35,18 @@ internal static class InventoryAnonymisationPolicyEvidence
             IsKey(NormalizeLower(evidence.PurposeCode)) &&
             IsKey(NormalizeLower(evidence.Surface)) &&
             IsKey(NormalizeLower(evidence.SourceProvenance)) &&
-            evidence.EvaluatedAtUtc != default;
+            evidence.EvaluatedAtUtc != default &&
+            evidence.RetentionDataClass is null &&
+            evidence.RetentionTrigger is null &&
+            evidence.RetentionTriggeredAtUtc is null &&
+            evidence.RetentionDeadlineUtc is null &&
+            (evidence.StateBindings is null ||
+             evidence.StateBindings.Count == 0) &&
+            (evidence.StateBindingsSha256 is null ||
+             string.Equals(
+                 evidence.StateBindingsSha256,
+                 DataRightsApprovalEvidence.EmptyStateBindingsSha256,
+                 StringComparison.Ordinal));
     }
 
     public static bool MatchesApproval(
@@ -50,7 +65,11 @@ internal static class InventoryAnonymisationPolicyEvidence
         ArgumentNullException.ThrowIfNull(evidence);
         StringBuilder canonical = new();
         Append(canonical, Invariant(evidence.SchemaVersion));
-        Append(canonical, evidence.PropertyId.ToString("N"));
+        Append(
+            canonical,
+            evidence.PropertyId is Guid propertyId
+                ? propertyId.ToString("N")
+                : string.Empty);
         Append(canonical, Invariant(evidence.PropertyVersion));
         Append(
             canonical,

@@ -14,7 +14,8 @@ using Gma.Framework.Results;
 public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
 {
     public const int MinimumSupportedContractVersion = 1;
-    public const int CurrentContractVersion = 2;
+    public const int GuestResultVersionContractVersion = 2;
+    public const int CurrentContractVersion = 3;
     public const int CodeMaxLength = DataRightsExecutionWorkItem.OwnerCodeMaxLength;
     public const int Sha256Length = DataRightsRecordPseudonym.Sha256Length;
     public const string GenesisEntrySha256 =
@@ -34,7 +35,9 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
     public long ApprovalRevision { get; private set; }
     public long OperationRevision { get; private set; }
     public DataRightsCaseOperation Operation { get; private set; }
-    public Guid RoutingPropertyId { get; private set; }
+    public DataRightsCaseKind CaseKind { get; private set; }
+    public DataRightsCaseScopeKind ScopeKind { get; private set; }
+    public Guid? RoutingPropertyId { get; private set; }
     public string OwnerKey { get; private set; } = string.Empty;
     public string RecordType { get; private set; } = string.Empty;
     public int RecordPseudonymKeyVersion { get; private set; }
@@ -48,6 +51,19 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
     public string PolicyContentSha256 { get; private set; } = string.Empty;
     public string RetentionPolicyId { get; private set; } = string.Empty;
     public int RetentionPolicyVersion { get; private set; }
+    public long? PolicyPropertyVersion { get; private set; }
+    public string? PolicyOperatingCountryCode { get; private set; }
+    public string? PolicyPurposeCode { get; private set; }
+    public string? PolicySurface { get; private set; }
+    public string? PolicySourceProvenance { get; private set; }
+    public string? PolicyRetentionDataClass { get; private set; }
+    public string? PolicyRetentionTrigger { get; private set; }
+    public DateTimeOffset? PolicyRetentionTriggeredAtUtc { get; private set; }
+    public DateTimeOffset? PolicyRetentionDeadlineUtc { get; private set; }
+    public DateTimeOffset? PolicyEvaluatedAtUtc { get; private set; }
+    public string? PolicyStateBindingsJson { get; private set; }
+    public string? PolicyStateBindingsSha256 { get; private set; }
+    public bool? PolicyRequiresDistinctExecutor { get; private set; }
     public int OwnerReceiptContractVersion { get; private set; }
     public Guid OwnerReceiptId { get; private set; }
     public string OwnerReceiptSha256 { get; private set; } = string.Empty;
@@ -94,7 +110,10 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             tenantSequence <= 0 ||
             workItem.Id == Guid.Empty ||
             workItem.CaseId == Guid.Empty ||
-            workItem.PropertyId == Guid.Empty ||
+            DataRightsExecutionScope.Create(
+                workItem.CaseKind,
+                workItem.ScopeKind,
+                workItem.PropertyId).IsFailure ||
             workItem.ApprovalRevision <= 0 ||
             workItem.ExecutionRevision <= workItem.ApprovalRevision ||
             workItem.Operation != DataRightsCaseOperation.Anonymisation ||
@@ -116,15 +135,34 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             return Invalid();
         }
 
+        bool useGuestCompatibilityContract =
+            workItem.CaseKind == DataRightsCaseKind.GuestRights &&
+            workItem.ScopeKind == DataRightsCaseScopeKind.Property &&
+            workItem.PropertyId is Guid propertyId &&
+            propertyId != Guid.Empty &&
+            workItem.PolicyEvidenceSchemaVersion ==
+                DataRightsApprovalPolicyEvidence.MinimumSupportedSchemaVersion;
+        int contractVersion = useGuestCompatibilityContract
+            ? GuestResultVersionContractVersion
+            : CurrentContractVersion;
+        bool freezeScopedEvidence =
+            contractVersion == CurrentContractVersion;
+
         DataRightsProcessingLedgerEntry entry = new(entryId, workItem.ScopeId)
         {
-            ContractVersion = CurrentContractVersion,
+            ContractVersion = contractVersion,
             TenantSequence = tenantSequence,
             WorkItemId = workItem.Id,
             CaseId = workItem.CaseId,
             ApprovalRevision = workItem.ApprovalRevision,
             OperationRevision = workItem.ExecutionRevision,
             Operation = workItem.Operation,
+            CaseKind = freezeScopedEvidence
+                ? workItem.CaseKind
+                : DataRightsCaseKind.Unknown,
+            ScopeKind = freezeScopedEvidence
+                ? workItem.ScopeKind
+                : DataRightsCaseScopeKind.Unknown,
             RoutingPropertyId = workItem.PropertyId,
             OwnerKey = workItem.OwnerKey,
             RecordType = workItem.RecordType,
@@ -139,6 +177,45 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             PolicyContentSha256 = NormalizeSha256(workItem.PolicyContentSha256),
             RetentionPolicyId = workItem.RetentionPolicyId,
             RetentionPolicyVersion = workItem.RetentionPolicyVersion,
+            PolicyPropertyVersion = freezeScopedEvidence
+                ? workItem.PolicyPropertyVersion
+                : null,
+            PolicyOperatingCountryCode = freezeScopedEvidence
+                ? workItem.PolicyOperatingCountryCode
+                : null,
+            PolicyPurposeCode = freezeScopedEvidence
+                ? workItem.PolicyPurposeCode
+                : null,
+            PolicySurface = freezeScopedEvidence
+                ? workItem.PolicySurface
+                : null,
+            PolicySourceProvenance = freezeScopedEvidence
+                ? workItem.PolicySourceProvenance
+                : null,
+            PolicyRetentionDataClass = freezeScopedEvidence
+                ? workItem.PolicyRetentionDataClass
+                : null,
+            PolicyRetentionTrigger = freezeScopedEvidence
+                ? workItem.PolicyRetentionTrigger
+                : null,
+            PolicyRetentionTriggeredAtUtc = freezeScopedEvidence
+                ? workItem.PolicyRetentionTriggeredAtUtc
+                : null,
+            PolicyRetentionDeadlineUtc = freezeScopedEvidence
+                ? workItem.PolicyRetentionDeadlineUtc
+                : null,
+            PolicyEvaluatedAtUtc = freezeScopedEvidence
+                ? workItem.PolicyEvaluatedAtUtc
+                : null,
+            PolicyStateBindingsJson = freezeScopedEvidence
+                ? workItem.PolicyStateBindingsJson
+                : null,
+            PolicyStateBindingsSha256 = freezeScopedEvidence
+                ? workItem.PolicyStateBindingsSha256
+                : null,
+            PolicyRequiresDistinctExecutor = freezeScopedEvidence
+                ? workItem.PolicyRequiresDistinctExecutor
+                : null,
             OwnerReceiptContractVersion = workItem.OwnerReceiptContractVersion!.Value,
             OwnerReceiptId = workItem.OwnerReceiptId!.Value,
             OwnerReceiptSha256 = ownerReceiptDigest,
@@ -158,11 +235,95 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
     }
 
     public bool HasValidCanonicalDigest() =>
+        this.HasValidCoordinates() &&
         IsSha256(this.EntrySha256) &&
         string.Equals(
             this.EntrySha256,
             this.ComputeCanonicalSha256(),
             StringComparison.Ordinal);
+
+    public bool MatchesExecutionProof(DataRightsExecutionWorkItem workItem)
+    {
+        ArgumentNullException.ThrowIfNull(workItem);
+
+        bool matchesResultVersion = this.ContractVersion == 1
+            ? this.ResultingRecordVersion is null
+            : this.ResultingRecordVersion == workItem.ResultingRecordVersion;
+        bool matchesCompatibilityContract =
+            this.ContractVersion is 1 or GuestResultVersionContractVersion
+                ? workItem.CaseKind == DataRightsCaseKind.GuestRights &&
+                  workItem.ScopeKind == DataRightsCaseScopeKind.Property &&
+                  workItem.PolicyEvidenceSchemaVersion ==
+                    DataRightsApprovalPolicyEvidence.MinimumSupportedSchemaVersion &&
+                  this.CaseKind == DataRightsCaseKind.Unknown &&
+                  this.ScopeKind == DataRightsCaseScopeKind.Unknown
+                : this.ContractVersion == CurrentContractVersion &&
+                  this.CaseKind == workItem.CaseKind &&
+                  this.ScopeKind == workItem.ScopeKind &&
+                  this.PolicyPropertyVersion == workItem.PolicyPropertyVersion &&
+                  EqualsOrdinal(
+                      this.PolicyOperatingCountryCode,
+                      workItem.PolicyOperatingCountryCode) &&
+                  EqualsOrdinal(
+                      this.PolicyPurposeCode,
+                      workItem.PolicyPurposeCode) &&
+                  EqualsOrdinal(this.PolicySurface, workItem.PolicySurface) &&
+                  EqualsOrdinal(
+                      this.PolicySourceProvenance,
+                      workItem.PolicySourceProvenance) &&
+                  EqualsOrdinal(
+                      this.PolicyRetentionDataClass,
+                      workItem.PolicyRetentionDataClass) &&
+                  EqualsOrdinal(
+                      this.PolicyRetentionTrigger,
+                      workItem.PolicyRetentionTrigger) &&
+                  this.PolicyRetentionTriggeredAtUtc ==
+                    workItem.PolicyRetentionTriggeredAtUtc &&
+                  this.PolicyRetentionDeadlineUtc ==
+                    workItem.PolicyRetentionDeadlineUtc &&
+                  this.PolicyEvaluatedAtUtc == workItem.PolicyEvaluatedAtUtc &&
+                  EqualsOrdinal(
+                      this.PolicyStateBindingsJson,
+                      workItem.PolicyStateBindingsJson) &&
+                  EqualsOrdinal(
+                      this.PolicyStateBindingsSha256,
+                      workItem.PolicyStateBindingsSha256) &&
+                  this.PolicyRequiresDistinctExecutor ==
+                    workItem.PolicyRequiresDistinctExecutor;
+
+        return this.HasValidCoordinates() &&
+            this.HasValidCanonicalDigest() &&
+            matchesResultVersion &&
+            matchesCompatibilityContract &&
+            this.ScopeId == workItem.ScopeId &&
+            this.WorkItemId == workItem.Id &&
+            this.CaseId == workItem.CaseId &&
+            this.ApprovalRevision == workItem.ApprovalRevision &&
+            this.OperationRevision == workItem.ExecutionRevision &&
+            this.Operation == workItem.Operation &&
+            this.RoutingPropertyId == workItem.PropertyId &&
+            EqualsOrdinal(this.OwnerKey, workItem.OwnerKey) &&
+            EqualsOrdinal(this.RecordType, workItem.RecordType) &&
+            EqualsOrdinal(this.DispositionCode, workItem.OwnerDispositionCode) &&
+            EqualsOrdinal(this.ReasonCode, workItem.OwnerReasonCode) &&
+            this.CompletedAtUtc ==
+                workItem.OwnerCompletedAtUtc?.ToUniversalTime() &&
+            this.PolicyEvidenceSchemaVersion ==
+                workItem.PolicyEvidenceSchemaVersion &&
+            EqualsOrdinal(this.PolicyId, workItem.PolicyId) &&
+            this.PolicyVersion == workItem.PolicyVersion &&
+            EqualsOrdinal(
+                this.PolicyContentSha256,
+                workItem.PolicyContentSha256) &&
+            EqualsOrdinal(this.RetentionPolicyId, workItem.RetentionPolicyId) &&
+            this.RetentionPolicyVersion == workItem.RetentionPolicyVersion &&
+            this.OwnerReceiptContractVersion ==
+                workItem.OwnerReceiptContractVersion &&
+            this.OwnerReceiptId == workItem.OwnerReceiptId &&
+            EqualsOrdinal(
+                this.OwnerReceiptSha256,
+                workItem.OwnerReceiptSha256);
+    }
 
     public DataRightsProcessingLedgerSnapshot Freeze() =>
         new(
@@ -196,7 +357,22 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             this.EntrySha256,
             this.ReplayOfLedgerEntryId,
             this.SupersedesLedgerEntryId,
-            this.ResultingRecordVersion);
+            this.ResultingRecordVersion,
+            this.CaseKind,
+            this.ScopeKind,
+            this.PolicyPropertyVersion,
+            this.PolicyOperatingCountryCode,
+            this.PolicyPurposeCode,
+            this.PolicySurface,
+            this.PolicySourceProvenance,
+            this.PolicyRetentionDataClass,
+            this.PolicyRetentionTrigger,
+            this.PolicyRetentionTriggeredAtUtc,
+            this.PolicyRetentionDeadlineUtc,
+            this.PolicyEvaluatedAtUtc,
+            this.PolicyStateBindingsJson,
+            this.PolicyStateBindingsSha256,
+            this.PolicyRequiresDistinctExecutor);
 
     public static Result<DataRightsProcessingLedgerEntry> Restore(
         DataRightsProcessingLedgerSnapshot snapshot)
@@ -212,6 +388,8 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             ApprovalRevision = snapshot.ApprovalRevision,
             OperationRevision = snapshot.OperationRevision,
             Operation = snapshot.Operation,
+            CaseKind = snapshot.CaseKind,
+            ScopeKind = snapshot.ScopeKind,
             RoutingPropertyId = snapshot.RoutingPropertyId,
             OwnerKey = snapshot.OwnerKey,
             RecordType = snapshot.RecordType,
@@ -226,6 +404,25 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             PolicyContentSha256 = snapshot.PolicyContentSha256,
             RetentionPolicyId = snapshot.RetentionPolicyId,
             RetentionPolicyVersion = snapshot.RetentionPolicyVersion,
+            PolicyPropertyVersion = snapshot.PolicyPropertyVersion,
+            PolicyOperatingCountryCode =
+                snapshot.PolicyOperatingCountryCode,
+            PolicyPurposeCode = snapshot.PolicyPurposeCode,
+            PolicySurface = snapshot.PolicySurface,
+            PolicySourceProvenance = snapshot.PolicySourceProvenance,
+            PolicyRetentionDataClass =
+                snapshot.PolicyRetentionDataClass,
+            PolicyRetentionTrigger = snapshot.PolicyRetentionTrigger,
+            PolicyRetentionTriggeredAtUtc =
+                snapshot.PolicyRetentionTriggeredAtUtc,
+            PolicyRetentionDeadlineUtc =
+                snapshot.PolicyRetentionDeadlineUtc,
+            PolicyEvaluatedAtUtc = snapshot.PolicyEvaluatedAtUtc,
+            PolicyStateBindingsJson = snapshot.PolicyStateBindingsJson,
+            PolicyStateBindingsSha256 =
+                snapshot.PolicyStateBindingsSha256,
+            PolicyRequiresDistinctExecutor =
+                snapshot.PolicyRequiresDistinctExecutor,
             OwnerReceiptContractVersion = snapshot.OwnerReceiptContractVersion,
             OwnerReceiptId = snapshot.OwnerReceiptId,
             OwnerReceiptSha256 = snapshot.OwnerReceiptSha256,
@@ -253,7 +450,7 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
         this.ApprovalRevision > 0 &&
         this.OperationRevision > this.ApprovalRevision &&
         this.Operation == DataRightsCaseOperation.Anonymisation &&
-        this.RoutingPropertyId != Guid.Empty &&
+        this.HasValidScopeContract() &&
         HasCanonicalCode(
             this.OwnerKey,
             DataRightsSubjectCoordinate.OwnerKeyMaxLength) &&
@@ -266,8 +463,7 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
         HasCanonicalCode(this.ReasonCode, CodeMaxLength) &&
         this.CompletedAtUtc != default &&
         this.CompletedAtUtc.Offset == TimeSpan.Zero &&
-        this.PolicyEvidenceSchemaVersion ==
-            DataRightsApprovalPolicyEvidence.CurrentSchemaVersion &&
+        this.HasValidPolicyContract() &&
         this.PolicyVersion > 0 &&
         this.RetentionPolicyVersion > 0 &&
         HasCanonicalCode(
@@ -311,7 +507,20 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
         Append(canonical, this.ApprovalRevision.ToString(CultureInfo.InvariantCulture));
         Append(canonical, this.OperationRevision.ToString(CultureInfo.InvariantCulture));
         Append(canonical, ((int)this.Operation).ToString(CultureInfo.InvariantCulture));
-        Append(canonical, this.RoutingPropertyId.ToString("N"));
+        if (this.ContractVersion < CurrentContractVersion)
+        {
+            Append(canonical, this.RoutingPropertyId!.Value.ToString("N"));
+        }
+        else
+        {
+            Append(
+                canonical,
+                ((int)this.CaseKind).ToString(CultureInfo.InvariantCulture));
+            Append(
+                canonical,
+                ((int)this.ScopeKind).ToString(CultureInfo.InvariantCulture));
+            Append(canonical, Coordinate(this.RoutingPropertyId));
+        }
         Append(canonical, this.OwnerKey);
         Append(canonical, this.RecordType);
         Append(
@@ -338,12 +547,38 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
             this.OwnerReceiptContractVersion.ToString(CultureInfo.InvariantCulture));
         Append(canonical, this.OwnerReceiptId.ToString("N"));
         Append(canonical, this.OwnerReceiptSha256);
-        if (this.ContractVersion >= 2)
+        if (this.ContractVersion >= GuestResultVersionContractVersion)
         {
             Append(
                 canonical,
                 this.ResultingRecordVersion!.Value.ToString(
                     CultureInfo.InvariantCulture));
+        }
+
+        if (this.ContractVersion >= CurrentContractVersion)
+        {
+            Append(
+                canonical,
+                this.PolicyPropertyVersion!.Value.ToString(
+                    CultureInfo.InvariantCulture));
+            Append(canonical, this.PolicyOperatingCountryCode!);
+            Append(canonical, this.PolicyPurposeCode!);
+            Append(canonical, this.PolicySurface!);
+            Append(canonical, this.PolicySourceProvenance!);
+            Append(canonical, this.PolicyRetentionDataClass!);
+            Append(canonical, this.PolicyRetentionTrigger!);
+            Append(
+                canonical,
+                Timestamp(this.PolicyRetentionTriggeredAtUtc));
+            Append(
+                canonical,
+                Timestamp(this.PolicyRetentionDeadlineUtc));
+            Append(canonical, Timestamp(this.PolicyEvaluatedAtUtc));
+            Append(canonical, this.PolicyStateBindingsJson!);
+            Append(canonical, this.PolicyStateBindingsSha256!);
+            Append(
+                canonical,
+                this.PolicyRequiresDistinctExecutor == true ? "1" : "0");
         }
 
         Append(canonical, this.PreviousEntrySha256);
@@ -355,6 +590,98 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
 
     private static string Coordinate(Guid? value) =>
         value.HasValue ? value.Value.ToString("N") : "-";
+
+    private static string Timestamp(DateTimeOffset? value) =>
+        value.HasValue
+            ? value.Value.ToUniversalTime().ToString(
+                "O",
+                CultureInfo.InvariantCulture)
+            : "-";
+
+    private bool HasValidScopeContract()
+    {
+        if (this.ContractVersion < CurrentContractVersion)
+        {
+            return this.CaseKind == DataRightsCaseKind.Unknown &&
+                this.ScopeKind == DataRightsCaseScopeKind.Unknown &&
+                this.RoutingPropertyId is Guid propertyId &&
+                propertyId != Guid.Empty;
+        }
+
+        return DataRightsExecutionScope.Create(
+            this.CaseKind,
+            this.ScopeKind,
+            this.RoutingPropertyId).IsSuccess;
+    }
+
+    private bool HasValidPolicyContract()
+    {
+        if (this.ContractVersion < CurrentContractVersion)
+        {
+            return this.PolicyEvidenceSchemaVersion ==
+                    DataRightsApprovalPolicyEvidence
+                        .MinimumSupportedSchemaVersion &&
+                this.PolicyPropertyVersion is null &&
+                this.PolicyOperatingCountryCode is null &&
+                this.PolicyPurposeCode is null &&
+                this.PolicySurface is null &&
+                this.PolicySourceProvenance is null &&
+                this.PolicyRetentionDataClass is null &&
+                this.PolicyRetentionTrigger is null &&
+                this.PolicyRetentionTriggeredAtUtc is null &&
+                this.PolicyRetentionDeadlineUtc is null &&
+                this.PolicyEvaluatedAtUtc is null &&
+                this.PolicyStateBindingsJson is null &&
+                this.PolicyStateBindingsSha256 is null &&
+                this.PolicyRequiresDistinctExecutor is null;
+        }
+
+        bool propertyVersionValid = this.ScopeKind switch
+        {
+            DataRightsCaseScopeKind.Property =>
+                this.PolicyPropertyVersion > 0,
+            DataRightsCaseScopeKind.Tenant =>
+                this.PolicyPropertyVersion == 0,
+            _ => false
+        };
+        return this.PolicyEvidenceSchemaVersion ==
+                DataRightsApprovalPolicyEvidence.CurrentSchemaVersion &&
+            propertyVersionValid &&
+            this.PolicyOperatingCountryCode is
+            {
+                Length: DataRightsApprovalPolicyEvidence.CountryCodeLength
+            } country &&
+            country.All(character => character is >= 'A' and <= 'Z') &&
+            HasCanonicalCode(
+                this.PolicyPurposeCode,
+                DataRightsApprovalPolicyEvidence.KeyMaxLength) &&
+            HasCanonicalCode(
+                this.PolicySurface,
+                DataRightsApprovalPolicyEvidence.KeyMaxLength) &&
+            HasCanonicalCode(
+                this.PolicySourceProvenance,
+                DataRightsApprovalPolicyEvidence.KeyMaxLength) &&
+            HasCanonicalCode(
+                this.PolicyRetentionDataClass,
+                DataRightsApprovalPolicyEvidence.KeyMaxLength) &&
+            HasCanonicalCode(
+                this.PolicyRetentionTrigger,
+                DataRightsApprovalPolicyEvidence.KeyMaxLength) &&
+            this.PolicyRetentionTriggeredAtUtc is DateTimeOffset triggered &&
+            triggered.Offset == TimeSpan.Zero &&
+            this.PolicyRetentionDeadlineUtc is DateTimeOffset deadline &&
+            deadline.Offset == TimeSpan.Zero &&
+            deadline > triggered &&
+            this.PolicyEvaluatedAtUtc is DateTimeOffset evaluated &&
+            evaluated.Offset == TimeSpan.Zero &&
+            deadline <= evaluated &&
+            this.PolicyStateBindingsJson is not null &&
+            this.PolicyStateBindingsSha256 is not null &&
+            DataRightsApprovalPolicyEvidence.HasValidStateBindings(
+                this.PolicyStateBindingsJson,
+                this.PolicyStateBindingsSha256) &&
+            this.PolicyRequiresDistinctExecutor == true;
+    }
 
     private static void Append(StringBuilder target, string value)
     {
@@ -371,6 +698,9 @@ public sealed class DataRightsProcessingLedgerEntry : ScopedEntity<Guid>
         value.Length == Sha256Length &&
         value.All(character =>
             character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
+
+    private static bool EqualsOrdinal(string? left, string? right) =>
+        string.Equals(left, right, StringComparison.Ordinal);
 
     private static bool HasCanonicalCode(string? value, int maxLength) =>
         !string.IsNullOrWhiteSpace(value) &&

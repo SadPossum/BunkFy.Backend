@@ -28,6 +28,15 @@ internal sealed class DataRightsProcessingLedgerEntryConfiguration
                 "CK_data_rights_processing_ledger_operation",
                 "\"Operation\" = 16");
             table.HasCheckConstraint(
+                "CK_data_rights_processing_ledger_scope",
+                "((\"ContractVersion\" IN (1, 2) AND \"CaseKind\" = 0 AND " +
+                "\"ScopeKind\" = 0 AND \"RoutingPropertyId\" IS NOT NULL) OR " +
+                "(\"ContractVersion\" = 3 AND " +
+                "((\"CaseKind\" = 1 AND \"ScopeKind\" = 1 AND " +
+                "\"RoutingPropertyId\" IS NOT NULL) OR " +
+                "(\"CaseKind\" IN (2, 3) AND \"ScopeKind\" = 2 AND " +
+                "\"RoutingPropertyId\" IS NULL))))");
+            table.HasCheckConstraint(
                 "CK_data_rights_processing_ledger_subject",
                 "length(trim(\"OwnerKey\")) > 0 AND " +
                 "length(trim(\"RecordType\")) > 0 AND " +
@@ -40,11 +49,45 @@ internal sealed class DataRightsProcessingLedgerEntryConfiguration
                 "\"CompletedAtUtc\" <> '-infinity'");
             table.HasCheckConstraint(
                 "CK_data_rights_processing_ledger_policy",
-                $"\"PolicyEvidenceSchemaVersion\" = {DataRightsApprovalPolicyEvidence.CurrentSchemaVersion} AND " +
+                "\"PolicyEvidenceSchemaVersion\" IN (1, 2) AND " +
                 "length(trim(\"PolicyId\")) > 0 AND \"PolicyVersion\" >= 1 AND " +
                 "length(trim(\"RetentionPolicyId\")) > 0 AND " +
                 "\"RetentionPolicyVersion\" >= 1 AND " +
-                $"char_length(\"PolicyContentSha256\") = {DataRightsProcessingLedgerEntry.Sha256Length}");
+                $"char_length(\"PolicyContentSha256\") = {DataRightsProcessingLedgerEntry.Sha256Length} AND " +
+                "((\"ContractVersion\" IN (1, 2) AND " +
+                "\"PolicyEvidenceSchemaVersion\" = 1 AND " +
+                "\"PolicyPropertyVersion\" IS NULL AND " +
+                "\"PolicyOperatingCountryCode\" IS NULL AND " +
+                "\"PolicyPurposeCode\" IS NULL AND " +
+                "\"PolicySurface\" IS NULL AND " +
+                "\"PolicySourceProvenance\" IS NULL AND " +
+                "\"PolicyRetentionDataClass\" IS NULL AND " +
+                "\"PolicyRetentionTrigger\" IS NULL AND " +
+                "\"PolicyRetentionTriggeredAtUtc\" IS NULL AND " +
+                "\"PolicyRetentionDeadlineUtc\" IS NULL AND " +
+                "\"PolicyEvaluatedAtUtc\" IS NULL AND " +
+                "\"PolicyStateBindingsJson\" IS NULL AND " +
+                "\"PolicyStateBindingsSha256\" IS NULL AND " +
+                "\"PolicyRequiresDistinctExecutor\" IS NULL) OR " +
+                "(\"ContractVersion\" = 3 AND " +
+                "\"PolicyEvidenceSchemaVersion\" = 2 AND " +
+                "((\"ScopeKind\" = 1 AND \"PolicyPropertyVersion\" >= 1) OR " +
+                "(\"ScopeKind\" = 2 AND \"PolicyPropertyVersion\" = 0)) AND " +
+                $"char_length(\"PolicyOperatingCountryCode\") = {DataRightsApprovalPolicyEvidence.CountryCodeLength} AND " +
+                "length(trim(\"PolicyPurposeCode\")) > 0 AND " +
+                "length(trim(\"PolicySurface\")) > 0 AND " +
+                "length(trim(\"PolicySourceProvenance\")) > 0 AND " +
+                "length(trim(\"PolicyRetentionDataClass\")) > 0 AND " +
+                "length(trim(\"PolicyRetentionTrigger\")) > 0 AND " +
+                "\"PolicyRetentionTriggeredAtUtc\" IS NOT NULL AND " +
+                "\"PolicyRetentionDeadlineUtc\" > " +
+                    "\"PolicyRetentionTriggeredAtUtc\" AND " +
+                "\"PolicyRetentionDeadlineUtc\" <= " +
+                    "\"PolicyEvaluatedAtUtc\" AND " +
+                "length(\"PolicyStateBindingsJson\") > 0 AND " +
+                $"length(\"PolicyStateBindingsJson\") <= {DataRightsApprovalPolicyEvidence.StateBindingsJsonMaxLength} AND " +
+                $"char_length(\"PolicyStateBindingsSha256\") = {DataRightsProcessingLedgerEntry.Sha256Length} AND " +
+                "\"PolicyRequiresDistinctExecutor\"))");
             table.HasCheckConstraint(
                 "CK_data_rights_processing_ledger_receipt",
                 "\"OwnerReceiptContractVersion\" >= 1 AND " +
@@ -53,7 +96,7 @@ internal sealed class DataRightsProcessingLedgerEntryConfiguration
                 "CK_data_rights_processing_ledger_result_version",
                 $"(\"ContractVersion\" = {DataRightsProcessingLedgerEntry.MinimumSupportedContractVersion} AND " +
                 "\"ResultingRecordVersion\" IS NULL) OR " +
-                $"(\"ContractVersion\" = {DataRightsProcessingLedgerEntry.CurrentContractVersion} AND " +
+                $"(\"ContractVersion\" >= {DataRightsProcessingLedgerEntry.GuestResultVersionContractVersion} AND " +
                 "\"ResultingRecordVersion\" >= 1)");
             table.HasCheckConstraint(
                 "CK_data_rights_processing_ledger_chain",
@@ -112,6 +155,31 @@ internal sealed class DataRightsProcessingLedgerEntryConfiguration
         builder.Property(entry => entry.Operation)
             .HasConversion<int>()
             .IsRequired();
+        builder.Property(entry => entry.CaseKind)
+            .HasConversion<int>()
+            .IsRequired();
+        builder.Property(entry => entry.ScopeKind)
+            .HasConversion<int>()
+            .IsRequired();
+        builder.Property(entry => entry.PolicyOperatingCountryCode)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.CountryCodeLength)
+            .IsFixedLength();
+        builder.Property(entry => entry.PolicyPurposeCode)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+        builder.Property(entry => entry.PolicySurface)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+        builder.Property(entry => entry.PolicySourceProvenance)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+        builder.Property(entry => entry.PolicyRetentionDataClass)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+        builder.Property(entry => entry.PolicyRetentionTrigger)
+            .HasMaxLength(DataRightsApprovalPolicyEvidence.KeyMaxLength);
+        builder.Property(entry => entry.PolicyStateBindingsJson)
+            .HasMaxLength(
+                DataRightsApprovalPolicyEvidence.StateBindingsJsonMaxLength);
+        builder.Property(entry => entry.PolicyStateBindingsSha256)
+            .HasMaxLength(DataRightsProcessingLedgerEntry.Sha256Length)
+            .IsFixedLength();
 
         builder.HasIndex(entry => new
         {
