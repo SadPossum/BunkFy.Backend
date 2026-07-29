@@ -42,22 +42,37 @@ public sealed record DataRightsAnonymisationContributionResult(
 {
     public static DataRightsAnonymisationContributionResult Completed(
         DataRightsAnonymisationOwnerProof ownerProof) =>
+        Completed(DataRightsAnonymisationContract.CurrentVersion, ownerProof);
+
+    public static DataRightsAnonymisationContributionResult Completed(
+        int contractVersion,
+        DataRightsAnonymisationOwnerProof ownerProof) =>
         new(
-            DataRightsAnonymisationContract.CurrentVersion,
+            contractVersion,
             DataRightsAnonymisationContributionStatus.Completed,
             ownerProof,
             OutcomeCode: null);
 
     public static DataRightsAnonymisationContributionResult Blocked(string blockerCode) =>
+        Blocked(DataRightsAnonymisationContract.CurrentVersion, blockerCode);
+
+    public static DataRightsAnonymisationContributionResult Blocked(
+        int contractVersion,
+        string blockerCode) =>
         new(
-            DataRightsAnonymisationContract.CurrentVersion,
+            contractVersion,
             DataRightsAnonymisationContributionStatus.Blocked,
             OwnerProof: null,
             blockerCode);
 
     public static DataRightsAnonymisationContributionResult Failed(string failureCode) =>
+        Failed(DataRightsAnonymisationContract.CurrentVersion, failureCode);
+
+    public static DataRightsAnonymisationContributionResult Failed(
+        int contractVersion,
+        string failureCode) =>
         new(
-            DataRightsAnonymisationContract.CurrentVersion,
+            contractVersion,
             DataRightsAnonymisationContributionStatus.Failed,
             OwnerProof: null,
             failureCode);

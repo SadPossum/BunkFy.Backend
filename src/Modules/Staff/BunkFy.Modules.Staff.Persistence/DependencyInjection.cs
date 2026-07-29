@@ -28,6 +28,9 @@ public static class DependencyInjection
             IStaffDataRightsCorrectionReceiptRepository,
             StaffDataRightsCorrectionReceiptRepository>();
         builder.Services.TryAddScoped<
+            IStaffAnonymisationRepository,
+            StaffAnonymisationRepository>();
+        builder.Services.TryAddScoped<
             IStaffProcessingRestrictionRepository,
             StaffProcessingRestrictionRepository>();
         builder.Services.TryAddScoped<

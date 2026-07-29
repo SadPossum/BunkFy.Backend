@@ -146,6 +146,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
 
     private IQueryable<StaffMember> OperationalMembers() =>
         dbContext.StaffMembers.Where(member =>
+            member.Status != StaffMemberState.Anonymised &&
             dbContext.ProcessingRestrictionProjections.Any(projection =>
                 projection.StaffMemberId == member.Id &&
                 projection.ContractVersion ==

@@ -10,7 +10,9 @@ using Gma.Framework.Results;
 
 public sealed partial class DataRightsExecutionWorkItem : ScopedAggregateRoot<Guid>
 {
-    public const int CurrentOwnerContractVersion = 1;
+    public const int PropertyOwnerContractVersion = 1;
+    public const int ScopedOwnerContractVersion = 2;
+    public const int CurrentOwnerContractVersion = ScopedOwnerContractVersion;
     public const int OutcomeCodeMaxLength = 200;
     public const int OwnerCodeMaxLength = 100;
     public const int Sha256Length = 64;
@@ -178,7 +180,8 @@ public sealed partial class DataRightsExecutionWorkItem : ScopedAggregateRoot<Gu
                 policyEvidence.StateBindingsSha256,
             PolicyRequiresDistinctExecutor =
                 policyEvidence.RequiresDistinctExecutor,
-            OwnerContractVersion = CurrentOwnerContractVersion,
+            OwnerContractVersion = ResolveOwnerContractVersion(
+                executionScope.CaseKind),
             State = DataRightsExecutionWorkItemState.Prepared,
             CreatedBy = normalizedActor,
             CreatedAtUtc = nowUtc
@@ -224,7 +227,7 @@ public sealed partial class DataRightsExecutionWorkItem : ScopedAggregateRoot<Gu
             taskAttempt <= 0 ||
             nowUtc == default ||
             nowUtc < this.CreatedAtUtc ||
-            this.OwnerContractVersion != CurrentOwnerContractVersion)
+            !this.HasSupportedOwnerContract())
         {
             return Result.Failure(DataRightsDomainErrors.ExecutionCoordinateInvalid);
         }
@@ -263,6 +266,29 @@ public sealed partial class DataRightsExecutionWorkItem : ScopedAggregateRoot<Gu
         this.Version++;
         return Result.Success();
     }
+
+    private static int ResolveOwnerContractVersion(
+        DataRightsCaseKind caseKind) =>
+        caseKind switch
+        {
+            DataRightsCaseKind.GuestRights =>
+                PropertyOwnerContractVersion,
+            DataRightsCaseKind.StaffRights =>
+                ScopedOwnerContractVersion,
+            _ => 0
+        };
+
+    private bool HasSupportedOwnerContract() =>
+        this.CaseKind switch
+        {
+            DataRightsCaseKind.GuestRights =>
+                this.OwnerContractVersion ==
+                    PropertyOwnerContractVersion,
+            DataRightsCaseKind.StaffRights =>
+                this.OwnerContractVersion ==
+                    ScopedOwnerContractVersion,
+            _ => false
+        };
 
     public Result RecordBlocked(
         long expectedVersion,

@@ -36,7 +36,7 @@ public sealed class StaffContractTests
             permission.Code ==
                 StaffAdminPermissionCodes.DataHoldsManage);
         Assert.Equal(3, StaffModuleMetadata.Descriptor.GetSubscriptions().Count);
-        Assert.Equal(7, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(8, StaffModuleMetadata.Descriptor.GetPublishedEvents().Count);
         Assert.Contains(
             StaffModuleMetadata.Descriptor.GetPublishedEvents(),
             published =>
@@ -53,6 +53,7 @@ public sealed class StaffContractTests
             "EmployeeNumber", "JobTitle", "Department", "Reason"];
         Type[] eventTypes = [typeof(StaffMemberCreatedIntegrationEvent),
             typeof(StaffMemberUpdatedIntegrationEvent), typeof(StaffMemberLifecycleChangedIntegrationEvent),
+            typeof(StaffMemberAnonymisedIntegrationEvent),
             typeof(StaffAuthSubjectChangedIntegrationEvent),
             typeof(StaffPropertyAssignmentChangedIntegrationEvent),
             typeof(StaffProcessingRestrictionChangedIntegrationEvent),
@@ -61,6 +62,8 @@ public sealed class StaffContractTests
             property => forbidden.Contains(property.Name, StringComparer.Ordinal)));
         Assert.EndsWith(".staff.member-created.v1", StaffIntegrationSubjects.CreateMemberCreated(),
             StringComparison.Ordinal);
+        Assert.EndsWith(".staff.member-anonymised.v1",
+            StaffIntegrationSubjects.CreateMemberAnonymised(), StringComparison.Ordinal);
         Assert.EndsWith(".staff.property-assignment-changed.v1",
             StaffIntegrationSubjects.CreatePropertyAssignmentChanged(), StringComparison.Ordinal);
     }

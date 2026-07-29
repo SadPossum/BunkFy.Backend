@@ -17,6 +17,8 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Xunit;
+using ApprovalBinding =
+    BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsApprovalEvidenceBinding;
 
 [Trait("Category", "Unit")]
 public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
@@ -134,6 +136,96 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
             outbox.Events,
             item => Assert.IsType<
                 DataRightsAnonymisationExecutionPreparedIntegrationEvent>(item));
+    }
+
+    [Fact]
+    public async Task Staff_start_uses_v2_tenant_owner_protocol()
+    {
+        DataRightsCase dataRightsCase =
+            CreateApprovedStaffAnonymisation();
+        StubWorkItemRepository workItems = new();
+        RecordingApprovalGate gate = new(
+            DataRightsOperationApprovalResult.ApprovedWithEvidence(
+                dataRightsCase.ToApprovalEvidence()!));
+        RecordingOutbox outbox = new();
+        Guid workItemId = Guid.NewGuid();
+        StartDataRightsAnonymisationExecutionCommandHandler handler =
+            CreateHandler(
+                dataRightsCase,
+                workItems,
+                gate,
+                workItemId,
+                outbox);
+
+        Result<DataRightsExecutionDto> result =
+            await handler.HandleAsync(
+                new(
+                    DataRightsCaseScope.Staff,
+                    dataRightsCase.Id,
+                    Guid.NewGuid(),
+                    dataRightsCase.Version,
+                    "user:executor"),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        DataRightsExecutionWorkItemDto workItem =
+            Assert.Single(result.Value.WorkItems);
+        Assert.Equal(
+            DataRightsExecutionWorkItem.ScopedOwnerContractVersion,
+            workItem.OwnerContractVersion);
+        Assert.Equal(DataRightsCaseType.StaffRights,
+            workItem.CaseType);
+        Assert.Equal(DataRightsExecutionScopeKind.Tenant,
+            workItem.ScopeKind);
+        Assert.Null(workItem.PropertyId);
+        DataRightsAnonymisationExecutionPreparedIntegrationEventV2
+            prepared = Assert.IsType<
+                DataRightsAnonymisationExecutionPreparedIntegrationEventV2>(
+                Assert.Single(outbox.Events));
+        Assert.Equal(workItemId, prepared.WorkItemId);
+        Assert.Equal(DataRightsCaseType.StaffRights,
+            prepared.CaseType);
+        Assert.Equal(DataRightsExecutionScopeKind.Tenant,
+            prepared.ScopeKind);
+        Assert.Null(prepared.PropertyId);
+        Assert.Equal(DataRightsCaseType.StaffRights,
+            gate.Request!.CaseType);
+        Assert.Null(gate.Request.PropertyId);
+
+        Guid taskRunId = Guid.NewGuid();
+        BeginDataRightsAnonymisationWorkItemCommandHandler begin = new(
+            new StubCaseRepository(dataRightsCase),
+            workItems,
+            gate,
+            new RecordingOutboxRegistry(outbox),
+            new TestClock(),
+            new TestIdGenerator());
+        Result<DataRightsAnonymisationWorkItemStart> started =
+            await begin.HandleAsync(
+                new(
+                    workItem.Id,
+                    dataRightsCase.Id,
+                    DataRightsCaseScope.Staff,
+                    workItem.ApprovalRevision,
+                    workItem.ExecutionRevision,
+                    taskRunId,
+                    TaskAttempt: 1),
+                CancellationToken.None);
+
+        Assert.True(started.IsSuccess);
+        Assert.True(started.Value.DispatchRequired);
+        DataRightsAnonymisationContributionRequestV2 scopedRequest =
+            Assert.IsType<
+                DataRightsAnonymisationContributionRequestV2>(
+                started.Value.ScopedRequest);
+        Assert.Equal(workItem.Id, scopedRequest.WorkItemId);
+        Assert.Equal(DataRightsCaseType.StaffRights,
+            scopedRequest.CaseType);
+        Assert.Equal(DataRightsExecutionScopeKind.Tenant,
+            scopedRequest.ScopeKind);
+        Assert.Null(scopedRequest.PropertyId);
+        Assert.Null(started.Value.PropertyRequest);
+        Assert.Equal(2, gate.EvaluationCount);
     }
 
     [Fact]
@@ -393,6 +485,88 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
                 "erasure",
                 "authorized-workspace-operator",
                 Now.AddMinutes(-1)).Value;
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(-1),
+            evidence).IsSuccess);
+        return dataRightsCase;
+    }
+
+    private static DataRightsCase
+        CreateApprovedStaffAnonymisation()
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            Now.AddMinutes(-6)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:operator",
+            Now.AddMinutes(-5)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            3,
+            dataRightsCase.Version,
+            "user:operator",
+            Now.AddMinutes(-4)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:operator",
+            Now.AddMinutes(-3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            Now.AddMinutes(-2)).IsSuccess);
+        DataRightsApprovalPolicyEvidence evidence =
+            DataRightsApprovalPolicyEvidence.CreateScoped(
+                DataRightsCaseKind.StaffRights,
+                DataRightsCaseScopeKind.Tenant,
+                propertyId: null,
+                propertyVersion: 0,
+                "GB",
+                "staff-policy",
+                policyVersion: 3,
+                "staff-employment",
+                retentionPolicyVersion: 2,
+                new string('a', 64),
+                "staff-data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                "staff-employment",
+                "employment-ended",
+                Now.AddDays(-2_556),
+                Now.AddDays(-1),
+                Now.AddMinutes(-1),
+                [
+                    ApprovalBinding.Create(
+                        "staff.governance",
+                        1,
+                        new string('b', 64)).Value,
+                    ApprovalBinding.Create(
+                        "staff.holds",
+                        42,
+                        new string('c', 64)).Value,
+                    ApprovalBinding.Create(
+                        "staff.record",
+                        3,
+                        new string('d', 64)).Value,
+                    ApprovalBinding.Create(
+                        "staff.restriction",
+                        0,
+                        new string('e', 64)).Value
+                ]).Value;
         Assert.True(dataRightsCase.RecordDecision(
             DataRightsCaseDecision.Approved,
             DataRightsCaseDecisionReason.RequestValidated,

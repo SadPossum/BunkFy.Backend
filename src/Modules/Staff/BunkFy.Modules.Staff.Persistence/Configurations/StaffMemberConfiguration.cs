@@ -15,9 +15,10 @@ internal sealed class StaffMemberConfiguration : IEntityTypeConfiguration<StaffM
             table.HasCheckConstraint("CK_staff_members_created_by", "length(trim(\"CreatedBy\")) > 0");
             table.HasCheckConstraint("CK_staff_members_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
             table.HasCheckConstraint("CK_staff_members_lifecycle",
-                "(\"Status\" = 1 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL) OR " +
-                "(\"Status\" = 2 AND \"SuspendedAtUtc\" IS NOT NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL) OR " +
-                "(\"Status\" = 3 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NOT NULL AND \"DepartureEffectiveOn\" IS NOT NULL)");
+                "(\"Status\" = 1 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL AND \"AnonymisedAtUtc\" IS NULL) OR " +
+                "(\"Status\" = 2 AND \"SuspendedAtUtc\" IS NOT NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL AND \"AnonymisedAtUtc\" IS NULL) OR " +
+                "(\"Status\" = 3 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NOT NULL AND \"DepartureEffectiveOn\" IS NOT NULL AND \"AnonymisedAtUtc\" IS NULL) OR " +
+                "(\"Status\" = 4 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NOT NULL AND \"DepartureEffectiveOn\" IS NOT NULL AND \"AnonymisedAtUtc\" IS NOT NULL)");
         });
         builder.HasKey(member => member.Id);
         builder.HasAlternateKey(member => new { member.ScopeId, member.Id });

@@ -48,6 +48,7 @@ public sealed partial class StaffMember : ScopedAggregateRoot<Guid>
     public DateTimeOffset? SuspendedAtUtc { get; private set; }
     public DateTimeOffset? DepartedAtUtc { get; private set; }
     public DateOnly? DepartureEffectiveOn { get; private set; }
+    public DateTimeOffset? AnonymisedAtUtc { get; private set; }
     public IReadOnlyCollection<StaffPropertyAssignment> Assignments => this.assignments.AsReadOnly();
 
     private Result EnsureMutable(long expectedVersion, Guid eventId)
@@ -60,6 +61,11 @@ public sealed partial class StaffMember : ScopedAggregateRoot<Guid>
         if (this.Status == StaffMemberState.Departed)
         {
             return Result.Failure(StaffDomainErrors.StaffDeparted);
+        }
+
+        if (this.Status == StaffMemberState.Anonymised)
+        {
+            return Result.Failure(StaffDomainErrors.StaffAnonymised);
         }
 
         return eventId == Guid.Empty ? Result.Failure(StaffDomainErrors.EventIdRequired) : Result.Success();

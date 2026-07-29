@@ -23,6 +23,9 @@ public static class StaffDomainErrors
     public static readonly Error VersionConflict = new("Staff.VersionConflict", "The staff profile version has changed.");
     public static readonly Error StaffSuspended = new("Staff.StaffSuspended", "The staff member is suspended.");
     public static readonly Error StaffDeparted = new("Staff.StaffDeparted", "The staff member has departed.");
+    public static readonly Error StaffAnonymised = new(
+        "Staff.StaffAnonymised",
+        "The staff member has been anonymised.");
     public static readonly Error AlreadySuspended = new("Staff.AlreadySuspended", "The staff member is already suspended.");
     public static readonly Error NotSuspended = new("Staff.NotSuspended", "The staff member is not suspended.");
     public static readonly Error AlreadyDeparted = new("Staff.AlreadyDeparted", "The staff member has already departed.");
@@ -119,4 +122,16 @@ public static class StaffDomainErrors
     public static readonly Error DataHoldReceiptTransitionInvalid = new(
         "Staff.DataHoldReceiptTransitionInvalid",
         "The Staff data-hold receipt transition is invalid.");
+    public static readonly Error AnonymisationTimestampInvalid = new(
+        "Staff.AnonymisationTimestampInvalid",
+        "The Staff anonymisation timestamp is invalid.");
+    public static readonly Error AnonymisationTransitionInvalid = new(
+        "Staff.AnonymisationTransitionInvalid",
+        "The Staff member is not eligible for anonymisation.");
+    public static readonly Error AnonymisationReceiptInvalid = new(
+        "Staff.AnonymisationReceiptInvalid",
+        "The Staff anonymisation receipt is invalid.");
+    public static readonly Error AnonymisationTombstoneInvalid = new(
+        "Staff.AnonymisationTombstoneInvalid",
+        "The Staff anonymisation tombstone is invalid.");
 }

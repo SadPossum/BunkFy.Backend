@@ -60,6 +60,64 @@ public sealed class StaffDirectoryRepositoryTests
                 "EmployeeNumber" or "AuthSubjectId" or "CreatedBy" or "LastChangedBy");
     }
 
+    [Fact]
+    public async Task Anonymised_member_is_hidden_from_all_operational_reads()
+    {
+        await using StaffDbContext dbContext = CreateDbContext();
+        StaffMember member = CreateMember();
+        string previousAuthSubject = member.AuthSubjectId!;
+        DateTimeOffset departedAtUtc =
+            new(2018, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        Assert.True(member.Depart(
+            DateOnly.FromDateTime(departedAtUtc.UtcDateTime),
+            member.Version,
+            "user:owner",
+            "employment-ended",
+            Guid.NewGuid(),
+            [],
+            departedAtUtc).IsSuccess);
+        Assert.True(member.Anonymise(
+            member.Version,
+            "user:privacy",
+            Guid.NewGuid(),
+            new DateTimeOffset(
+                2026,
+                7,
+                30,
+                12,
+                0,
+                0,
+                TimeSpan.Zero)).IsSuccess);
+        dbContext.StaffMembers.Add(member);
+        dbContext.ProcessingRestrictionProjections.Add(
+            CreateRestrictionProjection(member));
+        await dbContext.SaveChangesAsync();
+        StaffMemberRepository repository = new(dbContext);
+
+        Assert.Null(await repository.GetAsync(
+            member.Id,
+            CancellationToken.None));
+        Assert.Null(await repository.GetByAuthSubjectAsync(
+            previousAuthSubject,
+            CancellationToken.None));
+        Assert.Null(await repository.GetDirectoryAsync(
+            member.Id,
+            CancellationToken.None));
+        Assert.Empty((await repository.ListDirectoryAsync(
+            search: null,
+            status: null,
+            new PageRequest(
+                PageRequest.DefaultPage,
+                PageRequest.DefaultPageSize),
+            CancellationToken.None)).Items);
+        Assert.NotNull(await repository.GetForDataRightsAsync(
+            member.Id,
+            CancellationToken.None));
+        Assert.NotNull(await repository.GetForSafetyTransitionAsync(
+            member.Id,
+            CancellationToken.None));
+    }
+
     private static StaffMember CreateMember() => StaffMember.Create(
         Guid.NewGuid(),
         "tenant-a",

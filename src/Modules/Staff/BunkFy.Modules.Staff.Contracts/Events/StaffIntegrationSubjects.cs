@@ -13,6 +13,9 @@ public static class StaffIntegrationSubjects
     public static string CreateLifecycleChanged(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(prefix, StaffModuleMetadata.Name, StaffMemberLifecycleChangedIntegrationEvent.EventType, StaffMemberLifecycleChangedIntegrationEvent.EventVersion);
 
+    public static string CreateMemberAnonymised(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
+        IntegrationEventNaming.CreateSubject(prefix, StaffModuleMetadata.Name, StaffMemberAnonymisedIntegrationEvent.EventType, StaffMemberAnonymisedIntegrationEvent.EventVersion);
+
     public static string CreateAuthSubjectChanged(string prefix = IntegrationEventNaming.DefaultSubjectPrefix) =>
         IntegrationEventNaming.CreateSubject(prefix, StaffModuleMetadata.Name, StaffAuthSubjectChangedIntegrationEvent.EventType, StaffAuthSubjectChangedIntegrationEvent.EventVersion);
 

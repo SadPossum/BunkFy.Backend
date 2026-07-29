@@ -98,23 +98,43 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
         if (workItem.State is DataRightsExecutionWorkItemState.Blocked
                 or DataRightsExecutionWorkItemState.Failed)
         {
-            if (workItem.PropertyId is not Guid propertyId)
+            IOutboxWriter outbox =
+                outboxWriters.GetRequired(DataRightsModuleMetadata.Name);
+            if (workItem.PropertyId is Guid propertyId)
+            {
+                await outbox.EnqueueAsync(
+                    new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
+                        ids.NewId(),
+                        workItem.ScopeId,
+                        nowUtc,
+                        workItem.BatchId,
+                        workItem.Id,
+                        workItem.CaseId,
+                        propertyId,
+                        workItem.ExecutionRevision),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else if (command.Scope.CaseType == DataRightsCaseType.StaffRights)
+            {
+                await outbox.EnqueueAsync(
+                    new DataRightsAnonymisationWorkItemTerminalIntegrationEventV2(
+                        ids.NewId(),
+                        workItem.ScopeId,
+                        nowUtc,
+                        workItem.BatchId,
+                        workItem.Id,
+                        workItem.CaseId,
+                        command.Scope.CaseType,
+                        DataRightsExecutionScopeKind.Tenant,
+                        propertyId: null,
+                        workItem.ExecutionRevision),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
             {
                 return Result.Failure<Unit>(
                     DataRightsApplicationErrors.ExecutionCoordinateInvalid);
             }
-
-            await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
-                new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
-                    ids.NewId(),
-                    workItem.ScopeId,
-                    nowUtc,
-                    workItem.BatchId,
-                    workItem.Id,
-                    workItem.CaseId,
-                    propertyId,
-                    workItem.ExecutionRevision),
-                cancellationToken).ConfigureAwait(false);
         }
 
         return Result.Success(Unit.Value);

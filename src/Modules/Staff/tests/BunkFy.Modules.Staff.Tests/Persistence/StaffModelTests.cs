@@ -188,6 +188,85 @@ public sealed class StaffModelTests
     }
 
     [Fact]
+    public async Task Anonymisation_proof_is_tenant_bound_and_receipts_are_append_only()
+    {
+        await using StaffDbContext dbContext = CreateDbContext();
+        IModel runtime = dbContext.Model;
+        IModel design = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType receipt = runtime.FindEntityType(
+            typeof(StaffAnonymisationReceipt))!;
+        IEntityType tombstone = runtime.FindEntityType(
+            typeof(StaffAnonymisationTombstone))!;
+
+        Assert.Contains(receipt.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(StaffAnonymisationReceipt.ScopeId),
+                    nameof(StaffAnonymisationReceipt.IdempotencyKey)
+                ]));
+        Assert.Contains(receipt.GetForeignKeys(), foreignKey =>
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(StaffAnonymisationReceipt.ScopeId),
+                    nameof(StaffAnonymisationReceipt.StaffMemberId)
+                ]));
+        Assert.Contains(
+            design.FindEntityType(typeof(StaffAnonymisationReceipt))!
+                .GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_staff_anonymisation_receipts_revisions");
+        Assert.Contains(
+            design.FindEntityType(typeof(StaffAnonymisationTombstone))!
+                .GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_staff_anonymisation_tombstones_state");
+        Assert.Contains(tombstone.GetKeys(), key =>
+            key.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(StaffAnonymisationTombstone.ScopeId),
+                    nameof(StaffAnonymisationTombstone.Id)
+                ]));
+
+        StaffAnonymisationReceipt proof =
+            StaffAnonymisationReceipt.Create(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 2,
+                operationRevision: 3,
+                Guid.NewGuid(),
+                selectedStaffVersion: 4,
+                resultingStaffVersion: 5,
+                selectedOperationLockRevision: 8,
+                resultingOperationLockRevision: 9,
+                new string('a', 64),
+                new string('b', 64),
+                Guid.NewGuid(),
+                "user:privacy",
+                new DateTimeOffset(
+                    2026,
+                    7,
+                    30,
+                    12,
+                    0,
+                    0,
+                    TimeSpan.Zero)).Value;
+        dbContext.AnonymisationReceipts.Add(proof);
+        await dbContext.SaveChangesAsync();
+        dbContext.Entry(proof).State = EntityState.Modified;
+
+        InvalidOperationException failure =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dbContext.SaveChangesAsync());
+
+        Assert.Contains("append-only", failure.Message);
+    }
+
+    [Fact]
     public void Governance_holds_and_operation_lock_have_tenant_first_constraints()
     {
         using StaffDbContext dbContext = CreateDbContext();

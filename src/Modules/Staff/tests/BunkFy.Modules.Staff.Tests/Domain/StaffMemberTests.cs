@@ -77,6 +77,105 @@ public sealed class StaffMemberTests
     }
 
     [Fact]
+    public void Anonymisation_scrubs_profile_and_assignment_free_text()
+    {
+        StaffMember member = StaffMember.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            "Ada Operator",
+            "Ada Lovelace",
+            "ada@example.test",
+            "+44 20 1234",
+            "EMP-1",
+            "Manager",
+            "Operations",
+            "account-1",
+            "user:owner",
+            Guid.NewGuid(),
+            Now).Value;
+        Guid propertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            "Night Manager",
+            isPrimary: true,
+            new DateOnly(2026, 7, 1),
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.True(member.Depart(
+            new DateOnly(2026, 7, 12),
+            member.Version,
+            "user:owner",
+            "Contract ended",
+            Guid.NewGuid(),
+            [Guid.NewGuid()],
+            Now.AddHours(1)).IsSuccess);
+        long selectedVersion = member.Version;
+        Guid eventId = Guid.NewGuid();
+
+        var result = member.Anonymise(
+            selectedVersion,
+            "user:privacy",
+            eventId,
+            Now.AddHours(2));
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(selectedVersion + 1, member.Version);
+        Assert.Equal(StaffMemberState.Anonymised, member.Status);
+        Assert.Equal(
+            StaffMember.AnonymisedDisplayName,
+            member.DisplayName);
+        Assert.Equal(
+            StaffMember.AnonymisedDisplayName.ToUpperInvariant(),
+            member.DisplayNameSearch);
+        Assert.Null(member.LegalName);
+        Assert.Null(member.WorkEmail);
+        Assert.Null(member.WorkPhone);
+        Assert.Null(member.EmployeeNumber);
+        Assert.Null(member.JobTitle);
+        Assert.Null(member.Department);
+        Assert.Null(member.AuthSubjectId);
+        Assert.Equal(propertyId, member.Assignments.Single().PropertyId);
+        Assert.False(member.Assignments.Single().IsCurrent);
+        Assert.Null(member.Assignments.Single().PropertyJobTitle);
+        Assert.Null(member.Assignments.Single().UnassignmentReason);
+        Assert.True(member.MatchesAnonymisedState(
+            member.Version,
+            Now.AddHours(2)));
+        Assert.Equal(
+            "Staff.StaffAnonymised",
+            member.ApplyDataRightsCorrection(
+                StaffProfileCorrection.Create(
+                    "Changed",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null).Value,
+                member.Version,
+                "user:privacy",
+                Guid.NewGuid(),
+                Now.AddHours(3)).Error.Code);
+    }
+
+    [Fact]
+    public void Anonymisation_requires_departure_and_no_current_assignment()
+    {
+        StaffMember member = Create("Ada", "EMP-1", "account-1");
+
+        Assert.Equal(
+            "Staff.AnonymisationTransitionInvalid",
+            member.Anonymise(
+                member.Version,
+                "user:privacy",
+                Guid.NewGuid(),
+                Now.AddHours(1)).Error.Code);
+    }
+
+    [Fact]
     public void Stale_versions_and_invalid_identity_values_are_rejected()
     {
         StaffMember member = Create("Ada", null, null);

@@ -109,12 +109,70 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
         Assert.Null(dispatcher.Recorded);
     }
 
+    [Fact]
+    public async Task V2_task_dispatches_exact_scoped_contributor_and_records_result()
+    {
+        DataRightsAnonymisationContributionRequestV2 request =
+            CreateScopedRequest();
+        DataRightsAnonymisationContributionResult contribution =
+            DataRightsAnonymisationContributionResult.Completed(
+                DataRightsAnonymisationContractV2.CurrentVersion,
+                new DataRightsAnonymisationOwnerProof(
+                    ReceiptContractVersion: 1,
+                    Guid.NewGuid(),
+                    ResultingRecordVersion:
+                        request.Coordinate.RecordVersion + 1,
+                    "staff.completed",
+                    "staff.profile-anonymised",
+                    new string('d', 64),
+                    Now.AddSeconds(30)));
+        FakeTaskDispatcher dispatcher = new(
+            DataRightsAnonymisationWorkItemStart.Ready(
+                workItemVersion: 2,
+                request));
+        RecordingScopedContributor contributor = new(contribution);
+        ExecuteDataRightsAnonymisationTaskV2Handler handler = new(
+            dispatcher,
+            [contributor],
+            new TestClock());
+        TaskExecutionContext context = CreateContext();
+
+        await handler.HandleAsync(
+            Payload(request),
+            context,
+            CancellationToken.None);
+
+        Assert.Same(request, contributor.Request);
+        RecordDataRightsAnonymisationOwnerResultCommand recorded =
+            Assert.IsType<
+                RecordDataRightsAnonymisationOwnerResultCommand>(
+                dispatcher.Recorded);
+        Assert.Equal(DataRightsCaseType.StaffRights,
+            recorded.Scope.CaseType);
+        Assert.Null(recorded.Scope.PropertyId);
+        Assert.Same(contribution, recorded.Result);
+        Assert.IsType<
+            FinalizeDataRightsAnonymisationLedgerCommand>(
+            dispatcher.Finalized);
+    }
+
     private static ExecuteDataRightsAnonymisationPayload Payload(
         DataRightsAnonymisationContributionRequest request) =>
         new(
             request.WorkItemId,
             request.CaseId,
             request.RoutingPropertyId,
+            request.ApprovalRevision,
+            request.OperationRevision);
+
+    private static ExecuteDataRightsAnonymisationPayloadV2 Payload(
+        DataRightsAnonymisationContributionRequestV2 request) =>
+        new(
+            request.WorkItemId,
+            request.CaseId,
+            request.CaseType,
+            request.ScopeKind,
+            request.PropertyId,
             request.ApprovalRevision,
             request.OperationRevision);
 
@@ -153,6 +211,56 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
             "user:executor",
             Now.AddMinutes(2));
     }
+
+    private static DataRightsAnonymisationContributionRequestV2
+        CreateScopedRequest() =>
+        new(
+            DataRightsAnonymisationContractV2.CurrentVersion,
+            "tenant-a",
+            DataRightsCaseType.StaffRights,
+            DataRightsExecutionScopeKind.Tenant,
+            PropertyId: null,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ApprovalRevision: 6,
+            OperationRevision: 7,
+            new DataRightsSubjectCoordinate(
+                "staff",
+                "staff-member",
+                Guid.NewGuid(),
+                RecordVersion: 3),
+            new DataRightsApprovalEvidence(
+                SchemaVersion: 2,
+                PropertyId: null,
+                PropertyVersion: 0,
+                "GB",
+                "approved-policy",
+                PolicyVersion: 3,
+                "staff-employment",
+                RetentionPolicyVersion: 2,
+                new string('a', 64),
+                "staff-data-rights-anonymisation",
+                "erasure",
+                "authorized-workspace-operator",
+                Now.AddMinutes(-1),
+                RequiresDistinctExecutor: true,
+                CaseType: DataRightsCaseType.StaffRights,
+                ScopeKind: DataRightsExecutionScopeKind.Tenant,
+                RetentionDataClass: "staff-employment",
+                RetentionTrigger: "employment-ended",
+                RetentionTriggeredAtUtc: Now.AddDays(-2_556),
+                RetentionDeadlineUtc: Now.AddDays(-1),
+                StateBindings:
+                [
+                    new("staff.governance", 1, new string('b', 64)),
+                    new("staff.holds", 42, new string('c', 64)),
+                    new("staff.record", 3, new string('d', 64)),
+                    new("staff.restriction", 0, new string('e', 64))
+                ],
+                StateBindingsSha256: new string('f', 64)),
+            "user:executor",
+            Now.AddMinutes(2));
 
     private static TaskExecutionContext CreateContext() =>
         new(
@@ -218,6 +326,32 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
         public Task<DataRightsAnonymisationContributionResult> ExecuteAsync(
             DataRightsAnonymisationContributionRequest request,
             CancellationToken cancellationToken)
+        {
+            this.Request = request;
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class RecordingScopedContributor(
+        DataRightsAnonymisationContributionResult result)
+        : IDataRightsAnonymisationContributorV2
+    {
+        public string OwnerKey => "staff";
+        public string RecordType => "staff-member";
+        public DataRightsCaseType CaseType =>
+            DataRightsCaseType.StaffRights;
+        public int ContractVersion =>
+            DataRightsAnonymisationContractV2.CurrentVersion;
+        public DataRightsAnonymisationContributionRequestV2? Request
+        {
+            get;
+            private set;
+        }
+
+        public Task<DataRightsAnonymisationContributionResult>
+            ExecuteAsync(
+                DataRightsAnonymisationContributionRequestV2 request,
+                CancellationToken cancellationToken)
         {
             this.Request = request;
             return Task.FromResult(result);

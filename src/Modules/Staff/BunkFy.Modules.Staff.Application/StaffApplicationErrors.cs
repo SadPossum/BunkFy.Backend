@@ -92,6 +92,27 @@ public static class StaffApplicationErrors
     public static readonly Error DataHoldIdempotencyConflict = new(
         "Staff.DataHoldIdempotencyConflict",
         "The Staff data-hold idempotency key was already used for a different request.");
+    public static readonly Error AnonymisationRequestInvalid = new(
+        "Staff.AnonymisationRequestInvalid",
+        "The Staff anonymisation request is invalid.");
+    public static readonly Error AnonymisationApprovalRequired = new(
+        "Staff.AnonymisationApprovalRequired",
+        "An active approved Staff anonymisation execution is required.");
+    public static readonly Error AnonymisationIdempotencyConflict = new(
+        "Staff.AnonymisationIdempotencyConflict",
+        "The Staff anonymisation idempotency key was already used for different coordinates.");
+    public static readonly Error AnonymisationProofUnavailable = new(
+        "Staff.AnonymisationProofUnavailable",
+        "The committed Staff anonymisation proof is unavailable or inconsistent.");
+    public static readonly Error AnonymisationOperationLockUnavailable = new(
+        "Staff.AnonymisationOperationLockUnavailable",
+        "The Staff anonymisation operation lock is unavailable.");
+    public static readonly Error AnonymisationStateChanged = new(
+        "Staff.AnonymisationBlocked.FrozenStateChanged",
+        "The Staff anonymisation state changed after approval.");
+    public static readonly Error AnonymisationNotEligible = new(
+        "Staff.AnonymisationBlocked.NotEligible",
+        "The Staff member is not eligible for anonymisation.");
     public static Error VersionConflict => StaffDomainErrors.VersionConflict;
     public static Error StaffSuspended => StaffDomainErrors.StaffSuspended;
     public static Error StaffDeparted => StaffDomainErrors.StaffDeparted;

@@ -27,7 +27,7 @@ public sealed class DataRightsModuleMetadataTests
         ModuleProfileDescriptor profile = Assert.Single(
             DataRightsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(DataRightsProfiles.DefaultName, profile.ProfileName);
-        Assert.Equal(11, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(13, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
@@ -50,7 +50,19 @@ public sealed class DataRightsModuleMetadataTests
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
                 subscription.EventType ==
+                    DataRightsAnonymisationExecutionPreparedIntegrationEventV2.EventType &&
+                subscription.ProducerModule == DataRightsModuleMetadata.Name);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
                     DataRightsAnonymisationWorkItemTerminalIntegrationEvent.EventType &&
+                subscription.ProducerModule == DataRightsModuleMetadata.Name);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    DataRightsAnonymisationWorkItemTerminalIntegrationEventV2.EventType &&
                 subscription.ProducerModule == DataRightsModuleMetadata.Name);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
@@ -85,10 +97,15 @@ public sealed class DataRightsModuleMetadataTests
                     DataRightsModuleMetadata.StaffProducerModuleName &&
                 subscription.HandlerName ==
                     DataRightsModuleMetadata.StaffCorrectionAppliedHandlerName);
-        Assert.Equal(4, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Equal(5, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetTasks(),
             task => task.Name == ExecuteDataRightsAnonymisationPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                ExecuteDataRightsAnonymisationPayloadV2.TaskName);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetTasks(),
             task => task.Name == GenerateDataRightsExportPayload.TaskName);

@@ -45,7 +45,7 @@ public sealed class DataRightsExecutionWorkItemTests
         Assert.Equal(DataRightsExecutionWorkItemState.Prepared, workItem.State);
         Assert.Equal(0, workItem.AttemptCount);
         Assert.Equal(
-            DataRightsExecutionWorkItem.CurrentOwnerContractVersion,
+            DataRightsExecutionWorkItem.PropertyOwnerContractVersion,
             workItem.OwnerContractVersion);
         Assert.Equal("guests", workItem.OwnerKey);
         Assert.Equal("guest-profile", workItem.RecordType);
@@ -118,6 +118,9 @@ public sealed class DataRightsExecutionWorkItemTests
                 Now.AddMinutes(1)).Value;
 
         Assert.Equal(DataRightsCaseKind.StaffRights, workItem.CaseKind);
+        Assert.Equal(
+            DataRightsExecutionWorkItem.ScopedOwnerContractVersion,
+            workItem.OwnerContractVersion);
         Assert.Equal(DataRightsCaseScopeKind.Tenant, workItem.ScopeKind);
         Assert.Null(workItem.PropertyId);
         Assert.Equal(0, workItem.PolicyPropertyVersion);

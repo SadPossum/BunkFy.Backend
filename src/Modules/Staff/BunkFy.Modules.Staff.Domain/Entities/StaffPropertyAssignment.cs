@@ -45,6 +45,12 @@ public sealed class StaffPropertyAssignment : Entity<Guid>, IScopedEntity
 
     internal void DemotePrimary() => this.IsPrimary = false;
 
+    internal void AnonymiseFreeText()
+    {
+        this.PropertyJobTitle = null;
+        this.UnassignmentReason = null;
+    }
+
     internal void End(DateOnly effectiveTo, string actorId, string reason, DateTimeOffset nowUtc, long staffVersion)
     {
         this.IsCurrent = false;

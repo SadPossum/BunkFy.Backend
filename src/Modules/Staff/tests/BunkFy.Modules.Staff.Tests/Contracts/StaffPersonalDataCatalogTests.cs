@@ -96,6 +96,8 @@ public sealed class StaffPersonalDataCatalogTests
                      typeof(StaffMember),
                      typeof(StaffPropertyAssignment),
                      typeof(StaffDataRightsCorrectionReceipt),
+                     typeof(StaffAnonymisationReceipt),
+                     typeof(StaffAnonymisationTombstone),
                      typeof(StaffProcessingRestriction),
                      typeof(StaffProcessingRestrictionProjection),
                      typeof(StaffProcessingRestrictionReceipt),
@@ -322,6 +324,10 @@ public sealed class StaffPersonalDataCatalogTests
             else if (type == typeof(StaffIdentityReconciliationResult) ||
                      type == typeof(StaffOnboardingProvisioningResult) ||
                      type == typeof(StaffPropertyAssignmentProvisioningResult))
+            {
+                yield return (PersonalDataSurface.ProjectionExport, type);
+            }
+            else if (type == typeof(StaffAnonymisationReceiptDto))
             {
                 yield return (PersonalDataSurface.ProjectionExport, type);
             }

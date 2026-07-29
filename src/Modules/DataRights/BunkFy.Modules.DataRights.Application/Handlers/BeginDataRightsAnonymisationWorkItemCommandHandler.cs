@@ -92,7 +92,8 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
                 workItem.RecordType,
                 workItem.RecordId,
                 workItem.SelectedRecordVersion,
-                ExecutingActorId: workItem.CreatedBy),
+                ExecutingActorId: workItem.CreatedBy,
+                CaseType: command.Scope.CaseType),
             cancellationToken).ConfigureAwait(false);
         if (!approval.IsApproved || approval.ApprovalEvidence is null)
         {
@@ -117,31 +118,62 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
                 cancellationToken).ConfigureAwait(false);
         }
 
-        if (command.Scope.PropertyId is not Guid routingPropertyId)
+        DataRightsSubjectCoordinate coordinate = new(
+            workItem.OwnerKey,
+            workItem.RecordType,
+            workItem.RecordId,
+            workItem.SelectedRecordVersion);
+        if (workItem.OwnerContractVersion ==
+                DataRightsExecutionWorkItem.PropertyOwnerContractVersion &&
+            command.Scope.PropertyId is Guid routingPropertyId)
         {
-            return Result.Failure<DataRightsAnonymisationWorkItemStart>(
-                DataRightsApplicationErrors.ExecutionCoordinateInvalid);
+            DataRightsAnonymisationContributionRequest propertyRequest = new(
+                workItem.OwnerContractVersion,
+                dataRightsCase.ScopeId,
+                workItem.Id,
+                workItem.IdempotencyKey,
+                routingPropertyId,
+                command.CaseId,
+                command.ApprovalRevision,
+                command.ExecutionRevision,
+                coordinate,
+                evidence,
+                workItem.CreatedBy,
+                nowUtc.Add(OwnerCallTimeout));
+            return Result.Success(
+                DataRightsAnonymisationWorkItemStart.Ready(
+                    workItem.Version,
+                    propertyRequest));
         }
 
-        DataRightsAnonymisationContributionRequest request = new(
-            workItem.OwnerContractVersion,
-            dataRightsCase.ScopeId,
-            workItem.Id,
-            workItem.IdempotencyKey,
-            routingPropertyId,
-            command.CaseId,
-            command.ApprovalRevision,
-            command.ExecutionRevision,
-            new DataRightsSubjectCoordinate(
-                workItem.OwnerKey,
-                workItem.RecordType,
-                workItem.RecordId,
-                workItem.SelectedRecordVersion),
-            evidence,
-            workItem.CreatedBy,
-            nowUtc.Add(OwnerCallTimeout));
-        return Result.Success(
-            DataRightsAnonymisationWorkItemStart.Ready(workItem.Version, request));
+        if (workItem.OwnerContractVersion ==
+                DataRightsExecutionWorkItem.ScopedOwnerContractVersion &&
+            command.Scope.CaseType == DataRightsCaseType.StaffRights &&
+            command.Scope.PropertyId is null)
+        {
+            DataRightsAnonymisationContributionRequestV2 scopedRequest = new(
+                workItem.OwnerContractVersion,
+                dataRightsCase.ScopeId,
+                command.Scope.CaseType,
+                DataRightsExecutionScopeKind.Tenant,
+                PropertyId: null,
+                workItem.Id,
+                workItem.IdempotencyKey,
+                command.CaseId,
+                command.ApprovalRevision,
+                command.ExecutionRevision,
+                coordinate,
+                evidence,
+                workItem.CreatedBy,
+                nowUtc.Add(OwnerCallTimeout));
+            return Result.Success(
+                DataRightsAnonymisationWorkItemStart.Ready(
+                    workItem.Version,
+                    scopedRequest));
+        }
+
+        return Result.Failure<DataRightsAnonymisationWorkItemStart>(
+            DataRightsApplicationErrors.ExecutionCoordinateInvalid);
     }
 
     private async Task<Result<DataRightsAnonymisationWorkItemStart>> BlockAsync(
@@ -151,12 +183,6 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
-        if (workItem.PropertyId is not Guid propertyId)
-        {
-            return Result.Failure<DataRightsAnonymisationWorkItemStart>(
-                DataRightsApplicationErrors.ExecutionCoordinateInvalid);
-        }
-
         Result blocked = workItem.RecordBlocked(
             workItem.Version,
             command.TaskRunId,
@@ -168,17 +194,44 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
             return Result.Failure<DataRightsAnonymisationWorkItemStart>(blocked.Error);
         }
 
-        await outboxWriters.GetRequired(DataRightsModuleMetadata.Name).EnqueueAsync(
-            new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
-                ids.NewId(),
-                workItem.ScopeId,
-                nowUtc,
-                workItem.BatchId,
-                workItem.Id,
-                workItem.CaseId,
-                propertyId,
-                workItem.ExecutionRevision),
-            cancellationToken).ConfigureAwait(false);
+        IOutboxWriter outbox =
+            outboxWriters.GetRequired(DataRightsModuleMetadata.Name);
+        if (command.Scope.PropertyId is Guid propertyId)
+        {
+            await outbox.EnqueueAsync(
+                new DataRightsAnonymisationWorkItemTerminalIntegrationEvent(
+                    ids.NewId(),
+                    workItem.ScopeId,
+                    nowUtc,
+                    workItem.BatchId,
+                    workItem.Id,
+                    workItem.CaseId,
+                    propertyId,
+                    workItem.ExecutionRevision),
+                cancellationToken).ConfigureAwait(false);
+        }
+        else if (command.Scope.CaseType == DataRightsCaseType.StaffRights)
+        {
+            await outbox.EnqueueAsync(
+                new DataRightsAnonymisationWorkItemTerminalIntegrationEventV2(
+                    ids.NewId(),
+                    workItem.ScopeId,
+                    nowUtc,
+                    workItem.BatchId,
+                    workItem.Id,
+                    workItem.CaseId,
+                    command.Scope.CaseType,
+                    DataRightsExecutionScopeKind.Tenant,
+                    propertyId: null,
+                    workItem.ExecutionRevision),
+                cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            return Result.Failure<DataRightsAnonymisationWorkItemStart>(
+                DataRightsApplicationErrors.ExecutionCoordinateInvalid);
+        }
+
         return Result.Success(
             DataRightsAnonymisationWorkItemStart.Terminal(workItem.Version));
     }

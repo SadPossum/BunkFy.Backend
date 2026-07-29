@@ -253,16 +253,67 @@ The scope slice now implements:
 - exact-byte verification of historical protected-delta payloads; and
 - PostgreSQL promotion and guarded downgrade of existing Guest execution data.
 
-Destructive Staff execution remains intentionally denied. Existing owner
-requests, terminal events, and restore contributors are property-scoped
-version 1 contracts. Data Rights must not dispatch Staff work until the owner
-mutation slice supplies versioned tenant-capable contracts and Staff registers
-the corresponding owner.
+Internal destructive Staff execution is now implemented through the version 2
+tenant-scoped owner protocol described below. The public API intentionally has
+no Staff execution endpoint, so an operator cannot start this path before
+restore coordination is complete.
 
 Version 3 restore also remains intentionally closed before replay-envelope
 decryption. This prevents a scoped ledger entry from being replayed through
 the Guest property protocol while the synchronous Workspaces access-denial
 step is still unavailable.
+
+## Owner Mutation Slice Contract
+
+The existing Guest owner protocol remains version 1. Its prepared event,
+one-shot task payload, owner request, and terminal event keep their original
+property-scoped wire shapes so queued Guest work and historical messages do
+not change meaning.
+
+Staff uses a parallel version 2 protocol. Every prepared event, task payload,
+owner request, and terminal event carries:
+
+- case type and execution-scope kind;
+- the tenant id supplied by the scoped message envelope;
+- a nullable property coordinate whose shape must agree with the scope; and
+- the exact case, work-item, approval, and execution revisions.
+
+Version 2 accepts `StaffRights` only with tenant scope and no property id.
+Data Rights persists owner contract version 1 for Guest work items and version
+2 for Staff work items. Dispatch resolves exactly one contributor by case
+type, owner, record type, and contract version. It never adapts a tenant work
+item through the Guest version 1 protocol.
+
+The Staff owner executes as one Staff-module transaction:
+
+1. replay an existing exact idempotency receipt, when present;
+2. revalidate the approved operation and full frozen approval evidence;
+3. acquire the per-member operation lock, advancing its frozen revision by
+   exactly one;
+4. reload Staff, governance, restriction, and complete hold state under that
+   lock and compare every frozen binding version and digest;
+5. require the exact departed Staff version, no current assignment, no active
+   hold, and a due retention deadline;
+6. scrub profile/search fields, Auth correlation, and assignment free text,
+   then transition the aggregate to terminal `Anonymised`;
+7. write an immutable owner receipt and local tombstone; and
+8. publish a PII-free Staff-anonymised event.
+
+The receipt binds the tenant, idempotency key, case and operation revisions,
+selected/resulting Staff versions, pre/post operation-lock revisions, complete
+approval digest, frozen-state digest, event id, bounded executor attribution,
+completion time, and its own canonical digest. Replay succeeds only when the
+receipt, terminal aggregate state, and tombstone all still agree.
+
+The owner mutation and version 2 internal dispatch are implemented before a
+public Staff execution endpoint is exposed. Public Staff execution remains
+closed until restore coordination can synchronously deny workspace access
+before restored Staff data is visible.
+
+The PostgreSQL owner schema enforces the terminal Staff lifecycle, exact
+receipt/tombstone coordinates, tenant-first uniqueness, append-only receipts,
+and guarded downgrade. Data Rights separately rejects downgrade once a Staff
+work item or any non-version-1 owner work exists.
 
 ### Deployment Contract
 
@@ -362,12 +413,28 @@ trigger restoration, and guarded downgrade behavior. The migration model has
 no pending changes. All mounted GMA repositories remained clean; this slice
 required no GMA change.
 
+### Owner Mutation Verification
+
+Focused Data Rights and Staff proof covers version-specific dispatch,
+idempotent receipt replay, frozen-state conflicts, eligibility blockers,
+terminal reconciliation, ordinary-surface exclusion, and personal-data
+catalogue completeness.
+
+The exact PostgreSQL/NATS/task-runtime scenario
+`StaffDataRightsAnonymisationIntegrationTests.Tenant_v2_execution_persists_append_only_owner_proof`
+passed on 2026-07-30. It proves fresh-schema migration, version 2 tenant
+dispatch, atomic Staff mutation and owner proof, PII-free task payloads,
+ledger/case reconciliation, database-level update and delete rejection for
+receipts, and guarded Staff and Data Rights downgrade. Guest work remains
+pinned to owner contract version 1. No GMA change was required.
+
 ## Deferred
 
-- versioned tenant-capable approval-gate, owner-request, terminal-event, and
-  restore contracts;
-- Staff owner mutation under the per-member operation lock, with exact
-  re-evaluation of every frozen state binding;
+- synchronous Workspaces access denial and trusted Staff-to-subject mapping
+  during restore;
+- Staff tombstone replay, idempotent re-scrub, and restore-readiness proof;
+- historical version 3 protected-delta restore drill;
+- public Staff anonymisation execution API and operator workflow;
 - automatic Staff retention scheduling and worker execution;
 - production legal approval of country-policy content;
 - payroll, tax, identity-document, contract, signature, and benefits records;

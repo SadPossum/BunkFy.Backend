@@ -43,6 +43,10 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationPolicyContributor,
                 StaffDataRightsAnonymisationPolicyContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationContributorV2,
+                StaffDataRightsAnonymisationContributor>());
         services.AddGmaAccessControlPermissionPolicies(StaffModuleMetadata.Descriptor);
         services.AddIntegrationEventHandler<PropertyCreatedIntegrationEvent, StaffPropertyCreatedHandler>(
             StaffModuleMetadata.Name, PropertiesModuleMetadata.Name);

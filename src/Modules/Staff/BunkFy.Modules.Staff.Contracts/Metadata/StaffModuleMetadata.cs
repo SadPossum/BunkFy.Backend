@@ -38,6 +38,7 @@ public static class StaffModuleMetadata
         .WithPublishedEvent<StaffMemberCreatedIntegrationEvent>()
         .WithPublishedEvent<StaffMemberUpdatedIntegrationEvent>()
         .WithPublishedEvent<StaffMemberLifecycleChangedIntegrationEvent>()
+        .WithPublishedEvent<StaffMemberAnonymisedIntegrationEvent>()
         .WithPublishedEvent<StaffAuthSubjectChangedIntegrationEvent>()
         .WithPublishedEvent<StaffPropertyAssignmentChangedIntegrationEvent>()
         .WithPublishedEvent<StaffProcessingRestrictionChangedIntegrationEvent>()

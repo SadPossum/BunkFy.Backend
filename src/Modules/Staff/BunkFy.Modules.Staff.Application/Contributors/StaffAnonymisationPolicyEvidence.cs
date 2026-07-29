@@ -11,6 +11,14 @@ using BunkFy.Modules.Staff.Domain.Governance;
 
 internal static class StaffAnonymisationPolicyEvidence
 {
+    private static readonly string[] RequiredBindingKeys =
+    [
+        "staff.governance",
+        "staff.holds",
+        "staff.record",
+        "staff.restriction"
+    ];
+
     public static IReadOnlyCollection<DataRightsApprovalEvidenceBinding>
         CreateBindings(
             StaffMember member,
@@ -36,6 +44,116 @@ internal static class StaffAnonymisationPolicyEvidence
                 operationLockRevision,
                 ComputeHoldDigest(holds))
         ];
+
+    public static bool MatchesFrozenBindings(
+        DataRightsApprovalEvidence evidence,
+        StaffMember member,
+        StaffEmploymentGovernance governance,
+        StaffProcessingRestrictionProjection restriction,
+        IReadOnlyCollection<StaffDataHold> holds,
+        long selectedOperationLockRevision)
+    {
+        if (evidence.StateBindings is null ||
+            evidence.StateBindings.Count != RequiredBindingKeys.Length ||
+            selectedOperationLockRevision < 1)
+        {
+            return false;
+        }
+
+        DataRightsApprovalEvidenceBinding[] expected =
+            CreateBindings(
+                member,
+                governance,
+                restriction,
+                holds,
+                selectedOperationLockRevision)
+            .OrderBy(binding => binding.Key, StringComparer.Ordinal)
+            .ToArray();
+        DataRightsApprovalEvidenceBinding[] frozen =
+            evidence.StateBindings
+                .OrderBy(binding => binding.Key, StringComparer.Ordinal)
+                .ToArray();
+        return frozen.Select(binding => binding.Key)
+                .SequenceEqual(
+                    RequiredBindingKeys,
+                    StringComparer.Ordinal) &&
+            frozen.Zip(expected).All(pair =>
+                string.Equals(
+                    pair.First.Key,
+                    pair.Second.Key,
+                    StringComparison.Ordinal) &&
+                pair.First.Version == pair.Second.Version &&
+                string.Equals(
+                    pair.First.Sha256,
+                    pair.Second.Sha256,
+                    StringComparison.Ordinal));
+    }
+
+    public static string ComputeApprovalSha256(
+        DataRightsApprovalEvidence evidence)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        List<string> values =
+        [
+            evidence.SchemaVersion.ToString(
+                CultureInfo.InvariantCulture),
+            ((int)evidence.CaseType).ToString(
+                CultureInfo.InvariantCulture),
+            ((int)evidence.ScopeKind).ToString(
+                CultureInfo.InvariantCulture),
+            evidence.PropertyId?.ToString("N") ?? "-",
+            evidence.PropertyVersion.ToString(
+                CultureInfo.InvariantCulture),
+            evidence.OperatingCountryCode,
+            evidence.PolicyId,
+            evidence.PolicyVersion.ToString(
+                CultureInfo.InvariantCulture),
+            evidence.RetentionPolicyId,
+            evidence.RetentionPolicyVersion.ToString(
+                CultureInfo.InvariantCulture),
+            evidence.ContentSha256,
+            evidence.PurposeCode,
+            evidence.Surface,
+            evidence.SourceProvenance,
+            evidence.RetentionDataClass ?? "-",
+            evidence.RetentionTrigger ?? "-",
+            Coordinate(evidence.RetentionTriggeredAtUtc),
+            Coordinate(evidence.RetentionDeadlineUtc),
+            Coordinate(evidence.EvaluatedAtUtc),
+            evidence.RequiresDistinctExecutor ? "1" : "0",
+            evidence.StateBindingsSha256 ?? "-"
+        ];
+        foreach (DataRightsApprovalEvidenceBinding binding in
+            (evidence.StateBindings ?? []).OrderBy(
+                binding => binding.Key,
+                StringComparer.Ordinal))
+        {
+            values.Add(binding.Key);
+            values.Add(binding.Version.ToString(
+                CultureInfo.InvariantCulture));
+            values.Add(binding.Sha256);
+        }
+
+        return Compute(values);
+    }
+
+    public static bool IsValidStaffApproval(
+        DataRightsApprovalEvidence? evidence) =>
+        evidence is not null &&
+        evidence.SchemaVersion == 2 &&
+        evidence.CaseType == DataRightsCaseType.StaffRights &&
+        evidence.ScopeKind == DataRightsExecutionScopeKind.Tenant &&
+        evidence.PropertyId is null &&
+        evidence.PropertyVersion == 0 &&
+        evidence.RequiresDistinctExecutor &&
+        !string.IsNullOrWhiteSpace(evidence.RetentionDataClass) &&
+        !string.IsNullOrWhiteSpace(evidence.RetentionTrigger) &&
+        evidence.RetentionTriggeredAtUtc.HasValue &&
+        evidence.RetentionDeadlineUtc.HasValue &&
+        evidence.RetentionDeadlineUtc <= evidence.EvaluatedAtUtc &&
+        evidence.StateBindings is { Count: 4 } &&
+        IsSha256(evidence.StateBindingsSha256) &&
+        IsSha256(evidence.ContentSha256);
 
     private static string ComputeRecordDigest(StaffMember member)
     {
@@ -181,4 +299,10 @@ internal static class StaffAnonymisationPolicyEvidence
         value?.ToUniversalTime().ToString(
             "O",
             CultureInfo.InvariantCulture) ?? "-";
+
+    private static bool IsSha256(string? value) =>
+        value is { Length: DataRightsAnonymisationPolicyContract.Sha256Length } &&
+        value.All(character =>
+            character is (>= '0' and <= '9') or
+                (>= 'a' and <= 'f'));
 }

@@ -71,7 +71,10 @@ internal sealed class DataRightsExecutionWorkItemConfiguration
                 "\"AttemptCount\" >= 0");
             table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_owner_contract",
-                $"\"OwnerContractVersion\" = {DataRightsExecutionWorkItem.CurrentOwnerContractVersion}");
+                $"(\"CaseKind\" = 1 AND \"OwnerContractVersion\" = " +
+                $"{DataRightsExecutionWorkItem.PropertyOwnerContractVersion}) OR " +
+                $"(\"CaseKind\" = 3 AND \"OwnerContractVersion\" = " +
+                $"{DataRightsExecutionWorkItem.ScopedOwnerContractVersion})");
             table.HasCheckConstraint(
                 "CK_data_rights_execution_work_items_task",
                 "(\"State\" = 1 AND \"TaskRunId\" IS NULL AND " +

@@ -29,6 +29,9 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("AnonymisedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("AuthSubjectId")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -147,9 +150,176 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_staff_members_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
 
-                            t.HasCheckConstraint("CK_staff_members_lifecycle", "(\"Status\" = 1 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL) OR (\"Status\" = 2 AND \"SuspendedAtUtc\" IS NOT NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL) OR (\"Status\" = 3 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NOT NULL AND \"DepartureEffectiveOn\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_staff_members_lifecycle", "(\"Status\" = 1 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL AND \"AnonymisedAtUtc\" IS NULL) OR (\"Status\" = 2 AND \"SuspendedAtUtc\" IS NOT NULL AND \"DepartedAtUtc\" IS NULL AND \"DepartureEffectiveOn\" IS NULL AND \"AnonymisedAtUtc\" IS NULL) OR (\"Status\" = 3 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NOT NULL AND \"DepartureEffectiveOn\" IS NOT NULL AND \"AnonymisedAtUtc\" IS NULL) OR (\"Status\" = 4 AND \"SuspendedAtUtc\" IS NULL AND \"DepartedAtUtc\" IS NOT NULL AND \"DepartureEffectiveOn\" IS NOT NULL AND \"AnonymisedAtUtc\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_staff_members_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ApprovalEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Disposition")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("OperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ResultingOperationLockRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResultingStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedOperationLockRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StateBindingsSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "CanonicalSha256");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "ResultingStaffVersion")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CaseId", "ApprovalRevision", "OperationRevision", "StaffMemberId")
+                        .IsUnique();
+
+                    b.ToTable("staff_anonymisation_receipts", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_anonymisation_receipts_actor", "length(trim(\"ActorId\")) > 0");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_receipts_digests", "char_length(\"ApprovalEvidenceSha256\") = 64 AND char_length(\"StateBindingsSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_receipts_lock_revisions", "\"SelectedOperationLockRevision\" >= 1 AND \"ResultingOperationLockRevision\" = \"SelectedOperationLockRevision\" + 1");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_receipts_outcome", "\"Disposition\" = 1 AND \"Reason\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_receipts_revisions", "\"ApprovalRevision\" >= 1 AND \"OperationRevision\" > \"ApprovalRevision\"");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_receipts_versions", "\"SelectedStaffVersion\" >= 1 AND \"ResultingStaffVersion\" = \"SelectedStaffVersion\" + 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Authority")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "CompletedAtUtc", "Id");
+
+                    b.ToTable("staff_anonymisation_tombstones", "staff", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_anonymisation_tombstones_authority", "\"Authority\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_tombstones_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_tombstones_receipt_digest", "char_length(\"OwnerReceiptSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_tombstones_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("CK_staff_anonymisation_tombstones_state", "\"State\" = 1");
                         });
                 });
 
@@ -957,6 +1127,26 @@ namespace BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ProcessedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc", "CreatedAtUtc");
 
                     b.ToTable("outbox_messages", "staff");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "StaffMemberId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone", "ScopeId", "Id")
+                        .HasPrincipalKey("BunkFy.Modules.Staff.Domain.Aggregates.StaffMember", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Staff.Domain.DataRights.StaffDataHold", b =>

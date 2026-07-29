@@ -33,6 +33,10 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
         this.Set<StaffDataHold>();
     public DbSet<StaffDataHoldReceipt> DataHoldReceipts =>
         this.Set<StaffDataHoldReceipt>();
+    public DbSet<StaffAnonymisationReceipt> AnonymisationReceipts =>
+        this.Set<StaffAnonymisationReceipt>();
+    public DbSet<StaffAnonymisationTombstone> AnonymisationTombstones =>
+        this.Set<StaffAnonymisationTombstone>();
     internal DbSet<StaffOperationLock> OperationLocks =>
         this.Set<StaffOperationLock>();
     public DbSet<StaffPropertyAssignment> PropertyAssignments => this.Set<StaffPropertyAssignment>();
@@ -83,10 +87,15 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
             .Entries<StaffDataHoldReceipt>()
             .Any(entry =>
                 entry.State is EntityState.Modified or EntityState.Deleted);
+        bool anonymisationReceiptMutationRequested = this.ChangeTracker
+            .Entries<StaffAnonymisationReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
         if (correctionMutationRequested ||
             restrictionMutationRequested ||
             governanceMutationRequested ||
-            holdReceiptMutationRequested)
+            holdReceiptMutationRequested ||
+            anonymisationReceiptMutationRequested)
         {
             throw new InvalidOperationException(
                 "Staff data-rights receipts are append-only.");

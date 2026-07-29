@@ -98,6 +98,8 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddProjectionRebuildTasks();
+        services.TryAddScoped<
+            DataRightsAnonymisationExecutionReconciler>();
         services.AddTaskHandler<
             RebuildDataRightsPropertiesPayload,
             RebuildDataRightsPropertiesTaskHandler>(DataRightsModuleMetadata.Name);
@@ -107,8 +109,18 @@ public static class DependencyInjection
                 DataRightsModuleMetadata.Name,
                 DataRightsModuleMetadata.Name);
         services.AddIntegrationEventHandler<
+            DataRightsAnonymisationExecutionPreparedIntegrationEventV2,
+            DataRightsAnonymisationExecutionPreparedV2Handler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
             DataRightsAnonymisationWorkItemTerminalIntegrationEvent,
             DataRightsAnonymisationWorkItemTerminalHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            DataRightsAnonymisationWorkItemTerminalIntegrationEventV2,
+            DataRightsAnonymisationWorkItemTerminalV2Handler>(
                 DataRightsModuleMetadata.Name,
                 DataRightsModuleMetadata.Name);
         services.AddIntegrationEventHandler<
@@ -119,6 +131,10 @@ public static class DependencyInjection
         services.AddTaskHandler<
             ExecuteDataRightsAnonymisationPayload,
             ExecuteDataRightsAnonymisationTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            ExecuteDataRightsAnonymisationPayloadV2,
+            ExecuteDataRightsAnonymisationTaskV2Handler>(
                 DataRightsModuleMetadata.Name);
         services.AddTaskHandler<
             GenerateDataRightsExportPayload,

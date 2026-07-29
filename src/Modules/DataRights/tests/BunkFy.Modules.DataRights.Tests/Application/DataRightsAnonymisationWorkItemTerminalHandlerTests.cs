@@ -24,10 +24,11 @@ public sealed class DataRightsAnonymisationWorkItemTerminalHandlerTests
         ExecutionFixture fixture = CreateFixture();
         MutableClock clock = new(Now.AddMinutes(5));
         DataRightsAnonymisationWorkItemTerminalHandler handler = new(
-            new StubCaseRepository(fixture.Case),
-            new StubBatchRepository(fixture.Batch),
-            new StubWorkItemRepository(fixture.WorkItems),
-            clock);
+            new DataRightsAnonymisationExecutionReconciler(
+                new StubCaseRepository(fixture.Case),
+                new StubBatchRepository(fixture.Batch),
+                new StubWorkItemRepository(fixture.WorkItems),
+                clock));
 
         await handler.HandleAsync(
             TerminalEvent(fixture, fixture.WorkItems[0], clock.UtcNow),

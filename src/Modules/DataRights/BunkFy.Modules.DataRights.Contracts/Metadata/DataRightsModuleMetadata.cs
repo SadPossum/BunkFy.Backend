@@ -20,8 +20,12 @@ public static class DataRightsModuleMetadata
         "property-processing-suspended";
     public const string AnonymisationExecutionPreparedHandlerName =
         "anonymisation-execution-prepared";
+    public const string AnonymisationExecutionPreparedV2HandlerName =
+        "anonymisation-execution-prepared-v2";
     public const string AnonymisationWorkItemTerminalHandlerName =
         "anonymisation-work-item-terminal";
+    public const string AnonymisationWorkItemTerminalV2HandlerName =
+        "anonymisation-work-item-terminal-v2";
     public const string ExportArtifactRequestedHandlerName =
         "export-artifact-requested";
     public const string GuestCorrectionAppliedHandlerName =
@@ -74,9 +78,15 @@ public static class DataRightsModuleMetadata
         .WithSubscription<DataRightsAnonymisationExecutionPreparedIntegrationEvent>(
             Name,
             AnonymisationExecutionPreparedHandlerName)
+        .WithSubscription<DataRightsAnonymisationExecutionPreparedIntegrationEventV2>(
+            Name,
+            AnonymisationExecutionPreparedV2HandlerName)
         .WithSubscription<DataRightsAnonymisationWorkItemTerminalIntegrationEvent>(
             Name,
             AnonymisationWorkItemTerminalHandlerName)
+        .WithSubscription<DataRightsAnonymisationWorkItemTerminalIntegrationEventV2>(
+            Name,
+            AnonymisationWorkItemTerminalV2HandlerName)
         .WithSubscription<DataRightsExportArtifactRequestedIntegrationEvent>(
             Name,
             ExportArtifactRequestedHandlerName)
@@ -91,6 +101,7 @@ public static class DataRightsModuleMetadata
             StaffCorrectionAppliedHandlerName)
         .WithTask<RebuildDataRightsPropertiesPayload>()
         .WithTask<ExecuteDataRightsAnonymisationPayload>()
+        .WithTask<ExecuteDataRightsAnonymisationPayloadV2>()
         .WithTask<GenerateDataRightsExportPayload>()
         .WithTask<DeleteExpiredDataRightsExportArtifactPayload>()
         .WithProfile(DataRightsProfiles.Default)

@@ -40,9 +40,9 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
                 DataRightsApplicationErrors.CaseNotFound);
         }
 
-        // Tenant execution stays closed until a versioned tenant owner
-        // protocol is registered by the owning module.
-        if (command.Scope.CaseType != DataRightsCaseType.GuestRights)
+        if (command.Scope.CaseType is not (
+                DataRightsCaseType.GuestRights or
+                DataRightsCaseType.StaffRights))
         {
             return Result.Failure<DataRightsExecutionDto>(
                 DataRightsApplicationErrors.AnonymisationExecutionDenied);
@@ -112,7 +112,8 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
                     subject.RecordType,
                     subject.RecordId,
                     subject.RecordVersion,
-                    ExecutingActorId: command.ActorId),
+                    ExecutingActorId: command.ActorId,
+                    CaseType: command.Scope.CaseType),
                 cancellationToken).ConfigureAwait(false);
             if (!approval.IsApproved ||
                 approval.ApprovalEvidence is null ||
@@ -185,17 +186,36 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
         foreach (DataRightsExecutionWorkItem prepared in preparedItems)
         {
             await workItems.AddAsync(prepared, cancellationToken).ConfigureAwait(false);
-            await outbox.EnqueueAsync(
-                new DataRightsAnonymisationExecutionPreparedIntegrationEvent(
-                    ids.NewId(),
-                    dataRightsCase.ScopeId,
-                    nowUtc,
-                    prepared.Id,
-                    dataRightsCase.Id,
-                    command.Scope.PropertyId!.Value,
-                    approvalRevision,
-                    prepared.ExecutionRevision),
-                cancellationToken).ConfigureAwait(false);
+            if (command.Scope.PropertyId is Guid propertyId)
+            {
+                await outbox.EnqueueAsync(
+                    new DataRightsAnonymisationExecutionPreparedIntegrationEvent(
+                        ids.NewId(),
+                        dataRightsCase.ScopeId,
+                        nowUtc,
+                        prepared.Id,
+                        dataRightsCase.Id,
+                        propertyId,
+                        approvalRevision,
+                        prepared.ExecutionRevision),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await outbox.EnqueueAsync(
+                    new DataRightsAnonymisationExecutionPreparedIntegrationEventV2(
+                        ids.NewId(),
+                        dataRightsCase.ScopeId,
+                        nowUtc,
+                        prepared.Id,
+                        dataRightsCase.Id,
+                        command.Scope.CaseType,
+                        DataRightsExecutionScopeKind.Tenant,
+                        propertyId: null,
+                        approvalRevision,
+                        prepared.ExecutionRevision),
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return Result.Success(ToExecution(

@@ -96,6 +96,12 @@ public sealed partial class StaffMember
                 StaffDomainErrors.VersionConflict);
         }
 
+        if (this.Status == StaffMemberState.Anonymised)
+        {
+            return Result.Failure<StaffDataRightsCorrectionOutcome>(
+                StaffDomainErrors.StaffAnonymised);
+        }
+
         if (eventId == Guid.Empty)
         {
             return Result.Failure<StaffDataRightsCorrectionOutcome>(

@@ -49,8 +49,12 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
 
         Assert.True(started.IsSuccess);
         Assert.True(started.Value.DispatchRequired);
-        Assert.Equal(fixture.WorkItem.Id, started.Value.Request!.WorkItemId);
-        Assert.Equal("user:executor", started.Value.Request.ExecutingActorId);
+        Assert.Equal(
+            fixture.WorkItem.Id,
+            started.Value.PropertyRequest!.WorkItemId);
+        Assert.Equal(
+            "user:executor",
+            started.Value.PropertyRequest.ExecutingActorId);
         Assert.Equal(
             DataRightsExecutionWorkItemState.Processing,
             fixture.WorkItem.State);

@@ -5,6 +5,7 @@ using BunkFy.DataGovernance;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Staff.Domain.Governance;
 using Gma.Framework.Messaging;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,9 @@ internal static class CountryPolicyIntegrationTestData
     private const string TransferProfileId = "integration-no-transfer";
     private const string RetentionPolicyId = "integration-guest-operational";
     private const int RetentionPolicyVersion = 1;
+    private const string StaffRetentionPolicyId =
+        "integration-staff-employment";
+    private const int StaffRetentionPolicyVersion = 1;
     private const string AcknowledgementId = "integration-operator-notice";
     private const int AcknowledgementVersion = 1;
 
@@ -34,6 +38,30 @@ internal static class CountryPolicyIntegrationTestData
             Artifact.ContentSha256,
             CountryLaunchStatus.Engineering)],
         CountryPolicyRuntimeMode.Engineering);
+
+    public static StaffEmploymentGovernanceBinding
+        CreateStaffGovernanceBinding(DateTimeOffset evaluatedAtUtc) =>
+        StaffEmploymentGovernanceBinding.Create(
+            OperatingCountryCode,
+            PolicyId,
+            PolicyVersion,
+            DataRegionId,
+            TransferProfileId,
+            StaffRetentionPolicyId,
+            StaffRetentionPolicyVersion,
+            Artifact.ContentSha256,
+            Artifact.Document.EffectiveAtUtc,
+            Artifact.Document.ExpiresAtUtc,
+            evaluatedAtUtc).Value;
+
+    public static IReadOnlyCollection<
+        StaffEmploymentGovernanceAcknowledgement>
+        CreateStaffGovernanceAcknowledgements() =>
+        [
+            StaffEmploymentGovernanceAcknowledgement.Create(
+                AcknowledgementId,
+                AcknowledgementVersion).Value
+        ];
 
     public static void InstallRegistry(IServiceCollection services)
     {
@@ -166,7 +194,7 @@ internal static class CountryPolicyIntegrationTestData
           "effectiveAtUtc": "2020-01-01T00:00:00Z",
           "expiresAtUtc": "2100-01-01T00:00:00Z",
           "accommodationTypes": [ "hostel" ],
-          "guestCategories": [ "ordinary-guest" ],
+          "guestCategories": [ "ordinary-guest", "staff" ],
           "fieldRules": [
             {
               "fieldPolicyKey": "guest.primary-name",
@@ -180,6 +208,12 @@ internal static class CountryPolicyIntegrationTestData
                 "reservation-management",
                 "reservation-ingestion"
               ]
+            },
+            {
+              "fieldPolicyKey": "staff.profile",
+              "guestCategory": "staff",
+              "requirement": "required",
+              "purposeCodes": [ "staff-data-rights-anonymisation" ]
             }
           ],
           "purposeRules": [
@@ -209,6 +243,18 @@ internal static class CountryPolicyIntegrationTestData
               "legalRuleReferenceKeys": [ "integration-restriction" ],
               "allowedSurfaces": [ "api-write" ],
               "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+            },
+            {
+              "purposeCode": "staff-data-rights-anonymisation",
+              "legalRuleReferenceKeys": [ "integration-staff-erasure" ],
+              "allowedSurfaces": [ "erasure" ],
+              "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+            },
+            {
+              "purposeCode": "staff-profile-retention",
+              "legalRuleReferenceKeys": [ "integration-staff-retention" ],
+              "allowedSurfaces": [ "retention" ],
+              "allowedSourceProvenance": [ "retention-worker" ]
             },
             {
               "purposeCode": "guest-profile-management",
@@ -260,6 +306,13 @@ internal static class CountryPolicyIntegrationTestData
               "dataClass": "reservation-operational",
               "trigger": "reservation-ended",
               "period": "365.00:00:00"
+            },
+            {
+              "retentionPolicyId": "integration-staff-employment",
+              "retentionPolicyVersion": 1,
+              "dataClass": "staff-employment",
+              "trigger": "employment-ended",
+              "period": "1.00:00:00"
             }
           ],
           "rightsRule": {

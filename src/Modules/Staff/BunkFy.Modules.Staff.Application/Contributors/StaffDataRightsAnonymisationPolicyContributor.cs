@@ -9,7 +9,6 @@ using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Governance;
 using BunkFy.Modules.Staff.Domain.Models;
 using Gma.Framework.Naming;
-using Gma.Framework.Pagination;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
@@ -146,7 +145,7 @@ internal sealed class StaffDataRightsAnonymisationPolicyContributor(
         }
 
         IReadOnlyCollection<StaffDataHold>? holdSnapshot =
-            await ReadHoldSnapshotAsync(
+            await StaffDataHoldSnapshotReader.ReadAsync(
                 request.TenantId,
                 member.Id,
                 holds,
@@ -267,46 +266,6 @@ internal sealed class StaffDataRightsAnonymisationPolicyContributor(
             StringComparison.Ordinal) &&
         request.Coordinate.RecordId != Guid.Empty &&
         request.Coordinate.RecordVersion > 0;
-
-    private static async Task<IReadOnlyCollection<StaffDataHold>?>
-        ReadHoldSnapshotAsync(
-            string tenantId,
-            Guid staffMemberId,
-            IStaffDataHoldRepository repository,
-            CancellationToken cancellationToken)
-    {
-        long count = await repository.CountAsync(
-            staffMemberId,
-            status: null,
-            cancellationToken).ConfigureAwait(false);
-        if (count is < 0 or >
-            StaffDataHold.MaximumRecordsPerStaffMember)
-        {
-            return null;
-        }
-
-        List<StaffDataHold> snapshot = new((int)count);
-        int pageCount = (int)Math.Ceiling(
-            count / (double)PageRequest.MaxPageSize);
-        for (int page = 1; page <= pageCount; page++)
-        {
-            snapshot.AddRange(await repository.ListAsync(
-                staffMemberId,
-                status: null,
-                new PageRequest(page, PageRequest.MaxPageSize),
-                cancellationToken).ConfigureAwait(false));
-        }
-
-        return snapshot.Count == count &&
-            snapshot.All(hold =>
-                hold.StaffMemberId == staffMemberId &&
-                string.Equals(
-                    hold.ScopeId,
-                    tenantId,
-                    StringComparison.Ordinal))
-            ? snapshot
-            : null;
-    }
 
     private static CountryPolicyBinding ToPolicyBinding(
         StaffEmploymentGovernance governance) =>
