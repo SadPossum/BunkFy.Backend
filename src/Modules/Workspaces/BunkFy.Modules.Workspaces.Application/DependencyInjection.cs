@@ -83,6 +83,18 @@ public static class DependencyInjection
             IDataRightsAnonymisationRestorePrerequisiteV3,
             WorkspaceStaffAnonymisationAccessPrerequisite>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsAnonymisationExecutionPrerequisiteV2,
+            WorkspaceStaffCorrelationAnonymisationPrerequisite>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsAnonymisationRestorePrerequisiteV3,
+            WorkspaceStaffCorrelationAnonymisationPrerequisite>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsAnonymisationContributorV2,
+            WorkspaceStaffCorrelationDataRightsAnonymisationContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsAnonymisationRestoreContributorV3,
+            WorkspaceStaffCorrelationDataRightsAnonymisationRestoreContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IStaffRetentionAnonymisationPrerequisite,
             WorkspaceStaffAnonymisationAccessPrerequisite>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
@@ -100,6 +112,12 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IDataRightsRestrictionContributor,
             WorkspaceStaffOnboardingDataRightsRestrictionContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsRequiredCompanionContributor,
+            WorkspaceStaffCorrelationRequiredCompanionContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsAnonymisationPolicyContributor,
+            WorkspaceStaffCorrelationAnonymisationPolicyContributor>());
         services.AddIntegrationEventHandler<
             OrganizationInvitationChangedIntegrationEvent,
             OrganizationInvitationStaffOnboardingHandler>(

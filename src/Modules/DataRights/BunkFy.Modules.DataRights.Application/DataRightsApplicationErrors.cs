@@ -26,6 +26,18 @@ public static class DataRightsApplicationErrors
     public static readonly Error SubjectStale = new(
         "DataRights.SubjectStale",
         "The selected subject changed and must be rediscovered.");
+    public static readonly Error RequiredCompanionUnavailable = new(
+        "DataRights.RequiredCompanionUnavailable",
+        "A required companion owner is unavailable.");
+    public static readonly Error RequiredCompanionBlocked = new(
+        "DataRights.RequiredCompanionBlocked",
+        "A required companion prevents this case from entering review.");
+    public static readonly Error RequiredCompanionRetryRequired = new(
+        "DataRights.RequiredCompanionRetryRequired",
+        "Required companion discovery must be retried.");
+    public static readonly Error RequiredCompanionResultInvalid = new(
+        "DataRights.RequiredCompanionResultInvalid",
+        "A required companion owner returned an invalid result.");
     public static readonly Error AnonymisationApprovalPolicyDenied = new(
         "DataRights.AnonymisationApprovalPolicyDenied",
         "The property policy does not authorize anonymisation.");

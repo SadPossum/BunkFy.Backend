@@ -53,8 +53,7 @@ internal static class StaffAnonymisationPolicyEvidence
         IReadOnlyCollection<StaffDataHold> holds,
         long selectedOperationLockRevision)
     {
-        if (evidence.StateBindings is null ||
-            evidence.StateBindings.Count != RequiredBindingKeys.Length ||
+        if (!HasValidBindings(evidence, minimumCount: 4) ||
             selectedOperationLockRevision < 1)
         {
             return false;
@@ -69,11 +68,18 @@ internal static class StaffAnonymisationPolicyEvidence
                 selectedOperationLockRevision)
             .OrderBy(binding => binding.Key, StringComparer.Ordinal)
             .ToArray();
+        IReadOnlyCollection<DataRightsApprovalEvidenceBinding>
+            stateBindings = evidence.StateBindings!;
         DataRightsApprovalEvidenceBinding[] frozen =
-            evidence.StateBindings
+            stateBindings
+                .Where(binding =>
+                    RequiredBindingKeys.Contains(
+                        binding.Key,
+                        StringComparer.Ordinal))
                 .OrderBy(binding => binding.Key, StringComparer.Ordinal)
                 .ToArray();
-        return frozen.Select(binding => binding.Key)
+        return frozen.Length == RequiredBindingKeys.Length &&
+            frozen.Select(binding => binding.Key)
                 .SequenceEqual(
                     RequiredBindingKeys,
                     StringComparer.Ordinal) &&
@@ -151,9 +157,57 @@ internal static class StaffAnonymisationPolicyEvidence
         evidence.RetentionTriggeredAtUtc.HasValue &&
         evidence.RetentionDeadlineUtc.HasValue &&
         evidence.RetentionDeadlineUtc <= evidence.EvaluatedAtUtc &&
-        evidence.StateBindings is { Count: 4 } &&
+        HasValidBindings(evidence, minimumCount: 4) &&
+        RequiredBindingKeys.All(key =>
+            evidence.StateBindings!.Any(binding =>
+                string.Equals(
+                    binding.Key,
+                    key,
+                    StringComparison.Ordinal))) &&
         IsSha256(evidence.StateBindingsSha256) &&
         IsSha256(evidence.ContentSha256);
+
+    private static bool HasValidBindings(
+        DataRightsApprovalEvidence evidence,
+        int minimumCount)
+    {
+        IReadOnlyCollection<DataRightsApprovalEvidenceBinding>?
+            bindings = evidence.StateBindings;
+        if (bindings is null ||
+            bindings.Count < minimumCount ||
+            bindings.Count >
+                DataRightsAnonymisationPolicyContract
+                    .MaximumStateBindings)
+        {
+            return false;
+        }
+
+        HashSet<string> keys = new(StringComparer.Ordinal);
+        foreach (DataRightsApprovalEvidenceBinding binding in bindings)
+        {
+            if (binding is null ||
+                !IsBindingKey(binding.Key) ||
+                binding.Version < 0 ||
+                !IsSha256(binding.Sha256) ||
+                !keys.Add(binding.Key))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsBindingKey(string? value)
+    {
+        string key = value ?? string.Empty;
+        return key.Length is > 0 and <=
+                DataRightsAnonymisationPolicyContract.KeyMaxLength &&
+            key[0] is >= 'a' and <= 'z' &&
+            key.All(character =>
+                character is (>= 'a' and <= 'z') or
+                    (>= '0' and <= '9') or '.' or '-' or '_');
+    }
 
     private static string ComputeRecordDigest(StaffMember member)
     {

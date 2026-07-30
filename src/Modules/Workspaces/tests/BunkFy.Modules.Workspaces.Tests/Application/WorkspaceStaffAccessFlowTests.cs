@@ -9,6 +9,7 @@ using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -540,6 +541,235 @@ public sealed class WorkspaceStaffAccessFlowTests
     }
 
     [Fact]
+    public async Task Staff_anonymisation_accepts_exact_workspace_first_proof()
+    {
+        WorkspaceStaffCorrelationAnonymisationReceipt receipt =
+            WorkspaceStaffCorrelationAnonymisationReceipt.Create(
+                Guid.NewGuid(),
+                ScopeId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 4,
+                operationRevision: 5,
+                Guid.NewGuid(),
+                StaffId,
+                selectedStaffVersion: 2,
+                selectedAnchorVersion: 4,
+                resultingAnchorVersion: 5,
+                onboardingRecordsScrubbed: 1,
+                accessProcessRecordsScrubbed: 1,
+                accessPlanRecordsScrubbed: 0,
+                new string('a', 64),
+                new string('b', 64),
+                new string('c', 64),
+                "user:privacy-executor",
+                Now).Value;
+        WorkspaceStaffCorrelationAnonymisationTombstone tombstone =
+            WorkspaceStaffCorrelationAnonymisationTombstone
+                .Create(receipt).Value;
+        WorkspaceStaffCorrelationAnonymisationSnapshot snapshot =
+            new(
+                WorkspaceStaffCorrelationAnonymisationSnapshotStatus
+                    .Eligible,
+                receipt.AnchorProcessId,
+                receipt.ResultingAnchorVersion,
+                StaffId,
+                SelectedStaffVersion: 2,
+                receipt.CreateSubjectPseudonym(),
+                receipt.ResultingStateSha256,
+                OnboardingRecordCount: 1,
+                AccessProcessRecordCount: 1,
+                AccessPlanRecordCount: 0);
+        List<string> operations = [];
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite =
+            CreateAccessPrerequisite(
+                new FakeStaffRestoreStateReader(new(
+                    StaffId,
+                    Version: 2,
+                    StaffAnonymisationRestoreRecordState.Departed,
+                    "member-a",
+                    AnonymisedAtUtc: null)),
+                new FakeProcessRepository(),
+                new WorkspaceStaffAccessDenier(
+                    new FakeMembershipLifecycle(operations),
+                    new WorkspaceAccessProvisioner(
+                        new FakeRoles(operations),
+                        new FakeProfiles(operations)),
+                    new TestClock(),
+                    NullLogger<
+                        WorkspaceStaffAccessDenier>.Instance),
+                dataRightsCorrelations:
+                    new NoDataRightsCorrelationRepository(
+                        tombstone,
+                        snapshot));
+
+        DataRightsAnonymisationExecutionPrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateAnonymisationRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationExecutionPrerequisiteStatus
+                .Completed,
+            result.Status);
+        Assert.Empty(operations);
+    }
+
+    [Fact]
+    public async Task Workspace_anonymisation_reasserts_access_closure_before_scrub()
+    {
+        Guid anchorProcessId = Guid.NewGuid();
+        List<string> operations = [];
+        FakeRoles roles = new(operations);
+        FakeProfiles profiles = new(operations);
+        AccessSubject subject = AccessSubject.User("member-a");
+        AccessScope scope = WorkspaceAccessScopes.Create(ScopeId);
+        AccessProfileDto profile =
+            profiles.AddProfile(scope, "front-desk");
+        profiles.Assign(subject, scope, profile.Id);
+        roles.Add(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope);
+        WorkspaceStaffCorrelationAnonymisationSnapshot snapshot =
+            new(
+                WorkspaceStaffCorrelationAnonymisationSnapshotStatus
+                    .Eligible,
+                anchorProcessId,
+                AnchorProcessVersion: 4,
+                StaffId,
+                SelectedStaffVersion: 2,
+                "member-a",
+                new string('a', 64),
+                OnboardingRecordCount: 1,
+                AccessProcessRecordCount: 1,
+                AccessPlanRecordCount: 0);
+        WorkspaceStaffCorrelationAnonymisationPrerequisite prerequisite =
+            new(
+                new NoDataRightsCorrelationRepository(
+                    snapshot: snapshot),
+                new WorkspaceStaffAccessDenier(
+                    new FakeMembershipLifecycle(operations),
+                    new WorkspaceAccessProvisioner(
+                        roles,
+                        profiles),
+                    new TestClock(),
+                    NullLogger<
+                        WorkspaceStaffAccessDenier>.Instance),
+                NullLogger<
+                    WorkspaceStaffCorrelationAnonymisationPrerequisite>
+                    .Instance);
+
+        DataRightsAnonymisationExecutionPrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateWorkspaceAnonymisationRequest(
+                    anchorProcessId,
+                    selectedAnchorVersion: 4),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationExecutionPrerequisiteStatus
+                .Completed,
+            result.Status);
+        Assert.Empty(profiles.AssignedProfileIds(subject, scope));
+        Assert.False(roles.Has(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope));
+        Assert.True(
+            operations.IndexOf("membership:Removed") <
+            operations.IndexOf("profiles:reconcile"));
+    }
+
+    [Fact]
+    public async Task Workspace_anonymisation_accepts_exact_committed_tombstone()
+    {
+        WorkspaceStaffCorrelationAnonymisationReceipt receipt =
+            CreateWorkspaceCorrelationReceipt();
+        WorkspaceStaffCorrelationAnonymisationTombstone tombstone =
+            WorkspaceStaffCorrelationAnonymisationTombstone
+                .Create(receipt).Value;
+        WorkspaceStaffCorrelationAnonymisationSnapshot anonymised =
+            CreateAnonymisedWorkspaceSnapshot(receipt);
+        List<string> operations = [];
+        WorkspaceStaffCorrelationAnonymisationPrerequisite prerequisite =
+            new(
+                new NoDataRightsCorrelationRepository(
+                    tombstone,
+                    WorkspaceStaffCorrelationAnonymisationSnapshot
+                        .Unavailable(),
+                    anonymised),
+                new WorkspaceStaffAccessDenier(
+                    new FakeMembershipLifecycle(operations),
+                    new WorkspaceAccessProvisioner(
+                        new FakeRoles(operations),
+                        new FakeProfiles(operations)),
+                    new TestClock(),
+                    NullLogger<
+                        WorkspaceStaffAccessDenier>.Instance),
+                NullLogger<
+                    WorkspaceStaffCorrelationAnonymisationPrerequisite>
+                    .Instance);
+
+        DataRightsAnonymisationExecutionPrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateWorkspaceAnonymisationRequest(
+                    receipt.AnchorProcessId,
+                    receipt.SelectedAnchorVersion),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationExecutionPrerequisiteStatus
+                .Completed,
+            result.Status);
+        Assert.Empty(operations);
+    }
+
+    [Fact]
+    public async Task Workspace_restore_rejects_mismatched_owner_proof()
+    {
+        WorkspaceStaffCorrelationAnonymisationReceipt receipt =
+            CreateWorkspaceCorrelationReceipt();
+        WorkspaceStaffCorrelationAnonymisationTombstone tombstone =
+            WorkspaceStaffCorrelationAnonymisationTombstone
+                .Create(receipt).Value;
+        List<string> operations = [];
+        WorkspaceStaffCorrelationAnonymisationPrerequisite prerequisite =
+            new(
+                new NoDataRightsCorrelationRepository(
+                    tombstone,
+                    WorkspaceStaffCorrelationAnonymisationSnapshot
+                        .Unavailable(),
+                    CreateAnonymisedWorkspaceSnapshot(receipt)),
+                new WorkspaceStaffAccessDenier(
+                    new FakeMembershipLifecycle(operations),
+                    new WorkspaceAccessProvisioner(
+                        new FakeRoles(operations),
+                        new FakeProfiles(operations)),
+                    new TestClock(),
+                    NullLogger<
+                        WorkspaceStaffAccessDenier>.Instance),
+                NullLogger<
+                    WorkspaceStaffCorrelationAnonymisationPrerequisite>
+                    .Instance);
+
+        DataRightsAnonymisationRestorePrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateWorkspaceRestoreRequest(
+                    receipt,
+                    ownerReceiptSha256: new string('f', 64)),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationRestorePrerequisiteStatus.Blocked,
+            result.Status);
+        Assert.Equal(
+            "Workspaces.StaffCorrelationAnonymisationStateConflict",
+            result.OutcomeCode);
+        Assert.Empty(operations);
+    }
+
+    [Fact]
     public async Task Product_policy_denies_direct_organization_membership_changes()
     {
         WorkspaceOrganizationMembershipChangePolicy policy = new();
@@ -583,13 +813,17 @@ public sealed class WorkspaceStaffAccessFlowTests
             IStaffAnonymisationRestoreStateReader staffStateReader,
             IWorkspaceStaffAccessProcessRepository processRepository,
             WorkspaceStaffAccessDenier denier,
-            FakeCorrelationRepository? correlations = null)
+            FakeCorrelationRepository? correlations = null,
+            IWorkspaceStaffCorrelationAnonymisationRepository?
+                dataRightsCorrelations = null)
     {
         correlations ??= new FakeCorrelationRepository();
         return new(
             staffStateReader,
             processRepository,
             correlations,
+            dataRightsCorrelations ??
+                new NoDataRightsCorrelationRepository(),
             new FakeRequestDispatcher(correlations),
             denier,
             new TestClock(),
@@ -639,6 +873,93 @@ public sealed class WorkspaceStaffAccessFlowTests
             new string('b', 64),
             ResultingRecordVersion: 3,
             Now);
+
+    private static DataRightsAnonymisationContributionRequestV2
+        CreateWorkspaceAnonymisationRequest(
+            Guid anchorProcessId,
+            long selectedAnchorVersion) =>
+        new(
+            DataRightsAnonymisationContractV2.CurrentVersion,
+            ScopeId,
+            DataRightsCaseType.StaffRights,
+            DataRightsExecutionScopeKind.Tenant,
+            PropertyId: null,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ApprovalRevision: 1,
+            OperationRevision: 2,
+            new DataRightsSubjectCoordinate(
+                WorkspacesDataRightsCoordinates.Owner,
+                WorkspacesDataRightsCoordinates
+                    .StaffAccessProcessRecordType,
+                anchorProcessId,
+                selectedAnchorVersion),
+            ApprovalEvidence: null!,
+            "user:operator",
+            Now.AddMinutes(2));
+
+    private static DataRightsAnonymisationRestoreRequestV3
+        CreateWorkspaceRestoreRequest(
+            WorkspaceStaffCorrelationAnonymisationReceipt receipt,
+            string? ownerReceiptSha256 = null) =>
+        new(
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion,
+            ScopeId,
+            Guid.NewGuid(),
+            TenantSequence: 1,
+            new string('d', 64),
+            DataRightsCaseType.StaffRights,
+            DataRightsExecutionScopeKind.Tenant,
+            RoutingPropertyId: null,
+            WorkspacesDataRightsCoordinates.Owner,
+            WorkspacesDataRightsCoordinates
+                .StaffAccessProcessRecordType,
+            receipt.AnchorProcessId,
+            receipt.ContractVersion,
+            receipt.Id,
+            ownerReceiptSha256 ?? receipt.CanonicalSha256,
+            receipt.ResultingAnchorVersion,
+            receipt.CompletedAtUtc);
+
+    private static WorkspaceStaffCorrelationAnonymisationReceipt
+        CreateWorkspaceCorrelationReceipt() =>
+        WorkspaceStaffCorrelationAnonymisationReceipt.Create(
+            Guid.NewGuid(),
+            ScopeId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            approvalRevision: 4,
+            operationRevision: 5,
+            Guid.NewGuid(),
+            StaffId,
+            selectedStaffVersion: 2,
+            selectedAnchorVersion: 4,
+            resultingAnchorVersion: 5,
+            onboardingRecordsScrubbed: 1,
+            accessProcessRecordsScrubbed: 1,
+            accessPlanRecordsScrubbed: 0,
+            new string('a', 64),
+            new string('b', 64),
+            new string('c', 64),
+            "user:privacy-executor",
+            Now).Value;
+
+    private static WorkspaceStaffCorrelationAnonymisationSnapshot
+        CreateAnonymisedWorkspaceSnapshot(
+            WorkspaceStaffCorrelationAnonymisationReceipt receipt) =>
+        new(
+            WorkspaceStaffCorrelationAnonymisationSnapshotStatus
+                .Eligible,
+            receipt.AnchorProcessId,
+            receipt.ResultingAnchorVersion,
+            receipt.StaffMemberId,
+            receipt.SelectedStaffVersion,
+            receipt.CreateSubjectPseudonym(),
+            receipt.ResultingStateSha256,
+            receipt.OnboardingRecordsScrubbed,
+            receipt.AccessProcessRecordsScrubbed,
+            receipt.AccessPlanRecordsScrubbed);
 
     private static StaffRetentionAnonymisationPrerequisiteRequest
         CreateRetentionRequest() =>
@@ -823,6 +1144,110 @@ public sealed class WorkspaceStaffAccessFlowTests
 
             return Task.FromResult(created);
         }
+    }
+
+    private sealed class NoDataRightsCorrelationRepository(
+        WorkspaceStaffCorrelationAnonymisationTombstone?
+            tombstone = null,
+        WorkspaceStaffCorrelationAnonymisationSnapshot?
+            snapshot = null,
+        WorkspaceStaffCorrelationAnonymisationSnapshot?
+            anonymisedSnapshot = null)
+        : IWorkspaceStaffCorrelationAnonymisationRepository
+    {
+        public Task<WorkspaceStaffCorrelationAnonymisationSnapshot>
+            ResolveAsync(
+                string tenantId,
+                Guid staffMemberId,
+                long selectedStaffVersion,
+                string? subjectId,
+                CancellationToken cancellationToken) =>
+            Task.FromResult(
+                snapshot ??
+                    WorkspaceStaffCorrelationAnonymisationSnapshot
+                        .Unavailable());
+
+        public Task<WorkspaceStaffCorrelationAnonymisationSnapshot>
+            ReadAsync(
+                string tenantId,
+                Guid anchorProcessId,
+                long selectedAnchorVersion,
+                CancellationToken cancellationToken) =>
+            Task.FromResult(
+                snapshot ??
+                    WorkspaceStaffCorrelationAnonymisationSnapshot
+                        .Unavailable());
+
+        public Task<WorkspaceStaffCorrelationAnonymisationSnapshot>
+            ReadAnonymisedAsync(
+                string tenantId,
+                Guid anchorProcessId,
+                long resultingAnchorVersion,
+                Guid ownerReceiptId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                anonymisedSnapshot ??
+                    snapshot ??
+                    WorkspaceStaffCorrelationAnonymisationSnapshot
+                        .Unavailable());
+
+        public Task<WorkspaceStaffCorrelationAnonymisationReceipt?>
+            FindReceiptByIdempotencyKeyAsync(
+                Guid idempotencyKey,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<
+                WorkspaceStaffCorrelationAnonymisationReceipt?>(null);
+
+        public Task<
+            WorkspaceStaffCorrelationAnonymisationTombstone?>
+            GetTombstoneAsync(
+                Guid anchorProcessId,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<
+                WorkspaceStaffCorrelationAnonymisationTombstone?>(
+                tombstone?.Id == anchorProcessId
+                    ? tombstone
+                    : null);
+
+        public Task<
+            WorkspaceStaffCorrelationAnonymisationTombstone?>
+            FindTombstoneAsync(
+                string tenantId,
+                Guid staffMemberId,
+                long selectedStaffVersion,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<
+                WorkspaceStaffCorrelationAnonymisationTombstone?>(
+                tombstone?.StaffMemberId == staffMemberId &&
+                tombstone.SelectedStaffVersion ==
+                    selectedStaffVersion
+                    ? tombstone
+                    : null);
+
+        public Task<
+            WorkspaceStaffCorrelationAnonymisationRestoreReceipt?>
+            GetRestoreReceiptAsync(
+                Guid ledgerEntryId,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<
+                WorkspaceStaffCorrelationAnonymisationRestoreReceipt?>(
+                null);
+
+        public Task<Result<
+            WorkspaceStaffCorrelationAnonymisationReceipt>>
+            ApplyAsync(
+                WorkspaceStaffCorrelationAnonymisationApplyRequest
+                    request,
+                CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Result<
+            WorkspaceStaffCorrelationAnonymisationRestoreReceipt>>
+            RestoreAsync(
+                WorkspaceStaffCorrelationAnonymisationRestoreRequest
+                    request,
+                CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeRequestDispatcher(

@@ -6,6 +6,7 @@ using BunkFy.Modules.Workspaces.Application.Commands;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -16,6 +17,8 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
     IStaffAnonymisationRestoreStateReader staffStateReader,
     IWorkspaceStaffAccessProcessRepository accessProcesses,
     IWorkspaceStaffRetentionCorrelationRepository correlations,
+    IWorkspaceStaffCorrelationAnonymisationRepository
+        dataRightsCorrelations,
     IRequestDispatcher dispatcher,
     WorkspaceStaffAccessDenier accessDenier,
     ISystemClock clock,
@@ -79,6 +82,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             request.Coordinate.RecordVersion,
             resultingRecordVersion: null,
             correlationProofExists: false,
+            acceptDataRightsCorrelationProof: true,
             cancellationToken).ConfigureAwait(false);
         return result.Status switch
         {
@@ -112,6 +116,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             request.ResultingRecordVersion - 1,
             request.ResultingRecordVersion,
             correlationProofExists: false,
+            acceptDataRightsCorrelationProof: true,
             cancellationToken).ConfigureAwait(false);
         return result.Status switch
         {
@@ -165,6 +170,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                     request.SelectedStaffVersion,
                     resultingRecordVersion: null,
                     correlationProofExists: existing is not null,
+                    acceptDataRightsCorrelationProof: false,
                     cancellationToken).ConfigureAwait(false);
             if (closure.Status == AccessClosureStatus.Blocked)
             {
@@ -225,6 +231,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
         long departureVersion,
         long? resultingRecordVersion,
         bool correlationProofExists,
+        bool acceptDataRightsCorrelationProof,
         CancellationToken cancellationToken)
     {
         try
@@ -262,6 +269,51 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             else
             {
                 return AccessClosureResult.Blocked(StateConflict);
+            }
+
+            if (acceptDataRightsCorrelationProof)
+            {
+                WorkspaceStaffCorrelationAnonymisationTombstone?
+                    proof = await dataRightsCorrelations
+                        .FindTombstoneAsync(
+                            tenantId,
+                            staffMemberId,
+                            departureVersion,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                if (proof is not null)
+                {
+                    if (!proof.HasValidProof())
+                    {
+                        return AccessClosureResult.Blocked(
+                            AccessMappingConflict);
+                    }
+
+                    WorkspaceStaffCorrelationAnonymisationSnapshot
+                        anonymised = await dataRightsCorrelations
+                            .ReadAnonymisedAsync(
+                                tenantId,
+                                proof.Id,
+                                proof.ResultingAnchorVersion,
+                                proof.OwnerReceiptId,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    return anonymised.Status ==
+                            WorkspaceStaffCorrelationAnonymisationSnapshotStatus
+                                .Eligible &&
+                        anonymised.StaffMemberId ==
+                            staffMemberId &&
+                        anonymised.SelectedStaffVersion ==
+                            departureVersion &&
+                        string.Equals(
+                            anonymised.StateSha256,
+                            proof.ResultingStateSha256,
+                            StringComparison.Ordinal)
+                        ? AccessClosureResult.Complete(
+                            subjectId: null)
+                        : AccessClosureResult.Blocked(
+                            AccessMappingConflict);
+                }
             }
 
             if (correlationProofExists)

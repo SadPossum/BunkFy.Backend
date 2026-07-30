@@ -23,6 +23,308 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccessPlanRecordsScrubbed")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AccessProcessRecordsScrubbed")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("AnchorProcessId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovalEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Disposition")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OnboardingRecordsScrubbed")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("OperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ResultingAnchorVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ResultingStateSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedAnchorVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StateBindingSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "AnchorProcessId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "SelectedStaffVersion")
+                        .IsUnique();
+
+                    b.ToTable("staff_correlation_anonymisation_receipts", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_receipt_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_receipt_counts", "\"OnboardingRecordsScrubbed\" >= 0 AND \"AccessProcessRecordsScrubbed\" > 0 AND \"AccessPlanRecordsScrubbed\" >= 0");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_receipt_hashes", "char_length(\"ApprovalEvidenceSha256\") = 64 AND char_length(\"StateBindingSha256\") = 64 AND char_length(\"ResultingStateSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_receipt_outcome", "\"Disposition\" = 1 AND \"Reason\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_receipt_revisions", "\"ApprovalRevision\" > 0 AND \"OperationRevision\" > \"ApprovalRevision\"");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_receipt_versions", "\"SelectedStaffVersion\" > 0 AND \"SelectedAnchorVersion\" > 0 AND \"ResultingAnchorVersion\" = \"SelectedAnchorVersion\" + 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccessPlanRecordsScrubbed")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AccessProcessRecordsScrubbed")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("AnchorProcessId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CanonicalSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LedgerEntrySha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("OnboardingRecordsScrubbed")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("OriginallyCompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("OwnerReceiptContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OwnerReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("ReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ResultingAnchorVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ResultingStateSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("TenantSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TombstoneRevision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "AnchorProcessId", "LedgerEntryId")
+                        .IsUnique();
+
+                    b.ToTable("staff_correlation_anonymisation_restore_receipts", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_counts", "\"OnboardingRecordsScrubbed\" >= 0 AND \"AccessProcessRecordsScrubbed\" > 0 AND \"AccessPlanRecordsScrubbed\" >= 0");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_hashes", "char_length(\"LedgerEntrySha256\") = 64 AND char_length(\"OwnerReceiptSha256\") = 64 AND char_length(\"ResultingStateSha256\") = 64 AND char_length(\"CanonicalSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_identity", "\"LedgerEntryId\" = \"Id\"");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_receipt", "\"TenantSequence\" > 0 AND \"OwnerReceiptContractVersion\" > 0");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_revision", "\"TombstoneRevision\" > 0");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_times", "\"ReplayedAtUtc\" >= \"OriginallyCompletedAtUtc\"");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_restore_version", "\"ResultingAnchorVersion\" > 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastReplayedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OwnerReceiptContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OwnerReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OwnerReceiptSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ResultingAnchorVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ResultingStateSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedAnchorVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("SelectedStaffVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId", "LedgerEntryId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "OwnerReceiptId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "StaffMemberId", "SelectedStaffVersion")
+                        .IsUnique();
+
+                    b.ToTable("staff_correlation_anonymisation_tombstones", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_tombstone_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_tombstone_hashes", "char_length(\"OwnerReceiptSha256\") = 64 AND char_length(\"ResultingStateSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_tombstone_receipt", "\"OwnerReceiptContractVersion\" > 0");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_tombstone_replay", "(\"LedgerEntryId\" IS NULL AND \"LastReplayedAtUtc\" IS NULL) OR (\"LedgerEntryId\" IS NOT NULL AND \"LastReplayedAtUtc\" IS NOT NULL AND \"LastReplayedAtUtc\" >= \"CompletedAtUtc\")");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_tombstone_revision", "\"Revision\" > 0");
+
+                            t.HasCheckConstraint("CK_staff_correlation_anonymisation_tombstone_versions", "\"SelectedStaffVersion\" > 0 AND \"SelectedAnchorVersion\" > 0 AND \"ResultingAnchorVersion\" = \"SelectedAnchorVersion\" + 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingCorrectionReceipt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -830,6 +1132,16 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ProcessedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc", "CreatedAtUtc");
 
                     b.ToTable("outbox_messages", "workspaces");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "AnchorProcessId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlanProperty", b =>

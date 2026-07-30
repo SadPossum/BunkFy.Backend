@@ -56,10 +56,7 @@ public sealed partial class DataRightsCase
             (!approvesAnonymisation && approvalPolicyEvidence is not null) ||
             (decision == DataRightsCaseDecision.Approved &&
              requestsAnonymisation &&
-             this.RequestedOperations != DataRightsCaseOperation.Anonymisation) ||
-            (approvesAnonymisation &&
-             this.Kind == DataRightsCaseKind.StaffRights &&
-             this.selectedSubjects.Count != 1))
+             this.RequestedOperations != DataRightsCaseOperation.Anonymisation))
         {
             return Result.Failure(DataRightsDomainErrors.ApprovalPolicyEvidenceInvalid);
         }

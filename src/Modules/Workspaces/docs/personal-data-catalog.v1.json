@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 5,
+  "catalogVersion": 6,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -116,6 +116,18 @@
         "permission:data-rights.execute",
         "system:workspaces.processing-restriction"
       ]
+    },
+    {
+      "id": "workspaces-data-rights-anonymisation",
+      "scope": "tenant-approved-staff-correlation-anonymisation",
+      "readers": [
+        "permission:data-rights.execute",
+        "system:workspaces-data-rights"
+      ],
+      "writers": [
+        "permission:data-rights.execute",
+        "system:workspaces-data-rights"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -209,6 +221,13 @@
       "startsAt": "approved-workspace-onboarding-restriction-applied",
       "endsAt": "approved-audit-retention-expired-or-tenant-termination",
       "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
+      "id": "workspace-data-rights-anonymisation-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "workspace-staff-correlation-anonymisation-completed",
+      "endsAt": "approved-owner-proof-retention-completed-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
     }
   ],
   "rightsPolicies": [
@@ -260,6 +279,13 @@
       "correction": "change-only-through-approved-restriction-workflow",
       "restriction": "enforce-effective-processing-restriction",
       "erasure": "remove-with-approved-subject-disposition"
+    },
+    {
+      "id": "workspace-data-rights-anonymisation-proof-control",
+      "export": "include-in-authorized-staff-data-rights-proof",
+      "correction": "append-corrective-proof-only",
+      "restriction": "retain-minimum-owner-proof",
+      "erasure": "retain-minimum-pseudonymous-accountability-proof"
     }
   ],
   "fields": [
@@ -7177,6 +7203,1785 @@
           "member": "ReleasedAtUtc",
           "surface": "data-rights-export",
           "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-accountability",
+        "authorized-execution-attribution"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "ActorId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "ActorId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.approval-evidence",
+      "dataSubject": "staff",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-authorization",
+        "frozen-policy-and-state-proof"
+      ],
+      "sources": [
+        "approved-data-rights-operation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "ApprovalEvidence",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.approval-evidence-digest",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-accountability",
+        "immutable-approval-proof"
+      ],
+      "sources": [
+        "approved-data-rights-operation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "ApprovalEvidenceSha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.approval-revision",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "anonymisation-accountability",
+        "approved-decision-versioning"
+      ],
+      "sources": [
+        "approved-data-rights-operation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.canonical-receipt-digest",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-accountability",
+        "tamper-evident-owner-proof"
+      ],
+      "sources": [
+        "workspaces-owner-receipt"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "OwnerReceiptSha256",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "CanonicalSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "OwnerReceiptSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.case-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-accountability",
+        "approved-case-correlation"
+      ],
+      "sources": [
+        "approved-data-rights-operation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "CaseId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "CaseId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.completed-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "anonymisation-accountability",
+        "terminal-state-ordering"
+      ],
+      "sources": [
+        "workspaces-system-clock"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "CompletedAtUtc",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "OriginallyCompletedAtUtc",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "OriginallyCompletedAtUtc",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.contract-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "fail-closed-contract-versioning",
+        "restore-compatibility"
+      ],
+      "sources": [
+        "workspaces-owner-contract"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "OwnerReceiptContractVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "ContractVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "OwnerReceiptContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptContractVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.onboarding-record-count",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "bounded-mutation-accountability",
+        "restore-replay-verification"
+      ],
+      "sources": [
+        "workspaces-owner-mutation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "OnboardingRecordCount",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "OnboardingRecordsScrubbed",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "OnboardingRecordsScrubbed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "OnboardingRecordsScrubbed",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.access-process-record-count",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "bounded-mutation-accountability",
+        "restore-replay-verification"
+      ],
+      "sources": [
+        "workspaces-owner-mutation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "AccessProcessRecordCount",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "AccessProcessRecordsScrubbed",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "AccessProcessRecordsScrubbed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "AccessProcessRecordsScrubbed",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.access-plan-record-count",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "bounded-mutation-accountability",
+        "restore-replay-verification"
+      ],
+      "sources": [
+        "workspaces-owner-mutation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "AccessPlanRecordCount",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "AccessPlanRecordsScrubbed",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "AccessPlanRecordsScrubbed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "AccessPlanRecordsScrubbed",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.disposition",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-accountability",
+        "stable-owner-outcome"
+      ],
+      "sources": [
+        "workspaces-anonymisation-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "Disposition",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "Disposition",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.idempotency-key",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "idempotent-owner-execution",
+        "conflicting-retry-rejection"
+      ],
+      "sources": [
+        "data-rights-execution"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "IdempotencyKey",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "IdempotencyKey",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.operation-revision",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "anonymisation-accountability",
+        "operation-versioning"
+      ],
+      "sources": [
+        "approved-data-rights-operation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "OperationRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "OperationRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "OperationRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "OperationRevision",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.reason",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-accountability",
+        "stable-owner-outcome"
+      ],
+      "sources": [
+        "workspaces-anonymisation-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "Reason",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "Reason",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.receipt-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "owner-proof-correlation",
+        "pseudonym-derivation"
+      ],
+      "sources": [
+        "workspaces-owner-receipt"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "ReceiptId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "OwnerReceiptId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "ReceiptId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "OwnerReceiptId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.anchor-process-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-access-proof-coordinate",
+        "restore-replay-targeting"
+      ],
+      "sources": [
+        "workspaces-access-process"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "AnchorProcessId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "AnchorProcessId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "AnchorProcessId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "AnchorProcessId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "AnchorProcessId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "AnchorProcessId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.selected-anchor-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "frozen-state-binding",
+        "stale-decision-prevention"
+      ],
+      "sources": [
+        "workspaces-access-process"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "ExpectedAnchorVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "AnchorProcessVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "SelectedAnchorVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "SelectedAnchorVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "SelectedAnchorVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.resulting-anchor-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "owner-proof-versioning",
+        "restore-replay-verification"
+      ],
+      "sources": [
+        "workspaces-owner-mutation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "ResultingAnchorVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "ResultingAnchorVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "ResultingAnchorVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "ResultingAnchorVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "ResultingAnchorVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.staff-member-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-record-linkage",
+        "required-companion-correlation"
+      ],
+      "sources": [
+        "staff-authority"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.selected-staff-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "staff-authority-binding",
+        "stale-decision-prevention"
+      ],
+      "sources": [
+        "staff-authority"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "SelectedStaffVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "SelectedStaffVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "SelectedStaffVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "SelectedStaffVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.state-binding-digest",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "frozen-state-binding",
+        "stale-decision-prevention"
+      ],
+      "sources": [
+        "approved-data-rights-operation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "StateBindingSha256",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "StateBindingSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "StateBindingSha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.state-digest",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "owner-state-binding",
+        "restore-replay-verification"
+      ],
+      "sources": [
+        "workspaces-owner-state"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "StateSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffCorrelationAnonymisationReceiptDto",
+          "member": "ResultingStateSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "ResultingStateSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "ResultingStateSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "ResultingStateSha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.tenant-scope-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-isolation",
+        "owner-proof-routing"
+      ],
+      "sources": [
+        "authenticated-tenant-context"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "TenantId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "TenantId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.subject-id",
+      "dataSubject": "staff",
+      "classification": "direct-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "pre-anonymisation-correlation-selection"
+      ],
+      "sources": [
+        "auth-subject-correlation"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "transient-response",
+      "rightsPolicy": "account-correlation",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "SubjectId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.snapshot-status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "eligibility-decision",
+        "fail-closed-companion-selection"
+      ],
+      "sources": [
+        "workspaces-owner-state"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "transient-response",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationSnapshot",
+          "member": "Status",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.snapshot",
+      "dataSubject": "staff",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": [
+        "atomic-owner-mutation",
+        "frozen-selection-handoff"
+      ],
+      "sources": [
+        "workspaces-owner-state"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationApplyRequest",
+          "member": "Snapshot",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.restore-request",
+      "dataSubject": "staff",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": [
+        "database-restore-replay",
+        "ledger-proof-handoff"
+      ],
+      "sources": [
+        "data-rights-restore-ledger"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "transient-request",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.RestoreWorkspaceStaffCorrelationAnonymisationCommand",
+          "member": "Request",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.ledger-entry-sha256",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "restore-integrity",
+        "authoritative-ledger-proof"
+      ],
+      "sources": [
+        "data-rights-restore-ledger"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "LedgerEntrySha256",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "LedgerEntrySha256",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.ledger-entry-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "restore-ledger-correlation",
+        "idempotent-replay"
+      ],
+      "sources": [
+        "data-rights-restore-ledger"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "LedgerEntryId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "LedgerEntryId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "LedgerEntryId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.tenant-sequence",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "restore-accountability",
+        "ledger-ordering"
+      ],
+      "sources": [
+        "data-rights-restore-ledger"
+      ],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "TenantSequence",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "TenantSequence",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.replayed-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "restore-accountability",
+        "replay-ordering"
+      ],
+      "sources": [
+        "workspaces-system-clock"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffCorrelationAnonymisationRestoreRequest",
+          "member": "ReplayedAtUtc",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "LastReplayedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "ReplayedAtUtc",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.staff-correlation-anonymisation.tombstone-revision",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "restore-concurrency",
+        "proof-versioning"
+      ],
+      "sources": [
+        "workspaces-anonymisation-tombstone"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-data-rights-anonymisation",
+      "countryPolicyKey": "workspaces.staff-correlation.anonymisation",
+      "retentionPolicy": "workspace-data-rights-anonymisation-proof",
+      "rightsPolicy": "workspace-data-rights-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone",
+          "member": "Revision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
+          "member": "TombstoneRevision",
+          "surface": "persistence"
         }
       ]
     }

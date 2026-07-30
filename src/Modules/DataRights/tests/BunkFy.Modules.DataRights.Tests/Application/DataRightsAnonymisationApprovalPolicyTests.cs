@@ -170,6 +170,129 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
     }
 
     [Fact]
+    public async Task Staff_authority_and_companion_freeze_combined_owner_bindings()
+    {
+        SelectedSubject staff = SelectedSubject.Create(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            12,
+            "user:selector",
+            Now.AddMinutes(-2)).Value;
+        SelectedSubject workspace = SelectedSubject.Create(
+            "workspaces",
+            "staff-access-process",
+            Guid.NewGuid(),
+            4,
+            "user:selector",
+            Now.AddMinutes(-1)).Value;
+        StubPolicyContributor authority = new(
+            ApprovedStaffContribution());
+        StubPolicyContributor companion = new(
+            DataRightsAnonymisationPolicyContributionResult
+                .ApprovedCompanion(
+                    new(
+                        staff.OwnerKey,
+                        staff.RecordType,
+                        staff.RecordId,
+                        staff.RecordVersion),
+                    [
+                        new(
+                            "workspaces.staff-correlation",
+                            workspace.RecordVersion,
+                            new string('d', 64))
+                    ]),
+            workspace.OwnerKey,
+            workspace.RecordType);
+        DataRightsAnonymisationApprovalPolicy policy = new(
+            new StubPropertyRepository(property: null),
+            [companion, authority],
+            CountryPolicyRegistry.Create(
+                [],
+                [],
+                CountryPolicyRuntimeMode.Engineering),
+            new TestClock());
+
+        Result<DataRightsApprovalPolicyEvidence> result =
+            await policy.EvaluateAsync(
+                "tenant-a",
+                DataRightsCaseScope.Staff,
+                Guid.NewGuid(),
+                [workspace, staff],
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            [
+                "staff.governance",
+                "staff.record",
+                "workspaces.staff-correlation"
+            ],
+            result.Value.StateBindings.Select(binding => binding.Key));
+        Assert.True(result.Value.HasValidShape());
+        Assert.Equal(1, authority.EvaluationCount);
+        Assert.Equal(1, companion.EvaluationCount);
+    }
+
+    [Fact]
+    public async Task Companion_for_unselected_authority_fails_closed()
+    {
+        SelectedSubject staff = SelectedSubject.Create(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            12,
+            "user:selector",
+            Now.AddMinutes(-2)).Value;
+        SelectedSubject workspace = SelectedSubject.Create(
+            "workspaces",
+            "staff-access-process",
+            Guid.NewGuid(),
+            4,
+            "user:selector",
+            Now.AddMinutes(-1)).Value;
+        StubPolicyContributor authority = new(
+            ApprovedStaffContribution());
+        StubPolicyContributor companion = new(
+            DataRightsAnonymisationPolicyContributionResult
+                .ApprovedCompanion(
+                    new(
+                        staff.OwnerKey,
+                        staff.RecordType,
+                        Guid.NewGuid(),
+                        staff.RecordVersion),
+                    [
+                        new(
+                            "workspaces.staff-correlation",
+                            workspace.RecordVersion,
+                            new string('d', 64))
+                    ]),
+            workspace.OwnerKey,
+            workspace.RecordType);
+        DataRightsAnonymisationApprovalPolicy policy = new(
+            new StubPropertyRepository(property: null),
+            [authority, companion],
+            CountryPolicyRegistry.Create(
+                [],
+                [],
+                CountryPolicyRuntimeMode.Engineering),
+            new TestClock());
+
+        Result<DataRightsApprovalPolicyEvidence> result =
+            await policy.EvaluateAsync(
+                "tenant-a",
+                DataRightsCaseScope.Staff,
+                Guid.NewGuid(),
+                [staff, workspace],
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors
+                .AnonymisationApprovalPolicyDenied,
+            result.Error);
+    }
+
+    [Fact]
     public async Task Duplicate_staff_policy_contributors_fail_closed()
     {
         SelectedSubject subject = SelectedSubject.Create(
@@ -246,6 +369,85 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
         Assert.Equal(
             DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied.Code,
             result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Null_owner_binding_fails_closed_without_throwing()
+    {
+        DataRightsAnonymisationPolicyContributionResult approved =
+            ApprovedStaffContribution();
+        StubPolicyContributor contributor = new(
+            approved with
+            {
+                Evidence = approved.Evidence! with
+                {
+                    StateBindings = [null!]
+                }
+            });
+        DataRightsAnonymisationApprovalPolicy policy = new(
+            new StubPropertyRepository(property: null),
+            [contributor],
+            CountryPolicyRegistry.Create(
+                [],
+                [],
+                CountryPolicyRuntimeMode.Engineering),
+            new TestClock());
+        SelectedSubject subject = SelectedSubject.Create(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            12,
+            "user:selector",
+            Now.AddMinutes(-2)).Value;
+
+        Result<DataRightsApprovalPolicyEvidence> result =
+            await policy.EvaluateAsync(
+                "tenant-a",
+                DataRightsCaseScope.Staff,
+                Guid.NewGuid(),
+                [subject],
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors
+                .AnonymisationApprovalPolicyDenied,
+            result.Error);
+    }
+
+    [Fact]
+    public async Task Contributor_exception_fails_closed()
+    {
+        StubPolicyContributor contributor = new(
+            ApprovedStaffContribution(),
+            exception: new InvalidOperationException("unavailable"));
+        DataRightsAnonymisationApprovalPolicy policy = new(
+            new StubPropertyRepository(property: null),
+            [contributor],
+            CountryPolicyRegistry.Create(
+                [],
+                [],
+                CountryPolicyRuntimeMode.Engineering),
+            new TestClock());
+        SelectedSubject subject = SelectedSubject.Create(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            12,
+            "user:selector",
+            Now.AddMinutes(-2)).Value;
+
+        Result<DataRightsApprovalPolicyEvidence> result =
+            await policy.EvaluateAsync(
+                "tenant-a",
+                DataRightsCaseScope.Staff,
+                Guid.NewGuid(),
+                [subject],
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors
+                .AnonymisationApprovalPolicyDenied,
+            result.Error);
     }
 
     private static DataRightsAnonymisationPolicyContributionResult
@@ -364,7 +566,10 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
     }
 
     private sealed class StubPolicyContributor(
-        DataRightsAnonymisationPolicyContributionResult result)
+        DataRightsAnonymisationPolicyContributionResult result,
+        string ownerKey = "staff",
+        string recordType = "staff-member",
+        Exception? exception = null)
         : IDataRightsAnonymisationPolicyContributor
     {
         public int ContractVersion =>
@@ -373,9 +578,9 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
         public DataRightsCaseType CaseType =>
             DataRightsCaseType.StaffRights;
 
-        public string OwnerKey => "staff";
+        public string OwnerKey => ownerKey;
 
-        public string RecordType => "staff-member";
+        public string RecordType => recordType;
 
         public int EvaluationCount { get; private set; }
 
@@ -385,6 +590,11 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
                 CancellationToken cancellationToken)
         {
             this.EvaluationCount++;
+            if (exception is not null)
+            {
+                throw exception;
+            }
+
             return Task.FromResult(result);
         }
     }

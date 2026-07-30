@@ -33,6 +33,17 @@ public sealed class WorkspacesDbContext(
     public DbSet<WorkspaceStaffRetentionCorrelationReceipt>
         StaffRetentionCorrelationReceipts =>
         this.Set<WorkspaceStaffRetentionCorrelationReceipt>();
+    public DbSet<WorkspaceStaffCorrelationAnonymisationReceipt>
+        StaffCorrelationAnonymisationReceipts =>
+        this.Set<WorkspaceStaffCorrelationAnonymisationReceipt>();
+    public DbSet<WorkspaceStaffCorrelationAnonymisationTombstone>
+        StaffCorrelationAnonymisationTombstones =>
+        this.Set<WorkspaceStaffCorrelationAnonymisationTombstone>();
+    public DbSet<
+        WorkspaceStaffCorrelationAnonymisationRestoreReceipt>
+        StaffCorrelationAnonymisationRestoreReceipts =>
+        this.Set<
+            WorkspaceStaffCorrelationAnonymisationRestoreReceipt>();
     public DbSet<WorkspacePropertyProjection> PropertyProjections =>
         this.Set<WorkspacePropertyProjection>();
     public DbSet<WorkspaceProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>
@@ -81,9 +92,23 @@ public sealed class WorkspacesDbContext(
             .Any(entry =>
                 entry.State is
                     EntityState.Modified or EntityState.Deleted);
+        bool anonymisationMutationRequested = this.ChangeTracker
+            .Entries<
+                WorkspaceStaffCorrelationAnonymisationReceipt>()
+            .Any(entry =>
+                entry.State is
+                    EntityState.Modified or EntityState.Deleted);
+        bool restoreMutationRequested = this.ChangeTracker
+            .Entries<
+                WorkspaceStaffCorrelationAnonymisationRestoreReceipt>()
+            .Any(entry =>
+                entry.State is
+                    EntityState.Modified or EntityState.Deleted);
         if (retentionMutationRequested ||
             correctionMutationRequested ||
-            restrictionMutationRequested)
+            restrictionMutationRequested ||
+            anonymisationMutationRequested ||
+            restoreMutationRequested)
         {
             throw new InvalidOperationException(
                 "Workspace immutable receipts are append-only.");

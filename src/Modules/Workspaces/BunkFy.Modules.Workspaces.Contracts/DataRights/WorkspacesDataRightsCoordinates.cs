@@ -8,6 +8,10 @@ public static class WorkspacesDataRightsCoordinates
         "workspaces.staff-onboarding.applicant-correction.v1";
     public const string StaffAccessProcessRecordType =
         "staff-access-process";
+    public const string StaffCorrelationCompanionContributorKey =
+        "workspaces.staff-correlation";
+    public const string StaffCorrelationStateBindingKey =
+        "workspaces.staff-correlation";
     public const string StaffAccessPlanRecordType = "staff-access-plan";
     public const string StaffRetentionCorrelationReceiptRecordType =
         "staff-retention-correlation-receipt";

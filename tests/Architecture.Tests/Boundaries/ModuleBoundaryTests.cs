@@ -209,6 +209,113 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Data_rights_companion_selection_stays_owner_generic_and_contract_coupled()
+    {
+        string[] dataRightsProjects =
+        [
+            "BunkFy.Modules.DataRights.Contracts",
+            "BunkFy.Modules.DataRights.Application"
+        ];
+        foreach (string projectName in dataRightsProjects)
+        {
+            ProjectFile project = Assert.Single(
+                ProjectFile.All(),
+                candidate => string.Equals(
+                    candidate.Name,
+                    projectName,
+                    StringComparison.Ordinal));
+            Assert.DoesNotContain(
+                project.ProjectReferences,
+                reference =>
+                    reference.Contains(
+                        "BunkFy.Modules.Workspaces",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    reference.Contains(
+                        "BunkFy.Modules.Staff",
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        string[] dataRightsSourceOffenders =
+            RepositoryPaths.EnumerateFiles(
+                    "src/Modules/DataRights/BunkFy.Modules.DataRights.Contracts",
+                    "*.cs")
+                .Concat(RepositoryPaths.EnumerateFiles(
+                    "src/Modules/DataRights/BunkFy.Modules.DataRights.Application",
+                    "*.cs"))
+                .Where(path =>
+                {
+                    string source = File.ReadAllText(path);
+                    return source.Contains(
+                            "BunkFy.Modules.Workspaces",
+                            StringComparison.Ordinal) ||
+                        source.Contains(
+                            "BunkFy.Modules.Staff",
+                            StringComparison.Ordinal) ||
+                        source.Contains(
+                            "WorkspaceStaff",
+                            StringComparison.Ordinal);
+                })
+                .Select(RepositoryPaths.ToRepositoryPath)
+                .ToArray();
+        Assert.Empty(dataRightsSourceOffenders);
+
+        ProjectFile workspacesApplication = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Modules.Workspaces.Application",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            workspacesApplication.ProjectReferences,
+            reference => reference.EndsWith(
+                "BunkFy.Modules.DataRights.Contracts\\BunkFy.Modules.DataRights.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            workspacesApplication.ProjectReferences,
+            reference => reference.EndsWith(
+                "BunkFy.Modules.Staff.Contracts\\BunkFy.Modules.Staff.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            workspacesApplication.ProjectReferences,
+            reference =>
+                reference.Contains(
+                    "BunkFy.Modules.DataRights.Application",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.DataRights.Domain",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.DataRights.Persistence",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Staff.Application",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Staff.Domain",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Staff.Persistence",
+                    StringComparison.OrdinalIgnoreCase));
+
+        string[] gmaOffenders = RepositoryPaths.EnumerateFiles(
+                "gma",
+                "*.cs")
+            .Where(path =>
+            {
+                string source = File.ReadAllText(path);
+                return source.Contains(
+                        "DataRightsRequiredCompanion",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "WorkspaceStaffCorrelationAnonymisation",
+                        StringComparison.Ordinal);
+            })
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+        Assert.Empty(gmaOffenders);
+    }
+
+    [Fact]
     public void Ingestion_anonymisation_stays_product_owned_and_off_front_doors()
     {
         string dependencyInjection = RepositoryPaths.Read(

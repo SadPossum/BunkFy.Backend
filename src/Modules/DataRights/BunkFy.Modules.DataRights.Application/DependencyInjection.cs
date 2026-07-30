@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.TryAddScoped<
             IDataRightsAnonymisationApprovalPolicy,
             DataRightsAnonymisationApprovalPolicy>();
+        services.TryAddScoped<DataRightsRequiredCompanionExpander>();
         services.TryAddScoped<
             IDataRightsRestoreCoordinator,
             DataRightsRestoreCoordinator>();

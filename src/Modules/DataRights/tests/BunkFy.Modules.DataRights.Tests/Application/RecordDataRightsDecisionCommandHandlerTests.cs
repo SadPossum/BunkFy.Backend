@@ -13,8 +13,10 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Xunit;
+using DomainEvidenceBinding =
+    DataRights.Domain.ValueObjects.DataRightsApprovalEvidenceBinding;
 using SelectedSubject =
-    BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
+    DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 
 [Trait("Category", "Unit")]
 public sealed class RecordDataRightsDecisionCommandHandlerTests
@@ -113,6 +115,40 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
         Assert.Equal(0, policy.EvaluationCount);
     }
 
+    [Fact]
+    public async Task Staff_authority_and_required_companion_can_be_approved_together()
+    {
+        DataRightsCase dataRightsCase =
+            CreateStaffDecisionPendingCase();
+        DataRightsApprovalPolicyEvidence evidence =
+            CreateStaffEvidence();
+        StubAnonymisationPolicy policy =
+            new(Result.Success(evidence));
+        RecordDataRightsDecisionCommandHandler handler = new(
+            new StubCaseRepository(dataRightsCase),
+            policy,
+            new TestClock());
+
+        Result<DataRightsCaseDto> result = await handler.HandleAsync(
+            new(
+                DataRightsCaseScope.Staff,
+                dataRightsCase.Id,
+                DataRightsDecisionOutcome.Approved,
+                DataRightsDecisionReason.RequestValidated,
+                6,
+                "user:decision-maker"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(DataRightsCaseStatus.Approved, result.Value.Status);
+        Assert.Equal(2, result.Value.SelectedSubjectCount);
+        Assert.Equal(1, policy.EvaluationCount);
+        Assert.Equal(2, policy.LastSubjectCount);
+        Assert.Equal(
+            evidence.StateBindingsSha256,
+            result.Value.ApprovalEvidence?.StateBindingsSha256);
+    }
+
     private static DataRightsCase CreateDecisionPendingCase(
         Guid propertyId,
         DataRightsCaseOperation operations)
@@ -166,11 +202,88 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
             "authorized-workspace-operator",
             Now).Value;
 
+    private static DataRightsCase CreateStaffDecisionPendingCase()
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.ControllerInitiated).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            Now.AddMinutes(-6)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            1,
+            "user:operator",
+            Now.AddMinutes(-5)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "staff",
+            "staff-member",
+            Guid.NewGuid(),
+            7,
+            2,
+            "user:operator",
+            Now.AddMinutes(-4)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "workspaces",
+            "staff-access-process",
+            Guid.NewGuid(),
+            4,
+            3,
+            "user:operator",
+            Now.AddMinutes(-3)).IsSuccess);
+        Assert.True(dataRightsCase.RequireReview(
+            4,
+            "user:operator",
+            Now.AddMinutes(-2)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            5,
+            "user:decision-maker",
+            Now.AddMinutes(-1)).IsSuccess);
+        return dataRightsCase;
+    }
+
+    private static DataRightsApprovalPolicyEvidence
+        CreateStaffEvidence() =>
+        DataRightsApprovalPolicyEvidence.CreateScoped(
+            DataRightsCaseKind.StaffRights,
+            DataRightsCaseScopeKind.Tenant,
+            propertyId: null,
+            propertyVersion: 0,
+            "GB",
+            "staff-approved-policy",
+            policyVersion: 3,
+            "staff-employment",
+            retentionPolicyVersion: 2,
+            new string('b', 64),
+            "staff-data-rights-anonymisation",
+            "erasure",
+            "authorized-workspace-operator",
+            "staff-employment",
+            "employment-ended",
+            Now.AddDays(-2_557),
+            Now.AddDays(-1),
+            Now,
+            [
+                DomainEvidenceBinding.Create(
+                    "staff.record",
+                    7,
+                    new string('c', 64)).Value,
+                DomainEvidenceBinding.Create(
+                    "workspaces.staff-correlation",
+                    4,
+                    new string('d', 64)).Value
+            ]).Value;
+
     private sealed class StubAnonymisationPolicy(
         Result<DataRightsApprovalPolicyEvidence> result)
         : IDataRightsAnonymisationApprovalPolicy
     {
         public int EvaluationCount { get; private set; }
+        public int LastSubjectCount { get; private set; }
 
         public Task<Result<DataRightsApprovalPolicyEvidence>> EvaluateAsync(
             string tenantId,
@@ -180,6 +293,7 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
             CancellationToken cancellationToken)
         {
             this.EvaluationCount++;
+            this.LastSubjectCount = subjects.Count;
             return Task.FromResult(result);
         }
     }

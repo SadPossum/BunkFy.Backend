@@ -331,6 +331,132 @@ public sealed class WorkspacesModelTests
     }
 
     [Fact]
+    public async Task Staff_correlation_anonymisation_proof_is_scoped_and_receipts_are_append_only()
+    {
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using WorkspacesDbContext context =
+            new(options, new TestScopeContext());
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType tombstoneModel =
+            context.Model.FindEntityType(
+                typeof(
+                    WorkspaceStaffCorrelationAnonymisationTombstone))!;
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType restoreModel =
+            context.Model.FindEntityType(
+                typeof(
+                    WorkspaceStaffCorrelationAnonymisationRestoreReceipt))!;
+
+        Assert.True(tombstoneModel.FindProperty(
+            nameof(
+                WorkspaceStaffCorrelationAnonymisationTombstone
+                    .Revision))!.IsConcurrencyToken);
+        Assert.NotEmpty(tombstoneModel.GetDeclaredQueryFilters());
+        Assert.NotEmpty(restoreModel.GetDeclaredQueryFilters());
+        Assert.Contains(
+            restoreModel.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(
+                            WorkspaceStaffCorrelationAnonymisationRestoreReceipt
+                                .ScopeId),
+                        nameof(
+                            WorkspaceStaffCorrelationAnonymisationRestoreReceipt
+                                .AnchorProcessId)
+                    ]) &&
+                foreignKey.PrincipalEntityType.ClrType ==
+                    typeof(
+                        WorkspaceStaffCorrelationAnonymisationTombstone));
+
+        Guid anchorProcessId = Guid.NewGuid();
+        Guid staffMemberId = Guid.NewGuid();
+        Guid ledgerEntryId = Guid.NewGuid();
+        DateTimeOffset completedAtUtc =
+            WorkspaceStaffOnboardingTests.Now.AddDays(-1);
+        WorkspaceStaffCorrelationAnonymisationReceipt receipt =
+            WorkspaceStaffCorrelationAnonymisationReceipt.Create(
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.OrganizationId
+                    .ToString("D"),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 2,
+                operationRevision: 3,
+                anchorProcessId,
+                staffMemberId,
+                selectedStaffVersion: 7,
+                selectedAnchorVersion: 4,
+                resultingAnchorVersion: 5,
+                onboardingRecordsScrubbed: 1,
+                accessProcessRecordsScrubbed: 1,
+                accessPlanRecordsScrubbed: 1,
+                new string('a', 64),
+                new string('b', 64),
+                new string('c', 64),
+                "user:privacy",
+                completedAtUtc).Value;
+        WorkspaceStaffCorrelationAnonymisationTombstone tombstone =
+            WorkspaceStaffCorrelationAnonymisationTombstone.Create(
+                receipt).Value;
+        context.AddRange(receipt, tombstone);
+        await context.SaveChangesAsync();
+
+        Assert.True(tombstone.AttachRestoreProof(
+            ledgerEntryId,
+            receipt.ContractVersion,
+            receipt.Id,
+            receipt.CanonicalSha256,
+            receipt.ResultingAnchorVersion,
+            receipt.CompletedAtUtc,
+            WorkspaceStaffOnboardingTests.Now).IsSuccess);
+        WorkspaceStaffCorrelationAnonymisationRestoreReceipt
+            restoreReceipt =
+            WorkspaceStaffCorrelationAnonymisationRestoreReceipt.Create(
+                WorkspaceStaffOnboardingTests.OrganizationId
+                    .ToString("D"),
+                ledgerEntryId,
+                3,
+                new string('d', 64),
+                anchorProcessId,
+                staffMemberId,
+                receipt.ContractVersion,
+                receipt.Id,
+                receipt.CanonicalSha256,
+                receipt.ResultingAnchorVersion,
+                receipt.ResultingStateSha256,
+                receipt.OnboardingRecordsScrubbed,
+                receipt.AccessProcessRecordsScrubbed,
+                receipt.AccessPlanRecordsScrubbed,
+                receipt.CompletedAtUtc,
+                tombstone.Revision,
+                replayedAtUtc:
+                    WorkspaceStaffOnboardingTests.Now).Value;
+        context.StaffCorrelationAnonymisationRestoreReceipts.Add(
+            restoreReceipt);
+        await context.SaveChangesAsync();
+        Assert.Equal(2, tombstone.Revision);
+
+        context.Entry(receipt).State = EntityState.Modified;
+        InvalidOperationException ownerMutation =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => context.SaveChangesAsync());
+        Assert.Equal(
+            "Workspace immutable receipts are append-only.",
+            ownerMutation.Message);
+        context.Entry(receipt).State = EntityState.Unchanged;
+
+        context.Entry(restoreReceipt).State = EntityState.Modified;
+        InvalidOperationException restoreMutation =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => context.SaveChangesAsync());
+        Assert.Equal(
+            "Workspace immutable receipts are append-only.",
+            restoreMutation.Message);
+    }
+
+    [Fact]
     public async Task Operational_onboarding_reads_require_current_unrestricted_projection()
     {
         Guid tenantA = WorkspaceStaffOnboardingTests.OrganizationId;

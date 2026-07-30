@@ -57,6 +57,12 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IWorkspaceStaffRetentionCorrelationRepository,
             WorkspaceStaffRetentionCorrelationRepository>();
+        builder.Services.TryAddScoped<
+            IWorkspaceStaffCorrelationAnonymisationRepository,
+            WorkspaceStaffCorrelationAnonymisationRepository>();
+        builder.Services.TryAddScoped<
+            IWorkspaceStaffCorrelationOperationLock,
+            WorkspaceStaffCorrelationOperationLock>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectDiscoveryContributor,

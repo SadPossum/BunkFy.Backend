@@ -49,7 +49,10 @@ public sealed record DataRightsApprovalEvidenceBinding(
 public sealed record DataRightsAnonymisationPolicyContributionResult(
     int ContractVersion,
     DataRightsAnonymisationPolicyContributionStatus Status,
+    DataRightsAnonymisationPolicyContributionRole Role,
     DataRightsAnonymisationPolicyContributionEvidence? Evidence,
+    DataRightsSubjectCoordinate? AuthorityCoordinate,
+    IReadOnlyCollection<DataRightsApprovalEvidenceBinding> StateBindings,
     string? OutcomeCode)
 {
     public static DataRightsAnonymisationPolicyContributionResult Approved(
@@ -57,7 +60,24 @@ public sealed record DataRightsAnonymisationPolicyContributionResult(
         new(
             DataRightsAnonymisationPolicyContract.CurrentVersion,
             DataRightsAnonymisationPolicyContributionStatus.Approved,
+            DataRightsAnonymisationPolicyContributionRole.Authority,
             evidence,
+            AuthorityCoordinate: null,
+            StateBindings: [],
+            OutcomeCode: null);
+
+    public static DataRightsAnonymisationPolicyContributionResult
+        ApprovedCompanion(
+            DataRightsSubjectCoordinate authorityCoordinate,
+            IReadOnlyCollection<DataRightsApprovalEvidenceBinding>
+                stateBindings) =>
+        new(
+            DataRightsAnonymisationPolicyContract.CurrentVersion,
+            DataRightsAnonymisationPolicyContributionStatus.Approved,
+            DataRightsAnonymisationPolicyContributionRole.Companion,
+            Evidence: null,
+            authorityCoordinate,
+            stateBindings,
             OutcomeCode: null);
 
     public static DataRightsAnonymisationPolicyContributionResult Denied(
@@ -65,7 +85,10 @@ public sealed record DataRightsAnonymisationPolicyContributionResult(
         new(
             DataRightsAnonymisationPolicyContract.CurrentVersion,
             DataRightsAnonymisationPolicyContributionStatus.Denied,
+            DataRightsAnonymisationPolicyContributionRole.Unknown,
             Evidence: null,
+            AuthorityCoordinate: null,
+            StateBindings: [],
             outcomeCode);
 }
 
@@ -76,9 +99,16 @@ public enum DataRightsAnonymisationPolicyContributionStatus
     Denied = 2
 }
 
+public enum DataRightsAnonymisationPolicyContributionRole
+{
+    Unknown = 0,
+    Authority = 1,
+    Companion = 2
+}
+
 public static class DataRightsAnonymisationPolicyContract
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const int MaximumStateBindings = 8;
     public const int KeyMaxLength = 128;
     public const int OutcomeCodeMaxLength = 200;

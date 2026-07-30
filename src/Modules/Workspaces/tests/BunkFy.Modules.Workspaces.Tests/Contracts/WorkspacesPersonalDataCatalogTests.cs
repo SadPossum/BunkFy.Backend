@@ -155,6 +155,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
         typeof(WorkspaceStaffOnboardingProcessingRestriction),
         typeof(WorkspaceStaffOnboardingProcessingRestrictionProjection),
         typeof(WorkspaceStaffOnboardingProcessingRestrictionReceipt),
+        typeof(WorkspaceStaffCorrelationAnonymisationReceipt),
+        typeof(WorkspaceStaffCorrelationAnonymisationRestoreReceipt),
+        typeof(WorkspaceStaffCorrelationAnonymisationTombstone),
         typeof(WorkspaceStaffAccessProcess),
         typeof(WorkspaceStaffAccessProfileSnapshot),
         typeof(WorkspaceStaffAccessPlan),
@@ -201,6 +204,15 @@ public sealed class WorkspacesPersonalDataCatalogTests
                          ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand),
                      typeof(
                          ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand)
+                     ,
+                     typeof(
+                         ApplyWorkspaceStaffCorrelationAnonymisationCommand),
+                     typeof(
+                         RestoreWorkspaceStaffCorrelationAnonymisationCommand),
+                     typeof(
+                         WorkspaceStaffCorrelationAnonymisationApplyRequest),
+                     typeof(
+                         WorkspaceStaffCorrelationAnonymisationRestoreRequest)
                  })
         {
             yield return (PersonalDataSurface.ApplicationCommand, type);
@@ -212,6 +224,14 @@ public sealed class WorkspacesPersonalDataCatalogTests
             typeof(
                 GetWorkspaceStaffOnboardingDataRightsCorrectionTargetQuery));
         yield return (PersonalDataSurface.ProjectionExport, typeof(WorkspaceStaffAccessPreparation));
+        yield return (
+            PersonalDataSurface.ProjectionExport,
+            typeof(
+                WorkspaceStaffCorrelationAnonymisationSnapshot));
+        yield return (
+            PersonalDataSurface.ProjectionExport,
+            typeof(
+                WorkspaceStaffCorrelationAnonymisationReceiptDto));
 
         foreach (Type type in new[]
                  {
