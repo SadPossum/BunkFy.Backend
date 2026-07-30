@@ -1,5 +1,6 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
@@ -17,6 +18,31 @@ public static class DependencyInjection
 
         services.TryAddSingleton<IWorkspaceOwnerNotificationAudienceReader, EmptyWorkspaceOwnerNotificationAudienceReader>();
         services.TryAddScoped<OperationalNotificationProjector>();
+        OperationsNotificationsDataRightsExportSchema.EnsureValid();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsRequiredCompanionContributor,
+                OperationsNotificationsReservationAccessExportCompanionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsRequiredCompanionContributor,
+                OperationsNotificationsReservationAnonymisationCompanionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectDiscoveryContributor,
+                OperationsNotificationsDataRightsDiscoveryContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                OperationsNotificationsDataRightsExportContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationContributor,
+                OperationsNotificationsDataRightsAnonymisationContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationRestoreContributor,
+                OperationsNotificationsDataRightsAnonymisationRestoreContributor>());
 
         Add<PropertyRetiredIntegrationEvent, PropertyRetiredNotificationHandler>(
             services,

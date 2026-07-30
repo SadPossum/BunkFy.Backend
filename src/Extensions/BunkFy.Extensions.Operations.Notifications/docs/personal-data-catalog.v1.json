@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "operations-notifications.personal-data",
-  "catalogVersion": 1,
+  "catalogVersion": 3,
   "module": "operations-notifications",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -10,6 +10,18 @@
       "scope": "tenant-addressed-operational-inbox",
       "readers": ["subject:self", "system:notifications-delivery", "system:approved-retention"],
       "writers": ["system:bunk-fy-operations-notifications"]
+    },
+    {
+      "id": "approved-guest-data-rights-export",
+      "scope": "approved-property-scoped-guest-data-rights-export",
+      "readers": ["system:data-rights-export"],
+      "writers": ["system:bunk-fy-operations-notifications"]
+    },
+    {
+      "id": "notification-history-lifecycle",
+      "scope": "exact-scope-pseudonymous-notification-history-reference",
+      "readers": ["system:notifications-lifecycle", "system:data-rights"],
+      "writers": ["system:bunk-fy-operations-notifications", "system:notifications-lifecycle"]
     }
   ],
   "retentionPolicies": [
@@ -19,6 +31,20 @@
       "startsAt": "notification-requested",
       "endsAt": "approved-notification-retention-completed",
       "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "operations-notifications-data-rights-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-data-rights-export-generation",
+      "endsAt": "protected-export-artifact-expiry",
+      "legalHoldBehavior": "follow-approved-data-rights-artifact-policy"
+    },
+    {
+      "id": "notification-history-lifecycle-state",
+      "approvalState": "engineering-default",
+      "startsAt": "notification-reference-first-prepared-or-requested",
+      "endsAt": "approved-lifecycle-compaction-after-decision-and-backup-expiry",
+      "legalHoldBehavior": "retain-reference-version-tombstone-and-receipt"
     }
   ],
   "rightsPolicies": [
@@ -42,6 +68,13 @@
       "correction": "correct-authoritative-staff-source",
       "restriction": "suppress-non-required-operational-delivery",
       "erasure": "remove-or-pseudonymize-after-approved-employment-retention"
+    },
+    {
+      "id": "guest-notification-history-export",
+      "export": "include-in-authorized-guest-export",
+      "correction": "correct-authoritative-source-and-append-new-notification-if-required",
+      "restriction": "suppress-non-required-operational-delivery",
+      "erasure": "remove-notification-copy-with-approved-guest-rights-workflow"
     }
   ],
   "fields": [
@@ -62,7 +95,7 @@
       "allowedBoundaries": ["cross-module", "customer-api", "processor"],
       "approvalState": "engineering-default",
       "bindings": [
-        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "EventId", "surface": "notification" }
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV3", "member": "EventId", "surface": "notification" }
       ]
     },
     {
@@ -82,7 +115,7 @@
       "allowedBoundaries": ["cross-module", "customer-api", "processor"],
       "approvalState": "engineering-default",
       "bindings": [
-        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "OccurredAtUtc", "surface": "notification" }
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV3", "member": "OccurredAtUtc", "surface": "notification" }
       ]
     },
     {
@@ -102,7 +135,27 @@
       "allowedBoundaries": ["cross-module", "customer-api", "processor"],
       "approvalState": "engineering-default",
       "bindings": [
-        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "ScopeId", "surface": "notification" }
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV3", "member": "ScopeId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.history-references",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-subject-history-export", "approved-history-closure", "stale-decision-detection", "replay-suppression"],
+      "sources": ["reservations", "system-derived"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "notification-history-lifecycle",
+      "countryPolicyKey": "operations-notifications.history-references",
+      "retentionPolicy": "notification-history-lifecycle-state",
+      "rightsPolicy": "guest-operation-reference",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV3", "member": "References", "surface": "notification" }
       ]
     },
     {
@@ -122,7 +175,7 @@
       "allowedBoundaries": ["cross-module", "customer-api", "processor"],
       "approvalState": "engineering-default",
       "bindings": [
-        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "UserId", "surface": "notification" }
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV3", "member": "UserId", "surface": "notification" }
       ]
     },
     {
@@ -142,7 +195,7 @@
       "allowedBoundaries": ["cross-module", "customer-api", "processor"],
       "approvalState": "engineering-default",
       "bindings": [
-        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "Body", "surface": "notification" }
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV3", "member": "Body", "surface": "notification" }
       ]
     },
     {
@@ -162,7 +215,7 @@
       "allowedBoundaries": ["cross-module", "customer-api", "processor"],
       "approvalState": "engineering-default",
       "bindings": [
-        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV2", "member": "PayloadJson", "surface": "notification" }
+        { "assembly": "Gma.Modules.Notifications.Contracts", "type": "Gma.Modules.Notifications.Contracts.UserNotificationRequestedIntegrationEventV3", "member": "PayloadJson", "surface": "notification" }
       ]
     },
     {
@@ -350,6 +403,266 @@
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.StaffProfileNotificationPayload", "member": "StaffMemberId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-notification-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "notification-correlation"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "NotificationId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-source-module",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "notification-provenance"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "SourceModule", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-notification-name",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "notification-provenance"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "NotificationName", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-notification-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "notification-schema-versioning"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "NotificationVersion", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-title",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-guest-history-export", "operational-awareness"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "Title", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-body",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-guest-history-export", "operational-awareness"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "Body", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-severity",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "attention-context"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "Severity", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-stream-sequence",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "stable-history-ordering"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "StreamSequence", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-occurred-at",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "operational-timeline"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "OccurredAtUtc", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-created-at",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "inbox-lifecycle"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "CreatedAtUtc", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-payload",
+      "dataSubject": "guest",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-guest-history-export", "resource-correlation"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "Payload", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-tags",
+      "dataSubject": "guest",
+      "classification": "structured-payload",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "delivery-context"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "Tags", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.export-delivery-policy",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-guest-history-export", "delivery-context"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-guest-data-rights-export",
+      "countryPolicyKey": "operations-notifications.guest-history-export",
+      "retentionPolicy": "operations-notifications-data-rights-export-fragment",
+      "rightsPolicy": "guest-notification-history-export",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.ReservationNotificationHistoryDataRightsExport", "member": "DeliveryPolicy", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
       ]
     }
   ]

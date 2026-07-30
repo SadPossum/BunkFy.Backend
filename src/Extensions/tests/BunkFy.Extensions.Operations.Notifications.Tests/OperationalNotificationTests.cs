@@ -46,12 +46,16 @@ public sealed class OperationalNotificationTests
         var projector = new OperationalNotificationProjector(audience, workspaceOwners, access, notifications);
         var handler = new ReservationCancelledNotificationHandler(projector);
         Guid sourceEventId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        Guid reservationId =
+            Guid.Parse("22222222-2222-2222-2222-222222222222");
+        Guid propertyId =
+            Guid.Parse("33333333-3333-3333-3333-333333333333");
         var integrationEvent = new ReservationCancelledIntegrationEvent(
             sourceEventId,
             ScopeId,
             Now,
-            Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            reservationId,
+            propertyId,
             3);
 
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
@@ -66,6 +70,15 @@ public sealed class OperationalNotificationTests
                 item.DeliveryPolicy);
             Assert.Contains(item.Tags, tag => tag.Key == NotificationTags.Web);
             Assert.Contains(item.Tags, tag => tag.Key == "domain:reservations");
+            Assert.Equal(
+                [
+                    OperationsNotificationsDataRightsCoordinates
+                        .ForReservation(
+                            ScopeId,
+                            propertyId,
+                            reservationId)
+                ],
+                item.References);
         });
         Assert.Equal(
             notifications.Events[0].EventId,
@@ -131,7 +144,7 @@ public sealed class OperationalNotificationTests
 
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
 
-        UserNotificationRequestedIntegrationEventV2 notification = Assert.Single(notifications.Events);
+        UserNotificationRequestedIntegrationEventV3 notification = Assert.Single(notifications.Events);
         Assert.Equal("reservation-arrival-soon", notification.NotificationName);
         Assert.DoesNotContain("Maya Chen", notification.Body, StringComparison.Ordinal);
         Assert.Contains("A reservation", notification.Body, StringComparison.Ordinal);
@@ -164,7 +177,7 @@ public sealed class OperationalNotificationTests
 
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
 
-        UserNotificationRequestedIntegrationEventV2 notification = Assert.Single(notifications.Events);
+        UserNotificationRequestedIntegrationEventV3 notification = Assert.Single(notifications.Events);
         Assert.Equal("A reservation is expected at 15:30 on Jul 16.", notification.Body);
     }
 
@@ -385,12 +398,12 @@ public sealed class OperationalNotificationTests
         }
     }
 
-    private sealed class CapturingProjector : IUserNotificationRequestProjector
+    private sealed class CapturingProjector : IUserNotificationRequestProjectorV3
     {
-        public List<UserNotificationRequestedIntegrationEventV2> Events { get; } = [];
+        public List<UserNotificationRequestedIntegrationEventV3> Events { get; } = [];
 
         public Task ProjectAsync(
-            UserNotificationRequestedIntegrationEventV2 integrationEvent,
+            UserNotificationRequestedIntegrationEventV3 integrationEvent,
             CancellationToken cancellationToken)
         {
             this.Events.Add(integrationEvent);

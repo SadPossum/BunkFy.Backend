@@ -81,8 +81,11 @@ Current evidence:
   validation and PostgreSQL workflows are green after the complete local
   boundary, build, migration, 68-unit-test, four-PostgreSQL-test, and
   vulnerability gates passed;
-- the Operations Notifications catalogue declares 15 fields with 22 concrete
+- the published baseline catalogue declared 15 fields with 22 concrete
   bindings across the addressed envelope and all seven sealed payload types;
+- catalogue v3 later added one pseudonymous history-reference field and 13
+  guest-data-rights export-only fields without widening the ordinary inbox
+  payload types;
 - all 21 focused extension tests and all 58 architecture tests pass;
 - the Worker composition test resolves the Organizations authority and product
   notification bridge together;

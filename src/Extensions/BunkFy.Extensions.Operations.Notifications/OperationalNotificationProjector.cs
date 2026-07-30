@@ -13,7 +13,7 @@ internal sealed class OperationalNotificationProjector(
     IStaffPropertyAudienceReader audienceReader,
     IWorkspaceOwnerNotificationAudienceReader workspaceOwnerAudienceReader,
     IOrganizationAccessCandidateFilter organizationAccess,
-    IUserNotificationRequestProjector notificationProjector)
+    IUserNotificationRequestProjectorV3 notificationProjector)
 {
     public async Task ProjectForPropertyAsync(
         Guid sourceEventId,
@@ -132,7 +132,7 @@ internal sealed class OperationalNotificationProjector(
         OperationalNotification notification,
         CancellationToken cancellationToken) =>
         notificationProjector.ProjectAsync(
-            new UserNotificationRequestedIntegrationEventV2(
+            new UserNotificationRequestedIntegrationEventV3(
                 CreateNotificationId(sourceEventId, recipient, notification.Name),
                 scopeId,
                 occurredAtUtc,
@@ -145,6 +145,9 @@ internal sealed class OperationalNotificationProjector(
                 notification.Severity,
                 JsonSerializer.Serialize(notification.Payload, notification.Payload.GetType()),
                 notification.Tags,
+                OperationsNotificationsDataRightsCoordinates.FromPayload(
+                    scopeId,
+                    notification.Payload),
                 NotificationDeliveryPolicy.RespectPreferences),
             cancellationToken);
 

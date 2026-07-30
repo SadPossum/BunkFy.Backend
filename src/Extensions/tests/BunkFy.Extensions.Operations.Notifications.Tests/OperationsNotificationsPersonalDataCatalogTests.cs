@@ -13,7 +13,7 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
     private static readonly Dictionary<string, Assembly> Assemblies = new[]
     {
         ExtensionAssembly,
-        typeof(UserNotificationRequestedIntegrationEventV2).Assembly
+        typeof(UserNotificationRequestedIntegrationEventV3).Assembly
     }.ToDictionary(assembly => assembly.GetName().Name!, StringComparer.Ordinal);
 
     [Fact]
@@ -60,11 +60,12 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
                      "ScopeId",
                      "UserId",
                      "Body",
-                     "PayloadJson"
+                     "PayloadJson",
+                     "References"
                  })
         {
             AssertBinding(
-                typeof(UserNotificationRequestedIntegrationEventV2),
+                typeof(UserNotificationRequestedIntegrationEventV3),
                 member,
                 PersonalDataSurface.Notification);
         }
@@ -86,9 +87,34 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
         Assert.DoesNotContain(Catalogue.Fields, field => prohibited.Contains(field.Classification));
         PersonalDataFieldDefinition payload = Assert.Single(
             Catalogue.Fields,
-            field => field.Classification == PersonalDataClassification.StructuredPayload);
+            field => field.Id ==
+                "operations-notifications.payload-envelope");
         Assert.Equal("operations-notifications.payload-envelope", payload.Id);
         Assert.Equal("PayloadJson", Assert.Single(payload.Bindings).Member);
+    }
+
+    [Fact]
+    public void Guest_history_export_schema_is_catalogue_complete()
+    {
+        OperationsNotificationsDataRightsExportSchema.EnsureValid();
+
+        PropertyInfo[] properties =
+            typeof(ReservationNotificationHistoryDataRightsExport)
+                .GetProperties(
+                    BindingFlags.Instance |
+                    BindingFlags.Public);
+        Assert.Equal(13, properties.Length);
+        Assert.Equal(
+            properties.Length,
+            OperationsNotificationsDataRightsExportSchema
+                .Descriptor.FieldIds.Count);
+        foreach (PropertyInfo property in properties)
+        {
+            AssertBinding(
+                typeof(ReservationNotificationHistoryDataRightsExport),
+                property.Name,
+                PersonalDataSurface.DataRightsExport);
+        }
     }
 
     [Fact]

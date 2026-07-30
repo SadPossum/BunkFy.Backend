@@ -22,8 +22,9 @@ Eight source catalogues currently cover Guests, Reservations, Ingestion,
 Staff, Workspaces, Inventory, Properties, and Operations Notifications.
 
 - No product field is allowed on `Log`, `Metric`, `Trace`, or `SupportBundle`.
-- Only the fifteen bounded Operations Notifications fields are allowed on the
-  `Notification` surface.
+- Only the sixteen bounded Operations Notifications fields are allowed on the
+  `Notification` surface. Thirteen additional fields are confined to the
+  approved `DataRightsExport` surface.
 - BunkFy-owned metrics normally use GMA's bounded operation, result, provider,
   status, and error-code dimensions.
 - Product code does not create custom activities. Product-specific metric

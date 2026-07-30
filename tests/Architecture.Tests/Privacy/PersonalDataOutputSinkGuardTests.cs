@@ -109,13 +109,38 @@ public sealed class PersonalDataOutputSinkGuardTests
         PersonalDataCatalogDocument notificationCatalogue = Assert.Single(
             catalogues,
             catalogue => catalogue.CatalogId == "operations-notifications.personal-data");
-        Assert.Equal(15, notificationCatalogue.Fields.Length);
-        Assert.All(notificationCatalogue.Fields, field =>
+        Assert.Equal(29, notificationCatalogue.Fields.Length);
+
+        PersonalDataFieldDefinition[] notificationFields = notificationCatalogue.Fields
+            .Where(field =>
+                field.AllowedSurfaces.Contains(PersonalDataSurface.Notification) ||
+                field.Bindings.Any(binding =>
+                    binding.Surface == PersonalDataSurface.Notification))
+            .ToArray();
+        Assert.Equal(16, notificationFields.Length);
+        Assert.All(notificationFields, field =>
         {
             Assert.Contains(PersonalDataSurface.Notification, field.AllowedSurfaces);
             Assert.All(field.Bindings, binding =>
                 Assert.Equal(PersonalDataSurface.Notification, binding.Surface));
         });
+
+        PersonalDataFieldDefinition[] exportFields = notificationCatalogue.Fields
+            .Where(field =>
+                field.AllowedSurfaces.Contains(PersonalDataSurface.DataRightsExport) ||
+                field.Bindings.Any(binding =>
+                    binding.Surface == PersonalDataSurface.DataRightsExport))
+            .ToArray();
+        Assert.Equal(13, exportFields.Length);
+        Assert.All(exportFields, field =>
+        {
+            Assert.Contains(PersonalDataSurface.DataRightsExport, field.AllowedSurfaces);
+            Assert.All(field.Bindings, binding =>
+                Assert.Equal(PersonalDataSurface.DataRightsExport, binding.Surface));
+        });
+        Assert.Equal(
+            notificationCatalogue.Fields.Length,
+            notificationFields.Length + exportFields.Length);
     }
 
     [Fact]

@@ -101,6 +101,48 @@ public sealed class DataRightsRequiredCompanionExpansionTests
     }
 
     [Fact]
+    public async Task Access_export_expands_only_access_export_companions()
+    {
+        DataRightsSubjectCoordinate staff =
+            Coordinate("staff", "staff-member", 5);
+        DataRightsSubjectCoordinate audit =
+            Coordinate("audit", "staff-export-history", 2);
+        DataRightsCase dataRightsCase =
+            CreateDiscoveryCase(
+                DataRightsCaseOperation.AccessExport,
+                staff);
+        StubCompanionContributor accessCompanion =
+            Companion(
+                "audit-export-history",
+                staff,
+                [audit],
+                DataRightsOperation.AccessExport);
+        StubCompanionContributor anonymisationCompanion =
+            Companion(
+                "audit-anonymisation-history",
+                staff,
+                [],
+                DataRightsOperation.Anonymisation);
+        RequireDataRightsReviewCommandHandler handler = Handler(
+            dataRightsCase,
+            [Owner(staff), Owner(audit)],
+            [accessCompanion, anonymisationCompanion]);
+
+        Result<DataRightsCaseDto> result = await handler.HandleAsync(
+            new(
+                DataRightsCaseScope.Staff,
+                dataRightsCase.Id,
+                dataRightsCase.Version,
+                "user:reviewer"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Value.SelectedSubjectCount);
+        Assert.Equal(1, accessCompanion.InvocationCount);
+        Assert.Equal(0, anonymisationCompanion.InvocationCount);
+    }
+
+    [Fact]
     public async Task Blocked_companion_leaves_case_in_discovery()
     {
         DataRightsSubjectCoordinate staff =
@@ -116,6 +158,7 @@ public sealed class DataRightsRequiredCompanionExpansionTests
                     "workspace-correlation",
                     staff.OwnerKey,
                     staff.RecordType,
+                    DataRightsOperation.Anonymisation,
                     _ => DataRightsRequiredCompanionResult.Blocked(
                         "Workspaces.ActiveAccessProcess"))
             ]);
@@ -302,11 +345,14 @@ public sealed class DataRightsRequiredCompanionExpansionTests
     private static StubCompanionContributor Companion(
         string key,
         DataRightsSubjectCoordinate source,
-        IReadOnlyCollection<DataRightsSubjectCoordinate> companions) =>
+        IReadOnlyCollection<DataRightsSubjectCoordinate> companions,
+        DataRightsOperation operation =
+            DataRightsOperation.Anonymisation) =>
         new(
             key,
             source.OwnerKey,
             source.RecordType,
+            operation,
             _ =>
                 DataRightsRequiredCompanionResult.Completed(
                     companions));
@@ -369,6 +415,7 @@ public sealed class DataRightsRequiredCompanionExpansionTests
         string contributorKey,
         string sourceOwnerKey,
         string sourceRecordType,
+        DataRightsOperation operation,
         Func<
             DataRightsRequiredCompanionRequest,
             DataRightsRequiredCompanionResult> expand)
@@ -379,8 +426,7 @@ public sealed class DataRightsRequiredCompanionExpansionTests
         public string SourceRecordType => sourceRecordType;
         public DataRightsCaseType CaseType =>
             DataRightsCaseType.StaffRights;
-        public DataRightsOperation Operation =>
-            DataRightsOperation.Anonymisation;
+        public DataRightsOperation Operation => operation;
         public int ContractVersion =>
             DataRightsRequiredCompanionContract.CurrentVersion;
         public int InvocationCount { get; private set; }

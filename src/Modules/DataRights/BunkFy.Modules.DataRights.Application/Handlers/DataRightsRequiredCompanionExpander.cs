@@ -20,8 +20,16 @@ internal sealed class DataRightsRequiredCompanionExpander(
     {
         ArgumentNullException.ThrowIfNull(dataRightsCase);
 
-        if (dataRightsCase.RequestedOperations !=
-            DataRightsCaseOperation.Anonymisation)
+        DataRightsOperation operation =
+            dataRightsCase.RequestedOperations switch
+            {
+                DataRightsCaseOperation.AccessExport =>
+                    DataRightsOperation.AccessExport,
+                DataRightsCaseOperation.Anonymisation =>
+                    DataRightsOperation.Anonymisation,
+                _ => DataRightsOperation.None
+            };
+        if (operation == DataRightsOperation.None)
         {
             return Result.Success<
                 IReadOnlyCollection<DataRightsSubjectSelection>>([]);
@@ -32,7 +40,7 @@ internal sealed class DataRightsRequiredCompanionExpander(
             OrderContributors(
                 contributors,
                 (DataRightsCaseType)dataRightsCase.Kind,
-                DataRightsOperation.Anonymisation);
+                operation);
         if (orderedContributors.IsFailure)
         {
             return Result.Failure<
@@ -100,7 +108,7 @@ internal sealed class DataRightsRequiredCompanionExpander(
                                 .CurrentVersion,
                             dataRightsCase.ScopeId,
                             (DataRightsCaseType)dataRightsCase.Kind,
-                            DataRightsOperation.Anonymisation,
+                            operation,
                             dataRightsCase.PropertyId,
                             dataRightsCase.Id,
                             validatedSource.Value,

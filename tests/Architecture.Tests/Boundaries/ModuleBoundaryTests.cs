@@ -115,6 +115,70 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Operations_notifications_data_rights_adapter_uses_the_generic_notifications_application_boundary()
+    {
+        ProjectFile extension = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Extensions.Operations.Notifications",
+                StringComparison.Ordinal));
+
+        Assert.Contains(
+            extension.ProjectReferences,
+            reference => reference.EndsWith(
+                "Gma.Modules.Notifications.Application\\Gma.Modules.Notifications.Application.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            extension.ProjectReferences,
+            reference => reference.EndsWith(
+                "Gma.Modules.Notifications.Contracts\\Gma.Modules.Notifications.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            extension.ProjectReferences,
+            reference => reference.EndsWith(
+                "BunkFy.Modules.DataRights.Contracts\\BunkFy.Modules.DataRights.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            extension.ProjectReferences,
+            reference => reference.EndsWith(
+                "BunkFy.DataGovernance\\BunkFy.DataGovernance.csproj",
+                StringComparison.OrdinalIgnoreCase));
+
+        string[] forbiddenProjectReferences = extension.ProjectReferences
+            .Where(reference =>
+                reference.Contains(
+                    "Gma.Modules.Notifications.Domain",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "Gma.Modules.Notifications.Persistence",
+                    StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        string[] forbiddenSourceReferences = RepositoryPaths.EnumerateFiles(
+                "src/Extensions/BunkFy.Extensions.Operations.Notifications",
+                "*.cs")
+            .Where(path =>
+            {
+                string source = File.ReadAllText(path);
+                return source.Contains(
+                        "Gma.Modules.Notifications.Domain",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "Gma.Modules.Notifications.Persistence",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "NotificationsDbContext",
+                        StringComparison.Ordinal);
+            })
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+
+        Assert.Empty(forbiddenProjectReferences);
+        Assert.Empty(forbiddenSourceReferences);
+    }
+
+    [Fact]
     public void Standalone_adapter_runtime_stays_dependency_light()
     {
         ProjectFile runtime = Assert.Single(
