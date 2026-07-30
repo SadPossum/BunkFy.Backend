@@ -49,7 +49,7 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
                 IWorkspaceStaffOnboardingRepository applications = services
                     .GetRequiredService<IWorkspaceStaffOnboardingRepository>();
                 WorkspaceStaffOnboarding? application = await applications
-                    .GetBySourceAndSubjectAsync(
+                    .GetOperationalBySourceAndSubjectAsync(
                         sourceKind,
                         context.SourceId,
                         context.ApplicantSubjectId,

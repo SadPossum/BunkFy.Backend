@@ -87,6 +87,7 @@ internal sealed class WorkspaceStaffOnboardingConfiguration
             application.Id
         }).HasFilter("\"StaffMemberId\" IS NOT NULL");
         builder.Ignore(application => application.IsAdmissible);
+        builder.Ignore(application => application.HasApplicantAuthority);
         builder.Ignore(application => application.DomainEvents);
     }
 }

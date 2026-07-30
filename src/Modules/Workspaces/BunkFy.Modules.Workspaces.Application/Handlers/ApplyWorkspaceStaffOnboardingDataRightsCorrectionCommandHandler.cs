@@ -17,7 +17,7 @@ internal sealed class
     ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommandHandler(
         IWorkspaceStaffOnboardingRepository applications,
         IWorkspaceStaffOnboardingCorrectionReceiptRepository receipts,
-        IWorkspaceStaffOnboardingDataRightsCorrectionLock correctionLock,
+        IWorkspaceStaffOnboardingOperationLock operationLock,
         WorkspaceStaffOnboardingDataRightsCorrectionAuthorizer authorizer,
         IScopeContext scopeContext,
         ISystemClock clock,
@@ -89,7 +89,7 @@ internal sealed class
                 authorized.Error);
         }
 
-        if (!await correctionLock.TryAcquireAsync(
+        if (!await operationLock.TryAcquireAsync(
                 command.ApplicationId,
                 cancellationToken).ConfigureAwait(false))
         {

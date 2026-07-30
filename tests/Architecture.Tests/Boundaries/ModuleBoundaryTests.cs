@@ -183,6 +183,32 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Data_rights_persistence_does_not_depend_on_workspaces()
+    {
+        ProjectFile persistence = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Modules.DataRights.Persistence",
+                StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            persistence.ProjectReferences,
+            reference => reference.Contains(
+                "BunkFy.Modules.Workspaces",
+                StringComparison.OrdinalIgnoreCase));
+
+        string[] sourceOffenders = RepositoryPaths.EnumerateFiles(
+                "src/Modules/DataRights/BunkFy.Modules.DataRights.Persistence",
+                "*.cs")
+            .Where(path => File.ReadAllText(path).Contains(
+                "BunkFy.Modules.Workspaces",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+        Assert.Empty(sourceOffenders);
+    }
+
+    [Fact]
     public void Ingestion_anonymisation_stays_product_owned_and_off_front_doors()
     {
         string dependencyInjection = RepositoryPaths.Read(

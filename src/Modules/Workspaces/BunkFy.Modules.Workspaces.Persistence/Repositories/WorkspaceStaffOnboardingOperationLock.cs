@@ -3,9 +3,9 @@ namespace BunkFy.Modules.Workspaces.Persistence.Repositories;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class WorkspaceStaffOnboardingDataRightsCorrectionLock(
+internal sealed class WorkspaceStaffOnboardingOperationLock(
     WorkspacesDbContext dbContext)
-    : IWorkspaceStaffOnboardingDataRightsCorrectionLock
+    : IWorkspaceStaffOnboardingOperationLock
 {
     public async Task<bool> TryAcquireAsync(
         Guid applicationId,
@@ -14,7 +14,7 @@ internal sealed class WorkspaceStaffOnboardingDataRightsCorrectionLock(
         if (applicationId == Guid.Empty)
         {
             throw new ArgumentException(
-                "A correction lock requires an application identifier.",
+                "An onboarding operation lock requires an application identifier.",
                 nameof(applicationId));
         }
 
@@ -22,7 +22,7 @@ internal sealed class WorkspaceStaffOnboardingDataRightsCorrectionLock(
             dbContext.Database.CurrentTransaction is null)
         {
             throw new InvalidOperationException(
-                "A correction lock requires an active database transaction.");
+                "An onboarding operation lock requires an active database transaction.");
         }
 
         if (!dbContext.Database.IsRelational())

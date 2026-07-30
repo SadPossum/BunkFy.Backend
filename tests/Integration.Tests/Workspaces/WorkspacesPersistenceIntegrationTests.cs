@@ -1,12 +1,18 @@
 namespace Integration.Tests;
 
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Workspaces.Application.Ports;
+using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -16,6 +22,8 @@ public sealed class WorkspacesPersistenceIntegrationTests
         "20260721174651_AddWorkspaceStaffAccessLifecycle";
     private const string ScopedStaffAccessSnapshotsMigration =
         "20260721203218_ScopeWorkspaceStaffAccessSnapshots";
+    private const string StaffOnboardingCorrectionsMigration =
+        "20260730104955_AddWorkspaceStaffOnboardingDataRightsCorrections";
     private const string TenantA = "tenant-a";
     private const string TenantB = "tenant-b";
 
@@ -209,6 +217,213 @@ public sealed class WorkspacesPersistenceIntegrationTests
         Assert.Equal(propertyId, Assert.Single(reloaded.Properties).PropertyId);
         Assert.Equal("Main House", property.Name);
         Assert.Equal(PropertyStatus.Active, property.Status);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Staff_onboarding_restriction_migration_backfills_and_enforces_processing_state()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_workspaces_restriction_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        Guid sourceId = Guid.NewGuid();
+        string subjectId = Guid.NewGuid().ToString("D");
+        WorkspaceStaffOnboarding application =
+            CreateApplication(TenantA, sourceId, subjectId);
+
+        await using (WorkspacesDbContext previous = CreateDbContext(
+            postgreSql.GetConnectionString(), TenantA))
+        {
+            await previous.Database.GetService<IMigrator>().MigrateAsync(
+                StaffOnboardingCorrectionsMigration);
+            previous.StaffOnboardingApplications.Add(application);
+            await previous.SaveChangesAsync();
+        }
+
+        Guid restrictionId = Guid.NewGuid();
+        DateTimeOffset appliedAtUtc = DateTimeOffset.UtcNow.AddMinutes(1);
+        await using (WorkspacesDbContext upgraded = CreateDbContext(
+            postgreSql.GetConnectionString(), TenantA))
+        {
+            await upgraded.Database.MigrateAsync();
+
+            WorkspaceStaffOnboarding persistedApplication =
+                await upgraded.StaffOnboardingApplications.SingleAsync();
+            WorkspaceStaffOnboardingProcessingRestrictionProjection projection =
+                await upgraded
+                    .StaffOnboardingProcessingRestrictionProjections
+                    .SingleAsync();
+            Assert.Equal(persistedApplication.Id, projection.ApplicationId);
+            Assert.Equal(
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion,
+                projection.ContractVersion);
+            Assert.Equal(0, projection.Revision);
+            Assert.Equal(0, projection.ActiveRestrictionCount);
+            Assert.False(projection.IsRestricted);
+            Assert.True(projection.ProjectionOrdinal > 0);
+
+            WorkspaceStaffOnboardingProcessingRestriction restriction =
+                WorkspaceStaffOnboardingProcessingRestriction.Create(
+                    restrictionId,
+                    TenantA,
+                    persistedApplication.Id,
+                    Guid.NewGuid(),
+                    1,
+                    persistedApplication.Version,
+                    "user:privacy-reviewer",
+                    appliedAtUtc).Value;
+            Assert.True(projection.Apply(
+                projection.Revision,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion,
+                appliedAtUtc).IsSuccess);
+            WorkspaceStaffOnboardingProcessingRestrictionReceipt receipt =
+                WorkspaceStaffOnboardingProcessingRestrictionReceipt.Create(
+                    Guid.NewGuid(),
+                    TenantA,
+                    Guid.NewGuid(),
+                    restriction.Id,
+                    WorkspaceStaffOnboardingProcessingRestrictionAction.Apply,
+                    persistedApplication.Id,
+                    restriction.ApplyCaseId,
+                    restriction.ApplyApprovalRevision,
+                    restriction.ApplySelectedOnboardingVersion,
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion,
+                    restriction.Version,
+                    projection.Revision,
+                    projection.IsRestricted,
+                    "user:privacy-reviewer",
+                    Guid.NewGuid(),
+                    appliedAtUtc).Value;
+            upgraded.StaffOnboardingProcessingRestrictions.Add(restriction);
+            upgraded.StaffOnboardingProcessingRestrictionReceipts.Add(receipt);
+            await upgraded.SaveChangesAsync();
+        }
+
+        await using ServiceProvider provider = CreatePersistenceProvider(
+            postgreSql.GetConnectionString(), TenantA);
+        await AssertRepositoryVisibilityAsync(
+            provider,
+            application.Id,
+            sourceId,
+            subjectId,
+            expectedOperational: false);
+
+        DateTimeOffset releasedAtUtc = appliedAtUtc.AddMinutes(1);
+        await using (WorkspacesDbContext release = CreateDbContext(
+            postgreSql.GetConnectionString(), TenantA))
+        {
+            WorkspaceStaffOnboardingProcessingRestriction restriction =
+                await release.StaffOnboardingProcessingRestrictions
+                    .SingleAsync(item => item.Id == restrictionId);
+            WorkspaceStaffOnboardingProcessingRestrictionProjection projection =
+                await release
+                    .StaffOnboardingProcessingRestrictionProjections
+                    .SingleAsync(item => item.ApplicationId == application.Id);
+            Guid releaseCaseId = Guid.NewGuid();
+            Assert.True(restriction.Release(
+                releaseCaseId,
+                2,
+                application.Version,
+                restriction.Version,
+                "user:privacy-reviewer",
+                releasedAtUtc).IsSuccess);
+            Assert.True(projection.Release(
+                projection.Revision,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion,
+                releasedAtUtc).IsSuccess);
+            WorkspaceStaffOnboardingProcessingRestrictionReceipt receipt =
+                WorkspaceStaffOnboardingProcessingRestrictionReceipt.Create(
+                    Guid.NewGuid(),
+                    TenantA,
+                    Guid.NewGuid(),
+                    restriction.Id,
+                    WorkspaceStaffOnboardingProcessingRestrictionAction
+                        .Release,
+                    application.Id,
+                    releaseCaseId,
+                    2,
+                    application.Version,
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion,
+                    restriction.Version,
+                    projection.Revision,
+                    projection.IsRestricted,
+                    "user:privacy-reviewer",
+                    Guid.NewGuid(),
+                    releasedAtUtc).Value;
+            release.StaffOnboardingProcessingRestrictionReceipts.Add(receipt);
+            await release.SaveChangesAsync();
+        }
+
+        await AssertRepositoryVisibilityAsync(
+            provider,
+            application.Id,
+            sourceId,
+            subjectId,
+            expectedOperational: true);
+
+        await using WorkspacesDbContext tamper = CreateDbContext(
+            postgreSql.GetConnectionString(), TenantA);
+        PostgresException failure =
+            await Assert.ThrowsAsync<PostgresException>(
+                () => tamper.Database.ExecuteSqlRawAsync(
+                    """
+                    UPDATE workspaces.staff_onboarding_processing_restriction_receipts
+                    SET "ActorId" = 'tampered'
+                    """));
+        Assert.Equal("P0001", failure.SqlState);
+        Assert.Contains("append-only", failure.MessageText);
+    }
+
+    private static async Task AssertRepositoryVisibilityAsync(
+        ServiceProvider provider,
+        Guid applicationId,
+        Guid sourceId,
+        string subjectId,
+        bool expectedOperational)
+    {
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        IWorkspaceStaffOnboardingRepository repository =
+            scope.ServiceProvider
+                .GetRequiredService<IWorkspaceStaffOnboardingRepository>();
+
+        Assert.NotNull(await repository.GetAsync(
+            applicationId,
+            CancellationToken.None));
+        Assert.Equal(
+            expectedOperational,
+            await repository.GetOperationalAsync(
+                applicationId,
+                CancellationToken.None) is not null);
+        Assert.Equal(
+            applicationId,
+            await repository.FindIdBySourceAndSubjectAsync(
+                WorkspaceStaffOnboardingSource.EnrollmentLink,
+                sourceId,
+                subjectId,
+                CancellationToken.None));
+    }
+
+    private static ServiceProvider CreatePersistenceProvider(
+        string connectionString,
+        string tenantId)
+    {
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+        builder.Configuration["Persistence:Provider"] = "PostgreSql";
+        builder.Configuration["ConnectionStrings:PostgreSql"] =
+            connectionString;
+        builder.Services.AddSingleton<IScopeContext>(
+            new TestScopeContext(tenantId));
+        builder.AddWorkspacesPersistence();
+        return builder.Services.BuildServiceProvider();
     }
 
     private static WorkspacesDbContext CreateDbContext(string connectionString, string scopeId)

@@ -40,6 +40,10 @@ internal static class WorkspacesDataRightsExportSchema
         typeof(WorkspaceStaffOnboardingDataRightsExport),
         typeof(
             WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport),
+        typeof(
+            WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport),
+        typeof(
+            WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport),
         typeof(WorkspaceStaffAccessProcessDataRightsExport),
         typeof(WorkspaceStaffAccessProfileDataRightsExport),
         typeof(WorkspaceStaffAccessPlanDataRightsExport),

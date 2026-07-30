@@ -17,6 +17,15 @@ public sealed class WorkspacesDbContext(
     public DbSet<WorkspaceStaffOnboardingCorrectionReceipt>
         StaffOnboardingCorrectionReceipts =>
         this.Set<WorkspaceStaffOnboardingCorrectionReceipt>();
+    public DbSet<WorkspaceStaffOnboardingProcessingRestriction>
+        StaffOnboardingProcessingRestrictions =>
+        this.Set<WorkspaceStaffOnboardingProcessingRestriction>();
+    public DbSet<WorkspaceStaffOnboardingProcessingRestrictionProjection>
+        StaffOnboardingProcessingRestrictionProjections =>
+        this.Set<WorkspaceStaffOnboardingProcessingRestrictionProjection>();
+    public DbSet<WorkspaceStaffOnboardingProcessingRestrictionReceipt>
+        StaffOnboardingProcessingRestrictionReceipts =>
+        this.Set<WorkspaceStaffOnboardingProcessingRestrictionReceipt>();
     public DbSet<WorkspaceStaffAccessProcess> StaffAccessProcesses =>
         this.Set<WorkspaceStaffAccessProcess>();
     public DbSet<WorkspaceStaffAccessPlan> StaffAccessPlans =>
@@ -66,7 +75,15 @@ public sealed class WorkspacesDbContext(
             .Any(entry =>
                 entry.State is
                     EntityState.Modified or EntityState.Deleted);
-        if (retentionMutationRequested || correctionMutationRequested)
+        bool restrictionMutationRequested = this.ChangeTracker
+            .Entries<
+                WorkspaceStaffOnboardingProcessingRestrictionReceipt>()
+            .Any(entry =>
+                entry.State is
+                    EntityState.Modified or EntityState.Deleted);
+        if (retentionMutationRequested ||
+            correctionMutationRequested ||
+            restrictionMutationRequested)
         {
             throw new InvalidOperationException(
                 "Workspace immutable receipts are append-only.");

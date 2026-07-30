@@ -4,6 +4,7 @@ using BunkFy.Modules.Workspaces.Application.Mapping;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +18,68 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
             application => application.Id == applicationId,
             cancellationToken);
 
-    public Task<WorkspaceStaffOnboarding?> GetBySourceAndSubjectAsync(
+    public Task<WorkspaceStaffOnboarding?> GetOperationalAsync(
+        Guid applicationId,
+        CancellationToken cancellationToken) =>
+        (
+            from application in dbContext.StaffOnboardingApplications
+            join projection in
+                dbContext.StaffOnboardingProcessingRestrictionProjections
+                on new
+                {
+                    application.ScopeId,
+                    ApplicationId = application.Id
+                }
+                equals new
+                {
+                    projection.ScopeId,
+                    projection.ApplicationId
+                }
+            where application.Id == applicationId &&
+                projection.ContractVersion ==
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion &&
+                !projection.IsRestricted
+            select application
+        ).SingleOrDefaultAsync(cancellationToken);
+
+    public Task<WorkspaceStaffOnboarding?>
+        GetOperationalBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken)
+    {
+        string normalizedSubject = subjectId.Trim();
+        return (
+            from application in dbContext.StaffOnboardingApplications
+                .AsNoTracking()
+            join projection in
+                dbContext.StaffOnboardingProcessingRestrictionProjections
+                    .AsNoTracking()
+                on new
+                {
+                    application.ScopeId,
+                    ApplicationId = application.Id
+                }
+                equals new
+                {
+                    projection.ScopeId,
+                    projection.ApplicationId
+                }
+            where application.SourceKind == sourceKind &&
+                application.SourceId == sourceId &&
+                application.SubjectId == normalizedSubject &&
+                projection.ContractVersion ==
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion &&
+                !projection.IsRestricted
+            select application
+        ).SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<WorkspaceStaffOnboarding?>
+        GetBySourceAndSubjectForLifecycleAsync(
         WorkspaceStaffOnboardingSource sourceKind,
         Guid sourceId,
         string subjectId,
@@ -29,6 +91,23 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
                 application.SourceId == sourceId &&
                 application.SubjectId == normalizedSubject,
             cancellationToken);
+    }
+
+    public Task<Guid?> FindIdBySourceAndSubjectAsync(
+        WorkspaceStaffOnboardingSource sourceKind,
+        Guid sourceId,
+        string subjectId,
+        CancellationToken cancellationToken)
+    {
+        string normalizedSubject = subjectId.Trim();
+        return dbContext.StaffOnboardingApplications
+            .AsNoTracking()
+            .Where(application =>
+                application.SourceKind == sourceKind &&
+                application.SourceId == sourceId &&
+                application.SubjectId == normalizedSubject)
+            .Select(application => (Guid?)application.Id)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public Task<WorkspaceStaffOnboarding?> GetByClaimAsync(
@@ -57,12 +136,32 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
         PageRequest page,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffOnboarding[] rows = await dbContext.StaffOnboardingApplications
-            .AsNoTracking()
-            .Where(application =>
+        WorkspaceStaffOnboarding[] rows = await (
+            from application in dbContext.StaffOnboardingApplications
+                .AsNoTracking()
+            join projection in
+                dbContext.StaffOnboardingProcessingRestrictionProjections
+                    .AsNoTracking()
+                on new
+                {
+                    application.ScopeId,
+                    ApplicationId = application.Id
+                }
+                equals new
+                {
+                    projection.ScopeId,
+                    projection.ApplicationId
+                }
+            where
                 (application.Status == WorkspaceStaffOnboardingState.PendingApproval &&
                     application.ClaimId != null) ||
-                application.Status == WorkspaceStaffOnboardingState.Failed)
+                application.Status == WorkspaceStaffOnboardingState.Failed
+            where projection.ContractVersion ==
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion &&
+                !projection.IsRestricted
+            select application
+        )
             .OrderBy(application => application.CreatedAtUtc)
             .ThenBy(application => application.Id)
             .Skip(page.SkipCount)
@@ -72,6 +171,15 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
             rows.Select(application => application.ToDto()).ToArray(),
             page.Page,
             page.PageSize);
+    }
+
+    public Task ReloadAsync(
+        WorkspaceStaffOnboarding application,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        return dbContext.Entry(application)
+            .ReloadAsync(cancellationToken);
     }
 
     public Task AddAsync(

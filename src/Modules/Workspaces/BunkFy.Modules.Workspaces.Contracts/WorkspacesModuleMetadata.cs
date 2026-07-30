@@ -26,6 +26,8 @@ public static class WorkspacesModuleMetadata
     public const string PropertyCreatedHandlerName = "workspace-property-created";
     public const string PropertyUpdatedHandlerName = "workspace-property-updated";
     public const string PropertyRetiredHandlerName = "workspace-property-retired";
+    public const string StaffOnboardingRestrictionRecoveryHandlerName =
+        "staff-onboarding-restriction-release-recovery";
     public const string PropertiesProjectionName = "properties";
     public const int PropertiesProjectionVersion = 1;
     public const string ProjectionWorkerGroup = "projection-workers";
@@ -66,8 +68,14 @@ public static class WorkspacesModuleMetadata
         .WithSubscription<PropertyRetiredIntegrationEvent>(
             PropertiesModuleMetadata.Name,
             PropertyRetiredHandlerName)
+        .WithSubscription<
+            WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent>(
+            Name,
+            StaffOnboardingRestrictionRecoveryHandlerName)
         .WithPublishedEvent<
             DataRightsTenantCorrectionAppliedIntegrationEvent>()
+        .WithPublishedEvent<
+            WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent>()
         .WithTask<RebuildWorkspacePropertiesPayload>()
         .WithProfile(WorkspacesProfiles.Default)
         .Build();
@@ -85,7 +93,7 @@ public static class WorkspacesProfiles
         [
             MessagingCompositionFeatures.OutboxRequired(
                 Provider,
-                "Workspaces publishes Staff onboarding correction completion through its durable outbox."),
+                "Workspaces publishes Staff onboarding rights completion through its durable outbox."),
             MessagingCompositionFeatures.NatsConsumersRequired(
                 Provider,
                 "Organizations join facts drive durable BunkFy Staff provisioning.",

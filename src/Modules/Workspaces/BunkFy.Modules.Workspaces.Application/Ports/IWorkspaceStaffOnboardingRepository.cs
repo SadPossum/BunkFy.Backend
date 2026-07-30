@@ -7,7 +7,20 @@ using Gma.Framework.Pagination;
 public interface IWorkspaceStaffOnboardingRepository
 {
     Task<WorkspaceStaffOnboarding?> GetAsync(Guid applicationId, CancellationToken cancellationToken);
-    Task<WorkspaceStaffOnboarding?> GetBySourceAndSubjectAsync(
+    Task<WorkspaceStaffOnboarding?> GetOperationalAsync(
+        Guid applicationId,
+        CancellationToken cancellationToken);
+    Task<WorkspaceStaffOnboarding?> GetOperationalBySourceAndSubjectAsync(
+        WorkspaceStaffOnboardingSource sourceKind,
+        Guid sourceId,
+        string subjectId,
+        CancellationToken cancellationToken);
+    Task<WorkspaceStaffOnboarding?> GetBySourceAndSubjectForLifecycleAsync(
+        WorkspaceStaffOnboardingSource sourceKind,
+        Guid sourceId,
+        string subjectId,
+        CancellationToken cancellationToken);
+    Task<Guid?> FindIdBySourceAndSubjectAsync(
         WorkspaceStaffOnboardingSource sourceKind,
         Guid sourceId,
         string subjectId,
@@ -19,6 +32,9 @@ public interface IWorkspaceStaffOnboardingRepository
         CancellationToken cancellationToken);
     Task<WorkspaceStaffOnboardingListResponse> ListActionableAsync(
         PageRequest page,
+        CancellationToken cancellationToken);
+    Task ReloadAsync(
+        WorkspaceStaffOnboarding application,
         CancellationToken cancellationToken);
     Task AddAsync(WorkspaceStaffOnboarding application, CancellationToken cancellationToken);
 }

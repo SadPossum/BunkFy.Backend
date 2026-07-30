@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.Workspaces.Application.Ports;
+using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
 using BunkFy.Modules.Workspaces.Persistence;
@@ -218,6 +219,246 @@ public sealed class WorkspacesModelTests
     }
 
     [Fact]
+    public async Task Staff_onboarding_restriction_state_is_versioned_scoped_and_append_only()
+    {
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using WorkspacesDbContext context =
+            new(options, new TestScopeContext());
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType restriction =
+            context.Model.FindEntityType(
+                typeof(
+                    WorkspaceStaffOnboardingProcessingRestriction))!;
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType projection =
+            context.Model.FindEntityType(
+                typeof(
+                    WorkspaceStaffOnboardingProcessingRestrictionProjection))!;
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType receipt =
+            context.Model.FindEntityType(
+                typeof(
+                    WorkspaceStaffOnboardingProcessingRestrictionReceipt))!;
+
+        Assert.True(restriction.FindProperty(
+            nameof(WorkspaceStaffOnboardingProcessingRestriction.Version))!
+            .IsConcurrencyToken);
+        Assert.Contains(restriction.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestriction.ScopeId),
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestriction
+                            .ApplicationId),
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestriction
+                            .ApplyCaseId),
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestriction
+                            .ApplyApprovalRevision)
+                ]));
+        Assert.NotEmpty(restriction.GetDeclaredQueryFilters());
+
+        Assert.True(projection.FindProperty(
+            nameof(
+                WorkspaceStaffOnboardingProcessingRestrictionProjection
+                    .Revision))!.IsConcurrencyToken);
+        Assert.Contains(projection.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Single().Name ==
+                nameof(
+                    WorkspaceStaffOnboardingProcessingRestrictionProjection
+                        .ProjectionOrdinal));
+        Assert.Contains(projection.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestrictionProjection
+                            .ScopeId),
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestrictionProjection
+                            .IsRestricted),
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestrictionProjection
+                            .ApplicationId)
+                ]));
+        Assert.NotEmpty(projection.GetDeclaredQueryFilters());
+
+        Assert.Contains(receipt.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestrictionReceipt
+                            .ScopeId),
+                    nameof(
+                        WorkspaceStaffOnboardingProcessingRestrictionReceipt
+                            .IdempotencyKey)
+                ]));
+        Assert.NotEmpty(receipt.GetDeclaredQueryFilters());
+
+        WorkspaceStaffOnboardingProcessingRestrictionReceipt persisted =
+            WorkspaceStaffOnboardingProcessingRestrictionReceipt.Create(
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingProcessingRestrictionAction.Apply,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 1,
+                selectedOnboardingVersion: 1,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion,
+                resultingRestrictionVersion: 1,
+                resultingProjectionRevision: 1,
+                effectiveRestricted: true,
+                "user:privacy",
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.Now).Value;
+        context.StaffOnboardingProcessingRestrictionReceipts.Add(persisted);
+        await context.SaveChangesAsync();
+        context.Entry(persisted).State = EntityState.Modified;
+
+        InvalidOperationException error =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => context.SaveChangesAsync());
+        Assert.Equal(
+            "Workspace immutable receipts are append-only.",
+            error.Message);
+    }
+
+    [Fact]
+    public async Task Operational_onboarding_reads_require_current_unrestricted_projection()
+    {
+        Guid tenantA = WorkspaceStaffOnboardingTests.OrganizationId;
+        Guid tenantB =
+            Guid.Parse("10000000-0000-0000-0000-000000000099");
+        WorkspaceStaffOnboarding unrestricted = CreateFailedOnboarding(
+            tenantA,
+            Guid.Parse("20000000-0000-0000-0000-000000000001"),
+            Guid.Parse("30000000-0000-0000-0000-000000000001"),
+            "10000000-0000-0000-0000-000000000001",
+            WorkspaceStaffOnboardingTests.Now);
+        WorkspaceStaffOnboarding restricted = CreateFailedOnboarding(
+            tenantA,
+            Guid.Parse("20000000-0000-0000-0000-000000000002"),
+            Guid.Parse("30000000-0000-0000-0000-000000000002"),
+            "10000000-0000-0000-0000-000000000002",
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1));
+        WorkspaceStaffOnboarding missing = CreateFailedOnboarding(
+            tenantA,
+            Guid.Parse("20000000-0000-0000-0000-000000000003"),
+            Guid.Parse("30000000-0000-0000-0000-000000000003"),
+            "10000000-0000-0000-0000-000000000003",
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2));
+        WorkspaceStaffOnboarding unsupported = CreateFailedOnboarding(
+            tenantA,
+            Guid.Parse("20000000-0000-0000-0000-000000000004"),
+            Guid.Parse("30000000-0000-0000-0000-000000000004"),
+            "10000000-0000-0000-0000-000000000004",
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(3));
+        WorkspaceStaffOnboarding otherTenant = CreateFailedOnboarding(
+            tenantB,
+            Guid.Parse("20000000-0000-0000-0000-000000000005"),
+            Guid.Parse("30000000-0000-0000-0000-000000000005"),
+            "10000000-0000-0000-0000-000000000005",
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(4));
+
+        WorkspaceStaffOnboardingProcessingRestrictionProjection
+            unrestrictedProjection = CreateProjection(
+                unrestricted,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion);
+        WorkspaceStaffOnboardingProcessingRestrictionProjection
+            restrictedProjection = CreateProjection(
+                restricted,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion);
+        Assert.True(restrictedProjection.Apply(
+            expectedRevision: 0,
+            WorkspaceStaffOnboardingProcessingRestrictionContract
+                .CurrentVersion,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(5)).IsSuccess);
+        WorkspaceStaffOnboardingProcessingRestrictionProjection
+            unsupportedProjection = CreateProjection(
+                unsupported,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion + 1);
+        WorkspaceStaffOnboardingProcessingRestrictionProjection
+            otherProjection = CreateProjection(
+                otherTenant,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion);
+
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using (WorkspacesDbContext seed = new(
+            options,
+            new TestScopeContext(enabled: false, scopeId: null)))
+        {
+            seed.AddRange(
+                unrestricted,
+                restricted,
+                missing,
+                unsupported,
+                otherTenant,
+                unrestrictedProjection,
+                restrictedProjection,
+                unsupportedProjection,
+                otherProjection);
+            await seed.SaveChangesAsync();
+        }
+
+        await using WorkspacesDbContext context = new(
+            options,
+            new TestScopeContext(true, tenantA.ToString("D")));
+        WorkspaceStaffOnboardingRepository repository = new(context);
+
+        Assert.NotNull(await repository.GetAsync(
+            restricted.Id,
+            CancellationToken.None));
+        Assert.NotNull(await repository.GetOperationalAsync(
+            unrestricted.Id,
+            CancellationToken.None));
+        Assert.Null(await repository.GetOperationalAsync(
+            restricted.Id,
+            CancellationToken.None));
+        Assert.Null(await repository.GetOperationalAsync(
+            missing.Id,
+            CancellationToken.None));
+        Assert.Null(await repository.GetOperationalAsync(
+            unsupported.Id,
+            CancellationToken.None));
+        Assert.Null(await repository.GetOperationalAsync(
+            otherTenant.Id,
+            CancellationToken.None));
+        Assert.Null(await repository.GetOperationalBySourceAndSubjectAsync(
+            restricted.SourceKind,
+            restricted.SourceId,
+            restricted.SubjectId,
+            CancellationToken.None));
+        Assert.Equal(
+            restricted.Id,
+            await repository.FindIdBySourceAndSubjectAsync(
+                restricted.SourceKind,
+                restricted.SourceId,
+                restricted.SubjectId,
+                CancellationToken.None));
+
+        WorkspaceStaffOnboardingListResponse actionable =
+            await repository.ListActionableAsync(
+                new Gma.Framework.Pagination.PageRequest(1, 20),
+                CancellationToken.None);
+        WorkspaceStaffOnboardingDto row = Assert.Single(actionable.Items);
+        Assert.Equal(unrestricted.Id, row.ApplicationId);
+    }
+
+    [Fact]
     public async Task Staff_onboarding_retention_candidates_are_tenant_isolated_ordered_and_bounded()
     {
         string databaseName = Guid.NewGuid().ToString("N");
@@ -330,6 +571,46 @@ public sealed class WorkspacesModelTests
             sourceExpiredAtUtc).IsSuccess);
         return (application, plan);
     }
+
+    private static WorkspaceStaffOnboarding CreateFailedOnboarding(
+        Guid tenantId,
+        Guid applicationId,
+        Guid sourceId,
+        string subjectId,
+        DateTimeOffset createdAtUtc)
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboarding.Create(
+                applicationId,
+                tenantId.ToString("D"),
+                WorkspaceStaffOnboardingSource.EnrollmentLink,
+                sourceId,
+                subjectId,
+                $"{applicationId:N}@example.test",
+                "Applicant",
+                legalName: null,
+                workEmail: null,
+                workPhone: null,
+                employeeNumber: null,
+                jobTitle: null,
+                department: null,
+                createdAtUtc).Value;
+        Assert.True(application.Fail(
+            "Workspaces.TestFailure",
+            createdAtUtc.AddSeconds(1)).IsSuccess);
+        return application;
+    }
+
+    private static
+        WorkspaceStaffOnboardingProcessingRestrictionProjection
+        CreateProjection(
+            WorkspaceStaffOnboarding application,
+            int contractVersion) =>
+        WorkspaceStaffOnboardingProcessingRestrictionProjection.Create(
+            application.ScopeId,
+            application.Id,
+            contractVersion,
+            application.CreatedAtUtc).Value;
 
     private sealed class TestScopeContext(
         bool enabled = true,

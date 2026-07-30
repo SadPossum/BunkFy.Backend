@@ -4,6 +4,7 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,10 @@ using Microsoft.Extensions.Logging;
 internal sealed class WorkspaceStaffOnboardingProcessor(
     IStaffOnboardingProvisioner staff,
     IStaffPropertyAssignmentProvisioner staffProperties,
+    IWorkspaceStaffOnboardingRepository applications,
+    IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository
+        restrictionProjections,
+    IWorkspaceStaffOnboardingOperationLock operationLock,
     IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffAccessPlanPolicy planPolicy,
     WorkspaceAccessProvisioner access,
@@ -25,6 +30,44 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
         if (application.Status == WorkspaceStaffOnboardingState.Completed)
         {
             return Result.Success();
+        }
+
+        if (!await operationLock.TryAcquireAsync(
+                application.Id,
+                cancellationToken).ConfigureAwait(false))
+        {
+            return Result.Failure(
+                WorkspaceStaffOnboardingApplicationErrors
+                    .ApplicationNotFound);
+        }
+
+        await applications.ReloadAsync(
+            application,
+            cancellationToken).ConfigureAwait(false);
+        if (application.Status == WorkspaceStaffOnboardingState.Completed)
+        {
+            return Result.Success();
+        }
+
+        WorkspaceStaffOnboardingProcessingRestrictionProjection? restriction =
+            await restrictionProjections.GetAsync(
+                application.Id,
+                cancellationToken).ConfigureAwait(false);
+        if (restriction is null ||
+            restriction.ContractVersion !=
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion)
+        {
+            return Result.Failure(
+                WorkspaceStaffOnboardingApplicationErrors
+                    .RestrictionProjectionUnavailable);
+        }
+
+        if (restriction.IsRestricted)
+        {
+            return Result.Failure(
+                WorkspaceStaffOnboardingApplicationErrors
+                    .ProcessingRestricted);
         }
 
         Result started = application.BeginProvisioning(clock.UtcNow);

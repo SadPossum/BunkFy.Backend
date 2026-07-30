@@ -25,7 +25,8 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
         if (integrationEvent.Change == OrganizationInvitationChange.Accepted &&
             !string.IsNullOrWhiteSpace(integrationEvent.AcceptedSubjectId))
         {
-            WorkspaceStaffOnboarding? application = await applications.GetBySourceAndSubjectAsync(
+            WorkspaceStaffOnboarding? application = await applications
+                .GetBySourceAndSubjectForLifecycleAsync(
                 WorkspaceStaffOnboardingSource.Invitation,
                 integrationEvent.InvitationId,
                 integrationEvent.AcceptedSubjectId,
@@ -103,7 +104,8 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
         OrganizationEnrollmentClaimChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffOnboarding? application = await applications.GetBySourceAndSubjectAsync(
+        WorkspaceStaffOnboarding? application = await applications
+            .GetBySourceAndSubjectForLifecycleAsync(
             WorkspaceStaffOnboardingSource.EnrollmentLink,
             integrationEvent.EnrollmentLinkId,
             integrationEvent.SubjectId,

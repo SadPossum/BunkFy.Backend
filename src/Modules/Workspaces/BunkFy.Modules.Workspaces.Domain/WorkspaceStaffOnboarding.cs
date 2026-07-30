@@ -39,6 +39,16 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         WorkspaceStaffOnboardingState.Superseded or
         WorkspaceStaffOnboardingState.Expired);
 
+    public bool HasApplicantAuthority =>
+        !this.StaffMemberId.HasValue &&
+        (this.Status is
+            WorkspaceStaffOnboardingState.Submitted or
+            WorkspaceStaffOnboardingState.PendingApproval or
+            WorkspaceStaffOnboardingState.Provisioning or
+            WorkspaceStaffOnboardingState.Failed) &&
+        !string.IsNullOrWhiteSpace(this.VerifiedAccountEmail) &&
+        !string.IsNullOrWhiteSpace(this.DisplayName);
+
     public static Result<WorkspaceStaffOnboarding> Create(
         Guid id,
         string scopeId,

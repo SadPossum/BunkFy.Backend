@@ -7,6 +7,7 @@ using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Cqrs.Infrastructure;
@@ -347,6 +348,12 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             .ToArray();
         services.AddLogging();
         services.AddSingleton<IWorkspaceStaffOnboardingRepository>(applications);
+        services.AddSingleton<
+            IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository>(
+            new FakeRestrictionProjectionRepository(
+                applications.Applications));
+        services.AddSingleton<IWorkspaceStaffOnboardingOperationLock>(
+            new FakeOperationLock());
         services.AddSingleton<IWorkspaceStaffAccessPlanRepository>(new FakeAccessPlanRepository(plans));
         services.AddSingleton<IStaffOnboardingProvisioner>(staff);
         services.AddSingleton<IStaffPropertyAssignmentProvisioner>(new FakeStaffPropertyProvisioner());
@@ -402,7 +409,25 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         public Task<WorkspaceStaffOnboarding?> GetAsync(Guid applicationId, CancellationToken cancellationToken) =>
             Task.FromResult(this.applications.SingleOrDefault(item => item.Id == applicationId));
 
-        public Task<WorkspaceStaffOnboarding?> GetBySourceAndSubjectAsync(
+        public Task<WorkspaceStaffOnboarding?> GetOperationalAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            this.GetAsync(applicationId, cancellationToken);
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetOperationalBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            this.GetBySourceAndSubjectForLifecycleAsync(
+                sourceKind,
+                sourceId,
+                subjectId,
+                cancellationToken);
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetBySourceAndSubjectForLifecycleAsync(
             WorkspaceStaffOnboardingSource sourceKind,
             Guid sourceId,
             string subjectId,
@@ -410,6 +435,17 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 item.SourceKind == sourceKind &&
                 item.SourceId == sourceId &&
                 string.Equals(item.SubjectId, subjectId, StringComparison.Ordinal)));
+
+        public async Task<Guid?> FindIdBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            (await this.GetBySourceAndSubjectForLifecycleAsync(
+                sourceKind,
+                sourceId,
+                subjectId,
+                cancellationToken))?.Id;
 
         public Task<WorkspaceStaffOnboarding?> GetByClaimAsync(Guid claimId, CancellationToken cancellationToken) =>
             Task.FromResult(this.applications.SingleOrDefault(item => item.ClaimId == claimId));
@@ -424,6 +460,11 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             PageRequest page,
             CancellationToken cancellationToken) => Task.FromResult(
                 new WorkspaceStaffOnboardingListResponse([], page.Page, page.PageSize));
+
+        public Task ReloadAsync(
+            WorkspaceStaffOnboarding application,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
         public Task AddAsync(WorkspaceStaffOnboarding application, CancellationToken cancellationToken)
         {
@@ -457,6 +498,48 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             this.plans.Add(plan);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeRestrictionProjectionRepository(
+        IEnumerable<WorkspaceStaffOnboarding> applications)
+        : IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository
+    {
+        private readonly Dictionary<Guid,
+            WorkspaceStaffOnboardingProcessingRestrictionProjection>
+            projections = applications.ToDictionary(
+                application => application.Id,
+                application =>
+                    WorkspaceStaffOnboardingProcessingRestrictionProjection
+                        .Create(
+                            application.ScopeId,
+                            application.Id,
+                            WorkspaceStaffOnboardingProcessingRestrictionContract
+                                .CurrentVersion,
+                            application.CreatedAtUtc).Value);
+
+        public Task<
+            WorkspaceStaffOnboardingProcessingRestrictionProjection?> GetAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                this.projections.GetValueOrDefault(applicationId));
+
+        public Task AddAsync(
+            WorkspaceStaffOnboardingProcessingRestrictionProjection projection,
+            CancellationToken cancellationToken)
+        {
+            this.projections.Add(projection.ApplicationId, projection);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeOperationLock
+        : IWorkspaceStaffOnboardingOperationLock
+    {
+        public Task<bool> TryAcquireAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(true);
     }
 
     private sealed class FakeStaffProvisioner : IStaffOnboardingProvisioner

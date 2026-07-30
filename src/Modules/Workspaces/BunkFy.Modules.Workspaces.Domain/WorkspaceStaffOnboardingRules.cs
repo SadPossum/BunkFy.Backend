@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Workspaces.Domain;
 public static class WorkspaceStaffOnboardingRules
 {
     public const int SubjectIdMaxLength = 160;
+    public const int ActorIdMaxLength = 200;
     public const int FailureCodeMaxLength = 200;
     public const int DisplayNameMaxLength = 256;
     public const int LegalNameMaxLength = 256;

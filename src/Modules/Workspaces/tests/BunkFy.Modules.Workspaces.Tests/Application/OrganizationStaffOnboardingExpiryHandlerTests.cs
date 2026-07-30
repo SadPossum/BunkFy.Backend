@@ -269,7 +269,25 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(this.applications.SingleOrDefault(item => item.Id == applicationId));
 
-        public Task<WorkspaceStaffOnboarding?> GetBySourceAndSubjectAsync(
+        public Task<WorkspaceStaffOnboarding?> GetOperationalAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            this.GetAsync(applicationId, cancellationToken);
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetOperationalBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            this.GetBySourceAndSubjectForLifecycleAsync(
+                sourceKind,
+                sourceId,
+                subjectId,
+                cancellationToken);
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetBySourceAndSubjectForLifecycleAsync(
             WorkspaceStaffOnboardingSource sourceKind,
             Guid sourceId,
             string subjectId,
@@ -278,6 +296,17 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
                 item.SourceKind == sourceKind &&
                 item.SourceId == sourceId &&
                 string.Equals(item.SubjectId, subjectId, StringComparison.Ordinal)));
+
+        public async Task<Guid?> FindIdBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            (await this.GetBySourceAndSubjectForLifecycleAsync(
+                sourceKind,
+                sourceId,
+                subjectId,
+                cancellationToken))?.Id;
 
         public Task<WorkspaceStaffOnboarding?> GetByClaimAsync(
             Guid claimId,
@@ -296,6 +325,11 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
             PageRequest page,
             CancellationToken cancellationToken) =>
             Task.FromResult(new WorkspaceStaffOnboardingListResponse([], page.Page, page.PageSize));
+
+        public Task ReloadAsync(
+            WorkspaceStaffOnboarding application,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
         public Task AddAsync(
             WorkspaceStaffOnboarding application,

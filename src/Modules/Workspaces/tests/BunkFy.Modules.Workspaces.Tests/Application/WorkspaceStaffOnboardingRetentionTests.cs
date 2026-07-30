@@ -8,6 +8,7 @@ using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
@@ -251,6 +252,9 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         WorkspaceStaffOnboardingProcessor processor = new(
             null!,
             null!,
+            applications,
+            new FakeRestrictionProjectionRepository(application),
+            new FakeOperationLock(),
             plans,
             planPolicy,
             null!,
@@ -396,7 +400,25 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             Task.FromResult(this.applications.SingleOrDefault(
                 application => application.Id == applicationId));
 
-        public Task<WorkspaceStaffOnboarding?> GetBySourceAndSubjectAsync(
+        public Task<WorkspaceStaffOnboarding?> GetOperationalAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            this.GetAsync(applicationId, cancellationToken);
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetOperationalBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            this.GetBySourceAndSubjectForLifecycleAsync(
+                sourceKind,
+                sourceId,
+                subjectId,
+                cancellationToken);
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetBySourceAndSubjectForLifecycleAsync(
             WorkspaceStaffOnboardingSource sourceKind,
             Guid sourceId,
             string subjectId,
@@ -408,6 +430,17 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
                     application.SubjectId,
                     subjectId,
                     StringComparison.Ordinal)));
+
+        public async Task<Guid?> FindIdBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            (await this.GetBySourceAndSubjectForLifecycleAsync(
+                sourceKind,
+                sourceId,
+                subjectId,
+                cancellationToken))?.Id;
 
         public Task<WorkspaceStaffOnboarding?> GetByClaimAsync(
             Guid claimId,
@@ -432,6 +465,11 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
                 page.Page,
                 page.PageSize));
 
+        public Task ReloadAsync(
+            WorkspaceStaffOnboarding application,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
         public Task AddAsync(
             WorkspaceStaffOnboarding application,
             CancellationToken cancellationToken)
@@ -439,6 +477,43 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             this.applications.Add(application);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeRestrictionProjectionRepository(
+        WorkspaceStaffOnboarding application)
+        : IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository
+    {
+        private readonly WorkspaceStaffOnboardingProcessingRestrictionProjection
+            projection =
+                WorkspaceStaffOnboardingProcessingRestrictionProjection.Create(
+                    application.ScopeId,
+                    application.Id,
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion,
+                    application.CreatedAtUtc).Value;
+
+        public Task<
+            WorkspaceStaffOnboardingProcessingRestrictionProjection?> GetAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                this.projection.ApplicationId == applicationId
+                    ? this.projection
+                    : null);
+
+        public Task AddAsync(
+            WorkspaceStaffOnboardingProcessingRestrictionProjection ignored,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+    }
+
+    private sealed class FakeOperationLock
+        : IWorkspaceStaffOnboardingOperationLock
+    {
+        public Task<bool> TryAcquireAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(true);
     }
 
     private sealed class FakeAccessPlanRepository(params WorkspaceStaffAccessPlan[] seed)

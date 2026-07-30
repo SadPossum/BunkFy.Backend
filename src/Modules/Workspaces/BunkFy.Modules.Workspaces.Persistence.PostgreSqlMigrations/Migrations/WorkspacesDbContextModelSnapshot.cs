@@ -104,6 +104,199 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AppliedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("ApplyApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ApplyCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApplySelectedOnboardingVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ReleaseApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ReleaseCaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ReleaseSelectedOnboardingVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReleasedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "ApplicationId", "ApplyCaseId", "ApplyApprovalRevision")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ApplicationId", "ReleaseCaseId", "ReleaseApprovalRevision")
+                        .IsUnique()
+                        .HasDatabaseName("IX_staff_onboarding_processing_restrictions_ScopeId_Applicati~1");
+
+                    b.HasIndex("ScopeId", "ApplicationId", "Status", "AppliedAtUtc")
+                        .HasDatabaseName("IX_staff_onboarding_processing_restrictions_ScopeId_Applicati~2");
+
+                    b.ToTable("staff_onboarding_processing_restrictions", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_ws_onboarding_restrictions_apply", "\"ApplyApprovalRevision\" >= 1 AND \"ApplySelectedOnboardingVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_ws_onboarding_restrictions_lifecycle", "(\"Status\" = 1 AND \"ReleaseCaseId\" IS NULL AND \"ReleaseApprovalRevision\" IS NULL AND \"ReleaseSelectedOnboardingVersion\" IS NULL AND \"ReleasedBy\" IS NULL AND \"ReleasedAtUtc\" IS NULL AND \"Version\" = 1) OR (\"Status\" = 2 AND \"ReleaseCaseId\" IS NOT NULL AND \"ReleaseApprovalRevision\" >= 1 AND \"ReleaseSelectedOnboardingVersion\" >= 1 AND \"ReleasedBy\" IS NOT NULL AND \"ReleasedAtUtc\" IS NOT NULL AND \"ReleasedAtUtc\" >= \"AppliedAtUtc\" AND \"Version\" >= 2)");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ActiveRestrictionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsRestricted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastTransitionAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ProjectionOrdinal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("ProjectionOrdinal"));
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ScopeId", "ApplicationId");
+
+                    b.HasIndex("ProjectionOrdinal")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "IsRestricted", "ApplicationId");
+
+                    b.ToTable("staff_onboarding_processing_restriction_state", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_ws_onboarding_restriction_contract", "\"ContractVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_ws_onboarding_restriction_revision", "\"Revision\" >= 0");
+
+                            t.HasCheckConstraint("CK_ws_onboarding_restriction_state", "(\"ActiveRestrictionCount\" = 0 AND NOT \"IsRestricted\") OR (\"ActiveRestrictionCount\" > 0 AND \"IsRestricted\")");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("EffectiveRestricted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RestrictionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ResultingProjectionRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResultingRestrictionVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedOnboardingVersion")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ApplicationId", "CompletedAtUtc");
+
+                    b.HasIndex("ScopeId", "CaseId", "ApprovalRevision");
+
+                    b.ToTable("staff_onboarding_processing_restriction_receipts", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_ws_onboarding_restriction_receipt_versions", "\"ApprovalRevision\" >= 1 AND \"SelectedOnboardingVersion\" >= 1 AND \"ResultingProjectionRevision\" >= 1 AND ((\"Action\" = 1 AND \"ResultingRestrictionVersion\" = 1 AND \"EffectiveRestricted\") OR (\"Action\" = 2 AND \"ResultingRestrictionVersion\" >= 2))");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan", b =>
                 {
                     b.Property<Guid>("Id")

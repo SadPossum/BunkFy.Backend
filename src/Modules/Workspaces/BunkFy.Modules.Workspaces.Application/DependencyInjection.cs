@@ -97,6 +97,9 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IDataRightsCorrectionPolicyContributor,
             WorkspaceStaffOnboardingDataRightsCorrectionPolicyContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsRestrictionContributor,
+            WorkspaceStaffOnboardingDataRightsRestrictionContributor>());
         services.AddIntegrationEventHandler<
             OrganizationInvitationChangedIntegrationEvent,
             OrganizationInvitationStaffOnboardingHandler>(
@@ -152,6 +155,11 @@ public static class DependencyInjection
             WorkspacePropertyRetiredHandler>(
             WorkspacesModuleMetadata.Name,
             PropertiesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent,
+            WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler>(
+            WorkspacesModuleMetadata.Name,
+            WorkspacesModuleMetadata.Name);
         return services;
     }
 

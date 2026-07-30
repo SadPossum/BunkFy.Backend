@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -104,6 +104,18 @@
         "subject:self",
         "system:workspaces-onboarding"
       ]
+    },
+    {
+      "id": "workspaces-processing-restrictions",
+      "scope": "tenant-approved-data-rights-operation",
+      "readers": [
+        "permission:data-rights.execute",
+        "system:workspaces.processing-restriction"
+      ],
+      "writers": [
+        "permission:data-rights.execute",
+        "system:workspaces.processing-restriction"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -176,6 +188,27 @@
       "startsAt": "onboarding-submitted",
       "endsAt": "approved-erasure-or-employment-retention-completed",
       "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "workspace-onboarding-processing-restriction-lifecycle",
+      "approvalState": "engineering-default",
+      "startsAt": "workspace-staff-onboarding-created",
+      "endsAt": "approved-erasure-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "workspace-onboarding-processing-restriction-receipt",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-workspace-onboarding-restriction-transition-completed",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
+      "id": "workspace-onboarding-processing-restriction-record",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-workspace-onboarding-restriction-applied",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "pause-approved-disposal"
     }
   ],
   "rightsPolicies": [
@@ -220,6 +253,13 @@
       "correction": "replace-before-submission",
       "restriction": "discard-request",
       "erasure": "discard-on-request-completion"
+    },
+    {
+      "id": "workspace-onboarding-processing-restriction-control",
+      "export": "include-in-authorized-staff-export",
+      "correction": "change-only-through-approved-restriction-workflow",
+      "restriction": "enforce-effective-processing-restriction",
+      "erasure": "remove-with-approved-subject-disposition"
     }
   ],
   "fields": [
@@ -5706,6 +5746,1437 @@
           "member": "ActorId",
           "surface": "application-query",
           "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.action",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "restriction-accountability",
+        "transition-disambiguation"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-receipt",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "Action",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "Action",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "Action",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.active-count",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "effective-restriction",
+        "reference-safe-release"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "ActiveRestrictionCount",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.actor-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "operator-attribution",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "authenticated-operator"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "audit-attribution",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "ActorId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "AppliedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "ActorId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ReleasedBy",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.approval-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ApplyApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ReleaseApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ApplyApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "ApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.case-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "case-traceability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "CaseId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ApplyCaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "CaseId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ReleaseCaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ApplyCaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "CaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.contract-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "fail-closed-contract-versioning"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-contract"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
+          "member": "ContractVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Events.WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent",
+          "member": "ContractVersion",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.effective-state",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "effective-restriction",
+        "operational-suppression"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "domain-event",
+        "integration-event",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
+          "member": "IsRestricted",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "EffectiveRestricted",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "IsRestricted",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "EffectiveRestricted",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Events.WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent",
+          "member": "IsRestricted",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "EffectiveRestricted",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.event-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "event-idempotency",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-receipt",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "domain-event",
+        "integration-event",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "EventId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "EventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Events.WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent",
+          "member": "EventId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "EventId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "restriction-identity",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "RestrictionId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "RestrictionId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "RestrictionId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "RestrictionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "RestrictionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.idempotency-key",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "duplicate-prevention",
+        "idempotent-restriction-transition"
+      ],
+      "sources": [
+        "authorized-request"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-receipt",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "IdempotencyKey",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.last-transition-at-utc",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "transition-ordering",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "domain-event",
+        "integration-event",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "AppliedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "LastTransitionAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ReleasedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Events.WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent",
+          "member": "OccurredAtUtc",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "AppliedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.projection-ordinal",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "bounded-rebuild-ordering"
+      ],
+      "sources": [
+        "database-sequence"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "ProjectionOrdinal",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.projection-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "optimistic-concurrency",
+        "transition-ordering"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "domain-event",
+        "integration-event",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ExpectedProjectionRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ExpectedProjectionRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
+          "member": "ProjectionRevision",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "ProjectionRevision",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "Revision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "ResultingProjectionRevision",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Events.WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent",
+          "member": "ProjectionRevision",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "ResultingProjectionRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.receipt-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "receipt-retrieval",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-receipt",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "ReceiptId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.record-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "optimistic-concurrency",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ExpectedRestrictionVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "RestrictionVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "ResultingRestrictionVersion",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "ResultingRestrictionVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.selected-onboarding-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "stale-decision-prevention"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "support",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ExpectedOnboardingVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ExpectedOnboardingVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "SelectedOnboardingVersion",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ApplySelectedOnboardingVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "SelectedOnboardingVersion",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ReleaseSelectedOnboardingVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ApplySelectedOnboardingVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "SelectedOnboardingVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.application-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "onboarding-record-coordinate",
+        "effective-restriction"
+      ],
+      "sources": [
+        "workspace-onboarding-record"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "admin-output",
+        "application-command",
+        "domain-event",
+        "integration-event",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ApplicationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "ApplicationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
+          "member": "ApplicationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionReceiptDto",
+          "member": "ApplicationId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "ApplicationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "ApplicationId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ApplicationId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Events.WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent",
+          "member": "ApplicationId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ApplicationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport",
+          "member": "ApplicationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.status",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "restriction-lifecycle",
+        "effective-restriction"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "Status",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.tenant-scope-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-isolation",
+        "effective-restriction"
+      ],
+      "sources": [
+        "authenticated-tenant-context"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "domain-event",
+        "integration-event",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionProjection",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestrictionReceipt",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-receipt"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingProcessingRestriction",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-onboarding-processing-restriction-record"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Events.WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent",
+          "member": "ScopeId",
+          "surface": "domain-event",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.release-approval-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ReleaseApprovalRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.release-case-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "case-traceability"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ReleaseCaseId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.release-selected-onboarding-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "approved-operation-binding",
+        "stale-decision-prevention"
+      ],
+      "sources": [
+        "approved-data-rights-case"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-record",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ReleaseSelectedOnboardingVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-restriction.released-at-utc",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "transition-ordering",
+        "restriction-accountability"
+      ],
+      "sources": [
+        "workspace-onboarding-restriction-workflow"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-processing-restrictions",
+      "countryPolicyKey": "workspaces.staff-onboarding.processing-restriction-state",
+      "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
+      "rightsPolicy": "workspace-onboarding-processing-restriction-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport",
+          "member": "ReleasedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
         }
       ]
     }

@@ -17,7 +17,8 @@ internal sealed class GetOwnWorkspaceStaffOnboardingQueryHandler(
         GetOwnWorkspaceStaffOnboardingQuery query,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffOnboarding? application = await applications.GetBySourceAndSubjectAsync(
+        WorkspaceStaffOnboarding? application = await applications
+            .GetOperationalBySourceAndSubjectAsync(
             query.SourceKind.ToDomain(),
             query.SourceId,
             query.SubjectId,

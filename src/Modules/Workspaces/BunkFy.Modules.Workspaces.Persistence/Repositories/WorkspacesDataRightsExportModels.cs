@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Persistence.Repositories;
 
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 
 internal sealed record WorkspaceStaffOnboardingDataRightsExport(
     Guid Id,
@@ -39,6 +40,36 @@ internal sealed record
             ChangedFields,
         Guid ApplicantEventId,
         Guid CompletionEventId,
+        DateTimeOffset CompletedAtUtc);
+
+internal sealed record
+    WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport(
+        Guid RestrictionId,
+        Guid ApplicationId,
+        Guid ApplyCaseId,
+        long ApplyApprovalRevision,
+        long ApplySelectedOnboardingVersion,
+        WorkspaceStaffOnboardingProcessingRestrictionState Status,
+        long Version,
+        DateTimeOffset AppliedAtUtc,
+        Guid? ReleaseCaseId,
+        long? ReleaseApprovalRevision,
+        long? ReleaseSelectedOnboardingVersion,
+        DateTimeOffset? ReleasedAtUtc);
+
+internal sealed record
+    WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport(
+        Guid ReceiptId,
+        Guid RestrictionId,
+        WorkspaceStaffOnboardingProcessingRestrictionAction Action,
+        Guid ApplicationId,
+        Guid CaseId,
+        long ApprovalRevision,
+        long SelectedOnboardingVersion,
+        long ResultingRestrictionVersion,
+        long ResultingProjectionRevision,
+        bool EffectiveRestricted,
+        Guid EventId,
         DateTimeOffset CompletedAtUtc);
 
 internal sealed record WorkspaceStaffAccessProcessDataRightsExport(

@@ -19,6 +19,11 @@ internal sealed class WorkspacesDataRightsExportContributor(
         "staff-access-plan-property";
     public const string StaffOnboardingCorrectionReceiptRecordType =
         "staff-onboarding-correction-receipt";
+    public const string StaffOnboardingProcessingRestrictionRecordType =
+        "staff-onboarding-processing-restriction";
+    public const string
+        StaffOnboardingProcessingRestrictionReceiptRecordType =
+            "staff-onboarding-processing-restriction-receipt";
 
     public string OwnerKey => WorkspacesDataRightsCoordinates.Owner;
 
@@ -149,7 +154,33 @@ internal sealed class WorkspacesDataRightsExportContributor(
                 .Take(MaximumChildRecords + 1)
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
-        if (receipts.Length > MaximumChildRecords)
+        WorkspaceStaffOnboardingProcessingRestriction[] restrictions =
+            await dbContext.StaffOnboardingProcessingRestrictions
+                .AsNoTracking()
+                .Where(restriction =>
+                    restriction.ScopeId == tenantId &&
+                    restriction.ApplicationId == record.Id)
+                .OrderBy(restriction => restriction.AppliedAtUtc)
+                .ThenBy(restriction => restriction.Id)
+                .Take(MaximumChildRecords + 1)
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+        WorkspaceStaffOnboardingProcessingRestrictionReceipt[]
+            restrictionReceipts =
+                await dbContext.StaffOnboardingProcessingRestrictionReceipts
+                    .AsNoTracking()
+                    .Where(receipt =>
+                        receipt.ScopeId == tenantId &&
+                        receipt.ApplicationId == record.Id)
+                    .OrderBy(receipt => receipt.CompletedAtUtc)
+                    .ThenBy(receipt => receipt.Id)
+                    .Take(MaximumChildRecords + 1)
+                    .ToArrayAsync(cancellationToken)
+                    .ConfigureAwait(false);
+        if (receipts.Length +
+                restrictions.Length +
+                restrictionReceipts.Length >
+            MaximumChildRecords)
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
@@ -184,6 +215,61 @@ internal sealed class WorkspacesDataRightsExportContributor(
                     StaffOnboardingCorrectionReceiptRecordType,
                     receipt.Id,
                     receipt.CurrentRecordVersion,
+                    export),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        foreach (WorkspaceStaffOnboardingProcessingRestriction restriction in
+                 restrictions)
+        {
+            WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport
+                export = new(
+                    restriction.Id,
+                    restriction.ApplicationId,
+                    restriction.ApplyCaseId,
+                    restriction.ApplyApprovalRevision,
+                    restriction.ApplySelectedOnboardingVersion,
+                    restriction.Status,
+                    restriction.Version,
+                    restriction.AppliedAtUtc,
+                    restriction.ReleaseCaseId,
+                    restriction.ReleaseApprovalRevision,
+                    restriction.ReleaseSelectedOnboardingVersion,
+                    restriction.ReleasedAtUtc);
+            await sink.WriteAsync(
+                WorkspacesDataRightsExportSchema.CreateRecord(
+                    StaffOnboardingProcessingRestrictionRecordType,
+                    restriction.Id,
+                    restriction.Version,
+                    export),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        foreach (
+            WorkspaceStaffOnboardingProcessingRestrictionReceipt receipt in
+            restrictionReceipts)
+        {
+            WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport
+                export = new(
+                    receipt.Id,
+                    receipt.RestrictionId,
+                    receipt.Action,
+                    receipt.ApplicationId,
+                    receipt.CaseId,
+                    receipt.ApprovalRevision,
+                    receipt.SelectedOnboardingVersion,
+                    receipt.ResultingRestrictionVersion,
+                    receipt.ResultingProjectionRevision,
+                    receipt.EffectiveRestricted,
+                    receipt.EventId,
+                    receipt.CompletedAtUtc);
+            await sink.WriteAsync(
+                WorkspacesDataRightsExportSchema.CreateRecord(
+                    StaffOnboardingProcessingRestrictionReceiptRecordType,
+                    receipt.Id,
+                    receipt.ResultingRestrictionVersion,
                     export),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);

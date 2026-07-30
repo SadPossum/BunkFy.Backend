@@ -37,8 +37,14 @@ public static class DependencyInjection
             IWorkspaceStaffOnboardingCorrectionReceiptRepository,
             WorkspaceStaffOnboardingCorrectionReceiptRepository>();
         builder.Services.TryAddScoped<
-            IWorkspaceStaffOnboardingDataRightsCorrectionLock,
-            WorkspaceStaffOnboardingDataRightsCorrectionLock>();
+            IWorkspaceStaffOnboardingProcessingRestrictionRepository,
+            WorkspaceStaffOnboardingProcessingRestrictionRepository>();
+        builder.Services.TryAddScoped<
+            IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository,
+            WorkspaceStaffOnboardingProcessingRestrictionProjectionRepository>();
+        builder.Services.TryAddScoped<
+            IWorkspaceStaffOnboardingOperationLock,
+            WorkspaceStaffOnboardingOperationLock>();
         builder.Services.TryAddScoped<
             IWorkspaceStaffOnboardingDataRightsCorrectionTargetReader,
             WorkspaceStaffOnboardingDataRightsCorrectionTargetReader>();

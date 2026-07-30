@@ -5,6 +5,7 @@ using BunkFy.Modules.Workspaces.Application.Mapping;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -15,6 +16,9 @@ using Microsoft.Extensions.Options;
 
 internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
     IWorkspaceStaffOnboardingRepository applications,
+    IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository
+        restrictionProjections,
+    IWorkspaceStaffOnboardingOperationLock operationLock,
     IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffJoinTokenAuthorityResolver authorityResolver,
     IAuthMemberContactReader contacts,
@@ -64,6 +68,35 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
                 WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired);
         }
 
+        Guid? existingApplicationId =
+            await applications.FindIdBySourceAndSubjectAsync(
+            sourceKind,
+            authority.Value.SourceId,
+            command.SubjectId,
+            cancellationToken).ConfigureAwait(false);
+        WorkspaceStaffOnboarding? application = null;
+        if (existingApplicationId.HasValue)
+        {
+            if (!await operationLock.TryAcquireAsync(
+                    existingApplicationId.Value,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return Result.Failure<WorkspaceStaffOnboardingDto>(
+                    WorkspaceStaffOnboardingApplicationErrors
+                        .ApplicationNotFound);
+            }
+
+            application = await applications.GetOperationalAsync(
+                existingApplicationId.Value,
+                cancellationToken).ConfigureAwait(false);
+            if (application is null)
+            {
+                return Result.Failure<WorkspaceStaffOnboardingDto>(
+                    WorkspaceStaffOnboardingApplicationErrors
+                        .ProcessingRestricted);
+            }
+        }
+
         string? verifiedEmail = await contacts.GetPreferredVerifiedEmailAsync(
             options.Value.GlobalAuthScopeId,
             memberId,
@@ -74,11 +107,6 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
                 WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired);
         }
 
-        WorkspaceStaffOnboarding? application = await applications.GetBySourceAndSubjectAsync(
-            sourceKind,
-            authority.Value.SourceId,
-            command.SubjectId,
-            cancellationToken).ConfigureAwait(false);
         DateTimeOffset nowUtc = clock.UtcNow;
         if (application is null)
         {
@@ -104,6 +132,25 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
 
             application = created.Value;
             await applications.AddAsync(application, cancellationToken).ConfigureAwait(false);
+            Result<
+                WorkspaceStaffOnboardingProcessingRestrictionProjection>
+                baseline =
+                    WorkspaceStaffOnboardingProcessingRestrictionProjection
+                        .Create(
+                            application.ScopeId,
+                            application.Id,
+                            WorkspaceStaffOnboardingProcessingRestrictionContract
+                                .CurrentVersion,
+                            nowUtc);
+            if (baseline.IsFailure)
+            {
+                return Result.Failure<WorkspaceStaffOnboardingDto>(
+                    baseline.Error);
+            }
+
+            await restrictionProjections.AddAsync(
+                baseline.Value,
+                cancellationToken).ConfigureAwait(false);
         }
         else
         {

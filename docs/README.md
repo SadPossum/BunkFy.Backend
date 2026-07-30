@@ -55,6 +55,7 @@ Useful entry points:
 - [Workspaces Personal-Data Catalogue Task](planning/workspaces-personal-data-catalogue-task.md)
 - [Workspaces Data Rights Owner Capability Task](planning/workspaces-data-rights-owner-capability-task.md)
 - [Workspaces Data Rights Correction Task](planning/workspaces-data-rights-correction-task.md)
+- [Workspaces Data Rights Restriction Task](planning/workspaces-data-rights-restriction-task.md)
 - [Operations Notifications Personal-Data Catalogue Task](planning/operations-notifications-personal-data-catalogue-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Workspaces Module](../src/Modules/Workspaces/docs/README.md)

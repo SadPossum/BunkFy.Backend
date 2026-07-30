@@ -152,6 +152,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
     [
         typeof(WorkspaceStaffOnboarding),
         typeof(WorkspaceStaffOnboardingCorrectionReceipt),
+        typeof(WorkspaceStaffOnboardingProcessingRestriction),
+        typeof(WorkspaceStaffOnboardingProcessingRestrictionProjection),
+        typeof(WorkspaceStaffOnboardingProcessingRestrictionReceipt),
         typeof(WorkspaceStaffAccessProcess),
         typeof(WorkspaceStaffAccessProfileSnapshot),
         typeof(WorkspaceStaffAccessPlan),
@@ -193,7 +196,11 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(WorkspaceEnrollmentLinkIssuanceRequest),
                      typeof(WorkspaceMemberAccessUpdate),
                      typeof(
-                         ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand)
+                         ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand),
+                     typeof(
+                         ApplyWorkspaceStaffOnboardingProcessingRestrictionCommand),
+                     typeof(
+                         ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand)
                  })
         {
             yield return (PersonalDataSurface.ApplicationCommand, type);
@@ -228,6 +235,10 @@ public sealed class WorkspacesPersonalDataCatalogTests
 
         yield return (PersonalDataSurface.AdminOutput, typeof(WorkspaceStaffAccessProcessDto));
         yield return (PersonalDataSurface.AdminOutput, typeof(WorkspaceStaffAccessProcessListResponse));
+        yield return (
+            PersonalDataSurface.AdminOutput,
+            typeof(
+                WorkspaceStaffOnboardingProcessingRestrictionReceiptDto));
 
         foreach (Type type in new[]
                  {
@@ -240,7 +251,11 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(
                          WorkspaceStaffRetentionCorrelationDataRightsExport),
                      typeof(
-                         WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport)
+                         WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport),
+                     typeof(
+                         WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport),
+                     typeof(
+                         WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport)
                  })
         {
             yield return (PersonalDataSurface.DataRightsExport, type);
@@ -250,6 +265,10 @@ public sealed class WorkspacesPersonalDataCatalogTests
             PersonalDataSurface.DomainEvent,
             typeof(
                 WorkspaceStaffOnboardingCorrectionAppliedDomainEvent));
+        yield return (
+            PersonalDataSurface.DomainEvent,
+            typeof(
+                WorkspaceStaffOnboardingProcessingRestrictionChangedDomainEvent));
 
         foreach (Type type in new[]
                  {
@@ -260,7 +279,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(OrganizationEnrollmentLinkChangedIntegrationEvent),
                      typeof(OrganizationEnrollmentLinkExpiredIntegrationEvent),
                      typeof(OrganizationMembershipChangedIntegrationEvent),
-                     typeof(StaffMemberLifecycleChangedIntegrationEvent)
+                     typeof(StaffMemberLifecycleChangedIntegrationEvent),
+                     typeof(
+                         WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent)
                  })
         {
             yield return (PersonalDataSurface.IntegrationEvent, type);

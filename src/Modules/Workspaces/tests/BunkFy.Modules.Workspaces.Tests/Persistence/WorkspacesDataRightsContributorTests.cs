@@ -207,13 +207,19 @@ public sealed class WorkspacesDataRightsContributorTests
         Assert.Equal(
             DataRightsSubjectExportStatus.Succeeded,
             onboarding.Status);
-        Assert.Equal(2, onboarding.RecordCount);
+        Assert.Equal(5, onboarding.RecordCount);
         Assert.Equal(
             [
                 WorkspacesDataRightsCoordinates
                     .StaffOnboardingRecordType,
                 WorkspacesDataRightsExportContributor
-                    .StaffOnboardingCorrectionReceiptRecordType
+                    .StaffOnboardingCorrectionReceiptRecordType,
+                WorkspacesDataRightsExportContributor
+                    .StaffOnboardingProcessingRestrictionRecordType,
+                WorkspacesDataRightsExportContributor
+                    .StaffOnboardingProcessingRestrictionReceiptRecordType,
+                WorkspacesDataRightsExportContributor
+                    .StaffOnboardingProcessingRestrictionReceiptRecordType
             ],
             onboardingSink.Records
                 .Select(record => record.RecordType)
@@ -238,6 +244,36 @@ public sealed class WorkspacesDataRightsContributorTests
             field =>
                 field.FieldId ==
                 "workspaces.data-rights.request-fingerprint");
+        Assert.Equal(
+            graph.Restriction.Id,
+            Field(
+                onboardingSink.Records[2],
+                "workspaces.onboarding-restriction.id").GetGuid());
+        Assert.Equal(
+            [
+                "apply",
+                "release"
+            ],
+            onboardingSink.Records
+                .Skip(3)
+                .Select(record =>
+                    Field(
+                        record,
+                        "workspaces.onboarding-restriction.action")
+                    .GetString()!)
+                .ToArray());
+        Assert.DoesNotContain(
+            onboardingSink.Records.Skip(2).SelectMany(record => record.Fields),
+            field =>
+                field.Value.GetRawText().Contains(
+                    "user:privacy",
+                    StringComparison.Ordinal) ||
+                field.FieldId.Contains(
+                    "fingerprint",
+                    StringComparison.OrdinalIgnoreCase) ||
+                field.FieldId.Contains(
+                    "digest",
+                    StringComparison.OrdinalIgnoreCase));
 
         CollectingSink processSink = new();
         DataRightsSubjectExportResult process =
@@ -332,7 +368,7 @@ public sealed class WorkspacesDataRightsContributorTests
         Assert.Equal(
             "workspaces.personal-data",
             contributor.Descriptor.CatalogId);
-        Assert.Equal(4, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(5, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             WorkspacesDataRightsExportSchema.ExportSchemaId,
             contributor.Descriptor.ExportSchemaId);
@@ -565,6 +601,72 @@ public sealed class WorkspacesDataRightsContributorTests
                 Guid.Parse(
                     "94000000-0000-0000-0000-000000000001"),
                 Now.AddSeconds(30)).Value;
+        Guid applyCaseId =
+            Guid.Parse("95000000-0000-0000-0000-000000000001");
+        Guid releaseCaseId =
+            Guid.Parse("95000000-0000-0000-0000-000000000002");
+        WorkspaceStaffOnboardingProcessingRestriction restriction =
+            WorkspaceStaffOnboardingProcessingRestriction.Create(
+                Guid.Parse(
+                    "82000000-0000-0000-0000-000000000001"),
+                TenantId,
+                onboarding.Id,
+                applyCaseId,
+                applyApprovalRevision: 3,
+                onboarding.Version,
+                "user:privacy",
+                Now.AddMinutes(4)).Value;
+        Assert.True(restriction.Release(
+            releaseCaseId,
+            releaseApprovalRevision: 4,
+            onboarding.Version,
+            expectedVersion: 1,
+            "user:privacy",
+            Now.AddMinutes(5)).IsSuccess);
+        WorkspaceStaffOnboardingProcessingRestrictionReceipt applyReceipt =
+            WorkspaceStaffOnboardingProcessingRestrictionReceipt.Create(
+                Guid.Parse(
+                    "83000000-0000-0000-0000-000000000001"),
+                TenantId,
+                Guid.Parse(
+                    "96000000-0000-0000-0000-000000000001"),
+                restriction.Id,
+                WorkspaceStaffOnboardingProcessingRestrictionAction.Apply,
+                onboarding.Id,
+                applyCaseId,
+                approvalRevision: 3,
+                onboarding.Version,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion,
+                resultingRestrictionVersion: 1,
+                resultingProjectionRevision: 1,
+                effectiveRestricted: true,
+                "user:privacy",
+                Guid.Parse(
+                    "97000000-0000-0000-0000-000000000001"),
+                Now.AddMinutes(4)).Value;
+        WorkspaceStaffOnboardingProcessingRestrictionReceipt releaseReceipt =
+            WorkspaceStaffOnboardingProcessingRestrictionReceipt.Create(
+                Guid.Parse(
+                    "83000000-0000-0000-0000-000000000002"),
+                TenantId,
+                Guid.Parse(
+                    "96000000-0000-0000-0000-000000000002"),
+                restriction.Id,
+                WorkspaceStaffOnboardingProcessingRestrictionAction.Release,
+                onboarding.Id,
+                releaseCaseId,
+                approvalRevision: 4,
+                onboarding.Version,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion,
+                resultingRestrictionVersion: 2,
+                resultingProjectionRevision: 2,
+                effectiveRestricted: false,
+                "user:privacy",
+                Guid.Parse(
+                    "97000000-0000-0000-0000-000000000002"),
+                Now.AddMinutes(5)).Value;
 
         context.StaffOnboardingApplications.Add(onboarding);
         context.StaffAccessProcesses.Add(process);
@@ -572,12 +674,18 @@ public sealed class WorkspacesDataRightsContributorTests
         context.StaffRetentionCorrelationReceipts.Add(receipt);
         context.StaffOnboardingCorrectionReceipts.Add(
             correctionReceipt);
+        context.StaffOnboardingProcessingRestrictions.Add(
+            restriction);
+        context.StaffOnboardingProcessingRestrictionReceipts.AddRange(
+            applyReceipt,
+            releaseReceipt);
         return new SeededGraph(
             onboarding,
             process,
             plan,
             receipt,
-            correctionReceipt);
+            correctionReceipt,
+            restriction);
     }
 
     private static DataRightsSubjectDiscoveryRequest DiscoveryRequest(
@@ -662,5 +770,6 @@ public sealed class WorkspacesDataRightsContributorTests
         WorkspaceStaffAccessProcess Process,
         WorkspaceStaffAccessPlan Plan,
         WorkspaceStaffRetentionCorrelationReceipt Receipt,
-        WorkspaceStaffOnboardingCorrectionReceipt CorrectionReceipt);
+        WorkspaceStaffOnboardingCorrectionReceipt CorrectionReceipt,
+        WorkspaceStaffOnboardingProcessingRestriction Restriction);
 }

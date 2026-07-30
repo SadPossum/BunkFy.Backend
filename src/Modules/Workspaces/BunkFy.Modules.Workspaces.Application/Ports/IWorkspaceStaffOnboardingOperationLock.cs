@@ -1,6 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Application.Ports;
 
-public interface IWorkspaceStaffOnboardingDataRightsCorrectionLock
+public interface IWorkspaceStaffOnboardingOperationLock
 {
     Task<bool> TryAcquireAsync(
         Guid applicationId,

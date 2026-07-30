@@ -46,9 +46,18 @@ read and mutation require tenant `data-rights.execute`, preserve Auth identity
 and source facts, and fail closed after authority moves into claim approval or
 provisioning. Workspaces records an append-only replay receipt, exports its
 bounded accountability proof without the request fingerprint, and completes
-the central case through its own durable outbox. Restriction and destructive
-execution remain deferred until their owner-local authority and companion
-record semantics are specified.
+the central case through its own durable outbox.
+
+An approved Staff Rights restriction may independently suspend ordinary
+processing of one exact `staff-onboarding` record while Workspaces still owns
+its applicant data. Operational reads, resubmission, admission, actionable
+lists, and provisioning fail closed through a versioned restriction
+projection, while expiry, rejection, retention, correction, and access-safety
+work remain available. Apply and release share the onboarding operation lock
+with provisioning, use append-only replay receipts, export bounded proof, and
+emit a durable final-release event so an interrupted provisioning attempt can
+resume. Destructive Data Rights execution remains deferred until its
+owner-local authority and required companion records are specified.
 
 The engineering defaults live under
 `Workspaces:StaffOnboardingRetention`: a two-hour source-expiry grace period,

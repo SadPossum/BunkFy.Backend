@@ -384,7 +384,7 @@ public sealed class
     }
 
     private sealed class RecordingCorrectionLock(bool acquired = true)
-        : IWorkspaceStaffOnboardingDataRightsCorrectionLock
+        : IWorkspaceStaffOnboardingOperationLock
     {
         public int AcquisitionCount { get; private set; }
 
@@ -409,7 +409,28 @@ public sealed class
                     ? application
                     : null);
 
-        public Task<WorkspaceStaffOnboarding?> GetBySourceAndSubjectAsync(
+        public Task<WorkspaceStaffOnboarding?> GetOperationalAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            this.GetAsync(applicationId, cancellationToken);
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetOperationalBySourceAndSubjectAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<WorkspaceStaffOnboarding?>
+            GetBySourceAndSubjectForLifecycleAsync(
+            WorkspaceStaffOnboardingSource sourceKind,
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Guid?> FindIdBySourceAndSubjectAsync(
             WorkspaceStaffOnboardingSource sourceKind,
             Guid sourceId,
             string subjectId,
@@ -432,6 +453,11 @@ public sealed class
             PageRequest page,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task ReloadAsync(
+            WorkspaceStaffOnboarding ignored,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
 
         public Task AddAsync(
             WorkspaceStaffOnboarding ignored,

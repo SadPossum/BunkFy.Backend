@@ -33,4 +33,37 @@ public static class WorkspaceStaffOnboardingApplicationErrors
     public static readonly Error CorrectionIdempotencyConflict = new(
         "Workspaces.StaffOnboardingCorrectionIdempotencyConflict",
         "The Data Rights correction execution was already used for another request.");
+    public static readonly Error RestrictionRequestInvalid = new(
+        "Workspaces.StaffOnboardingRestrictionRequestInvalid",
+        "The Staff onboarding restriction request is invalid.");
+    public static readonly Error RestrictionApprovalRequired = new(
+        "Workspaces.StaffOnboardingRestrictionApprovalRequired",
+        "An active approved Data Rights restriction execution is required.");
+    public static readonly Error RestrictionAuthorityUnavailable = new(
+        "Workspaces.StaffOnboardingRestrictionAuthorityUnavailable",
+        "Workspaces no longer owns the selected applicant record.");
+    public static readonly Error RestrictionOnboardingVersionConflict = new(
+        "Workspaces.StaffOnboardingRestrictionOnboardingVersionConflict",
+        "The selected Staff onboarding version is no longer current.");
+    public static readonly Error RestrictionApprovalAlreadyUsed = new(
+        "Workspaces.StaffOnboardingRestrictionApprovalAlreadyUsed",
+        "The approved restriction transition was already used.");
+    public static readonly Error RestrictionProjectionUnavailable = new(
+        "Workspaces.StaffOnboardingRestrictionProjectionUnavailable",
+        "The Staff onboarding restriction projection is unavailable.");
+    public static readonly Error RestrictionNotFound = new(
+        "Workspaces.StaffOnboardingRestrictionNotFound",
+        "The selected Staff onboarding restriction was not found.");
+    public static readonly Error RestrictionIdempotencyConflict = new(
+        "Workspaces.StaffOnboardingRestrictionIdempotencyConflict",
+        "The restriction idempotency key was already used for another request.");
+    public static readonly Error RestrictionActiveStateInvalid = new(
+        "Workspaces.StaffOnboardingRestrictionActiveStateInvalid",
+        "The active Staff onboarding restriction state requires explicit resolution.");
+    public static readonly Error RestrictionOwnerProofInvalid = new(
+        "Workspaces.StaffOnboardingRestrictionOwnerProofInvalid",
+        "The Staff onboarding restriction proof is invalid.");
+    public static readonly Error ProcessingRestricted = new(
+        "Workspaces.StaffOnboardingProcessingRestricted",
+        "The selected Staff onboarding record is restricted from ordinary processing.");
 }
