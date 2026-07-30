@@ -1,7 +1,7 @@
 # Staff Data Rights Anonymisation Task
 
-Status: in progress; foundation and scope slices implemented and verified
-Date: 2026-07-29
+Status: restore safety implemented and locally verified; public operator workflow deferred
+Date: 2026-07-30
 
 ## Outcome
 
@@ -22,9 +22,10 @@ The final workflow must:
   can expose resurrected Staff data; and
 - preserve historical Guest ledger and protected-delta verification.
 
-This is delivered in guarded slices. Staff anonymisation case admission and
-destructive mutation remain disabled until the prerequisite foundation is
-complete and verified.
+This is delivered in guarded slices. The prerequisite foundation, scoped case
+admission, internal owner mutation, and restore safety are complete. Public
+Staff execution remains unavailable until a dedicated operator workflow is
+designed and verified.
 
 ## Ownership
 
@@ -253,15 +254,16 @@ The scope slice now implements:
 - exact-byte verification of historical protected-delta payloads; and
 - PostgreSQL promotion and guarded downgrade of existing Guest execution data.
 
-Internal destructive Staff execution is now implemented through the version 2
+Internal destructive Staff execution is implemented through the version 2
 tenant-scoped owner protocol described below. The public API intentionally has
-no Staff execution endpoint, so an operator cannot start this path before
-restore coordination is complete.
+no Staff execution endpoint, so this internal capability cannot be started by
+an operator before its product workflow and production policy are approved.
 
-Version 3 restore also remains intentionally closed before replay-envelope
-decryption. This prevents a scoped ledger entry from being replayed through
-the Guest property protocol while the synchronous Workspaces access-denial
-step is still unavailable.
+Version 3 restore is implemented as a separate Staff-scoped protocol. It
+resolves the Workspaces prerequisite and Staff owner before replay-envelope
+decryption, denies workspace access synchronously, and advances readiness only
+after Staff has persisted exact re-scrub proof. Historical Guest restore stays
+on its original property-scoped protocol.
 
 ## Owner Mutation Slice Contract
 
@@ -306,9 +308,10 @@ completion time, and its own canonical digest. Replay succeeds only when the
 receipt, terminal aggregate state, and tombstone all still agree.
 
 The owner mutation and version 2 internal dispatch are implemented before a
-public Staff execution endpoint is exposed. Public Staff execution remains
-closed until restore coordination can synchronously deny workspace access
-before restored Staff data is visible.
+public Staff execution endpoint is exposed. Restore coordination can now
+synchronously deny workspace access before restored Staff data is visible;
+public Staff execution remains closed pending a deliberately designed operator
+workflow, production policy approval, and its own authorization review.
 
 The PostgreSQL owner schema enforces the terminal Staff lifecycle, exact
 receipt/tombstone coordinates, tenant-first uniqueness, append-only receipts,
@@ -345,6 +348,58 @@ workspace access. Readiness remains closed until:
 
 If no trustworthy Workspaces mapping exists, readiness stays closed. An async
 event alone is insufficient because it creates an authorization window.
+
+### Version 3 Restore Slice Contract
+
+The existing Guest restore contributor, request, result, and protected replay
+envelope remain version 2 and property scoped. Historical version 1 and 2
+ledger entries continue through that exact path. They are not adapted into the
+new contract.
+
+Version 3 restore is a parallel scoped protocol. Its request carries the
+ledger case kind, scope kind, nullable property coordinate, exact owner and
+record coordinate, owner receipt, resulting record version, and original
+completion time. The coordinator validates the complete ledger shape and
+resolves every required contributor before decrypting the replay envelope.
+
+`StaffRights` version 3 replay requires exactly one matching restore
+prerequisite and one matching owner contributor:
+
+1. Workspaces resolves the latest completed Staff access process and the
+   current Staff-owned restore-state snapshot.
+2. A linked subject is accepted only when both owners agree on the exact
+   subject and the latest completed access process ended in `Departed`.
+3. An unlinked pre-anonymisation Staff record may prove that no subject access
+   exists. An already-anonymised record without a durable Workspaces mapping
+   is not sufficient, because a partially restored Organizations database
+   could still contain the old membership.
+4. Workspaces synchronously forces the organization membership to `Removed`
+   and clears workspace role/profile assignments. `Changed`,
+   `AlreadyInDesiredState`, and `NotFound` are safe outcomes. Owner protection,
+   an invalid transition, unavailable state, or conflicting identity keeps
+   execution or readiness closed.
+5. Only after that denial succeeds may Staff acquire its operation lock,
+   re-apply the exact anonymised state, attach the ledger proof to its
+   tombstone, and append an immutable restore receipt.
+6. Data Rights advances and confirms the restore checkpoint only after both
+   the Workspaces prerequisite and Staff owner proof succeed.
+
+The same Workspaces prerequisite runs before a new Staff owner mutation. This
+ensures every new Staff ledger entry is restore-capable and reasserts the
+already-required departure access denial before irreversible profile
+mutation. A missing prerequisite is a composition failure; a missing or
+conflicting mapping is a policy blocker; transient owner failures remain
+retryable.
+
+The Staff restore-state reader is a narrow Staff Contracts surface. It exposes
+only the record id, exact version, lifecycle state, and optional Auth subject
+needed for this coordination. Workspaces does not read Staff persistence and
+Staff does not reference Workspaces or Organizations.
+
+Staff restore receipts are append-only and keyed by ledger entry. Replay must
+match the same Staff id, owner receipt, resulting version, tombstone revision,
+and canonical digest. The relational schema rejects receipt update/delete and
+unsafe downgrade once restore proof exists.
 
 ## Delivery Slices
 
@@ -421,19 +476,34 @@ terminal reconciliation, ordinary-surface exclusion, and personal-data
 catalogue completeness.
 
 The exact PostgreSQL/NATS/task-runtime scenario
-`StaffDataRightsAnonymisationIntegrationTests.Tenant_v2_execution_persists_append_only_owner_proof`
+`StaffDataRightsAnonymisationIntegrationTests.Tenant_v2_execution_and_v3_restore_close_access_and_persist_owner_proof`
 passed on 2026-07-30. It proves fresh-schema migration, version 2 tenant
 dispatch, atomic Staff mutation and owner proof, PII-free task payloads,
-ledger/case reconciliation, database-level update and delete rejection for
-receipts, and guarded Staff and Data Rights downgrade. Guest work remains
-pinned to owner contract version 1. No GMA change was required.
+ledger/case reconciliation, synchronous workspace access denial, version 3
+restore into a separate pre-anonymisation database, idempotent Staff re-scrub,
+append-only restore proof, readiness advancement, database-level update and
+delete rejection for receipts, and guarded Staff and Data Rights downgrade.
+Guest work remains pinned to owner contract version 1. No GMA change was
+required.
+
+### Restore Verification
+
+The complete non-Docker repository gate passed after the restore slice,
+including solution/source-package guards, build, migration drift, module and
+architecture tests. The final visible tail was rechecked directly: 73
+architecture tests, 30 host-default tests, and 39 non-Docker integration tests
+passed with no failures.
+
+Focused proof passed for Data Rights restore coordination and execution,
+Workspaces trusted mapping and access denial, and all 113 Staff tests. The exact
+container scenario named above passed against two independently migrated
+PostgreSQL databases plus NATS and Task Runtime. It demonstrates that a
+pre-anonymisation restore cannot become ready until organization membership and
+workspace authorization are closed and the Staff owner has attached the exact
+ledger proof to its tombstone and immutable restore receipt.
 
 ## Deferred
 
-- synchronous Workspaces access denial and trusted Staff-to-subject mapping
-  during restore;
-- Staff tombstone replay, idempotent re-scrub, and restore-readiness proof;
-- historical version 3 protected-delta restore drill;
 - public Staff anonymisation execution API and operator workflow;
 - automatic Staff retention scheduling and worker execution;
 - production legal approval of country-policy content;

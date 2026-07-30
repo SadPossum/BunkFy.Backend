@@ -131,10 +131,15 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
                 workItemVersion: 2,
                 request));
         RecordingScopedContributor contributor = new(contribution);
+        RecordingPrerequisite prerequisite = new(
+            DataRightsAnonymisationExecutionPrerequisiteResult.Completed(
+                DataRightsAnonymisationExecutionPrerequisiteContractV2
+                    .CurrentVersion));
         ExecuteDataRightsAnonymisationTaskV2Handler handler = new(
             dispatcher,
             [contributor],
-            new TestClock());
+            new TestClock(),
+            [prerequisite]);
         TaskExecutionContext context = CreateContext();
 
         await handler.HandleAsync(
@@ -142,6 +147,7 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
             context,
             CancellationToken.None);
 
+        Assert.Same(request, prerequisite.Request);
         Assert.Same(request, contributor.Request);
         RecordDataRightsAnonymisationOwnerResultCommand recorded =
             Assert.IsType<
@@ -154,6 +160,78 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
         Assert.IsType<
             FinalizeDataRightsAnonymisationLedgerCommand>(
             dispatcher.Finalized);
+    }
+
+    [Fact]
+    public async Task V2_task_records_blocked_prerequisite_without_calling_owner()
+    {
+        DataRightsAnonymisationContributionRequestV2 request =
+            CreateScopedRequest();
+        FakeTaskDispatcher dispatcher = new(
+            DataRightsAnonymisationWorkItemStart.Ready(
+                workItemVersion: 2,
+                request));
+        RecordingScopedContributor contributor = new(
+            DataRightsAnonymisationContributionResult.Failed(
+                DataRightsAnonymisationContractV2.CurrentVersion,
+                "not-used"));
+        RecordingPrerequisite prerequisite = new(
+            DataRightsAnonymisationExecutionPrerequisiteResult.Blocked(
+                DataRightsAnonymisationExecutionPrerequisiteContractV2
+                    .CurrentVersion,
+                "workspace.access-denial-blocked"));
+        ExecuteDataRightsAnonymisationTaskV2Handler handler = new(
+            dispatcher,
+            [contributor],
+            new TestClock(),
+            [prerequisite]);
+
+        await handler.HandleAsync(
+            Payload(request),
+            CreateContext(),
+            CancellationToken.None);
+
+        Assert.Same(request, prerequisite.Request);
+        Assert.Null(contributor.Request);
+        RecordDataRightsAnonymisationOwnerResultCommand recorded =
+            Assert.IsType<
+                RecordDataRightsAnonymisationOwnerResultCommand>(
+                dispatcher.Recorded);
+        Assert.Equal(
+            DataRightsAnonymisationContributionStatus.Blocked,
+            recorded.Result.Status);
+        Assert.Equal(
+            "workspace.access-denial-blocked",
+            recorded.Result.OutcomeCode);
+    }
+
+    [Fact]
+    public async Task V2_task_requires_exact_staff_prerequisite()
+    {
+        DataRightsAnonymisationContributionRequestV2 request =
+            CreateScopedRequest();
+        FakeTaskDispatcher dispatcher = new(
+            DataRightsAnonymisationWorkItemStart.Ready(
+                workItemVersion: 2,
+                request));
+        ExecuteDataRightsAnonymisationTaskV2Handler handler = new(
+            dispatcher,
+            [new RecordingScopedContributor(
+                DataRightsAnonymisationContributionResult.Failed(
+                    DataRightsAnonymisationContractV2.CurrentVersion,
+                    "not-used"))],
+            new TestClock());
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<
+            InvalidOperationException>(() => handler.HandleAsync(
+                Payload(request),
+                CreateContext(),
+                CancellationToken.None));
+
+        Assert.Equal(
+            "DataRights.AnonymisationPrerequisiteUnavailable",
+            exception.Message);
+        Assert.Null(dispatcher.Recorded);
     }
 
     private static ExecuteDataRightsAnonymisationPayload Payload(
@@ -349,6 +427,33 @@ public sealed class ExecuteDataRightsAnonymisationTaskHandlerTests
         }
 
         public Task<DataRightsAnonymisationContributionResult>
+            ExecuteAsync(
+                DataRightsAnonymisationContributionRequestV2 request,
+                CancellationToken cancellationToken)
+        {
+            this.Request = request;
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class RecordingPrerequisite(
+        DataRightsAnonymisationExecutionPrerequisiteResult result)
+        : IDataRightsAnonymisationExecutionPrerequisiteV2
+    {
+        public string OwnerKey => "staff";
+        public string RecordType => "staff-member";
+        public DataRightsCaseType CaseType =>
+            DataRightsCaseType.StaffRights;
+        public int ContractVersion =>
+            DataRightsAnonymisationExecutionPrerequisiteContractV2
+                .CurrentVersion;
+        public DataRightsAnonymisationContributionRequestV2? Request
+        {
+            get;
+            private set;
+        }
+
+        public Task<DataRightsAnonymisationExecutionPrerequisiteResult>
             ExecuteAsync(
                 DataRightsAnonymisationContributionRequestV2 request,
                 CancellationToken cancellationToken)

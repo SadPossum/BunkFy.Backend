@@ -17,7 +17,11 @@ internal sealed class DataRightsRestoreCoordinator(
     IDataRightsReplayEnvelopeProtector replayProtector,
     IEnumerable<IDataRightsAnonymisationRestoreContributor> contributors,
     IScopeContext scopeContext,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IEnumerable<IDataRightsAnonymisationRestorePrerequisiteV3>?
+        restorePrerequisitesV3 = null,
+    IEnumerable<IDataRightsAnonymisationRestoreContributorV3>?
+        contributorsV3 = null)
     : IDataRightsRestoreCoordinator
 {
     private const int PageSize = 100;
@@ -150,62 +154,19 @@ internal sealed class DataRightsRestoreCoordinator(
             }
 
             DataRightsProcessingLedgerEntry ledger = restored.Value;
-            if (ledger.ContractVersion >
-                    DataRightsProcessingLedgerEntry
-                        .GuestResultVersionContractVersion ||
-                ledger.RoutingPropertyId is not Guid propertyId)
-            {
-                return Result.Failure<
-                    IReadOnlyList<DataRightsRestoreOwnerProofBinding>>(
-                        DataRightsApplicationErrors.RestoreOwnerUnavailable);
-            }
-
-            Result<Guid> recordId = replayProtector.Unprotect(
-                delta.Ledger,
-                delta.ReplayEnvelope);
-            if (recordId.IsFailure)
-            {
-                return Result.Failure<
-                    IReadOnlyList<DataRightsRestoreOwnerProofBinding>>(
-                        recordId.Error);
-            }
-
-            IDataRightsAnonymisationRestoreContributor? contributor =
-                this.FindContributor(ledger.OwnerKey, ledger.RecordType);
-            if (contributor is null ||
-                contributor.ContractVersion !=
-                    DataRightsAnonymisationRestoreContract.CurrentVersion)
-            {
-                return Result.Failure<
-                    IReadOnlyList<DataRightsRestoreOwnerProofBinding>>(
-                        DataRightsApplicationErrors.RestoreOwnerUnavailable);
-            }
-
-            DataRightsAnonymisationRestoreResult result =
-                await contributor.RestoreAsync(
-                    new DataRightsAnonymisationRestoreRequest(
-                        DataRightsAnonymisationRestoreContract.CurrentVersion,
-                        ledger.ScopeId,
-                        ledger.Id,
-                        ledger.TenantSequence,
-                        ledger.EntrySha256,
-                        propertyId,
-                        ledger.OwnerKey,
-                        ledger.RecordType,
-                        recordId.Value,
-                        ledger.OwnerReceiptContractVersion,
-                        ledger.OwnerReceiptId,
-                        ledger.OwnerReceiptSha256,
-                        ledger.ResultingRecordVersion,
-                        ledger.CompletedAtUtc),
+            Result<DataRightsAnonymisationRestoreResult> ownerResult =
+                await this.RestoreOwnerAsync(
+                    delta,
+                    ledger,
                     cancellationToken).ConfigureAwait(false);
-            if (!HasMatchingProof(result, ledger))
+            if (ownerResult.IsFailure)
             {
                 return Result.Failure<
                     IReadOnlyList<DataRightsRestoreOwnerProofBinding>>(
-                        DataRightsApplicationErrors.RestoreOwnerProofInvalid);
+                        ownerResult.Error);
             }
 
+            DataRightsAnonymisationRestoreResult result = ownerResult.Value;
             DataRightsAnonymisationRestoreProof proof = result.Proof!;
             proofs.Add(new DataRightsRestoreOwnerProofBinding(
                 ledger.Id,
@@ -222,6 +183,193 @@ internal sealed class DataRightsRestoreCoordinator(
             IReadOnlyList<DataRightsRestoreOwnerProofBinding>>(proofs);
     }
 
+    private Task<Result<DataRightsAnonymisationRestoreResult>>
+        RestoreOwnerAsync(
+            DataRightsLedgerDelta delta,
+            DataRightsProcessingLedgerEntry ledger,
+            CancellationToken cancellationToken) =>
+        ledger.ContractVersion <=
+            DataRightsProcessingLedgerEntry.GuestResultVersionContractVersion
+            ? this.RestoreLegacyOwnerAsync(
+                delta,
+                ledger,
+                cancellationToken)
+            : ledger.ContractVersion ==
+                DataRightsProcessingLedgerEntry.CurrentContractVersion
+                ? this.RestoreScopedOwnerAsync(
+                    delta,
+                    ledger,
+                    cancellationToken)
+                : Task.FromResult(
+                    Result.Failure<DataRightsAnonymisationRestoreResult>(
+                        DataRightsApplicationErrors
+                            .RestoreOwnerUnavailable));
+
+    private async Task<Result<DataRightsAnonymisationRestoreResult>>
+        RestoreLegacyOwnerAsync(
+            DataRightsLedgerDelta delta,
+            DataRightsProcessingLedgerEntry ledger,
+            CancellationToken cancellationToken)
+    {
+        if (ledger.RoutingPropertyId is not Guid propertyId)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestoreOwnerUnavailable);
+        }
+
+        Result<Guid> recordId = replayProtector.Unprotect(
+            delta.Ledger,
+            delta.ReplayEnvelope);
+        if (recordId.IsFailure)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                recordId.Error);
+        }
+
+        IDataRightsAnonymisationRestoreContributor? contributor =
+            this.FindContributor(ledger.OwnerKey, ledger.RecordType);
+        if (contributor is null ||
+            contributor.ContractVersion !=
+                DataRightsAnonymisationRestoreContract.CurrentVersion)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestoreOwnerUnavailable);
+        }
+
+        DataRightsAnonymisationRestoreResult result =
+            await contributor.RestoreAsync(
+                new DataRightsAnonymisationRestoreRequest(
+                    DataRightsAnonymisationRestoreContract.CurrentVersion,
+                    ledger.ScopeId,
+                    ledger.Id,
+                    ledger.TenantSequence,
+                    ledger.EntrySha256,
+                    propertyId,
+                    ledger.OwnerKey,
+                    ledger.RecordType,
+                    recordId.Value,
+                    ledger.OwnerReceiptContractVersion,
+                    ledger.OwnerReceiptId,
+                    ledger.OwnerReceiptSha256,
+                    ledger.ResultingRecordVersion,
+                    ledger.CompletedAtUtc),
+                cancellationToken).ConfigureAwait(false);
+        return HasMatchingProof(
+                result,
+                ledger,
+                DataRightsAnonymisationRestoreContract.CurrentVersion)
+            ? Result.Success(result)
+            : Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestoreOwnerProofInvalid);
+    }
+
+    private async Task<Result<DataRightsAnonymisationRestoreResult>>
+        RestoreScopedOwnerAsync(
+            DataRightsLedgerDelta delta,
+            DataRightsProcessingLedgerEntry ledger,
+            CancellationToken cancellationToken)
+    {
+        if (ledger.CaseKind != DataRightsCaseKind.StaffRights ||
+            ledger.ScopeKind != DataRightsCaseScopeKind.Tenant ||
+            ledger.RoutingPropertyId.HasValue ||
+            ledger.ResultingRecordVersion is not > 0)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestoreOwnerUnavailable);
+        }
+
+        const DataRightsCaseType caseType = DataRightsCaseType.StaffRights;
+        IDataRightsAnonymisationRestorePrerequisiteV3? prerequisite =
+            this.FindRestorePrerequisiteV3(
+                caseType,
+                ledger.OwnerKey,
+                ledger.RecordType);
+        if (prerequisite is null ||
+            prerequisite.ContractVersion !=
+                DataRightsAnonymisationRestoreContractV3.CurrentVersion)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestorePrerequisiteUnavailable);
+        }
+
+        IDataRightsAnonymisationRestoreContributorV3? contributor =
+            this.FindContributorV3(
+                caseType,
+                ledger.OwnerKey,
+                ledger.RecordType);
+        if (contributor is null ||
+            contributor.ContractVersion !=
+                DataRightsAnonymisationRestoreContractV3.CurrentVersion)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestoreOwnerUnavailable);
+        }
+
+        Result<Guid> recordId = replayProtector.Unprotect(
+            delta.Ledger,
+            delta.ReplayEnvelope);
+        if (recordId.IsFailure)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                recordId.Error);
+        }
+
+        DataRightsAnonymisationRestoreRequestV3 request = new(
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion,
+            ledger.ScopeId,
+            ledger.Id,
+            ledger.TenantSequence,
+            ledger.EntrySha256,
+            caseType,
+            DataRightsExecutionScopeKind.Tenant,
+            RoutingPropertyId: null,
+            ledger.OwnerKey,
+            ledger.RecordType,
+            recordId.Value,
+            ledger.OwnerReceiptContractVersion,
+            ledger.OwnerReceiptId,
+            ledger.OwnerReceiptSha256,
+            ledger.ResultingRecordVersion.Value,
+            ledger.CompletedAtUtc);
+        DataRightsAnonymisationRestorePrerequisiteResult prerequisiteResult =
+            await prerequisite.ExecuteAsync(
+                request,
+                cancellationToken).ConfigureAwait(false);
+        if (!HasValidPrerequisiteResult(prerequisiteResult))
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors
+                    .RestorePrerequisiteResultInvalid);
+        }
+
+        if (prerequisiteResult.Status ==
+            DataRightsAnonymisationRestorePrerequisiteStatus.Blocked)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestorePrerequisiteBlocked);
+        }
+
+        if (prerequisiteResult.Status ==
+            DataRightsAnonymisationRestorePrerequisiteStatus.RetryRequired)
+        {
+            return Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors
+                    .RestorePrerequisiteRetryRequired);
+        }
+
+        DataRightsAnonymisationRestoreResult result =
+            await contributor.RestoreAsync(
+                request,
+                cancellationToken).ConfigureAwait(false);
+        return HasMatchingProof(
+                result,
+                ledger,
+                DataRightsAnonymisationRestoreContractV3.CurrentVersion)
+            ? Result.Success(result)
+            : Result.Failure<DataRightsAnonymisationRestoreResult>(
+                DataRightsApplicationErrors.RestoreOwnerProofInvalid);
+    }
+
     private IDataRightsAnonymisationRestoreContributor? FindContributor(
         string ownerKey,
         string recordType)
@@ -231,6 +379,73 @@ internal sealed class DataRightsRestoreCoordinator(
                  in contributors)
         {
             if (!string.Equals(
+                    contributor.OwnerKey,
+                    ownerKey,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    contributor.RecordType,
+                    recordType,
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (match is not null)
+            {
+                return null;
+            }
+
+            match = contributor;
+        }
+
+        return match;
+    }
+
+    private IDataRightsAnonymisationRestorePrerequisiteV3?
+        FindRestorePrerequisiteV3(
+            DataRightsCaseType caseType,
+            string ownerKey,
+            string recordType)
+    {
+        IDataRightsAnonymisationRestorePrerequisiteV3? match = null;
+        foreach (IDataRightsAnonymisationRestorePrerequisiteV3 prerequisite
+                 in restorePrerequisitesV3 ?? [])
+        {
+            if (prerequisite.CaseType != caseType ||
+                !string.Equals(
+                    prerequisite.OwnerKey,
+                    ownerKey,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    prerequisite.RecordType,
+                    recordType,
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (match is not null)
+            {
+                return null;
+            }
+
+            match = prerequisite;
+        }
+
+        return match;
+    }
+
+    private IDataRightsAnonymisationRestoreContributorV3? FindContributorV3(
+        DataRightsCaseType caseType,
+        string ownerKey,
+        string recordType)
+    {
+        IDataRightsAnonymisationRestoreContributorV3? match = null;
+        foreach (IDataRightsAnonymisationRestoreContributorV3 contributor
+                 in contributorsV3 ?? [])
+        {
+            if (contributor.CaseType != caseType ||
+                !string.Equals(
                     contributor.OwnerKey,
                     ownerKey,
                     StringComparison.Ordinal) ||
@@ -324,11 +539,11 @@ internal sealed class DataRightsRestoreCoordinator(
 
     private static bool HasMatchingProof(
         DataRightsAnonymisationRestoreResult? result,
-        DataRightsProcessingLedgerEntry ledger)
+        DataRightsProcessingLedgerEntry ledger,
+        int expectedContractVersion)
     {
         DataRightsAnonymisationRestoreProof? proof = result?.Proof;
-        return result?.ContractVersion ==
-                DataRightsAnonymisationRestoreContract.CurrentVersion &&
+        return result?.ContractVersion == expectedContractVersion &&
             result.Status == DataRightsAnonymisationRestoreStatus.Completed &&
             proof is not null &&
             proof.LedgerEntryId == ledger.Id &&
@@ -351,6 +566,37 @@ internal sealed class DataRightsRestoreCoordinator(
               proof.ResultingRecordVersion ==
                   ledger.ResultingRecordVersion.Value
             : proof.ResultingRecordVersion > 0;
+
+    private static bool HasValidPrerequisiteResult(
+        DataRightsAnonymisationRestorePrerequisiteResult? result)
+    {
+        if (result?.ContractVersion !=
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion)
+        {
+            return false;
+        }
+
+        return result.Status switch
+        {
+            DataRightsAnonymisationRestorePrerequisiteStatus.Completed =>
+                result.OutcomeCode is null,
+            DataRightsAnonymisationRestorePrerequisiteStatus.Blocked or
+                DataRightsAnonymisationRestorePrerequisiteStatus
+                    .RetryRequired =>
+                IsCode(
+                    result.OutcomeCode,
+                    DataRightsAnonymisationContract.CodeMaxLength),
+            _ => false
+        };
+    }
+
+    private static bool IsCode(string? value, int maxLength)
+    {
+        string normalized = value?.Trim() ?? string.Empty;
+        return normalized.Length is > 0 &&
+            normalized.Length <= maxLength &&
+            string.Equals(value, normalized, StringComparison.Ordinal);
+    }
 
     private static bool IsSha256(string? value) =>
         value is { Length: DataRightsProcessingLedgerEntry.Sha256Length } &&

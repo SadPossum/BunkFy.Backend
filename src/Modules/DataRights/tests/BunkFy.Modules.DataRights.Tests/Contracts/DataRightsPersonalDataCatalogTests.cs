@@ -452,6 +452,21 @@ public sealed class DataRightsPersonalDataCatalogTests
                 PersonalDataSurface.IntegrationCommand);
         }
 
+        AssertBinding(
+            typeof(DataRightsAnonymisationRestoreRequestV3),
+            nameof(DataRightsAnonymisationRestoreRequestV3.RecordId),
+            PersonalDataSurface.IntegrationCommand);
+
+        foreach (PropertyInfo property in typeof(DataRightsAnonymisationRestoreRequestV3)
+                     .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                     .Where(property => property.Name != nameof(DataRightsAnonymisationRestoreRequestV3.RecordId)))
+        {
+            AssertBinding(
+                typeof(DataRightsAnonymisationRestoreRequestV3),
+                property.Name,
+                PersonalDataSurface.IntegrationCommand);
+        }
+
         foreach (PropertyInfo property in typeof(DataRightsAnonymisationRestoreProof)
                      .GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {

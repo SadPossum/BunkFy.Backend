@@ -133,9 +133,83 @@ public sealed class DataRightsRestoreCoordinatorTests
             scopeSnapshotSha256: new string('e', 64),
             CancellationToken.None);
 
-        Assert.Equal("DataRights.RestoreOwnerUnavailable", result.Error.Code);
+        Assert.Equal(
+            "DataRights.RestorePrerequisiteUnavailable",
+            result.Error.Code);
         Assert.Equal(["query", "read", "prepare"], calls);
         Assert.Equal(0, replayProtector.UnprotectCount);
+    }
+
+    [Fact]
+    public async Task Version_three_denies_access_before_staff_owner_and_checkpoint()
+    {
+        HmacDataRightsRecordPseudonymizer pseudonymizer =
+            ProtectedLedgerTestData.CreatePseudonymizer((1, 'a'));
+        AesGcmDataRightsReplayEnvelopeProtector envelopeProtector =
+            ProtectedLedgerTestData.CreateProtector(
+                pseudonymizer,
+                activeKeyVersion: 1,
+                (1, 'r'));
+        Guid recordId = Guid.NewGuid();
+        DataRightsProcessingLedgerEntry ledger =
+            ProtectedLedgerTestData.CreateStaffLedger(
+                pseudonymizer,
+                "tenant-a",
+                sequence: 1,
+                DataRightsProcessingLedgerEntry.GenesisEntrySha256,
+                recordId);
+        DataRightsLedgerDeltaCursor targetCursor = new(
+            TenantSequence: 1,
+            ledger.EntrySha256,
+            StorageMacSha256: new string('c', 64));
+        List<string> calls = [];
+        StubReplayProtector replayProtector = new(recordId, calls);
+        StubRestorePrerequisite prerequisite = new(ledger, calls);
+        StubScopedContributor contributor = new(ledger, calls);
+        DataRightsRestoreCoordinator coordinator = new(
+            new RecordingDispatcher(targetCursor, calls),
+            new StubDeltaStore(
+                ProtectedLedgerTestData.CreateDelta(
+                    envelopeProtector,
+                    ledger,
+                    recordId),
+                targetCursor,
+                calls),
+            replayProtector,
+            [],
+            new TestScopeContext(),
+            new FixedTimeProvider(
+                ProtectedLedgerTestData.Now.AddHours(2)),
+            [prerequisite],
+            [contributor]);
+
+        Result<Unit> result = await coordinator.ReconcileAsync(
+            new DataRightsRestoreScope(
+                DataRightsRestoreScope.CurrentContractVersion,
+                "tenant-a",
+                new DataRightsLedgerDeltaCheckpoint(
+                    DataRightsLedgerDeltaCheckpoint.CurrentContractVersion,
+                    targetCursor,
+                    IntegrityKeyVersion: 1,
+                    CheckpointMacSha256: new string('d', 64))),
+            scopeSnapshotSha256: new string('e', 64),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            [
+                "query",
+                "read",
+                "prepare",
+                "decrypt",
+                "prerequisite",
+                "owner",
+                "advance",
+                "confirm"
+            ],
+            calls);
+        Assert.Equal(recordId, prerequisite.RecordId);
+        Assert.Same(prerequisite.Request, contributor.Request);
     }
 
     private sealed class RecordingDispatcher(
@@ -233,7 +307,9 @@ public sealed class DataRightsRestoreCoordinatorTests
             throw new NotSupportedException();
     }
 
-    private sealed class StubReplayProtector(Guid recordId)
+    private sealed class StubReplayProtector(
+        Guid recordId,
+        List<string>? calls = null)
         : IDataRightsReplayEnvelopeProtector
     {
         public int UnprotectCount { get; private set; }
@@ -243,6 +319,7 @@ public sealed class DataRightsRestoreCoordinatorTests
             DataRightsProtectedReplayEnvelope envelope)
         {
             this.UnprotectCount++;
+            calls?.Add("decrypt");
             return Result.Success(recordId);
         }
 
@@ -278,6 +355,72 @@ public sealed class DataRightsRestoreCoordinatorTests
                         ledger.OwnerReceiptId,
                         ledger.OwnerReceiptSha256,
                         ResultingRecordVersion: 5,
+                        TombstoneRevision: 1,
+                        ProtectedLedgerTestData.Now.AddHours(1))));
+        }
+    }
+
+    private sealed class StubRestorePrerequisite(
+        DataRightsProcessingLedgerEntry ledger,
+        List<string> calls)
+        : IDataRightsAnonymisationRestorePrerequisiteV3
+    {
+        public string OwnerKey => ledger.OwnerKey;
+        public string RecordType => ledger.RecordType;
+        public DataRightsCaseType CaseType => DataRightsCaseType.StaffRights;
+        public int ContractVersion =>
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion;
+        public Guid RecordId { get; private set; }
+        public DataRightsAnonymisationRestoreRequestV3? Request
+        {
+            get;
+            private set;
+        }
+
+        public Task<DataRightsAnonymisationRestorePrerequisiteResult>
+            ExecuteAsync(
+                DataRightsAnonymisationRestoreRequestV3 request,
+                CancellationToken cancellationToken)
+        {
+            calls.Add("prerequisite");
+            this.Request = request;
+            this.RecordId = request.RecordId;
+            return Task.FromResult(
+                DataRightsAnonymisationRestorePrerequisiteResult.Completed(
+                    DataRightsAnonymisationRestoreContractV3.CurrentVersion));
+        }
+    }
+
+    private sealed class StubScopedContributor(
+        DataRightsProcessingLedgerEntry ledger,
+        List<string> calls)
+        : IDataRightsAnonymisationRestoreContributorV3
+    {
+        public string OwnerKey => ledger.OwnerKey;
+        public string RecordType => ledger.RecordType;
+        public DataRightsCaseType CaseType => DataRightsCaseType.StaffRights;
+        public int ContractVersion =>
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion;
+        public DataRightsAnonymisationRestoreRequestV3? Request
+        {
+            get;
+            private set;
+        }
+
+        public Task<DataRightsAnonymisationRestoreResult> RestoreAsync(
+            DataRightsAnonymisationRestoreRequestV3 request,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("owner");
+            this.Request = request;
+            return Task.FromResult(
+                DataRightsAnonymisationRestoreResult.Completed(
+                    DataRightsAnonymisationRestoreContractV3.CurrentVersion,
+                    new(
+                        ledger.Id,
+                        ledger.OwnerReceiptId,
+                        ledger.OwnerReceiptSha256,
+                        request.ResultingRecordVersion,
                         TombstoneRevision: 1,
                         ProtectedLedgerTestData.Now.AddHours(1))));
         }

@@ -79,4 +79,46 @@ public sealed class StaffAnonymisationProofTests
             "Staff.AnonymisationReceiptInvalid",
             created.Error.Code);
     }
+
+    [Fact]
+    public void Restore_receipt_binds_ledger_owner_and_tombstone()
+    {
+        Guid staffMemberId = Guid.NewGuid();
+        Guid ledgerEntryId = Guid.NewGuid();
+        Guid ownerReceiptId = Guid.NewGuid();
+        string ownerReceiptSha256 = new('a', 64);
+        var tombstone = StaffAnonymisationTombstone.Restore(
+            "tenant-a",
+            staffMemberId,
+            CompletedAtUtc,
+            ownerReceiptSha256,
+            ledgerEntryId,
+            CompletedAtUtc.AddMinutes(1));
+
+        Assert.True(tombstone.IsSuccess, tombstone.Error.Code);
+        var receipt = StaffAnonymisationRestoreReceipt.Create(
+            "tenant-a",
+            ledgerEntryId,
+            staffMemberId,
+            ownerReceiptContractVersion: 1,
+            ownerReceiptId,
+            ownerReceiptSha256,
+            resultingStaffVersion: 5,
+            tombstone.Value.Revision,
+            tombstone.Value.LastReplayedAtUtc!.Value);
+
+        Assert.True(receipt.IsSuccess, receipt.Error.Code);
+        Assert.True(receipt.Value.Matches(
+            ledgerEntryId,
+            staffMemberId,
+            ownerReceiptContractVersion: 1,
+            ownerReceiptId,
+            ownerReceiptSha256));
+        Assert.True(tombstone.Value.MatchesRestore(
+            staffMemberId,
+            ledgerEntryId,
+            CompletedAtUtc,
+            ownerReceiptSha256));
+        Assert.Equal(64, receipt.Value.CanonicalSha256.Length);
+    }
 }

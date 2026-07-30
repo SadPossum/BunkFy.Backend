@@ -31,6 +31,12 @@ public static class DependencyInjection
             IStaffAnonymisationRepository,
             StaffAnonymisationRepository>();
         builder.Services.TryAddScoped<
+            IStaffAnonymisationRestoreRepository,
+            StaffAnonymisationRestoreRepository>();
+        builder.Services.TryAddScoped<
+            IStaffAnonymisationRestoreStateReader,
+            StaffAnonymisationRestoreStateReader>();
+        builder.Services.TryAddScoped<
             IStaffProcessingRestrictionRepository,
             StaffProcessingRestrictionRepository>();
         builder.Services.TryAddScoped<

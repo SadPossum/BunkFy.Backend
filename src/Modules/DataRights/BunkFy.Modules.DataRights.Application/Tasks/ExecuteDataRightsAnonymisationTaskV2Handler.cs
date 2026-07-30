@@ -10,7 +10,9 @@ using Gma.Framework.Tasks.Cqrs;
 internal sealed class ExecuteDataRightsAnonymisationTaskV2Handler(
     ITaskCommandDispatcher commandDispatcher,
     IEnumerable<IDataRightsAnonymisationContributorV2> contributors,
-    ISystemClock clock)
+    ISystemClock clock,
+    IEnumerable<IDataRightsAnonymisationExecutionPrerequisiteV2>?
+        prerequisites = null)
     : ITaskHandler<ExecuteDataRightsAnonymisationPayloadV2>
 {
     private readonly DataRightsAnonymisationTaskExecutor executor =
@@ -18,7 +20,8 @@ internal sealed class ExecuteDataRightsAnonymisationTaskV2Handler(
             commandDispatcher,
             [],
             contributors,
-            clock);
+            clock,
+            prerequisites);
 
     public Task HandleAsync(
         ExecuteDataRightsAnonymisationPayloadV2 payload,

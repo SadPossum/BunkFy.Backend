@@ -14,7 +14,9 @@ internal sealed class DataRightsAnonymisationTaskExecutor(
     ITaskCommandDispatcher commandDispatcher,
     IEnumerable<IDataRightsAnonymisationContributor> propertyContributors,
     IEnumerable<IDataRightsAnonymisationContributorV2> scopedContributors,
-    ISystemClock clock)
+    ISystemClock clock,
+    IEnumerable<IDataRightsAnonymisationExecutionPrerequisiteV2>?
+        scopedPrerequisites = null)
 {
     public async Task ExecuteAsync(
         Guid workItemId,
@@ -91,7 +93,7 @@ internal sealed class DataRightsAnonymisationTaskExecutor(
         }
     }
 
-    private Task<DataRightsAnonymisationContributionResult>
+    private async Task<DataRightsAnonymisationContributionResult>
         DispatchOwnerAsync(
             DataRightsAnonymisationWorkItemStart started,
             CancellationToken cancellationToken)
@@ -101,29 +103,74 @@ internal sealed class DataRightsAnonymisationTaskExecutor(
         {
             IDataRightsAnonymisationContributor contributor =
                 this.ResolvePropertyContributor(propertyRequest);
-            return this.ExecuteWithDeadlineAsync(
+            return await this.ExecuteWithDeadlineAsync(
                 propertyRequest.ContractVersion,
                 propertyRequest.Coordinate.RecordVersion,
                 propertyRequest.DeadlineUtc,
                 token => contributor.ExecuteAsync(propertyRequest, token),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         if (started.ScopedRequest is { } scopedRequest &&
             started.PropertyRequest is null)
         {
+            DataRightsAnonymisationContributionResult? blocked =
+                await this.ExecuteScopedPrerequisiteAsync(
+                    scopedRequest,
+                    cancellationToken).ConfigureAwait(false);
+            if (blocked is not null)
+            {
+                return blocked;
+            }
+
             IDataRightsAnonymisationContributorV2 contributor =
                 this.ResolveScopedContributor(scopedRequest);
-            return this.ExecuteWithDeadlineAsync(
+            return await this.ExecuteWithDeadlineAsync(
                 scopedRequest.ContractVersion,
                 scopedRequest.Coordinate.RecordVersion,
                 scopedRequest.DeadlineUtc,
                 token => contributor.ExecuteAsync(scopedRequest, token),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         throw new InvalidOperationException(
             "DataRights.AnonymisationRequestUnavailable");
+    }
+
+    private async Task<DataRightsAnonymisationContributionResult?>
+        ExecuteScopedPrerequisiteAsync(
+            DataRightsAnonymisationContributionRequestV2 request,
+            CancellationToken cancellationToken)
+    {
+        if (request.CaseType != DataRightsCaseType.StaffRights)
+        {
+            return null;
+        }
+
+        IDataRightsAnonymisationExecutionPrerequisiteV2 prerequisite =
+            this.ResolveScopedPrerequisite(request);
+        DataRightsAnonymisationExecutionPrerequisiteResult result =
+            await this.ExecutePrerequisiteWithDeadlineAsync(
+                request.ContractVersion,
+                request.DeadlineUtc,
+                token => prerequisite.ExecuteAsync(request, token),
+                cancellationToken).ConfigureAwait(false);
+
+        return result.Status switch
+        {
+            DataRightsAnonymisationExecutionPrerequisiteStatus.Completed =>
+                null,
+            DataRightsAnonymisationExecutionPrerequisiteStatus.Blocked =>
+                DataRightsAnonymisationContributionResult.Blocked(
+                    request.ContractVersion,
+                    result.OutcomeCode!),
+            DataRightsAnonymisationExecutionPrerequisiteStatus.RetryRequired =>
+                throw new InvalidOperationException(
+                    "DataRights.AnonymisationPrerequisiteRetryRequired: " +
+                    result.OutcomeCode),
+            _ => throw new InvalidOperationException(
+                "DataRights.AnonymisationPrerequisiteResultInvalid")
+        };
     }
 
     private IDataRightsAnonymisationContributor ResolvePropertyContributor(
@@ -165,6 +212,73 @@ internal sealed class DataRightsAnonymisationTaskExecutor(
             ? matches[0]
             : throw new InvalidOperationException(
                 "DataRights.AnonymisationOwnerContributorUnavailable");
+    }
+
+    private IDataRightsAnonymisationExecutionPrerequisiteV2
+        ResolveScopedPrerequisite(
+            DataRightsAnonymisationContributionRequestV2 request)
+    {
+        IDataRightsAnonymisationExecutionPrerequisiteV2[] matches =
+            (scopedPrerequisites ?? [])
+            .Where(prerequisite =>
+                prerequisite.CaseType == request.CaseType &&
+                string.Equals(
+                    prerequisite.OwnerKey,
+                    request.Coordinate.OwnerKey,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    prerequisite.RecordType,
+                    request.Coordinate.RecordType,
+                    StringComparison.Ordinal) &&
+                prerequisite.ContractVersion == request.ContractVersion)
+            .Take(2)
+            .ToArray();
+        return matches.Length == 1
+            ? matches[0]
+            : throw new InvalidOperationException(
+                "DataRights.AnonymisationPrerequisiteUnavailable");
+    }
+
+    private async Task<DataRightsAnonymisationExecutionPrerequisiteResult>
+        ExecutePrerequisiteWithDeadlineAsync(
+            int contractVersion,
+            DateTimeOffset deadlineUtc,
+            Func<
+                CancellationToken,
+                Task<DataRightsAnonymisationExecutionPrerequisiteResult>>
+                execute,
+            CancellationToken cancellationToken)
+    {
+        TimeSpan remaining = deadlineUtc - clock.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            throw new TimeoutException(
+                "DataRights.AnonymisationPrerequisiteDeadlineExceeded");
+        }
+
+        using CancellationTokenSource deadline =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(remaining);
+
+        DataRightsAnonymisationExecutionPrerequisiteResult result;
+        try
+        {
+            result = await execute(deadline.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                "DataRights.AnonymisationPrerequisiteDeadlineExceeded");
+        }
+
+        if (!IsValidPrerequisiteResult(contractVersion, result))
+        {
+            throw new InvalidOperationException(
+                "DataRights.AnonymisationPrerequisiteResultInvalid");
+        }
+
+        return result;
     }
 
     private async Task<DataRightsAnonymisationContributionResult>
@@ -250,6 +364,29 @@ internal sealed class DataRightsAnonymisationTaskExecutor(
             IsCode(
                 result.OutcomeCode,
                 DataRightsAnonymisationContract.CodeMaxLength);
+    }
+
+    private static bool IsValidPrerequisiteResult(
+        int contractVersion,
+        DataRightsAnonymisationExecutionPrerequisiteResult? result)
+    {
+        if (result is null || result.ContractVersion != contractVersion)
+        {
+            return false;
+        }
+
+        return result.Status switch
+        {
+            DataRightsAnonymisationExecutionPrerequisiteStatus.Completed =>
+                result.OutcomeCode is null,
+            DataRightsAnonymisationExecutionPrerequisiteStatus.Blocked or
+                DataRightsAnonymisationExecutionPrerequisiteStatus
+                    .RetryRequired =>
+                IsCode(
+                    result.OutcomeCode,
+                    DataRightsAnonymisationContract.CodeMaxLength),
+            _ => false
+        };
     }
 
     private static bool IsCode(string? value, int maxLength)

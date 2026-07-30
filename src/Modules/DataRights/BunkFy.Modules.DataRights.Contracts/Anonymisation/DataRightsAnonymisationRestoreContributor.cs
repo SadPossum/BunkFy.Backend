@@ -45,15 +45,29 @@ public sealed record DataRightsAnonymisationRestoreResult(
 {
     public static DataRightsAnonymisationRestoreResult Completed(
         DataRightsAnonymisationRestoreProof proof) =>
-        new(
+        Completed(
             DataRightsAnonymisationRestoreContract.CurrentVersion,
+            proof);
+
+    public static DataRightsAnonymisationRestoreResult Completed(
+        int contractVersion,
+        DataRightsAnonymisationRestoreProof proof) =>
+        new(
+            contractVersion,
             DataRightsAnonymisationRestoreStatus.Completed,
             proof,
             OutcomeCode: null);
 
     public static DataRightsAnonymisationRestoreResult Failed(string failureCode) =>
-        new(
+        Failed(
             DataRightsAnonymisationRestoreContract.CurrentVersion,
+            failureCode);
+
+    public static DataRightsAnonymisationRestoreResult Failed(
+        int contractVersion,
+        string failureCode) =>
+        new(
+            contractVersion,
             DataRightsAnonymisationRestoreStatus.Failed,
             Proof: null,
             failureCode);

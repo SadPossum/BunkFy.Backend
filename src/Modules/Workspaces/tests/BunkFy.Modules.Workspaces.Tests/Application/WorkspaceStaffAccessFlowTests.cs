@@ -1,8 +1,10 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Commands;
+using BunkFy.Modules.Workspaces.Application.Contributors;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -282,6 +284,144 @@ public sealed class WorkspaceStaffAccessFlowTests
     }
 
     [Fact]
+    public async Task Staff_anonymisation_reasserts_departure_access_closure()
+    {
+        List<string> operations = [];
+        FakeRoles roles = new(operations);
+        FakeProfiles profiles = new(operations);
+        AccessSubject subject = AccessSubject.User("member-a");
+        AccessScope scope = WorkspaceAccessScopes.Create(ScopeId);
+        AccessProfileDto profile = profiles.AddProfile(scope, "front-desk");
+        profiles.Assign(subject, scope, profile.Id);
+        roles.Add(subject, WorkspaceAccessRoles.MembershipMarker, scope);
+        WorkspaceStaffAccessProcess process = CreateProcess(
+            WorkspaceStaffAccessTargetState.Departed,
+            targetVersion: 2,
+            [profile.Id]);
+        Assert.True(process.MarkAwaitingStaffCommit(Now).IsSuccess);
+        Assert.True(process.ObserveStaffCommit(Now).IsSuccess);
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+            new FakeStaffRestoreStateReader(new(
+                StaffId,
+                Version: 2,
+                StaffAnonymisationRestoreRecordState.Departed,
+                "member-a",
+                AnonymisedAtUtc: null)),
+            new FakeProcessRepository(process),
+            new WorkspaceStaffAccessDenier(
+                new FakeMembershipLifecycle(operations),
+                new WorkspaceAccessProvisioner(roles, profiles),
+                new TestClock(),
+                NullLogger<WorkspaceStaffAccessDenier>.Instance),
+            NullLogger<
+                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+
+        DataRightsAnonymisationExecutionPrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateAnonymisationRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationExecutionPrerequisiteStatus.Completed,
+            result.Status);
+        Assert.Empty(profiles.AssignedProfileIds(subject, scope));
+        Assert.False(roles.Has(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope));
+        Assert.True(
+            operations.IndexOf("membership:Removed") <
+            operations.IndexOf("profiles:reconcile"));
+    }
+
+    [Fact]
+    public async Task Staff_restore_requires_durable_departure_mapping()
+    {
+        List<string> operations = [];
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+            new FakeStaffRestoreStateReader(new(
+                StaffId,
+                Version: 3,
+                StaffAnonymisationRestoreRecordState.Anonymised,
+                AuthSubjectId: null,
+                Now)),
+            new FakeProcessRepository(),
+            new WorkspaceStaffAccessDenier(
+                new FakeMembershipLifecycle(operations),
+                new WorkspaceAccessProvisioner(
+                    new FakeRoles(operations),
+                    new FakeProfiles(operations)),
+                new TestClock(),
+                NullLogger<WorkspaceStaffAccessDenier>.Instance),
+            NullLogger<
+                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+
+        DataRightsAnonymisationRestorePrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateRestoreRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationRestorePrerequisiteStatus.Blocked,
+            result.Status);
+        Assert.Equal(
+            "Workspaces.StaffAnonymisationAccessMappingUnavailable",
+            result.OutcomeCode);
+        Assert.Empty(operations);
+    }
+
+    [Fact]
+    public async Task Staff_restore_uses_departure_mapping_to_reassert_denial()
+    {
+        List<string> operations = [];
+        FakeRoles roles = new(operations);
+        FakeProfiles profiles = new(operations);
+        AccessSubject subject = AccessSubject.User("member-a");
+        AccessScope scope = WorkspaceAccessScopes.Create(ScopeId);
+        AccessProfileDto profile = profiles.AddProfile(scope, "front-desk");
+        profiles.Assign(subject, scope, profile.Id);
+        roles.Add(subject, WorkspaceAccessRoles.MembershipMarker, scope);
+        WorkspaceStaffAccessProcess process = CreateProcess(
+            WorkspaceStaffAccessTargetState.Departed,
+            targetVersion: 2,
+            [profile.Id]);
+        Assert.True(process.MarkAwaitingStaffCommit(Now).IsSuccess);
+        Assert.True(process.ObserveStaffCommit(Now).IsSuccess);
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+            new FakeStaffRestoreStateReader(new(
+                StaffId,
+                Version: 3,
+                StaffAnonymisationRestoreRecordState.Anonymised,
+                AuthSubjectId: null,
+                AnonymisedAtUtc: Now)),
+            new FakeProcessRepository(process),
+            new WorkspaceStaffAccessDenier(
+                new FakeMembershipLifecycle(operations),
+                new WorkspaceAccessProvisioner(roles, profiles),
+                new TestClock(),
+                NullLogger<WorkspaceStaffAccessDenier>.Instance),
+            NullLogger<
+                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+
+        DataRightsAnonymisationRestorePrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateRestoreRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationRestorePrerequisiteStatus.Completed,
+            result.Status);
+        Assert.Empty(profiles.AssignedProfileIds(subject, scope));
+        Assert.False(roles.Has(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope));
+        Assert.True(
+            operations.IndexOf("membership:Removed") <
+            operations.IndexOf("profiles:reconcile"));
+    }
+
+    [Fact]
     public async Task Product_policy_denies_direct_organization_membership_changes()
     {
         WorkspaceOrganizationMembershipChangePolicy policy = new();
@@ -317,6 +457,48 @@ public sealed class WorkspaceStaffAccessFlowTests
         "user:owner");
 
     private static readonly Guid StaffId = Guid.NewGuid();
+
+    private static DataRightsAnonymisationContributionRequestV2
+        CreateAnonymisationRequest() =>
+        new(
+            DataRightsAnonymisationContractV2.CurrentVersion,
+            ScopeId,
+            DataRightsCaseType.StaffRights,
+            DataRightsExecutionScopeKind.Tenant,
+            PropertyId: null,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ApprovalRevision: 1,
+            OperationRevision: 2,
+            new DataRightsSubjectCoordinate(
+                StaffDataRightsCoordinates.Owner,
+                StaffDataRightsCoordinates.StaffMemberRecordType,
+                StaffId,
+                RecordVersion: 2),
+            ApprovalEvidence: null!,
+            "user:operator",
+            Now.AddMinutes(2));
+
+    private static DataRightsAnonymisationRestoreRequestV3
+        CreateRestoreRequest() =>
+        new(
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion,
+            ScopeId,
+            Guid.NewGuid(),
+            TenantSequence: 1,
+            new string('a', 64),
+            DataRightsCaseType.StaffRights,
+            DataRightsExecutionScopeKind.Tenant,
+            RoutingPropertyId: null,
+            StaffDataRightsCoordinates.Owner,
+            StaffDataRightsCoordinates.StaffMemberRecordType,
+            StaffId,
+            OwnerReceiptContractVersion: 1,
+            Guid.NewGuid(),
+            new string('b', 64),
+            ResultingRecordVersion: 3,
+            Now);
 
     private static WorkspaceStaffAccessProcess CreateProcess(
         WorkspaceStaffAccessTargetState targetState,
@@ -378,6 +560,18 @@ public sealed class WorkspaceStaffAccessFlowTests
                 .FirstOrDefault());
         }
 
+        public Task<WorkspaceStaffAccessProcess?> GetCompletedDepartureAsync(
+            Guid staffMemberId,
+            long targetStaffVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(this.Processes.SingleOrDefault(process =>
+                process.StaffMemberId == staffMemberId &&
+                process.TargetStaffVersion == targetStaffVersion &&
+                process.TargetState ==
+                    WorkspaceStaffAccessTargetState.Departed &&
+                process.State ==
+                    WorkspaceStaffAccessProcessState.Completed));
+
         public Task<WorkspaceStaffAccessProcessListResponse> ListOpenAsync(
             PageRequest page,
             CancellationToken cancellationToken) => Task.FromResult(
@@ -410,6 +604,24 @@ public sealed class WorkspaceStaffAccessFlowTests
             operations.Add($"membership:{desiredStatus}");
             return Task.FromResult(new OrganizationMembershipLifecycleResult(outcome, null));
         }
+    }
+
+    private sealed class FakeStaffRestoreStateReader(
+        StaffAnonymisationRestoreState? state)
+        : IStaffAnonymisationRestoreStateReader
+    {
+        public Task<StaffAnonymisationRestoreState?> ReadAsync(
+            string tenantId,
+            Guid staffMemberId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                string.Equals(
+                    tenantId,
+                    ScopeId,
+                    StringComparison.Ordinal) &&
+                staffMemberId == StaffId
+                    ? state
+                    : null);
     }
 
     private sealed class FakeRoles(List<string> operations) : IAccessControlRoleProvisioner

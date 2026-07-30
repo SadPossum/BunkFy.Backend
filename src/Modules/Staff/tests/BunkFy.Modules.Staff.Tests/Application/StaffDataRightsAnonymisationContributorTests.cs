@@ -5,6 +5,7 @@ using BunkFy.Modules.Staff.Application;
 using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Contributors;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Staff.Domain.DataRights;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
@@ -119,6 +120,88 @@ public sealed class StaffDataRightsAnonymisationContributorTests
             invalidScope.OutcomeCode);
     }
 
+    [Fact]
+    public async Task Restore_contributor_maps_v3_receipt_to_exact_owner_proof()
+    {
+        DataRightsAnonymisationRestoreRequestV3 request =
+            CreateRestoreRequest();
+        StaffAnonymisationRestoreReceipt receipt =
+            StaffAnonymisationRestoreReceipt.Create(
+                request.TenantId,
+                request.LedgerEntryId,
+                request.RecordId,
+                request.OwnerReceiptContractVersion,
+                request.OwnerReceiptId,
+                request.OwnerReceiptSha256,
+                request.ResultingRecordVersion,
+                tombstoneRevision: 2,
+                Now).Value;
+        FakeRestoreDispatcher dispatcher = new(Result.Success(receipt));
+        StaffDataRightsAnonymisationRestoreContributor contributor =
+            new(dispatcher);
+
+        DataRightsAnonymisationRestoreResult result =
+            await contributor.RestoreAsync(
+                request,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion,
+            result.ContractVersion);
+        Assert.Equal(
+            DataRightsAnonymisationRestoreStatus.Completed,
+            result.Status);
+        DataRightsAnonymisationRestoreProof proof =
+            Assert.IsType<DataRightsAnonymisationRestoreProof>(
+                result.Proof);
+        Assert.Equal(receipt.LedgerEntryId, proof.LedgerEntryId);
+        Assert.Equal(receipt.OwnerReceiptId, proof.OwnerReceiptId);
+        Assert.Equal(
+            receipt.OwnerReceiptSha256,
+            proof.OwnerReceiptSha256);
+        Assert.Equal(
+            receipt.ResultingStaffVersion,
+            proof.ResultingRecordVersion);
+        Assert.Equal(
+            receipt.TombstoneRevision,
+            proof.TombstoneRevision);
+        Assert.Equal(receipt.ReplayedAtUtc, proof.ReplayedAtUtc);
+        RestoreStaffAnonymisationCommand command =
+            Assert.IsType<RestoreStaffAnonymisationCommand>(
+                dispatcher.Command);
+        Assert.Same(request, command.Request);
+    }
+
+    [Fact]
+    public async Task Restore_contributor_maps_owner_failure_without_a_proof()
+    {
+        DataRightsAnonymisationRestoreRequestV3 request =
+            CreateRestoreRequest();
+        FakeRestoreDispatcher dispatcher = new(
+            Result.Failure<StaffAnonymisationRestoreReceipt>(
+                StaffApplicationErrors
+                    .AnonymisationRestoreProofConflict));
+        StaffDataRightsAnonymisationRestoreContributor contributor =
+            new(dispatcher);
+
+        DataRightsAnonymisationRestoreResult result =
+            await contributor.RestoreAsync(
+                request,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion,
+            result.ContractVersion);
+        Assert.Equal(
+            DataRightsAnonymisationRestoreStatus.Failed,
+            result.Status);
+        Assert.Equal(
+            StaffApplicationErrors
+                .AnonymisationRestoreProofConflict.Code,
+            result.OutcomeCode);
+        Assert.Null(result.Proof);
+    }
+
     private static DataRightsAnonymisationContributionRequestV2
         CreateRequest() =>
         new(
@@ -197,6 +280,26 @@ public sealed class StaffDataRightsAnonymisationContributorTests
             Now.AddSeconds(30),
             new string('b', 64));
 
+    private static DataRightsAnonymisationRestoreRequestV3
+        CreateRestoreRequest() =>
+        new(
+            DataRightsAnonymisationRestoreContractV3.CurrentVersion,
+            "tenant-a",
+            Guid.NewGuid(),
+            TenantSequence: 3,
+            new string('a', 64),
+            DataRightsCaseType.StaffRights,
+            DataRightsExecutionScopeKind.Tenant,
+            RoutingPropertyId: null,
+            StaffDataRightsCoordinates.Owner,
+            StaffDataRightsCoordinates.StaffMemberRecordType,
+            Guid.NewGuid(),
+            OwnerReceiptContractVersion: 1,
+            Guid.NewGuid(),
+            new string('b', 64),
+            ResultingRecordVersion: 4,
+            Now.AddDays(-1));
+
     private sealed class FakeDispatcher(
         Result<StaffAnonymisationReceiptDto> result)
         : IRequestDispatcher
@@ -221,5 +324,26 @@ public sealed class StaffDataRightsAnonymisationContributorTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class FakeRestoreDispatcher(
+        Result<StaffAnonymisationRestoreReceipt> result)
+        : IRequestDispatcher
+    {
+        public object? Command { get; private set; }
+
+        public Task<Result<TResponse>> SendAsync<TResponse>(
+            ICommand<TResponse> command,
+            CancellationToken cancellationToken = default)
+        {
+            this.Command = command;
+            return Task.FromResult(
+                (Result<TResponse>)(object)result);
+        }
+
+        public Task<Result<TResponse>> QueryAsync<TResponse>(
+            IQuery<TResponse> query,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

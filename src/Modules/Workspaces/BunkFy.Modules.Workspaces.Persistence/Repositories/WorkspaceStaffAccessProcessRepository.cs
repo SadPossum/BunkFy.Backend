@@ -49,6 +49,21 @@ internal sealed class WorkspaceStaffAccessProcessRepository(WorkspacesDbContext 
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<WorkspaceStaffAccessProcess?> GetCompletedDepartureAsync(
+        Guid staffMemberId,
+        long targetStaffVersion,
+        CancellationToken cancellationToken) =>
+        dbContext.StaffAccessProcesses
+            .SingleOrDefaultAsync(
+                process =>
+                    process.StaffMemberId == staffMemberId &&
+                    process.TargetStaffVersion == targetStaffVersion &&
+                    process.TargetState ==
+                        WorkspaceStaffAccessTargetState.Departed &&
+                    process.State ==
+                        WorkspaceStaffAccessProcessState.Completed,
+                cancellationToken);
+
     public async Task<WorkspaceStaffAccessProcessListResponse> ListOpenAsync(
         PageRequest page,
         CancellationToken cancellationToken)

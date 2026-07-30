@@ -9,7 +9,7 @@ using Gma.Framework.Results;
 public sealed class StaffAnonymisationTombstone
     : ScopedAggregateRoot<Guid>
 {
-    public const int CurrentContractVersion = 1;
+    public const int CurrentContractVersion = 2;
 
     private StaffAnonymisationTombstone() { }
 
@@ -60,6 +60,98 @@ public sealed class StaffAnonymisationTombstone
                 OwnerReceiptSha256 = receiptDigest
             });
     }
+
+    public static Result<StaffAnonymisationTombstone> Restore(
+        string tenantId,
+        Guid staffMemberId,
+        DateTimeOffset originallyCompletedAtUtc,
+        string ownerReceiptSha256,
+        Guid ledgerEntryId,
+        DateTimeOffset replayedAtUtc)
+    {
+        Result<StaffAnonymisationTombstone> created = Create(
+            tenantId,
+            staffMemberId,
+            originallyCompletedAtUtc.ToUniversalTime(),
+            ownerReceiptSha256);
+        if (created.IsFailure)
+        {
+            return created;
+        }
+
+        DateTimeOffset timestamp = replayedAtUtc.ToUniversalTime();
+        if (ledgerEntryId == Guid.Empty ||
+            timestamp == default ||
+            timestamp <
+                originallyCompletedAtUtc.ToUniversalTime())
+        {
+            return Invalid();
+        }
+
+        created.Value.LedgerEntryId = ledgerEntryId;
+        created.Value.LastReplayedAtUtc = timestamp;
+        return created;
+    }
+
+    public Result AttachRestoreProof(
+        Guid ledgerEntryId,
+        DateTimeOffset originallyCompletedAtUtc,
+        string ownerReceiptSha256,
+        DateTimeOffset replayedAtUtc)
+    {
+        string receiptDigest =
+            ownerReceiptSha256?.Trim().ToLowerInvariant() ??
+            string.Empty;
+        DateTimeOffset completedAtUtc =
+            originallyCompletedAtUtc.ToUniversalTime();
+        DateTimeOffset timestamp = replayedAtUtc.ToUniversalTime();
+        if (ledgerEntryId == Guid.Empty ||
+            timestamp == default ||
+            timestamp < completedAtUtc ||
+            this.Authority != StaffAnonymisationAuthority.DataRights ||
+            this.CompletedAtUtc != completedAtUtc ||
+            !string.Equals(
+                this.OwnerReceiptSha256,
+                receiptDigest,
+                StringComparison.Ordinal))
+        {
+            return Result.Failure(
+                StaffDomainErrors.AnonymisationTombstoneInvalid);
+        }
+
+        if (this.LedgerEntryId.HasValue)
+        {
+            return this.LedgerEntryId == ledgerEntryId &&
+                this.LastReplayedAtUtc.HasValue
+                ? Result.Success()
+                : Result.Failure(
+                    StaffDomainErrors.AnonymisationTombstoneInvalid);
+        }
+
+        this.LedgerEntryId = ledgerEntryId;
+        this.LastReplayedAtUtc = timestamp;
+        this.Revision++;
+        return Result.Success();
+    }
+
+    public bool MatchesRestore(
+        Guid staffMemberId,
+        Guid ledgerEntryId,
+        DateTimeOffset originallyCompletedAtUtc,
+        string ownerReceiptSha256) =>
+        this.ContractVersion == CurrentContractVersion &&
+        this.Revision >= 1 &&
+        this.State == StaffAnonymisationTombstoneState.Anonymised &&
+        this.Authority == StaffAnonymisationAuthority.DataRights &&
+        this.Id == staffMemberId &&
+        this.LedgerEntryId == ledgerEntryId &&
+        this.CompletedAtUtc ==
+            originallyCompletedAtUtc.ToUniversalTime() &&
+        string.Equals(
+            this.OwnerReceiptSha256,
+            ownerReceiptSha256?.Trim().ToLowerInvariant(),
+            StringComparison.Ordinal) &&
+        this.LastReplayedAtUtc.HasValue;
 
     public bool Matches(StaffAnonymisationReceipt receipt) =>
         receipt is not null &&

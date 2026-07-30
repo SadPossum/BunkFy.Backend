@@ -60,6 +60,67 @@ public sealed partial class StaffMember
                 StaffDomainErrors.AnonymisationTimestampInvalid);
         }
 
+        return this.ApplyAnonymisedState(
+            actor.Value,
+            eventId,
+            timestamp,
+            timestamp);
+    }
+
+    public Result<StaffMemberAnonymisationOutcome> RestoreAnonymisation(
+        string actorId,
+        Guid eventId,
+        DateTimeOffset originallyCompletedAtUtc,
+        DateTimeOffset replayedAtUtc)
+    {
+        if (this.Status != StaffMemberState.Departed ||
+            this.DepartedAtUtc is null ||
+            this.DepartureEffectiveOn is null ||
+            this.assignments.Any(assignment => assignment.IsCurrent))
+        {
+            return Result.Failure<StaffMemberAnonymisationOutcome>(
+                StaffDomainErrors.AnonymisationRestoreTransitionInvalid);
+        }
+
+        Result<StaffActorId> actor = StaffActorId.Create(actorId);
+        if (actor.IsFailure)
+        {
+            return Result.Failure<StaffMemberAnonymisationOutcome>(
+                actor.Error);
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure<StaffMemberAnonymisationOutcome>(
+                StaffDomainErrors.EventIdRequired);
+        }
+
+        DateTimeOffset completedAtUtc =
+            originallyCompletedAtUtc.ToUniversalTime();
+        DateTimeOffset occurredAtUtc = replayedAtUtc.ToUniversalTime();
+        if (completedAtUtc == default ||
+            occurredAtUtc == default ||
+            completedAtUtc <
+                this.DepartedAtUtc.Value.ToUniversalTime() ||
+            occurredAtUtc < completedAtUtc)
+        {
+            return Result.Failure<StaffMemberAnonymisationOutcome>(
+                StaffDomainErrors.AnonymisationTimestampInvalid);
+        }
+
+        return this.ApplyAnonymisedState(
+            actor.Value,
+            eventId,
+            completedAtUtc,
+            occurredAtUtc);
+    }
+
+    private Result<StaffMemberAnonymisationOutcome> ApplyAnonymisedState(
+        StaffActorId actor,
+        Guid eventId,
+        DateTimeOffset completedAtUtc,
+        DateTimeOffset occurredAtUtc)
+    {
         long previousVersion = this.Version;
         this.DisplayName = AnonymisedDisplayName;
         this.DisplayNameSearch =
@@ -82,11 +143,11 @@ public sealed partial class StaffMember
 
         this.Status = StaffMemberState.Anonymised;
         this.SuspendedAtUtc = null;
-        this.AnonymisedAtUtc = timestamp;
-        this.Advance(actor.Value, timestamp);
+        this.AnonymisedAtUtc = completedAtUtc;
+        this.Advance(actor, occurredAtUtc);
         this.RaiseDomainEvent(new StaffMemberAnonymisedDomainEvent(
             eventId,
-            timestamp,
+            occurredAtUtc,
             this.ScopeId,
             this.Id,
             this.Version));
@@ -94,7 +155,7 @@ public sealed partial class StaffMember
             previousVersion,
             this.Version,
             eventId,
-            timestamp));
+            occurredAtUtc));
     }
 
     public bool MatchesAnonymisedState(

@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Application;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
@@ -72,6 +73,12 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IStaffLifecyclePolicy,
             WorkspaceStaffLifecyclePolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsAnonymisationExecutionPrerequisiteV2,
+            WorkspaceStaffAnonymisationAccessPrerequisite>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsAnonymisationRestorePrerequisiteV3,
+            WorkspaceStaffAnonymisationAccessPrerequisite>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IOrganizationMembershipChangePolicy,
             WorkspaceOrganizationMembershipChangePolicy>());

@@ -104,6 +104,12 @@ public static class StaffApplicationErrors
     public static readonly Error AnonymisationProofUnavailable = new(
         "Staff.AnonymisationProofUnavailable",
         "The committed Staff anonymisation proof is unavailable or inconsistent.");
+    public static readonly Error AnonymisationRestoreRequestInvalid = new(
+        "Staff.AnonymisationRestoreRequestInvalid",
+        "The Staff anonymisation restore request is invalid.");
+    public static readonly Error AnonymisationRestoreProofConflict = new(
+        "Staff.AnonymisationRestoreProofConflict",
+        "The Staff anonymisation restore proof conflicts with current state.");
     public static readonly Error AnonymisationOperationLockUnavailable = new(
         "Staff.AnonymisationOperationLockUnavailable",
         "The Staff anonymisation operation lock is unavailable.");

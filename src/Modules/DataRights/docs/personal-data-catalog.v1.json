@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "data-rights.personal-data",
-  "catalogVersion": 15,
+  "catalogVersion": 16,
   "module": "data-rights",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -167,6 +167,13 @@
       "correction": "append-superseding-export-proof",
       "restriction": "retain-minimum-required-export-proof",
       "erasure": "retain-minimum-proof-until-approved-retention-completes"
+    },
+    {
+      "id": "subject-coordinate",
+      "export": "include-selected-coordinate-in-authorized-subject-export",
+      "correction": "re-run-discovery-against-authoritative-owner",
+      "restriction": "exclude-coordinate-from-selection-and-downstream-work",
+      "erasure": "remove-selected-coordinate-when-approved-case-retention-permits"
     }
   ],
   "fields": [
@@ -544,8 +551,8 @@
       ]
     },
     {
-      "id": "data-rights.guest-subject-record-id",
-      "dataSubject": "guest",
+      "id": "data-rights.subject-record-id",
+      "dataSubject": "subject-scoped",
       "classification": "linked-operational",
       "sensitivity": "standard",
       "purposes": [
@@ -554,14 +561,14 @@
       ],
       "sources": [
         "request-input",
-        "guests-authoritative-owner"
+        "selected-domain-authoritative-owner"
       ],
-      "authoritativeOwner": "guests",
+      "authoritativeOwner": "selected-domain-owner",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "data-rights-case-audit",
-      "countryPolicyKey": "guest.profile.identifier",
+      "countryPolicyKey": "subject.record.identifier",
       "retentionPolicy": "data-rights-case-lifecycle",
-      "rightsPolicy": "guest-subject-discovery",
+      "rightsPolicy": "subject-coordinate",
       "allowedSurfaces": [
         "api-input",
         "application-query",
@@ -698,7 +705,14 @@
           "type": "BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCorrectionExecution",
           "member": "RecordId",
           "surface": "persistence"
-        }
+        },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "RecordId",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          }
       ]
     },
     {
@@ -945,7 +959,7 @@
     },
     {
       "id": "data-rights.owner-restore-proof",
-      "dataSubject": "guest",
+      "dataSubject": "subject-scoped",
       "classification": "linked-operational",
       "sensitivity": "elevated",
       "purposes": [
@@ -955,12 +969,12 @@
       ],
       "sources": [
         "verified-protected-processing-ledger",
-        "owner-anonymisation-restore-proof"
+        "selected-domain-owner-anonymisation-proof"
       ],
       "authoritativeOwner": "data-rights",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "data-rights-processing-ledger",
-      "countryPolicyKey": "guest.profile.identifier",
+      "countryPolicyKey": "subject.anonymisation.restore-proof",
       "retentionPolicy": "data-rights-processing-ledger",
       "rightsPolicy": "processing-ledger-proof",
       "allowedSurfaces": [
@@ -1186,7 +1200,112 @@
           "type": "BunkFy.Modules.DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot",
           "member": "ResultingRecordVersion",
           "surface": "persistence"
-        }
+        },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "ContractVersion",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "TenantId",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "LedgerEntryId",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "TenantSequence",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "LedgerEntrySha256",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "CaseType",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "ScopeKind",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "RoutingPropertyId",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "OwnerKey",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "RecordType",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "OwnerReceiptContractVersion",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "OwnerReceiptId",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "OwnerReceiptSha256",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "ResultingRecordVersion",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          },
+          {
+            "assembly": "BunkFy.Modules.DataRights.Contracts",
+            "type": "BunkFy.Modules.DataRights.Contracts.DataRightsAnonymisationRestoreRequestV3",
+            "member": "OriginallyCompletedAtUtc",
+            "surface": "integration-command",
+            "retentionPolicy": "transient-request"
+          }
       ]
     },
     {

@@ -10,12 +10,15 @@ using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
+using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Governance;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
@@ -23,6 +26,11 @@ using Gma.Framework.Results;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
+using Gma.Modules.AccessControl.Persistence;
+using Gma.Modules.Auth.Persistence;
+using Gma.Modules.Organizations.Domain.Aggregates;
+using Gma.Modules.Organizations.Domain.Enums;
+using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -39,11 +47,12 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
 {
     private const string TenantId =
         "8b000000-0000-0000-0000-000000000001";
+    private const string StaffSubjectId = "private-auth-subject";
 
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Tenant_v2_execution_persists_append_only_owner_proof()
+    public async Task Tenant_v2_execution_and_v3_restore_close_access_and_persist_owner_proof()
     {
         await using IContainer nats =
             AuthTestContainers.CreateNatsContainer();
@@ -52,9 +61,15 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
                 .WithDatabase(
                     "bunkfy_staff_anonymisation_execution_tests")
                 .Build();
+        await using PostgreSqlContainer restoredPostgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase(
+                    "bunkfy_staff_anonymisation_restore_tests")
+                .Build();
         await Task.WhenAll(
                 nats.StartAsync(),
-                postgreSql.StartAsync())
+                postgreSql.StartAsync(),
+                restoredPostgreSql.StartAsync())
             .ConfigureAwait(false);
 
         string connectionString = postgreSql.GetConnectionString();
@@ -169,6 +184,13 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
                 .SingleAsync(candidate =>
                     candidate.Id == dataRightsCase.Id)
                 .ConfigureAwait(false);
+            OrganizationMembership membership = await scope.ServiceProvider
+                .GetRequiredService<OrganizationsDbContext>()
+                .Memberships.AsNoTracking()
+                .SingleAsync(candidate =>
+                    candidate.OrganizationId == Guid.Parse(TenantId) &&
+                    candidate.SubjectId == StaffSubjectId)
+                .ConfigureAwait(false);
             IStaffMemberRepository members = scope.ServiceProvider
                 .GetRequiredService<IStaffMemberRepository>();
 
@@ -199,12 +221,34 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
             Assert.Equal(
                 DataRightsCaseState.Completed,
                 persistedCase.Status);
+            Assert.Equal(
+                OrganizationMembershipState.Removed,
+                membership.Status);
             Assert.Single(
                 staff.OutboxMessages,
                 message =>
                     message.EventType ==
                     typeof(StaffMemberAnonymisedIntegrationEvent)
                         .FullName);
+            string protectedFiles = string.Join(
+                '\n',
+                Directory.GetFiles(
+                        ledgerDeltaPath,
+                        "*",
+                        SearchOption.AllDirectories)
+                    .Select(File.ReadAllText));
+            Assert.DoesNotContain(
+                member.Id.ToString("N"),
+                protectedFiles,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(
+                "Private Staff Name",
+                protectedFiles,
+                StringComparison.Ordinal);
+            Assert.DoesNotContain(
+                "private.staff@example.test",
+                protectedFiles,
+                StringComparison.Ordinal);
 
             await worker.StopAsync().ConfigureAwait(false);
             workerStarted = false;
@@ -218,6 +262,111 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
                 receipt.Id,
                 delete: true).ConfigureAwait(false);
             await AssertUnsafeDowngradesRejectedAsync(api)
+                .ConfigureAwait(false);
+
+            using IHost restoredWorker = CreateWorker(
+                restoredPostgreSql.GetConnectionString(),
+                natsConnectionString,
+                ledgerDeltaPath);
+            await MigrateRestoreDatabasesAsync(restoredWorker)
+                .ConfigureAwait(false);
+            await SeedPreAnonymisationSnapshotAsync(
+                    restoredWorker,
+                    member.Id,
+                    receipt.ResultingStaffVersion - 1)
+                .ConfigureAwait(false);
+
+            await restoredWorker.StartAsync().ConfigureAwait(false);
+            try
+            {
+                using IServiceScope restoredScope =
+                    restoredWorker.Services.CreateScope();
+                restoredScope.ServiceProvider
+                    .GetRequiredService<ITenantContextAccessor>()
+                    .SetTenant(TenantId);
+                StaffDbContext restoredStaff = restoredScope.ServiceProvider
+                    .GetRequiredService<StaffDbContext>();
+                DataRightsDbContext restoredDataRights =
+                    restoredScope.ServiceProvider
+                        .GetRequiredService<DataRightsDbContext>();
+                StaffMember restoredMember =
+                    await restoredStaff.StaffMembers
+                        .AsNoTracking()
+                        .SingleAsync(candidate =>
+                            candidate.Id == member.Id)
+                        .ConfigureAwait(false);
+                StaffAnonymisationRestoreReceipt restoreReceipt =
+                    await restoredStaff.AnonymisationRestoreReceipts
+                        .AsNoTracking()
+                        .SingleAsync()
+                        .ConfigureAwait(false);
+                StaffAnonymisationTombstone restoredTombstone =
+                    await restoredStaff.AnonymisationTombstones
+                        .AsNoTracking()
+                        .SingleAsync(candidate =>
+                            candidate.Id == member.Id)
+                        .ConfigureAwait(false);
+                DataRightsRestoreCheckpoint restoreCheckpoint =
+                    await restoredDataRights.RestoreCheckpoints
+                        .AsNoTracking()
+                        .SingleAsync()
+                        .ConfigureAwait(false);
+                OrganizationMembership restoredMembership =
+                    await restoredScope.ServiceProvider
+                        .GetRequiredService<OrganizationsDbContext>()
+                        .Memberships.AsNoTracking()
+                        .SingleAsync(candidate =>
+                            candidate.OrganizationId ==
+                                Guid.Parse(TenantId) &&
+                            candidate.SubjectId == StaffSubjectId)
+                        .ConfigureAwait(false);
+                DataRightsRestoreReadinessSnapshot readiness =
+                    restoredScope.ServiceProvider
+                        .GetRequiredService<IDataRightsRestoreReadiness>()
+                        .Snapshot;
+
+                Assert.True(restoredMember.MatchesAnonymisedState(
+                    receipt.ResultingStaffVersion,
+                    receipt.CompletedAtUtc));
+                Assert.Equal(ledger.Id, restoreReceipt.LedgerEntryId);
+                Assert.Equal(receipt.Id, restoreReceipt.OwnerReceiptId);
+                Assert.Equal(
+                    receipt.CanonicalSha256,
+                    restoreReceipt.OwnerReceiptSha256);
+                Assert.Equal(
+                    receipt.ResultingStaffVersion,
+                    restoreReceipt.ResultingStaffVersion);
+                Assert.True(restoredTombstone.MatchesRestore(
+                    member.Id,
+                    ledger.Id,
+                    receipt.CompletedAtUtc,
+                    receipt.CanonicalSha256));
+                Assert.Equal(
+                    OrganizationMembershipState.Removed,
+                    restoredMembership.Status);
+                Assert.Equal(1, restoreCheckpoint.TenantSequence);
+                Assert.Equal(
+                    ledger.EntrySha256,
+                    restoreCheckpoint.EntrySha256);
+                Assert.True(readiness.IsReady);
+                Assert.Equal(
+                    "data-rights.restore.ready",
+                    readiness.StatusCode);
+            }
+            finally
+            {
+                await restoredWorker.StopAsync().ConfigureAwait(false);
+            }
+
+            await AssertRestoreReceiptMutationRejectedAsync(
+                restoredWorker,
+                ledger.Id,
+                delete: false).ConfigureAwait(false);
+            await AssertRestoreReceiptMutationRejectedAsync(
+                restoredWorker,
+                ledger.Id,
+                delete: true).ConfigureAwait(false);
+            await AssertRestoreDowngradeRejectedAsync(restoredWorker)
                 .ConfigureAwait(false);
         }
         finally
@@ -289,12 +438,17 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
                     "staff-anonymisation-node",
                 ["Tasks:Worker:TimeoutScannerEnabled"] = "false",
                 ["Tasks:Worker:MetricsSamplerEnabled"] = "false",
+                ["Worker:Modules:AccessControl"] = "true",
+                ["Worker:Modules:Auth"] = "true",
+                ["Worker:Modules:Organizations"] = "true",
                 ["Worker:Modules:Properties"] = "true",
                 ["Worker:Modules:Staff"] = "true",
                 ["Worker:Modules:DataRights"] = "true",
                 ["Worker:Modules:TaskRuntime"] = "true"
             });
         builder.Logging.ClearProviders();
+        AuthTestConfiguration.ConfigureTokenHashing(
+            builder.Configuration);
         builder.AddWorkerHost();
         CountryPolicyIntegrationTestData.InstallRegistry(
             builder.Services);
@@ -313,26 +467,93 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
             .ConfigureAwait(false);
     }
 
-    private static async Task<(StaffMember Member, DataRightsCase Case)>
-        SeedExecutionCandidateAsync(AuthTestApplication api)
+    private static async Task MigrateRestoreDatabasesAsync(IHost worker)
     {
-        using IServiceScope scope = api.Services.CreateScope();
+        using IServiceScope scope = worker.Services.CreateScope();
+        await scope.ServiceProvider
+            .GetRequiredService<AuthDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<AccessControlDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<OrganizationsDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<PropertiesDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<StaffDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<WorkspacesDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<DataRightsDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<TaskRuntimeDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
+    }
+
+    private static async Task SeedPreAnonymisationSnapshotAsync(
+        IHost worker,
+        Guid staffMemberId,
+        long expectedDepartedVersion)
+    {
+        using IServiceScope scope = worker.Services.CreateScope();
         scope.ServiceProvider
             .GetRequiredService<ITenantContextAccessor>()
             .SetTenant(TenantId);
         DateTimeOffset departedAtUtc =
             DateTimeOffset.UtcNow.AddDays(-2);
+        StaffMember member = CreateDepartedStaffMember(
+            staffMemberId,
+            departedAtUtc,
+            "Restored Staff Name",
+            "restored.staff@example.test");
+        Assert.Equal(expectedDepartedVersion, member.Version);
+
+        await scope.ServiceProvider
+            .GetRequiredService<IStaffMemberRepository>()
+            .AddAsync(member, CancellationToken.None)
+            .ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<StaffDbContext>()
+            .SaveChangesAsync()
+            .ConfigureAwait(false);
+        await SeedWorkspaceAccessProofAsync(
+                scope.ServiceProvider,
+                member,
+                departedAtUtc.AddMinutes(3))
+            .ConfigureAwait(false);
+    }
+
+    private static StaffMember CreateDepartedStaffMember(
+        Guid staffMemberId,
+        DateTimeOffset departedAtUtc,
+        string displayName,
+        string workEmail)
+    {
         StaffMember member = StaffMember.Create(
-            Guid.NewGuid(),
+            staffMemberId,
             TenantId,
-            "Private Staff Name",
-            "Private Legal Name",
-            "private.staff@example.test",
+            displayName,
+            $"{displayName} Legal",
+            workEmail,
             "+44 20 1234 5678",
             "PRIVATE-EMPLOYEE",
             "Private job title",
             "Private department",
-            "private-auth-subject",
+            StaffSubjectId,
             "user:staff-creator",
             Guid.NewGuid(),
             departedAtUtc.AddDays(-1)).Value;
@@ -345,6 +566,84 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
             [],
             departedAtUtc).IsSuccess);
         member.ClearDomainEvents();
+        return member;
+    }
+
+    private static async Task SeedWorkspaceAccessProofAsync(
+        IServiceProvider services,
+        StaffMember member,
+        DateTimeOffset nowUtc)
+    {
+        Guid organizationId = Guid.Parse(TenantId);
+        const string actorId = "user:workspace-owner";
+        OrganizationsDbContext organizations =
+            services.GetRequiredService<OrganizationsDbContext>();
+        organizations.Organizations.Add(Organization.Create(
+            organizationId,
+            "Staff restore workspace",
+            "staff-restore-workspace",
+            actorId,
+            Guid.NewGuid(),
+            nowUtc).Value);
+        organizations.Memberships.Add(OrganizationMembership.Create(
+            Guid.NewGuid(),
+            organizationId,
+            "workspace-owner",
+            OrganizationMembershipRole.Owner,
+            actorId,
+            Guid.NewGuid(),
+            nowUtc).Value);
+        organizations.Memberships.Add(OrganizationMembership.Create(
+            Guid.NewGuid(),
+            organizationId,
+            StaffSubjectId,
+            OrganizationMembershipRole.Member,
+            actorId,
+            Guid.NewGuid(),
+            nowUtc).Value);
+        await organizations.SaveChangesAsync().ConfigureAwait(false);
+
+        WorkspaceStaffAccessProcess process =
+            WorkspaceStaffAccessProcess.Create(
+                Guid.NewGuid(),
+                TenantId,
+                member.Id,
+                StaffSubjectId,
+                WorkspaceStaffAccessTargetState.Departed,
+                member.Version,
+                member.DepartureEffectiveOn!.Value,
+                actorId,
+                [],
+                nowUtc).Value;
+        Assert.True(
+            process.MarkAwaitingStaffCommit(
+                nowUtc.AddSeconds(1)).IsSuccess);
+        Assert.True(
+            process.ObserveStaffCommit(
+                nowUtc.AddSeconds(2)).IsSuccess);
+        Assert.Equal(
+            WorkspaceStaffAccessProcessState.Completed,
+            process.State);
+        WorkspacesDbContext workspaces =
+            services.GetRequiredService<WorkspacesDbContext>();
+        workspaces.StaffAccessProcesses.Add(process);
+        await workspaces.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    private static async Task<(StaffMember Member, DataRightsCase Case)>
+        SeedExecutionCandidateAsync(AuthTestApplication api)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        DateTimeOffset departedAtUtc =
+            DateTimeOffset.UtcNow.AddDays(-2);
+        StaffMember member = CreateDepartedStaffMember(
+            Guid.NewGuid(),
+            departedAtUtc,
+            "Private Staff Name",
+            "private.staff@example.test");
 
         StaffDbContext staff =
             scope.ServiceProvider.GetRequiredService<StaffDbContext>();
@@ -366,6 +665,11 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
                 departedAtUtc.AddMinutes(2)).Value;
         staff.EmploymentGovernance.Add(governance);
         await staff.SaveChangesAsync().ConfigureAwait(false);
+        await SeedWorkspaceAccessProofAsync(
+                scope.ServiceProvider,
+                member,
+                departedAtUtc.AddMinutes(3))
+            .ConfigureAwait(false);
 
         DateTimeOffset caseStartedAtUtc =
             DateTimeOffset.UtcNow.AddMinutes(-10);
@@ -586,7 +890,8 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
     {
         await AssertDowngradeRejectedAsync<StaffDbContext>(
             api,
-            "Cannot downgrade while Staff anonymisation state or proof exists.")
+            "Cannot downgrade while Staff anonymisation state or proof exists.",
+            migrationsBack: 2)
             .ConfigureAwait(false);
         await AssertDowngradeRejectedAsync<DataRightsDbContext>(
             api,
@@ -596,10 +901,22 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
 
     private static async Task AssertDowngradeRejectedAsync<TContext>(
         AuthTestApplication api,
-        string expectedMessage)
+        string expectedMessage,
+        int migrationsBack = 1)
+        where TContext : DbContext =>
+        await AssertDowngradeRejectedAsync<TContext>(
+                api.Services,
+                expectedMessage,
+                migrationsBack)
+            .ConfigureAwait(false);
+
+    private static async Task AssertDowngradeRejectedAsync<TContext>(
+        IServiceProvider services,
+        string expectedMessage,
+        int migrationsBack = 1)
         where TContext : DbContext
     {
-        using IServiceScope scope = api.Services.CreateScope();
+        using IServiceScope scope = services.CreateScope();
         scope.ServiceProvider
             .GetRequiredService<ITenantContextAccessor>()
             .SetTenant(TenantId);
@@ -609,14 +926,51 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
                 .GetAppliedMigrationsAsync()
                 .ConfigureAwait(false))
             .ToArray();
-        Assert.True(applied.Length >= 2);
+        Assert.True(applied.Length > migrationsBack);
         IMigrator migrator =
             dbContext.Database.GetService<IMigrator>();
         Exception exception = await Assert.ThrowsAnyAsync<Exception>(
-            () => migrator.MigrateAsync(applied[^2]));
+            () => migrator.MigrateAsync(
+                applied[^(migrationsBack + 1)]));
         Assert.Contains(
             expectedMessage,
             exception.ToString(),
             StringComparison.Ordinal);
     }
+
+    private static async Task AssertRestoreReceiptMutationRejectedAsync(
+        IHost worker,
+        Guid receiptId,
+        bool delete)
+    {
+        using IServiceScope scope = worker.Services.CreateScope();
+        scope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        StaffDbContext staff =
+            scope.ServiceProvider.GetRequiredService<StaffDbContext>();
+        Exception exception = await Assert.ThrowsAnyAsync<Exception>(
+            () => delete
+                ? staff.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                    DELETE FROM "staff"."staff_anonymisation_restore_receipts"
+                    WHERE "Id" = {receiptId}
+                    """)
+                : staff.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                    UPDATE "staff"."staff_anonymisation_restore_receipts"
+                    SET "CanonicalSha256" = {new string('f', 64)}
+                    WHERE "Id" = {receiptId}
+                    """));
+        Assert.Contains(
+            "Staff receipts are append-only",
+            exception.ToString(),
+            StringComparison.Ordinal);
+    }
+
+    private static Task AssertRestoreDowngradeRejectedAsync(
+        IHost worker) =>
+        AssertDowngradeRejectedAsync<StaffDbContext>(
+            worker.Services,
+            "Cannot downgrade Staff anonymisation restore proof while restore evidence exists.");
 }

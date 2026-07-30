@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 6,
+  "catalogVersion": 7,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -559,6 +559,18 @@
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
           "member": "OwnerReceiptSha256",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
         }
       ]
     },
@@ -666,6 +678,13 @@
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
           "member": "CompletedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAnonymisationRestoreState",
+          "member": "AnonymisedAtUtc",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -714,6 +733,18 @@
           "assembly": "BunkFy.Modules.Staff.Domain",
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
           "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptContractVersion",
           "surface": "persistence"
         }
       ]
@@ -989,6 +1020,12 @@
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationReceipt",
           "member": "Id",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "OwnerReceiptId",
+          "surface": "persistence"
         }
       ]
     },
@@ -1073,6 +1110,12 @@
         {
           "assembly": "BunkFy.Modules.Staff.Domain",
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationReceipt",
+          "member": "ResultingStaffVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
           "member": "ResultingStaffVersion",
           "surface": "persistence"
         }
@@ -1226,6 +1269,12 @@
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
           "member": "Id",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence"
         }
       ]
     },
@@ -1309,6 +1358,12 @@
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
           "member": "ScopeId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
         }
       ]
     },
@@ -1377,6 +1432,12 @@
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
           "member": "LastReplayedAtUtc",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "ReplayedAtUtc",
+          "surface": "persistence"
         }
       ]
     },
@@ -1409,6 +1470,18 @@
         {
           "assembly": "BunkFy.Modules.Staff.Domain",
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
+          "member": "LedgerEntryId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
           "member": "LedgerEntryId",
           "surface": "persistence"
         }
@@ -1444,6 +1517,12 @@
           "assembly": "BunkFy.Modules.Staff.Domain",
           "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationTombstone",
           "member": "Revision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.DataRights.StaffAnonymisationRestoreReceipt",
+          "member": "TombstoneRevision",
           "surface": "persistence"
         }
       ]
@@ -2311,7 +2390,8 @@
         "application-query",
         "data-rights-export",
         "integration-command",
-        "persistence"
+        "persistence",
+        "projection-export"
       ],
       "allowedBoundaries": [
         "cross-module",
@@ -2431,6 +2511,13 @@
           "member": "AuthSubjectId",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAnonymisationRestoreState",
+          "member": "AuthSubjectId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -8834,7 +8921,8 @@
         "api-response",
         "application-command",
         "data-rights-export",
-        "persistence"
+        "persistence",
+        "projection-export"
       ],
       "allowedBoundaries": [
         "cross-module",
@@ -9080,6 +9168,13 @@
           "member": "Version",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAnonymisationRestoreState",
+          "member": "Version",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -10710,6 +10805,13 @@
           "member": "StaffMemberId",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAnonymisationRestoreState",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -10737,7 +10839,8 @@
         "application-query",
         "data-rights-export",
         "integration-command",
-        "persistence"
+        "persistence",
+        "projection-export"
       ],
       "allowedBoundaries": [
         "cross-module",
@@ -10815,6 +10918,13 @@
           "member": "Status",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffAnonymisationRestoreState",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },

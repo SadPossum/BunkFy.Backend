@@ -195,6 +195,8 @@ public sealed class StaffModelTests
         IModel design = dbContext.GetService<IDesignTimeModel>().Model;
         IEntityType receipt = runtime.FindEntityType(
             typeof(StaffAnonymisationReceipt))!;
+        IEntityType restoreReceipt = runtime.FindEntityType(
+            typeof(StaffAnonymisationRestoreReceipt))!;
         IEntityType tombstone = runtime.FindEntityType(
             typeof(StaffAnonymisationTombstone))!;
 
@@ -229,6 +231,27 @@ public sealed class StaffModelTests
                     nameof(StaffAnonymisationTombstone.ScopeId),
                     nameof(StaffAnonymisationTombstone.Id)
                 ]));
+        Assert.Contains(restoreReceipt.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(StaffAnonymisationRestoreReceipt.ScopeId),
+                    nameof(StaffAnonymisationRestoreReceipt.StaffMemberId),
+                    nameof(StaffAnonymisationRestoreReceipt.LedgerEntryId)
+                ]));
+        Assert.Contains(restoreReceipt.GetForeignKeys(), foreignKey =>
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(StaffAnonymisationRestoreReceipt.ScopeId),
+                    nameof(StaffAnonymisationRestoreReceipt.StaffMemberId)
+                ]));
+        Assert.Contains(
+            design.FindEntityType(
+                    typeof(StaffAnonymisationRestoreReceipt))!
+                .GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_staff_anonymisation_restore_receipts_identity");
 
         StaffAnonymisationReceipt proof =
             StaffAnonymisationReceipt.Create(
@@ -264,6 +287,27 @@ public sealed class StaffModelTests
                 () => dbContext.SaveChangesAsync());
 
         Assert.Contains("append-only", failure.Message);
+
+        dbContext.ChangeTracker.Clear();
+        StaffAnonymisationRestoreReceipt restoreProof =
+            StaffAnonymisationRestoreReceipt.Create(
+                "tenant-a",
+                Guid.NewGuid(),
+                proof.StaffMemberId,
+                ownerReceiptContractVersion: 1,
+                proof.Id,
+                proof.CanonicalSha256,
+                proof.ResultingStaffVersion,
+                tombstoneRevision: 1,
+                proof.CompletedAtUtc.AddMinutes(1)).Value;
+        dbContext.AnonymisationRestoreReceipts.Add(restoreProof);
+        dbContext.Entry(restoreProof).State = EntityState.Modified;
+
+        InvalidOperationException restoreFailure =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => dbContext.SaveChangesAsync());
+
+        Assert.Contains("append-only", restoreFailure.Message);
     }
 
     [Fact]

@@ -128,9 +128,15 @@ public static class StaffDomainErrors
     public static readonly Error AnonymisationTransitionInvalid = new(
         "Staff.AnonymisationTransitionInvalid",
         "The Staff member is not eligible for anonymisation.");
+    public static readonly Error AnonymisationRestoreTransitionInvalid = new(
+        "Staff.AnonymisationRestoreTransitionInvalid",
+        "The Staff member cannot be restored to an anonymised state.");
     public static readonly Error AnonymisationReceiptInvalid = new(
         "Staff.AnonymisationReceiptInvalid",
         "The Staff anonymisation receipt is invalid.");
+    public static readonly Error AnonymisationRestoreReceiptInvalid = new(
+        "Staff.AnonymisationRestoreReceiptInvalid",
+        "The Staff anonymisation restore receipt is invalid.");
     public static readonly Error AnonymisationTombstoneInvalid = new(
         "Staff.AnonymisationTombstoneInvalid",
         "The Staff anonymisation tombstone is invalid.");

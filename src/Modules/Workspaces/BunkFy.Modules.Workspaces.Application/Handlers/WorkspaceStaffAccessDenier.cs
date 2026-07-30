@@ -27,44 +27,88 @@ internal sealed class WorkspaceStaffAccessDenier(
             return WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
         }
 
-        OrganizationMembershipStatus desiredStatus = process.TargetState ==
+        WorkspaceStaffAccessCoordinationOutcome outcome =
+            await this.EnsureAccessDeniedAsync(
+                process.ScopeId,
+                process.SubjectId,
+                process.TargetState,
+                cancellationToken).ConfigureAwait(false);
+        if (outcome == WorkspaceStaffAccessCoordinationOutcome.OwnerProtected)
+        {
+            process.RecordFailure(
+                "Workspaces.StaffAccessOwnerProtected",
+                clock.UtcNow);
+            return outcome;
+        }
+
+        if (outcome != WorkspaceStaffAccessCoordinationOutcome.Allowed)
+        {
+            process.RecordFailure(
+                "Workspaces.StaffAccessDenialFailed",
+                clock.UtcNow);
+            return outcome;
+        }
+
+        return process.MarkAwaitingStaffCommit(clock.UtcNow).IsSuccess
+            ? WorkspaceStaffAccessCoordinationOutcome.Allowed
+            : WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
+    }
+
+    public async Task<WorkspaceStaffAccessCoordinationOutcome>
+        EnsureAccessDeniedAsync(
+            string workspaceId,
+            string subjectId,
+            WorkspaceStaffAccessTargetState targetState,
+            CancellationToken cancellationToken)
+    {
+        if (targetState is not (
+                WorkspaceStaffAccessTargetState.Suspended or
+                WorkspaceStaffAccessTargetState.Departed) ||
+            !Guid.TryParse(workspaceId, out Guid organizationId) ||
+            string.IsNullOrWhiteSpace(subjectId))
+        {
+            return WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
+        }
+
+        OrganizationMembershipStatus desiredStatus = targetState ==
             WorkspaceStaffAccessTargetState.Departed
             ? OrganizationMembershipStatus.Removed
             : OrganizationMembershipStatus.Suspended;
         try
         {
-            OrganizationMembershipLifecycleResult membership = await memberships.EnsureStateAsync(
-                Guid.Parse(process.ScopeId),
-                process.SubjectId,
-                desiredStatus,
-                WorkspaceAccessProvisioner.ProvisioningActorId,
-                cancellationToken).ConfigureAwait(false);
-            if (membership.Outcome == OrganizationMembershipLifecycleOutcome.OwnerProtected)
+            OrganizationMembershipLifecycleResult membership =
+                await memberships.EnsureStateAsync(
+                    organizationId,
+                    subjectId.Trim(),
+                    desiredStatus,
+                    WorkspaceAccessProvisioner.ProvisioningActorId,
+                    cancellationToken).ConfigureAwait(false);
+            if (membership.Outcome ==
+                OrganizationMembershipLifecycleOutcome.OwnerProtected)
             {
-                process.RecordFailure("Workspaces.StaffAccessOwnerProtected", clock.UtcNow);
                 return WorkspaceStaffAccessCoordinationOutcome.OwnerProtected;
             }
 
-            if (membership.Outcome is OrganizationMembershipLifecycleOutcome.Unknown or
-                OrganizationMembershipLifecycleOutcome.TransitionNotAllowed)
+            if (membership.Outcome is not (
+                    OrganizationMembershipLifecycleOutcome.Changed or
+                    OrganizationMembershipLifecycleOutcome
+                        .AlreadyInDesiredState or
+                    OrganizationMembershipLifecycleOutcome.NotFound))
             {
-                process.RecordFailure("Workspaces.OrganizationMembershipTransitionFailed", clock.UtcNow);
                 return WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
             }
 
             await access.DenyMemberAsync(
-                process.ScopeId,
-                process.SubjectId,
+                workspaceId,
+                subjectId.Trim(),
                 cancellationToken).ConfigureAwait(false);
-            return process.MarkAwaitingStaffCommit(clock.UtcNow).IsSuccess
-                ? WorkspaceStaffAccessCoordinationOutcome.Allowed
-                : WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
+            return WorkspaceStaffAccessCoordinationOutcome.Allowed;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
+            when (exception is not OperationCanceledException)
         {
-            process.RecordFailure("Workspaces.StaffAccessDenialFailed", clock.UtcNow);
             logger.LogWarning(
-                "A workspace Staff access process could not deny access because {ExceptionType} was raised.",
+                "Workspace Staff access denial failed because {ExceptionType} was raised.",
                 exception.GetType().Name);
             return WorkspaceStaffAccessCoordinationOutcome.RetryRequired;
         }

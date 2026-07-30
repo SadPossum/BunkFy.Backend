@@ -86,6 +86,18 @@ public static class DataRightsApplicationErrors
     public static readonly Error RestoreOwnerUnavailable = new(
         "DataRights.RestoreOwnerUnavailable",
         "A required data-rights restore owner is unavailable.");
+    public static readonly Error RestorePrerequisiteUnavailable = new(
+        "DataRights.RestorePrerequisiteUnavailable",
+        "A required data-rights restore prerequisite is unavailable.");
+    public static readonly Error RestorePrerequisiteBlocked = new(
+        "DataRights.RestorePrerequisiteBlocked",
+        "A required data-rights restore prerequisite blocked replay.");
+    public static readonly Error RestorePrerequisiteRetryRequired = new(
+        "DataRights.RestorePrerequisiteRetryRequired",
+        "A required data-rights restore prerequisite must be retried.");
+    public static readonly Error RestorePrerequisiteResultInvalid = new(
+        "DataRights.RestorePrerequisiteResultInvalid",
+        "A required data-rights restore prerequisite returned an invalid result.");
     public static readonly Error RestoreOwnerProofInvalid = new(
         "DataRights.RestoreOwnerProofInvalid",
         "A data-rights restore owner returned invalid proof.");

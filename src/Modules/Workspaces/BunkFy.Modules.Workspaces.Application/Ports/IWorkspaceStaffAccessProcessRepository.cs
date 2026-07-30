@@ -18,6 +18,10 @@ public interface IWorkspaceStaffAccessProcessRepository
         Guid staffMemberId,
         string subjectId,
         CancellationToken cancellationToken);
+    Task<WorkspaceStaffAccessProcess?> GetCompletedDepartureAsync(
+        Guid staffMemberId,
+        long targetStaffVersion,
+        CancellationToken cancellationToken);
     Task<WorkspaceStaffAccessProcessListResponse> ListOpenAsync(
         PageRequest page,
         CancellationToken cancellationToken);
