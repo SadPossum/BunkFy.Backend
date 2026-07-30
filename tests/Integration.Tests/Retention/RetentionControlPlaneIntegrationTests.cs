@@ -39,13 +39,17 @@ using BunkFy.Modules.Staff.Domain.Governance;
 using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Domain.Retention;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
+using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Organizations.Contracts;
+using Gma.Modules.Organizations.Domain.Aggregates;
+using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +58,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
 using Xunit;
+using OrganizationMembershipDomainRole =
+    Gma.Modules.Organizations.Domain.Enums.OrganizationMembershipRole;
 
 public sealed class RetentionControlPlaneIntegrationTests
 {
@@ -231,6 +237,7 @@ public sealed class RetentionControlPlaneIntegrationTests
         builder.Configuration["Worker:Modules:Retention"] = "true";
         builder.Configuration["Worker:Modules:Staff"] = "true";
         builder.Configuration["Worker:Modules:TaskRuntime"] = "true";
+        builder.Configuration["Worker:Modules:Workspaces"] = "true";
         builder.Configuration["FileManagement:Enabled"] = "true";
         builder.Configuration["FileManagement:Provider"] = "Minio";
         builder.Configuration["FileManagement:AllowedContentTypes:0"] =
@@ -266,11 +273,17 @@ public sealed class RetentionControlPlaneIntegrationTests
     private static async Task MigrateAsync(IHost worker)
     {
         using IServiceScope scope = worker.Services.CreateScope();
+        await scope.ServiceProvider
+            .GetRequiredService<AccessControlDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<InventoryDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider
+            .GetRequiredService<OrganizationsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider
             .GetRequiredService<ReservationsDbContext>()
@@ -367,7 +380,7 @@ public sealed class RetentionControlPlaneIntegrationTests
             tenantId,
             propertyId,
             nowUtc).ConfigureAwait(false);
-        Guid staffMemberId = await SeedStaffAsync(
+        SeededStaff seededStaff = await SeedStaffAsync(
             scope.ServiceProvider,
             tenantId,
             nowUtc).ConfigureAwait(false);
@@ -519,15 +532,21 @@ public sealed class RetentionControlPlaneIntegrationTests
             legalHold?.Id,
             guestId,
             reservationId,
-            staffMemberId);
+            seededStaff.StaffMemberId,
+            seededStaff.SubjectId,
+            seededStaff.OnboardingId,
+            seededStaff.AccessProcessId,
+            seededStaff.AccessPlanId);
     }
 
-    private static async Task<Guid> SeedStaffAsync(
+    private static async Task<SeededStaff> SeedStaffAsync(
         IServiceProvider services,
         string tenantId,
         DateTimeOffset nowUtc)
     {
         DateTimeOffset departedAtUtc = nowUtc.AddDays(-400);
+        string subjectId =
+            $"staff-retention-{Guid.NewGuid():N}";
         StaffMember member = StaffMember.Create(
             Guid.NewGuid(),
             tenantId,
@@ -538,7 +557,7 @@ public sealed class RetentionControlPlaneIntegrationTests
             "RETENTION-STAFF",
             "Operations manager",
             "Operations",
-            authSubjectId: null,
+            subjectId,
             "integration:retention",
             Guid.NewGuid(),
             nowUtc.AddDays(-500)).Value;
@@ -570,7 +589,128 @@ public sealed class RetentionControlPlaneIntegrationTests
             services.GetRequiredService<StaffDbContext>();
         staff.EmploymentGovernance.Add(governance);
         await staff.SaveChangesAsync().ConfigureAwait(false);
-        return member.Id;
+        return await SeedWorkspaceStaffCorrelationAsync(
+                services,
+                tenantId,
+                member,
+                subjectId,
+                nowUtc)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<SeededStaff>
+        SeedWorkspaceStaffCorrelationAsync(
+            IServiceProvider services,
+            string tenantId,
+            StaffMember member,
+            string subjectId,
+            DateTimeOffset nowUtc)
+    {
+        Guid organizationId = Guid.Parse(tenantId);
+        const string actorId = "system:retention-integration";
+        OrganizationsDbContext organizations =
+            services.GetRequiredService<OrganizationsDbContext>();
+        organizations.Organizations.Add(
+            Organization.Create(
+                organizationId,
+                "Retention test workspace",
+                $"retention-{organizationId:N}",
+                actorId,
+                Guid.NewGuid(),
+                nowUtc).Value);
+        organizations.Memberships.Add(
+            OrganizationMembership.Create(
+                Guid.NewGuid(),
+                organizationId,
+                $"owner-{organizationId:N}",
+                OrganizationMembershipDomainRole.Owner,
+                actorId,
+                Guid.NewGuid(),
+                nowUtc).Value);
+        organizations.Memberships.Add(
+            OrganizationMembership.Create(
+                Guid.NewGuid(),
+                organizationId,
+                subjectId,
+                OrganizationMembershipDomainRole.Member,
+                actorId,
+                Guid.NewGuid(),
+                nowUtc).Value);
+        await organizations.SaveChangesAsync().ConfigureAwait(false);
+
+        Guid sourceId = Guid.NewGuid();
+        WorkspaceStaffOnboarding onboarding =
+            WorkspaceStaffOnboarding.Create(
+                Guid.NewGuid(),
+                tenantId,
+                WorkspaceStaffOnboardingSource.Invitation,
+                sourceId,
+                subjectId,
+                "staff-retention@example.test",
+                "Staff Retention Candidate",
+                "Staff Retention Candidate Legal",
+                "staff-retention@example.test",
+                "+44 20 7946 0789",
+                "RETENTION-STAFF",
+                "Operations manager",
+                "Operations",
+                nowUtc).Value;
+        Assert.True(
+            onboarding.ObserveInvitationAccepted(
+                nowUtc.AddSeconds(1)).IsSuccess);
+        Assert.True(
+            onboarding.MarkStaffReady(
+                member.Id,
+                nowUtc.AddSeconds(2)).IsSuccess);
+        Assert.True(
+            onboarding.Complete(
+                nowUtc.AddSeconds(3)).IsSuccess);
+
+        WorkspaceStaffAccessPlan plan =
+            WorkspaceStaffAccessPlan.Create(
+                sourceId,
+                tenantId,
+                WorkspaceStaffOnboardingSource.Invitation,
+                Guid.NewGuid(),
+                "retention-integration",
+                [],
+                subjectId,
+                nowUtc).Value;
+        Assert.True(
+            plan.Supersede(
+                nowUtc.AddSeconds(3)).IsSuccess);
+
+        WorkspaceStaffAccessProcess process =
+            WorkspaceStaffAccessProcess.Create(
+                Guid.NewGuid(),
+                tenantId,
+                member.Id,
+                subjectId,
+                WorkspaceStaffAccessTargetState.Departed,
+                member.Version,
+                member.DepartureEffectiveOn!.Value,
+                subjectId,
+                [],
+                nowUtc).Value;
+        Assert.True(
+            process.MarkAwaitingStaffCommit(
+                nowUtc.AddSeconds(1)).IsSuccess);
+        Assert.True(
+            process.ObserveStaffCommit(
+                nowUtc.AddSeconds(2)).IsSuccess);
+
+        WorkspacesDbContext workspaces =
+            services.GetRequiredService<WorkspacesDbContext>();
+        workspaces.StaffOnboardingApplications.Add(onboarding);
+        workspaces.StaffAccessPlans.Add(plan);
+        workspaces.StaffAccessProcesses.Add(process);
+        await workspaces.SaveChangesAsync().ConfigureAwait(false);
+        return new(
+            member.Id,
+            subjectId,
+            onboarding.Id,
+            process.Id,
+            plan.Id);
     }
 
     private static async Task ApplyGuestPropertyCreatedAsync(
@@ -1139,6 +1279,138 @@ public sealed class RetentionControlPlaneIntegrationTests
             StaffAnonymisationAuthority.Retention,
             tombstone.Authority);
         Assert.True(tombstone.MatchesRetention(receipt));
+
+        await AssertWorkspaceStaffRetentionCorrelationAsync(
+            scope.ServiceProvider,
+            candidate,
+            receipt).ConfigureAwait(false);
+    }
+
+    private static async Task
+        AssertWorkspaceStaffRetentionCorrelationAsync(
+            IServiceProvider services,
+            SeededCandidate candidate,
+            StaffRetentionAnonymisationReceipt staffReceipt)
+    {
+        WorkspacesDbContext workspaces =
+            services.GetRequiredService<WorkspacesDbContext>();
+        WorkspaceStaffRetentionCorrelationReceipt correlationReceipt =
+            await workspaces.StaffRetentionCorrelationReceipts
+                .AsNoTracking()
+                .SingleAsync(item =>
+                    item.StaffMemberId ==
+                        candidate.StaffMemberId)
+                .ConfigureAwait(false);
+        Assert.Equal(
+            staffReceipt.ExecutionId,
+            correlationReceipt.ExecutionId);
+        Assert.Equal(1, correlationReceipt.OnboardingRecordsScrubbed);
+        Assert.Equal(
+            1,
+            correlationReceipt.AccessProcessRecordsScrubbed);
+        Assert.Equal(1, correlationReceipt.AccessPlanRecordsScrubbed);
+        Assert.True(correlationReceipt.HasValidCanonicalProof());
+        string pseudonym =
+            correlationReceipt.CreateSubjectPseudonym();
+        Assert.NotEqual(candidate.StaffSubjectId, pseudonym);
+
+        WorkspaceStaffOnboarding onboarding =
+            await workspaces.StaffOnboardingApplications
+                .AsNoTracking()
+                .SingleAsync(item =>
+                    item.Id == candidate.StaffOnboardingId)
+                .ConfigureAwait(false);
+        Assert.Equal(pseudonym, onboarding.SubjectId);
+        Assert.Equal(5, onboarding.Version);
+        Assert.Equal(
+            correlationReceipt.CompletedAtUtc,
+            onboarding.LastChangedAtUtc);
+
+        WorkspaceStaffAccessProcess process =
+            await workspaces.StaffAccessProcesses
+                .AsNoTracking()
+                .SingleAsync(item =>
+                    item.Id == candidate.StaffAccessProcessId)
+                .ConfigureAwait(false);
+        Assert.Equal(pseudonym, process.SubjectId);
+        Assert.Equal(pseudonym, process.RequestedBy);
+        Assert.Equal(4, process.Version);
+        Assert.Equal(
+            correlationReceipt.CompletedAtUtc,
+            process.LastChangedAtUtc);
+
+        WorkspaceStaffAccessPlan plan =
+            await workspaces.StaffAccessPlans
+                .AsNoTracking()
+                .SingleAsync(item =>
+                    item.Id == candidate.StaffAccessPlanId)
+                .ConfigureAwait(false);
+        Assert.Equal(pseudonym, plan.CreatedBySubjectId);
+        Assert.Equal(3, plan.Version);
+        Assert.Equal(
+            correlationReceipt.CompletedAtUtc,
+            plan.LastChangedAtUtc);
+        Assert.False(
+            await workspaces.StaffOnboardingApplications
+                .AsNoTracking()
+                .AnyAsync(item =>
+                    item.SubjectId ==
+                        candidate.StaffSubjectId)
+                .ConfigureAwait(false));
+        Assert.False(
+            await workspaces.StaffAccessProcesses
+                .AsNoTracking()
+                .AnyAsync(item =>
+                    item.SubjectId ==
+                        candidate.StaffSubjectId ||
+                    item.RequestedBy ==
+                        candidate.StaffSubjectId)
+                .ConfigureAwait(false));
+        Assert.False(
+            await workspaces.StaffAccessPlans
+                .AsNoTracking()
+                .AnyAsync(item =>
+                    item.CreatedBySubjectId ==
+                        candidate.StaffSubjectId)
+                .ConfigureAwait(false));
+
+        if (candidate.TenantId == UnheldTenantId)
+        {
+            await AssertWorkspaceReceiptMutationRejectedAsync(
+                workspaces,
+                correlationReceipt.Id,
+                delete: false).ConfigureAwait(false);
+            await AssertWorkspaceReceiptMutationRejectedAsync(
+                workspaces,
+                correlationReceipt.Id,
+                delete: true).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task
+        AssertWorkspaceReceiptMutationRejectedAsync(
+            WorkspacesDbContext workspaces,
+            Guid receiptId,
+            bool delete)
+    {
+        Exception exception =
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => delete
+                    ? workspaces.Database.ExecuteSqlInterpolatedAsync(
+                        $"""
+                        DELETE FROM "workspaces"."staff_retention_correlation_receipts"
+                        WHERE "Id" = {receiptId}
+                        """)
+                    : workspaces.Database.ExecuteSqlInterpolatedAsync(
+                        $"""
+                        UPDATE "workspaces"."staff_retention_correlation_receipts"
+                        SET "CanonicalSha256" = {new string('f', 64)}
+                        WHERE "Id" = {receiptId}
+                        """));
+        Assert.Contains(
+            "workspace receipts are append-only",
+            exception.ToString(),
+            StringComparison.Ordinal);
     }
 
     private static async Task AssertReservationRetentionOutcomeAsync(
@@ -1302,5 +1574,16 @@ public sealed class RetentionControlPlaneIntegrationTests
         Guid? LegalHoldId,
         Guid? GuestId,
         Guid ReservationId,
-        Guid StaffMemberId);
+        Guid StaffMemberId,
+        string StaffSubjectId,
+        Guid StaffOnboardingId,
+        Guid StaffAccessProcessId,
+        Guid StaffAccessPlanId);
+
+    private sealed record SeededStaff(
+        Guid StaffMemberId,
+        string SubjectId,
+        Guid OnboardingId,
+        Guid AccessProcessId,
+        Guid AccessPlanId);
 }

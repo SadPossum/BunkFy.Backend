@@ -39,6 +39,9 @@ public static class DependencyInjection
             IWorkspaceStaffAccessPlanRepository,
             WorkspaceStaffAccessPlanRepository>();
         builder.Services.TryAddScoped<
+            IWorkspaceStaffRetentionCorrelationRepository,
+            WorkspaceStaffRetentionCorrelationRepository>();
+        builder.Services.TryAddScoped<
             IWorkspacePropertyProjectionRepository,
             WorkspacePropertyProjectionRepository>();
         builder.Services.TryAddScoped<

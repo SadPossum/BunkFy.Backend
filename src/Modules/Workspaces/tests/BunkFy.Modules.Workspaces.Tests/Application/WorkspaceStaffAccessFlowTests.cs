@@ -10,7 +10,9 @@ using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
+using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Pagination;
 using Gma.Modules.AccessControl.Contracts;
@@ -300,7 +302,9 @@ public sealed class WorkspaceStaffAccessFlowTests
             [profile.Id]);
         Assert.True(process.MarkAwaitingStaffCommit(Now).IsSuccess);
         Assert.True(process.ObserveStaffCommit(Now).IsSuccess);
-        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+        FakeCorrelationRepository correlations = new();
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite =
+            CreateAccessPrerequisite(
             new FakeStaffRestoreStateReader(new(
                 StaffId,
                 Version: 2,
@@ -313,8 +317,7 @@ public sealed class WorkspaceStaffAccessFlowTests
                 new WorkspaceAccessProvisioner(roles, profiles),
                 new TestClock(),
                 NullLogger<WorkspaceStaffAccessDenier>.Instance),
-            NullLogger<
-                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+            correlations);
 
         DataRightsAnonymisationExecutionPrerequisiteResult result =
             await prerequisite.ExecuteAsync(
@@ -332,6 +335,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         Assert.True(
             operations.IndexOf("membership:Removed") <
             operations.IndexOf("profiles:reconcile"));
+        Assert.Equal(0, correlations.ScrubCount);
     }
 
     [Fact]
@@ -355,7 +359,9 @@ public sealed class WorkspaceStaffAccessFlowTests
             [profile.Id]);
         Assert.True(process.MarkAwaitingStaffCommit(Now).IsSuccess);
         Assert.True(process.ObserveStaffCommit(Now).IsSuccess);
-        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+        FakeCorrelationRepository correlations = new();
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite =
+            CreateAccessPrerequisite(
             new FakeStaffRestoreStateReader(new(
                 StaffId,
                 Version: 2,
@@ -368,8 +374,7 @@ public sealed class WorkspaceStaffAccessFlowTests
                 new WorkspaceAccessProvisioner(roles, profiles),
                 new TestClock(),
                 NullLogger<WorkspaceStaffAccessDenier>.Instance),
-            NullLogger<
-                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+            correlations);
 
         StaffRetentionAnonymisationPrerequisiteResult result =
             await prerequisite.ExecuteAsync(
@@ -387,13 +392,36 @@ public sealed class WorkspaceStaffAccessFlowTests
         Assert.True(
             operations.IndexOf("membership:Removed") <
             operations.IndexOf("profiles:reconcile"));
+        Assert.Equal(1, correlations.ScrubCount);
+        Assert.NotNull(correlations.Receipt);
+
+        profiles.Assign(subject, scope, profile.Id);
+        roles.Add(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope);
+        StaffRetentionAnonymisationPrerequisiteResult replay =
+            await prerequisite.ExecuteAsync(
+                CreateRetentionRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            StaffRetentionAnonymisationPrerequisiteStatus.Completed,
+            replay.Status);
+        Assert.Equal(1, correlations.ScrubCount);
+        Assert.Empty(profiles.AssignedProfileIds(subject, scope));
+        Assert.False(roles.Has(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope));
     }
 
     [Fact]
     public async Task Staff_retention_blocks_without_durable_departure_mapping()
     {
         List<string> operations = [];
-        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite =
+            CreateAccessPrerequisite(
             new FakeStaffRestoreStateReader(new(
                 StaffId,
                 Version: 2,
@@ -407,9 +435,7 @@ public sealed class WorkspaceStaffAccessFlowTests
                     new FakeRoles(operations),
                     new FakeProfiles(operations)),
                 new TestClock(),
-                NullLogger<WorkspaceStaffAccessDenier>.Instance),
-            NullLogger<
-                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+                NullLogger<WorkspaceStaffAccessDenier>.Instance));
 
         StaffRetentionAnonymisationPrerequisiteResult result =
             await prerequisite.ExecuteAsync(
@@ -429,7 +455,8 @@ public sealed class WorkspaceStaffAccessFlowTests
     public async Task Staff_restore_requires_durable_departure_mapping()
     {
         List<string> operations = [];
-        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite =
+            CreateAccessPrerequisite(
             new FakeStaffRestoreStateReader(new(
                 StaffId,
                 Version: 3,
@@ -443,9 +470,7 @@ public sealed class WorkspaceStaffAccessFlowTests
                     new FakeRoles(operations),
                     new FakeProfiles(operations)),
                 new TestClock(),
-                NullLogger<WorkspaceStaffAccessDenier>.Instance),
-            NullLogger<
-                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+                NullLogger<WorkspaceStaffAccessDenier>.Instance));
 
         DataRightsAnonymisationRestorePrerequisiteResult result =
             await prerequisite.ExecuteAsync(
@@ -478,7 +503,9 @@ public sealed class WorkspaceStaffAccessFlowTests
             [profile.Id]);
         Assert.True(process.MarkAwaitingStaffCommit(Now).IsSuccess);
         Assert.True(process.ObserveStaffCommit(Now).IsSuccess);
-        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+        FakeCorrelationRepository correlations = new();
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite =
+            CreateAccessPrerequisite(
             new FakeStaffRestoreStateReader(new(
                 StaffId,
                 Version: 3,
@@ -491,8 +518,7 @@ public sealed class WorkspaceStaffAccessFlowTests
                 new WorkspaceAccessProvisioner(roles, profiles),
                 new TestClock(),
                 NullLogger<WorkspaceStaffAccessDenier>.Instance),
-            NullLogger<
-                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+            correlations);
 
         DataRightsAnonymisationRestorePrerequisiteResult result =
             await prerequisite.ExecuteAsync(
@@ -510,6 +536,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         Assert.True(
             operations.IndexOf("membership:Removed") <
             operations.IndexOf("profiles:reconcile"));
+        Assert.Equal(0, correlations.ScrubCount);
     }
 
     [Fact]
@@ -548,6 +575,28 @@ public sealed class WorkspaceStaffAccessFlowTests
         "user:owner");
 
     private static readonly Guid StaffId = Guid.NewGuid();
+    private static readonly Guid CorrelationReceiptId =
+        Guid.NewGuid();
+
+    private static WorkspaceStaffAnonymisationAccessPrerequisite
+        CreateAccessPrerequisite(
+            IStaffAnonymisationRestoreStateReader staffStateReader,
+            IWorkspaceStaffAccessProcessRepository processRepository,
+            WorkspaceStaffAccessDenier denier,
+            FakeCorrelationRepository? correlations = null)
+    {
+        correlations ??= new FakeCorrelationRepository();
+        return new(
+            staffStateReader,
+            processRepository,
+            correlations,
+            new FakeRequestDispatcher(correlations),
+            denier,
+            new TestClock(),
+            new TestIdGenerator(),
+            NullLogger<
+                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+    }
 
     private static DataRightsAnonymisationContributionRequestV2
         CreateAnonymisationRequest() =>
@@ -723,6 +772,97 @@ public sealed class WorkspaceStaffAccessFlowTests
                 staffMemberId == StaffId
                     ? state
                     : null);
+    }
+
+    private sealed class FakeCorrelationRepository
+        : IWorkspaceStaffRetentionCorrelationRepository
+    {
+        public WorkspaceStaffRetentionCorrelationReceipt? Receipt
+        {
+            get;
+            private set;
+        }
+
+        public int ScrubCount { get; private set; }
+
+        public Task<WorkspaceStaffRetentionCorrelationReceipt?>
+            GetAsync(
+                Guid staffMemberId,
+                long selectedStaffVersion,
+                CancellationToken cancellationToken) =>
+            Task.FromResult(
+                this.Receipt is not null &&
+                this.Receipt.StaffMemberId == staffMemberId &&
+                this.Receipt.SelectedStaffVersion ==
+                    selectedStaffVersion
+                    ? this.Receipt
+                    : null);
+
+        public Task<Result<
+            WorkspaceStaffRetentionCorrelationReceipt>> ScrubAsync(
+                WorkspaceStaffRetentionCorrelationScrubRequest request,
+                CancellationToken cancellationToken)
+        {
+            this.ScrubCount++;
+            Result<WorkspaceStaffRetentionCorrelationReceipt>
+                created =
+                WorkspaceStaffRetentionCorrelationReceipt.Create(
+                    request.ReceiptId,
+                    request.TenantId,
+                    request.ExecutionId,
+                    request.StaffMemberId,
+                    request.SelectedStaffVersion,
+                    onboardingRecordsScrubbed: 1,
+                    accessProcessRecordsScrubbed: 1,
+                    accessPlanRecordsScrubbed: 1,
+                    request.CompletedAtUtc);
+            if (created.IsSuccess)
+            {
+                this.Receipt = created.Value;
+            }
+
+            return Task.FromResult(created);
+        }
+    }
+
+    private sealed class FakeRequestDispatcher(
+        FakeCorrelationRepository correlations)
+        : IRequestDispatcher
+    {
+        public async Task<Result<TResponse>> SendAsync<TResponse>(
+            ICommand<TResponse> command,
+            CancellationToken cancellationToken = default)
+        {
+            if (command is not
+                ScrubWorkspaceStaffRetentionCorrelationCommand scrub)
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected command '{command.GetType().Name}'.");
+            }
+
+            Result<WorkspaceStaffRetentionCorrelationReceipt> result =
+                await correlations.ScrubAsync(
+                    new WorkspaceStaffRetentionCorrelationScrubRequest(
+                        scrub.ReceiptId,
+                        scrub.ExecutionId,
+                        scrub.TenantId,
+                        scrub.StaffMemberId,
+                        scrub.SelectedStaffVersion,
+                        scrub.SubjectId,
+                        scrub.CompletedAtUtc),
+                    cancellationToken);
+            return (Result<TResponse>)(object)result;
+        }
+
+        public Task<Result<TResponse>> QueryAsync<TResponse>(
+            IQuery<TResponse> query,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class TestIdGenerator : IIdGenerator
+    {
+        public Guid NewId() => CorrelationReceiptId;
     }
 
     private sealed class FakeRoles(List<string> operations) : IAccessControlRoleProvisioner

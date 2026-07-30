@@ -8,6 +8,7 @@ using BunkFy.Modules.Workspaces.Api;
 using BunkFy.Modules.Workspaces.Api.Requests;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Commands;
+using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Application.Queries;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
@@ -150,7 +151,8 @@ public sealed class WorkspacesPersonalDataCatalogTests
         typeof(WorkspaceStaffAccessProcess),
         typeof(WorkspaceStaffAccessProfileSnapshot),
         typeof(WorkspaceStaffAccessPlan),
-        typeof(WorkspaceStaffAccessPlanProperty)
+        typeof(WorkspaceStaffAccessPlanProperty),
+        typeof(WorkspaceStaffRetentionCorrelationReceipt)
     ];
 
     private static IEnumerable<(PersonalDataSurface Surface, Type Type)> BoundaryTypes()
@@ -177,6 +179,10 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(RetryWorkspaceStaffOnboardingCommand),
                      typeof(PrepareWorkspaceStaffAccessPlanCommand),
                      typeof(ActivateWorkspaceStaffAccessPlanCommand),
+                     typeof(
+                         ScrubWorkspaceStaffRetentionCorrelationCommand),
+                     typeof(
+                         WorkspaceStaffRetentionCorrelationScrubRequest),
                      typeof(WorkspaceInvitationIssuanceRequest),
                      typeof(WorkspaceEnrollmentLinkIssuanceRequest),
                      typeof(WorkspaceMemberAccessUpdate)

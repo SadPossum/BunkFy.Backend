@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -124,6 +124,13 @@
       "approvalState": "engineering-default",
       "startsAt": "access-record-created",
       "endsAt": "approved-erasure-or-employment-retention-completed",
+      "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "workspace-retention-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "workspace-correlation-scrub-completed",
+      "endsAt": "approved-workspace-audit-proof-retention-completed",
       "legalHoldBehavior": "pause-approved-erasure"
     },
     {
@@ -1157,6 +1164,20 @@
         {
           "assembly": "BunkFy.Modules.Workspaces.Application",
           "type": "BunkFy.Modules.Workspaces.Application.Commands.SubmitWorkspaceStaffOnboardingCommand",
+          "member": "SubjectId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
+          "member": "SubjectId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest",
           "member": "SubjectId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -3465,6 +3486,128 @@
       ]
     },
     {
+      "id": "workspaces.retention-correlation-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-correlation-scrub",
+        "immutable-owner-proof",
+        "idempotent-replay"
+      ],
+      "sources": [
+        "staff-retention-execution",
+        "workspaces-domain",
+        "system-clock"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-audit",
+      "countryPolicyKey": "workspaces.retention-correlation-proof",
+      "retentionPolicy": "workspace-retention-proof",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "ExecutionId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "OnboardingRecordsScrubbed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "AccessProcessRecordsScrubbed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "AccessPlanRecordsScrubbed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
+          "member": "ReceiptId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
+          "member": "ExecutionId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
+          "member": "CompletedAtUtc",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest",
+          "member": "ReceiptId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest",
+          "member": "ExecutionId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest",
+          "member": "CompletedAtUtc",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
       "id": "workspaces.response-items",
       "dataSubject": "staff",
       "classification": "structured-payload",
@@ -3605,6 +3748,7 @@
       "allowedSurfaces": [
         "admin-output",
         "api-response",
+        "application-command",
         "integration-event",
         "persistence"
       ],
@@ -3627,6 +3771,26 @@
           "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessProcess",
           "member": "StaffMemberId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
         },
         {
           "assembly": "BunkFy.Modules.Workspaces.Contracts",
@@ -3671,6 +3835,7 @@
       "rightsPolicy": "staff-employment-history",
       "allowedSurfaces": [
         "admin-output",
+        "application-command",
         "integration-event",
         "persistence"
       ],
@@ -3686,6 +3851,26 @@
           "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessProcess",
           "member": "TargetStaffVersion",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "SelectedStaffVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
+          "member": "SelectedStaffVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest",
+          "member": "SelectedStaffVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
         },
         {
           "assembly": "BunkFy.Modules.Workspaces.Contracts",
@@ -3769,6 +3954,7 @@
       "allowedSurfaces": [
         "admin-output",
         "api-response",
+        "application-command",
         "integration-event",
         "persistence"
       ],
@@ -3803,6 +3989,26 @@
           "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlanProperty",
           "member": "ScopeId",
           "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffRetentionCorrelationReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
+          "member": "TenantId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest",
+          "member": "TenantId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
         },
         {
           "assembly": "BunkFy.Modules.Workspaces.Contracts",

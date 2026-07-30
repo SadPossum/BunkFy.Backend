@@ -73,6 +73,13 @@ internal sealed class WorkspaceStaffOnboardingConfiguration
             application.CreatedAtUtc,
             application.Id
         });
+        builder.HasIndex(application => new
+        {
+            application.ScopeId,
+            application.SubjectId,
+            application.Status,
+            application.Id
+        });
         builder.Ignore(application => application.IsAdmissible);
         builder.Ignore(application => application.DomainEvents);
     }

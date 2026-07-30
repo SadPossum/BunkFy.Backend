@@ -41,6 +41,19 @@ internal sealed class WorkspaceStaffAccessProcessConfiguration
             process.State,
             process.CreatedAtUtc
         });
+        builder.HasIndex(process => new
+        {
+            process.ScopeId,
+            process.SubjectId,
+            process.State,
+            process.Id
+        });
+        builder.HasIndex(process => new
+        {
+            process.ScopeId,
+            process.RequestedBy,
+            process.Id
+        });
         builder.OwnsMany(process => process.ProfileSnapshots, snapshots =>
         {
             snapshots.ToTable("staff_access_profile_snapshots");

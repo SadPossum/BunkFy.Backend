@@ -29,6 +29,12 @@ public sealed class WorkspacesModelTests
                 nameof(WorkspaceStaffOnboarding.SourceKind),
                 nameof(WorkspaceStaffOnboarding.SourceId),
                 nameof(WorkspaceStaffOnboarding.SubjectId)]));
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(WorkspaceStaffOnboarding.ScopeId),
+                nameof(WorkspaceStaffOnboarding.SubjectId),
+                nameof(WorkspaceStaffOnboarding.Status),
+                nameof(WorkspaceStaffOnboarding.Id)]));
         Assert.NotEmpty(entity.GetDeclaredQueryFilters());
     }
 
@@ -48,6 +54,17 @@ public sealed class WorkspacesModelTests
                 nameof(WorkspaceStaffAccessProcess.ScopeId),
                 nameof(WorkspaceStaffAccessProcess.StaffMemberId),
                 nameof(WorkspaceStaffAccessProcess.TargetStaffVersion)]));
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(WorkspaceStaffAccessProcess.ScopeId),
+                nameof(WorkspaceStaffAccessProcess.SubjectId),
+                nameof(WorkspaceStaffAccessProcess.State),
+                nameof(WorkspaceStaffAccessProcess.Id)]));
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(WorkspaceStaffAccessProcess.ScopeId),
+                nameof(WorkspaceStaffAccessProcess.RequestedBy),
+                nameof(WorkspaceStaffAccessProcess.Id)]));
         Assert.NotEmpty(entity.GetDeclaredQueryFilters());
 
         Microsoft.EntityFrameworkCore.Metadata.IEntityType snapshot = context.Model
@@ -83,6 +100,41 @@ public sealed class WorkspacesModelTests
                 nameof(WorkspaceStaffAccessPlan.SourceKind),
                 nameof(WorkspaceStaffAccessPlan.SourceExpiredAtUtc),
                 nameof(WorkspaceStaffAccessPlan.Id)]));
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(WorkspaceStaffAccessPlan.ScopeId),
+                nameof(WorkspaceStaffAccessPlan.CreatedBySubjectId),
+                nameof(WorkspaceStaffAccessPlan.Id)]));
+        Assert.NotEmpty(entity.GetDeclaredQueryFilters());
+    }
+
+    [Fact]
+    public void Staff_retention_correlation_receipt_is_tenant_filtered_and_unique_per_staff_version()
+    {
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        using WorkspacesDbContext context =
+            new(options, new TestScopeContext());
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType entity =
+            context.Model.FindEntityType(
+                typeof(
+                    WorkspaceStaffRetentionCorrelationReceipt))!;
+
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(
+                        WorkspaceStaffRetentionCorrelationReceipt
+                            .ScopeId),
+                    nameof(
+                        WorkspaceStaffRetentionCorrelationReceipt
+                            .StaffMemberId),
+                    nameof(
+                        WorkspaceStaffRetentionCorrelationReceipt
+                            .SelectedStaffVersion)]));
         Assert.NotEmpty(entity.GetDeclaredQueryFilters());
     }
 

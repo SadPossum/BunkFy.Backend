@@ -23,6 +23,15 @@ redaction and reports an operational failure instead of deleting data when
 the authoritative history window has lapsed. Sensitive API and Admin API
 responses are explicitly non-cacheable.
 
+Automatic Staff retention also asks Workspaces to close access and remove the
+departed person's Auth subject from terminal onboarding and access history.
+Workspaces blocks while a person-linked onboarding or access workflow is
+active, replaces its remaining subject and actor references with one opaque
+receipt-local pseudonym, and records an append-only canonical receipt. A retry
+reasserts access denial before accepting that receipt as complete. This
+irreversible scrub is not used by the reversible Data Rights anonymisation and
+restore path.
+
 The engineering defaults live under
 `Workspaces:StaffOnboardingRetention`: a two-hour source-expiry grace period,
 a 20-hour authoritative-inspection ceiling, a 60-minute schedule interval,

@@ -1,0 +1,26 @@
+namespace BunkFy.Modules.Workspaces.Domain;
+
+using Gma.Framework.Results;
+
+public static class WorkspaceStaffRetentionErrors
+{
+    public static readonly Error RequestInvalid = new(
+        "Workspaces.StaffRetentionCorrelationRequestInvalid",
+        "The workspace Staff retention correlation request is invalid.");
+
+    public static readonly Error ReceiptInvalid = new(
+        "Workspaces.StaffRetentionCorrelationReceiptInvalid",
+        "The workspace Staff retention correlation receipt is invalid.");
+
+    public static readonly Error ActiveOnboarding = new(
+        "Workspaces.StaffRetentionCorrelationActiveOnboarding",
+        "Active workspace Staff onboarding prevents correlation scrubbing.");
+
+    public static readonly Error ActiveAccessProcess = new(
+        "Workspaces.StaffRetentionCorrelationActiveAccessProcess",
+        "An active workspace Staff access process prevents correlation scrubbing.");
+
+    public static readonly Error AccessMappingConflict = new(
+        "Workspaces.StaffRetentionCorrelationAccessMappingConflict",
+        "The workspace Staff departure mapping does not match the retention request.");
+}

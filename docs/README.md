@@ -50,6 +50,7 @@ Useful entry points:
 - [Workspace Staff Access Lifecycle Task](planning/workspace-staff-access-lifecycle-task.md)
 - [Workspaces Natural Expiry Consumer Task](planning/workspaces-natural-expiry-consumer-task.md)
 - [Workspace Staff Onboarding Staging Retention Task](planning/workspace-staff-onboarding-staging-retention-task.md)
+- [Workspace Staff Retention Correlation Scrub Task](planning/workspace-staff-retention-correlation-scrub-task.md)
 - [Workspace Onboarding Production Proof](planning/workspace-onboarding-production-proof-task.md)
 - [Workspaces Personal-Data Catalogue Task](planning/workspaces-personal-data-catalogue-task.md)
 - [Operations Notifications Personal-Data Catalogue Task](planning/operations-notifications-personal-data-catalogue-task.md)

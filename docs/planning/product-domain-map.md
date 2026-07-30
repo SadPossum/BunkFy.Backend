@@ -309,13 +309,17 @@ Guest-facing portals are out of scope for now, but staff may still record or sen
 
 The DataRights module now owns the controller-managed case lifecycle, explicit
 requester-verification and controller-routing gates, PII-minimal case state, and
-scoped operator permissions. It coordinates work without reading or mutating
-another module's records.
+scoped operator permissions. Its durable multi-owner execution, protected
+exports, correction, restriction, anonymisation, restore, and processing-ledger
+workflows coordinate owner capabilities without reading or mutating another
+module's records.
 
-Owner-side discovery, protected export, correction, restriction, erasure or
-anonymisation, legal-hold/retention decisions, immutable receipts, and restore
-protection remain later slices. Consent records, document-retention schedules,
-and country-specific guest-registration obligations remain separate concerns.
+Guests, Reservations, Ingestion, Staff, and Inventory now implement the
+owner-local operations applicable to their current record types. Workspaces
+classifies and minimizes onboarding data and removes Auth correlation during
+irreversible Staff retention, but its general Data Rights owner capability is
+still intentionally absent. Consent records, document-retention schedules, and
+country-specific guest-registration obligations remain separate concerns.
 
 ### Integrations Marketplace
 
@@ -331,11 +335,17 @@ This overlaps with Data Providers/Ingestion but may become a separate management
 
 ## Suggested Next Slice
 
-Properties, Inventory, the provider-agnostic Ingestion platform milestone, the
-operational Reservations lifecycle, Guest Records, Staff Profiles, and the
-controller-managed Data Rights workflow are implemented. The next production
-slice is the PII-minimized Retention control plane: automatic scope scheduling,
-owner-local execution, durable health evidence, and the first Ingestion raw
-purge/history-redaction contributors. Rates, Billing, business-day
-close/reopen, housekeeping, and temporary holds remain separate later
+Properties, Inventory, the provider-agnostic Ingestion platform, Reservations,
+Guest Records, Staff Profiles, the Data Rights coordinator, and the automatic
+Retention control plane are implemented through their current production
+milestones. Owner-local automatic retention covers Ingestion, Guests,
+Reservations, and Staff; Workspaces now removes its Staff/Auth correlation as
+part of that irreversible workflow.
+
+The suggested next domain slice is a bounded Workspaces Data Rights owner audit
+and first capability. It must define which onboarding and access-history facts
+are discoverable or exportable, which transient fields can be corrected or
+restricted, and how anonymisation/restore interacts with authority evidence
+before adding handlers. Rates, Billing, business-day close/reopen,
+housekeeping, maintenance, and temporary holds remain separate later
 candidates.
