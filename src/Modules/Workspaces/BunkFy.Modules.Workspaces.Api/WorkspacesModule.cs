@@ -28,5 +28,8 @@ public sealed class WorkspacesModule : IModule
     {
         WorkspaceAccessManagementEndpoints.Map(endpoints, this.Name);
         WorkspaceStaffOnboardingEndpoints.Map(endpoints, this.Name);
+        WorkspaceStaffOnboardingDataRightsEndpoints.Map(
+            endpoints,
+            this.Name);
     }
 }

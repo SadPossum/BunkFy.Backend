@@ -55,19 +55,22 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         string? department,
         DateTimeOffset nowUtc)
     {
+        Result<WorkspaceStaffApplicantProfile> profile =
+            WorkspaceStaffApplicantProfile.Create(
+                displayName,
+                legalName,
+                workEmail,
+                workPhone,
+                employeeNumber,
+                jobTitle,
+                department);
         if (id == Guid.Empty || sourceId == Guid.Empty ||
             sourceKind is not (WorkspaceStaffOnboardingSource.Invitation or
                 WorkspaceStaffOnboardingSource.EnrollmentLink) ||
             !TenantIds.TryNormalize(scopeId, out string? normalizedScope) ||
             !TryNormalizeRequired(subjectId, WorkspaceStaffOnboardingRules.SubjectIdMaxLength, out string? subject) ||
             !TryNormalizeRequired(verifiedAccountEmail, WorkspaceStaffOnboardingRules.EmailMaxLength, out string? verifiedEmail) ||
-            !TryNormalizeRequired(displayName, WorkspaceStaffOnboardingRules.DisplayNameMaxLength, out string? name) ||
-            !TryNormalizeOptional(legalName, WorkspaceStaffOnboardingRules.LegalNameMaxLength, out string? normalizedLegalName) ||
-            !TryNormalizeOptional(workEmail, WorkspaceStaffOnboardingRules.EmailMaxLength, out string? normalizedWorkEmail) ||
-            !TryNormalizeOptional(workPhone, WorkspaceStaffOnboardingRules.PhoneMaxLength, out string? normalizedWorkPhone) ||
-            !TryNormalizeOptional(employeeNumber, WorkspaceStaffOnboardingRules.EmployeeNumberMaxLength, out string? normalizedEmployeeNumber) ||
-            !TryNormalizeOptional(jobTitle, WorkspaceStaffOnboardingRules.JobTitleMaxLength, out string? normalizedJobTitle) ||
-            !TryNormalizeOptional(department, WorkspaceStaffOnboardingRules.DepartmentMaxLength, out string? normalizedDepartment))
+            profile.IsFailure)
         {
             return Result.Failure<WorkspaceStaffOnboarding>(WorkspaceStaffOnboardingErrors.Invalid);
         }
@@ -77,13 +80,12 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
             SourceKind = sourceKind,
             SourceId = sourceId,
             SubjectId = subject,
+            VerifiedAccountEmail = verifiedEmail,
             Status = WorkspaceStaffOnboardingState.Submitted,
             CreatedAtUtc = nowUtc,
             LastChangedAtUtc = nowUtc
         };
-        application.ApplyProfile(
-            verifiedEmail, name, normalizedLegalName, normalizedWorkEmail,
-            normalizedWorkPhone, normalizedEmployeeNumber, normalizedJobTitle, normalizedDepartment);
+        application.ApplyProfile(profile.Value);
         return Result.Success(application);
     }
 
@@ -98,22 +100,31 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         string? department,
         DateTimeOffset nowUtc)
     {
-        if (this.Status != WorkspaceStaffOnboardingState.Submitted ||
-            !TryNormalizeRequired(verifiedAccountEmail, WorkspaceStaffOnboardingRules.EmailMaxLength, out string? verifiedEmail) ||
-            !TryNormalizeRequired(displayName, WorkspaceStaffOnboardingRules.DisplayNameMaxLength, out string? name) ||
-            !TryNormalizeOptional(legalName, WorkspaceStaffOnboardingRules.LegalNameMaxLength, out string? normalizedLegalName) ||
-            !TryNormalizeOptional(workEmail, WorkspaceStaffOnboardingRules.EmailMaxLength, out string? normalizedWorkEmail) ||
-            !TryNormalizeOptional(workPhone, WorkspaceStaffOnboardingRules.PhoneMaxLength, out string? normalizedWorkPhone) ||
-            !TryNormalizeOptional(employeeNumber, WorkspaceStaffOnboardingRules.EmployeeNumberMaxLength, out string? normalizedEmployeeNumber) ||
-            !TryNormalizeOptional(jobTitle, WorkspaceStaffOnboardingRules.JobTitleMaxLength, out string? normalizedJobTitle) ||
-            !TryNormalizeOptional(department, WorkspaceStaffOnboardingRules.DepartmentMaxLength, out string? normalizedDepartment))
+        if (this.Status != WorkspaceStaffOnboardingState.Submitted)
         {
             return Result.Failure(WorkspaceStaffOnboardingErrors.Unavailable);
         }
 
-        this.ApplyProfile(
-            verifiedEmail, name, normalizedLegalName, normalizedWorkEmail,
-            normalizedWorkPhone, normalizedEmployeeNumber, normalizedJobTitle, normalizedDepartment);
+        Result<WorkspaceStaffApplicantProfile> profile =
+            WorkspaceStaffApplicantProfile.Create(
+                displayName,
+                legalName,
+                workEmail,
+                workPhone,
+                employeeNumber,
+                jobTitle,
+                department);
+        if (!TryNormalizeRequired(
+                verifiedAccountEmail,
+                WorkspaceStaffOnboardingRules.EmailMaxLength,
+                out string? verifiedEmail) ||
+            profile.IsFailure)
+        {
+            return Result.Failure(WorkspaceStaffOnboardingErrors.Unavailable);
+        }
+
+        this.VerifiedAccountEmail = verifiedEmail;
+        this.ApplyProfile(profile.Value);
         this.Advance(nowUtc);
         return Result.Success();
     }
@@ -274,24 +285,15 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
-    private void ApplyProfile(
-        string verifiedAccountEmail,
-        string displayName,
-        string? legalName,
-        string? workEmail,
-        string? workPhone,
-        string? employeeNumber,
-        string? jobTitle,
-        string? department)
+    private void ApplyProfile(WorkspaceStaffApplicantProfile profile)
     {
-        this.VerifiedAccountEmail = verifiedAccountEmail;
-        this.DisplayName = displayName;
-        this.LegalName = legalName;
-        this.WorkEmail = workEmail;
-        this.WorkPhone = workPhone;
-        this.EmployeeNumber = employeeNumber;
-        this.JobTitle = jobTitle;
-        this.Department = department;
+        this.DisplayName = profile.DisplayName;
+        this.LegalName = profile.LegalName;
+        this.WorkEmail = profile.WorkEmail;
+        this.WorkPhone = profile.WorkPhone;
+        this.EmployeeNumber = profile.EmployeeNumber;
+        this.JobTitle = profile.JobTitle;
+        this.Department = profile.Department;
     }
 
     private void RedactApplicantData()
@@ -318,9 +320,4 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         return normalized.Length is > 0 && normalized.Length <= maxLength;
     }
 
-    private static bool TryNormalizeOptional(string? value, int maxLength, out string? normalized)
-    {
-        normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        return normalized is null || normalized.Length <= maxLength;
-    }
 }

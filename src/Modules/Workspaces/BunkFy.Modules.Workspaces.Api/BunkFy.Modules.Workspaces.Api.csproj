@@ -7,6 +7,7 @@
     <ProjectReference Include="..\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Workspaces.Domain\BunkFy.Modules.Workspaces.Domain.csproj" />
     <ProjectReference Include="..\BunkFy.Modules.Workspaces.Persistence\BunkFy.Modules.Workspaces.Persistence.csproj" />
+    <ProjectReference Include="..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
     <ProjectReference Include="..\..\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Api\Gma.Framework.Api\Gma.Framework.Api.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs\Gma.Framework.Cqrs.csproj" />

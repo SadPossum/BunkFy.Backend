@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Application;
 
 using BunkFy.DataGovernance;
+using BunkFy.Modules.DataRights.Application.Authorization;
 using BunkFy.Modules.DataRights.Application.Handlers;
 using BunkFy.Modules.DataRights.Application.Policies;
 using BunkFy.Modules.DataRights.Application.Ports;
@@ -8,7 +9,6 @@ using BunkFy.Modules.DataRights.Application.Security;
 using BunkFy.Modules.DataRights.Application.Tasks;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
-using BunkFy.Modules.DataRights.Application.Authorization;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
@@ -89,6 +89,11 @@ public static class DependencyInjection
             StaffDataRightsCorrectionAppliedHandler>(
                 DataRightsModuleMetadata.Name,
                 DataRightsModuleMetadata.StaffProducerModuleName);
+        services.AddIntegrationEventHandler<
+            DataRightsTenantCorrectionAppliedIntegrationEvent,
+            WorkspacesDataRightsCorrectionAppliedHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.WorkspacesProducerModuleName);
         services.AddGmaAccessControlPermissionPolicies(DataRightsModuleMetadata.Descriptor);
         return services;
     }

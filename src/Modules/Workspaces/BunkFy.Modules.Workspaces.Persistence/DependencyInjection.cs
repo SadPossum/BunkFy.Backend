@@ -34,6 +34,15 @@ public static class DependencyInjection
             IWorkspaceStaffOnboardingRetentionRepository,
             WorkspaceStaffOnboardingRetentionRepository>();
         builder.Services.TryAddScoped<
+            IWorkspaceStaffOnboardingCorrectionReceiptRepository,
+            WorkspaceStaffOnboardingCorrectionReceiptRepository>();
+        builder.Services.TryAddScoped<
+            IWorkspaceStaffOnboardingDataRightsCorrectionLock,
+            WorkspaceStaffOnboardingDataRightsCorrectionLock>();
+        builder.Services.TryAddScoped<
+            IWorkspaceStaffOnboardingDataRightsCorrectionTargetReader,
+            WorkspaceStaffOnboardingDataRightsCorrectionTargetReader>();
+        builder.Services.TryAddScoped<
             IWorkspaceStaffAccessProcessRepository,
             WorkspaceStaffAccessProcessRepository>();
         builder.Services.TryAddScoped<
@@ -59,6 +68,10 @@ public static class DependencyInjection
             WorkspacePropertiesProjectionRebuildWriter>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IUnitOfWork, WorkspacesUnitOfWork>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IOutboxWriter, WorkspacesOutboxWriter>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IOutboxStore, WorkspacesOutboxStore>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IInboxStore, WorkspacesInboxStore>());
         builder.Services.TryAddEnumerable(

@@ -38,7 +38,15 @@ catalogue-driven protected export. The owner exposes onboarding applications,
 access processes, access plans, and immutable retention-correlation receipts
 as separate versioned coordinates. Exact record or Auth account-subject
 lookups are accepted; weak, mixed, property-scoped, cross-tenant, and retained
-pseudonym lookups fail closed. Correction, restriction, and destructive
+pseudonym lookups fail closed.
+
+An approved Staff Rights correction may replace only the seven applicant
+profile fields on one exact `Submitted` onboarding version. The claim-bound
+read and mutation require tenant `data-rights.execute`, preserve Auth identity
+and source facts, and fail closed after authority moves into claim approval or
+provisioning. Workspaces records an append-only replay receipt, exports its
+bounded accountability proof without the request fingerprint, and completes
+the central case through its own durable outbox. Restriction and destructive
 execution remain deferred until their owner-local authority and companion
 record semantics are specified.
 

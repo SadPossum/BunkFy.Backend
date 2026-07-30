@@ -4,6 +4,7 @@ using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -206,7 +207,17 @@ public sealed class WorkspacesDataRightsContributorTests
         Assert.Equal(
             DataRightsSubjectExportStatus.Succeeded,
             onboarding.Status);
-        Assert.Single(onboardingSink.Records);
+        Assert.Equal(2, onboarding.RecordCount);
+        Assert.Equal(
+            [
+                WorkspacesDataRightsCoordinates
+                    .StaffOnboardingRecordType,
+                WorkspacesDataRightsExportContributor
+                    .StaffOnboardingCorrectionReceiptRecordType
+            ],
+            onboardingSink.Records
+                .Select(record => record.RecordType)
+                .ToArray());
         Assert.Equal(
             JsonValueKind.Null,
             Field(
@@ -217,6 +228,16 @@ public sealed class WorkspacesDataRightsContributorTests
             Field(
                 onboardingSink.Records[0],
                 "workspaces.auth-subject-id").GetString());
+        Assert.Equal(
+            graph.CorrectionReceipt.ExecutionId,
+            Field(
+                onboardingSink.Records[1],
+                "workspaces.data-rights.execution-id").GetGuid());
+        Assert.DoesNotContain(
+            onboardingSink.Records[1].Fields,
+            field =>
+                field.FieldId ==
+                "workspaces.data-rights.request-fingerprint");
 
         CollectingSink processSink = new();
         DataRightsSubjectExportResult process =
@@ -311,7 +332,7 @@ public sealed class WorkspacesDataRightsContributorTests
         Assert.Equal(
             "workspaces.personal-data",
             contributor.Descriptor.CatalogId);
-        Assert.Equal(3, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(4, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             WorkspacesDataRightsExportSchema.ExportSchemaId,
             contributor.Descriptor.ExportSchemaId);
@@ -363,6 +384,73 @@ public sealed class WorkspacesDataRightsContributorTests
         Assert.Equal(
             DataRightsSubjectExportStatus.ScopeUnavailable,
             propertyScoped.Status);
+        Assert.Empty(sink.Records);
+    }
+
+    [Fact]
+    public async Task Onboarding_export_rejects_excess_receipts_before_writing()
+    {
+        await using WorkspacesDbContext context = CreateContext();
+        WorkspaceStaffOnboarding onboarding =
+            WorkspaceStaffOnboarding.Create(
+                Guid.NewGuid(),
+                TenantId,
+                WorkspaceStaffOnboardingSource.EnrollmentLink,
+                Guid.NewGuid(),
+                SubjectId,
+                "verified@example.test",
+                "Ada Operator",
+                legalName: null,
+                workEmail: null,
+                workPhone: null,
+                employeeNumber: null,
+                jobTitle: null,
+                department: null,
+                Now).Value;
+        context.StaffOnboardingApplications.Add(onboarding);
+        for (int index = 0;
+             index <=
+             WorkspacesDataRightsExportContributor.MaximumChildRecords;
+             index++)
+        {
+            context.StaffOnboardingCorrectionReceipts.Add(
+                WorkspaceStaffOnboardingCorrectionReceipt.Create(
+                    Guid.NewGuid(),
+                    TenantId,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    approvalRevision: 1,
+                    onboarding.Id,
+                    selectedRecordVersion: 1,
+                    currentRecordVersion: 2,
+                    [
+                        WorkspaceStaffOnboardingApplicantField
+                            .DisplayName
+                    ],
+                    new string('a', 64),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Now.AddTicks(index)).Value);
+        }
+
+        await context.SaveChangesAsync();
+        WorkspacesDataRightsExportContributor contributor =
+            new(context, new TestScopeContext());
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result =
+            await contributor.ExportAsync(
+                ExportRequest(
+                    WorkspacesDataRightsCoordinates
+                        .StaffOnboardingRecordType,
+                    onboarding.Id,
+                    onboarding.Version),
+                sink,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsSubjectExportStatus.ScopeUnavailable,
+            result.Status);
         Assert.Empty(sink.Records);
     }
 
@@ -454,12 +542,42 @@ public sealed class WorkspacesDataRightsContributorTests
                 accessProcessRecordsScrubbed: 1,
                 accessPlanRecordsScrubbed: 1,
                 Now.AddDays(1)).Value;
+        WorkspaceStaffOnboardingCorrectionReceipt correctionReceipt =
+            WorkspaceStaffOnboardingCorrectionReceipt.Create(
+                Guid.Parse(
+                    "81000000-0000-0000-0000-000000000001"),
+                TenantId,
+                Guid.Parse(
+                    "91000000-0000-0000-0000-000000000001"),
+                Guid.Parse(
+                    "92000000-0000-0000-0000-000000000001"),
+                approvalRevision: 2,
+                onboarding.Id,
+                selectedRecordVersion: 1,
+                currentRecordVersion: 2,
+                [
+                    WorkspaceStaffOnboardingApplicantField
+                        .DisplayName
+                ],
+                new string('a', 64),
+                Guid.Parse(
+                    "93000000-0000-0000-0000-000000000001"),
+                Guid.Parse(
+                    "94000000-0000-0000-0000-000000000001"),
+                Now.AddSeconds(30)).Value;
 
         context.StaffOnboardingApplications.Add(onboarding);
         context.StaffAccessProcesses.Add(process);
         context.StaffAccessPlans.Add(plan);
         context.StaffRetentionCorrelationReceipts.Add(receipt);
-        return new SeededGraph(onboarding, process, plan, receipt);
+        context.StaffOnboardingCorrectionReceipts.Add(
+            correctionReceipt);
+        return new SeededGraph(
+            onboarding,
+            process,
+            plan,
+            receipt,
+            correctionReceipt);
     }
 
     private static DataRightsSubjectDiscoveryRequest DiscoveryRequest(
@@ -543,5 +661,6 @@ public sealed class WorkspacesDataRightsContributorTests
         WorkspaceStaffOnboarding Onboarding,
         WorkspaceStaffAccessProcess Process,
         WorkspaceStaffAccessPlan Plan,
-        WorkspaceStaffRetentionCorrelationReceipt Receipt);
+        WorkspaceStaffRetentionCorrelationReceipt Receipt,
+        WorkspaceStaffOnboardingCorrectionReceipt CorrectionReceipt);
 }

@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,8 @@ internal sealed class WorkspacesDataRightsExportContributor(
         "staff-access-profile-snapshot";
     public const string StaffAccessPlanPropertyRecordType =
         "staff-access-plan-property";
+    public const string StaffOnboardingCorrectionReceiptRecordType =
+        "staff-onboarding-correction-receipt";
 
     public string OwnerKey => WorkspacesDataRightsCoordinates.Owner;
 
@@ -135,6 +138,22 @@ internal sealed class WorkspacesDataRightsExportContributor(
             return DataRightsSubjectExportResult.Stale();
         }
 
+        WorkspaceStaffOnboardingCorrectionReceipt[] receipts =
+            await dbContext.StaffOnboardingCorrectionReceipts
+                .AsNoTracking()
+                .Where(receipt =>
+                    receipt.ScopeId == tenantId &&
+                    receipt.ApplicationId == record.Id)
+                .OrderBy(receipt => receipt.CompletedAtUtc)
+                .ThenBy(receipt => receipt.Id)
+                .Take(MaximumChildRecords + 1)
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (receipts.Length > MaximumChildRecords)
+        {
+            return DataRightsSubjectExportResult.ScopeUnavailable();
+        }
+
         await sink.WriteAsync(
             WorkspacesDataRightsExportSchema.CreateRecord(
                 WorkspacesDataRightsCoordinates.StaffOnboardingRecordType,
@@ -142,7 +161,35 @@ internal sealed class WorkspacesDataRightsExportContributor(
                 record.Version,
                 record),
             cancellationToken).ConfigureAwait(false);
-        return DataRightsSubjectExportResult.Success(1);
+        int recordCount = 1;
+        foreach (WorkspaceStaffOnboardingCorrectionReceipt receipt in
+                 receipts)
+        {
+            WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport
+                export = new(
+                    receipt.ContractVersion,
+                    receipt.Id,
+                    receipt.ExecutionId,
+                    receipt.CaseId,
+                    receipt.ApprovalRevision,
+                    receipt.ApplicationId,
+                    receipt.SelectedRecordVersion,
+                    receipt.CurrentRecordVersion,
+                    receipt.ChangedFields,
+                    receipt.ApplicantEventId,
+                    receipt.CompletionEventId,
+                    receipt.CompletedAtUtc);
+            await sink.WriteAsync(
+                WorkspacesDataRightsExportSchema.CreateRecord(
+                    StaffOnboardingCorrectionReceiptRecordType,
+                    receipt.Id,
+                    receipt.CurrentRecordVersion,
+                    export),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        return DataRightsSubjectExportResult.Success(recordCount);
     }
 
     private async Task<DataRightsSubjectExportResult> ExportAccessProcessAsync(

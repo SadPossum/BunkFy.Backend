@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Tests.Api;
 
 using System.Reflection;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.AdminApi;
 using BunkFy.Modules.Workspaces.Api;
@@ -174,6 +175,43 @@ public sealed class WorkspacesApiSecurityTests
             HttpMethods.Put,
             AccessControlProfilePermissionCodes.Assign,
             typeof(WorkspaceMemberAccessDto),
+            StatusCodes.Status200OK);
+    }
+
+    [Fact]
+    public async Task Data_rights_correction_routes_require_tenant_execution_permission()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceStaffJoinSourceIssuer>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceStaffJoinSourceManager>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceStaffJoinSourceReplacementManager>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceStaffOnboardingSubmitter>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceAccessProfileManager>(_ => null!);
+        builder.Services.AddSingleton<IWorkspaceMemberAccessManager>(_ => null!);
+        builder.Services.AddSingleton<IScopeContextAccessor>(_ => null!);
+        await using WebApplication app = builder.Build();
+        new WorkspacesModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app)
+            .DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+
+        AssertProtectedRoute(
+            endpoints,
+            "/api/workspace-staff-enrollment/data-rights-corrections/{applicationId:guid}",
+            HttpMethods.Get,
+            DataRightsAdminPermissionCodes.Execute,
+            typeof(WorkspaceStaffOnboardingDataRightsCorrectionTargetDto),
+            StatusCodes.Status200OK);
+        AssertProtectedRoute(
+            endpoints,
+            "/api/workspace-staff-enrollment/data-rights-corrections",
+            HttpMethods.Post,
+            DataRightsAdminPermissionCodes.Execute,
+            typeof(WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto),
             StatusCodes.Status200OK);
     }
 

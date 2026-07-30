@@ -38,6 +38,8 @@ internal static class WorkspacesDataRightsExportSchema
     private static readonly Type[] SourceTypes =
     [
         typeof(WorkspaceStaffOnboardingDataRightsExport),
+        typeof(
+            WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport),
         typeof(WorkspaceStaffAccessProcessDataRightsExport),
         typeof(WorkspaceStaffAccessProfileDataRightsExport),
         typeof(WorkspaceStaffAccessPlanDataRightsExport),

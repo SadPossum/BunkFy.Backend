@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -145,6 +146,75 @@ public sealed class WorkspacesModelTests
                         WorkspaceStaffRetentionCorrelationReceipt
                             .SelectedStaffVersion)]));
         Assert.NotEmpty(entity.GetDeclaredQueryFilters());
+    }
+
+    [Fact]
+    public async Task Staff_onboarding_correction_receipt_is_unique_and_append_only()
+    {
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using WorkspacesDbContext context =
+            new(options, new TestScopeContext());
+        Microsoft.EntityFrameworkCore.Metadata.IEntityType entity =
+            context.Model.FindEntityType(
+                typeof(WorkspaceStaffOnboardingCorrectionReceipt))!;
+
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(
+                        WorkspaceStaffOnboardingCorrectionReceipt
+                            .ScopeId),
+                    nameof(
+                        WorkspaceStaffOnboardingCorrectionReceipt
+                            .ExecutionId)
+                ]));
+        Assert.Contains(entity.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(
+                        WorkspaceStaffOnboardingCorrectionReceipt
+                            .ScopeId),
+                    nameof(
+                        WorkspaceStaffOnboardingCorrectionReceipt
+                            .ApplicationId),
+                    nameof(
+                        WorkspaceStaffOnboardingCorrectionReceipt
+                            .CompletedAtUtc),
+                    nameof(
+                        WorkspaceStaffOnboardingCorrectionReceipt
+                            .Id)
+                ]));
+        Assert.NotEmpty(entity.GetDeclaredQueryFilters());
+
+        WorkspaceStaffOnboardingCorrectionReceipt receipt =
+            WorkspaceStaffOnboardingCorrectionReceipt.Create(
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                approvalRevision: 1,
+                Guid.NewGuid(),
+                selectedRecordVersion: 1,
+                currentRecordVersion: 2,
+                [WorkspaceStaffOnboardingApplicantField.DisplayName],
+                new string('a', 64),
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.Now).Value;
+        context.StaffOnboardingCorrectionReceipts.Add(receipt);
+        await context.SaveChangesAsync();
+        context.Entry(receipt).State = EntityState.Modified;
+
+        InvalidOperationException error =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => context.SaveChangesAsync());
+        Assert.Equal(
+            "Workspace immutable receipts are append-only.",
+            error.Message);
     }
 
     [Fact]

@@ -21,4 +21,16 @@ public static class WorkspaceStaffOnboardingApplicationErrors
     public static readonly Error RetentionPlanInconsistent = new(
         "Workspaces.StaffOnboardingRetentionPlanInconsistent",
         "The Staff onboarding access plan is inconsistent with retention reconciliation.");
+    public static readonly Error CorrectionRequestInvalid = new(
+        "Workspaces.StaffOnboardingCorrectionRequestInvalid",
+        "The Staff onboarding correction request is invalid.");
+    public static readonly Error DataRightsApprovalRequired = new(
+        "Workspaces.StaffOnboardingCorrectionApprovalRequired",
+        "An active approved Data Rights correction execution is required.");
+    public static readonly Error CorrectionTargetUnavailable = new(
+        "Workspaces.StaffOnboardingCorrectionTargetUnavailable",
+        "The selected Staff onboarding record is no longer editable.");
+    public static readonly Error CorrectionIdempotencyConflict = new(
+        "Workspaces.StaffOnboardingCorrectionIdempotencyConflict",
+        "The Data Rights correction execution was already used for another request.");
 }

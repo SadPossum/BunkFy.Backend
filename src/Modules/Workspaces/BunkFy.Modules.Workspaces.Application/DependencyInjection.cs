@@ -5,9 +5,10 @@ using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Application.Authorization;
 using BunkFy.Modules.Workspaces.Application.Contributors;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Tasks;
@@ -51,6 +52,8 @@ public static class DependencyInjection
             IWorkspaceStaffOnboardingSubmitter,
             WorkspaceStaffOnboardingSubmitter>();
         services.TryAddScoped<WorkspaceStaffOnboardingProcessor>();
+        services.TryAddScoped<
+            WorkspaceStaffOnboardingDataRightsCorrectionAuthorizer>();
         services.TryAddScoped<WorkspaceStaffAccessPlanPolicy>();
         services.TryAddScoped<
             IWorkspaceStaffJoinSourceIssuer,
@@ -91,6 +94,9 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IRetentionExecutionContributor,
             WorkspaceStaffOnboardingRetentionContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IDataRightsCorrectionPolicyContributor,
+            WorkspaceStaffOnboardingDataRightsCorrectionPolicyContributor>());
         services.AddIntegrationEventHandler<
             OrganizationInvitationChangedIntegrationEvent,
             OrganizationInvitationStaffOnboardingHandler>(

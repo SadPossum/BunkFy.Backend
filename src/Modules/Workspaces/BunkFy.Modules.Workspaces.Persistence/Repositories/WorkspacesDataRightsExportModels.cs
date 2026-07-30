@@ -25,6 +25,22 @@ internal sealed record WorkspaceStaffOnboardingDataRightsExport(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset LastChangedAtUtc);
 
+internal sealed record
+    WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport(
+        int ContractVersion,
+        Guid ReceiptId,
+        Guid ExecutionId,
+        Guid CaseId,
+        long ApprovalRevision,
+        Guid ApplicationId,
+        long SelectedRecordVersion,
+        long CurrentRecordVersion,
+        IReadOnlyCollection<WorkspaceStaffOnboardingApplicantField>
+            ChangedFields,
+        Guid ApplicantEventId,
+        Guid CompletionEventId,
+        DateTimeOffset CompletedAtUtc);
+
 internal sealed record WorkspaceStaffAccessProcessDataRightsExport(
     Guid Id,
     string ScopeId,

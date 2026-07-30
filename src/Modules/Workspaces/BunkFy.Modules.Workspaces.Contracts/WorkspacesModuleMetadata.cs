@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Contracts;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Messaging;
@@ -65,6 +66,8 @@ public static class WorkspacesModuleMetadata
         .WithSubscription<PropertyRetiredIntegrationEvent>(
             PropertiesModuleMetadata.Name,
             PropertyRetiredHandlerName)
+        .WithPublishedEvent<
+            DataRightsTenantCorrectionAppliedIntegrationEvent>()
         .WithTask<RebuildWorkspacePropertiesPayload>()
         .WithProfile(WorkspacesProfiles.Default)
         .Build();
@@ -80,6 +83,9 @@ public static class WorkspacesProfiles
         provides: [],
         requires:
         [
+            MessagingCompositionFeatures.OutboxRequired(
+                Provider,
+                "Workspaces publishes Staff onboarding correction completion through its durable outbox."),
             MessagingCompositionFeatures.NatsConsumersRequired(
                 Provider,
                 "Organizations join facts drive durable BunkFy Staff provisioning.",

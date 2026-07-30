@@ -318,11 +318,13 @@ Guests, Reservations, Ingestion, Staff, Inventory, and Workspaces now
 implement the owner-local operations applicable to their current record
 types. Workspaces contributes bounded Staff Rights discovery, stale-safe
 selection validation, and protected export for onboarding, access processes,
-access plans, and immutable retention-correlation receipts. Its correction,
-restriction, and destructive execution remain intentionally absent until
-their authority and required-companion semantics are specified. Consent
-records, document-retention schedules, and country-specific
-guest-registration obligations remain separate concerns.
+access plans, and immutable retention-correlation receipts. It also owns
+claim-bound correction of the seven staged applicant-profile fields while an
+onboarding record remains `Submitted`, with append-only replay proof and
+durable central-case completion. Restriction and destructive execution remain
+intentionally absent until their authority and required-companion semantics
+are specified. Consent records, document-retention schedules, and
+country-specific guest-registration obligations remain separate concerns.
 
 ### Integrations Marketplace
 
@@ -345,11 +347,10 @@ milestones. Owner-local automatic retention covers Ingestion, Guests,
 Reservations, and Staff; Workspaces now removes its Staff/Auth correlation as
 part of that irreversible workflow.
 
-The suggested next slice remains inside Workspaces: define the narrow
-correction authority for editable onboarding applicant fields, route
-Staff/Auth/Organizations-owned corrections to their authoritative owners, and
-record immutable owner proof without rewriting access history. Processing
-restriction follows that slice. Destructive Workspaces execution waits for a
-generic BunkFy Data Rights required-companion contract. Rates, Billing,
-business-day close/reopen, housekeeping, maintenance, and temporary holds
-remain separate later candidates.
+The suggested next slice remains inside Workspaces: define reversible
+processing restriction for the still-authoritative onboarding and access
+records without freezing Organizations, Auth, or Staff-owned state.
+Destructive Workspaces execution waits for a generic BunkFy Data Rights
+required-companion contract. Rates, Billing, business-day close/reopen,
+housekeeping, maintenance, and temporary holds remain separate later
+candidates.

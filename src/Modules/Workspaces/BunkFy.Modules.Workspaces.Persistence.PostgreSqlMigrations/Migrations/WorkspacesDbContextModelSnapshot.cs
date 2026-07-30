@@ -23,6 +23,87 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffOnboardingCorrectionReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicantEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ChangedFieldsMask")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CompletionEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("CurrentRecordVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ExecutionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RequestSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedRecordVersion")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "ApplicantEventId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CompletionEventId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ExecutionId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CaseId", "ApprovalRevision");
+
+                    b.HasIndex("ScopeId", "ApplicationId", "CompletedAtUtc", "Id");
+
+                    b.ToTable("staff_onboarding_correction_receipts", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_workspaces_staff_onboarding_correction_receipts_approval", "\"ApprovalRevision\" >= 1");
+
+                            t.HasCheckConstraint("CK_workspaces_staff_onboarding_correction_receipts_contract", "\"ContractVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_workspaces_staff_onboarding_correction_receipts_digest", "char_length(\"RequestSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_workspaces_staff_onboarding_correction_receipts_fields", "\"ChangedFieldsMask\" BETWEEN 1 AND 127");
+
+                            t.HasCheckConstraint("CK_workspaces_staff_onboarding_correction_receipts_versions", "\"SelectedRecordVersion\" >= 1 AND \"CurrentRecordVersion\" = \"SelectedRecordVersion\" + 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -496,6 +577,66 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("Status", "ProcessedAtUtc");
 
                     b.ToTable("inbox_messages", "workspaces");
+                });
+
+            modelBuilder.Entity("Gma.Framework.Messaging.Infrastructure.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("LockedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("ScopeId");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc", "CreatedAtUtc");
+
+                    b.ToTable("outbox_messages", "workspaces");
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlanProperty", b =>

@@ -12,6 +12,8 @@ using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Application.Queries;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
+using BunkFy.Modules.Workspaces.Domain.Events;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
 using Gma.Framework.Messaging;
@@ -149,6 +151,7 @@ public sealed class WorkspacesPersonalDataCatalogTests
     private static Type[] PersistenceTypes() =>
     [
         typeof(WorkspaceStaffOnboarding),
+        typeof(WorkspaceStaffOnboardingCorrectionReceipt),
         typeof(WorkspaceStaffAccessProcess),
         typeof(WorkspaceStaffAccessProfileSnapshot),
         typeof(WorkspaceStaffAccessPlan),
@@ -165,7 +168,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(IssueWorkspaceEnrollmentLinkRequest),
                      typeof(ManageWorkspaceJoinSourceRequest),
                      typeof(ReplaceWorkspaceJoinSourceRequest),
-                     typeof(UpdateWorkspaceMemberAccessRequest)
+                     typeof(UpdateWorkspaceMemberAccessRequest),
+                     typeof(
+                         WorkspaceStaffOnboardingDataRightsCorrectionRequest)
                  })
         {
             yield return (PersonalDataSurface.ApiInput, type);
@@ -186,13 +191,19 @@ public sealed class WorkspacesPersonalDataCatalogTests
                          WorkspaceStaffRetentionCorrelationScrubRequest),
                      typeof(WorkspaceInvitationIssuanceRequest),
                      typeof(WorkspaceEnrollmentLinkIssuanceRequest),
-                     typeof(WorkspaceMemberAccessUpdate)
+                     typeof(WorkspaceMemberAccessUpdate),
+                     typeof(
+                         ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand)
                  })
         {
             yield return (PersonalDataSurface.ApplicationCommand, type);
         }
 
         yield return (PersonalDataSurface.ApplicationQuery, typeof(GetOwnWorkspaceStaffOnboardingQuery));
+        yield return (
+            PersonalDataSurface.ApplicationQuery,
+            typeof(
+                GetWorkspaceStaffOnboardingDataRightsCorrectionTargetQuery));
         yield return (PersonalDataSurface.ProjectionExport, typeof(WorkspaceStaffAccessPreparation));
 
         foreach (Type type in new[]
@@ -205,7 +216,11 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(WorkspaceStaffJoinSourceListResponse),
                      typeof(WorkspaceStaffJoinSourceReplacementDto),
                      typeof(WorkspaceStaffAccessPlanDto),
-                     typeof(WorkspaceStaffJoinSourceIssuanceDto)
+                     typeof(WorkspaceStaffJoinSourceIssuanceDto),
+                     typeof(
+                         WorkspaceStaffOnboardingDataRightsCorrectionTargetDto),
+                     typeof(
+                         WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto)
                  })
         {
             yield return (PersonalDataSurface.ApiResponse, type);
@@ -223,11 +238,18 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(
                          WorkspaceStaffAccessPlanPropertyDataRightsExport),
                      typeof(
-                         WorkspaceStaffRetentionCorrelationDataRightsExport)
+                         WorkspaceStaffRetentionCorrelationDataRightsExport),
+                     typeof(
+                         WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport)
                  })
         {
             yield return (PersonalDataSurface.DataRightsExport, type);
         }
+
+        yield return (
+            PersonalDataSurface.DomainEvent,
+            typeof(
+                WorkspaceStaffOnboardingCorrectionAppliedDomainEvent));
 
         foreach (Type type in new[]
                  {

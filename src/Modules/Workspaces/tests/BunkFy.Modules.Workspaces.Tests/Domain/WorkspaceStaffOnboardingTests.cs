@@ -224,6 +224,112 @@ public sealed class WorkspaceStaffOnboardingTests
     }
 
     [Fact]
+    public void Data_rights_correction_normalizes_profile_and_preserves_verified_identity()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication();
+        string? verifiedAccountEmail = application.VerifiedAccountEmail;
+        Guid applicantEventId = Guid.NewGuid();
+        Result<WorkspaceStaffApplicantProfile> requested =
+            WorkspaceStaffApplicantProfile.Create(
+                " Ada Corrected ",
+                " ",
+                " ADA.NEW@WORKSPACE.TEST ",
+                " +1 555 0199 ",
+                " EMP-101 ",
+                " Director ",
+                " ");
+        Assert.True(requested.IsSuccess, requested.Error.Code);
+
+        Result<WorkspaceStaffOnboardingCorrectionOutcome> result =
+            application.ApplyDataRightsCorrection(
+                requested.Value,
+                expectedVersion: 1,
+                applicantEventId,
+                Now.AddMinutes(1));
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(1, result.Value.PreviousVersion);
+        Assert.Equal(2, result.Value.CurrentVersion);
+        Assert.Equal(
+            [
+                WorkspaceStaffOnboardingApplicantField.DisplayName,
+                WorkspaceStaffOnboardingApplicantField.LegalName,
+                WorkspaceStaffOnboardingApplicantField.WorkEmail,
+                WorkspaceStaffOnboardingApplicantField.WorkPhone,
+                WorkspaceStaffOnboardingApplicantField.EmployeeNumber,
+                WorkspaceStaffOnboardingApplicantField.JobTitle,
+                WorkspaceStaffOnboardingApplicantField.Department
+            ],
+            result.Value.ChangedFields);
+        Assert.Equal(applicantEventId, result.Value.ApplicantEventId);
+        Assert.Equal("Ada Corrected", application.DisplayName);
+        Assert.Null(application.LegalName);
+        Assert.Equal("ADA.NEW@WORKSPACE.TEST", application.WorkEmail);
+        Assert.Equal("+1 555 0199", application.WorkPhone);
+        Assert.Equal("EMP-101", application.EmployeeNumber);
+        Assert.Equal("Director", application.JobTitle);
+        Assert.Null(application.Department);
+        Assert.Equal(verifiedAccountEmail, application.VerifiedAccountEmail);
+        Assert.Equal(2, application.Version);
+    }
+
+    [Fact]
+    public void Data_rights_correction_rejects_stale_noop_and_reviewed_targets()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication();
+        WorkspaceStaffApplicantProfile unchanged =
+            WorkspaceStaffApplicantProfile.Create(
+                application.DisplayName,
+                application.LegalName,
+                application.WorkEmail,
+                application.WorkPhone,
+                application.EmployeeNumber,
+                application.JobTitle,
+                application.Department).Value;
+
+        Result<WorkspaceStaffOnboardingCorrectionOutcome> stale =
+            application.ApplyDataRightsCorrection(
+                unchanged,
+                expectedVersion: 2,
+                Guid.NewGuid(),
+                Now.AddMinutes(1));
+        Result<WorkspaceStaffOnboardingCorrectionOutcome> noOp =
+            application.ApplyDataRightsCorrection(
+                unchanged,
+                expectedVersion: 1,
+                Guid.NewGuid(),
+                Now.AddMinutes(2));
+        Assert.True(application.ObserveClaimRequested(
+            Guid.NewGuid(),
+            1,
+            Now.AddMinutes(3)).IsSuccess);
+        Result<WorkspaceStaffOnboardingCorrectionOutcome> reviewed =
+            application.ApplyDataRightsCorrection(
+                WorkspaceStaffApplicantProfile.Create(
+                    "Changed",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null).Value,
+                application.Version,
+                Guid.NewGuid(),
+                Now.AddMinutes(4));
+
+        Assert.Equal(
+            WorkspaceStaffOnboardingErrors.CorrectionVersionConflict,
+            stale.Error);
+        Assert.Equal(
+            WorkspaceStaffOnboardingErrors.CorrectionNoChanges,
+            noOp.Error);
+        Assert.Equal(
+            WorkspaceStaffOnboardingErrors.CorrectionUnavailable,
+            reviewed.Error);
+        Assert.Equal("Ada Operator", application.DisplayName);
+    }
+
+    [Fact]
     public void Invitation_acceptance_opens_the_provisioning_path()
     {
         WorkspaceStaffOnboarding application = CreateApplication(

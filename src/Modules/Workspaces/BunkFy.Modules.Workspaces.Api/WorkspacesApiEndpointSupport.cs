@@ -40,6 +40,10 @@ internal static class WorkspacesApiEndpointSupport
         new(WorkspaceStaffOnboardingApplicationErrors.ApplicationNotFound.Code, StatusCodes.Status404NotFound),
         new(WorkspaceStaffOnboardingApplicationErrors.ProvisioningFailed.Code, StatusCodes.Status409Conflict),
         new(WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceStaffOnboardingApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceStaffOnboardingApplicationErrors.DataRightsApprovalRequired.Code, StatusCodes.Status403Forbidden),
+        new(WorkspaceStaffOnboardingApplicationErrors.CorrectionTargetUnavailable.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceStaffOnboardingApplicationErrors.CorrectionIdempotencyConflict.Code, StatusCodes.Status409Conflict),
         new(WorkspaceStaffAccessPlanApplicationErrors.PlanNotFound.Code, StatusCodes.Status404NotFound),
         new(WorkspaceStaffAccessPlanApplicationErrors.ProfileUnavailable.Code, StatusCodes.Status409Conflict),
         new(WorkspaceStaffAccessPlanApplicationErrors.ProfileNotDelegable.Code, StatusCodes.Status403Forbidden),
@@ -52,7 +56,13 @@ internal static class WorkspacesApiEndpointSupport
         new(WorkspaceStaffOnboardingErrors.Invalid.Code, StatusCodes.Status400BadRequest),
         new(WorkspaceStaffOnboardingErrors.Unavailable.Code, StatusCodes.Status409Conflict),
         new(WorkspaceStaffOnboardingErrors.ClaimConflict.Code, StatusCodes.Status409Conflict),
-        new(WorkspaceStaffOnboardingErrors.StateConflict.Code, StatusCodes.Status409Conflict));
+        new(WorkspaceStaffOnboardingErrors.StateConflict.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceStaffOnboardingErrors.CorrectionVersionConflict.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceStaffOnboardingErrors.CorrectionUnavailable.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceStaffOnboardingErrors.CorrectionNoChanges.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceStaffOnboardingErrors.CorrectionReceiptIdentityInvalid.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceStaffOnboardingErrors.CorrectionReceiptVersionInvalid.Code, StatusCodes.Status400BadRequest),
+        new(WorkspaceStaffOnboardingErrors.CorrectionReceiptFieldsInvalid.Code, StatusCodes.Status400BadRequest));
 
     public static AccessSubject? ResolveUser(
         HttpContext context,

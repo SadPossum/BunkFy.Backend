@@ -48,6 +48,20 @@ internal sealed class StaffDataRightsCorrectionAppliedHandler(
         coordinator.CompleteAsync(integrationEvent, cancellationToken);
 }
 
+[IntegrationEventHandler(
+    DataRightsModuleMetadata.WorkspacesCorrectionAppliedHandlerName,
+    RequiresExplicitProducerBinding = true)]
+internal sealed class WorkspacesDataRightsCorrectionAppliedHandler(
+    DataRightsCorrectionCompletionCoordinator coordinator)
+    : IIntegrationEventHandler<
+        DataRightsTenantCorrectionAppliedIntegrationEvent>
+{
+    public Task HandleAsync(
+        DataRightsTenantCorrectionAppliedIntegrationEvent integrationEvent,
+        CancellationToken cancellationToken) =>
+        coordinator.CompleteAsync(integrationEvent, cancellationToken);
+}
+
 internal sealed class DataRightsCorrectionCompletionCoordinator(
     IDataRightsCaseRepository cases,
     IDataRightsCorrectionExecutionRepository executions,
