@@ -314,12 +314,15 @@ exports, correction, restriction, anonymisation, restore, and processing-ledger
 workflows coordinate owner capabilities without reading or mutating another
 module's records.
 
-Guests, Reservations, Ingestion, Staff, and Inventory now implement the
-owner-local operations applicable to their current record types. Workspaces
-classifies and minimizes onboarding data and removes Auth correlation during
-irreversible Staff retention, but its general Data Rights owner capability is
-still intentionally absent. Consent records, document-retention schedules, and
-country-specific guest-registration obligations remain separate concerns.
+Guests, Reservations, Ingestion, Staff, Inventory, and Workspaces now
+implement the owner-local operations applicable to their current record
+types. Workspaces contributes bounded Staff Rights discovery, stale-safe
+selection validation, and protected export for onboarding, access processes,
+access plans, and immutable retention-correlation receipts. Its correction,
+restriction, and destructive execution remain intentionally absent until
+their authority and required-companion semantics are specified. Consent
+records, document-retention schedules, and country-specific
+guest-registration obligations remain separate concerns.
 
 ### Integrations Marketplace
 
@@ -342,10 +345,11 @@ milestones. Owner-local automatic retention covers Ingestion, Guests,
 Reservations, and Staff; Workspaces now removes its Staff/Auth correlation as
 part of that irreversible workflow.
 
-The suggested next domain slice is a bounded Workspaces Data Rights owner audit
-and first capability. It must define which onboarding and access-history facts
-are discoverable or exportable, which transient fields can be corrected or
-restricted, and how anonymisation/restore interacts with authority evidence
-before adding handlers. Rates, Billing, business-day close/reopen,
-housekeeping, maintenance, and temporary holds remain separate later
-candidates.
+The suggested next slice remains inside Workspaces: define the narrow
+correction authority for editable onboarding applicant fields, route
+Staff/Auth/Organizations-owned corrections to their authoritative owners, and
+record immutable owner proof without rewriting access history. Processing
+restriction follows that slice. Destructive Workspaces execution waits for a
+generic BunkFy Data Rights required-companion contract. Rates, Billing,
+business-day close/reopen, housekeeping, maintenance, and temporary holds
+remain separate later candidates.

@@ -13,6 +13,7 @@ using BunkFy.Modules.Workspaces.Application.Queries;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Persistence;
+using BunkFy.Modules.Workspaces.Persistence.Repositories;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
 using Gma.Modules.Organizations.Contracts;
@@ -212,6 +213,21 @@ public sealed class WorkspacesPersonalDataCatalogTests
 
         yield return (PersonalDataSurface.AdminOutput, typeof(WorkspaceStaffAccessProcessDto));
         yield return (PersonalDataSurface.AdminOutput, typeof(WorkspaceStaffAccessProcessListResponse));
+
+        foreach (Type type in new[]
+                 {
+                     typeof(WorkspaceStaffOnboardingDataRightsExport),
+                     typeof(WorkspaceStaffAccessProcessDataRightsExport),
+                     typeof(WorkspaceStaffAccessProfileDataRightsExport),
+                     typeof(WorkspaceStaffAccessPlanDataRightsExport),
+                     typeof(
+                         WorkspaceStaffAccessPlanPropertyDataRightsExport),
+                     typeof(
+                         WorkspaceStaffRetentionCorrelationDataRightsExport)
+                 })
+        {
+            yield return (PersonalDataSurface.DataRightsExport, type);
+        }
 
         foreach (Type type in new[]
                  {

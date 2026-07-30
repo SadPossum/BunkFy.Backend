@@ -35,6 +35,15 @@ public sealed class WorkspacesModelTests
                 nameof(WorkspaceStaffOnboarding.SubjectId),
                 nameof(WorkspaceStaffOnboarding.Status),
                 nameof(WorkspaceStaffOnboarding.Id)]));
+        Microsoft.EntityFrameworkCore.Metadata.IIndex staffLookupIndex =
+            Assert.Single(entity.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(WorkspaceStaffOnboarding.ScopeId),
+                nameof(WorkspaceStaffOnboarding.StaffMemberId),
+                nameof(WorkspaceStaffOnboarding.Id)]));
+        Assert.Equal(
+            "\"StaffMemberId\" IS NOT NULL",
+            staffLookupIndex.GetFilter());
         Assert.NotEmpty(entity.GetDeclaredQueryFilters());
     }
 

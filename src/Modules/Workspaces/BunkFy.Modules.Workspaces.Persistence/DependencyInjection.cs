@@ -1,12 +1,13 @@
 namespace BunkFy.Modules.Workspaces.Persistence;
 
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
-using BunkFy.Modules.Properties.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -41,6 +42,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IWorkspaceStaffRetentionCorrelationRepository,
             WorkspaceStaffRetentionCorrelationRepository>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectDiscoveryContributor,
+                WorkspacesDataRightsDiscoveryContributor>());
+        WorkspacesDataRightsExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                WorkspacesDataRightsExportContributor>());
         builder.Services.TryAddScoped<
             IWorkspacePropertyProjectionRepository,
             WorkspacePropertyProjectionRepository>();

@@ -32,6 +32,16 @@ reasserts access denial before accepting that receipt as complete. This
 irreversible scrub is not used by the reversible Data Rights anonymisation and
 restore path.
 
+For approved Staff Rights access cases, Workspaces now contributes its own
+tenant-scoped subject discovery, stale-safe selection validation, and
+catalogue-driven protected export. The owner exposes onboarding applications,
+access processes, access plans, and immutable retention-correlation receipts
+as separate versioned coordinates. Exact record or Auth account-subject
+lookups are accepted; weak, mixed, property-scoped, cross-tenant, and retained
+pseudonym lookups fail closed. Correction, restriction, and destructive
+execution remain deferred until their owner-local authority and companion
+record semantics are specified.
+
 The engineering defaults live under
 `Workspaces:StaffOnboardingRetention`: a two-hour source-expiry grace period,
 a 20-hour authoritative-inspection ceiling, a 60-minute schedule interval,

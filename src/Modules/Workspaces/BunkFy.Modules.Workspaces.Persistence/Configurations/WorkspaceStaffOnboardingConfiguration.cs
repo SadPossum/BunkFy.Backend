@@ -80,6 +80,12 @@ internal sealed class WorkspaceStaffOnboardingConfiguration
             application.Status,
             application.Id
         });
+        builder.HasIndex(application => new
+        {
+            application.ScopeId,
+            application.StaffMemberId,
+            application.Id
+        }).HasFilter("\"StaffMemberId\" IS NOT NULL");
         builder.Ignore(application => application.IsAdmissible);
         builder.Ignore(application => application.DomainEvents);
     }

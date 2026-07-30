@@ -53,6 +53,7 @@ Useful entry points:
 - [Workspace Staff Retention Correlation Scrub Task](planning/workspace-staff-retention-correlation-scrub-task.md)
 - [Workspace Onboarding Production Proof](planning/workspace-onboarding-production-proof-task.md)
 - [Workspaces Personal-Data Catalogue Task](planning/workspaces-personal-data-catalogue-task.md)
+- [Workspaces Data Rights Owner Capability Task](planning/workspaces-data-rights-owner-capability-task.md)
 - [Operations Notifications Personal-Data Catalogue Task](planning/operations-notifications-personal-data-catalogue-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Workspaces Module](../src/Modules/Workspaces/docs/README.md)
