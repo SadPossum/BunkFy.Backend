@@ -158,6 +158,7 @@ public sealed class DataRightsApiSecurityTests
         {
             AuthenticationAssuranceRequirement assurance = new(
                 maxAuthenticationAge: TimeSpan.FromMinutes(10));
+            options.AnonymisationExecutionAssurance = assurance;
             options.CorrectionExecutionAssurance = assurance;
             options.ExportGenerationAssurance = assurance;
             options.ExportDownloadAssurance = assurance;
@@ -205,6 +206,14 @@ public sealed class DataRightsApiSecurityTests
                 HttpMethods.Post,
                 $"{cases}/{{caseId:guid}}/cancel",
                 DataRightsAdminPermissionCodes.Manage),
+            (
+                HttpMethods.Get,
+                $"{cases}/{{caseId:guid}}/execution",
+                DataRightsAdminPermissionCodes.Read),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/execution",
+                DataRightsAdminPermissionCodes.Erase),
             (
                 HttpMethods.Get,
                 $"{cases}/{{caseId:guid}}/subjects",
@@ -258,12 +267,10 @@ public sealed class DataRightsApiSecurityTests
                     StringComparison.Ordinal));
         }
 
-        Assert.DoesNotContain(
+        AssertAssurance(
             endpoints,
-            endpoint =>
-                endpoint.RoutePattern.RawText?.StartsWith(
-                    $"{cases}/{{caseId:guid}}/execution",
-                    StringComparison.Ordinal) == true);
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/execution");
         AssertAssurance(
             endpoints,
             HttpMethods.Post,
@@ -354,6 +361,18 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/export",
             typeof(DataRightsExportArtifactDto));
+
+        const string tenantCases = "/api/data-rights/tenant/cases";
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            $"{tenantCases}/{{caseId:guid}}/execution",
+            typeof(DataRightsExecutionDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{tenantCases}/{{caseId:guid}}/execution",
+            typeof(DataRightsExecutionDto));
     }
 
     private static void AssertPermission(

@@ -18,7 +18,7 @@ using Microsoft.AspNetCore.Routing;
 
 internal static class DataRightsExecutionEndpoints
 {
-    public static void Map(
+    public static void MapProperty(
         RouteGroupBuilder group,
         AuthenticationAssuranceRequirement? executionAssurance)
     {
@@ -77,6 +77,59 @@ internal static class DataRightsExecutionEndpoints
                     PermissionCode.Create(DataRightsAdminPermissionCodes.Read),
                     scopeResolverName: DataRightsPropertyAccessScopeResolver.ResolverName,
                     requireScope: true));
+
+        startExecution.RequireAssuranceWhenConfigured(executionAssurance);
+    }
+
+    public static void MapTenant(
+        RouteGroupBuilder group,
+        AuthenticationAssuranceRequirement? executionAssurance)
+    {
+        group.MapGet("/{caseId:guid}/execution", async (
+            Guid caseId,
+            HttpContext context,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            DataRightsSensitiveResponseHeaders.Apply(context.Response);
+            return (await dispatcher.QueryAsync(
+                new GetDataRightsExecutionQuery(
+                    DataRightsCaseScope.Staff,
+                    caseId),
+                cancellationToken).ConfigureAwait(false))
+                .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+        })
+            .Produces<DataRightsExecutionDto>()
+            .RequireTenant()
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Read);
+
+        RouteHandlerBuilder startExecution = group.MapPost(
+            "/{caseId:guid}/execution",
+            async (
+                Guid caseId,
+                StartDataRightsExecutionRequest request,
+                HttpContext context,
+                IAccessHttpSubjectResolver subjectResolver,
+                IRequestDispatcher dispatcher,
+                CancellationToken cancellationToken) =>
+            {
+                DataRightsSensitiveResponseHeaders.Apply(context.Response);
+                string? actor = DataRightsEndpointSupport.ResolveActor(context, subjectResolver);
+                return actor is null
+                    ? Results.Unauthorized()
+                    : (await dispatcher.SendAsync(
+                        new StartDataRightsAnonymisationExecutionCommand(
+                            DataRightsCaseScope.Staff,
+                            caseId,
+                            request.IdempotencyKey,
+                            request.ExpectedVersion,
+                            actor),
+                        cancellationToken).ConfigureAwait(false))
+                        .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+            })
+            .Produces<DataRightsExecutionDto>()
+            .RequireTenant()
+            .RequireTenantPermission(DataRightsAdminPermissionCodes.Erase);
 
         startExecution.RequireAssuranceWhenConfigured(executionAssurance);
     }

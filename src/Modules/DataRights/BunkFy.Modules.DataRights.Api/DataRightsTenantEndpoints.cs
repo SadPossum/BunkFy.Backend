@@ -22,6 +22,7 @@ internal static class DataRightsTenantEndpoints
     public static void Map(
         IEndpointRouteBuilder endpoints,
         string moduleName,
+        AuthenticationAssuranceRequirement? anonymisationExecutionAssurance,
         AuthenticationAssuranceRequirement? restrictionExecutionAssurance,
         AuthenticationAssuranceRequirement? correctionExecutionAssurance,
         AuthenticationAssuranceRequirement? exportGenerationAssurance,
@@ -238,6 +239,9 @@ internal static class DataRightsTenantEndpoints
             .RequireTenantPermission(DataRightsAdminPermissionCodes.Manage);
 
         MapDiscovery(group);
+        DataRightsExecutionEndpoints.MapTenant(
+            group,
+            anonymisationExecutionAssurance);
         DataRightsRestrictionEndpoints.MapTenant(
             group,
             restrictionExecutionAssurance);

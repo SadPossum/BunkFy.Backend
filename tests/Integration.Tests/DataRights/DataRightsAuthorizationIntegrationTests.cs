@@ -1,15 +1,21 @@
 namespace Integration.Tests;
 
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text;
+using BunkFy.Host.ServiceDefaults.Security;
 using BunkFy.Modules.DataRights.Contracts;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
+using Gma.Framework.Security;
 using Gma.Modules.Auth.Contracts;
 using Integration.Tests.Support;
+using Microsoft.IdentityModel.Tokens;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -51,15 +57,22 @@ public sealed class DataRightsAuthorizationIntegrationTests
             client,
             TenantId,
             "property-privacy-reader@data-rights.test");
+        AuthTokensResponse tenantEraserTokens = await AuthApiClient.RegisterAsync(
+            client,
+            TenantId,
+            "tenant-privacy-eraser@data-rights.test");
         Guid tenantReaderId = GetSubjectId(tenantTokens.AccessToken);
         Guid propertyReaderId = GetSubjectId(propertyTokens.AccessToken);
+        Guid tenantEraserId = GetSubjectId(tenantEraserTokens.AccessToken);
         await api.SeedOrganizationMembershipAsync(TenantId, tenantReaderId);
         await api.SeedOrganizationMembershipAsync(TenantId, propertyReaderId);
+        await api.SeedOrganizationMembershipAsync(TenantId, tenantEraserId);
         Guid propertyId = Guid.NewGuid();
         await ConfigureAccessAsync(
             admin,
             tenantReaderId,
             propertyReaderId,
+            tenantEraserId,
             propertyId);
 
         using HttpResponseMessage tenantAllowed = await SendAsync(
@@ -79,12 +92,76 @@ public sealed class DataRightsAuthorizationIntegrationTests
             $"/api/data-rights/properties/{propertyId:D}/cases",
             propertyTokens.AccessToken);
         Assert.Equal(HttpStatusCode.OK, propertyAllowed.StatusCode);
+
+        Guid missingCaseId = Guid.NewGuid();
+        string executionPath =
+            $"/api/data-rights/tenant/cases/{missingCaseId:D}/execution";
+        using HttpResponseMessage tenantExecutionReadable = await SendAsync(
+            client,
+            executionPath,
+            tenantTokens.AccessToken);
+        Assert.Equal(HttpStatusCode.NotFound, tenantExecutionReadable.StatusCode);
+
+        using HttpResponseMessage propertyExecutionDenied = await SendAsync(
+            client,
+            executionPath,
+            propertyTokens.AccessToken);
+        Assert.Equal(HttpStatusCode.Forbidden, propertyExecutionDenied.StatusCode);
+
+        using HttpResponseMessage tenantReaderCannotErase = await SendAsync(
+            client,
+            HttpMethod.Post,
+            executionPath,
+            tenantTokens.AccessToken,
+            new
+            {
+                idempotencyKey = Guid.NewGuid(),
+                expectedVersion = 1L,
+            });
+        Assert.Equal(HttpStatusCode.Forbidden, tenantReaderCannotErase.StatusCode);
+
+        using HttpResponseMessage tenantEraserNeedsAssurance = await SendAsync(
+            client,
+            HttpMethod.Post,
+            executionPath,
+            tenantEraserTokens.AccessToken,
+            new
+            {
+                idempotencyKey = Guid.NewGuid(),
+                expectedVersion = 1L,
+            });
+        string insufficientAssuranceBody =
+            await tenantEraserNeedsAssurance.Content.ReadAsStringAsync();
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            tenantEraserNeedsAssurance.StatusCode);
+        Assert.Contains(
+            "Security.InsufficientAuthentication",
+            insufficientAssuranceBody,
+            StringComparison.Ordinal);
+
+        string assuredEraserAccessToken = CreateAssuredAccessToken(
+            tenantEraserTokens.AccessToken);
+        using HttpResponseMessage tenantEraserCanReachExecution = await SendAsync(
+            client,
+            HttpMethod.Post,
+            executionPath,
+            assuredEraserAccessToken,
+            new
+            {
+                idempotencyKey = Guid.NewGuid(),
+                expectedVersion = 1L,
+            });
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            tenantEraserCanReachExecution.StatusCode);
     }
 
     private static async Task ConfigureAccessAsync(
         AdminCliTestApplication admin,
         Guid tenantReaderId,
         Guid propertyReaderId,
+        Guid tenantEraserId,
         Guid propertyId)
     {
         await AssertAdminSuccessAsync(admin.ExecuteAsync(
@@ -95,6 +172,7 @@ public sealed class DataRightsAuthorizationIntegrationTests
             "--yes"));
         await CreateReaderRoleAsync(admin, "tenant-data-rights-reader");
         await CreateReaderRoleAsync(admin, "property-data-rights-reader");
+        await CreateEraserRoleAsync(admin, "tenant-data-rights-eraser");
         await AssignRoleAsync(
             admin,
             tenantReaderId,
@@ -105,6 +183,11 @@ public sealed class DataRightsAuthorizationIntegrationTests
             propertyReaderId,
             "property-data-rights-reader",
             $"tenant:{TenantId}/property:{propertyId:D}");
+        await AssignRoleAsync(
+            admin,
+            tenantEraserId,
+            "tenant-data-rights-eraser",
+            $"tenant:{TenantId}");
     }
 
     private static async Task CreateReaderRoleAsync(
@@ -131,6 +214,30 @@ public sealed class DataRightsAuthorizationIntegrationTests
             DataRightsAdminPermissionCodes.Read));
     }
 
+    private static async Task CreateEraserRoleAsync(
+        AdminCliTestApplication admin,
+        string role)
+    {
+        await AssertAdminSuccessAsync(admin.ExecuteAsync(
+            "admin",
+            "roles",
+            "create",
+            "--actor",
+            "owner",
+            "--name",
+            role));
+        await AssertAdminSuccessAsync(admin.ExecuteAsync(
+            "admin",
+            "roles",
+            "grant",
+            "--actor",
+            "owner",
+            "--role",
+            role,
+            "--permission",
+            DataRightsAdminPermissionCodes.Erase));
+    }
+
     private static async Task AssignRoleAsync(
         AdminCliTestApplication admin,
         Guid subjectId,
@@ -155,11 +262,29 @@ public sealed class DataRightsAuthorizationIntegrationTests
         HttpClient client,
         string path,
         string accessToken)
+        => await SendAsync(
+            client,
+            HttpMethod.Get,
+            path,
+            accessToken,
+            body: null);
+
+    private static async Task<HttpResponseMessage> SendAsync(
+        HttpClient client,
+        HttpMethod method,
+        string path,
+        string accessToken,
+        object? body)
     {
-        using HttpRequestMessage request = new(HttpMethod.Get, path);
+        using HttpRequestMessage request = new(method, path);
         request.Headers.Add(TenantHeader, TenantId);
         request.Headers.Authorization =
             new AuthenticationHeaderValue("Bearer", accessToken);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
         return await client.SendAsync(request);
     }
 
@@ -183,5 +308,46 @@ public sealed class DataRightsAuthorizationIntegrationTests
             claim.Type is ClaimTypes.NameIdentifier or "nameid" or "sub")?.Value;
         Assert.True(Guid.TryParse(id, out Guid parsed));
         return parsed;
+    }
+
+    private static string CreateAssuredAccessToken(string accessToken)
+    {
+        JwtSecurityToken source =
+            new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
+        string[] replacedClaims =
+        [
+            JwtRegisteredClaimNames.Iat,
+            JwtRegisteredClaimNames.Nbf,
+            JwtRegisteredClaimNames.Exp,
+            JwtRegisteredClaimNames.Iss,
+            JwtRegisteredClaimNames.Aud,
+            ApplicationClaimNames.AuthenticationContextReference,
+            ApplicationClaimNames.AuthenticationTime,
+        ];
+        List<Claim> claims = source.Claims
+            .Where(claim =>
+                !replacedClaims.Contains(claim.Type, StringComparer.Ordinal))
+            .ToList();
+        claims.Add(new Claim(
+            ApplicationClaimNames.AuthenticationContextReference,
+            BunkFyAuthenticationAssurance.TwoStepContextReference));
+        claims.Add(new Claim(
+            ApplicationClaimNames.AuthenticationTime,
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                .ToString(CultureInfo.InvariantCulture),
+            ClaimValueTypes.Integer64));
+
+        SigningCredentials credentials = new(
+            new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(AuthTestApplication.JwtSigningKey)),
+            SecurityAlgorithms.HmacSha256);
+        JwtSecurityToken assuredToken = new(
+            issuer: "BunkFy",
+            audience: "BunkFy",
+            claims,
+            notBefore: DateTime.UtcNow.AddMinutes(-1),
+            expires: source.ValidTo,
+            credentials);
+        return new JwtSecurityTokenHandler().WriteToken(assuredToken);
     }
 }

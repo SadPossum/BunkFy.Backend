@@ -1,6 +1,6 @@
 # Staff Data Rights Anonymisation Task
 
-Status: restore safety implemented and locally verified; public operator workflow deferred
+Status: operator surface implemented and locally verified
 Date: 2026-07-30
 
 ## Outcome
@@ -23,9 +23,8 @@ The final workflow must:
 - preserve historical Guest ledger and protected-delta verification.
 
 This is delivered in guarded slices. The prerequisite foundation, scoped case
-admission, internal owner mutation, and restore safety are complete. Public
-Staff execution remains unavailable until a dedicated operator workflow is
-designed and verified.
+admission, internal owner mutation, restore safety, and dedicated operator
+workflow are complete and locally verified.
 
 ## Ownership
 
@@ -255,9 +254,10 @@ The scope slice now implements:
 - PostgreSQL promotion and guarded downgrade of existing Guest execution data.
 
 Internal destructive Staff execution is implemented through the version 2
-tenant-scoped owner protocol described below. The public API intentionally has
-no Staff execution endpoint, so this internal capability cannot be started by
-an operator before its product workflow and production policy are approved.
+tenant-scoped owner protocol described below. At scope-slice completion, the
+public API intentionally had no Staff execution endpoint, so the internal
+capability could not be started before its product workflow was approved. The
+dedicated operator surface is delivered separately in slice 5.
 
 Version 3 restore is implemented as a separate Staff-scoped protocol. It
 resolves the Workspaces prerequisite and Staff owner before replay-envelope
@@ -307,11 +307,11 @@ approval digest, frozen-state digest, event id, bounded executor attribution,
 completion time, and its own canonical digest. Replay succeeds only when the
 receipt, terminal aggregate state, and tombstone all still agree.
 
-The owner mutation and version 2 internal dispatch are implemented before a
-public Staff execution endpoint is exposed. Restore coordination can now
-synchronously deny workspace access before restored Staff data is visible;
-public Staff execution remains closed pending a deliberately designed operator
-workflow, production policy approval, and its own authorization review.
+The owner mutation and version 2 internal dispatch were implemented before a
+public Staff execution endpoint was exposed. Restore coordination can
+synchronously deny workspace access before restored Staff data is visible.
+The later operator slice preserves this ordering and adds its own authorization
+and authentication-assurance proof.
 
 The PostgreSQL owner schema enforces the terminal Staff lifecycle, exact
 receipt/tombstone coordinates, tenant-first uniqueness, append-only receipts,
@@ -401,6 +401,38 @@ match the same Staff id, owner receipt, resulting version, tombstone revision,
 and canonical digest. The relational schema rejects receipt update/delete and
 unsafe downgrade once restore proof exists.
 
+## Public Operator Surface Slice Contract
+
+Approved Staff anonymisation is exposed only through the existing tenant-scoped
+Data Rights case workflow:
+
+- `GET /api/data-rights/tenant/cases/{caseId}/execution` reads the bounded,
+  PII-free execution state with tenant `data-rights.read`;
+- `POST /api/data-rights/tenant/cases/{caseId}/execution` starts the exact
+  approved execution with tenant `data-rights.erase` and the host's configured
+  destructive-operation authentication assurance;
+- both routes use `DataRightsCaseScope.Staff`, return no-store responses, and
+  preserve the property-scoped Guest routes and contracts unchanged;
+- the command handler must still re-evaluate frozen approval evidence, enforce
+  a distinct executor when policy requires it, and create only tenant-scoped
+  version 2 work;
+- the Worker must still complete the Workspaces access-denial prerequisite
+  before Staff mutation and retain the version 3 restore proof described above;
+  and
+- no ordinary Staff management endpoint, self-service endpoint, Admin shortcut,
+  or direct database path may anonymise a profile.
+
+The operator web application may offer `Staff data removal` only as a Data
+Rights request type. It must preserve the explicit decision and `REMOVE`
+confirmation, poll the tenant execution route only while work is non-terminal,
+and invalidate Staff directory/detail projections once terminal owner proof is
+observed. An absent execution remains a normal not-found result rather than a
+synthetic pending state.
+
+Staff correction editing is outside this slice. A correct UI needs a
+correction-claim-gated sensitive snapshot from Staff; it must not reuse an
+ordinary Staff profile read or silently require unrelated profile permissions.
+
 ## Delivery Slices
 
 1. Foundation: employment governance, holds, operation lock, permissions,
@@ -411,6 +443,8 @@ unsafe downgrade once restore proof exists.
    tombstone, and PII-free event.
 4. Restore: synchronous Workspaces access denial, replay, re-scrub, readiness,
    and historical-delta restoration proof.
+5. Operator surface: tenant-scoped Data Rights execution routes, destructive
+   assurance, generated web contracts, and the guarded Staff removal workflow.
 
 Each slice is independently reviewable and leaves destructive behavior disabled
 until all preceding invariants are enforceable.
@@ -502,10 +536,28 @@ pre-anonymisation restore cannot become ready until organization membership and
 workspace authorization are closed and the Staff owner has attached the exact
 ledger proof to its tombstone and immutable restore receipt.
 
+### Operator Surface Verification
+
+The complete non-Docker repository gate passed on 2026-07-30 with
+`eng/verify.ps1 -SkipRestore`, including solution/source-package guards, build,
+migration drift, architecture boundaries, and all non-Docker test projects.
+The web candidate passed `pnpm verify`: type checking, lint, 133 tests across
+20 files, and the production build. Generated contracts also match the current
+backend OpenAPI document.
+
+The exact PostgreSQL/NATS authorization scenario
+`DataRightsAuthorizationIntegrationTests.Tenant_case_routes_require_a_tenant_grant_and_preserve_property_routes`
+passed. It proves tenant readers can inspect Staff execution, property-only
+readers cannot cross into tenant scope, readers cannot erase, a normally
+authenticated eraser is challenged for stronger assurance, and a fresh
+two-step eraser reaches the application while the property-scoped Guest routes
+remain available. No GMA change was required.
+
 ## Deferred
 
-- public Staff anonymisation execution API and operator workflow;
 - automatic Staff retention scheduling and worker execution;
+- Staff correction editing until a correction-claim-gated sensitive snapshot
+  is available;
 - production legal approval of country-policy content;
 - payroll, tax, identity-document, contract, signature, and benefits records;
 - legal-entity and employment-agreement domain ownership;
