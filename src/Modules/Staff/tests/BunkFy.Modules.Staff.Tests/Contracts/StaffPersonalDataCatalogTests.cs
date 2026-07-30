@@ -12,6 +12,7 @@ using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Entities;
 using BunkFy.Modules.Staff.Domain.Governance;
+using BunkFy.Modules.Staff.Domain.Retention;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Staff.Persistence.Models;
 using BunkFy.Modules.Staff.Persistence.Repositories;
@@ -108,6 +109,9 @@ public sealed class StaffPersonalDataCatalogTests
                      typeof(StaffEmploymentGovernanceChangeReceipt),
                      typeof(StaffDataHold),
                      typeof(StaffDataHoldReceipt),
+                     typeof(StaffRetentionExecution),
+                     typeof(StaffRetentionSweepCheckpoint),
+                     typeof(StaffRetentionAnonymisationReceipt),
                      typeof(StaffOperationLock)
                  })
         {
@@ -307,6 +311,8 @@ public sealed class StaffPersonalDataCatalogTests
                                     type == typeof(StaffIdentityReconciliationRequest) ||
                                     type == typeof(StaffIdentityReconciliationResult) ||
                                     type == typeof(StaffAnonymisationRestoreState) ||
+                                    type == typeof(
+                                        StaffRetentionAnonymisationPrerequisiteRequest) ||
                                     type == typeof(StaffOnboardingProvisioningRequest) ||
                                     type == typeof(StaffOnboardingProvisioningResult) ||
                                     type == typeof(StaffPropertyAssignmentProvisioningRequest) ||
@@ -318,6 +324,8 @@ public sealed class StaffPersonalDataCatalogTests
                 yield return (PersonalDataSurface.IntegrationEvent, type);
             }
             else if (type == typeof(StaffIdentityReconciliationRequest) ||
+                     type == typeof(
+                         StaffRetentionAnonymisationPrerequisiteRequest) ||
                      type == typeof(StaffOnboardingProvisioningRequest) ||
                      type == typeof(StaffPropertyAssignmentProvisioningRequest))
             {

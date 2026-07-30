@@ -119,6 +119,15 @@ public static class StaffApplicationErrors
     public static readonly Error AnonymisationNotEligible = new(
         "Staff.AnonymisationBlocked.NotEligible",
         "The Staff member is not eligible for anonymisation.");
+    public static readonly Error RetentionMutationInvalid = new(
+        "Staff.RetentionMutationInvalid",
+        "The Staff retention mutation request is invalid.");
+    public static readonly Error RetentionExecutionNotFound = new(
+        "Staff.RetentionExecutionNotFound",
+        "The Staff retention execution was not found.");
+    public static readonly Error RetentionProofConflict = new(
+        "Staff.RetentionProofConflict",
+        "The committed Staff retention proof is unavailable or inconsistent.");
     public static Error VersionConflict => StaffDomainErrors.VersionConflict;
     public static Error StaffSuspended => StaffDomainErrors.StaffSuspended;
     public static Error StaffDeparted => StaffDomainErrors.StaffDeparted;

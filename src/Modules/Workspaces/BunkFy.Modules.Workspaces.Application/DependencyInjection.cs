@@ -80,6 +80,9 @@ public static class DependencyInjection
             IDataRightsAnonymisationRestorePrerequisiteV3,
             WorkspaceStaffAnonymisationAccessPrerequisite>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IStaffRetentionAnonymisationPrerequisite,
+            WorkspaceStaffAnonymisationAccessPrerequisite>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IOrganizationMembershipChangePolicy,
             WorkspaceOrganizationMembershipChangePolicy>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<

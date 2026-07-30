@@ -39,6 +39,7 @@ Useful entry points:
 - [Staff Data Rights Correction Task](planning/staff-data-rights-correction-task.md)
 - [Staff Data Rights Restriction Task](planning/staff-data-rights-restriction-task.md)
 - [Staff Data Rights Anonymisation Task](planning/staff-data-rights-anonymisation-task.md)
+- [Staff Record Retention Task](planning/staff-record-retention-task.md)
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)

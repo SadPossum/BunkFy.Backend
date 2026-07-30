@@ -8,6 +8,7 @@ using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Entities;
 using BunkFy.Modules.Staff.Domain.Governance;
+using BunkFy.Modules.Staff.Domain.Retention;
 using BunkFy.Modules.Staff.Persistence.Models;
 
 public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, IScopeContext scopeContext)
@@ -40,6 +41,14 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
         this.Set<StaffAnonymisationRestoreReceipt>();
     public DbSet<StaffAnonymisationTombstone> AnonymisationTombstones =>
         this.Set<StaffAnonymisationTombstone>();
+    public DbSet<StaffRetentionExecution> RetentionExecutions =>
+        this.Set<StaffRetentionExecution>();
+    public DbSet<StaffRetentionSweepCheckpoint>
+        RetentionSweepCheckpoints =>
+        this.Set<StaffRetentionSweepCheckpoint>();
+    public DbSet<StaffRetentionAnonymisationReceipt>
+        RetentionAnonymisationReceipts =>
+        this.Set<StaffRetentionAnonymisationReceipt>();
     internal DbSet<StaffOperationLock> OperationLocks =>
         this.Set<StaffOperationLock>();
     public DbSet<StaffPropertyAssignment> PropertyAssignments => this.Set<StaffPropertyAssignment>();
@@ -100,15 +109,22 @@ public sealed class StaffDbContext(DbContextOptions<StaffDbContext> options, ISc
                 .Any(entry =>
                     entry.State is
                         EntityState.Modified or EntityState.Deleted);
+        bool retentionReceiptMutationRequested =
+            this.ChangeTracker
+                .Entries<StaffRetentionAnonymisationReceipt>()
+                .Any(entry =>
+                    entry.State is
+                        EntityState.Modified or EntityState.Deleted);
         if (correctionMutationRequested ||
             restrictionMutationRequested ||
             governanceMutationRequested ||
             holdReceiptMutationRequested ||
             anonymisationReceiptMutationRequested ||
-            anonymisationRestoreReceiptMutationRequested)
+            anonymisationRestoreReceiptMutationRequested ||
+            retentionReceiptMutationRequested)
         {
             throw new InvalidOperationException(
-                "Staff data-rights receipts are append-only.");
+                "Staff immutable receipts are append-only.");
         }
     }
 }

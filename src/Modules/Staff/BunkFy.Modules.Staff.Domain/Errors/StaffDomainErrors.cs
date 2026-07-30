@@ -140,4 +140,22 @@ public static class StaffDomainErrors
     public static readonly Error AnonymisationTombstoneInvalid = new(
         "Staff.AnonymisationTombstoneInvalid",
         "The Staff anonymisation tombstone is invalid.");
+    public static readonly Error RetentionExecutionCoordinateInvalid = new(
+        "Staff.RetentionExecutionCoordinateInvalid",
+        "The Staff retention execution coordinate is invalid.");
+    public static readonly Error RetentionExecutionTransitionInvalid = new(
+        "Staff.RetentionExecutionTransitionInvalid",
+        "The Staff retention execution transition is invalid.");
+    public static readonly Error RetentionExecutionResultInvalid = new(
+        "Staff.RetentionExecutionResultInvalid",
+        "The Staff retention execution result is invalid.");
+    public static readonly Error RetentionCheckpointInvalid = new(
+        "Staff.RetentionCheckpointInvalid",
+        "The Staff retention checkpoint is invalid.");
+    public static readonly Error RetentionCheckpointConflict = new(
+        "Staff.RetentionCheckpointConflict",
+        "The Staff retention checkpoint has changed.");
+    public static readonly Error RetentionReceiptInvalid = new(
+        "Staff.RetentionReceiptInvalid",
+        "The Staff retention receipt is invalid.");
 }

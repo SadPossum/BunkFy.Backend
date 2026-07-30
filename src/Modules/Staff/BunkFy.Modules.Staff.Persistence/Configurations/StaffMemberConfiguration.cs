@@ -45,6 +45,13 @@ internal sealed class StaffMemberConfiguration : IEntityTypeConfiguration<StaffM
         builder.HasIndex(member => new { member.ScopeId, member.EmployeeNumberSearch }).IsUnique();
         builder.HasIndex(member => new { member.ScopeId, member.AuthSubjectId }).IsUnique();
         builder.HasIndex(member => new { member.ScopeId, member.Status, member.DisplayNameSearch, member.Id });
+        builder.HasIndex(member => new
+        {
+            member.ScopeId,
+            member.Status,
+            member.ProjectionOrdinal,
+            member.Id
+        });
         builder.HasMany(member => member.Assignments).WithOne().HasForeignKey(assignment =>
             new { assignment.ScopeId, assignment.StaffMemberId }).HasPrincipalKey(member =>
             new { member.ScopeId, member.Id }).OnDelete(DeleteBehavior.Restrict);

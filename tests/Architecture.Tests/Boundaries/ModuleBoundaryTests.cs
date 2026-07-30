@@ -327,6 +327,82 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Staff_retention_stays_product_owned_and_contract_coupled()
+    {
+        ProjectFile staffApplication = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Modules.Staff.Application",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            staffApplication.ProjectReferences,
+            reference => reference.EndsWith(
+                "BunkFy.Modules.Retention.Contracts\\BunkFy.Modules.Retention.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            staffApplication.ProjectReferences,
+            reference =>
+                reference.Contains(
+                    "BunkFy.Modules.Retention.Application",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Retention.Domain",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Retention.Persistence",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Workspaces.",
+                    StringComparison.OrdinalIgnoreCase));
+
+        ProjectFile workspacesApplication = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Modules.Workspaces.Application",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            workspacesApplication.ProjectReferences,
+            reference => reference.EndsWith(
+                "BunkFy.Modules.Staff.Contracts\\BunkFy.Modules.Staff.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            workspacesApplication.ProjectReferences,
+            reference =>
+                reference.Contains(
+                    "BunkFy.Modules.Staff.Application",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Staff.Domain",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Staff.Persistence",
+                    StringComparison.OrdinalIgnoreCase));
+
+        string[] retentionImplementationOffenders =
+            RepositoryPaths.EnumerateFiles(
+                    "src/Modules/Retention",
+                    "*.cs")
+                .Where(path => File.ReadAllText(path).Contains(
+                    "BunkFy.Modules.Staff.",
+                    StringComparison.Ordinal))
+                .Select(RepositoryPaths.ToRepositoryPath)
+                .ToArray();
+        Assert.Empty(retentionImplementationOffenders);
+
+        string[] gmaOffenders = RepositoryPaths.EnumerateFiles(
+                "gma",
+                "*.cs")
+            .Where(path => File.ReadAllText(path).Contains(
+                "StaffRetention",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+        Assert.Empty(gmaOffenders);
+    }
+
+    [Fact]
     public void Remote_adapter_lease_protocol_stays_in_shared_runtime_transport_and_ingestion()
     {
         string[] allowedRoots =

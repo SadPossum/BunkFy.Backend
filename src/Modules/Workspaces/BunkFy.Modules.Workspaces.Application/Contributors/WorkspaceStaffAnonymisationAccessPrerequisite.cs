@@ -14,8 +14,11 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
     WorkspaceStaffAccessDenier accessDenier,
     ILogger<WorkspaceStaffAnonymisationAccessPrerequisite> logger)
     : IDataRightsAnonymisationExecutionPrerequisiteV2,
-      IDataRightsAnonymisationRestorePrerequisiteV3
+      IDataRightsAnonymisationRestorePrerequisiteV3,
+      IStaffRetentionAnonymisationPrerequisite
 {
+    private const string RetentionContributorKey =
+        "workspace-access";
     private const string RequestInvalid =
         "Workspaces.StaffAnonymisationRequestInvalid";
     private const string StateUnavailable =
@@ -38,6 +41,8 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
 
     public DataRightsCaseType CaseType =>
         DataRightsCaseType.StaffRights;
+
+    public string ContributorKey => RetentionContributorKey;
 
     int IDataRightsAnonymisationExecutionPrerequisiteV2.ContractVersion =>
         DataRightsAnonymisationExecutionPrerequisiteContractV2
@@ -106,6 +111,37 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                         DataRightsAnonymisationRestoreContractV3
                             .CurrentVersion,
                         result.Code)
+        };
+    }
+
+    public async Task<StaffRetentionAnonymisationPrerequisiteResult>
+        ExecuteAsync(
+            StaffRetentionAnonymisationPrerequisiteRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (!IsValid(request))
+        {
+            return StaffRetentionAnonymisationPrerequisiteResult.Blocked(
+                RequestInvalid);
+        }
+
+        AccessClosureResult result = await this.EnsureClosedAsync(
+            request.TenantId,
+            request.StaffMemberId,
+            request.SelectedStaffVersion,
+            resultingRecordVersion: null,
+            cancellationToken).ConfigureAwait(false);
+        return result.Status switch
+        {
+            AccessClosureStatus.Completed =>
+                StaffRetentionAnonymisationPrerequisiteResult
+                    .Completed(),
+            AccessClosureStatus.Blocked =>
+                StaffRetentionAnonymisationPrerequisiteResult
+                    .Blocked(result.Code),
+            _ =>
+                StaffRetentionAnonymisationPrerequisiteResult
+                    .RetryRequired(result.Code)
         };
     }
 
@@ -246,6 +282,17 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             request.RecordType,
             StaffDataRightsCoordinates.StaffMemberRecordType,
             StringComparison.Ordinal);
+
+    private static bool IsValid(
+        StaffRetentionAnonymisationPrerequisiteRequest? request) =>
+        request is not null &&
+        request.ContractVersion ==
+            StaffRetentionAnonymisationPrerequisiteContract
+                .CurrentVersion &&
+        request.ExecutionId != Guid.Empty &&
+        !string.IsNullOrWhiteSpace(request.TenantId) &&
+        request.StaffMemberId != Guid.Empty &&
+        request.SelectedStaffVersion > 0;
 
     private static DataRightsAnonymisationExecutionPrerequisiteResult
         ExecutionBlocked(string code) =>

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 7,
+  "catalogVersion": 8,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -124,6 +124,28 @@
       ]
     },
     {
+      "id": "staff-retention-execution",
+      "scope": "tenant-internal-retention-worker",
+      "readers": [
+        "system:retention.scheduler",
+        "system:staff.retention"
+      ],
+      "writers": [
+        "system:retention.scheduler",
+        "system:staff.retention"
+      ]
+    },
+    {
+      "id": "staff-retention-proof",
+      "scope": "tenant-internal-retention-owner-proof",
+      "readers": [
+        "system:staff.retention"
+      ],
+      "writers": [
+        "system:staff.retention"
+      ]
+    },
+    {
       "id": "staff-sensitive-profile",
       "scope": "tenant-sensitive-profile",
       "readers": [
@@ -239,6 +261,20 @@
       "legalHoldBehavior": "pause-approved-erasure"
     },
     {
+      "id": "staff-retention-anonymisation-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "staff-retention-anonymisation-completed",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-irreversible-operation-proof"
+    },
+    {
+      "id": "staff-retention-execution-evidence",
+      "approvalState": "engineering-default",
+      "startsAt": "staff-retention-execution-started",
+      "endsAt": "approved-audit-retention-expired-or-tenant-termination",
+      "legalHoldBehavior": "retain-minimum-schedule-and-execution-evidence"
+    },
+    {
       "id": "transient-request",
       "approvalState": "engineering-default",
       "startsAt": "request-accepted",
@@ -323,6 +359,20 @@
       "correction": "replace-through-staff-profile-workflow",
       "restriction": "suppress-non-required-operational-use",
       "erasure": "irreversibly-anonymize-or-delete"
+    },
+    {
+      "id": "staff-retention-control",
+      "export": "not-in-current-subject-export",
+      "correction": "retry-through-the-same-execution-coordinate",
+      "restriction": "block-destructive-mutation-while-any-independent-hold-is-active",
+      "erasure": "dispose-execution-evidence-after-approved-audit-lifecycle"
+    },
+    {
+      "id": "staff-retention-proof-control",
+      "export": "not-in-current-subject-export-or-protected-replay-ledger",
+      "correction": "immutable-owner-receipt-and-authority-bound-tombstone-only",
+      "restriction": "exclude-terminal-record-from-ordinary-surfaces",
+      "erasure": "retain-pii-free-local-proof-after-anonymisation"
     },
     {
       "id": "transient-request-data",
@@ -1374,10 +1424,12 @@
       "sensitivity": "elevated",
       "purposes": [
         "restore-safety",
-        "anonymisation-authority-separation"
+        "anonymisation-authority-separation",
+        "retention-anonymisation-authority"
       ],
       "sources": [
-        "staff-anonymisation-workflow"
+        "staff-anonymisation-workflow",
+        "staff-retention-workflow"
       ],
       "authoritativeOwner": "staff",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
@@ -10501,6 +10553,646 @@
           "member": "ScopeId",
           "surface": "domain-event",
           "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention.anonymisation-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-anonymisation",
+        "immutable-owner-proof",
+        "operational-audit"
+      ],
+      "sources": [
+        "country-policy-evaluation",
+        "staff-retention-execution",
+        "system-clock"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-proof",
+      "countryPolicyKey": "staff.retention.staff-employment",
+      "retentionPolicy": "staff-retention-anonymisation-proof",
+      "rightsPolicy": "staff-retention-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Policies.StaffRetentionEligibilityResult",
+          "member": "PolicyEvidenceSha256",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "RetentionDeadlineUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "PolicyEvidenceSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "EventId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "ActorId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "CanonicalSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "SelectedOperationLockRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "ResultingOperationLockRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "DepartedAtUtc",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention.checkpoint-coordinate",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "fair-retention-scanning",
+        "retention-idempotency",
+        "operational-audit"
+      ],
+      "sources": [
+        "staff-persistence"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-execution",
+      "countryPolicyKey": "staff.retention.staff-employment",
+      "retentionPolicy": "staff-retention-execution-evidence",
+      "rightsPolicy": "staff-retention-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "DataClassKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "LastExecutionId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention.execution-coordinate",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-execution",
+        "retention-idempotency",
+        "operational-audit"
+      ],
+      "sources": [
+        "retention-control-plane",
+        "staff-persistence"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-execution",
+      "countryPolicyKey": "staff.retention.staff-employment",
+      "retentionPolicy": "staff-retention-execution-evidence",
+      "rightsPolicy": "staff-retention-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.BeginStaffRetentionExecutionCommand",
+          "member": "Request",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffRetentionCommand",
+          "member": "ExecutionId",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "ExecutionId",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "DataClassKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "ExecutionId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention.execution-lifecycle",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "retention-execution",
+        "legal-hold-enforcement",
+        "operational-audit"
+      ],
+      "sources": [
+        "retention-control-plane",
+        "staff-persistence",
+        "system-clock"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-execution",
+      "countryPolicyKey": "staff.retention.staff-employment",
+      "retentionPolicy": "staff-retention-execution-evidence",
+      "rightsPolicy": "staff-retention-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.StaffRetentionExecutionStart",
+          "member": "DispatchRequired",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.StaffRetentionExecutionStart",
+          "member": "StartingProjectionOrdinal",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.StaffRetentionExecutionStart",
+          "member": "AffectedCount",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.StaffRetentionExecutionStart",
+          "member": "CompletedResult",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.StaffRetentionMutationResult",
+          "member": "Status",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.StaffRetentionMutationResult",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Policies.StaffRetentionEligibilityResult",
+          "member": "Status",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Policies.StaffRetentionEligibilityResult",
+          "member": "RetentionDeadlineUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Policies.StaffRetentionEligibilityResult",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "State",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "ScannedCount",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "RemainingCount",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "CompletedAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "ExpectedAfterProjectionOrdinal",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "NextAfterProjectionOrdinal",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "ExecutionPolicyVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "Attempt",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "StartingProjectionOrdinal",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "State",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "StartedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "DeadlineUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "AffectedCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "ScannedCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "RemainingCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "HoldReviewDueAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "ExecutionPolicyVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "AfterProjectionOrdinal",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "UpdatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionSweepCheckpoint",
+          "member": "Version",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention.execution-outcome",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "retention-execution",
+        "retention-health",
+        "operational-audit"
+      ],
+      "sources": [
+        "staff-retention-evaluation",
+        "staff-persistence"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-execution",
+      "countryPolicyKey": "staff.retention.staff-employment",
+      "retentionPolicy": "staff-retention-execution-evidence",
+      "rightsPolicy": "staff-retention-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.StaffRetentionMutationResult",
+          "member": "Failure",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Policies.StaffRetentionEligibilityResult",
+          "member": "Code",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CompleteStaffRetentionExecutionCommand",
+          "member": "OutcomeCode",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionExecution",
+          "member": "OutcomeCode",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention.prerequisite-coordinate",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-anonymisation",
+        "workspace-access-closure",
+        "cross-module-prerequisite"
+      ],
+      "sources": [
+        "staff-retention-execution"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-execution",
+      "countryPolicyKey": "staff.retention.staff-employment",
+      "retentionPolicy": "staff-retention-execution-evidence",
+      "rightsPolicy": "staff-retention-control",
+      "allowedSurfaces": [
+        "integration-command"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffRetentionAnonymisationPrerequisiteRequest",
+          "member": "ContractVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffRetentionAnonymisationPrerequisiteRequest",
+          "member": "ExecutionId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffRetentionAnonymisationPrerequisiteRequest",
+          "member": "TenantId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffRetentionAnonymisationPrerequisiteRequest",
+          "member": "StaffMemberId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffRetentionAnonymisationPrerequisiteRequest",
+          "member": "SelectedStaffVersion",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention.staff-coordinate",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-candidate-selection",
+        "retention-idempotency",
+        "immutable-scope-proof"
+      ],
+      "sources": [
+        "staff-current-projections",
+        "staff-persistence"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-proof",
+      "countryPolicyKey": "staff.retention.staff-employment",
+      "retentionPolicy": "staff-retention-anonymisation-proof",
+      "rightsPolicy": "staff-retention-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffRetentionCommand",
+          "member": "StaffMemberId",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ApplyStaffRetentionCommand",
+          "member": "ExpectedStaffVersion",
+          "surface": "application-command"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "SelectedStaffVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Domain",
+          "type": "BunkFy.Modules.Staff.Domain.Retention.StaffRetentionAnonymisationReceipt",
+          "member": "ResultingStaffVersion",
+          "surface": "persistence"
         }
       ]
     },

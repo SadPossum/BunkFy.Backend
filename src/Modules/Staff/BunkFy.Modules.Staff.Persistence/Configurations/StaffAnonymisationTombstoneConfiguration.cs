@@ -27,8 +27,15 @@ internal sealed class StaffAnonymisationTombstoneConfiguration
                 $"{(int)StaffAnonymisationTombstoneState.Anonymised}");
             table.HasCheckConstraint(
                 "CK_staff_anonymisation_tombstones_authority",
-                $"\"Authority\" = " +
-                $"{(int)StaffAnonymisationAuthority.DataRights}");
+                $"\"Authority\" IN (" +
+                $"{(int)StaffAnonymisationAuthority.DataRights}, " +
+                $"{(int)StaffAnonymisationAuthority.Retention})");
+            table.HasCheckConstraint(
+                "CK_staff_anonymisation_tombstones_restore_proof",
+                $"\"Authority\" <> " +
+                $"{(int)StaffAnonymisationAuthority.Retention} OR " +
+                "(\"LedgerEntryId\" IS NULL AND " +
+                "\"LastReplayedAtUtc\" IS NULL)");
             table.HasCheckConstraint(
                 "CK_staff_anonymisation_tombstones_receipt_digest",
                 $"char_length(\"OwnerReceiptSha256\") = " +

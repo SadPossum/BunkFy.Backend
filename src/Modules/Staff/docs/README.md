@@ -10,7 +10,11 @@
 - Properties owns property identity/lifecycle; Staff consumes a local monotonic projection.
 - Linking an Auth subject or assigning a property never grants access.
 
-Profiles may be `Active`, `Suspended`, or `Departed`. Suspension is explicitly reversible; departure is terminal in this slice and closes current assignments while retaining their history. A profile may be unlinked from Auth, and an Auth user may exist without a Staff profile.
+Profiles may be `Active`, `Suspended`, `Departed`, or irreversibly
+`Anonymised`. Suspension is explicitly reversible; departure closes current
+assignments while retaining their history until Data Rights or automatic
+retention performs the terminal scrub. A profile may be unlinked from Auth,
+and an Auth user may exist without a Staff profile.
 
 ## Permissions
 
@@ -31,19 +35,32 @@ Approved tenant-scoped Staff data-rights cases can apply or release processing r
 
 Restricted staff members are excluded from directory/detail/self-service reads, profile and assignment writes, identity reconciliation, onboarding reconciliation, and operational notification audiences. Data-rights discovery, export, correction, and restriction execution remain available. Suspend, depart, and unassign remain available as safety-reducing transitions; resume and access-link changes remain blocked. Restriction does not mutate Auth credentials or AccessControl grants.
 
-## Data rights
+## Data rights and retention
 
 Staff is the tenant-scoped owner contributor for discovery, bounded export,
 correction, and processing restriction. Data Rights owns cases, requester
 verification, approval, orchestration, and central completion; it does not read
 Staff persistence.
 
-The guarded foundation for
-[Staff anonymisation](../../../docs/planning/staff-data-rights-anonymisation-task.md).
-provides explicit employment-governance evidence, independently releasable
-Staff holds, and per-member operation serialization. Anonymisation case
-admission and destructive mutation remain disabled until the later scope,
-owner-mutation, and restore slices are complete and verified.
+The
+[Staff anonymisation flow](../../../docs/planning/staff-data-rights-anonymisation-task.md)
+uses explicit employment-governance evidence, independently releasable Staff
+holds, per-member operation serialization, immutable owner receipts, and an
+authority-bound tombstone. Protected restore applies only to Data
+Rights-authority tombstones.
+
+Automatic retention uses the shared Retention control plane but keeps all
+Staff identifiers and mutation decisions inside Staff. A tenant-scoped,
+bounded sweep selects departed profiles by projection ordinal, evaluates the
+exact `staff-employment` country-policy rule, observes holds, and revalidates
+under the Staff operation lock. Before the irreversible scrub, a versioned
+`Staff.Contracts` prerequisite requires Workspaces to prove the completed
+departure access process and idempotently re-deny access. Staff then records
+its own append-only receipt and a `Retention`-authority tombstone; Retention
+receives only counts and stable outcome codes.
+
+The executable delivery contract is
+[Staff record automatic retention](../../../docs/planning/staff-record-retention-task.md).
 
 ## Runtime
 

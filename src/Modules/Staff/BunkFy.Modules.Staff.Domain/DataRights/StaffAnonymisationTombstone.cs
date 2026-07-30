@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Staff.Domain.DataRights;
 
 using BunkFy.Modules.Staff.Domain.Errors;
 using BunkFy.Modules.Staff.Domain.Models;
+using BunkFy.Modules.Staff.Domain.Retention;
 using Gma.Framework.Domain.Models;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
@@ -9,7 +10,7 @@ using Gma.Framework.Results;
 public sealed class StaffAnonymisationTombstone
     : ScopedAggregateRoot<Guid>
 {
-    public const int CurrentContractVersion = 2;
+    public const int CurrentContractVersion = 3;
 
     private StaffAnonymisationTombstone() { }
 
@@ -93,6 +94,36 @@ public sealed class StaffAnonymisationTombstone
         return created;
     }
 
+    public static Result<StaffAnonymisationTombstone> CreateForRetention(
+        StaffRetentionAnonymisationReceipt receipt)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+        if (receipt.ContractVersion !=
+                StaffRetentionAnonymisationReceipt
+                    .CurrentContractVersion ||
+            receipt.StaffMemberId == Guid.Empty ||
+            receipt.CompletedAtUtc == default ||
+            !receipt.HasValidCanonicalProof())
+        {
+            return Invalid();
+        }
+
+        return Result.Success(
+            new StaffAnonymisationTombstone(
+                receipt.StaffMemberId,
+                receipt.ScopeId)
+            {
+                ContractVersion = CurrentContractVersion,
+                Revision = 1,
+                State =
+                    StaffAnonymisationTombstoneState.Anonymised,
+                Authority = StaffAnonymisationAuthority.Retention,
+                CompletedAtUtc =
+                    receipt.CompletedAtUtc.ToUniversalTime(),
+                OwnerReceiptSha256 = receipt.CanonicalSha256
+            });
+    }
+
     public Result AttachRestoreProof(
         Guid ledgerEntryId,
         DateTimeOffset originallyCompletedAtUtc,
@@ -161,6 +192,24 @@ public sealed class StaffAnonymisationTombstone
         this.Authority == StaffAnonymisationAuthority.DataRights &&
         this.Id == receipt.StaffMemberId &&
         this.CompletedAtUtc == receipt.CompletedAtUtc &&
+        string.Equals(
+            this.OwnerReceiptSha256,
+            receipt.CanonicalSha256,
+            StringComparison.Ordinal);
+
+    public bool MatchesRetention(
+        StaffRetentionAnonymisationReceipt receipt) =>
+        receipt is not null &&
+        receipt.HasValidCanonicalProof() &&
+        this.ContractVersion == CurrentContractVersion &&
+        this.Revision >= 1 &&
+        this.State ==
+            StaffAnonymisationTombstoneState.Anonymised &&
+        this.Authority == StaffAnonymisationAuthority.Retention &&
+        this.Id == receipt.StaffMemberId &&
+        this.CompletedAtUtc == receipt.CompletedAtUtc &&
+        this.LedgerEntryId is null &&
+        this.LastReplayedAtUtc is null &&
         string.Equals(
             this.OwnerReceiptSha256,
             receipt.CanonicalSha256,

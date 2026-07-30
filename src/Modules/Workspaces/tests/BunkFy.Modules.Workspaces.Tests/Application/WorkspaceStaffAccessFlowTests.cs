@@ -335,6 +335,97 @@ public sealed class WorkspaceStaffAccessFlowTests
     }
 
     [Fact]
+    public async Task Staff_retention_reasserts_departure_access_closure()
+    {
+        List<string> operations = [];
+        FakeRoles roles = new(operations);
+        FakeProfiles profiles = new(operations);
+        AccessSubject subject = AccessSubject.User("member-a");
+        AccessScope scope = WorkspaceAccessScopes.Create(ScopeId);
+        AccessProfileDto profile =
+            profiles.AddProfile(scope, "front-desk");
+        profiles.Assign(subject, scope, profile.Id);
+        roles.Add(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope);
+        WorkspaceStaffAccessProcess process = CreateProcess(
+            WorkspaceStaffAccessTargetState.Departed,
+            targetVersion: 2,
+            [profile.Id]);
+        Assert.True(process.MarkAwaitingStaffCommit(Now).IsSuccess);
+        Assert.True(process.ObserveStaffCommit(Now).IsSuccess);
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+            new FakeStaffRestoreStateReader(new(
+                StaffId,
+                Version: 2,
+                StaffAnonymisationRestoreRecordState.Departed,
+                "member-a",
+                AnonymisedAtUtc: null)),
+            new FakeProcessRepository(process),
+            new WorkspaceStaffAccessDenier(
+                new FakeMembershipLifecycle(operations),
+                new WorkspaceAccessProvisioner(roles, profiles),
+                new TestClock(),
+                NullLogger<WorkspaceStaffAccessDenier>.Instance),
+            NullLogger<
+                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+
+        StaffRetentionAnonymisationPrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateRetentionRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            StaffRetentionAnonymisationPrerequisiteStatus.Completed,
+            result.Status);
+        Assert.Empty(profiles.AssignedProfileIds(subject, scope));
+        Assert.False(roles.Has(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope));
+        Assert.True(
+            operations.IndexOf("membership:Removed") <
+            operations.IndexOf("profiles:reconcile"));
+    }
+
+    [Fact]
+    public async Task Staff_retention_blocks_without_durable_departure_mapping()
+    {
+        List<string> operations = [];
+        WorkspaceStaffAnonymisationAccessPrerequisite prerequisite = new(
+            new FakeStaffRestoreStateReader(new(
+                StaffId,
+                Version: 2,
+                StaffAnonymisationRestoreRecordState.Departed,
+                "member-a",
+                AnonymisedAtUtc: null)),
+            new FakeProcessRepository(),
+            new WorkspaceStaffAccessDenier(
+                new FakeMembershipLifecycle(operations),
+                new WorkspaceAccessProvisioner(
+                    new FakeRoles(operations),
+                    new FakeProfiles(operations)),
+                new TestClock(),
+                NullLogger<WorkspaceStaffAccessDenier>.Instance),
+            NullLogger<
+                WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
+
+        StaffRetentionAnonymisationPrerequisiteResult result =
+            await prerequisite.ExecuteAsync(
+                CreateRetentionRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            StaffRetentionAnonymisationPrerequisiteStatus.Blocked,
+            result.Status);
+        Assert.Equal(
+            "Workspaces.StaffAnonymisationAccessMappingUnavailable",
+            result.OutcomeCode);
+        Assert.Empty(operations);
+    }
+
+    [Fact]
     public async Task Staff_restore_requires_durable_departure_mapping()
     {
         List<string> operations = [];
@@ -499,6 +590,16 @@ public sealed class WorkspaceStaffAccessFlowTests
             new string('b', 64),
             ResultingRecordVersion: 3,
             Now);
+
+    private static StaffRetentionAnonymisationPrerequisiteRequest
+        CreateRetentionRequest() =>
+        new(
+            StaffRetentionAnonymisationPrerequisiteContract
+                .CurrentVersion,
+            Guid.NewGuid(),
+            ScopeId,
+            StaffId,
+            SelectedStaffVersion: 2);
 
     private static WorkspaceStaffAccessProcess CreateProcess(
         WorkspaceStaffAccessTargetState targetState,

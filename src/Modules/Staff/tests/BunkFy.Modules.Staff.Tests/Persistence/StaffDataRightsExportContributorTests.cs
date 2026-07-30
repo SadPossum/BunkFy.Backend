@@ -81,7 +81,7 @@ public sealed class StaffDataRightsExportContributorTests
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
         Assert.Equal(5, result.RecordCount);
         Assert.Equal("staff.personal-data", contributor.Descriptor.CatalogId);
-        Assert.Equal(7, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(8, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             StaffDataRightsExportSchema.ExportSchemaId,
             contributor.Descriptor.ExportSchemaId);

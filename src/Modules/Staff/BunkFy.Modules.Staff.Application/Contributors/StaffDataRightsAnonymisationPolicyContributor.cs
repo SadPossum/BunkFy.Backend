@@ -23,18 +23,21 @@ internal sealed class StaffDataRightsAnonymisationPolicyContributor(
     ISystemClock clock)
     : IDataRightsAnonymisationPolicyContributor
 {
-    internal const string AccommodationType = "hostel";
+    internal const string AccommodationType =
+        StaffRetentionCoordinates.AccommodationType;
     internal const string PurposeCode =
         "staff-data-rights-anonymisation";
     internal const string RetentionPurposeCode =
-        "staff-profile-retention";
+        StaffRetentionCoordinates.Purpose;
     internal const string Surface = "erasure";
     internal const string SourceProvenance =
         "authorized-workspace-operator";
     internal const string RetentionSourceProvenance =
-        "retention-worker";
-    internal const string RetentionDataClass = "staff-employment";
-    internal const string RetentionTrigger = "employment-ended";
+        StaffRetentionCoordinates.SourceProvenance;
+    internal const string RetentionDataClass =
+        StaffRetentionCoordinates.DataClassKey;
+    internal const string RetentionTrigger =
+        StaffRetentionCoordinates.Trigger;
 
     private const string InvalidRequestCode =
         "staff.anonymisation-policy.invalid-request";

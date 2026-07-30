@@ -2,7 +2,9 @@ namespace BunkFy.Modules.Staff.Application;
 
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Application.Contributors;
+using BunkFy.Modules.Staff.Application.Policies;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
@@ -10,6 +12,7 @@ using Gma.Framework.ProjectionRebuild.Tasks;
 using Gma.Framework.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Application.Handlers;
 using BunkFy.Modules.Staff.Application.Tasks;
@@ -24,6 +27,13 @@ public static class DependencyInjection
             [],
             [],
             CountryPolicyRuntimeMode.Engineering));
+        services.AddOptions<StaffRetentionOptions>()
+            .BindConfiguration(StaffRetentionOptions.SectionName)
+            .ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IValidateOptions<StaffRetentionOptions>,
+                StaffRetentionOptionsValidator>());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<IStaffIdentityReconciler, StaffIdentityReconciler>();
         services.TryAddScoped<IStaffOnboardingProvisioner, StaffOnboardingProvisioner>();
@@ -31,6 +41,12 @@ public static class DependencyInjection
             IStaffPropertyAssignmentProvisioner,
             StaffPropertyAssignmentProvisioner>();
         services.TryAddScoped<StaffLifecyclePolicyEvaluator>();
+        services.TryAddScoped<StaffRetentionEligibilityEvaluator>();
+        services.TryAddScoped<StaffRetentionPrerequisiteEvaluator>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IRetentionExecutionContributor,
+                StaffRetentionContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsCorrectionPolicyContributor,
