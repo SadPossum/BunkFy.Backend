@@ -45,6 +45,8 @@ public static class DataRightsModuleMetadata
     public const string ProjectionWorkerGroup = "projection-workers";
     public const string AnonymisationWorkerGroup = "data-rights-workers";
     public const string ExportWorkerGroup = "data-rights-workers";
+    public const string TenantTerminationWorkerGroup =
+        "tenant-termination-workers";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)

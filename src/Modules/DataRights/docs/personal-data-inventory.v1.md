@@ -1,4 +1,4 @@
-# data-rights Personal-Data Inventory v16
+# data-rights Personal-Data Inventory v17
 
 Generated from `data-rights.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -13,6 +13,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights-owner-export | tenant-property-selected-subject | system:data-rights.export-assembler | system:authorized-owner-export |
 | data-rights-processing-ledger | tenant-data-rights-processing-proof | permission:data-rights.cases.manage<br>system:authorized-audit-consumer<br>system:data-rights-restore-gate | system:data-rights-ledger-writer<br>system:data-rights-restore-gate |
 | data-rights-protected-export-artifact | tenant-or-property-data-rights-artifact | permission:data-rights.export<br>permission:data-rights.export.download<br>system:authorized-audit-consumer<br>system:data-rights.export-generator | permission:data-rights.export<br>system:data-rights.export-cleanup<br>system:data-rights.export-generator |
+| data-rights-tenant-termination-proof | tenant-termination-coordination-proof | permission:data-rights.cases.manage<br>permission:data-rights.tenant-termination<br>system:authorized-audit-consumer<br>system:tenant-termination-coordinator | system:authorized-tenant-termination-owner<br>system:tenant-termination-coordinator |
 
 ## Retention Policies
 
@@ -23,6 +24,7 @@ Engineering metadata is not legal or country-launch approval.
 | integration-message-journal | engineering-default | message-created | message-journal-retention-completed | retain-when-approved-hold-applies |
 | protected-access-export | engineering-default | export-generation-requested | 1.00:00:00 | not-applicable-delete-at-expiry |
 | protected-access-export-proof | engineering-default | export-generation-requested | approved-export-proof-retention-completed-or-tenant-termination | retain-minimum-required-export-proof |
+| tenant-termination-coordination-proof | engineering-default | approved-tenant-termination-process-prepared | approved-minimum-termination-proof-retention-completed | retain-minimum-required-termination-proof |
 | transient-owner-export-fragment | engineering-default | owner-export-started | 01:00:00 | not-applicable |
 | transient-request | engineering-default | request-accepted | request-completed | not-applicable |
 | transient-response | engineering-default | response-created | response-completed | not-applicable |
@@ -39,6 +41,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff-audit-attribution | include-in-authorized-staff-audit-export | append-corrective-case-action | retain-minimum-required-audit-attribution | pseudonymize-subject-when-approved-retention-permits |
 | staff-subject-discovery | include-selected-coordinate-in-authorized-staff-export | re-run-discovery-against-authoritative-owner | exclude-coordinate-from-selection-and-downstream-work | discard-transient-lookup-after-request-completion |
 | subject-coordinate | include-selected-coordinate-in-authorized-subject-export | re-run-discovery-against-authoritative-owner | exclude-coordinate-from-selection-and-downstream-work | remove-selected-coordinate-when-approved-case-retention-permits |
+| tenant-termination-coordination-proof | include-in-authorized-tenant-controller-audit-export | append-superseding-coordination-proof | retain-minimum-required-termination-proof | retain-minimum-proof-until-approved-retention-completes |
 
 ## Fields
 
@@ -59,6 +62,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.staff-account-subject-id | staff | linked-operational | elevated | account-to-staff-correlation<br>authorized-subject-discovery | auth-authoritative-owner<br>request-input | auth | customer-controller-bunk-fy-processor | data-rights-case-audit | staff.profile.identifier | transient-request | staff-subject-discovery | api-input<br>application-query | cross-module<br>customer-api<br>intra-module | engineering-default |
 | data-rights.staff-actor-reference | staff | audit-attribution | standard | authorized-change-traceability<br>case-accountability | authenticated-access-subject | auth | customer-controller-bunk-fy-processor | data-rights-case-audit | staff.audit-attribution | data-rights-case-lifecycle | staff-audit-attribution | api-response<br>application-command<br>application-query<br>integration-command<br>persistence | cross-module<br>customer-api<br>intra-module | engineering-default |
 | data-rights.subject-record-id | subject-scoped | linked-operational | standard | authorized-subject-discovery<br>case-subject-selection | request-input<br>selected-domain-authoritative-owner | selected-domain-owner | customer-controller-bunk-fy-processor | data-rights-case-audit | subject.record.identifier | data-rights-case-lifecycle | subject-coordinate | api-input<br>api-response<br>application-query<br>integration-command<br>integration-event<br>persistence | cross-module<br>customer-api<br>intra-module | engineering-default |
+| data-rights.tenant-termination-coordination-proof | subject-scoped | linked-operational | elevated | owner-proof-correlation<br>restore-integrity<br>tenant-termination-safety | approved-tenant-termination-case<br>authorized-domain-owner-contribution | data-rights | customer-controller-bunk-fy-processor | data-rights-tenant-termination-proof | data-rights.tenant-termination.coordination-proof | tenant-termination-coordination-proof | tenant-termination-coordination-proof | integration-command<br>persistence<br>projection-export | cross-module<br>intra-module<br>processor | engineering-default |
 
 ## Code Bindings
 
@@ -296,6 +300,7 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto | ExecutedBy | api-response | transient-response |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionGateRequest | ExecutingActorId | application-query | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.DataRightsRestrictionContributionRequest | ExecutingActorId | integration-command | transient-request |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | ExecutingActorId | integration-command | transient-request |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | CreatedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | DecidedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase | ExecutionStartedBy | persistence | data-rights-case-lifecycle |
@@ -305,6 +310,9 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionWorkItem | CreatedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact | GenerationActor | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExportArtifact | RequestedBy | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | ApprovedBy | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | CreatedBy | persistence | data-rights-case-lifecycle |
+| data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | LastChangedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsExportAuditEntry | ActorId | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate | SelectedBy | persistence | data-rights-case-lifecycle |
 | data-rights.staff-actor-reference | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof | ExecutedBy | persistence | data-rights-case-lifecycle |
@@ -327,3 +335,73 @@ Engineering metadata is not legal or country-launch approval.
 | data-rights.subject-record-id | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsExecutionWorkItem | RecordId | persistence | data-rights-case-lifecycle |
 | data-rights.subject-record-id | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate | RecordId | persistence | data-rights-case-lifecycle |
 | data-rights.subject-record-id | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof | RecordId | persistence | data-rights-case-lifecycle |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | ApprovalRevision | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | CaseId | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | ContractVersion | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | DeadlineUtc | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | IdempotencyKey | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | OperationRevision | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | Phase | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | PolicyEvidenceSha256 | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | ProcessId | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | TenantId | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | TerminationEpoch | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionRequest | WorkItemId | integration-command | transient-request |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | AffectedCount | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | CatalogSha256 | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | CatalogVersion | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | HoldReviewAtUtc | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | RecordedAtUtc | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | RemainingActiveCount | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | ResultCode | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | ResultingProofRevision | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | RetainedMinimumCount | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | SelectedProofRevision | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Contracts | BunkFy.Modules.DataRights.Contracts.TenantTerminationContributionResult | Status | projection-export | transient-response |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | AffectedCount | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | ApprovalRevision | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | AttemptCount | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | CaseId | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | CatalogSha256 | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | CatalogVersion | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | CreatedAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | HoldReviewAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | Id | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | IdempotencyKey | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | LastAttemptAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | LastChangedAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | LastTaskAttempt | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | OperationRevision | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | OwnerContractVersion | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | OwnerKey | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | Phase | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | PolicyEvidenceSha256 | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | ProcessId | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | RemainingActiveCount | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | ResultCode | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | ResultRecordedAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | ResultingProofRevision | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | RetainedMinimumCount | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | ScopeId | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | SelectedProofRevision | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | State | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | TaskRunId | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | TerminationEpoch | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem | Version | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | ApprovalRevision | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | ApprovedAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | CaseId | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | CreatedAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | ExportRequested | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | HoldReviewAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | Id | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | IdempotencyKey | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | LastChangedAtUtc | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | OperationRevision | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | OutcomeCode | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | Phase | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | PolicyEvidenceSha256 | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | ScopeId | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | Status | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | TerminationEpoch | persistence | tenant-termination-coordination-proof |
+| data-rights.tenant-termination-coordination-proof | BunkFy.Modules.DataRights.Domain | BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess | Version | persistence | tenant-termination-coordination-proof |

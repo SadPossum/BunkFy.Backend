@@ -59,6 +59,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IDataRightsRestoreCheckpointRepository,
             DataRightsRestoreCheckpointRepository>();
+        builder.Services.TryAddScoped<
+            ITenantTerminationRepository,
+            TenantTerminationRepository>();
         AddProtectedLedgerServices(builder);
         AddProtectedExportServices(builder);
         builder.Services.TryAddScoped<

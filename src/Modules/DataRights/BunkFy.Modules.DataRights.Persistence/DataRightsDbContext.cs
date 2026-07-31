@@ -30,6 +30,10 @@ public sealed class DataRightsDbContext(
         this.Set<DataRightsPropertyProjection>();
     public DbSet<DataRightsProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>
         this.Set<DataRightsProjectionRebuildCheckpoint>();
+    public DbSet<TenantTerminationProcess> TenantTerminationProcesses =>
+        this.Set<TenantTerminationProcess>();
+    public DbSet<TenantTerminationOwnerWorkItem> TenantTerminationOwnerWorkItems =>
+        this.Set<TenantTerminationOwnerWorkItem>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
 

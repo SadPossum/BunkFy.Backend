@@ -140,6 +140,9 @@ public static class DataRightsApplicationErrors
     public static readonly Error ExportArtifactVerificationFailed = new(
         "DataRights.ExportArtifactVerificationFailed",
         "The protected export artifact could not be verified.");
+    public static readonly Error TenantTerminationContributorCatalogInvalid = new(
+        "DataRights.TenantTerminationContributorCatalogInvalid",
+        "The tenant-termination owner catalogue is incomplete or invalid.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;

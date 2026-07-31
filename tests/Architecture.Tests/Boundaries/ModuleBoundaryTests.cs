@@ -254,7 +254,10 @@ public sealed class ModuleBoundaryTests
             "DataRightsOperation",
             "DataRightsRestriction",
             "DataRightsRequesterRelationship",
-            "DataRightsAdminPermissionCodes"
+            "DataRightsAdminPermissionCodes",
+            "ITenantTerminationContributor",
+            "TenantTerminationContribution",
+            "TenantTerminationProcess"
         ];
 
         string[] offenders = RepositoryPaths.EnumerateFiles("gma", "*.cs")

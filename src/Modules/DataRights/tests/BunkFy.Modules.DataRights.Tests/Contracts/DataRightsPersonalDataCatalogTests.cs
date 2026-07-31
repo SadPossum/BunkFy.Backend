@@ -358,6 +358,78 @@ public sealed class DataRightsPersonalDataCatalogTests
     }
 
     [Fact]
+    public void Tenant_termination_contract_and_proof_are_explicitly_classified()
+    {
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationContributionRequest),
+            PersonalDataSurface.IntegrationCommand,
+            nameof(TenantTerminationContributionRequest.ExecutingActorId));
+        AssertBinding(
+            typeof(TenantTerminationContributionRequest),
+            nameof(TenantTerminationContributionRequest.ExecutingActorId),
+            PersonalDataSurface.IntegrationCommand);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationContributionResult),
+            PersonalDataSurface.ProjectionExport);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationProcess),
+            PersonalDataSurface.Persistence,
+            nameof(TenantTerminationProcess.DomainEvents),
+            nameof(TenantTerminationProcess.ApprovedBy),
+            nameof(TenantTerminationProcess.CreatedBy),
+            nameof(TenantTerminationProcess.LastChangedBy));
+        AssertBinding(
+            typeof(TenantTerminationProcess),
+            nameof(TenantTerminationProcess.ApprovedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(TenantTerminationProcess),
+            nameof(TenantTerminationProcess.CreatedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(TenantTerminationProcess),
+            nameof(TenantTerminationProcess.LastChangedBy),
+            PersonalDataSurface.Persistence);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationOwnerWorkItem),
+            PersonalDataSurface.Persistence,
+            nameof(TenantTerminationOwnerWorkItem.DomainEvents));
+
+        Type[] boundaryTypes =
+        [
+            typeof(TenantTerminationContributorDescriptor),
+            typeof(TenantTerminationContributionRequest),
+            typeof(TenantTerminationContributionResult)
+        ];
+        string[] prohibitedNameParts =
+        [
+            "Address",
+            "Birth",
+            "Contact",
+            "Document",
+            "Email",
+            "FreeText",
+            "GuestName",
+            "LegalName",
+            "Nationality",
+            "Note",
+            "Passport",
+            "Phone",
+            "SearchText",
+            "Snapshot"
+        ];
+        Assert.Empty(boundaryTypes
+            .SelectMany(type => type.GetProperties(
+                BindingFlags.Instance | BindingFlags.Public))
+            .Where(property => prohibitedNameParts.Any(part =>
+                property.Name.Contains(
+                    part,
+                    StringComparison.OrdinalIgnoreCase)))
+            .Select(property =>
+                $"{property.DeclaringType!.FullName}.{property.Name}"));
+    }
+
+    [Fact]
     public void Case_contracts_do_not_carry_direct_guest_payloads()
     {
         Type[] boundaryTypes =
@@ -593,6 +665,18 @@ public sealed class DataRightsPersonalDataCatalogTests
                 "PropertyId"
             ],
             typeof(DeleteExpiredDataRightsExportArtifactPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "OperationRevision",
+                "OwnerKey",
+                "Phase",
+                "ProcessId",
+                "WorkItemId"
+            ],
+            typeof(ExecuteTenantTerminationOwnerWorkPayload)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Select(property => property.Name)
                 .Order(StringComparer.Ordinal));

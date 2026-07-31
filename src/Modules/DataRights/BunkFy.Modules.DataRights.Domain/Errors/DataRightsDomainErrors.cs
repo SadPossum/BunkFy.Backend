@@ -169,4 +169,16 @@ public static class DataRightsDomainErrors
     public static readonly Error AccessExportCompletionInvalid = new(
         "DataRights.AccessExportCompletionInvalid",
         "The case does not contain the matching approved access export.");
+    public static readonly Error TenantTerminationCoordinateInvalid = new(
+        "DataRights.TenantTerminationCoordinateInvalid",
+        "The tenant-termination coordinate is invalid.");
+    public static readonly Error TenantTerminationTransitionInvalid = new(
+        "DataRights.TenantTerminationTransitionInvalid",
+        "The tenant-termination process cannot make that transition.");
+    public static readonly Error TenantTerminationExecutorInvalid = new(
+        "DataRights.TenantTerminationExecutorInvalid",
+        "The tenant-termination decision actor cannot begin destructive execution.");
+    public static readonly Error TenantTerminationOwnerWorkInvalid = new(
+        "DataRights.TenantTerminationOwnerWorkInvalid",
+        "The tenant-termination owner work is invalid or conflicts with durable proof.");
 }

@@ -61,6 +61,10 @@ deterministically generated
   versioned Properties events or the bounded projection-rebuild contract;
 - PostgreSQL persistence, inbox/outbox infrastructure and focused architecture,
   privacy, domain, persistence, migration and authorization tests.
+- a disabled tenant-termination coordinator foundation with one active process
+  per tenant, exact owner proof coordinates, bounded PII-free contributor
+  contracts, and a reserved but unregistered task identity; no endpoint or
+  destructive owner execution is exposed yet.
 
 The worker can rebuild the Properties policy projection for one tenant:
 

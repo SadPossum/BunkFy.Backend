@@ -124,6 +124,11 @@ public sealed class DataRightsModuleMetadataTests
             task =>
                 task.Name ==
                 DeleteExpiredDataRightsExportArtifactPayload.TaskName);
+        Assert.DoesNotContain(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                ExecuteTenantTerminationOwnerWorkPayload.TaskName);
     }
 
     [Fact]

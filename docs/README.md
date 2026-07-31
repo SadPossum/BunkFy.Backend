@@ -77,6 +77,7 @@ Useful entry points:
 - [Data Rights Restriction Execution Task](planning/data-rights-restriction-execution-task.md)
 - [Data Rights Correction Execution Task](planning/data-rights-correction-execution-task.md)
 - [Automatic Retention Control Plane Task](planning/automatic-retention-control-plane-task.md)
+- [Tenant Termination Control Plane Task](planning/tenant-termination-control-plane-task.md)
 - [Personal-Data Output Sink Enforcement Task](planning/personal-data-output-sink-enforcement-task.md)
 - [Production File Surface Lockdown Task](planning/production-file-surface-lockdown-task.md)
 - [Production Authentication Admission And Assurance Task](planning/production-authentication-admission-task.md)
