@@ -75,6 +75,7 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);",
             "builder.Services.AddBunkFyWorkspaceAdmission(builder.Configuration, builder.Environment.IsProduction());",
             "builder.Services.AddBunkFyOperationsNotifications();",
+            "builder.Services.AddBunkFyOperationsIngestionNotifications();",
             "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",
             "builder.AddModule<PropertiesModule>();",
             "builder.AddModule<InventoryModule>();",
@@ -136,6 +137,32 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.Services.AddRetentionApplication();", worker, StringComparison.Ordinal);
         Assert.Contains("builder.Services.AddRetentionTaskHandlers();", worker, StringComparison.Ordinal);
         Assert.Contains("builder.AddRetentionPersistence();", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Provider_notification_bridge_is_composed_with_ingestion_persistence()
+    {
+        string api = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Api",
+            "Program.cs");
+        string worker = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Worker",
+            "WorkerHostBuilderExtensions.cs");
+
+        Assert.Contains(
+            "builder.Services.AddBunkFyOperationsIngestionNotifications();",
+            api,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "builder.AddIngestionPersistence();",
+            worker,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            ".AddBunkFyOperationsIngestionNotifications();",
+            worker,
+            StringComparison.Ordinal);
     }
 
     [Fact]

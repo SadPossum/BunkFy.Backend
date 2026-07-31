@@ -112,17 +112,13 @@ internal sealed class OperationsNotificationsDataRightsDiscoveryContributor(
                     request.CaseType,
                     request.PropertyId) &&
             OperationsNotificationsDataRightsValidation
-                .IsReservationHistoryCoordinate(request.Coordinate))
+                .TryCreateGuestHistoryReference(
+                    request.TenantId,
+                    request.PropertyId!.Value,
+                    request.Coordinate,
+                    out reference))
         {
-            reference =
-                OperationsNotificationsDataRightsCoordinates
-                    .ForReservation(
-                        request.TenantId,
-                        request.PropertyId!.Value,
-                        request.Coordinate.RecordId);
-            recordType =
-                OperationsNotificationsDataRightsCoordinates
-                    .ReservationHistoryRecordType;
+            recordType = request.Coordinate.RecordType;
             return true;
         }
 

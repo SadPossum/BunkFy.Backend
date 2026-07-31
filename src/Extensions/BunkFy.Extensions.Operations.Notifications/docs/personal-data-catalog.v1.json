@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "operations-notifications.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "module": "operations-notifications",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -163,8 +163,8 @@
       "dataSubject": "subject-scoped",
       "classification": "pseudonymous-identifier",
       "sensitivity": "elevated",
-      "purposes": ["authorized-subject-history-export", "approved-history-closure", "stale-decision-detection", "replay-suppression"],
-      "sources": ["reservations", "staff", "system-derived"],
+      "purposes": ["authorized-subject-history-export", "approved-history-closure", "source-link-rights-lifecycle", "stale-decision-detection", "replay-suppression"],
+      "sources": ["ingestion", "reservations", "staff", "system-derived"],
       "authoritativeOwner": "operations-notifications",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "notification-history-lifecycle",

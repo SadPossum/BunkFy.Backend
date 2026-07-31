@@ -2,6 +2,7 @@ namespace BunkFy.Extensions.Operations.Notifications;
 
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Scoping;
+using Gma.Modules.Notifications.Contracts;
 
 internal static class OperationsNotificationsDataRightsValidation
 {
@@ -35,6 +36,51 @@ internal static class OperationsNotificationsDataRightsValidation
             StringComparison.Ordinal) &&
         coordinate.RecordId != Guid.Empty &&
         coordinate.RecordVersion > 0;
+
+    public static bool IsIngestionSourceLinkHistoryCoordinate(
+        DataRightsSubjectCoordinate? coordinate) =>
+        coordinate is not null &&
+        string.Equals(
+            coordinate.OwnerKey,
+            OperationsNotificationsDataRightsCoordinates.Owner,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            coordinate.RecordType,
+            OperationsNotificationsDataRightsCoordinates
+                .IngestionSourceLinkHistoryRecordType,
+            StringComparison.Ordinal) &&
+        coordinate.RecordId != Guid.Empty &&
+        coordinate.RecordVersion > 0;
+
+    public static bool TryCreateGuestHistoryReference(
+        string tenantId,
+        Guid propertyId,
+        DataRightsSubjectCoordinate? coordinate,
+        out NotificationHistoryReference? reference)
+    {
+        reference = null;
+        if (IsReservationHistoryCoordinate(coordinate))
+        {
+            reference =
+                OperationsNotificationsDataRightsCoordinates.ForReservation(
+                    tenantId,
+                    propertyId,
+                    coordinate!.RecordId);
+            return true;
+        }
+
+        if (IsIngestionSourceLinkHistoryCoordinate(coordinate))
+        {
+            reference = OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    tenantId,
+                    propertyId,
+                    coordinate!.RecordId);
+            return true;
+        }
+
+        return false;
+    }
 
     public static bool IsStaffTenantScope(
         IScopeContext scopeContext,

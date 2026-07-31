@@ -21,7 +21,16 @@ tenant-scoped Staff access export and anonymisation. Export accepts only the
 current source-module, notification-name, version, and payload combinations;
 recipient Auth subjects, read state, and delivery attempts are excluded.
 
+Reservation notifications carry an opaque reference to their authoritative
+Reservations record. Provider-operation attention notifications additionally
+carry the authoritative Ingestion reservation source-link reference, resolved
+once from the exact dispatch before audience fan-out. Their Guest Rights
+companions support bounded discovery, strict buffered export, exact closure,
+replay suppression, and record-specific restore. The extension depends only on
+Ingestion Contracts, and the provider bridge is registered only by API or
+Worker hosts that also compose Ingestion.
+
 GMA Notifications owns generic inbox persistence, paging, delivery-lease
 coordination, close receipts, and replay suppression. This extension adapts
-those primitives to BunkFy's Staff and reservation Data Rights coordinates; no
-BunkFy policy is implemented in GMA.
+those primitives to BunkFy's Staff, reservation, and Ingestion source-link Data
+Rights coordinates; no BunkFy policy is implemented in GMA.

@@ -60,6 +60,7 @@ Useful entry points:
 - [Operations Notifications Personal-Data Catalogue Task](planning/operations-notifications-personal-data-catalogue-task.md)
 - [Operations Notifications Data Rights Owner Capability Task](planning/operations-notifications-data-rights-owner-capability-task.md)
 - [Operations Notifications Staff Data Rights Task](planning/operations-notifications-staff-data-rights-task.md)
+- [Operations Notifications Ingestion Data Rights Task](planning/operations-notifications-ingestion-data-rights-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Workspaces Module](../src/Modules/Workspaces/docs/README.md)
 - [Staff Module](../src/Modules/Staff/docs/README.md)

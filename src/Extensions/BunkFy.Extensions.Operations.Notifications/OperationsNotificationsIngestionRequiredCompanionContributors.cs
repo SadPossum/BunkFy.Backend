@@ -1,56 +1,54 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
 using BunkFy.Modules.DataRights.Contracts;
-using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Ingestion.Contracts;
 using Gma.Framework.Scoping;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 using Microsoft.Extensions.Logging;
 
 internal sealed class
-    OperationsNotificationsReservationAccessExportCompanionContributor(
+    OperationsNotificationsIngestionAccessExportCompanionContributor(
         INotificationHistoryLifecycle lifecycle,
         IScopeContext scopeContext,
         ILogger<
-            OperationsNotificationsReservationAccessExportCompanionContributor>
+            OperationsNotificationsIngestionAccessExportCompanionContributor>
             logger)
-    : OperationsNotificationsReservationRequiredCompanionContributor(
+    : OperationsNotificationsIngestionRequiredCompanionContributor(
         lifecycle,
         scopeContext,
         logger)
 {
     public override string ContributorKey =>
         OperationsNotificationsDataRightsCoordinates
-            .ReservationAccessExportCompanionKey;
+            .IngestionAccessExportCompanionKey;
 
     public override DataRightsOperation Operation =>
         DataRightsOperation.AccessExport;
-
 }
 
 internal sealed class
-    OperationsNotificationsReservationAnonymisationCompanionContributor(
+    OperationsNotificationsIngestionAnonymisationCompanionContributor(
         INotificationHistoryLifecycle lifecycle,
         IScopeContext scopeContext,
         ILogger<
-            OperationsNotificationsReservationAnonymisationCompanionContributor>
+            OperationsNotificationsIngestionAnonymisationCompanionContributor>
             logger)
-    : OperationsNotificationsReservationRequiredCompanionContributor(
+    : OperationsNotificationsIngestionRequiredCompanionContributor(
         lifecycle,
         scopeContext,
         logger)
 {
     public override string ContributorKey =>
         OperationsNotificationsDataRightsCoordinates
-            .ReservationAnonymisationCompanionKey;
+            .IngestionAnonymisationCompanionKey;
 
     public override DataRightsOperation Operation =>
         DataRightsOperation.Anonymisation;
-
 }
 
 internal abstract class
-    OperationsNotificationsReservationRequiredCompanionContributor(
+    OperationsNotificationsIngestionRequiredCompanionContributor(
         INotificationHistoryLifecycle lifecycle,
         IScopeContext scopeContext,
         ILogger logger)
@@ -60,19 +58,20 @@ internal abstract class
         logger)
 {
     public override string SourceOwnerKey =>
-        ReservationsDataRightsCoordinates.Owner;
+        IngestionDataRightsCoordinates.Owner;
 
     public override string SourceRecordType =>
-        ReservationsDataRightsCoordinates.ReservationRecordType;
+        IngestionDataRightsCoordinates.ReservationSourceLinkRecordType;
 
     protected override string TargetRecordType =>
         OperationsNotificationsDataRightsCoordinates
-            .ReservationHistoryRecordType;
+            .IngestionSourceLinkHistoryRecordType;
 
     protected override NotificationHistoryReference CreateReference(
         DataRightsRequiredCompanionRequest request) =>
-        OperationsNotificationsDataRightsCoordinates.ForReservation(
-            request.TenantId,
-            request.PropertyId!.Value,
-            request.SourceCoordinate.RecordId);
+        OperationsNotificationsDataRightsCoordinates
+            .ForIngestionSourceLink(
+                request.TenantId,
+                request.PropertyId!.Value,
+                request.SourceCoordinate.RecordId);
 }

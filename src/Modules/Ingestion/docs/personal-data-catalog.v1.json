@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 6,
+  "catalogVersion": 7,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -171,6 +171,14 @@
       "endsAt": null,
       "duration": "30.00:00:00",
       "legalHoldBehavior": "pause-purge-or-redaction"
+    },
+    {
+      "id": "transient-response",
+      "approvalState": "engineering-default",
+      "startsAt": "response-created",
+      "endsAt": "response-completed",
+      "duration": null,
+      "legalHoldBehavior": "not-applicable"
     }
   ],
   "rightsPolicies": [
@@ -11449,6 +11457,7 @@
       ],
       "sources": [
         "ingestion-persistence",
+        "system-query",
         "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
@@ -11460,7 +11469,8 @@
       "allowedSurfaces": [
         "application-command",
         "data-rights-export",
-        "persistence"
+        "persistence",
+        "projection-export"
       ],
       "allowedBoundaries": [
         "cross-module",
@@ -11488,6 +11498,13 @@
           "member": "SourceLinkId",
           "surface": "data-rights-export",
           "retentionPolicy": "ingestion-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.IngestionNotificationSourceLink",
+          "member": "SourceLinkId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },

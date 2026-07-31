@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Ingestion.Persistence;
 
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Persistence.Repositories;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Cqrs;
@@ -11,11 +12,11 @@ using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 public static class DependencyInjection
@@ -70,6 +71,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<ILegalHoldReader>(provider =>
             provider.GetRequiredService<LegalHoldRepository>());
         builder.Services.TryAddScoped<IReservationSourceLinkRepository, ReservationSourceLinkRepository>();
+        builder.Services.TryAddScoped<
+            IIngestionNotificationSourceLinkResolver,
+            IngestionNotificationSourceLinkResolver>();
         builder.Services.TryAddScoped<IReservationDispatchRepository, ReservationDispatchRepository>();
         builder.Services.TryAddScoped<IChangeProposalRepository, ChangeProposalRepository>();
         builder.Services.TryAddScoped<IChangeProposalReader, ChangeProposalReader>();

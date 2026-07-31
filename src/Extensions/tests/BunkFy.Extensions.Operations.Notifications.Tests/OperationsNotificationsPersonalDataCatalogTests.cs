@@ -17,6 +17,20 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
     }.ToDictionary(assembly => assembly.GetName().Name!, StringComparer.Ordinal);
 
     [Fact]
+    public void Catalogue_version_includes_ingestion_source_link_history()
+    {
+        Assert.Equal(5, Catalogue.CatalogVersion);
+        PersonalDataFieldDefinition references = Assert.Single(
+            Catalogue.Fields,
+            field => field.Id ==
+                "operations-notifications.history-references");
+        Assert.Contains("ingestion", references.Sources);
+        Assert.Contains(
+            "source-link-rights-lifecycle",
+            references.Purposes);
+    }
+
+    [Fact]
     public void Every_catalogue_binding_resolves_to_a_real_member()
     {
         foreach (PersonalDataMemberBinding binding in Bindings())

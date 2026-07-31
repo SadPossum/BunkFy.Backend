@@ -16,6 +16,8 @@ internal static class OperationsNotificationsDataRightsReceipt
         "operations-notifications.completed";
     public const string ReasonCode =
         "operations-notifications.reservation-history-removed";
+    public const string IngestionReasonCode =
+        "operations-notifications.ingestion-source-link-history-removed";
     public const string StaffReasonCode =
         "operations-notifications.staff-inbox-history-removed";
 

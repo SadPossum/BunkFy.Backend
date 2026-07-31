@@ -142,6 +142,11 @@ public sealed class ModuleBoundaryTests
         Assert.Contains(
             extension.ProjectReferences,
             reference => reference.EndsWith(
+                "BunkFy.Modules.Ingestion.Contracts\\BunkFy.Modules.Ingestion.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            extension.ProjectReferences,
+            reference => reference.EndsWith(
                 "BunkFy.DataGovernance\\BunkFy.DataGovernance.csproj",
                 StringComparison.OrdinalIgnoreCase));
 
@@ -152,7 +157,13 @@ public sealed class ModuleBoundaryTests
                     StringComparison.OrdinalIgnoreCase) ||
                 reference.Contains(
                     "Gma.Modules.Notifications.Persistence",
-                    StringComparison.OrdinalIgnoreCase))
+                    StringComparison.OrdinalIgnoreCase) ||
+                (reference.Contains(
+                     "BunkFy.Modules.Ingestion.",
+                     StringComparison.OrdinalIgnoreCase) &&
+                 !reference.Contains(
+                     "BunkFy.Modules.Ingestion.Contracts",
+                     StringComparison.OrdinalIgnoreCase)))
             .ToArray();
 
         string[] forbiddenSourceReferences = RepositoryPaths.EnumerateFiles(
@@ -169,6 +180,15 @@ public sealed class ModuleBoundaryTests
                         StringComparison.Ordinal) ||
                     source.Contains(
                         "NotificationsDbContext",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Ingestion.Application",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Ingestion.Domain",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Ingestion.Persistence",
                         StringComparison.Ordinal);
             })
             .Select(RepositoryPaths.ToRepositoryPath)

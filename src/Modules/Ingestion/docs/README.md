@@ -19,6 +19,7 @@ The current foundation contains:
 - versioned connection-owned polling schedules projected into tenant-scoped GMA TaskRuntime occurrences;
 - bounded raw-payload reads and strict `reservation.v1` normalization, including optional minute-precision expected local arrival/departure times;
 - durable reservation source links, source ordering, dispatch attempts, and versioned non-PII operational baselines;
+- contracts-only resolution of an exact dispatch correlation to its stable reservation source-link id for cross-module notification projection;
 - asynchronous create/change/amend/cancel requests with correlated Reservations outcomes and deferred receipt recovery;
 - strict operational-baseline classification of guest-only changes versus allocation-affecting amendments;
 - atomic Inventory amendment confirmation/rejection through Reservations, without release-then-create gaps;
@@ -65,10 +66,16 @@ HTTP downloads are forced to opaque attachments with cache prevention and conten
 
 Raw payloads default to a 30-day retention period configured by `Ingestion:Retention:RawPayloadRetention` (valid range: one hour through ten years). Each receipt stores the deadline assigned when it is accepted, so later configuration changes do not silently rewrite existing retention obligations. Only processed or rejected receipts can be claimed; pending/applying proposals and non-expired reprocessing reservations keep source evidence out of the claim query. Reprocessing reservations expire automatically and are not substitutes for legal holds. The `purge-expired-raw-payloads` TaskRuntime job uses a durable claim before deleting MinIO content and finalizes the receipt afterward; the same task retry can resume immediately, another task can recover a stale claim, and an already-missing object is successful idempotent deletion. Admin API and CLI enqueue this tenant-scoped job behind `ingestion.retention.manage` and explicit confirmation.
 
-DataRights uses the exact product reservation id only to resolve indexed
-Ingestion source links. A selected coordinate streams its reachable source
-link, receipts, proposals, dispatches, reprocessing lineage and retained raw
-evidence; unrelated connections and property operations are excluded.
+DataRights uses exact product reservation or Ingestion-owned reservation
+source-link coordinates only; no raw-provider or fuzzy identity search is
+available. A selected coordinate streams its reachable source link, receipts,
+proposals, dispatches, reprocessing lineage and retained raw evidence;
+unrelated connections and property operations are excluded. A narrow
+projection contract resolves scope, property, connection, operation, and
+receipt through the exact persisted dispatch and returns only the stable
+source-link id. It deliberately preserves identity resolution after source-link
+anonymisation so late provider-attention events hit the closed notification
+reference instead of recreating history.
 Available raw objects are emitted as deterministic bounded chunks, a missing
 available object makes the fragment unavailable, and a purged object is never
 reconstructed. Destructive DataRights execution remains intentionally

@@ -22,6 +22,16 @@ public sealed class IngestionPersonalDataCatalogTests
     private static readonly Dictionary<string, Assembly> Assemblies = CreateAssemblyIndex();
 
     [Fact]
+    public void Catalogue_version_includes_notification_source_link_projection()
+    {
+        Assert.Equal(7, Catalogue.CatalogVersion);
+        AssertBinding(
+            typeof(IngestionNotificationSourceLink),
+            nameof(IngestionNotificationSourceLink.SourceLinkId),
+            PersonalDataSurface.ProjectionExport);
+    }
+
+    [Fact]
     public void Every_catalogue_binding_resolves_to_a_real_member()
     {
         foreach (PersonalDataMemberBinding binding in Bindings())
@@ -267,6 +277,9 @@ public sealed class IngestionPersonalDataCatalogTests
         yield return (
             PersonalDataSurface.ProjectionExport,
             typeof(IngestionAnonymisationEligibilityResult));
+        yield return (
+            PersonalDataSurface.ProjectionExport,
+            typeof(IngestionNotificationSourceLink));
     }
 
     private static bool IsProductPersistenceType(IEntityType entityType) =>

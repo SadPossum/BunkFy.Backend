@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\Modules\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Ingestion\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Inventory\BunkFy.Modules.Inventory.Contracts\BunkFy.Modules.Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Properties\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\Reservations\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />

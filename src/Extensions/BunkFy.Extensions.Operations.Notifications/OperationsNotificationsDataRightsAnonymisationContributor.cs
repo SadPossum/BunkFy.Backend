@@ -41,17 +41,18 @@ internal sealed class
                 InvalidRequest);
         }
 
-        NotificationHistoryReference reference =
-            OperationsNotificationsDataRightsCoordinates.ForReservation(
+        _ = OperationsNotificationsDataRightsValidation
+            .TryCreateGuestHistoryReference(
                 request.TenantId,
                 request.RoutingPropertyId,
-                request.Coordinate.RecordId);
+                request.Coordinate,
+                out NotificationHistoryReference? reference);
         NotificationHistoryReferenceCloseResult result =
             await lifecycle.CloseAsync(
                     new NotificationHistoryReferenceCloseRequest(
                         request.WorkItemId,
                         request.TenantId,
-                        reference,
+                        reference!,
                         request.Coordinate.RecordVersion,
                         OperationsNotificationsDataRightsReceipt
                             .MaximumRecords),
@@ -63,7 +64,7 @@ internal sealed class
             OperationsNotificationsDataRightsReceipt.IsValid(
                 result.Receipt,
                 request.WorkItemId,
-                reference,
+                reference!,
                 request.Coordinate.RecordVersion))
         {
             NotificationHistoryReferenceCloseReceipt receipt =
@@ -74,7 +75,7 @@ internal sealed class
                     receipt.OperationId,
                     receipt.ResultingVersion,
                     OperationsNotificationsDataRightsReceipt.DispositionCode,
-                    OperationsNotificationsDataRightsReceipt.ReasonCode,
+                    GetReasonCode(request.Coordinate),
                     OperationsNotificationsDataRightsReceipt.ComputeSha256(
                         receipt),
                     receipt.CompletedAtUtc));
@@ -109,8 +110,22 @@ internal sealed class
             DataRightsCaseType.GuestRights,
             request.RoutingPropertyId) &&
         OperationsNotificationsDataRightsValidation
-            .IsReservationHistoryCoordinate(request.Coordinate) &&
+            .TryCreateGuestHistoryReference(
+                request.TenantId,
+                request.RoutingPropertyId,
+                request.Coordinate,
+                out _) &&
         OperationsNotificationsDataRightsValidation.IsApprovalEvidence(
             request.RoutingPolicy,
             request.RoutingPropertyId);
+
+    private static string GetReasonCode(
+        DataRightsSubjectCoordinate coordinate) =>
+        string.Equals(
+            coordinate.RecordType,
+            OperationsNotificationsDataRightsCoordinates
+                .IngestionSourceLinkHistoryRecordType,
+            StringComparison.Ordinal)
+            ? OperationsNotificationsDataRightsReceipt.IngestionReasonCode
+            : OperationsNotificationsDataRightsReceipt.ReasonCode;
 }

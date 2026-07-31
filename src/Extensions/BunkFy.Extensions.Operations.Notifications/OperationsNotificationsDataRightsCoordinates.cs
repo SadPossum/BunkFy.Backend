@@ -1,5 +1,6 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using Gma.Framework.Naming;
 using Gma.Modules.Notifications.Contracts;
@@ -17,6 +18,10 @@ internal static class OperationsNotificationsDataRightsCoordinates
         "staff-inbox-history";
     public const string StaffInboxHistoryReferenceNamespace =
         "bunkfy-staff-inbox-history";
+    public const string IngestionSourceLinkHistoryRecordType =
+        "ingestion-source-link-history";
+    public const string IngestionSourceLinkHistoryReferenceNamespace =
+        "bunkfy-ingestion-source-link-history";
     public const string ReservationAccessExportCompanionKey =
         "operations-notifications-reservation-access-export";
     public const string ReservationAnonymisationCompanionKey =
@@ -25,6 +30,10 @@ internal static class OperationsNotificationsDataRightsCoordinates
         "operations-notifications-staff-access-export";
     public const string StaffAnonymisationCompanionKey =
         "operations-notifications-staff-anonymisation";
+    public const string IngestionAccessExportCompanionKey =
+        "operations-notifications-ingestion-access-export";
+    public const string IngestionAnonymisationCompanionKey =
+        "operations-notifications-ingestion-anonymisation";
     public const string StaffHistoryStateBindingKey =
         "operations-notifications.staff-inbox-history";
 
@@ -80,6 +89,37 @@ internal static class OperationsNotificationsDataRightsCoordinates
             $"{Modules.Staff.Contracts.StaffDataRightsCoordinates.Owner}|" +
             $"{Modules.Staff.Contracts.StaffDataRightsCoordinates.StaffMemberRecordType}|" +
             $"{staffMemberId:N}");
+    }
+
+    public static NotificationHistoryReference ForIngestionSourceLink(
+        string tenantId,
+        Guid propertyId,
+        Guid sourceLinkId)
+    {
+        string normalizedTenant = ScopeIds.Normalize(
+            tenantId,
+            nameof(tenantId));
+        if (propertyId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "propertyId must be non-empty.",
+                nameof(propertyId));
+        }
+
+        if (sourceLinkId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "sourceLinkId must be non-empty.",
+                nameof(sourceLinkId));
+        }
+
+        return NotificationHistoryReference.FromCanonicalCoordinate(
+            IngestionSourceLinkHistoryReferenceNamespace,
+            $"bunkfy-notification-reference/v1|{normalizedTenant}|" +
+            $"property|{propertyId:N}|" +
+            $"{IngestionDataRightsCoordinates.Owner}|" +
+            $"{IngestionDataRightsCoordinates.ReservationSourceLinkRecordType}|" +
+            $"{sourceLinkId:N}");
     }
 
     public static IReadOnlyList<NotificationHistoryReference>

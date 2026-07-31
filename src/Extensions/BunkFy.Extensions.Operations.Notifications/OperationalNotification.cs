@@ -10,4 +10,8 @@ internal sealed record OperationalNotification(
     NotificationSeverity Severity,
     IOperationalNotificationPayload Payload,
     IReadOnlyList<NotificationTag> Tags,
-    string? ActorId = null);
+    string? ActorId = null)
+{
+    public IReadOnlyList<NotificationHistoryReference> References { get; init; } =
+        [];
+}

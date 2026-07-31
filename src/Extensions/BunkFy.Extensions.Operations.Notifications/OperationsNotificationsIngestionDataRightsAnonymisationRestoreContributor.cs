@@ -7,7 +7,7 @@ using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 
 internal sealed class
-    OperationsNotificationsDataRightsAnonymisationRestoreContributor(
+    OperationsNotificationsIngestionDataRightsAnonymisationRestoreContributor(
         INotificationHistoryLifecycle lifecycle,
         IScopeContext scopeContext,
         ISystemClock clock)
@@ -18,11 +18,11 @@ internal sealed class
 {
     public override string RecordType =>
         OperationsNotificationsDataRightsCoordinates
-            .ReservationHistoryRecordType;
+            .IngestionSourceLinkHistoryRecordType;
 
     protected override NotificationHistoryReference CreateReference(
         DataRightsAnonymisationRestoreRequest request) =>
-        OperationsNotificationsDataRightsCoordinates.ForReservation(
+        OperationsNotificationsDataRightsCoordinates.ForIngestionSourceLink(
             request.TenantId,
             request.RoutingPropertyId,
             request.RecordId);

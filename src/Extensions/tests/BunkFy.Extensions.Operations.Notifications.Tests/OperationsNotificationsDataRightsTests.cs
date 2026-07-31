@@ -2,6 +2,7 @@ namespace BunkFy.Extensions.Operations.Notifications.Tests;
 
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Runtime.Time;
@@ -26,6 +27,8 @@ public sealed class OperationsNotificationsDataRightsTests
         Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
     private static readonly Guid StaffMemberId =
         Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
+    private static readonly Guid SourceLinkId =
+        Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 
     [Fact]
     public void Reservation_reference_is_deterministic_and_scope_exact()
@@ -92,6 +95,50 @@ public sealed class OperationsNotificationsDataRightsTests
         Assert.Equal(
             OperationsNotificationsDataRightsCoordinates
                 .StaffInboxHistoryReferenceNamespace,
+            expected.Namespace);
+    }
+
+    [Fact]
+    public void Ingestion_source_link_reference_is_deterministic_and_scope_exact()
+    {
+        NotificationHistoryReference expected =
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    SourceLinkId);
+
+        Assert.Equal(
+            expected,
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    SourceLinkId));
+        Assert.NotEqual(
+            expected,
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    Guid.NewGuid().ToString("D"),
+                    PropertyId,
+                    SourceLinkId));
+        Assert.NotEqual(
+            expected,
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    Guid.NewGuid(),
+                    SourceLinkId));
+        Assert.NotEqual(
+            expected,
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    Guid.NewGuid()));
+        Assert.Equal(
+            OperationsNotificationsDataRightsCoordinates
+                .IngestionSourceLinkHistoryReferenceNamespace,
             expected.Namespace);
     }
 
@@ -171,6 +218,156 @@ public sealed class OperationsNotificationsDataRightsTests
         Assert.Equal(1, coordinate.RecordVersion);
         Assert.Equal(1, lifecycle.EnsureOpenCalls);
         Assert.Equal(0, lifecycle.SnapshotCalls);
+    }
+
+    [Fact]
+    public async Task Ingestion_anonymisation_companion_freezes_exact_source_link_history()
+    {
+        NotificationHistoryReference expected =
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    SourceLinkId);
+        var lifecycle = new TestLifecycle
+        {
+            EnsureOpen = (scopeId, reference, _) =>
+            {
+                Assert.Equal(ScopeId, scopeId);
+                Assert.Equal(expected, reference);
+                return Task.FromResult(
+                    new NotificationHistoryReferenceSnapshot(
+                        NotificationHistoryReferenceStatus.Open,
+                        6,
+                        2,
+                        11));
+            }
+        };
+        var contributor =
+            new OperationsNotificationsIngestionAnonymisationCompanionContributor(
+                lifecycle,
+                new TestScopeContext(),
+                NullLogger<
+                    OperationsNotificationsIngestionAnonymisationCompanionContributor>
+                    .Instance);
+
+        DataRightsRequiredCompanionResult result =
+            await contributor.ExpandAsync(
+                IngestionCompanionRequest(
+                    DataRightsOperation.Anonymisation),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsRequiredCompanionStatus.Completed,
+            result.Status);
+        DataRightsSubjectCoordinate coordinate =
+            Assert.Single(result.Coordinates);
+        Assert.Equal(
+            OperationsNotificationsDataRightsCoordinates.Owner,
+            coordinate.OwnerKey);
+        Assert.Equal(
+            OperationsNotificationsDataRightsCoordinates
+                .IngestionSourceLinkHistoryRecordType,
+            coordinate.RecordType);
+        Assert.Equal(SourceLinkId, coordinate.RecordId);
+        Assert.Equal(6, coordinate.RecordVersion);
+        Assert.Equal(1, lifecycle.EnsureOpenCalls);
+    }
+
+    [Fact]
+    public async Task Ingestion_access_export_companion_rejects_wrong_source_coordinate()
+    {
+        var lifecycle = new TestLifecycle();
+        var contributor =
+            new OperationsNotificationsIngestionAccessExportCompanionContributor(
+                lifecycle,
+                new TestScopeContext(),
+                NullLogger<
+                    OperationsNotificationsIngestionAccessExportCompanionContributor>
+                    .Instance);
+        DataRightsRequiredCompanionRequest request =
+            IngestionCompanionRequest(DataRightsOperation.AccessExport) with
+            {
+                SourceCoordinate = new DataRightsSubjectCoordinate(
+                    ReservationsDataRightsCoordinates.Owner,
+                    ReservationsDataRightsCoordinates.ReservationRecordType,
+                    SourceLinkId,
+                    5)
+            };
+
+        DataRightsRequiredCompanionResult result =
+            await contributor.ExpandAsync(
+                request,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsRequiredCompanionStatus.Blocked,
+            result.Status);
+        Assert.Equal(0, lifecycle.EnsureOpenCalls);
+    }
+
+    [Fact]
+    public async Task Ingestion_access_export_companion_respects_case_capacity()
+    {
+        var lifecycle = new TestLifecycle
+        {
+            EnsureOpen = (_, _, _) => Task.FromResult(
+                new NotificationHistoryReferenceSnapshot(
+                    NotificationHistoryReferenceStatus.Open,
+                    2,
+                    1,
+                    1))
+        };
+        var contributor =
+            new OperationsNotificationsIngestionAccessExportCompanionContributor(
+                lifecycle,
+                new TestScopeContext(),
+                NullLogger<
+                    OperationsNotificationsIngestionAccessExportCompanionContributor>
+                    .Instance);
+        DataRightsRequiredCompanionRequest request =
+            IngestionCompanionRequest(DataRightsOperation.AccessExport) with
+            {
+                RemainingSubjectCapacity = 0
+            };
+
+        DataRightsRequiredCompanionResult result =
+            await contributor.ExpandAsync(
+                request,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsRequiredCompanionStatus.Blocked,
+            result.Status);
+        Assert.Equal(1, lifecycle.EnsureOpenCalls);
+    }
+
+    [Fact]
+    public async Task Ingestion_companion_retries_when_history_lifecycle_is_unavailable()
+    {
+        var lifecycle = new TestLifecycle
+        {
+            EnsureOpen = (_, _, _) =>
+                throw new InvalidOperationException("unavailable")
+        };
+        var contributor =
+            new OperationsNotificationsIngestionAccessExportCompanionContributor(
+                lifecycle,
+                new TestScopeContext(),
+                NullLogger<
+                    OperationsNotificationsIngestionAccessExportCompanionContributor>
+                    .Instance);
+
+        DataRightsRequiredCompanionResult result =
+            await contributor.ExpandAsync(
+                IngestionCompanionRequest(
+                    DataRightsOperation.AccessExport),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsRequiredCompanionStatus.RetryRequired,
+            result.Status);
+        Assert.Equal(1, lifecycle.EnsureOpenCalls);
     }
 
     [Fact]
@@ -337,6 +534,59 @@ public sealed class OperationsNotificationsDataRightsTests
     }
 
     [Fact]
+    public async Task Discovery_validates_exact_ingestion_source_link_history()
+    {
+        NotificationHistoryReference expected =
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    SourceLinkId);
+        var lifecycle = new TestLifecycle
+        {
+            Snapshot = (scopeId, reference, _) =>
+            {
+                Assert.Equal(ScopeId, scopeId);
+                Assert.Equal(expected, reference);
+                return Task.FromResult(
+                    new NotificationHistoryReferenceSnapshot(
+                        NotificationHistoryReferenceStatus.Open,
+                        4,
+                        1,
+                        10));
+            }
+        };
+        var contributor =
+            new OperationsNotificationsDataRightsDiscoveryContributor(
+                lifecycle,
+                new TestScopeContext(),
+                NullLogger<
+                    OperationsNotificationsDataRightsDiscoveryContributor>
+                    .Instance);
+        var coordinate = new DataRightsSubjectCoordinate(
+            OperationsNotificationsDataRightsCoordinates.Owner,
+            OperationsNotificationsDataRightsCoordinates
+                .IngestionSourceLinkHistoryRecordType,
+            SourceLinkId,
+            4);
+
+        DataRightsSubjectSelectionValidation result =
+            await contributor.ValidateSelectionAsync(
+                new DataRightsSubjectSelectionRequest(
+                    ScopeId,
+                    DataRightsCaseType.GuestRights,
+                    PropertyId,
+                    coordinate),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsSubjectSelectionValidationStatus.Valid,
+            result.Status);
+        Assert.Equal(coordinate, result.Coordinate);
+        Assert.Equal(1, lifecycle.SnapshotCalls);
+    }
+
+    [Fact]
     public async Task Export_buffers_until_reference_version_is_stable()
     {
         int snapshots = 0;
@@ -428,6 +678,114 @@ public sealed class OperationsNotificationsDataRightsTests
             field => field.FieldId.Contains(
                 "recipient",
                 StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Ingestion_export_writes_only_known_provider_attention_copy()
+    {
+        NotificationHistoryReferenceRecord record =
+            CreateProviderAttentionRecord(9);
+        NotificationHistoryReference expected =
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    SourceLinkId);
+        var lifecycle = new TestLifecycle
+        {
+            Snapshot = (_, reference, _) =>
+            {
+                Assert.Equal(expected, reference);
+                return Task.FromResult(
+                    new NotificationHistoryReferenceSnapshot(
+                        NotificationHistoryReferenceStatus.Open,
+                        2,
+                        1,
+                        9));
+            },
+            Page = (_, reference, _, _, _) =>
+            {
+                Assert.Equal(expected, reference);
+                return Task.FromResult(
+                    new NotificationHistoryReferencePage(
+                        NotificationHistoryReferenceStatus.Open,
+                        2,
+                        [record],
+                        9,
+                        false));
+            }
+        };
+        var sink = new CapturingSink();
+        var contributor =
+            new OperationsNotificationsDataRightsExportContributor(
+                lifecycle,
+                new TestScopeContext());
+
+        DataRightsSubjectExportResult result =
+            await contributor.ExportAsync(
+                IngestionExportRequest(version: 2),
+                sink,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsSubjectExportStatus.Succeeded,
+            result.Status);
+        Assert.Equal(1, result.RecordCount);
+        DataRightsExportRecord exported = Assert.Single(sink.Records);
+        Assert.Equal(record.NotificationId, exported.RecordId);
+        Assert.Equal(13, exported.Fields.Count);
+    }
+
+    [Fact]
+    public async Task Ingestion_export_rejects_malformed_history_without_partial_output()
+    {
+        NotificationHistoryReferenceRecord valid =
+            CreateProviderAttentionRecord(8);
+        NotificationHistoryReferenceRecord malformed =
+            CreateProviderAttentionRecord(9) with
+            {
+                Payload = JsonSerializer.SerializeToElement(
+                    new
+                    {
+                        PropertyId,
+                        ReceiptId = Guid.NewGuid(),
+                        ConnectionId = Guid.NewGuid(),
+                        ReservationId = (Guid?)null,
+                        Unexpected = "not-catalogued"
+                    })
+            };
+        var lifecycle = new TestLifecycle
+        {
+            Snapshot = (_, _, _) => Task.FromResult(
+                new NotificationHistoryReferenceSnapshot(
+                    NotificationHistoryReferenceStatus.Open,
+                    2,
+                    2,
+                    9)),
+            Page = (_, _, _, _, _) => Task.FromResult(
+                new NotificationHistoryReferencePage(
+                    NotificationHistoryReferenceStatus.Open,
+                    2,
+                    [valid, malformed],
+                    9,
+                    false))
+        };
+        var sink = new CapturingSink();
+        var contributor =
+            new OperationsNotificationsDataRightsExportContributor(
+                lifecycle,
+                new TestScopeContext());
+
+        DataRightsSubjectExportResult result =
+            await contributor.ExportAsync(
+                IngestionExportRequest(version: 2),
+                sink,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsSubjectExportStatus.ScopeUnavailable,
+            result.Status);
+        Assert.Empty(sink.Records);
     }
 
     [Fact]
@@ -529,6 +887,48 @@ public sealed class OperationsNotificationsDataRightsTests
     }
 
     [Fact]
+    public async Task Ingestion_anonymisation_uses_source_link_history_reason()
+    {
+        Guid workItemId = Guid.NewGuid();
+        NotificationHistoryReference reference =
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    SourceLinkId);
+        NotificationHistoryReferenceCloseReceipt receipt =
+            CreateCloseReceipt(workItemId, reference, 3);
+        var lifecycle = new TestLifecycle
+        {
+            Close = (request, _) =>
+            {
+                Assert.Equal(reference, request.Reference);
+                return Task.FromResult(
+                    new NotificationHistoryReferenceCloseResult(
+                        NotificationHistoryReferenceCloseStatus.Completed,
+                        receipt));
+            }
+        };
+        var contributor =
+            new OperationsNotificationsDataRightsAnonymisationContributor(
+                lifecycle,
+                new TestScopeContext(),
+                new FixedClock());
+
+        DataRightsAnonymisationContributionResult result =
+            await contributor.ExecuteAsync(
+                IngestionAnonymisationRequest(workItemId, version: 2),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationContributionStatus.Completed,
+            result.Status);
+        Assert.Equal(
+            OperationsNotificationsDataRightsReceipt.IngestionReasonCode,
+            result.OwnerProof!.ReasonCode);
+    }
+
+    [Fact]
     public async Task Restore_accepts_exact_replayed_owner_receipt()
     {
         Guid operationId = Guid.NewGuid();
@@ -589,6 +989,64 @@ public sealed class OperationsNotificationsDataRightsTests
     }
 
     [Fact]
+    public async Task Ingestion_restore_accepts_exact_replayed_owner_receipt()
+    {
+        Guid operationId = Guid.NewGuid();
+        NotificationHistoryReference reference =
+            OperationsNotificationsDataRightsCoordinates
+                .ForIngestionSourceLink(
+                    ScopeId,
+                    PropertyId,
+                    SourceLinkId);
+        NotificationHistoryReferenceCloseReceipt receipt =
+            CreateCloseReceipt(operationId, reference, 3);
+        string ownerReceiptSha =
+            OperationsNotificationsDataRightsReceipt.ComputeSha256(receipt);
+        var lifecycle = new TestLifecycle
+        {
+            Close = (request, _) =>
+            {
+                Assert.Equal(reference, request.Reference);
+                return Task.FromResult(
+                    new NotificationHistoryReferenceCloseResult(
+                        NotificationHistoryReferenceCloseStatus.Replayed,
+                        receipt));
+            }
+        };
+        var contributor =
+            new OperationsNotificationsIngestionDataRightsAnonymisationRestoreContributor(
+                lifecycle,
+                new TestScopeContext(),
+                new FixedClock());
+
+        DataRightsAnonymisationRestoreResult result =
+            await contributor.RestoreAsync(
+                new DataRightsAnonymisationRestoreRequest(
+                    DataRightsAnonymisationRestoreContract.CurrentVersion,
+                    ScopeId,
+                    Guid.NewGuid(),
+                    1,
+                    new string('a', 64),
+                    PropertyId,
+                    OperationsNotificationsDataRightsCoordinates.Owner,
+                    OperationsNotificationsDataRightsCoordinates
+                        .IngestionSourceLinkHistoryRecordType,
+                    SourceLinkId,
+                    OperationsNotificationsDataRightsReceipt.ContractVersion,
+                    operationId,
+                    ownerReceiptSha,
+                    3,
+                    Now),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsAnonymisationRestoreStatus.Completed,
+            result.Status);
+        Assert.Equal(ownerReceiptSha, result.Proof!.OwnerReceiptSha256);
+        Assert.Equal(3, result.Proof.ResultingRecordVersion);
+    }
+
+    [Fact]
     public void Dependency_injection_registers_each_data_rights_capability_once()
     {
         ServiceCollection services = [];
@@ -596,7 +1054,7 @@ public sealed class OperationsNotificationsDataRightsTests
         services.AddBunkFyOperationsNotifications();
 
         Assert.Equal(
-            4,
+            6,
             services.Count(descriptor =>
                 descriptor.ServiceType ==
                 typeof(IDataRightsRequiredCompanionContributor)));
@@ -611,9 +1069,11 @@ public sealed class OperationsNotificationsDataRightsTests
         Assert.Single(services, descriptor =>
             descriptor.ServiceType ==
             typeof(IDataRightsAnonymisationContributor));
-        Assert.Single(services, descriptor =>
-            descriptor.ServiceType ==
-            typeof(IDataRightsAnonymisationRestoreContributor));
+        Assert.Equal(
+            2,
+            services.Count(descriptor =>
+                descriptor.ServiceType ==
+                typeof(IDataRightsAnonymisationRestoreContributor)));
     }
 
     private static DataRightsRequiredCompanionRequest CompanionRequest(
@@ -644,6 +1104,36 @@ public sealed class OperationsNotificationsDataRightsTests
                     .ReservationHistoryRecordType,
                 ReservationId,
                 version));
+
+    private static DataRightsSubjectExportRequest IngestionExportRequest(
+        long version) =>
+        new(
+            ScopeId,
+            DataRightsCaseType.GuestRights,
+            PropertyId,
+            new DataRightsSubjectCoordinate(
+                OperationsNotificationsDataRightsCoordinates.Owner,
+                OperationsNotificationsDataRightsCoordinates
+                    .IngestionSourceLinkHistoryRecordType,
+                SourceLinkId,
+                version));
+
+    private static DataRightsRequiredCompanionRequest
+        IngestionCompanionRequest(DataRightsOperation operation) =>
+        new(
+            DataRightsRequiredCompanionContract.CurrentVersion,
+            ScopeId,
+            DataRightsCaseType.GuestRights,
+            operation,
+            PropertyId,
+            Guid.NewGuid(),
+            new DataRightsSubjectCoordinate(
+                IngestionDataRightsCoordinates.Owner,
+                IngestionDataRightsCoordinates
+                    .ReservationSourceLinkRecordType,
+                SourceLinkId,
+                5),
+            4);
 
     private static DataRightsRequiredCompanionRequest
         StaffCompanionRequest(DataRightsOperation operation) =>
@@ -696,6 +1186,18 @@ public sealed class OperationsNotificationsDataRightsTests
             "user:executor",
             Now.AddMinutes(5));
 
+    private static DataRightsAnonymisationContributionRequest
+        IngestionAnonymisationRequest(Guid workItemId, long version) =>
+        AnonymisationRequest(workItemId, version) with
+        {
+            Coordinate = new DataRightsSubjectCoordinate(
+                OperationsNotificationsDataRightsCoordinates.Owner,
+                OperationsNotificationsDataRightsCoordinates
+                    .IngestionSourceLinkHistoryRecordType,
+                SourceLinkId,
+                version)
+        };
+
     private static NotificationHistoryReferenceRecord
         CreateNotificationRecord(long sequence)
     {
@@ -711,6 +1213,32 @@ public sealed class OperationsNotificationsDataRightsTests
             1,
             "Reservation cancelled",
             "A reservation was cancelled.",
+            NotificationSeverity.Warning,
+            sequence,
+            Now.AddMinutes(-2),
+            Now.AddMinutes(-1),
+            payload,
+            ["domain:reservations", "web"],
+            NotificationDeliveryPolicy.RespectPreferences);
+    }
+
+    private static NotificationHistoryReferenceRecord
+        CreateProviderAttentionRecord(long sequence)
+    {
+        JsonElement payload = JsonSerializer.SerializeToElement(
+            new ProviderAttentionNotificationPayload(
+                PropertyId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                ReservationId));
+        return new NotificationHistoryReferenceRecord(
+            Guid.NewGuid(),
+            "staff-recipient",
+            ReservationsModuleMetadata.Name,
+            "provider-reservation-operation-needs-attention",
+            1,
+            "Provider change needs attention",
+            "A provider reservation operation needs review.",
             NotificationSeverity.Warning,
             sequence,
             Now.AddMinutes(-2),

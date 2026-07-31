@@ -1,6 +1,7 @@
 namespace BunkFy.Extensions.Operations.Notifications.Tests;
 
 using System.Text.Json;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
@@ -26,6 +27,7 @@ public sealed class OperationalNotificationTests
         ServiceCollection services = [];
 
         services.AddBunkFyOperationsNotifications();
+        services.AddBunkFyOperationsIngestionNotifications();
 
         IntegrationEventSubscription[] subscriptions = services
             .Where(descriptor => descriptor.ServiceType == typeof(IntegrationEventSubscription))
@@ -34,6 +36,30 @@ public sealed class OperationalNotificationTests
             .ToArray();
         Assert.Equal(13, subscriptions.Length);
         Assert.All(subscriptions, subscription => Assert.True(subscription.IsTenantScoped()));
+    }
+
+    [Fact]
+    public void Provider_bridge_is_registered_only_with_the_ingestion_extension()
+    {
+        ServiceCollection services = [];
+
+        services.AddBunkFyOperationsNotifications();
+
+        Assert.DoesNotContain(
+            services,
+            descriptor =>
+                descriptor.ServiceType ==
+                typeof(
+                    ExternalReservationOperationAttentionNotificationHandler));
+
+        services.AddBunkFyOperationsIngestionNotifications();
+
+        Assert.Single(
+            services,
+            descriptor =>
+                descriptor.ServiceType ==
+                typeof(
+                    ExternalReservationOperationAttentionNotificationHandler));
     }
 
     [Fact]
@@ -106,7 +132,10 @@ public sealed class OperationalNotificationTests
             new TestWorkspaceOwnerAudienceReader(["owner-a"]),
             new TestOrganizationAccessCandidateFilter(),
             notifications);
-        var handler = new ExternalReservationOperationAttentionNotificationHandler(projector);
+        var sourceLinks = new TestIngestionSourceLinkResolver();
+        var handler = new ExternalReservationOperationAttentionNotificationHandler(
+            projector,
+            sourceLinks);
         var integrationEvent = new ExternalReservationOperationCompletedIntegrationEvent(
             Guid.NewGuid(),
             ScopeId,
@@ -125,6 +154,7 @@ public sealed class OperationalNotificationTests
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
 
         Assert.Empty(notifications.Events);
+        Assert.Empty(sourceLinks.Requests);
     }
 
     [Fact]
@@ -296,7 +326,9 @@ public sealed class OperationalNotificationTests
                 Guid.NewGuid(), new DateOnly(2026, 7, 14), new DateOnly(2026, 7, 16),
                 2, "system:source-actor"),
             CancellationToken.None);
-        await new ExternalReservationOperationAttentionNotificationHandler(projector).HandleAsync(
+        await new ExternalReservationOperationAttentionNotificationHandler(
+            projector,
+            new TestIngestionSourceLinkResolver()).HandleAsync(
             new ExternalReservationOperationCompletedIntegrationEvent(
                 Guid.NewGuid(), ScopeId, Now, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
                 propertyId, ExternalReservationOperationKind.Amend,
@@ -317,6 +349,109 @@ public sealed class OperationalNotificationTests
         Assert.Equal(
             ["ConnectionId", "PropertyId", "ReceiptId", "ReservationId"],
             JsonProperties(notifications.Events[1].PayloadJson));
+    }
+
+    [Fact]
+    public async Task Provider_attention_resolves_source_link_once_before_fan_out()
+    {
+        Guid sourceLinkId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid connectionId = Guid.NewGuid();
+        Guid operationId = Guid.NewGuid();
+        Guid receiptId = Guid.NewGuid();
+        Guid reservationId = Guid.NewGuid();
+        var sourceLinks =
+            new TestIngestionSourceLinkResolver(sourceLinkId);
+        var notifications = new CapturingProjector();
+        var projector = CreateProjector(
+            new TestAudienceReader(["user-a", "user-b"]),
+            new TestWorkspaceOwnerAudienceReader([]),
+            new TestOrganizationAccessCandidateFilter(),
+            notifications);
+
+        await new ExternalReservationOperationAttentionNotificationHandler(
+                projector,
+                sourceLinks)
+            .HandleAsync(
+                new ExternalReservationOperationCompletedIntegrationEvent(
+                    Guid.NewGuid(),
+                    ScopeId,
+                    Now,
+                    operationId,
+                    receiptId,
+                    connectionId,
+                    propertyId,
+                    ExternalReservationOperationKind.Amend,
+                    ExternalReservationOperationOutcome.OperationConflict,
+                    reservationId,
+                    2,
+                    3,
+                    null),
+                CancellationToken.None);
+
+        Assert.Equal(
+            [
+                new SourceLinkResolutionRequest(
+                    ScopeId,
+                    propertyId,
+                    connectionId,
+                    operationId,
+                    receiptId)
+            ],
+            sourceLinks.Requests);
+        Assert.Equal(2, notifications.Events.Count);
+        Assert.All(notifications.Events, notification =>
+        {
+            Assert.Contains(
+                OperationsNotificationsDataRightsCoordinates
+                    .ForIngestionSourceLink(
+                        ScopeId,
+                        propertyId,
+                        sourceLinkId),
+                notification.References);
+            Assert.Contains(
+                OperationsNotificationsDataRightsCoordinates
+                    .ForReservation(
+                        ScopeId,
+                        propertyId,
+                        reservationId),
+                notification.References);
+        });
+    }
+
+    [Fact]
+    public async Task Provider_attention_fails_before_projection_when_source_link_is_missing()
+    {
+        var notifications = new CapturingProjector();
+        var projector = CreateProjector(
+            new TestAudienceReader(["user-a"]),
+            new TestWorkspaceOwnerAudienceReader([]),
+            new TestOrganizationAccessCandidateFilter(),
+            notifications);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new ExternalReservationOperationAttentionNotificationHandler(
+                    projector,
+                    new TestIngestionSourceLinkResolver(
+                        returnMissing: true))
+                .HandleAsync(
+                    new ExternalReservationOperationCompletedIntegrationEvent(
+                        Guid.NewGuid(),
+                        ScopeId,
+                        Now,
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        ExternalReservationOperationKind.Create,
+                        ExternalReservationOperationOutcome.ValidationRejected,
+                        reservationId: null,
+                        detailsRevision: null,
+                        reservationVersion: null,
+                        errorCode: null),
+                    CancellationToken.None));
+
+        Assert.Empty(notifications.Events);
     }
 
     [Theory]
@@ -518,6 +653,48 @@ public sealed class OperationalNotificationTests
             return Task.FromResult(result);
         }
     }
+
+    private sealed class TestIngestionSourceLinkResolver(
+        Guid? sourceLinkId = null,
+        bool returnMissing = false)
+        : IIngestionNotificationSourceLinkResolver
+    {
+        private readonly Guid? sourceLinkId =
+            returnMissing
+                ? null
+                : sourceLinkId ?? Guid.Parse(
+                    "dddddddd-dddd-dddd-dddd-dddddddddddd");
+
+        public List<SourceLinkResolutionRequest> Requests { get; } = [];
+
+        public Task<IngestionNotificationSourceLink?> ResolveAsync(
+            string scopeId,
+            Guid propertyId,
+            Guid connectionId,
+            Guid operationId,
+            Guid receiptId,
+            CancellationToken cancellationToken)
+        {
+            this.Requests.Add(
+                new SourceLinkResolutionRequest(
+                    scopeId,
+                    propertyId,
+                    connectionId,
+                    operationId,
+                    receiptId));
+            return Task.FromResult(
+                this.sourceLinkId is Guid value
+                    ? new IngestionNotificationSourceLink(value)
+                    : null);
+        }
+    }
+
+    private sealed record SourceLinkResolutionRequest(
+        string ScopeId,
+        Guid PropertyId,
+        Guid ConnectionId,
+        Guid OperationId,
+        Guid ReceiptId);
 
     private sealed class CapturingProjector : IUserNotificationRequestProjectorV3
     {

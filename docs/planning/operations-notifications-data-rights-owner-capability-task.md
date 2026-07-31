@@ -1,6 +1,6 @@
 # Operations Notifications Data Rights Owner Capability Task
 
-Status: in progress (Staff Rights coverage complete)
+Status: in progress (delivery slices 1-4 complete; production admission pending)
 Date: 2026-07-31
 
 ## Goal
@@ -41,25 +41,30 @@ identity hints are never used as lifecycle keys.
 Typed payloads declare their exact references when projected:
 
 - reservation notifications reference the Reservations reservation;
-- provider-attention notifications reference the Reservations reservation
-  when one is present; and
+- provider-attention notifications reference the authoritative Ingestion
+  reservation source link and the Reservations reservation when one is
+  present;
 - every BunkFy-addressed copy references the recipient's stable Staff record;
   and
 - every notification retains GMA's generic recipient reference.
 
 Property, room, inventory-block, and workspace coordinates remain operational
 account context. They are not silently treated as guest identity. Staff
-coverage is complete; Ingestion source-link subject coverage remains a later
-product slice.
+and Ingestion source-link subject coverage are complete.
 
 ## Data Rights Coordinate
 
-The extension exposes:
+The extension exposes three exact coordinate families:
 
-- owner: `operations-notifications`
-- record type: `reservation-history`
-- record id: the authoritative Reservations reservation id
-- record version: the GMA lifecycle reference version
+- property-scoped `reservation-history` keyed by the authoritative
+  Reservations reservation id;
+- property-scoped `ingestion-source-link-history` keyed by the authoritative
+  Ingestion reservation source-link id; and
+- tenant-scoped `staff-inbox-history` keyed by the authoritative Staff record
+  id.
+
+Each uses owner `operations-notifications` and the GMA lifecycle reference
+version.
 
 Required-companion expansion is owner-specific and bounded. It may add an
 Operations Notifications coordinate only when an already selected authority
@@ -130,7 +135,7 @@ directly.
 3. Add Staff companion coverage through Staff-owned, bounded recipient
    correlation without exposing Auth internals. Completed.
 4. Add Ingestion graph resolution for source-link-related receipt and
-   connection notifications.
+   connection notifications. Completed.
 5. Align retention policy, catalogue, production admission, operator workflow,
    and exact deployment proof.
 
@@ -142,6 +147,11 @@ The completed implementation for delivery slice 3 is tracked in
 [Operations Notifications Staff Data Rights](operations-notifications-staff-data-rights-task.md).
 Staff is the post-provisioning authority for the Staff-to-account correlation;
 Workspaces remains the owner of onboarding and access-process history.
+
+The completed implementation for delivery slice 4 is tracked in
+[Operations Notifications Ingestion Data Rights](operations-notifications-ingestion-data-rights-task.md).
+Ingestion remains the authority for source-link identity and exact dispatch
+correlation.
 
 ## Verification
 
@@ -172,15 +182,17 @@ Workspaces remains the owner of onboarding and access-process history.
 - The synchronized 283-project backend graph builds with zero warnings and
   zero errors, and all PostgreSQL and SQL Server migration models are
   drift-free.
-- Operations Notifications passes 54 tests, Staff passes 147 tests, and Data
-  Rights passes 261 tests; the privacy and module-boundary architecture suite
-  passes 77 tests.
+- Operations Notifications passes 68 tests, Ingestion passes 250 tests, Staff
+  passes 147 tests, and Data Rights passes 261 tests; the privacy and
+  module-boundary architecture suite passes 78 tests.
 - The exact PostgreSQL lifecycle scenario passes projection, active-delivery
   conflict, retry, close, replay suppression, and deterministic close-versus-
   late-projection concurrency coverage.
 - The executable catalogue contains 16 notification-surface fields, 13 Guest
   export fields, and 13 Staff export fields, with the closed output-sink guard
-  enforcing the complete 42-field partition.
+  enforcing the complete 42-field partition. Ingestion catalogue version 7
+  also declares the contracts-only source-link projection result and its
+  transient retention policy.
 
 ## Deferred
 

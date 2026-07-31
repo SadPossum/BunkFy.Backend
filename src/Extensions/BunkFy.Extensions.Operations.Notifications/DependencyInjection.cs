@@ -31,6 +31,14 @@ public static class DependencyInjection
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsRequiredCompanionContributor,
+                OperationsNotificationsIngestionAccessExportCompanionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsRequiredCompanionContributor,
+                OperationsNotificationsIngestionAnonymisationCompanionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsRequiredCompanionContributor,
                 OperationsNotificationsStaffAccessExportCompanionContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
@@ -56,6 +64,10 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationRestoreContributor,
                 OperationsNotificationsDataRightsAnonymisationRestoreContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationRestoreContributor,
+                OperationsNotificationsIngestionDataRightsAnonymisationRestoreContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationPolicyContributor,
@@ -109,11 +121,6 @@ public static class DependencyInjection
         Add<ReservationNoShowIntegrationEvent, ReservationNoShowNotificationHandler>(
             services,
             ReservationsModuleMetadata.Name);
-        Add<ExternalReservationOperationCompletedIntegrationEvent,
-            ExternalReservationOperationAttentionNotificationHandler>(
-            services,
-            ReservationsModuleMetadata.Name);
-
         Add<StaffPropertyAssignmentChangedIntegrationEvent, StaffPropertyAssignmentChangedNotificationHandler>(
             services,
             StaffModuleMetadata.Name);
@@ -121,6 +128,19 @@ public static class DependencyInjection
             services,
             StaffModuleMetadata.Name);
 
+        return services;
+    }
+
+    public static IServiceCollection
+        AddBunkFyOperationsIngestionNotifications(
+            this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        Add<ExternalReservationOperationCompletedIntegrationEvent,
+            ExternalReservationOperationAttentionNotificationHandler>(
+            services,
+            ReservationsModuleMetadata.Name);
         return services;
     }
 

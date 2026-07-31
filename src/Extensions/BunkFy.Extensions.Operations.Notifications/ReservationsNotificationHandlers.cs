@@ -1,5 +1,6 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Modules.Notifications.Contracts;
@@ -189,10 +190,11 @@ internal sealed class ReservationNoShowNotificationHandler(OperationalNotificati
 
 [IntegrationEventHandler("bunkfy-provider-reservation-conflict-notification", RequiresExplicitProducerBinding = true)]
 internal sealed class ExternalReservationOperationAttentionNotificationHandler(
-    OperationalNotificationProjector projector)
+    OperationalNotificationProjector projector,
+    IIngestionNotificationSourceLinkResolver sourceLinkResolver)
     : IIntegrationEventHandler<ExternalReservationOperationCompletedIntegrationEvent>
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         ExternalReservationOperationCompletedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
@@ -200,15 +202,30 @@ internal sealed class ExternalReservationOperationAttentionNotificationHandler(
             ExternalReservationOperationOutcome.Accepted or
             ExternalReservationOperationOutcome.Unchanged)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        return projector.ProjectForPropertyAsync(
-            integrationEvent.EventId,
-            integrationEvent.TenantId,
-            integrationEvent.OccurredAtUtc,
-            integrationEvent.PropertyId,
-            new OperationalNotification(
+        IngestionNotificationSourceLink? sourceLink =
+            await sourceLinkResolver.ResolveAsync(
+                    integrationEvent.TenantId,
+                    integrationEvent.PropertyId,
+                    integrationEvent.ConnectionId,
+                    integrationEvent.OperationId,
+                    integrationEvent.ReceiptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (sourceLink is null)
+        {
+            throw new InvalidOperationException(
+                "A provider-operation attention notification has no exact Ingestion source-link correlation.");
+        }
+
+        await projector.ProjectForPropertyAsync(
+                integrationEvent.EventId,
+                integrationEvent.TenantId,
+                integrationEvent.OccurredAtUtc,
+                integrationEvent.PropertyId,
+                new OperationalNotification(
                 ReservationsModuleMetadata.Name,
                 "provider-reservation-operation-needs-attention",
                 "Provider update needs attention",
@@ -219,7 +236,18 @@ internal sealed class ExternalReservationOperationAttentionNotificationHandler(
                     integrationEvent.ReceiptId,
                     integrationEvent.ConnectionId,
                     integrationEvent.ReservationId),
-                BunkFyNotificationTags.ProviderAttention),
-            cancellationToken);
+                BunkFyNotificationTags.ProviderAttention)
+                {
+                    References =
+                    [
+                        OperationsNotificationsDataRightsCoordinates
+                            .ForIngestionSourceLink(
+                                integrationEvent.TenantId,
+                                integrationEvent.PropertyId,
+                                sourceLink.SourceLinkId)
+                    ]
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 }

@@ -213,6 +213,7 @@ internal sealed class OperationalNotificationProjector(
                 OperationsNotificationsDataRightsCoordinates.FromPayload(
                         scopeId,
                         notification.Payload)
+                    .Concat(notification.References)
                     .Append(
                         OperationsNotificationsDataRightsCoordinates.ForStaff(
                             scopeId,
