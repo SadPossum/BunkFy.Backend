@@ -63,6 +63,15 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IAccessProfileAssignmentPolicy,
             WorkspaceAccessProfileAssignmentPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IAccessRoleAssignmentPolicy,
+            WorkspaceOperationalRoleAssignmentPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IAccessProfileMutationAdmissionPolicy,
+            WorkspaceAccessProfileMutationAdmissionPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IOrganizationMutationAdmissionPolicy,
+            WorkspaceOrganizationMutationAdmissionPolicy>());
 
         services.AddIntegrationEventHandler<
             OrganizationMembershipChangedIntegrationEvent,

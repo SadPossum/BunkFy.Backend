@@ -31,6 +31,8 @@ public sealed class WorkspaceStaffJoinSourceIssuerTests
         WorkspaceStaffJoinSourceIssuer issuer = new(
             dispatcher,
             organizations,
+            WorkspaceOperationalAdmissionTestSupport.Allowed(
+                WorkspaceId.ToString("D")),
             new StubScopeContext(WorkspaceId.ToString("D")));
 
         Result<WorkspaceStaffJoinSourceIssuanceDto> result = await issuer.IssueInvitationAsync(
@@ -59,6 +61,8 @@ public sealed class WorkspaceStaffJoinSourceIssuerTests
         WorkspaceStaffJoinSourceIssuer issuer = new(
             dispatcher,
             organizations,
+            WorkspaceOperationalAdmissionTestSupport.Allowed(
+                WorkspaceId.ToString("D")),
             new StubScopeContext(WorkspaceId.ToString("D")));
 
         Result<WorkspaceStaffJoinSourceIssuanceDto> result = await issuer.IssueInvitationAsync(
@@ -91,6 +95,8 @@ public sealed class WorkspaceStaffJoinSourceIssuerTests
         WorkspaceStaffJoinSourceIssuer issuer = new(
             dispatcher,
             organizations,
+            WorkspaceOperationalAdmissionTestSupport.Allowed(
+                WorkspaceId.ToString("D")),
             new StubScopeContext(WorkspaceId.ToString("D")));
 
         Result<WorkspaceStaffJoinSourceIssuanceDto> result = await issuer.IssueInvitationAsync(
@@ -125,6 +131,8 @@ public sealed class WorkspaceStaffJoinSourceIssuerTests
         WorkspaceStaffJoinSourceIssuer issuer = new(
             dispatcher,
             organizations,
+            WorkspaceOperationalAdmissionTestSupport.Allowed(
+                WorkspaceId.ToString("D")),
             new StubScopeContext(WorkspaceId.ToString("D")));
 
         Result<WorkspaceStaffJoinSourceIssuanceDto> result = await issuer.IssueEnrollmentLinkAsync(
@@ -141,6 +149,29 @@ public sealed class WorkspaceStaffJoinSourceIssuerTests
         Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Equal(["prepare", "activate", "organizations.enrollment"], order);
         Assert.Equal("enrollment-token", result.Value.Token);
+    }
+
+    [Fact]
+    public async Task Restricted_workspace_rejects_issuance_before_plan_or_source_mutation()
+    {
+        List<string> order = [];
+        StubDispatcher dispatcher = new(CreatePlan(), order);
+        WorkspaceStaffJoinSourceIssuer issuer = new(
+            dispatcher,
+            new StubOrganizationIssuer(order),
+            WorkspaceOperationalAdmissionTestSupport.Restricted(
+                WorkspaceId.ToString("D")),
+            new StubScopeContext(WorkspaceId.ToString("D")));
+
+        Result<WorkspaceStaffJoinSourceIssuanceDto> result =
+            await issuer.IssueInvitationAsync(
+                InvitationRequest(dispatcher.Plan.SourceId),
+                CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Empty(order);
     }
 
     private static WorkspaceInvitationIssuanceRequest InvitationRequest(Guid sourceId) => new(

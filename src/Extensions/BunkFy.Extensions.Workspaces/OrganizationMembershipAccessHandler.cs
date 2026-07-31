@@ -8,7 +8,8 @@ using Gma.Modules.Organizations.Contracts;
 
 [IntegrationEventHandler(HandlerName, RequiresExplicitProducerBinding = true)]
 internal sealed class OrganizationMembershipAccessHandler(
-    IAccessControlRoleProvisioner accessControl)
+    IAccessControlRoleProvisioner accessControl,
+    IWorkspaceOperationalAdmissionPolicy operationalAdmission)
     : IIntegrationEventHandler<OrganizationMembershipChangedIntegrationEvent>
 {
     public const string HandlerName = "bunkfy-workspace-access-membership";
@@ -25,39 +26,49 @@ internal sealed class OrganizationMembershipAccessHandler(
         AccessSubject subject = AccessSubject.User(integrationEvent.SubjectId);
         AccessScope scope = WorkspaceAccessScopes.Create(integrationEvent.ScopeId);
 
+        if (integrationEvent.Change == OrganizationMembershipChange.DemotedToMember)
+        {
+            await this.RemoveAsync(
+                subject,
+                WorkspaceAccessRoles.Owner,
+                scope,
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (integrationEvent.Role != OrganizationMembershipRole.Owner)
+        {
+            return;
+        }
+
+        WorkspaceOperationalAdmissionDecision admission =
+            await operationalAdmission.EvaluateAsync(
+                integrationEvent.ScopeId,
+                cancellationToken).ConfigureAwait(false);
+        if (admission.Outcome != WorkspaceOperationalAdmissionOutcome.Allowed)
+        {
+            throw new InvalidOperationException(
+                "Workspace operational admission did not allow owner access bootstrap.");
+        }
+
         await accessControl.EnsureRoleAsync(
             new AccessControlRoleDefinition(
                 WorkspaceAccessRoles.Owner,
                 WorkspaceAccessRoles.OwnerPermissions),
             cancellationToken).ConfigureAwait(false);
-        if (integrationEvent.Role == OrganizationMembershipRole.Owner)
-        {
-            await accessControl.EnsureAssignmentAsync(
-                subject,
-                WorkspaceAccessRoles.Owner,
-                scope,
-                cancellationToken).ConfigureAwait(false);
-            await this.RemoveAsync(
-                subject,
-                WorkspaceAccessRoles.MembershipMarker,
-                scope,
-                cancellationToken).ConfigureAwait(false);
-            await this.RemoveAsync(
-                subject,
-                WorkspaceAccessRoles.LegacyMember,
-                scope,
-                cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (integrationEvent.Change != OrganizationMembershipChange.DemotedToMember)
-        {
-            return;
-        }
-
-        await this.RemoveAsync(
+        await accessControl.EnsureAssignmentAsync(
             subject,
             WorkspaceAccessRoles.Owner,
+            scope,
+            cancellationToken).ConfigureAwait(false);
+        await this.RemoveAsync(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope,
+            cancellationToken).ConfigureAwait(false);
+        await this.RemoveAsync(
+            subject,
+            WorkspaceAccessRoles.LegacyMember,
             scope,
             cancellationToken).ConfigureAwait(false);
     }

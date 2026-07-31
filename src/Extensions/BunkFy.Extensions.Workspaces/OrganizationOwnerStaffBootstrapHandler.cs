@@ -1,6 +1,7 @@
 namespace BunkFy.Extensions.Workspaces;
 
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Organizations.Contracts;
@@ -10,6 +11,7 @@ using Microsoft.Extensions.Options;
 internal sealed class OrganizationOwnerStaffBootstrapHandler(
     IStaffIdentityReconciler staff,
     IAuthMemberContactReader contacts,
+    IWorkspaceOperationalAdmissionPolicy operationalAdmission,
     IOptions<BunkFyWorkspacesOptions> options)
     : IIntegrationEventHandler<OrganizationMembershipChangedIntegrationEvent>
 {
@@ -24,6 +26,16 @@ internal sealed class OrganizationOwnerStaffBootstrapHandler(
             integrationEvent.Role != OrganizationMembershipRole.Owner)
         {
             return;
+        }
+
+        WorkspaceOperationalAdmissionDecision admission =
+            await operationalAdmission.EvaluateAsync(
+                integrationEvent.ScopeId,
+                cancellationToken).ConfigureAwait(false);
+        if (admission.Outcome != WorkspaceOperationalAdmissionOutcome.Allowed)
+        {
+            throw new InvalidOperationException(
+                "Workspace operational admission did not allow owner Staff bootstrap.");
         }
 
         string? verifiedEmail = await this.GetVerifiedEmailAsync(

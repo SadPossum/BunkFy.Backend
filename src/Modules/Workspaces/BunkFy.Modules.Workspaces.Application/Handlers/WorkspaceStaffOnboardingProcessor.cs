@@ -19,6 +19,7 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
     IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffAccessPlanPolicy planPolicy,
     WorkspaceAccessProvisioner access,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     ISystemClock clock,
     ILogger<WorkspaceStaffOnboardingProcessor> logger)
 {
@@ -47,6 +48,14 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
         if (application.Status == WorkspaceStaffOnboardingState.Completed)
         {
             return Result.Success();
+        }
+
+        Result admitted = await this.RequireOperationalAsync(
+            application.ScopeId,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return admitted;
         }
 
         WorkspaceStaffOnboardingProcessingRestrictionProjection? restriction =
@@ -118,6 +127,14 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
                 return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
             }
 
+            admitted = await this.RequireOperationalAsync(
+                application.ScopeId,
+                cancellationToken).ConfigureAwait(false);
+            if (admitted.IsFailure)
+            {
+                return admitted;
+            }
+
             StaffOnboardingProvisioningResult provisioned = await staff.ProvisionAsync(
                 new StaffOnboardingProvisioningRequest(
                     application.SubjectId,
@@ -157,6 +174,14 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
             }
         }
 
+        admitted = await this.RequireOperationalAsync(
+            application.ScopeId,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return admitted;
+        }
+
         StaffPropertyAssignmentProvisioningResult assignments =
             await staffProperties.ReconcileAsync(
                 new StaffPropertyAssignmentProvisioningRequest(
@@ -178,6 +203,14 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
 
         try
         {
+            admitted = await this.RequireOperationalAsync(
+                application.ScopeId,
+                cancellationToken).ConfigureAwait(false);
+            if (admitted.IsFailure)
+            {
+                return admitted;
+            }
+
             await access.ProvisionMemberAsync(
                     application.ScopeId,
                     application.SubjectId,
@@ -197,4 +230,12 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
 
         return application.Complete(clock.UtcNow);
     }
+
+    private async ValueTask<Result> RequireOperationalAsync(
+        string tenantId,
+        CancellationToken cancellationToken) =>
+        WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                tenantId,
+                cancellationToken).ConfigureAwait(false));
 }

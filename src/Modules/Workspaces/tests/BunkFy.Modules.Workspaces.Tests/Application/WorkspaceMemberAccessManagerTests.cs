@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Tests.Application;
 
+using BunkFy.Modules.Workspaces.Tests;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Ports;
@@ -136,17 +137,44 @@ public sealed class WorkspaceMemberAccessManagerTests
         Assert.Null(Assert.Single(result.Value.Assignments).PropertyId);
     }
 
+    [Fact]
+    public async Task Restricted_workspace_rejects_member_reconciliation()
+    {
+        StubProfileManager profiles = new();
+        RecordingScopedManager assignments = new();
+        WorkspaceMemberAccessManager manager = CreateManager(
+            profiles: profiles,
+            assignments: assignments,
+            operationalAdmission:
+                WorkspaceOperationalAdmissionTestSupport.Restricted(
+                    WorkspaceId.ToString("D")));
+
+        Result<WorkspaceMemberAccessDto> result = await manager.UpdateAsync(
+            "member-a",
+            new WorkspaceMemberAccessUpdate(profiles.Profile.Id, []),
+            Actor);
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Empty(assignments.Reconciliations);
+    }
+
     private static WorkspaceMemberAccessManager CreateManager(
         RecordingRoles? roles = null,
         StubProfileManager? profiles = null,
         RecordingScopedManager? assignments = null,
         RecordingProperties? properties = null,
-        RecordingAuthorization? authorization = null) => new(
+        RecordingAuthorization? authorization = null,
+        WorkspaceOperationalAdmissionEvaluator? operationalAdmission = null) => new(
             roles ?? new RecordingRoles { IsMember = true },
             profiles ?? new StubProfileManager(),
             assignments ?? new RecordingScopedManager(),
             properties ?? new RecordingProperties(),
             authorization ?? new RecordingAuthorization(),
+            operationalAdmission ??
+                WorkspaceOperationalAdmissionTestSupport.Allowed(
+                    WorkspaceId.ToString("D")),
             new StubScopeContext(WorkspaceId.ToString("D")));
 
     private static AccessProfileDto Profile(

@@ -11,6 +11,7 @@ using Gma.Framework.Runtime.Time;
 internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
     IWorkspaceStaffAccessProcessRepository processes,
     WorkspaceAccessProvisioner access,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     ISystemClock clock)
     : ICommandHandler<PrepareWorkspaceStaffAccessCommand, WorkspaceStaffAccessPreparation>
 {
@@ -37,6 +38,19 @@ internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
                 ? Result.Success(ToPreparation(replay))
                 : Result.Failure<WorkspaceStaffAccessPreparation>(
                     WorkspaceStaffAccessApplicationErrors.ProcessConflict);
+        }
+
+        if (targetState == WorkspaceStaffAccessTargetState.Active)
+        {
+            Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+                await operationalAdmission.EvaluateAsync(
+                    context.ScopeId,
+                    cancellationToken).ConfigureAwait(false));
+            if (admitted.IsFailure)
+            {
+                return Result.Failure<WorkspaceStaffAccessPreparation>(
+                    admitted.Error);
+            }
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;

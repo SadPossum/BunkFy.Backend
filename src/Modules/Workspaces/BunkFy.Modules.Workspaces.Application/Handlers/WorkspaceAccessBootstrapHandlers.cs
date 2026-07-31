@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 
 internal sealed class BootstrapWorkspaceAccessCommandHandler(
     WorkspaceAccessProvisioner provisioner,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext,
     ILogger<BootstrapWorkspaceAccessCommandHandler> logger)
     : ICommandHandler<BootstrapWorkspaceAccessCommand, WorkspaceAccessBootstrapResult>
@@ -21,6 +22,16 @@ internal sealed class BootstrapWorkspaceAccessCommandHandler(
         {
             return Result.Failure<WorkspaceAccessBootstrapResult>(
                 WorkspaceAccessApplicationErrors.ScopeRequired);
+        }
+
+        Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                scopeContext.ScopeId,
+                cancellationToken).ConfigureAwait(false));
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceAccessBootstrapResult>(
+                admitted.Error);
         }
 
         try

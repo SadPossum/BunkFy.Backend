@@ -153,13 +153,45 @@ public sealed class WorkspaceStaffJoinSourceReplacementManagerTests
         Assert.Empty(order);
     }
 
+    [Fact]
+    public async Task Restricted_workspace_rejects_replacement_before_source_state_is_read()
+    {
+        Guid sourceId = Guid.NewGuid();
+        List<string> order = [];
+        WorkspaceStaffJoinSourceReplacementManager manager = CreateManager(
+            new RecordingOrganizations(order),
+            new RecordingPlans(Plan(
+                sourceId,
+                WorkspaceStaffOnboardingSource.Invitation)),
+            new RecordingIssuer(order),
+            WorkspaceOperationalAdmissionTestSupport.Restricted(
+                WorkspaceId.ToString("D")));
+
+        Result<WorkspaceStaffJoinSourceReplacementDto> result =
+            await manager.ReplaceInvitationAsync(
+                sourceId,
+                Guid.NewGuid(),
+                1,
+                24,
+                "owner-a");
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Empty(order);
+    }
+
     private static WorkspaceStaffJoinSourceReplacementManager CreateManager(
         RecordingOrganizations organizations,
         RecordingPlans plans,
-        RecordingIssuer issuer) => new(
+        RecordingIssuer issuer,
+        WorkspaceOperationalAdmissionEvaluator? operationalAdmission = null) => new(
             organizations,
             plans,
             issuer,
+            operationalAdmission ??
+                WorkspaceOperationalAdmissionTestSupport.Allowed(
+                    WorkspaceId.ToString("D")),
             new StubScopeContext(WorkspaceId.ToString("D")));
 
     private static OrganizationInvitationDto Invitation(

@@ -2,13 +2,9 @@ namespace BunkFy.Modules.Workspaces.Application;
 
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
-using Gma.Framework.Scoping;
-using Microsoft.Extensions.Logging;
 
 internal sealed class WorkspaceIngestionTenantLifecyclePolicy(
-    IWorkspaceTerminationFenceReader fences,
-    IScopeContext scopeContext,
-    ILogger<WorkspaceIngestionTenantLifecyclePolicy> logger)
+    WorkspaceOperationalAdmissionEvaluator admission)
     : IIngestionTenantLifecyclePolicy
 {
     public async ValueTask<IngestionTenantLifecycleDecision> AuthorizeAsync(
@@ -16,33 +12,21 @@ internal sealed class WorkspaceIngestionTenantLifecyclePolicy(
         IngestionTenantLifecycleOperation operation,
         CancellationToken cancellationToken = default)
     {
-        if (operation == IngestionTenantLifecycleOperation.Unknown ||
-            !scopeContext.IsEnabled ||
-            string.IsNullOrWhiteSpace(scopeContext.ScopeId) ||
-            !string.Equals(
-                scopeContext.ScopeId,
-                tenantId?.Trim(),
-                StringComparison.Ordinal))
+        if (operation == IngestionTenantLifecycleOperation.Unknown)
         {
             return IngestionTenantLifecycleDecision.Restricted;
         }
 
-        try
+        WorkspaceOperationalAdmissionDecision decision =
+            await admission.EvaluateAsync(tenantId, cancellationToken)
+                .ConfigureAwait(false);
+        return decision.Outcome switch
         {
-            WorkspaceTerminationFenceSnapshot? fence =
-                await fences.GetCurrentAsync(cancellationToken)
-                    .ConfigureAwait(false);
-            return fence is null
-                ? IngestionTenantLifecycleDecision.Allowed
-                : IngestionTenantLifecycleDecision.Restricted;
-        }
-        catch (Exception exception)
-            when (exception is not OperationCanceledException)
-        {
-            logger.LogError(
-                "Workspace ingestion lifecycle admission is unavailable because {ExceptionType} was raised.",
-                exception.GetType().Name);
-            return IngestionTenantLifecycleDecision.Unavailable;
-        }
+            WorkspaceOperationalAdmissionOutcome.Allowed =>
+                IngestionTenantLifecycleDecision.Allowed,
+            WorkspaceOperationalAdmissionOutcome.Restricted =>
+                IngestionTenantLifecycleDecision.Restricted,
+            _ => IngestionTenantLifecycleDecision.Unavailable
+        };
     }
 }

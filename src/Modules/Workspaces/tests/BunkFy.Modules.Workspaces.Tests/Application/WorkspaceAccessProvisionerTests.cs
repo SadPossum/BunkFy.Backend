@@ -243,12 +243,16 @@ public sealed class WorkspaceAccessProvisionerTests
     }
 
     [Fact]
-    public async Task Lifecycle_snapshot_migrates_only_legacy_access_and_preserves_custom_profiles()
+    public async Task Lifecycle_snapshot_maps_legacy_access_without_mutating_assignments()
     {
         FakeRoles roles = new([]);
         FakeProfiles profiles = new([]);
         AccessSubject member = AccessSubject.User("member-a");
         roles.Add(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope);
+        AccessProfileDto frontDesk = profiles.AddProfile(
+            WorkspaceScope,
+            WorkspaceAccessProfileSeeds.FrontDeskKey,
+            WorkspaceAccessProfileSeeds.FrontDesk.Permissions);
         AccessProfileDto custom = profiles.AddProfile(
             WorkspaceScope,
             "night-auditor",
@@ -259,15 +263,33 @@ public sealed class WorkspaceAccessProvisionerTests
             await new WorkspaceAccessProvisioner(roles, profiles)
                 .CaptureRestorableProfilesAsync(WorkspaceId, member.Id, CancellationToken.None);
 
-        AccessProfileDto frontDesk = Assert.Single(
-            profiles.Profiles,
-            profile => profile.Key == WorkspaceAccessProfileSeeds.FrontDeskKey);
         Assert.Equal(
             new[] { custom.Id, frontDesk.Id }.Order(),
             snapshot.Select(target => target.ProfileId).Order());
         Assert.All(snapshot, target => Assert.Equal(WorkspaceScope.Value, target.AssignmentScope));
-        Assert.True(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
-        Assert.False(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
+        Assert.False(roles.Has(member, WorkspaceAccessRoles.MembershipMarker, WorkspaceScope));
+        Assert.True(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
+        Assert.Equal([custom.Id], profiles.AssignedProfileIds(member, WorkspaceScope));
+    }
+
+    [Fact]
+    public async Task Lifecycle_snapshot_does_not_block_denial_when_legacy_seed_is_missing()
+    {
+        FakeRoles roles = new([]);
+        FakeProfiles profiles = new([]);
+        AccessSubject member = AccessSubject.User("member-a");
+        roles.Add(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope);
+
+        IReadOnlyCollection<WorkspaceStaffAccessProfileTarget> snapshot =
+            await new WorkspaceAccessProvisioner(roles, profiles)
+                .CaptureRestorableProfilesAsync(
+                    WorkspaceId,
+                    member.Id,
+                    CancellationToken.None);
+
+        Assert.Empty(snapshot);
+        Assert.Empty(profiles.Profiles);
+        Assert.True(roles.Has(member, WorkspaceAccessRoles.LegacyMember, WorkspaceScope));
     }
 
     [Fact]

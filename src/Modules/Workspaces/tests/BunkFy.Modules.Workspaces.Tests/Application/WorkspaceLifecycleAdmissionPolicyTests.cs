@@ -4,8 +4,6 @@ using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Contracts;
-using Gma.Framework.Scoping;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -24,13 +22,9 @@ public sealed class WorkspaceLifecycleAdmissionPolicyTests
                 WorkspaceTerminationFenceState.Frozen,
                 1));
         WorkspaceIngestionTenantLifecyclePolicy ingestion = new(
-            reader,
-            new TestScopeContext(),
-            NullLogger<WorkspaceIngestionTenantLifecyclePolicy>.Instance);
+            WorkspaceOperationalAdmissionTestSupport.Create(TenantId, reader));
         WorkspacePropertyProcessingLifecyclePolicy properties = new(
-            reader,
-            new TestScopeContext(),
-            NullLogger<WorkspacePropertyProcessingLifecyclePolicy>.Instance);
+            WorkspaceOperationalAdmissionTestSupport.Create(TenantId, reader));
 
         IngestionTenantLifecycleDecision ingestionDecision =
             await ingestion.AuthorizeAsync(
@@ -53,9 +47,9 @@ public sealed class WorkspaceLifecycleAdmissionPolicyTests
     public async Task Missing_fence_allows_and_reader_failure_is_unavailable()
     {
         WorkspaceIngestionTenantLifecyclePolicy open = new(
-            new StubReader(null),
-            new TestScopeContext(),
-            NullLogger<WorkspaceIngestionTenantLifecyclePolicy>.Instance);
+            WorkspaceOperationalAdmissionTestSupport.Create(
+                TenantId,
+                new StubReader(null)));
         Assert.Equal(
             IngestionTenantLifecycleOutcome.Allowed,
             (await open.AuthorizeAsync(
@@ -63,9 +57,9 @@ public sealed class WorkspaceLifecycleAdmissionPolicyTests
                 IngestionTenantLifecycleOperation.AdapterRunStart)).Outcome);
 
         WorkspaceIngestionTenantLifecyclePolicy unavailable = new(
-            new ThrowingReader(),
-            new TestScopeContext(),
-            NullLogger<WorkspaceIngestionTenantLifecyclePolicy>.Instance);
+            WorkspaceOperationalAdmissionTestSupport.Create(
+                TenantId,
+                new ThrowingReader()));
         Assert.Equal(
             IngestionTenantLifecycleOutcome.Unavailable,
             (await unavailable.AuthorizeAsync(
@@ -88,11 +82,5 @@ public sealed class WorkspaceLifecycleAdmissionPolicyTests
         public Task<WorkspaceTerminationFenceSnapshot?> GetCurrentAsync(
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("unavailable");
-    }
-
-    private sealed class TestScopeContext : IScopeContext
-    {
-        public bool IsEnabled => true;
-        public string ScopeId => TenantId;
     }
 }

@@ -39,7 +39,9 @@ public sealed class OrganizationMembershipAccessHandlerTests
     public async Task Active_owner_receives_only_the_tenant_scoped_owner_assignment()
     {
         FakeAccessControlRoleProvisioner accessControl = new();
-        OrganizationMembershipAccessHandler handler = new(accessControl);
+        OrganizationMembershipAccessHandler handler = new(
+            accessControl,
+            new StubWorkspaceOperationalAdmissionPolicy());
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
             OrganizationMembershipRole.Owner,
             OrganizationMembershipStatus.Active);
@@ -57,7 +59,9 @@ public sealed class OrganizationMembershipAccessHandlerTests
     public async Task Active_member_membership_does_not_grant_operational_access()
     {
         FakeAccessControlRoleProvisioner accessControl = new();
-        OrganizationMembershipAccessHandler handler = new(accessControl);
+        OrganizationMembershipAccessHandler handler = new(
+            accessControl,
+            new StubWorkspaceOperationalAdmissionPolicy());
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
             OrganizationMembershipRole.Member,
             OrganizationMembershipStatus.Active);
@@ -80,11 +84,33 @@ public sealed class OrganizationMembershipAccessHandlerTests
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.Owner, scope));
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.MembershipMarker, scope));
         accessControl.Assignments.Add((integrationEvent.SubjectId, WorkspaceAccessRoles.LegacyMember, scope));
-        OrganizationMembershipAccessHandler handler = new(accessControl);
+        OrganizationMembershipAccessHandler handler = new(
+            accessControl,
+            new StubWorkspaceOperationalAdmissionPolicy());
 
         await handler.HandleAsync(integrationEvent, CancellationToken.None);
 
         Assert.Equal(3, accessControl.Assignments.Count);
+    }
+
+    [Fact]
+    public async Task Restricted_workspace_retries_owner_grant_without_side_effects()
+    {
+        FakeAccessControlRoleProvisioner accessControl = new();
+        OrganizationMembershipAccessHandler handler = new(
+            accessControl,
+            new StubWorkspaceOperationalAdmissionPolicy(
+                WorkspaceOperationalAdmissionOutcome.Restricted));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.HandleAsync(
+                CreateEvent(
+                    OrganizationMembershipRole.Owner,
+                    OrganizationMembershipStatus.Active),
+                CancellationToken.None));
+
+        Assert.Empty(accessControl.Permissions);
+        Assert.Empty(accessControl.Assignments);
     }
 
     [Fact]
@@ -126,12 +152,17 @@ public sealed class OrganizationMembershipAccessHandlerTests
         {
             ProtectedRole = WorkspaceAccessRoles.Owner
         };
-        OrganizationMembershipAccessHandler handler = new(accessControl);
+        StubWorkspaceOperationalAdmissionPolicy admission = new(
+            WorkspaceOperationalAdmissionOutcome.Restricted);
+        OrganizationMembershipAccessHandler handler = new(
+            accessControl,
+            admission);
 
         InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.HandleAsync(integrationEvent, CancellationToken.None));
 
         Assert.Contains("final owner", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(admission.TenantIds);
     }
 
     private static OrganizationMembershipChangedIntegrationEvent CreateEvent(

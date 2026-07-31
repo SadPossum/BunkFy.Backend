@@ -36,11 +36,16 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
             context.OrganizationId,
             async services =>
             {
-                IWorkspaceTerminationFenceReader terminationFences = services
-                    .GetRequiredService<
-                        IWorkspaceTerminationFenceReader>();
-                if (await terminationFences.GetCurrentAsync(
-                        cancellationToken).ConfigureAwait(false) is not null)
+                WorkspaceOperationalAdmissionDecision operational =
+                    await services
+                        .GetRequiredService<
+                            WorkspaceOperationalAdmissionEvaluator>()
+                        .EvaluateAsync(
+                            context.OrganizationId.ToString("D"),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                if (operational.Outcome !=
+                    WorkspaceOperationalAdmissionOutcome.Allowed)
                 {
                     return false;
                 }

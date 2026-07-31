@@ -34,9 +34,25 @@ internal sealed class WorkspaceStaffOnboardingSubmitter(
 
         return await authoritativeScope.RunAsync(
             authority.Value.OrganizationId,
-            async services => await services
-                .GetRequiredService<IRequestDispatcher>()
-                .SendAsync(command, cancellationToken)
-                .ConfigureAwait(false)).ConfigureAwait(false);
+            async services =>
+            {
+                WorkspaceOperationalAdmissionDecision decision =
+                    await services
+                        .GetRequiredService<
+                            WorkspaceOperationalAdmissionEvaluator>()
+                        .EvaluateAsync(
+                            authority.Value.OrganizationId.ToString("D"),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                Result admitted =
+                    WorkspaceOperationalAdmissionGuard.RequireAllowed(decision);
+                return admitted.IsFailure
+                    ? Result.Failure<WorkspaceStaffOnboardingDto>(
+                        admitted.Error)
+                    : await services
+                        .GetRequiredService<IRequestDispatcher>()
+                        .SendAsync(command, cancellationToken)
+                        .ConfigureAwait(false);
+            }).ConfigureAwait(false);
     }
 }

@@ -216,14 +216,42 @@ public sealed class WorkspaceAccessProfileManagerTests
         Assert.Equal((allowedProfiles.Profile.Id, 6L), Assert.Single(allowedProfiles.Archives));
     }
 
+    [Fact]
+    public async Task Restricted_workspace_rejects_profile_creation_before_mutation()
+    {
+        FakeAccessProfileManager profiles = new();
+        WorkspaceAccessProfileManager manager = CreateManager(
+            profiles,
+            operationalAdmission:
+                WorkspaceOperationalAdmissionTestSupport.Restricted(
+                    WorkspaceId.ToString("D")));
+
+        Result<WorkspaceAccessProfileDto> result = await manager.CreateProfileAsync(
+            new WorkspaceAccessProfileCreation(
+                Guid.NewGuid(),
+                "Night team",
+                null,
+                []),
+            Actor);
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Empty(profiles.CreatedDefinitions);
+    }
+
     private static WorkspaceAccessProfileManager CreateManager(
         FakeAccessProfileManager? profiles = null,
         FakeAccessProfileProvisioner? reader = null,
         RecordingAuthorization? authorization = null,
+        WorkspaceOperationalAdmissionEvaluator? operationalAdmission = null,
         IScopeContext? scope = null) => new(
             profiles ?? new FakeAccessProfileManager(),
             reader ?? new FakeAccessProfileProvisioner(),
             authorization ?? new RecordingAuthorization(),
+            operationalAdmission ??
+                WorkspaceOperationalAdmissionTestSupport.Allowed(
+                    WorkspaceId.ToString("D")),
             scope ?? new StubScopeContext(WorkspaceId.ToString("D")));
 
     private static AccessProfileDto Profile(

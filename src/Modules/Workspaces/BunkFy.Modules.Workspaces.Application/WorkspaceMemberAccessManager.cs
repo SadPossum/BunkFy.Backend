@@ -32,6 +32,7 @@ internal sealed class WorkspaceMemberAccessManager(
     IScopedAccessProfileManager assignments,
     IWorkspacePropertyProjectionRepository properties,
     IAccessAuthorizationService authorization,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext) : IWorkspaceMemberAccessManager
 {
     private const int MaximumPropertyCount = 250;
@@ -130,6 +131,15 @@ internal sealed class WorkspaceMemberAccessManager(
         if (propertyIds.IsFailure)
         {
             return Result.Failure<WorkspaceMemberAccessDto>(propertyIds.Error);
+        }
+
+        Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                context.Value.Scope.Segments[0].Value,
+                cancellationToken).ConfigureAwait(false));
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceMemberAccessDto>(admitted.Error);
         }
 
         AccessProfileAssignmentTarget[] targets = propertyIds.Value.Length == 0

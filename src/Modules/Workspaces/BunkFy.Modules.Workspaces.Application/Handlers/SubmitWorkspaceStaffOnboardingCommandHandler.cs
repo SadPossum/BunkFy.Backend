@@ -23,6 +23,7 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
     WorkspaceStaffJoinTokenAuthorityResolver authorityResolver,
     IAuthMemberContactReader contacts,
     IOptions<WorkspaceStaffOnboardingOptions> options,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
@@ -49,6 +50,15 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
         {
             return Result.Failure<WorkspaceStaffOnboardingDto>(
                 WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
+        }
+
+        Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                authority.Value.OrganizationId.ToString("D"),
+                cancellationToken).ConfigureAwait(false));
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffOnboardingDto>(admitted.Error);
         }
 
         WorkspaceStaffOnboardingSource sourceKind = command.SourceKind.ToDomain();

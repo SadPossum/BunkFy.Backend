@@ -47,6 +47,10 @@ public static class DependencyInjection
         AddDelegatedPermissionPolicies(services);
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.TryAddScoped<IWorkspaceAuthoritativeScope, WorkspaceAuthoritativeScope>();
+        services.TryAddScoped<WorkspaceOperationalAdmissionEvaluator>();
+        services.TryAddScoped<
+            IWorkspaceOperationalAdmissionPolicy,
+            WorkspaceOperationalAdmissionPolicy>();
         services.TryAddScoped<WorkspaceStaffJoinTokenAuthorityResolver>();
         services.TryAddScoped<
             IWorkspaceStaffOnboardingSubmitter,

@@ -2,10 +2,15 @@ namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application;
+using BunkFy.Modules.Workspaces.Application.Commands;
+using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
+using Gma.Framework.Results;
+using Gma.Framework.Runtime.Time;
+using Gma.Framework.Scoping;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;
 
@@ -14,6 +19,8 @@ public sealed class WorkspaceStaffAccessPlanPolicyTests
 {
     private static readonly string WorkspaceId = Guid.NewGuid().ToString("D");
     private static readonly AccessSubject Actor = AccessSubject.User("manager-a");
+    private static readonly DateTimeOffset Now =
+        new(2026, 7, 31, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public async Task Owner_can_delegate_active_profile_to_active_properties_without_permission_fanout()
@@ -134,6 +141,91 @@ public sealed class WorkspaceStaffAccessPlanPolicyTests
             forbiddenProfile.Error.Code);
     }
 
+    [Fact]
+    public async Task Restricted_workspace_rejects_new_plan_before_persistence()
+    {
+        AccessProfileDto profile = Profile(
+            WorkspaceAccessProfileSeeds.FrontDeskKey);
+        StubPlans plans = new();
+        PrepareWorkspaceStaffAccessPlanCommandHandler handler = new(
+            plans,
+            CreatePolicy(
+                profile,
+                new StubRoles(owner: true),
+                new StubAuthorization(_ => AccessDecision.Allowed()),
+                propertiesActive: true),
+            WorkspaceOperationalAdmissionTestSupport.Restricted(WorkspaceId),
+            new StubScopeContext(WorkspaceId),
+            new TestClock());
+
+        Result<WorkspaceStaffAccessPlanDto> result = await handler.HandleAsync(
+            new PrepareWorkspaceStaffAccessPlanCommand(
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingSourceKind.Invitation,
+                profile.Key,
+                [],
+                Actor.Id),
+            CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Empty(plans.Values);
+    }
+
+    [Fact]
+    public async Task Restricted_workspace_rejects_plan_activation_without_mutation()
+    {
+        WorkspaceStaffAccessPlan plan = CreatePlan();
+        StubPlans plans = new(plan);
+        ActivateWorkspaceStaffAccessPlanCommandHandler handler = new(
+            plans,
+            WorkspaceOperationalAdmissionTestSupport.Restricted(WorkspaceId),
+            new TestClock());
+
+        Result<WorkspaceStaffAccessPlanDto> result = await handler.HandleAsync(
+            new ActivateWorkspaceStaffAccessPlanCommand(plan.Id),
+            CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Prepared, plan.Status);
+        Assert.Equal(1, plan.Version);
+    }
+
+    [Fact]
+    public async Task Active_plan_replay_stays_idempotent_while_workspace_is_restricted()
+    {
+        WorkspaceStaffAccessPlan plan = CreatePlan();
+        Assert.True(plan.Activate(Now).IsSuccess);
+        StubPlans plans = new(plan);
+        ActivateWorkspaceStaffAccessPlanCommandHandler handler = new(
+            plans,
+            WorkspaceOperationalAdmissionTestSupport.Restricted(WorkspaceId),
+            new TestClock());
+
+        Result<WorkspaceStaffAccessPlanDto> result = await handler.HandleAsync(
+            new ActivateWorkspaceStaffAccessPlanCommand(plan.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(WorkspaceStaffAccessPlanStatus.Active, result.Value.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, plan.Status);
+        Assert.Equal(2, plan.Version);
+    }
+
+    private static WorkspaceStaffAccessPlan CreatePlan() =>
+        WorkspaceStaffAccessPlan.Create(
+            Guid.NewGuid(),
+            WorkspaceId,
+            WorkspaceStaffOnboardingSource.Invitation,
+            Guid.NewGuid(),
+            WorkspaceAccessProfileSeeds.FrontDeskKey,
+            [],
+            Actor.Id,
+            Now).Value;
+
     private static WorkspaceStaffAccessPlanPolicy CreatePolicy(
         AccessProfileDto profile,
         IAccessControlRoleProvisioner roles,
@@ -241,5 +333,48 @@ public sealed class WorkspaceStaffAccessPlanPolicyTests
         public Task ApplyAsync(
             WorkspacePropertyProjectionWriteModel property,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class StubPlans(params WorkspaceStaffAccessPlan[] seed)
+        : IWorkspaceStaffAccessPlanRepository
+    {
+        private readonly Dictionary<Guid, WorkspaceStaffAccessPlan> values =
+            seed.ToDictionary(plan => plan.Id);
+
+        public IReadOnlyCollection<WorkspaceStaffAccessPlan> Values =>
+            this.values.Values;
+
+        public Task<WorkspaceStaffAccessPlan?> GetAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(this.values.GetValueOrDefault(sourceId));
+
+        public Task<IReadOnlyDictionary<Guid, WorkspaceStaffAccessPlan>>
+            GetManyAsync(
+                IReadOnlyCollection<Guid> sourceIds,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, WorkspaceStaffAccessPlan>>(
+                this.values
+                    .Where(pair => sourceIds.Contains(pair.Key))
+                    .ToDictionary());
+
+        public Task AddAsync(
+            WorkspaceStaffAccessPlan plan,
+            CancellationToken cancellationToken)
+        {
+            this.values.Add(plan.Id, plan);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubScopeContext(string scopeId) : IScopeContext
+    {
+        public bool IsEnabled => true;
+        public string? ScopeId => scopeId;
+    }
+
+    private sealed class TestClock : ISystemClock
+    {
+        public DateTimeOffset UtcNow => Now;
     }
 }

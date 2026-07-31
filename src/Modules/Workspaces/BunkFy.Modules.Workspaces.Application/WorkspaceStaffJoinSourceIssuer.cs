@@ -38,6 +38,7 @@ public interface IWorkspaceStaffJoinSourceIssuer
 internal sealed class WorkspaceStaffJoinSourceIssuer(
     IRequestDispatcher dispatcher,
     IOrganizationJoinSourceIssuer organizations,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext)
     : IWorkspaceStaffJoinSourceIssuer
 {
@@ -49,6 +50,15 @@ internal sealed class WorkspaceStaffJoinSourceIssuer(
         {
             return Result.Failure<WorkspaceStaffJoinSourceIssuanceDto>(
                 WorkspaceStaffOnboardingApplicationErrors.ScopeRequired);
+        }
+
+        Result admitted = await this.RequireOperationalAsync(
+            organizationId,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffJoinSourceIssuanceDto>(
+                admitted.Error);
         }
 
         Result<WorkspaceStaffAccessPlanDto> prepared = await this.PrepareAsync(
@@ -93,6 +103,15 @@ internal sealed class WorkspaceStaffJoinSourceIssuer(
         {
             return Result.Failure<WorkspaceStaffJoinSourceIssuanceDto>(
                 WorkspaceStaffOnboardingApplicationErrors.ScopeRequired);
+        }
+
+        Result admitted = await this.RequireOperationalAsync(
+            organizationId,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffJoinSourceIssuanceDto>(
+                admitted.Error);
         }
 
         Result<WorkspaceStaffAccessPlanDto> prepared = await this.PrepareAsync(
@@ -178,4 +197,12 @@ internal sealed class WorkspaceStaffJoinSourceIssuer(
 
     private static bool TryOrganizationId(string? scopeId, out Guid organizationId) =>
         Guid.TryParse(scopeId, out organizationId) && organizationId != Guid.Empty;
+
+    private async ValueTask<Result> RequireOperationalAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken) =>
+        WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                organizationId.ToString("D"),
+                cancellationToken).ConfigureAwait(false));
 }

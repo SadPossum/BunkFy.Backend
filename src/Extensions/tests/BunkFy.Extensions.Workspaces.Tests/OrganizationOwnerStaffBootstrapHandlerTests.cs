@@ -1,6 +1,7 @@
 namespace BunkFy.Extensions.Workspaces.Tests;
 
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Options;
@@ -17,6 +18,7 @@ public sealed class OrganizationOwnerStaffBootstrapHandlerTests
         OrganizationOwnerStaffBootstrapHandler handler = new(
             staff,
             contacts,
+            new StubWorkspaceOperationalAdmissionPolicy(),
             Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "global" }));
 
         await handler.HandleAsync(
@@ -35,6 +37,7 @@ public sealed class OrganizationOwnerStaffBootstrapHandlerTests
         OrganizationOwnerStaffBootstrapHandler handler = new(
             staff,
             contacts,
+            new StubWorkspaceOperationalAdmissionPolicy(),
             Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "global" }));
 
         OrganizationMembershipChangedIntegrationEvent integrationEvent = CreateEvent(
@@ -61,11 +64,35 @@ public sealed class OrganizationOwnerStaffBootstrapHandlerTests
         OrganizationOwnerStaffBootstrapHandler handler = new(
             staff,
             contacts,
+            new StubWorkspaceOperationalAdmissionPolicy(),
             Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "global" }));
 
         await handler.HandleAsync(
             CreateEvent(OrganizationMembershipRole.Owner, status, change),
             CancellationToken.None);
+
+        Assert.Empty(staff.Requests);
+        Assert.Equal(0, contacts.CallCount);
+    }
+
+    [Fact]
+    public async Task Restricted_workspace_retries_owner_bootstrap_without_side_effects()
+    {
+        RecordingStaffIdentityReconciler staff = new();
+        RecordingContactReader contacts = new();
+        OrganizationOwnerStaffBootstrapHandler handler = new(
+            staff,
+            contacts,
+            new StubWorkspaceOperationalAdmissionPolicy(
+                WorkspaceOperationalAdmissionOutcome.Restricted),
+            Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "global" }));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.HandleAsync(
+                CreateEvent(
+                    OrganizationMembershipRole.Owner,
+                    OrganizationMembershipStatus.Active),
+                CancellationToken.None));
 
         Assert.Empty(staff.Requests);
         Assert.Equal(0, contacts.CallCount);

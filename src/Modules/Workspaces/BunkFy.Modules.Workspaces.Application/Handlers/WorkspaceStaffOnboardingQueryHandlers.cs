@@ -8,15 +8,27 @@ using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
+using Gma.Framework.Scoping;
 
 internal sealed class GetOwnWorkspaceStaffOnboardingQueryHandler(
-    IWorkspaceStaffOnboardingRepository applications)
+    IWorkspaceStaffOnboardingRepository applications,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
+    IScopeContext scopeContext)
     : IQueryHandler<GetOwnWorkspaceStaffOnboardingQuery, WorkspaceStaffOnboardingDto>
 {
     public async Task<Result<WorkspaceStaffOnboardingDto>> HandleAsync(
         GetOwnWorkspaceStaffOnboardingQuery query,
         CancellationToken cancellationToken)
     {
+        Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                scopeContext.ScopeId ?? string.Empty,
+                cancellationToken).ConfigureAwait(false));
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffOnboardingDto>(admitted.Error);
+        }
+
         WorkspaceStaffOnboarding? application = await applications
             .GetOperationalBySourceAndSubjectAsync(
             query.SourceKind.ToDomain(),

@@ -30,6 +30,7 @@ internal sealed class WorkspaceStaffJoinSourceReplacementManager(
     IOrganizationJoinSourceManager organizations,
     IWorkspaceStaffAccessPlanRepository plans,
     IWorkspaceStaffJoinSourceIssuer issuer,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext) : IWorkspaceStaffJoinSourceReplacementManager
 {
     public async Task<Result<WorkspaceStaffJoinSourceReplacementDto>> ReplaceInvitationAsync(
@@ -45,6 +46,15 @@ internal sealed class WorkspaceStaffJoinSourceReplacementManager(
         if (context.IsFailure)
         {
             return Result.Failure<WorkspaceStaffJoinSourceReplacementDto>(context.Error);
+        }
+
+        Result admitted = await this.RequireOperationalAsync(
+            context.Value.OrganizationId,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffJoinSourceReplacementDto>(
+                admitted.Error);
         }
 
         Result<WorkspaceStaffAccessPlan> plan = await this.GetPlanAsync(
@@ -100,6 +110,15 @@ internal sealed class WorkspaceStaffJoinSourceReplacementManager(
         if (context.IsFailure)
         {
             return Result.Failure<WorkspaceStaffJoinSourceReplacementDto>(context.Error);
+        }
+
+        Result admitted = await this.RequireOperationalAsync(
+            context.Value.OrganizationId,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffJoinSourceReplacementDto>(
+                admitted.Error);
         }
 
         Result<WorkspaceStaffAccessPlan> plan = await this.GetPlanAsync(
@@ -262,6 +281,14 @@ internal sealed class WorkspaceStaffJoinSourceReplacementManager(
     private static Result<WorkspaceStaffJoinSourceReplacementDto> ManagementFailure() =>
         Result.Failure<WorkspaceStaffJoinSourceReplacementDto>(
             WorkspaceAccessManagementErrors.JoinSourceManagementFailed);
+
+    private async ValueTask<Result> RequireOperationalAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken) =>
+        WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                organizationId.ToString("D"),
+                cancellationToken).ConfigureAwait(false));
 
     private sealed record ReplacementContext(Guid OrganizationId, string ActorId);
 }

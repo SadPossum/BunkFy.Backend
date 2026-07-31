@@ -54,6 +54,7 @@ internal sealed class WorkspaceAccessProfileManager(
     IAccessProfileManager profiles,
     IAccessProfileProvisioner profileReader,
     IAccessAuthorizationService authorization,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext) : IWorkspaceAccessProfileManager
 {
     private static readonly Dictionary<string, WorkspaceAccessPermissionDto> Catalogue =
@@ -169,6 +170,14 @@ internal sealed class WorkspaceAccessProfileManager(
                     WorkspaceAccessManagementErrors.RequestConflict);
         }
 
+        Result admitted = await this.RequireOperationalAsync(
+            scope.Value,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceAccessProfileDto>(admitted.Error);
+        }
+
         Result<AccessProfileDto> created = await profiles.CreateProfileAsync(
             scope.Value,
             new AccessProfileDefinition(
@@ -213,6 +222,14 @@ internal sealed class WorkspaceAccessProfileManager(
         if (permissions.IsFailure)
         {
             return Result.Failure<WorkspaceAccessProfileDto>(permissions.Error);
+        }
+
+        Result admitted = await this.RequireOperationalAsync(
+            scope.Value,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceAccessProfileDto>(admitted.Error);
         }
 
         Result<AccessProfileDto> updated = await profiles.UpdateProfileAsync(
@@ -269,6 +286,14 @@ internal sealed class WorkspaceAccessProfileManager(
         if (profile.Value.AssignmentCount > 0)
         {
             return Result.Failure(WorkspaceAccessManagementErrors.ProfileAssigned);
+        }
+
+        Result admitted = await this.RequireOperationalAsync(
+            scope.Value,
+            cancellationToken).ConfigureAwait(false);
+        if (admitted.IsFailure)
+        {
+            return admitted;
         }
 
         return await profiles.ArchiveProfileAsync(
@@ -342,6 +367,14 @@ internal sealed class WorkspaceAccessProfileManager(
             ? Result.Success()
             : Result.Failure(AccessProfileManagementErrors.AccessDenied);
     }
+
+    private async ValueTask<Result> RequireOperationalAsync(
+        AccessScope scope,
+        CancellationToken cancellationToken) =>
+        WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                scope.Segments[0].Value,
+                cancellationToken).ConfigureAwait(false));
 
     private Result<AccessScope> GetScope()
     {

@@ -185,6 +185,43 @@ The freeze precedes export and destructive work. It does not claim that queues
 are drained. Every owner must either prove its pre-freeze messages have
 converged or make late handling idempotently respect the termination epoch.
 
+### Slice 3 access-closure boundary
+
+Freeze closes effective access and join/access growth without destroying the
+state needed for an exact pre-destruction cancellation:
+
+- Workspaces exposes one tenant-authoritative, fail-closed operational
+  admission decision for ordinary processing.
+- Staff onboarding submission and provisioning, join-source issuance and
+  replacement, access-profile mutation, profile assignment, and role
+  assignment consume that decision at their application or owner-module
+  boundary. A late integration event cannot bypass it.
+- GMA Organizations owns a product-neutral mutation-admission seam for
+  organization governance and join-source mutations that do not pass through
+  tenant endpoint middleware.
+- GMA Access Control owns a product-neutral access-profile-management
+  admission seam. Its existing role and profile-assignment policies remain the
+  owner seams for assignment growth.
+- BunkFy implementations of those generic policies live in the Workspaces
+  composition extension and consult only the Workspaces operational-admission
+  contract.
+- Rejected state is distinct from unavailable state. Unknown tenant identity,
+  missing composition, and lookup failure fail closed.
+
+Freeze does not suspend organization memberships or remove Access Control
+assignments. The Organizations/Access Control integration intentionally
+revokes profile assignments when a membership is suspended, while invitation
+and enrollment secrets cannot be restored faithfully. Performing either
+mutation before destruction would make the documented cancellation guarantee
+false. Physical join-source, membership, and assignment reduction therefore
+belongs to the irreversible composed-store stage in delivery slice 6.
+
+The active Workspaces fence is the durable proof of reversible effective
+closure. Slice 3 tests must cover generic Organizations routes, generic Access
+Control profile and assignment paths, token-scoped onboarding, delayed
+onboarding processing, and provider failure. No production termination
+endpoint or owner task is activated by this slice.
+
 ## Owner Contract
 
 Create a versioned Data Rights Contracts contributor dedicated to tenant
@@ -293,7 +330,7 @@ deleted an external backup.
    descriptors/contracts, persistence, migration, and architecture guards.
 2. [x] Add the Workspaces freeze projection plus HTTP/task admission and exact
    termination-route metadata.
-3. [ ] Add Workspaces access and join-source closure, including GMA
+3. [x] Add Workspaces access and join-source closure, including GMA
    Organizations/Access Control facades or GMA Extensions composition where a
    generic seam is missing.
 4. [ ] Add optional tenant export assembly from every mandatory owner against
@@ -434,6 +471,75 @@ Second-slice verification on 2026-07-31:
   against PostgreSQL. It proves both migration upgrades, tenant isolation,
   active-fence uniqueness, epoch non-reuse, relational evidence immutability,
   DB-backed Worker admission, and persisted cancellation constraints.
+
+## Third Implementation Slice
+
+The third slice closes access growth and delayed join/onboarding work while
+preserving exact pre-destruction cancellation:
+
+- Workspaces owns one contracts-only `IWorkspaceOperationalAdmissionPolicy`
+  backed by the authoritative termination fence. Unknown tenant identity,
+  mismatched scope, missing composition, and lookup failure fail closed.
+- Organizations owns a reusable mutation-admission seam covering owner
+  governance, join-source growth, and non-idempotent trusted membership
+  restoration. Access-reducing suspension, removal, revocation, and disablement
+  remain available.
+- Access Control owns a reusable profile-mutation seam covering create, update,
+  archive, and non-idempotent ensure. It evaluates once per profile command;
+  exact ensure replays remain available. Assignment growth continues through
+  the existing role/profile assignment policy seams.
+- BunkFy's Workspaces composition extension maps those generic seams to the
+  operational-admission contract without leaking termination vocabulary into
+  GMA.
+- Workspaces rechecks admission at onboarding submission and before each
+  external provisioning side effect, join-source issuance/replacement,
+  access-plan preparation/activation, bootstrap, profile management, member
+  reconciliation, and access restoration.
+- Delayed onboarding and restoration stay retryable while restricted.
+  Idempotent replays and access-reducing staff suspension/departure remain
+  available.
+- Legacy role capture during access reduction is read-only. It records a
+  restorable profile snapshot when possible and never creates assignments as a
+  hidden side effect.
+
+The ordinary authorization path performs no termination-fence lookup per
+permission or per target. Profile mutation evaluates once per infrequent
+command, while Workspaces orchestration performs one fresh indexed check before
+each independently retryable side effect. Physical membership, join-source,
+and assignment destruction remains deferred to delivery slice 6 because it
+cannot be faithfully reversed after cancellation.
+
+There is still no production termination endpoint, registered owner task, or
+Production enablement. This slice adds no persistence model and therefore
+requires no migration or Docker-bound proof.
+
+Third-slice focused verification on 2026-07-31:
+
+- the standalone Organizations non-Docker gate passed a zero-warning build,
+  both provider migration-drift checks, all 154 tests, and package audit;
+- the standalone Access Control non-Docker gate passed architecture checks, a
+  zero-warning build, both provider migration-drift checks, all 132 tests, and
+  package audit; and
+- all 264 Workspaces tests and all 79 Workspaces composition-extension tests
+  passed against the exact published GMA commits.
+
+Third-slice coherent backend verification on 2026-07-31:
+
+- solution synchronization and source-package ownership passed after the new
+  Access Control task document was added to its module solution;
+- the all-up serial build passed with zero warnings and every PostgreSQL and
+  GMA dual-provider migration-drift check passed;
+- every fast module suite passed, including 132 Access Control, 154
+  Organizations, 264 Workspaces, and 79 Workspaces composition-extension
+  tests;
+- the first architecture pass rejected raw exception objects in the two new
+  GMA policy-failure log delegates. Both now log only stable policy/operation
+  names and a bounded exception type, with no organization id;
+- the exact privacy guard and both affected policy suites passed after that
+  correction, followed by all 30 host-default and 44 non-Docker integration
+  tests; and
+- no Docker suite was run because this slice adds no persistence state or
+  provider-specific behavior.
 
 ## Acceptance
 

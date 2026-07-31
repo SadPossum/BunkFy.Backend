@@ -397,7 +397,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IAuthMemberContactReader>(contacts ?? new FakeContactReader());
         services.AddSingleton<IWorkspaceTerminationFenceReader>(
             new FakeTerminationFenceReader(terminationFence));
-        services.AddSingleton<IScopeContextAccessor>(new FakeScopeContext());
+        services.AddSingleton<IScopeContextAccessor>(new FakeScopeContext(
+            WorkspaceStaffOnboardingTests.OrganizationId.ToString("D")));
         services.AddSingleton<IScopeContext>(provider => provider.GetRequiredService<IScopeContextAccessor>());
         services.AddSingleton<ISystemClock>(new FakeClock());
         services.AddSingleton<IIdGenerator>(new FakeIdGenerator());
@@ -800,10 +801,10 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             Task.FromResult(fence);
     }
 
-    private sealed class FakeScopeContext : IScopeContextAccessor
+    private sealed class FakeScopeContext(string? initialScopeId) : IScopeContextAccessor
     {
         public bool IsEnabled => !string.IsNullOrWhiteSpace(this.ScopeId);
-        public string? ScopeId { get; private set; }
+        public string? ScopeId { get; private set; } = initialScopeId;
         public void SetScope(string scopeId) => this.ScopeId = scopeId;
         public void ClearScope() => this.ScopeId = null;
     }

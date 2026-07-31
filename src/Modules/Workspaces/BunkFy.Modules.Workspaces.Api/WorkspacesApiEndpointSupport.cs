@@ -34,6 +34,8 @@ internal static class WorkspacesApiEndpointSupport
         new(WorkspaceAccessManagementErrors.JoinSourceManagementFailed.Code, StatusCodes.Status409Conflict),
         new(WorkspaceAccessManagementErrors.JoinSourcePlanUnavailable.Code, StatusCodes.Status404NotFound),
         new(WorkspaceAccessManagementErrors.JoinSourceReplacementUnavailable.Code, StatusCodes.Status409Conflict),
+        new(WorkspaceOperationalAdmissionErrors.ProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(WorkspaceOperationalAdmissionErrors.AdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(WorkspaceStaffOnboardingApplicationErrors.ScopeRequired.Code, StatusCodes.Status400BadRequest),
         new(WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired.Code, StatusCodes.Status403Forbidden),
         new(WorkspaceStaffOnboardingApplicationErrors.JoinTokenInvalid.Code, StatusCodes.Status404NotFound),

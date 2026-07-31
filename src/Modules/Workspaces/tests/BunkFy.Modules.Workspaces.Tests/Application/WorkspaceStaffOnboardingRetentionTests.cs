@@ -258,6 +258,8 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             plans,
             planPolicy,
             null!,
+            WorkspaceOperationalAdmissionTestSupport.Allowed(
+                application.ScopeId),
             new FakeClock(),
             NullLogger<WorkspaceStaffOnboardingProcessor>.Instance);
         ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler handler = new(

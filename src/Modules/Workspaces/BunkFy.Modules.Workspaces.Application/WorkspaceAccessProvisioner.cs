@@ -230,28 +230,37 @@ internal sealed class WorkspaceAccessProvisioner(
     {
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject subject = AccessSubject.User(subjectId);
-        if (await roles.HasAssignmentAsync(
+        bool hasLegacyAccess = await roles.HasAssignmentAsync(
                 subject,
                 WorkspaceAccessRoles.LegacyMember,
                 scope,
-                cancellationToken).ConfigureAwait(false))
-        {
-            await this.ProvisionDefaultMemberAsync(
-                workspaceId,
-                subjectId,
                 cancellationToken).ConfigureAwait(false);
-        }
 
         ScopedAccessProfileAssignmentSet assignments = await scopedProfiles.GetSubjectScopedAssignmentsAsync(
             subject,
             scope,
             cancellationToken).ConfigureAwait(false);
-        return assignments.Assignments
+        List<WorkspaceStaffAccessProfileTarget> targets = assignments.Assignments
             .Select(assignment => new WorkspaceStaffAccessProfileTarget(
                 assignment.Profile.Id,
                 assignment.AssignmentScope.Value))
-            .Distinct()
-            .ToArray();
+            .ToList();
+        if (hasLegacyAccess)
+        {
+            AccessProfileDto? frontDesk = await profiles.FindProfileByKeyAsync(
+                    scope,
+                    WorkspaceAccessProfileSeeds.FrontDeskKey,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (frontDesk?.Status == AccessProfileStatus.Active)
+            {
+                targets.Add(new WorkspaceStaffAccessProfileTarget(
+                    frontDesk.Id,
+                    scope.Value));
+            }
+        }
+
+        return targets.Distinct().ToArray();
     }
 
     public async Task DenyMemberAsync(

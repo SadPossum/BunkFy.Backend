@@ -14,6 +14,7 @@ using Gma.Modules.AccessControl.Contracts;
 internal sealed class PrepareWorkspaceStaffAccessPlanCommandHandler(
     IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffAccessPlanPolicy policy,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext,
     ISystemClock clock)
     : ICommandHandler<PrepareWorkspaceStaffAccessPlanCommand, WorkspaceStaffAccessPlanDto>
@@ -58,6 +59,15 @@ internal sealed class PrepareWorkspaceStaffAccessPlanCommandHandler(
                     WorkspaceStaffAccessPlanErrors.Conflict);
         }
 
+        Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                scopeContext.ScopeId,
+                cancellationToken).ConfigureAwait(false));
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffAccessPlanDto>(admitted.Error);
+        }
+
         Result<WorkspaceStaffAccessPlan> created = WorkspaceStaffAccessPlan.Create(
             command.SourceId,
             scopeContext.ScopeId,
@@ -79,6 +89,7 @@ internal sealed class PrepareWorkspaceStaffAccessPlanCommandHandler(
 
 internal sealed class ActivateWorkspaceStaffAccessPlanCommandHandler(
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     ISystemClock clock)
     : ICommandHandler<ActivateWorkspaceStaffAccessPlanCommand, WorkspaceStaffAccessPlanDto>
 {
@@ -93,6 +104,20 @@ internal sealed class ActivateWorkspaceStaffAccessPlanCommandHandler(
         {
             return Result.Failure<WorkspaceStaffAccessPlanDto>(
                 WorkspaceStaffAccessPlanApplicationErrors.PlanNotFound);
+        }
+
+        if (plan.Status == WorkspaceStaffAccessPlanState.Active)
+        {
+            return Result.Success(plan.ToDto());
+        }
+
+        Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+            await operationalAdmission.EvaluateAsync(
+                plan.ScopeId,
+                cancellationToken).ConfigureAwait(false));
+        if (admitted.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffAccessPlanDto>(admitted.Error);
         }
 
         Result activated = plan.Activate(clock.UtcNow);

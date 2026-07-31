@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Tests.Application;
 
+using BunkFy.Modules.Workspaces.Tests;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Commands;
@@ -68,6 +69,39 @@ public sealed class
                     .RestrictionProjectionUnavailable,
             result.Error);
         Assert.Equal(["lock", "reload", "projection"], calls);
+        Assert.Equal(0, staff.CallCount);
+        Assert.Equal(0, staffProperties.CallCount);
+        Assert.Equal(0, plans.GetCount);
+        Assert.Equal(
+            WorkspaceStaffOnboardingState.Provisioning,
+            application.Status);
+    }
+
+    [Fact]
+    public async Task Termination_fence_stops_onboarding_before_projection_or_provisioning()
+    {
+        WorkspaceStaffOnboarding application = CreateAcceptedApplication();
+        List<string> calls = [];
+        RecordingStaffProvisioner staff = new();
+        RecordingStaffPropertyProvisioner staffProperties = new();
+        RecordingPlanRepository plans = new();
+        WorkspaceStaffOnboardingProcessor processor = CreateProcessor(
+            staff,
+            staffProperties,
+            new RecordingApplicationRepository(application, calls),
+            new RecordingProjectionRepository(null, calls),
+            new RecordingOperationLock(calls),
+            plans,
+            WorkspaceOperationalAdmissionTestSupport.Restricted(TenantId));
+
+        Result result = await processor.ProcessAsync(
+            application,
+            CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Equal(["lock", "reload"], calls);
         Assert.Equal(0, staff.CallCount);
         Assert.Equal(0, staffProperties.CallCount);
         Assert.Equal(0, plans.GetCount);
@@ -220,6 +254,7 @@ public sealed class
             {
                 GlobalAuthScopeId = "global"
             }),
+            WorkspaceOperationalAdmissionTestSupport.Allowed(TenantId),
             new ScopeContext(),
             new TestClock(),
             new TestIds());
@@ -256,7 +291,8 @@ public sealed class
         RecordingApplicationRepository applications,
         RecordingProjectionRepository projections,
         RecordingOperationLock operationLock,
-        RecordingPlanRepository plans) =>
+        RecordingPlanRepository plans,
+        WorkspaceOperationalAdmissionEvaluator? operationalAdmission = null) =>
         new(
             staff,
             staffProperties,
@@ -273,6 +309,8 @@ public sealed class
                 roles: null!,
                 profiles: null!,
                 scopedProfiles: null!),
+            operationalAdmission ??
+                WorkspaceOperationalAdmissionTestSupport.Allowed(TenantId),
             new TestClock(),
             NullLogger<WorkspaceStaffOnboardingProcessor>.Instance);
 

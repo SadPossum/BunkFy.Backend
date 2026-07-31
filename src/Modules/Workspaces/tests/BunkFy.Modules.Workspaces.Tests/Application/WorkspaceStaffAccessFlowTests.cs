@@ -42,6 +42,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         PrepareWorkspaceStaffAccessCommandHandler handler = new(
             repository,
             new WorkspaceAccessProvisioner(roles, profiles),
+            WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock());
         StaffLifecyclePolicyContext context = CreateContext(
             StaffLifecycleTransition.Suspend,
@@ -146,6 +147,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         PrepareWorkspaceStaffAccessCommandHandler handler = new(
             repository,
             new WorkspaceAccessProvisioner(new FakeRoles([]), new FakeProfiles([])),
+            WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock());
         StaffLifecyclePolicyContext context = CreateContext(
             StaffLifecycleTransition.Resume,
@@ -182,6 +184,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         PrepareWorkspaceStaffAccessCommandHandler handler = new(
             repository,
             new WorkspaceAccessProvisioner(new FakeRoles([]), new FakeProfiles([])),
+            WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock());
         StaffLifecyclePolicyContext context = CreateContext(
             StaffLifecycleTransition.Resume,
@@ -197,6 +200,31 @@ public sealed class WorkspaceStaffAccessFlowTests
         Assert.Equal(WorkspaceStaffAccessProcessState.Completed, suspension.State);
         WorkspaceStaffAccessProcess resume = repository.Processes.Single(process => process.Id != suspension.Id);
         Assert.Equal([profileId], resume.ProfileSnapshots.Select(snapshot => snapshot.ProfileId));
+    }
+
+    [Fact]
+    public async Task Restricted_workspace_blocks_staff_reactivation_before_process_mutation()
+    {
+        FakeProcessRepository repository = new();
+        PrepareWorkspaceStaffAccessCommandHandler handler = new(
+            repository,
+            new WorkspaceAccessProvisioner(new FakeRoles([]), new FakeProfiles([])),
+            WorkspaceOperationalAdmissionTestSupport.Restricted(ScopeId),
+            new TestClock());
+        StaffLifecyclePolicyContext context = CreateContext(
+            StaffLifecycleTransition.Resume,
+            StaffStatus.Suspended,
+            StaffStatus.Active,
+            expectedVersion: 2);
+
+        Result<WorkspaceStaffAccessPreparation> result = await handler.HandleAsync(
+            new PrepareWorkspaceStaffAccessCommand(context),
+            CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+        Assert.Empty(repository.Processes);
     }
 
     [Fact]
@@ -220,6 +248,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         WorkspaceStaffAccessRestorer restorer = new(
             memberships,
             access,
+            WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock(),
             NullLogger<WorkspaceStaffAccessRestorer>.Instance);
         StaffLifecycleWorkspaceAccessHandler handler = new(
@@ -271,6 +300,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         WorkspaceStaffAccessRestorer restorer = new(
             memberships,
             access,
+            WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock(),
             NullLogger<WorkspaceStaffAccessRestorer>.Instance);
         RetryWorkspaceStaffAccessProcessCommandHandler handler = new(repository, denier, restorer);
@@ -284,6 +314,37 @@ public sealed class WorkspaceStaffAccessFlowTests
         Assert.Null(result.Value.FailureCode);
         Assert.True(roles.Has(subject, WorkspaceAccessRoles.MembershipMarker, scope));
         Assert.Equal([restored.Id], profiles.AssignedProfileIds(subject, scope));
+    }
+
+    [Fact]
+    public async Task Restricted_workspace_keeps_pending_restoration_retryable()
+    {
+        List<string> operations = [];
+        WorkspaceStaffAccessProcess process = CreateProcess(
+            WorkspaceStaffAccessTargetState.Active,
+            targetVersion: 3,
+            []);
+        Assert.True(process.MarkAwaitingStaffCommit(Now).IsSuccess);
+        Assert.True(process.ObserveStaffCommit(Now).IsSuccess);
+        WorkspaceStaffAccessRestorer restorer = new(
+            new FakeMembershipLifecycle(operations),
+            new WorkspaceAccessProvisioner(
+                new FakeRoles(operations),
+                new FakeProfiles(operations)),
+            WorkspaceOperationalAdmissionTestSupport.Restricted(ScopeId),
+            new TestClock(),
+            NullLogger<WorkspaceStaffAccessRestorer>.Instance);
+
+        WorkspaceStaffAccessCoordinationOutcome outcome =
+            await restorer.RestoreAsync(process, CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceStaffAccessCoordinationOutcome.RetryRequired,
+            outcome);
+        Assert.Equal(
+            WorkspaceStaffAccessProcessState.RestorationPending,
+            process.State);
+        Assert.Empty(operations);
     }
 
     [Fact]
