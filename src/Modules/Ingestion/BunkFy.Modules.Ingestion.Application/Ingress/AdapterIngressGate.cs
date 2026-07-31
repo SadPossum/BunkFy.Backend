@@ -3,7 +3,9 @@ namespace BunkFy.Modules.Ingestion.Application.Ingress;
 using System.Security.Cryptography;
 using System.Text;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Application.Policies;
 using BunkFy.Modules.Ingestion.Application.Security;
+using BunkFy.Modules.Ingestion.Contracts;
 using Gma.Framework.Observability;
 using Gma.Framework.RateLimiting;
 using Gma.Framework.Scoping;
@@ -14,7 +16,8 @@ internal sealed class AdapterIngressGate(
     IMultiPartitionRateLimiter rateLimiter,
     IOptions<AdapterIngressQuotaOptions> options,
     IScopeContext scopeContext,
-    ISecuritySignalRecorder securitySignals)
+    ISecuritySignalRecorder securitySignals,
+    IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null)
     : IAdapterIngressGate
 {
     private static readonly TimeSpan Minute = TimeSpan.FromMinutes(1);
@@ -35,6 +38,28 @@ internal sealed class AdapterIngressGate(
             return this.Record(
                 operation,
                 AdapterIngressGateDecision.PolicyRejected(AdapterIngressPolicyRejection.ScopeMismatch));
+        }
+
+        IngestionTenantLifecycleOutcome lifecycle =
+            await IngestionTenantLifecycleAdmission.EvaluateAsync(
+                lifecyclePolicies,
+                identity.ScopeId,
+                IngestionTenantLifecycleOperation.AdapterIngress,
+                cancellationToken).ConfigureAwait(false);
+        if (lifecycle == IngestionTenantLifecycleOutcome.Restricted)
+        {
+            return this.Record(
+                operation,
+                AdapterIngressGateDecision.PolicyRejected(
+                    AdapterIngressPolicyRejection
+                        .TenantLifecycleRestricted));
+        }
+
+        if (lifecycle != IngestionTenantLifecycleOutcome.Allowed)
+        {
+            return this.Record(
+                operation,
+                AdapterIngressGateDecision.ProviderUnavailable());
         }
 
         AdapterIngressControlSnapshot? snapshot = await controls.ReadAdmissionAsync(cancellationToken)

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 6,
+  "catalogVersion": 7,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -128,6 +128,18 @@
         "permission:data-rights.execute",
         "system:workspaces-data-rights"
       ]
+    },
+    {
+      "id": "workspaces-tenant-termination-proof",
+      "scope": "tenant-termination-control-and-accountability-proof",
+      "readers": [
+        "permission:data-rights.execute",
+        "system:authorized-audit-consumer",
+        "system:workspace-termination"
+      ],
+      "writers": [
+        "system:workspace-termination"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -228,6 +240,13 @@
       "startsAt": "workspace-staff-correlation-anonymisation-completed",
       "endsAt": "approved-owner-proof-retention-completed-or-tenant-termination",
       "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
+      "id": "workspace-tenant-termination-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "workspace-termination-fence-created",
+      "endsAt": "approved-tenant-termination-accountability-retention-completed",
+      "legalHoldBehavior": "pause-approved-disposal"
     }
   ],
   "rightsPolicies": [
@@ -286,6 +305,13 @@
       "correction": "append-corrective-proof-only",
       "restriction": "retain-minimum-owner-proof",
       "erasure": "retain-minimum-pseudonymous-accountability-proof"
+    },
+    {
+      "id": "workspace-tenant-termination-proof-control",
+      "export": "include-in-authorized-tenant-termination-audit",
+      "correction": "append-corrective-proof-only",
+      "restriction": "retain-minimum-owner-proof",
+      "erasure": "retain-minimum-approved-accountability-proof"
     }
   ],
   "fields": [
@@ -8982,6 +9008,525 @@
           "type": "BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationRestoreReceipt",
           "member": "TombstoneRevision",
           "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.tenant-termination-control-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-termination-safety",
+        "admission-control",
+        "restore-integrity",
+        "owner-proof-correlation"
+      ],
+      "sources": [
+        "approved-tenant-termination-case",
+        "data-rights-coordinator",
+        "workspaces-domain"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-tenant-termination-proof",
+      "countryPolicyKey": "workspaces.tenant-termination.control-proof",
+      "retentionPolicy": "workspace-tenant-termination-proof",
+      "rightsPolicy": "workspace-tenant-termination-proof-control",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "ProcessId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "CaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "ApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "TerminationEpoch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "PolicyEvidenceSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "State",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "CreatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "LastChangedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "Version",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "FenceId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "ProcessId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "CaseId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "ApprovalRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "OperationRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "WorkItemId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "IdempotencyKey",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "TerminationEpoch",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "Action",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "SelectedFenceVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "ResultingFenceVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "ResultingState",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "PolicyEvidenceSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "ProcessId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "OperationRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "WorkItemId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "TerminationEpoch",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "PolicyEvidenceSha256",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "IdempotencyKey",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "ProcessId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "CaseId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "ApprovalRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "OperationRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "WorkItemId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "TerminationEpoch",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "ExpectedFenceVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "PolicyEvidenceSha256",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceSnapshot",
+          "member": "ProcessId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceSnapshot",
+          "member": "TerminationEpoch",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceSnapshot",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceSnapshot",
+          "member": "Version",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "ReceiptId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "FenceId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "ProcessId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "CaseId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "ApprovalRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "OperationRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "WorkItemId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "IdempotencyKey",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "TerminationEpoch",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "Action",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "SelectedFenceVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "ResultingFenceVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "ResultingState",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "PolicyEvidenceSha256",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.tenant-termination-actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-termination-accountability",
+        "authorized-change-traceability"
+      ],
+      "sources": [
+        "authorized-data-rights-executor"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-tenant-termination-proof",
+      "countryPolicyKey": "workspaces.tenant-termination.actor-id",
+      "retentionPolicy": "workspace-tenant-termination-proof",
+      "rightsPolicy": "audit-attribution",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence",
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "CreatedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence",
+          "member": "LastChangedBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt",
+          "member": "ActorId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ApplyWorkspaceTerminationFenceCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceTerminationFenceCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
+          "member": "ActorId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     }

@@ -922,6 +922,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         new(IngestionApplicationErrors.IngressCredentialNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.IngressCredentialLimitReached.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.IngressCredentialsRequirePushMode.Code, StatusCodes.Status409Conflict),
+        new(IngestionApplicationErrors.TenantLifecycleRestricted.Code, StatusCodes.Status423Locked),
+        new(IngestionApplicationErrors.TenantLifecycleAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(IngestionApplicationErrors.ConnectionStatusInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.RunNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.RunStatusInvalid.Code, StatusCodes.Status400BadRequest),

@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Application;
 
 using BunkFy.Modules.Workspaces.Application.Ports;
+using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Organizations.Contracts;
@@ -35,6 +36,15 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
             context.OrganizationId,
             async services =>
             {
+                IWorkspaceTerminationFenceReader terminationFences = services
+                    .GetRequiredService<
+                        IWorkspaceTerminationFenceReader>();
+                if (await terminationFences.GetCurrentAsync(
+                        cancellationToken).ConfigureAwait(false) is not null)
+                {
+                    return false;
+                }
+
                 IWorkspaceStaffAccessPlanRepository plans = services
                     .GetRequiredService<IWorkspaceStaffAccessPlanRepository>();
                 WorkspaceStaffAccessPlan? plan = await plans.GetAsync(

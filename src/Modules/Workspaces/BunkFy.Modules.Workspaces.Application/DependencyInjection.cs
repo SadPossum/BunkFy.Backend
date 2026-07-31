@@ -118,6 +118,15 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IDataRightsAnonymisationPolicyContributor,
             WorkspaceStaffCorrelationAnonymisationPolicyContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            ITenantTerminationContributor,
+            WorkspaceTenantTerminationContributor>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IIngestionTenantLifecyclePolicy,
+            WorkspaceIngestionTenantLifecyclePolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IPropertyProcessingLifecyclePolicy,
+            WorkspacePropertyProcessingLifecyclePolicy>());
         services.AddIntegrationEventHandler<
             OrganizationInvitationChangedIntegrationEvent,
             OrganizationInvitationStaffOnboardingHandler>(

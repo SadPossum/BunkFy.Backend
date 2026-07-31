@@ -14,6 +14,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
 using BunkFy.Modules.Workspaces.Domain.Events;
+using BunkFy.Modules.Workspaces.Domain.Termination;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
 using Gma.Framework.Messaging;
@@ -162,7 +163,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
         typeof(WorkspaceStaffAccessProfileSnapshot),
         typeof(WorkspaceStaffAccessPlan),
         typeof(WorkspaceStaffAccessPlanProperty),
-        typeof(WorkspaceStaffRetentionCorrelationReceipt)
+        typeof(WorkspaceStaffRetentionCorrelationReceipt),
+        typeof(WorkspaceTerminationFence),
+        typeof(WorkspaceTerminationFenceReceipt)
     ];
 
     private static IEnumerable<(PersonalDataSurface Surface, Type Type)> BoundaryTypes()
@@ -213,6 +216,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
                          WorkspaceStaffCorrelationAnonymisationApplyRequest),
                      typeof(
                          WorkspaceStaffCorrelationAnonymisationRestoreRequest)
+                     ,
+                     typeof(ApplyWorkspaceTerminationFenceCommand),
+                     typeof(ReleaseWorkspaceTerminationFenceCommand)
                  })
         {
             yield return (PersonalDataSurface.ApplicationCommand, type);
@@ -232,6 +238,12 @@ public sealed class WorkspacesPersonalDataCatalogTests
             PersonalDataSurface.ProjectionExport,
             typeof(
                 WorkspaceStaffCorrelationAnonymisationReceiptDto));
+        yield return (
+            PersonalDataSurface.ProjectionExport,
+            typeof(WorkspaceTerminationFenceSnapshot));
+        yield return (
+            PersonalDataSurface.ProjectionExport,
+            typeof(WorkspaceTerminationFenceReceiptDto));
 
         foreach (Type type in new[]
                  {

@@ -137,11 +137,12 @@ The foundation represents those states as monotonic `Freeze`, optional
 a monotonic operation revision, and stale attempt results cannot advance a
 newer retry.
 
-Cancellation will be introduced with the Workspaces freeze slice. It is
-allowed only before irreversible destruction starts. A cancelled
-pre-destruction process must remove the workspace fence through an explicit
-compensating transition and prove that access state converged; the foundation
-does not expose a shortcut that marks a process cancelled without that proof.
+Cancellation uses the Workspaces `Restore` contribution and is allowed only
+after freeze has completed and before irreversible destruction starts. A
+cancelled pre-destruction process removes the workspace fence through an
+explicit compensating transition. Data Rights accepts cancellation only after
+the exact durable owner proof shows that the fence was released; there is no
+shortcut that marks a process cancelled without that proof.
 
 One active termination process is allowed per tenant. Every transition uses an
 expected process version, immutable event id, bounded actor id, and monotonic
@@ -290,7 +291,7 @@ deleted an external backup.
 
 1. [x] Add the disabled-by-default Data Rights process aggregate, owner
    descriptors/contracts, persistence, migration, and architecture guards.
-2. [ ] Add the Workspaces freeze projection plus HTTP/task admission and exact
+2. [x] Add the Workspaces freeze projection plus HTTP/task admission and exact
    termination-route metadata.
 3. [ ] Add Workspaces access and join-source closure, including GMA
    Organizations/Access Control facades or GMA Extensions composition where a
@@ -343,6 +344,96 @@ Implemented foundation evidence:
 
 There is deliberately no endpoint, task registration, owner mutation, or
 production enablement in this slice.
+
+## Second Implementation Slice
+
+The second slice establishes the Workspaces-owned admission fact without
+making tenant termination reachable:
+
+- persist one `WorkspaceTerminationFence` per process and termination epoch;
+- enforce at most one active fence per workspace with a tenant-first filtered
+  unique index;
+- record every accepted transition in an append-only, PII-free receipt;
+- expose a contracts-only, scope-aware current-fence reader for composed
+  BunkFy adapters;
+- deny ordinary tenant HTTP endpoints through
+  `ITenantEndpointAccessPolicy`;
+- deny ordinary tenant tasks through a host adapter registered after GMA's
+  tenant task-context contributor;
+- apply the same fence to independently authenticated adapter ingress and
+  organization invitation or enrollment admission;
+- reserve exact metadata for Data Rights termination review, export,
+  cancellation, and recovery routes; and
+- keep every exemption absent until its matching endpoint or task exists and
+  proves that its process id matches the active fence.
+
+The current-fence read is an indexed `AsNoTracking` database query. The
+permissive state is not cached: a stale "open" answer after freeze would be a
+correctness defect. A later optimization may cache only active fences, or may
+cache open state only after the workflow models a bounded quiescence period.
+Unavailable fence state fails closed for admission paths.
+
+The fence state is monotonic for one process:
+
+1. `Frozen`
+2. `DestructionStarted`
+3. `Closed`
+
+`Released` is an explicit compensating terminal state and is allowed only from
+`Frozen`, before destruction starts. A later process uses a new epoch and a
+new fence row; prior rows and receipts remain immutable evidence.
+
+This slice was delivered in two internal increments:
+
+1. persist the fence, receipts, reader, contributor, and fail-closed HTTP,
+   task, join, and adapter admission;
+2. add coordinator cancellation and Workspaces `Restore` contribution so a
+   pre-destruction process can become cancelled only after the `Released`
+   receipt is durably proven.
+
+Both increments are implemented. Data Rights still does not invoke the
+Workspaces contributor, the reserved owner task remains unregistered, no route
+receives termination-access metadata, and Production admission remains
+rejected. Admin API and Admin CLI termination controls remain part of delivery
+slice 8; they cannot activate or bypass the fence in this slice.
+
+Implemented second-slice evidence:
+
+- migration `20260731063610_AddWorkspaceTerminationFence` persists one
+  tenant-scoped fence per process and epoch, enforces one active fence, and
+  protects historical fences and receipts from relational deletion or
+  mutation;
+- migration `20260731083019_AddTenantTerminationCancellation` adds the
+  `Restore`/`Cancelled` state combination without renumbering existing states;
+- exact idempotency receipts, optimistic-concurrency retry, and stable
+  coordinate-conflict handling cover concurrent freeze and release attempts;
+- scope-aware HTTP, every task-worker composition, independently authenticated
+  adapter ingress, invitation or enrollment admission, connection
+  provisioning, adapter-run start, and property activation consume the same
+  fence;
+- only exact process-matching metadata and the reserved Data Rights owner task
+  can bypass admission, and neither is attached or registered yet;
+- Workspaces personal-data catalogue v7 classifies the fence, receipts,
+  commands, projection, and elevated actor attribution; and
+- focused domain, persistence, privacy, admission, contributor, cancellation,
+  architecture, and host-composition checks pass.
+
+Second-slice verification on 2026-07-31:
+
+- the coherent non-Docker gate passed solution synchronization,
+  source-package ownership, a zero-warning all-up build, and migration drift;
+- its first architecture pass identified one missing approved security-signal
+  code and four unbounded exception-log call shapes; those bounded catalogue
+  and logging corrections passed the exact failed tests, followed by the
+  remaining 30 host-default and 44 non-Docker integration tests;
+- every other module and architecture assembly in the original gate was
+  already green, including 244 Workspaces, 286 Data Rights, 254 Ingestion, and
+  66 Properties tests; and
+- the single Docker-bound
+  `TenantTerminationControlPlanePersistenceIntegrationTests` scenario passed
+  against PostgreSQL. It proves both migration upgrades, tenant isolation,
+  active-fence uniqueness, epoch non-reuse, relational evidence immutability,
+  DB-backed Worker admission, and persisted cancellation constraints.
 
 ## Acceptance
 

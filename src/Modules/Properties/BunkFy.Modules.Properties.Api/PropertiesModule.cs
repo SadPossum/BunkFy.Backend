@@ -394,6 +394,8 @@ public sealed class PropertiesModule : IModule
         new(PropertiesApplicationErrors.PropertyAlreadyRetired.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyRetired.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyProcessingNotEnabled.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.ProcessingLifecycleRestricted.Code, StatusCodes.Status423Locked),
+        new(PropertiesApplicationErrors.ProcessingLifecycleAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(PropertiesApplicationErrors.PropertyHasActiveRooms.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomStatusUnknown.Code, StatusCodes.Status409Conflict),

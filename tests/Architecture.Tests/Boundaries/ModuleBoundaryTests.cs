@@ -656,6 +656,88 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Workspace_termination_composition_uses_only_explicit_contract_dependencies()
+    {
+        ProjectFile workspacesApplication = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Modules.Workspaces.Application",
+                StringComparison.Ordinal));
+        string[] requiredContracts =
+        [
+            "BunkFy.Modules.DataRights.Contracts\\BunkFy.Modules.DataRights.Contracts.csproj",
+            "BunkFy.Modules.Ingestion.Contracts\\BunkFy.Modules.Ingestion.Contracts.csproj",
+            "BunkFy.Modules.Properties.Contracts\\BunkFy.Modules.Properties.Contracts.csproj"
+        ];
+
+        Assert.All(requiredContracts, required =>
+            Assert.Contains(
+                workspacesApplication.ProjectReferences,
+                reference => reference.EndsWith(
+                    required,
+                    StringComparison.OrdinalIgnoreCase)));
+        Assert.DoesNotContain(
+            workspacesApplication.ProjectReferences,
+            reference =>
+                reference.Contains(
+                    "BunkFy.Modules.DataRights.Application",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Ingestion.Application",
+                    StringComparison.OrdinalIgnoreCase) ||
+                reference.Contains(
+                    "BunkFy.Modules.Properties.Application",
+                    StringComparison.OrdinalIgnoreCase));
+
+        string[] gmaOffenders = RepositoryPaths.EnumerateFiles("gma", "*.cs")
+            .Where(path =>
+            {
+                string source = File.ReadAllText(path);
+                return source.Contains(
+                        "WorkspaceTermination",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "TenantTermination",
+                        StringComparison.Ordinal);
+            })
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+        Assert.Empty(gmaOffenders);
+    }
+
+    [Fact]
+    public void Independently_authenticated_adapter_routes_cannot_bypass_lifecycle_admission()
+    {
+        string api = RepositoryPaths.Read(
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Api/IngestionModule.cs");
+        string receiveHandler = RepositoryPaths.Read(
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Handlers/ReceiveObservationCommandHandler.cs");
+        string gate = RepositoryPaths.Read(
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Application/Ingress/AdapterIngressGate.cs");
+
+        Assert.Equal(
+            5,
+            CountOccurrences(
+                api,
+                ".RequireTenantWithIndependentAuthentication()"));
+        Assert.Equal(
+            4,
+            CountOccurrences(api, "AdmitRemoteControlAsync("));
+        Assert.Equal(
+            2,
+            CountOccurrences(api, "new ReceiveObservationCommand("));
+        Assert.Contains(
+            "ingressGate.AdmitAsync(",
+            receiveHandler,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "IngestionTenantLifecycleAdmission.EvaluateAsync(",
+            gate,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MailKit_is_confined_to_the_imap_adapter_package()
     {
         ProjectFile adapter = Assert.Single(
@@ -739,7 +821,10 @@ public sealed class ModuleBoundaryTests
     private static IEnumerable<ProjectFile> ModuleProjects(string suffix) =>
         ProjectFile.All()
             .Where(project => project.RepositoryPath.StartsWith("src/Modules/", StringComparison.Ordinal) &&
-                              project.Name.EndsWith(suffix, StringComparison.Ordinal));
+            project.Name.EndsWith(suffix, StringComparison.Ordinal));
+
+    private static int CountOccurrences(string source, string value) =>
+        source.Split(value, StringSplitOptions.None).Length - 1;
 
     private static bool IsNonDomainModuleReference(string reference) =>
         reference.Contains(".Application", StringComparison.OrdinalIgnoreCase) ||

@@ -97,6 +97,92 @@ public sealed class PropertyProcessingCommandHandlerTests
         Assert.Empty(revisions.Items);
     }
 
+    [Theory]
+    [InlineData(
+        PropertyProcessingLifecycleOutcome.Restricted,
+        "Properties.ProcessingLifecycleRestricted")]
+    [InlineData(
+        PropertyProcessingLifecycleOutcome.Unavailable,
+        "Properties.ProcessingLifecycleAdmissionUnavailable")]
+    public async Task Workspace_lifecycle_denial_precedes_policy_mutation(
+        PropertyProcessingLifecycleOutcome outcome,
+        string expectedErrorCode)
+    {
+        Property property = CreateProperty();
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommandHandler handler = new(
+            new FakePropertyRepository(property),
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator(),
+            [new TestLifecyclePolicy(
+                new PropertyProcessingLifecycleDecision(outcome))]);
+
+        Result<PropertyDto> result = await handler.HandleAsync(
+            new ActivatePropertyProcessingCommand(
+                property.Id,
+                "GB",
+                "gb-hostel",
+                1,
+                "eu-west-2",
+                "uk-no-transfer",
+                "guest-operational",
+                1,
+                [],
+                true,
+                property.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(expectedErrorCode, result.Error.Code);
+        Assert.Equal(
+            PropertyProcessingState.Unconfigured,
+            property.ProcessingState);
+        Assert.Empty(revisions.Items);
+    }
+
+    [Fact]
+    public async Task Workspace_lifecycle_provider_exception_fails_closed()
+    {
+        Property property = CreateProperty();
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommandHandler handler = new(
+            new FakePropertyRepository(property),
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator(),
+            [new TestLifecyclePolicy(
+                exception: new InvalidOperationException())]);
+
+        Result<PropertyDto> result = await handler.HandleAsync(
+            new ActivatePropertyProcessingCommand(
+                property.Id,
+                "GB",
+                "gb-hostel",
+                1,
+                "eu-west-2",
+                "uk-no-transfer",
+                "guest-operational",
+                1,
+                [],
+                true,
+                property.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            PropertiesApplicationErrors
+                .ProcessingLifecycleAdmissionUnavailable,
+            result.Error);
+        Assert.Equal(
+            PropertyProcessingState.Unconfigured,
+            property.ProcessingState);
+        Assert.Empty(revisions.Items);
+    }
+
     [Fact]
     public async Task Activation_requires_server_side_confirmation_before_policy_evaluation()
     {
@@ -380,5 +466,23 @@ public sealed class PropertyProcessingCommandHandlerTests
     private sealed class TestIdGenerator : IIdGenerator
     {
         public Guid NewId() => Guid.CreateVersion7();
+    }
+
+    private sealed class TestLifecyclePolicy(
+        PropertyProcessingLifecycleDecision? decision = null,
+        Exception? exception = null)
+        : IPropertyProcessingLifecyclePolicy
+    {
+        public ValueTask<PropertyProcessingLifecycleDecision>
+            AuthorizeActivationAsync(
+                string tenantId,
+                Guid propertyId,
+                CancellationToken cancellationToken = default) =>
+            exception is null
+                ? ValueTask.FromResult(
+                    decision ??
+                    PropertyProcessingLifecycleDecision.Allowed)
+                : ValueTask.FromException<
+                    PropertyProcessingLifecycleDecision>(exception);
     }
 }

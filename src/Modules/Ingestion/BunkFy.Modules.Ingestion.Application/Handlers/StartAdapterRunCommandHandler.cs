@@ -10,6 +10,7 @@ using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Application.Policies;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 
@@ -20,7 +21,8 @@ internal sealed class StartAdapterRunCommandHandler(
     IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
     IIdGenerator idGenerator,
-    ISystemClock clock)
+    ISystemClock clock,
+    IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null)
     : ICommandHandler<StartAdapterRunCommand, AdapterRunStart>
 {
     public async Task<Result<AdapterRunStart>> HandleAsync(
@@ -30,6 +32,18 @@ internal sealed class StartAdapterRunCommandHandler(
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
             return Result.Failure<AdapterRunStart>(IngestionApplicationErrors.ScopeRequired);
+        }
+
+        Result lifecycleAdmission =
+            await IngestionTenantLifecycleAdmission.AuthorizeAsync(
+                lifecyclePolicies,
+                scopeContext.ScopeId,
+                IngestionTenantLifecycleOperation.AdapterRunStart,
+                cancellationToken).ConfigureAwait(false);
+        if (lifecycleAdmission.IsFailure)
+        {
+            return Result.Failure<AdapterRunStart>(
+                lifecycleAdmission.Error);
         }
 
         AdapterConnection? connection = await connections.GetAsync(command.ConnectionId, cancellationToken)

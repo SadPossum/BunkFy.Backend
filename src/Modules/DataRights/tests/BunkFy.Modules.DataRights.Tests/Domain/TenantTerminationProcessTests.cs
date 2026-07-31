@@ -247,6 +247,90 @@ public sealed class TenantTerminationProcessTests
         Assert.Equal(TenantTerminationProcessStatus.Running, process.Status);
     }
 
+    [Fact]
+    public void Cancellation_requires_restore_completion_after_freeze()
+    {
+        TenantTerminationProcess process = Prepare(exportRequested: false);
+        Assert.True(process.BeginPhase(
+            TenantTerminationProcessPhase.Freeze,
+            process.Version,
+            Approver,
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.True(process.CompletePhase(
+            TenantTerminationProcessPhase.Freeze,
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(2)).IsSuccess);
+
+        Assert.True(process.RequestCancellation(
+            process.Version,
+            Approver,
+            Now.AddMinutes(3)).IsSuccess);
+        Assert.Equal(TenantTerminationProcessPhase.Restore, process.Phase);
+        Assert.Equal(TenantTerminationProcessStatus.Pending, process.Status);
+
+        Assert.True(process.BeginPhase(
+            TenantTerminationProcessPhase.Restore,
+            process.Version,
+            Approver,
+            Now.AddMinutes(4)).IsSuccess);
+        Assert.True(process.CompletePhase(
+            TenantTerminationProcessPhase.Restore,
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(5)).IsFailure);
+        Assert.Equal(TenantTerminationProcessStatus.Running, process.Status);
+
+        Assert.True(process.CompleteCancellation(
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(5)).IsSuccess);
+        Assert.Equal(TenantTerminationProcessPhase.Restore, process.Phase);
+        Assert.Equal(TenantTerminationProcessStatus.Cancelled, process.Status);
+    }
+
+    [Fact]
+    public void Cancellation_is_denied_before_freeze_or_after_destruction_starts()
+    {
+        TenantTerminationProcess beforeFreeze = Prepare(exportRequested: false);
+        Assert.True(beforeFreeze.RequestCancellation(
+            beforeFreeze.Version,
+            Approver,
+            Now.AddMinutes(1)).IsFailure);
+
+        TenantTerminationProcess destroying = Prepare(exportRequested: false);
+        Assert.True(destroying.BeginPhase(
+            TenantTerminationProcessPhase.Freeze,
+            destroying.Version,
+            Approver,
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.True(destroying.CompletePhase(
+            TenantTerminationProcessPhase.Freeze,
+            destroying.OperationRevision,
+            destroying.Version,
+            Approver,
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.True(destroying.BeginPhase(
+            TenantTerminationProcessPhase.Destroy,
+            destroying.Version,
+            Executor,
+            Now.AddMinutes(3)).IsSuccess);
+
+        Result denied = destroying.RequestCancellation(
+            destroying.Version,
+            Approver,
+            Now.AddMinutes(4));
+
+        Assert.True(denied.IsFailure);
+        Assert.Equal(
+            DataRightsDomainErrors.TenantTerminationTransitionInvalid,
+            denied.Error);
+        Assert.Equal(TenantTerminationProcessStatus.Running, destroying.Status);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("ABC")]

@@ -143,6 +143,9 @@ public static class DataRightsApplicationErrors
     public static readonly Error TenantTerminationContributorCatalogInvalid = new(
         "DataRights.TenantTerminationContributorCatalogInvalid",
         "The tenant-termination owner catalogue is incomplete or invalid.");
+    public static readonly Error TenantTerminationCancellationProofInvalid = new(
+        "DataRights.TenantTerminationCancellationProofInvalid",
+        "Tenant termination cannot be cancelled until every restore owner has durable completion proof.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;

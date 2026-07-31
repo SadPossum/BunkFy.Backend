@@ -69,6 +69,7 @@ using Gma.Modules.TaskRuntime.Contracts;
 using Gma.Modules.TaskRuntime.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -107,7 +108,12 @@ public static class WorkerHostBuilderExtensions
 
         if (workerOptions.TaskWorkerEnabled)
         {
+            builder.AddWorkspacesTerminationAdmissionPersistence();
             builder.AddTenantTaskExecutionContext();
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Scoped<
+                    ITaskExecutionContextContributor,
+                    WorkspaceTerminationTaskExecutionContextContributor>());
             builder.AddTaskCqrs();
             builder.AddTaskWorkerRuntime();
             builder.AddTaskRunScheduling();

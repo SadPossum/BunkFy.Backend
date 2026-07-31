@@ -535,6 +535,14 @@ public sealed class HostCompositionGuardTests
             "NotificationsProfiles.Default",
             composition,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "builder.AddWorkspacesTerminationAdmissionPersistence();",
+            composition,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "WorkspaceTerminationTaskExecutionContextContributor",
+            composition,
+            StringComparison.Ordinal);
     }
 
     [Fact]

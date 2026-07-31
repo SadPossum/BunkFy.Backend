@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Persistence;
 
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
+using BunkFy.Modules.Workspaces.Domain.Termination;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
@@ -44,6 +45,11 @@ public sealed class WorkspacesDbContext(
         StaffCorrelationAnonymisationRestoreReceipts =>
         this.Set<
             WorkspaceStaffCorrelationAnonymisationRestoreReceipt>();
+    public DbSet<WorkspaceTerminationFence> WorkspaceTerminationFences =>
+        this.Set<WorkspaceTerminationFence>();
+    public DbSet<WorkspaceTerminationFenceReceipt>
+        WorkspaceTerminationFenceReceipts =>
+        this.Set<WorkspaceTerminationFenceReceipt>();
     public DbSet<WorkspacePropertyProjection> PropertyProjections =>
         this.Set<WorkspacePropertyProjection>();
     public DbSet<WorkspaceProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints =>
@@ -104,11 +110,21 @@ public sealed class WorkspacesDbContext(
             .Any(entry =>
                 entry.State is
                     EntityState.Modified or EntityState.Deleted);
+        bool terminationMutationRequested = this.ChangeTracker
+            .Entries<WorkspaceTerminationFenceReceipt>()
+            .Any(entry =>
+                entry.State is
+                    EntityState.Modified or EntityState.Deleted);
+        bool terminationFenceDeletionRequested = this.ChangeTracker
+            .Entries<WorkspaceTerminationFence>()
+            .Any(entry => entry.State == EntityState.Deleted);
         if (retentionMutationRequested ||
             correctionMutationRequested ||
             restrictionMutationRequested ||
             anonymisationMutationRequested ||
-            restoreMutationRequested)
+            restoreMutationRequested ||
+            terminationMutationRequested ||
+            terminationFenceDeletionRequested)
         {
             throw new InvalidOperationException(
                 "Workspace immutable receipts are append-only.");

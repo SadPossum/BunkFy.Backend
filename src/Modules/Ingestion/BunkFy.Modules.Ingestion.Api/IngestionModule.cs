@@ -847,6 +847,13 @@ public sealed class IngestionModule : IModule
                     IngestionApplicationErrors.AdapterIngressGloballyStopped.Code,
                     IngestionApplicationErrors.AdapterIngressGloballyStopped.Message,
                     StatusCodes.Status503ServiceUnavailable),
+            AdapterIngressGateOutcome.PolicyRejected
+                when decision.PolicyRejection ==
+                    AdapterIngressPolicyRejection
+                        .TenantLifecycleRestricted => (
+                    IngestionApplicationErrors.TenantLifecycleRestricted.Code,
+                    IngestionApplicationErrors.TenantLifecycleRestricted.Message,
+                    StatusCodes.Status423Locked),
             _ => (
                 IngestionApplicationErrors.AdapterIngressControlUnavailable.Code,
                 IngestionApplicationErrors.AdapterIngressControlUnavailable.Message,
@@ -1229,6 +1236,8 @@ public sealed class IngestionModule : IModule
         new(IngestionApplicationErrors.AdapterIngressTenantSuspended.Code, StatusCodes.Status503ServiceUnavailable),
         new(IngestionApplicationErrors.AdapterIngressGloballyStopped.Code, StatusCodes.Status503ServiceUnavailable),
         new(IngestionApplicationErrors.AdapterIngressControlUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+        new(IngestionApplicationErrors.TenantLifecycleRestricted.Code, StatusCodes.Status423Locked),
+        new(IngestionApplicationErrors.TenantLifecycleAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(IngestionApplicationErrors.IngressCredentialsRequirePushMode.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.RemoteLeaseClaimInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.RemoteLeaseDescriptorMismatch.Code, StatusCodes.Status409Conflict),

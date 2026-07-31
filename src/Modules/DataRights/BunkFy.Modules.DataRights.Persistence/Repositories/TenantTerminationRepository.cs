@@ -35,7 +35,8 @@ internal sealed class TenantTerminationRepository(
         CancellationToken cancellationToken) =>
         dbContext.TenantTerminationProcesses.SingleOrDefaultAsync(
             process =>
-                process.Status != TenantTerminationProcessStatus.Completed,
+                process.Status != TenantTerminationProcessStatus.Completed &&
+                process.Status != TenantTerminationProcessStatus.Cancelled,
             cancellationToken);
 
     public Task<TenantTerminationProcess?> GetProcessByIdempotencyKeyAsync(

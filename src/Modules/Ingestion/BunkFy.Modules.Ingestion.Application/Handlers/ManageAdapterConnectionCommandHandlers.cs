@@ -20,7 +20,8 @@ internal sealed class CreateAdapterConnectionCommandHandler(
     IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
     IIdGenerator idGenerator,
-    ISystemClock clock)
+    ISystemClock clock,
+    IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null)
     : ICommandHandler<CreateAdapterConnectionCommand, AdapterConnectionDto>
 {
     public async Task<Result<AdapterConnectionDto>> HandleAsync(
@@ -30,6 +31,18 @@ internal sealed class CreateAdapterConnectionCommandHandler(
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
             return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ScopeRequired);
+        }
+
+        Result lifecycleAdmission =
+            await IngestionTenantLifecycleAdmission.AuthorizeAsync(
+                lifecyclePolicies,
+                scopeContext.ScopeId,
+                IngestionTenantLifecycleOperation.ConnectionProvisioning,
+                cancellationToken).ConfigureAwait(false);
+        if (lifecycleAdmission.IsFailure)
+        {
+            return Result.Failure<AdapterConnectionDto>(
+                lifecycleAdmission.Error);
         }
 
         CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(

@@ -34,7 +34,8 @@ public enum AdapterIngressPolicyRejection
     None = 0,
     TenantSuspended = 1,
     GlobalStopped = 2,
-    ScopeMismatch = 3
+    ScopeMismatch = 3,
+    TenantLifecycleRestricted = 4
 }
 
 public sealed record AdapterIngressGateDecision(

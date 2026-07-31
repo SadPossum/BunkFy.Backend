@@ -3,7 +3,10 @@ namespace BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Workspaces.Application.Ports;
+using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -19,14 +22,10 @@ public static class DependencyInjection
         this IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.AddPersistenceOptions(builder.Configuration);
-        builder.Services.TryAddModuleDbContext<WorkspacesDbContext>(options =>
-            options.UseConfiguredProvider(
-                builder.Configuration,
-                WorkspacesMigrations.SqlServerAssembly,
-                WorkspacesMigrations.PostgreSqlAssembly,
-                WorkspacesMigrations.Schema,
-                WorkspacesMigrations.HistoryTable));
+        builder.AddWorkspacesTerminationAdmissionPersistence();
+        builder.Services.TryAddScoped<
+            IWorkspaceTerminationFenceRepository,
+            WorkspaceTerminationFenceRepository>();
         builder.Services.TryAddScoped<
             IWorkspaceStaffOnboardingRepository,
             WorkspaceStaffOnboardingRepository>();
@@ -78,6 +77,10 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IProjectionRebuildWriter<PropertyTopologyProjectionExport>,
             WorkspacePropertiesProjectionRebuildWriter>();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(WorkspacesPersistenceRetryBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IUnitOfWork, WorkspacesUnitOfWork>());
         builder.Services.TryAddEnumerable(
@@ -92,6 +95,25 @@ public static class DependencyInjection
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IProjectionRebuildTransactionBoundary,
                 WorkspaceProjectionRebuildTransactionBoundary>());
+        return builder;
+    }
+
+    public static IHostApplicationBuilder
+        AddWorkspacesTerminationAdmissionPersistence(
+            this IHostApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddPersistenceOptions(builder.Configuration);
+        builder.Services.TryAddModuleDbContext<WorkspacesDbContext>(options =>
+            options.UseConfiguredProvider(
+                builder.Configuration,
+                WorkspacesMigrations.SqlServerAssembly,
+                WorkspacesMigrations.PostgreSqlAssembly,
+                WorkspacesMigrations.Schema,
+                WorkspacesMigrations.HistoryTable));
+        builder.Services.TryAddScoped<
+            IWorkspaceTerminationFenceReader,
+            WorkspaceTerminationFenceRepository>();
         return builder;
     }
 }

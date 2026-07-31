@@ -317,12 +317,43 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.False(await policy.IsAllowedAsync(approval with { ClaimId = null }));
     }
 
+    [Fact]
+    public async Task Admission_is_denied_while_workspace_termination_fence_is_active()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            terminationFence: new WorkspaceTerminationFenceSnapshot(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                WorkspaceTerminationFenceState.Frozen,
+                Version: 1));
+        IOrganizationJoinAdmissionPolicy policy = provider
+            .GetServices<IOrganizationJoinAdmissionPolicy>()
+            .Single();
+
+        bool allowed = await policy.IsAllowedAsync(new(
+            OrganizationJoinAdmissionOperation.ClaimEnrollment,
+            WorkspaceStaffOnboardingTests.OrganizationId,
+            application.SourceId,
+            null,
+            application.SubjectId,
+            application.SubjectId,
+            OrganizationEnrollmentApprovalMode.RequiresApproval));
+
+        Assert.False(allowed);
+    }
+
     private static ServiceProvider CreateProvider(
         FakeRepository applications,
         FakeStaffProvisioner staff,
         FakeAccessControl access,
         FakeJoinTokenInspector? tokens = null,
-        FakeContactReader? contacts = null)
+        FakeContactReader? contacts = null,
+        WorkspaceTerminationFenceSnapshot? terminationFence = null)
     {
         HostApplicationBuilder builder = new(new HostApplicationBuilderSettings
         {
@@ -364,6 +395,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IWorkspacePropertyProjectionRepository>(new FakePropertyProjectionRepository());
         services.AddSingleton<IOrganizationJoinTokenInspector>(tokenInspector);
         services.AddSingleton<IAuthMemberContactReader>(contacts ?? new FakeContactReader());
+        services.AddSingleton<IWorkspaceTerminationFenceReader>(
+            new FakeTerminationFenceReader(terminationFence));
         services.AddSingleton<IScopeContextAccessor>(new FakeScopeContext());
         services.AddSingleton<IScopeContext>(provider => provider.GetRequiredService<IScopeContextAccessor>());
         services.AddSingleton<ISystemClock>(new FakeClock());
@@ -756,6 +789,15 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             string scopeId,
             Guid memberId,
             CancellationToken cancellationToken = default) => ValueTask.FromResult(this.VerifiedEmail);
+    }
+
+    private sealed class FakeTerminationFenceReader(
+        WorkspaceTerminationFenceSnapshot? fence)
+        : IWorkspaceTerminationFenceReader
+    {
+        public Task<WorkspaceTerminationFenceSnapshot?> GetCurrentAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(fence);
     }
 
     private sealed class FakeScopeContext : IScopeContextAccessor

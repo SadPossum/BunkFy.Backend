@@ -599,6 +599,166 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("LastChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PolicyEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TerminationEpoch")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_workspace_termination_fences_active_scope")
+                        .HasFilter("\"State\" IN (1, 2, 3)");
+
+                    b.HasIndex("ScopeId", "ProcessId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "TerminationEpoch")
+                        .IsUnique();
+
+                    b.ToTable("workspace_termination_fences", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_workspace_termination_fence_policy_digest", "char_length(\"PolicyEvidenceSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_workspace_termination_fence_revisions", "\"ApprovalRevision\" >= 1 AND \"Version\" >= 1");
+
+                            t.HasCheckConstraint("CK_workspace_termination_fence_state", "\"State\" BETWEEN 1 AND 4");
+
+                            t.HasCheckConstraint("CK_workspace_termination_fence_timestamps", "\"CreatedAtUtc\" <= \"LastChangedAtUtc\"");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FenceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("OperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PolicyEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ResultingFenceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ResultingState")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedFenceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TerminationEpoch")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("WorkItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "FenceId");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ProcessId", "CompletedAtUtc");
+
+                    b.HasIndex("ScopeId", "ProcessId", "Action", "OperationRevision")
+                        .IsUnique();
+
+                    b.ToTable("workspace_termination_fence_receipts", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_workspace_termination_receipt_policy_digest", "char_length(\"PolicyEvidenceSha256\") = 64");
+
+                            t.HasCheckConstraint("CK_workspace_termination_receipt_revisions", "\"ApprovalRevision\" >= 1 AND \"OperationRevision\" >= 1 AND ((\"Action\" = 1 AND \"SelectedFenceVersion\" = 0 AND \"ResultingFenceVersion\" = 1 AND \"ResultingState\" = 1) OR (\"Action\" = 2 AND \"SelectedFenceVersion\" >= 1 AND \"ResultingFenceVersion\" = \"SelectedFenceVersion\" + 1 AND \"ResultingState\" = 2) OR (\"Action\" = 3 AND \"SelectedFenceVersion\" >= 2 AND \"ResultingFenceVersion\" = \"SelectedFenceVersion\" + 1 AND \"ResultingState\" = 3) OR (\"Action\" = 4 AND \"SelectedFenceVersion\" >= 1 AND \"ResultingFenceVersion\" = \"SelectedFenceVersion\" + 1 AND \"ResultingState\" = 4))");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1139,6 +1299,16 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                     b.HasOne("BunkFy.Modules.Workspaces.Domain.DataRights.WorkspaceStaffCorrelationAnonymisationTombstone", null)
                         .WithMany()
                         .HasForeignKey("ScopeId", "AnchorProcessId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "FenceId")
                         .HasPrincipalKey("ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

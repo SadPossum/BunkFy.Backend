@@ -427,6 +427,11 @@ internal sealed class ReceiveObservationCommandHandler(
             AdapterIngressGateOutcome.PolicyRejected
                 when decision.PolicyRejection == AdapterIngressPolicyRejection.GlobalStopped =>
                 IngestionApplicationErrors.AdapterIngressGloballyStopped,
+            AdapterIngressGateOutcome.PolicyRejected
+                when decision.PolicyRejection ==
+                    AdapterIngressPolicyRejection
+                        .TenantLifecycleRestricted =>
+                IngestionApplicationErrors.TenantLifecycleRestricted,
             _ => IngestionApplicationErrors.AdapterIngressControlUnavailable
         });
     }

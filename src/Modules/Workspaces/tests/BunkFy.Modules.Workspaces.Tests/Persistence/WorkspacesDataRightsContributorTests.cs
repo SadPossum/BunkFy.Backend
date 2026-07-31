@@ -368,7 +368,7 @@ public sealed class WorkspacesDataRightsContributorTests
         Assert.Equal(
             "workspaces.personal-data",
             contributor.Descriptor.CatalogId);
-        Assert.Equal(6, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(7, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             WorkspacesDataRightsExportSchema.ExportSchemaId,
             contributor.Descriptor.ExportSchemaId);

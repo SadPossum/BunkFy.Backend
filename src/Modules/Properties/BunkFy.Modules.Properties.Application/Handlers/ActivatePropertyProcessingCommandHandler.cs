@@ -21,7 +21,9 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
     IPropertyGovernanceRevisionWriter revisions,
     CountryPolicyRegistry countryPolicies,
     ISystemClock clock,
-    IIdGenerator idGenerator)
+    IIdGenerator idGenerator,
+    IEnumerable<IPropertyProcessingLifecyclePolicy>?
+        lifecyclePolicies = null)
     : ICommandHandler<ActivatePropertyProcessingCommand, PropertyDto>
 {
     internal const string AccommodationType = "hostel";
@@ -41,6 +43,16 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
         if (property is null)
         {
             return Result.Failure<PropertyDto>(PropertiesDomainErrors.PropertyNotFound);
+        }
+
+        Result lifecycleAdmission = await AuthorizeLifecycleAsync(
+            lifecyclePolicies,
+            property.ScopeId,
+            property.Id,
+            cancellationToken).ConfigureAwait(false);
+        if (lifecycleAdmission.IsFailure)
+        {
+            return Result.Failure<PropertyDto>(lifecycleAdmission.Error);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -117,6 +129,51 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
             cancellationToken).ConfigureAwait(false);
 
         return Result.Success(PropertiesMapper.ToDto(property));
+    }
+
+    private static async ValueTask<Result> AuthorizeLifecycleAsync(
+        IEnumerable<IPropertyProcessingLifecyclePolicy>? policies,
+        string tenantId,
+        Guid propertyId,
+        CancellationToken cancellationToken)
+    {
+        foreach (IPropertyProcessingLifecyclePolicy policy in policies ?? [])
+        {
+            PropertyProcessingLifecycleDecision decision;
+            try
+            {
+                decision = await policy.AuthorizeActivationAsync(
+                        tenantId,
+                        propertyId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception)
+                when (exception is not OperationCanceledException)
+            {
+                return Result.Failure(
+                    PropertiesApplicationErrors
+                        .ProcessingLifecycleAdmissionUnavailable);
+            }
+
+            if (decision.Outcome ==
+                PropertyProcessingLifecycleOutcome.Restricted)
+            {
+                return Result.Failure(
+                    PropertiesApplicationErrors
+                        .ProcessingLifecycleRestricted);
+            }
+
+            if (decision.Outcome !=
+                PropertyProcessingLifecycleOutcome.Allowed)
+            {
+                return Result.Failure(
+                    PropertiesApplicationErrors
+                        .ProcessingLifecycleAdmissionUnavailable);
+            }
+        }
+
+        return Result.Success();
     }
 
     private static Result<PropertyGovernanceBinding> CreateBinding(CountryPolicyEvidence evidence) =>

@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.TryAddScoped<
             IDataRightsRestoreCoordinator,
             DataRightsRestoreCoordinator>();
+        services.TryAddScoped<TenantTerminationCancellationCoordinator>();
         services.TryAddScoped<
             IDataRightsExportAssembler,
             DataRightsExportAssembler>();

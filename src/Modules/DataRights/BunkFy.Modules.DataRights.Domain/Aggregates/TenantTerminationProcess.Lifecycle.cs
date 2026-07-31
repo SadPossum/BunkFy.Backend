@@ -53,6 +53,89 @@ public sealed partial class TenantTerminationProcess
         return Result.Success();
     }
 
+    public Result RequestCancellation(
+        long expectedVersion,
+        string actorId,
+        DateTimeOffset nowUtc)
+    {
+        string normalizedActor = NormalizeActor(actorId);
+        if (this.Phase == TenantTerminationProcessPhase.Restore &&
+            this.Status == TenantTerminationProcessStatus.Pending &&
+            string.Equals(
+                normalizedActor,
+                this.LastChangedBy,
+                StringComparison.Ordinal) &&
+            nowUtc == this.LastChangedAtUtc)
+        {
+            return Result.Success();
+        }
+
+        Result ready = this.ValidateChange(expectedVersion, actorId, nowUtc);
+        if (ready.IsFailure)
+        {
+            return ready;
+        }
+
+        bool cancellable =
+            (this.Phase == TenantTerminationProcessPhase.Export &&
+                this.Status is
+                    TenantTerminationProcessStatus.Pending or
+                    TenantTerminationProcessStatus.Blocked or
+                    TenantTerminationProcessStatus.Failed) ||
+            (this.Phase == TenantTerminationProcessPhase.Destroy &&
+                this.Status == TenantTerminationProcessStatus.Pending);
+        if (!cancellable)
+        {
+            return Result.Failure(
+                DataRightsDomainErrors.TenantTerminationTransitionInvalid);
+        }
+
+        this.Phase = TenantTerminationProcessPhase.Restore;
+        this.Status = TenantTerminationProcessStatus.Pending;
+        this.ClearOutcome();
+        this.CompleteChange(normalizedActor, nowUtc);
+        return Result.Success();
+    }
+
+    public Result CompleteCancellation(
+        long operationRevision,
+        long expectedVersion,
+        string actorId,
+        DateTimeOffset nowUtc)
+    {
+        string normalizedActor = NormalizeActor(actorId);
+        if (this.Phase == TenantTerminationProcessPhase.Restore &&
+            this.Status == TenantTerminationProcessStatus.Cancelled &&
+            operationRevision == this.OperationRevision &&
+            string.Equals(
+                normalizedActor,
+                this.LastChangedBy,
+                StringComparison.Ordinal) &&
+            nowUtc == this.LastChangedAtUtc)
+        {
+            return Result.Success();
+        }
+
+        Result ready = this.ValidateChange(expectedVersion, actorId, nowUtc);
+        if (ready.IsFailure)
+        {
+            return ready;
+        }
+
+        if (this.Phase != TenantTerminationProcessPhase.Restore ||
+            this.Status != TenantTerminationProcessStatus.Running ||
+            operationRevision != this.OperationRevision)
+        {
+            return Result.Failure(
+                DataRightsDomainErrors.TenantTerminationTransitionInvalid);
+        }
+
+        this.Status = TenantTerminationProcessStatus.Cancelled;
+        this.ClearOutcome();
+        this.CompleteChange(normalizedActor, nowUtc);
+        return Result.Success();
+    }
+
     public Result CompletePhase(
         TenantTerminationProcessPhase phase,
         long operationRevision,
@@ -85,7 +168,8 @@ public sealed partial class TenantTerminationProcess
 
         if (phase != this.Phase ||
             operationRevision != this.OperationRevision ||
-            this.Status != TenantTerminationProcessStatus.Running)
+            this.Status != TenantTerminationProcessStatus.Running ||
+            phase == TenantTerminationProcessPhase.Restore)
         {
             return Result.Failure(
                 DataRightsDomainErrors.TenantTerminationTransitionInvalid);

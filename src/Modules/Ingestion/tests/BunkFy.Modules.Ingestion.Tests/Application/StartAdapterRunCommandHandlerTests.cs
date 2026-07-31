@@ -10,6 +10,7 @@ using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Handlers;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 using Xunit;
@@ -91,13 +92,71 @@ public sealed class StartAdapterRunCommandHandlerTests
         Assert.Single(runs.Items);
     }
 
+    [Fact]
+    public async Task Tenant_lifecycle_restriction_denies_before_connection_or_run_access()
+    {
+        AdapterConnection connection = AdapterConnection.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            "fake.http",
+            AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main",
+            null,
+            Now).Value;
+        FakeConnectionRepository connections = new(connection);
+        FakeRunRepository runs = new();
+        StartAdapterRunCommandHandler handler = new(
+            connections,
+            new TestCountryPolicyAdmission(),
+            runs,
+            new TestDescriptors(),
+            new TestScope(),
+            new TestIds(),
+            new TestClock(),
+            [new TestLifecyclePolicy(
+                IngestionTenantLifecycleDecision.Restricted)]);
+
+        var result = await handler.HandleAsync(
+            new StartAdapterRunCommand(
+                connection.Id,
+                Guid.NewGuid(),
+                1),
+            CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.TenantLifecycleRestricted,
+            result.Error);
+        Assert.Equal(0, connections.ReadCount);
+        Assert.Empty(runs.Items);
+    }
+
     private sealed class FakeConnectionRepository(AdapterConnection connection) : IAdapterConnectionRepository
     {
-        public Task<AdapterConnection?> GetAsync(Guid connectionId, CancellationToken cancellationToken) =>
-            Task.FromResult<AdapterConnection?>(connectionId == connection.Id ? connection : null);
+        public int ReadCount { get; private set; }
 
-        public Task<AdapterConnection?> GetAsync(Guid propertyId, Guid connectionId, CancellationToken cancellationToken) =>
-            Task.FromResult<AdapterConnection?>(propertyId == connection.PropertyId && connectionId == connection.Id ? connection : null);
+        public Task<AdapterConnection?> GetAsync(
+            Guid connectionId,
+            CancellationToken cancellationToken)
+        {
+            this.ReadCount++;
+            return Task.FromResult<AdapterConnection?>(
+                connectionId == connection.Id ? connection : null);
+        }
+
+        public Task<AdapterConnection?> GetAsync(
+            Guid propertyId,
+            Guid connectionId,
+            CancellationToken cancellationToken)
+        {
+            this.ReadCount++;
+            return Task.FromResult<AdapterConnection?>(
+                propertyId == connection.PropertyId &&
+                connectionId == connection.Id
+                    ? connection
+                    : null);
+        }
 
         public Task AddAsync(AdapterConnection added, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -156,5 +215,16 @@ public sealed class StartAdapterRunCommandHandlerTests
             descriptor = adapterType == Descriptor.AdapterType ? Descriptor : null;
             return descriptor is not null;
         }
+    }
+
+    private sealed class TestLifecyclePolicy(
+        IngestionTenantLifecycleDecision decision)
+        : IIngestionTenantLifecyclePolicy
+    {
+        public ValueTask<IngestionTenantLifecycleDecision> AuthorizeAsync(
+            string tenantId,
+            IngestionTenantLifecycleOperation operation,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(decision);
     }
 }

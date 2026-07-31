@@ -33,13 +33,20 @@ internal sealed class IngestionSecuritySignalDefinitions
             SecuritySignalCategory.Integration,
             SecuritySignalSeverity.Warning);
 
+    public static readonly SecuritySignalDefinition
+        AdapterTenantLifecycleRestrictionEnforced = new(
+            "ingestion.adapter-tenant-lifecycle-restriction-enforced",
+            SecuritySignalCategory.Integration,
+            SecuritySignalSeverity.Warning);
+
     private static readonly SecuritySignalDefinition[] All =
     [
         AdapterScopeRejected,
         AdapterQuotaRejected,
         AdapterAdmissionProviderUnavailable,
         AdapterGlobalStopEnforced,
-        AdapterTenantSuspensionEnforced
+        AdapterTenantSuspensionEnforced,
+        AdapterTenantLifecycleRestrictionEnforced
     ];
 
     public IReadOnlyCollection<SecuritySignalDefinition> Definitions => All;
@@ -61,6 +68,9 @@ internal sealed class IngestionSecuritySignalDefinitions
                         AdapterGlobalStopEnforced,
                     AdapterIngressPolicyRejection.TenantSuspended =>
                         AdapterTenantSuspensionEnforced,
+                    AdapterIngressPolicyRejection
+                        .TenantLifecycleRestricted =>
+                        AdapterTenantLifecycleRestrictionEnforced,
                     _ => null
                 },
             _ => null

@@ -4,9 +4,12 @@ using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Api.Modules;
+using Gma.Framework.Api.Tenancy;
 using Gma.Framework.ModuleComposition;
 using Gma.Modules.Auth.Contracts;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 public sealed class WorkspacesModule : IModule
@@ -22,6 +25,9 @@ public sealed class WorkspacesModule : IModule
             builder.Configuration,
             globalAuthScopeId);
         builder.AddWorkspacesPersistence();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            ITenantEndpointAccessPolicy,
+            WorkspaceTerminationEndpointAccessPolicy>());
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

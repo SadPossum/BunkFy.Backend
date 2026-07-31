@@ -42,6 +42,7 @@ public sealed class PersonalDataOutputSinkGuardTests
         "ingestion.adapter-global-stop-enforced",
         "ingestion.adapter-quota-rejected",
         "ingestion.adapter-scope-rejected",
+        "ingestion.adapter-tenant-lifecycle-restriction-enforced",
         "ingestion.adapter-tenant-suspension-enforced",
         "retention.scheduled-execution-failed",
         "retention.scheduled-execution-timed-out"

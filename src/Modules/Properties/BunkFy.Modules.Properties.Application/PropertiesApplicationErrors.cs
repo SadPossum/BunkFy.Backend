@@ -30,6 +30,12 @@ public static class PropertiesApplicationErrors
     public static readonly Error BedAlreadyRetired = PropertiesDomainErrors.BedAlreadyRetired;
     public static readonly Error BedRetirementRequiresInventory = PropertiesDomainErrors.BedRetirementRequiresInventory;
     public static readonly Error RoomRetirementRequiresInventory = PropertiesDomainErrors.RoomRetirementRequiresInventory;
+    public static readonly Error ProcessingLifecycleRestricted = new(
+        "Properties.ProcessingLifecycleRestricted",
+        "The workspace lifecycle does not permit property activation.");
+    public static readonly Error ProcessingLifecycleAdmissionUnavailable = new(
+        "Properties.ProcessingLifecycleAdmissionUnavailable",
+        "Workspace lifecycle admission is temporarily unavailable.");
 
     public static Error CountryPolicyDenied(CountryPolicyDecisionReason reason) =>
         new(

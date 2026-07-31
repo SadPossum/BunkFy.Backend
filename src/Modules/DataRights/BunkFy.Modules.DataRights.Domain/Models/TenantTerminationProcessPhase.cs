@@ -7,5 +7,6 @@ public enum TenantTerminationProcessPhase
     Export = 2,
     Destroy = 3,
     Verify = 4,
-    Completed = 5
+    Completed = 5,
+    Restore = 6
 }

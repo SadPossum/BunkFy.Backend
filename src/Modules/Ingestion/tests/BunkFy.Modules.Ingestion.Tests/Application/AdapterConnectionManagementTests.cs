@@ -51,6 +51,36 @@ public sealed class AdapterConnectionManagementTests
     }
 
     [Fact]
+    public async Task Create_is_denied_by_tenant_lifecycle_before_domain_state_is_added()
+    {
+        FakeConnectionRepository connections = new();
+        CreateAdapterConnectionCommandHandler handler = new(
+            connections,
+            new TestCountryPolicyAdmission(),
+            new TestDescriptors(),
+            new TestScope(),
+            new TestIds(),
+            new TestClock(),
+            [new TestLifecyclePolicy(
+                IngestionTenantLifecycleDecision.Restricted)]);
+
+        var result = await handler.HandleAsync(
+            new CreateAdapterConnectionCommand(
+                Guid.NewGuid(),
+                "fake.http",
+                AdapterExecutionMode.Polling,
+                AdapterConflictPolicy.SuggestionsOnly,
+                "configuration://main",
+                null),
+            CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.TenantLifecycleRestricted,
+            result.Error);
+        Assert.Empty(connections.Items);
+    }
+
+    [Fact]
     public async Task Update_and_disable_use_property_scope_and_expected_version()
     {
         Guid propertyId = Guid.NewGuid();
@@ -240,5 +270,16 @@ public sealed class AdapterConnectionManagementTests
                 : null;
             return descriptor is not null;
         }
+    }
+
+    private sealed class TestLifecyclePolicy(
+        IngestionTenantLifecycleDecision decision)
+        : IIngestionTenantLifecyclePolicy
+    {
+        public ValueTask<IngestionTenantLifecycleDecision> AuthorizeAsync(
+            string tenantId,
+            IngestionTenantLifecycleOperation operation,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(decision);
     }
 }

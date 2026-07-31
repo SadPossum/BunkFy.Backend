@@ -7,5 +7,6 @@ public enum TenantTerminationProcessStatus
     Running = 2,
     Blocked = 3,
     Failed = 4,
-    Completed = 5
+    Completed = 5,
+    Cancelled = 6
 }

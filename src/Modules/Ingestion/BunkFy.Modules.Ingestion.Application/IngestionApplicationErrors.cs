@@ -44,6 +44,12 @@ public static class IngestionApplicationErrors
     public static readonly Error AdapterIngressTenantSuspended = new("Ingestion.AdapterIngressTenantSuspended", "Third-party adapter ingress is suspended for this tenant.");
     public static readonly Error AdapterIngressGloballyStopped = new("Ingestion.AdapterIngressGloballyStopped", "Third-party adapter ingress is temporarily stopped.");
     public static readonly Error AdapterIngressControlUnavailable = new("Ingestion.AdapterIngressControlUnavailable", "Third-party adapter ingress admission is temporarily unavailable.");
+    public static readonly Error TenantLifecycleRestricted = new(
+        "Ingestion.TenantLifecycleRestricted",
+        "The workspace lifecycle does not permit this ingestion operation.");
+    public static readonly Error TenantLifecycleAdmissionUnavailable = new(
+        "Ingestion.TenantLifecycleAdmissionUnavailable",
+        "Workspace lifecycle admission is temporarily unavailable.");
     public static readonly Error RemoteLeaseClaimInvalid = new("Ingestion.RemoteLeaseClaimInvalid", "The remote adapter lease claim is invalid.");
     public static readonly Error RemoteLeaseDescriptorMismatch = new("Ingestion.RemoteLeaseDescriptorMismatch", "The remote adapter descriptor does not match the registered connection capability.");
     public static readonly Error RemoteLeaseUnavailable = new("Ingestion.RemoteLeaseUnavailable", "The remote adapter connection is currently assigned.");

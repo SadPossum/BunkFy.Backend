@@ -963,17 +963,17 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_process_attribution", "length(trim(\"CreatedBy\")) > 0 AND length(trim(\"LastChangedBy\")) > 0");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_completion", "(\"Phase\" = 5 AND \"Status\" = 5) OR (\"Phase\" BETWEEN 1 AND 4 AND \"Status\" BETWEEN 1 AND 4)");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_completion", "(\"Phase\" = 5 AND \"Status\" = 5) OR (\"Phase\" = 6 AND \"Status\" IN (1, 2, 3, 4, 6)) OR (\"Phase\" BETWEEN 1 AND 4 AND \"Status\" BETWEEN 1 AND 4)");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_operation", "\"OperationRevision\" >= 0 AND ((\"Status\" = 1 AND \"OperationRevision\" >= 0) OR (\"Status\" BETWEEN 2 AND 5 AND \"OperationRevision\" >= 1))");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_operation", "\"OperationRevision\" >= 0 AND ((\"Status\" = 1 AND \"OperationRevision\" >= 0) OR (\"Status\" BETWEEN 2 AND 6 AND \"OperationRevision\" >= 1))");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_outcome", "(\"Status\" = 3 AND \"OutcomeCode\" IS NOT NULL AND \"HoldReviewAtUtc\" IS NOT NULL AND \"HoldReviewAtUtc\" >= \"LastChangedAtUtc\") OR (\"Status\" = 4 AND \"OutcomeCode\" IS NOT NULL AND \"HoldReviewAtUtc\" IS NULL) OR (\"Status\" IN (1, 2, 5) AND \"OutcomeCode\" IS NULL AND \"HoldReviewAtUtc\" IS NULL)");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_outcome", "(\"Status\" = 3 AND \"OutcomeCode\" IS NOT NULL AND \"HoldReviewAtUtc\" IS NOT NULL AND \"HoldReviewAtUtc\" >= \"LastChangedAtUtc\") OR (\"Status\" = 4 AND \"OutcomeCode\" IS NOT NULL AND \"HoldReviewAtUtc\" IS NULL) OR (\"Status\" IN (1, 2, 5, 6) AND \"OutcomeCode\" IS NULL AND \"HoldReviewAtUtc\" IS NULL)");
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_process_outcome_code", "\"OutcomeCode\" IS NULL OR \"OutcomeCode\" ~ '^[a-z0-9][a-z0-9._-]{0,199}$'");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_phase", "\"Phase\" BETWEEN 1 AND 5");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_phase", "\"Phase\" BETWEEN 1 AND 6");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_status", "\"Status\" BETWEEN 1 AND 5");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_status", "\"Status\" BETWEEN 1 AND 6");
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_process_timestamps", "\"LastChangedAtUtc\" >= \"CreatedAtUtc\"");
 

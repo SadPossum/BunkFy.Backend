@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Ingestion.Tests.Application;
 using BunkFy.Adapter.Abstractions;
 using BunkFy.Modules.Ingestion.Application.Ingress;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Controls;
 using Gma.Framework.Observability;
 using Gma.Framework.RateLimiting;
@@ -131,6 +132,70 @@ public sealed class AdapterIngressGateTests
     }
 
     [Fact]
+    public async Task Tenant_lifecycle_restriction_denies_before_control_or_quota_access()
+    {
+        RecordingLimiter limiter = new();
+        TestControlRepository controls = new(
+            new AdapterIngressControlSnapshot(false, false));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        AdapterIngressGate gate = CreateGate(
+            limiter,
+            controls,
+            new TestScopeContext(Identity.ScopeId),
+            securitySignals,
+            [new TestLifecyclePolicy(
+                IngestionTenantLifecycleDecision.Restricted)]);
+
+        AdapterIngressGateDecision decision = await gate.AdmitAsync(
+            Identity,
+            AdapterIngressOperation.Observation,
+            permitCount: 1,
+            consumeQuota: true,
+            CancellationToken.None);
+
+        Assert.Equal(AdapterIngressGateOutcome.PolicyRejected, decision.Outcome);
+        Assert.Equal(
+            AdapterIngressPolicyRejection.TenantLifecycleRestricted,
+            decision.PolicyRejection);
+        Assert.Equal(0, controls.AdmissionReadCount);
+        Assert.Empty(limiter.Requests);
+        Assert.Equal(
+            "ingestion.adapter-tenant-lifecycle-restriction-enforced",
+            Assert.Single(securitySignals.Definitions).Code);
+    }
+
+    [Fact]
+    public async Task Tenant_lifecycle_provider_failure_is_unavailable_fail_closed()
+    {
+        RecordingLimiter limiter = new();
+        TestControlRepository controls = new(
+            new AdapterIngressControlSnapshot(false, false));
+        RecordingSecuritySignalRecorder securitySignals = new();
+        AdapterIngressGate gate = CreateGate(
+            limiter,
+            controls,
+            new TestScopeContext(Identity.ScopeId),
+            securitySignals,
+            [new TestLifecyclePolicy(exception: new InvalidOperationException())]);
+
+        AdapterIngressGateDecision decision = await gate.AdmitAsync(
+            Identity,
+            AdapterIngressOperation.Observation,
+            permitCount: 1,
+            consumeQuota: true,
+            CancellationToken.None);
+
+        Assert.Equal(
+            AdapterIngressGateOutcome.ProviderUnavailable,
+            decision.Outcome);
+        Assert.Equal(0, controls.AdmissionReadCount);
+        Assert.Empty(limiter.Requests);
+        Assert.Equal(
+            "ingestion.adapter-admission-provider-unavailable",
+            Assert.Single(securitySignals.Definitions).Code);
+    }
+
+    [Fact]
     public async Task Provider_unavailability_is_returned_fail_closed()
     {
         RecordingLimiter limiter = new(MultiPartitionRateLimitDecision.ProviderUnavailable());
@@ -253,13 +318,15 @@ public sealed class AdapterIngressGateTests
         RecordingLimiter limiter,
         TestControlRepository controls,
         TestScopeContext scopeContext,
-        RecordingSecuritySignalRecorder? securitySignals = null) =>
+        RecordingSecuritySignalRecorder? securitySignals = null,
+        IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null) =>
         new(
             controls,
             limiter,
             Options.Create(new AdapterIngressQuotaOptions()),
             scopeContext,
-            securitySignals ?? new RecordingSecuritySignalRecorder());
+            securitySignals ?? new RecordingSecuritySignalRecorder(),
+            lifecyclePolicies);
 
     private sealed class RecordingLimiter(
         MultiPartitionRateLimitDecision? decision = null)
@@ -317,5 +384,21 @@ public sealed class AdapterIngressGateTests
                 correlationId?.ToString("N") ?? new string('0', 32),
                 true);
         }
+    }
+
+    private sealed class TestLifecyclePolicy(
+        IngestionTenantLifecycleDecision? decision = null,
+        Exception? exception = null)
+        : IIngestionTenantLifecyclePolicy
+    {
+        public ValueTask<IngestionTenantLifecycleDecision> AuthorizeAsync(
+            string tenantId,
+            IngestionTenantLifecycleOperation operation,
+            CancellationToken cancellationToken = default) =>
+            exception is null
+                ? ValueTask.FromResult(
+                    decision ?? IngestionTenantLifecycleDecision.Allowed)
+                : ValueTask.FromException<
+                    IngestionTenantLifecycleDecision>(exception);
     }
 }
