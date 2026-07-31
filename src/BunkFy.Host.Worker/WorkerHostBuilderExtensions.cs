@@ -80,6 +80,9 @@ public static class WorkerHostBuilderExtensions
 
         WorkerHostOptions workerOptions = WorkerHostOptions.FromConfiguration(builder.Configuration);
         builder.Services.AddSingleton(workerOptions);
+        builder.AddBunkFyOperationsNotificationsProductionAdmission(
+            OperationsNotificationsProductionHostRole.Worker,
+            workerOptions.Modules.Notifications);
         builder.AddBunkFyCountryPolicies();
 
         builder.AddRedisCaching();

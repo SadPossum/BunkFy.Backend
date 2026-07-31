@@ -34,3 +34,15 @@ GMA Notifications owns generic inbox persistence, paging, delivery-lease
 coordination, close receipts, and replay suppression. This extension adapts
 those primitives to BunkFy's Staff, reservation, and Ingestion source-link Data
 Rights coordinates; no BunkFy policy is implemented in GMA.
+
+## Production Admission
+
+GMA's generic retention engine remains disabled until BunkFy supplies an
+approved product policy. API, Worker, and Admin API share a fail-closed
+production admission contract tied to the exact embedded catalogue version and
+SHA-256, approved runtime windows, one cleanup owner, and an explicit
+pre-reference history disposition.
+
+Repository defaults remain pending and are not production-admissible. The
+deployment workflow is documented in
+[Operations Notifications Production Admission](../../../../docs/operations/operations-notifications-production-admission.md).

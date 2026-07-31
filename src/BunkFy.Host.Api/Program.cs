@@ -80,6 +80,8 @@ AuthenticationAssuranceRequirement destructiveOperationAssurance =
 
 builder.Host.UseConfiguredSerilog();
 builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.PublicApi);
+builder.AddBunkFyOperationsNotificationsProductionAdmission(
+    OperationsNotificationsProductionHostRole.PublicApi);
 
 builder.AddUserNotificationsCqrs();
 builder.AddUserNotificationsRealtime();

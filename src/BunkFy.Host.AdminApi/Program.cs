@@ -33,6 +33,7 @@ using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
 using BunkFy.Parsers.ReservationMail;
+using BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Extensions.Workspaces;
 using BunkFy.Host.ServiceDefaults;
 using BunkFy.Host.ServiceDefaults.Production;
@@ -64,6 +65,8 @@ AuthenticationAssuranceRequirement adminOperationAssurance =
 
 builder.Host.UseConfiguredSerilog();
 builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.AdminApi);
+builder.AddBunkFyOperationsNotificationsProductionAdmission(
+    OperationsNotificationsProductionHostRole.AdminApi);
 
 builder.Services.AddGmaAdministrationApi(builder.Configuration);
 builder.Services.AddBunkFyAdminApiResourceScopes();

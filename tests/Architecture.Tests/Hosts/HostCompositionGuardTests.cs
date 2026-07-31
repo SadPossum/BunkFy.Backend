@@ -64,6 +64,7 @@ public sealed class HostCompositionGuardTests
             "builder.AddAuthTotpAuthenticator();",
             "builder.AddAuthOpenIdConnectProviders();",
             "builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.PublicApi);",
+            "OperationsNotificationsProductionHostRole.PublicApi",
             "builder.AddGmaProductionDataProtection();",
             "builder.AddMinioFileStorage();",
             "builder.AddUserNotificationsRealtime();",
@@ -163,6 +164,99 @@ public sealed class HostCompositionGuardTests
             ".AddBunkFyOperationsIngestionNotifications();",
             worker,
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Operations_notification_retention_is_pending_and_single_owner_admission_is_composed()
+    {
+        (string Host, string Role)[] hosts =
+        [
+            ("BunkFy.Host.Api", "OperationsNotificationsProductionHostRole.PublicApi"),
+            ("BunkFy.Host.AdminApi", "OperationsNotificationsProductionHostRole.AdminApi"),
+            ("BunkFy.Host.Worker", "OperationsNotificationsProductionHostRole.Worker")
+        ];
+
+        foreach ((string host, string role) in hosts)
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.json"));
+            JsonElement admission = document.RootElement
+                .GetProperty("BunkFy")
+                .GetProperty("OperationsNotifications")
+                .GetProperty("ProductionAdmission");
+            JsonElement notifications =
+                document.RootElement.GetProperty("Notifications");
+            JsonElement retention =
+                notifications.GetProperty("Retention");
+            JsonElement delivery =
+                notifications.GetProperty("Delivery");
+
+            Assert.Equal(
+                "Pending",
+                admission.GetProperty("ApprovalState").GetString());
+            Assert.Equal(
+                JsonValueKind.Null,
+                admission.GetProperty("ApprovalReference").ValueKind);
+            Assert.Equal(5, admission.GetProperty("CatalogVersion").GetInt32());
+            Assert.Equal(
+                JsonValueKind.Null,
+                admission.GetProperty("CatalogSha256").ValueKind);
+            Assert.Equal(
+                retention.GetProperty("ReadHistoryDays").GetInt32(),
+                admission.GetProperty("ReadHistoryDays").GetInt32());
+            Assert.Equal(
+                retention.GetProperty("UnreadHistoryDays").GetInt32(),
+                admission.GetProperty("UnreadHistoryDays").GetInt32());
+            Assert.Equal(
+                retention.GetProperty("BroadcastDays").GetInt32(),
+                admission.GetProperty("BroadcastDays").GetInt32());
+            Assert.Equal(
+                delivery.GetProperty("AttemptRetentionDays").GetInt32(),
+                admission.GetProperty("DeliveryAttemptDays").GetInt32());
+            Assert.Equal(
+                "Unspecified",
+                admission.GetProperty("LegacyHistoryDisposition").GetString());
+            Assert.Equal(
+                "Unspecified",
+                admission.GetProperty("RetentionOwner").GetString());
+            Assert.Equal(
+                0,
+                admission.GetProperty("RetentionOwnerInstanceCount").GetInt32());
+            Assert.False(retention.GetProperty("Enabled").GetBoolean());
+
+            string composition = host == "BunkFy.Host.Worker"
+                ? RepositoryPaths.Read(
+                    "src",
+                    host,
+                    "WorkerHostBuilderExtensions.cs")
+                : RepositoryPaths.Read("src", host, "Program.cs");
+            Assert.Contains(
+                "AddBunkFyOperationsNotificationsProductionAdmission",
+                composition,
+                StringComparison.Ordinal);
+            Assert.Contains(role, composition, StringComparison.Ordinal);
+        }
+
+        string adminProject = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.AdminApi",
+            "BunkFy.Host.AdminApi.csproj");
+        Assert.Contains(
+            "BunkFy.Extensions.Operations.Notifications.csproj",
+            adminProject,
+            StringComparison.Ordinal);
+
+        using JsonDocument migrations = JsonDocument.Parse(
+            RepositoryPaths.Read(
+                "src",
+                "BunkFy.Host.Migrations",
+                "appsettings.json"));
+        Assert.False(
+            migrations.RootElement
+                .GetProperty("Notifications")
+                .GetProperty("Retention")
+                .GetProperty("Enabled")
+                .GetBoolean());
     }
 
     [Fact]

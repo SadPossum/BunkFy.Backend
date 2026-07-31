@@ -20,4 +20,12 @@ Current web-inbox coverage is intentionally low-noise:
 
 These notifications respect recipient preferences. Security notifications remain mandatory. Guest-profile edits, successful provider receipts, check-in/check-out, and other routine CRUD activity stay quiet; add coverage only when a durable source event and an unambiguous recipient policy exist.
 
-The worker composes Auth, Organizations, Staff, Notifications, and the two extensions when their module switches are enabled. Operations notifications are not registered without the authoritative Organizations filter. Notifications admin endpoints expose tag, routing, delivery, and retry operations. Retention is configured but disabled until an operations policy is approved.
+The worker composes Auth, Organizations, Staff, Notifications, and the two extensions when their module switches are enabled. Operations notifications are not registered without the authoritative Organizations filter. Notifications admin endpoints expose tag, routing, delivery, and retry operations.
+
+Generic GMA notification retention is configured but disabled in repository
+defaults. Production API, Worker, and Admin API processes fail closed until the
+exact Operations Notifications catalogue and retention windows are approved,
+legacy pre-reference history is resolved, and one cleanup owner is selected.
+The owner runs GMA's existing bounded cleanup; BunkFy adds no second retention
+engine and never writes GMA notification tables directly. See
+[Operations Notifications Production Admission](../operations/operations-notifications-production-admission.md).

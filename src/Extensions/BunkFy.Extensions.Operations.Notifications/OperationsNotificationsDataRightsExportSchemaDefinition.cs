@@ -10,9 +10,6 @@ using BunkFy.Modules.DataRights.Contracts;
 internal sealed class
     OperationsNotificationsDataRightsExportSchemaDefinition<TValue>
 {
-    private const string CatalogResourceName =
-        "BunkFy.Extensions.Operations.Notifications.DataGovernance.personal-data-catalog.v1.json";
-
     private static readonly JsonSerializerOptions ValueSerializerOptions =
         CreateSerializerOptions();
 
@@ -109,29 +106,8 @@ internal sealed class
 
     private SchemaState Load()
     {
-        Assembly assembly =
-            typeof(OperationsNotificationsDataRightsExportSchema)
-                .Assembly;
-        using Stream stream =
-            assembly.GetManifestResourceStream(CatalogResourceName) ??
-            throw new InvalidDataException(
-                "The Operations Notifications personal-data catalogue is unavailable.");
-        using MemoryStream buffer = new();
-        stream.CopyTo(buffer);
         PersonalDataCatalogDocument catalog =
-            PersonalDataCatalogJson.Parse(buffer.ToArray());
-        if (!string.Equals(
-                catalog.CatalogId,
-                "operations-notifications.personal-data",
-                StringComparison.Ordinal) ||
-            !string.Equals(
-                catalog.Module,
-                OperationsNotificationsDataRightsCoordinates.Owner,
-                StringComparison.Ordinal))
-        {
-            throw new InvalidDataException(
-                "The Operations Notifications personal-data catalogue identity is invalid.");
-        }
+            OperationsNotificationsPersonalDataCatalog.Current.Document;
 
         Type sourceType = typeof(TValue);
         HashSet<string> expectedMembers = sourceType
