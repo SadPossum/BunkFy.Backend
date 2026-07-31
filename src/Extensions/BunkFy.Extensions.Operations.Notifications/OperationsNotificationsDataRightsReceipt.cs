@@ -10,10 +10,14 @@ internal static class OperationsNotificationsDataRightsReceipt
 {
     public const int ContractVersion = 1;
     public const int MaximumRecords = 1_000;
+    public const int StaffMaximumRecords =
+        NotificationHistoryLifecycleLimits.MaximumCloseRecords;
     public const string DispositionCode =
         "operations-notifications.completed";
     public const string ReasonCode =
         "operations-notifications.reservation-history-removed";
+    public const string StaffReasonCode =
+        "operations-notifications.staff-inbox-history-removed";
 
     public static bool IsValid(
         NotificationHistoryReferenceCloseReceipt? receipt,

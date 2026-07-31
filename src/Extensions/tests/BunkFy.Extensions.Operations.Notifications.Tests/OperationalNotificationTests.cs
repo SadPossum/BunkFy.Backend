@@ -4,8 +4,8 @@ using System.Text.Json;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
-using Gma.Framework.Notifications;
 using Gma.Framework.Messaging;
+using Gma.Framework.Notifications;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
@@ -43,7 +43,11 @@ public sealed class OperationalNotificationTests
         var workspaceOwners = new TestWorkspaceOwnerAudienceReader(["owner-a", "user-b"]);
         var access = new TestOrganizationAccessCandidateFilter();
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(audience, workspaceOwners, access, notifications);
+        var projector = CreateProjector(
+            audience,
+            workspaceOwners,
+            access,
+            notifications);
         var handler = new ReservationCancelledNotificationHandler(projector);
         Guid sourceEventId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         Guid reservationId =
@@ -76,7 +80,11 @@ public sealed class OperationalNotificationTests
                         .ForReservation(
                             ScopeId,
                             propertyId,
-                            reservationId)
+                            reservationId),
+                    OperationsNotificationsDataRightsCoordinates
+                        .ForStaff(
+                            ScopeId,
+                            StaffMemberIdFor(item.UserId))
                 ],
                 item.References);
         });
@@ -93,7 +101,7 @@ public sealed class OperationalNotificationTests
     public async Task Successful_provider_operation_does_not_create_an_attention_notification()
     {
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader(["user-a"]),
             new TestWorkspaceOwnerAudienceReader(["owner-a"]),
             new TestOrganizationAccessCandidateFilter(),
@@ -123,7 +131,7 @@ public sealed class OperationalNotificationTests
     public async Task Arrival_reminder_omits_guest_identity_and_keeps_exact_reservation_navigation_payload()
     {
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader(["user-a"]),
             new TestWorkspaceOwnerAudienceReader([]),
             new TestOrganizationAccessCandidateFilter(),
@@ -158,7 +166,7 @@ public sealed class OperationalNotificationTests
     public async Task Legacy_arrival_reminder_projects_the_same_minimized_notification()
     {
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader(["user-a"]),
             new TestWorkspaceOwnerAudienceReader([]),
             new TestOrganizationAccessCandidateFilter(),
@@ -185,7 +193,7 @@ public sealed class OperationalNotificationTests
     public async Task Property_event_excludes_the_initiating_user_without_suppressing_other_recipients()
     {
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader(["user-a", "user-b"]),
             new TestWorkspaceOwnerAudienceReader(["owner-a"]),
             new TestOrganizationAccessCandidateFilter(),
@@ -210,7 +218,7 @@ public sealed class OperationalNotificationTests
     {
         var access = new TestOrganizationAccessCandidateFilter(["user-a"]);
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader(["user-a", "stale-staff"]),
             new TestWorkspaceOwnerAudienceReader(["stale-owner"]),
             access,
@@ -232,12 +240,14 @@ public sealed class OperationalNotificationTests
         string[] candidates = Enumerable.Range(0, 1001)
             .Select(index => $"user-{index:D4}")
             .ToArray();
-        var access = new TestOrganizationAccessCandidateFilter([]);
-        var projector = new OperationalNotificationProjector(
+        var access = new TestOrganizationAccessCandidateFilter();
+        var recipientResolver = new TestRecipientResolver();
+        var projector = CreateProjector(
             new TestAudienceReader(candidates),
             new TestWorkspaceOwnerAudienceReader([]),
             access,
-            new CapturingProjector());
+            new CapturingProjector(),
+            recipientResolver);
 
         await new ReservationCancelledNotificationHandler(projector).HandleAsync(
             new ReservationCancelledIntegrationEvent(
@@ -245,13 +255,16 @@ public sealed class OperationalNotificationTests
             CancellationToken.None);
 
         Assert.Equal([500, 500, 1], access.Requests.Select(request => request.Count).ToArray());
+        Assert.Equal(
+            [200, 200, 200, 200, 200, 1],
+            recipientResolver.Requests.Select(request => request.Count).ToArray());
     }
 
     [Fact]
     public async Task Invalid_product_scope_fails_before_any_notification_is_projected()
     {
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader(["user-a"]),
             new TestWorkspaceOwnerAudienceReader([]),
             new TestOrganizationAccessCandidateFilter(),
@@ -270,7 +283,7 @@ public sealed class OperationalNotificationTests
     {
         const string sensitive = "SENSITIVE provider or operator text";
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader(["user-a"]),
             new TestWorkspaceOwnerAudienceReader([]),
             new TestOrganizationAccessCandidateFilter(),
@@ -320,7 +333,7 @@ public sealed class OperationalNotificationTests
     public async Task Staff_event_is_quiet_when_the_profile_has_no_auth_subject()
     {
         var notifications = new CapturingProjector();
-        var projector = new OperationalNotificationProjector(
+        var projector = CreateProjector(
             new TestAudienceReader([], staffAuthSubjectId: null),
             new TestWorkspaceOwnerAudienceReader(["owner-a"]),
             new TestOrganizationAccessCandidateFilter(),
@@ -339,6 +352,86 @@ public sealed class OperationalNotificationTests
 
         Assert.Empty(notifications.Events);
     }
+
+    [Fact]
+    public async Task Staff_event_carries_the_known_staff_history_reference()
+    {
+        var notifications = new CapturingProjector();
+        var projector = CreateProjector(
+            new TestAudienceReader([], staffAuthSubjectId: "user-a"),
+            new TestWorkspaceOwnerAudienceReader([]),
+            new TestOrganizationAccessCandidateFilter(),
+            notifications);
+        var handler =
+            new StaffMemberLifecycleChangedNotificationHandler(projector);
+        Guid staffMemberId = Guid.NewGuid();
+
+        await handler.HandleAsync(
+            new StaffMemberLifecycleChangedIntegrationEvent(
+                Guid.NewGuid(),
+                ScopeId,
+                Now,
+                staffMemberId,
+                StaffStatus.Suspended,
+                new DateOnly(2026, 7, 13),
+                2),
+            CancellationToken.None);
+
+        UserNotificationRequestedIntegrationEventV3 projected =
+            Assert.Single(notifications.Events);
+        Assert.Equal(
+            [
+                OperationsNotificationsDataRightsCoordinates.ForStaff(
+                    ScopeId,
+                    staffMemberId)
+            ],
+            projected.References);
+    }
+
+    [Fact]
+    public async Task Property_event_fails_when_an_authorized_recipient_has_no_staff_correlation()
+    {
+        var notifications = new CapturingProjector();
+        var projector = CreateProjector(
+            new TestAudienceReader(["user-a"]),
+            new TestWorkspaceOwnerAudienceReader([]),
+            new TestOrganizationAccessCandidateFilter(),
+            notifications,
+            new TestRecipientResolver(["user-a"]));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new ReservationCancelledNotificationHandler(projector)
+                .HandleAsync(
+                    new ReservationCancelledIntegrationEvent(
+                        Guid.NewGuid(),
+                        ScopeId,
+                        Now,
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        3),
+                    CancellationToken.None));
+
+        Assert.Empty(notifications.Events);
+    }
+
+    private static OperationalNotificationProjector CreateProjector(
+        IStaffPropertyAudienceReader audience,
+        IWorkspaceOwnerNotificationAudienceReader workspaceOwners,
+        IOrganizationAccessCandidateFilter access,
+        IUserNotificationRequestProjectorV3 notifications,
+        IStaffNotificationRecipientResolver? recipientResolver = null) =>
+        new(
+            audience,
+            recipientResolver ?? new TestRecipientResolver(),
+            workspaceOwners,
+            access,
+            notifications);
+
+    private static Guid StaffMemberIdFor(string authSubjectId) =>
+        OperationalNotificationProjector.CreateNotificationId(
+            Guid.Empty,
+            authSubjectId,
+            "staff-member");
 
     private static string[] JsonProperties(string payloadJson)
     {
@@ -394,6 +487,34 @@ public sealed class OperationalNotificationTests
             IReadOnlyList<string> result = this.allowed is null
                 ? candidates
                 : candidates.Where(this.allowed.Contains).ToArray();
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class TestRecipientResolver(
+        IReadOnlyCollection<string>? missingSubjects = null)
+        : IStaffNotificationRecipientResolver
+    {
+        private readonly HashSet<string> missing =
+            missingSubjects?.ToHashSet(StringComparer.Ordinal) ?? [];
+
+        public List<IReadOnlyList<string>> Requests { get; } = [];
+
+        public Task<IReadOnlyList<StaffNotificationRecipient>>
+            ResolveActiveAsync(
+                string scopeId,
+                IReadOnlyCollection<string> authSubjectIds,
+                CancellationToken cancellationToken)
+        {
+            Assert.Equal(ScopeId, scopeId);
+            string[] subjects = authSubjectIds.ToArray();
+            this.Requests.Add(subjects);
+            IReadOnlyList<StaffNotificationRecipient> result = subjects
+                .Where(subject => !this.missing.Contains(subject))
+                .Select(subject => new StaffNotificationRecipient(
+                    StaffMemberIdFor(subject),
+                    subject))
+                .ToArray();
             return Task.FromResult(result);
         }
     }

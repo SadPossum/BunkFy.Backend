@@ -11,6 +11,7 @@ using Gma.Modules.Organizations.Application.Ports;
 
 internal sealed class OperationalNotificationProjector(
     IStaffPropertyAudienceReader audienceReader,
+    IStaffNotificationRecipientResolver recipientResolver,
     IWorkspaceOwnerNotificationAudienceReader workspaceOwnerAudienceReader,
     IOrganizationAccessCandidateFilter organizationAccess,
     IUserNotificationRequestProjectorV3 notificationProjector)
@@ -41,14 +42,21 @@ internal sealed class OperationalNotificationProjector(
                 candidates,
                 cancellationToken)
             .ConfigureAwait(false);
+        IReadOnlyList<StaffNotificationRecipient> staffRecipients =
+            await this.ResolveStaffRecipientsAsync(
+                    scopeId,
+                    recipients,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
-        foreach (string recipient in recipients)
+        foreach (StaffNotificationRecipient recipient in staffRecipients)
         {
             await this.ProjectAsync(
                     sourceEventId,
                     scopeId,
                     occurredAtUtc,
-                    recipient,
+                    recipient.AuthSubjectId,
+                    recipient.StaffMemberId,
                     notification,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -91,6 +99,7 @@ internal sealed class OperationalNotificationProjector(
                 scopeId,
                 occurredAtUtc,
                 recipients[0],
+                staffMemberId,
                 notification,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -121,7 +130,62 @@ internal sealed class OperationalNotificationProjector(
             allowed.AddRange(filtered);
         }
 
-        return allowed;
+        HashSet<string> candidatesSet =
+            candidates.ToHashSet(StringComparer.Ordinal);
+        if (allowed.Any(subject => !candidatesSet.Contains(subject)))
+        {
+            throw new InvalidOperationException(
+                "The organization access filter returned an unexpected notification recipient.");
+        }
+
+        return allowed
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<StaffNotificationRecipient>>
+        ResolveStaffRecipientsAsync(
+            string scopeId,
+            IReadOnlyList<string> recipients,
+            CancellationToken cancellationToken)
+    {
+        if (recipients.Count == 0)
+        {
+            return [];
+        }
+
+        List<StaffNotificationRecipient> resolved =
+            new(recipients.Count);
+        foreach (string[] batch in recipients.Chunk(
+            StaffNotificationRecipientContract.MaximumCandidateCount))
+        {
+            IReadOnlyList<StaffNotificationRecipient> mapped =
+                await recipientResolver.ResolveActiveAsync(
+                        scopeId,
+                        batch,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            resolved.AddRange(mapped);
+        }
+
+        HashSet<string> expected =
+            recipients.ToHashSet(StringComparer.Ordinal);
+        HashSet<string> actual = [];
+        bool invalid = resolved.Any(recipient =>
+            recipient.StaffMemberId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(recipient.AuthSubjectId) ||
+            !expected.Contains(recipient.AuthSubjectId) ||
+            !actual.Add(recipient.AuthSubjectId));
+        if (invalid || actual.Count != expected.Count)
+        {
+            throw new InvalidOperationException(
+                "An authorized operational notification recipient has no unique active Staff correlation.");
+        }
+
+        return resolved
+            .OrderBy(recipient => recipient.AuthSubjectId, StringComparer.Ordinal)
+            .ToArray();
     }
 
     private Task ProjectAsync(
@@ -129,6 +193,7 @@ internal sealed class OperationalNotificationProjector(
         string scopeId,
         DateTimeOffset occurredAtUtc,
         string recipient,
+        Guid staffMemberId,
         OperationalNotification notification,
         CancellationToken cancellationToken) =>
         notificationProjector.ProjectAsync(
@@ -146,8 +211,14 @@ internal sealed class OperationalNotificationProjector(
                 JsonSerializer.Serialize(notification.Payload, notification.Payload.GetType()),
                 notification.Tags,
                 OperationsNotificationsDataRightsCoordinates.FromPayload(
-                    scopeId,
-                    notification.Payload),
+                        scopeId,
+                        notification.Payload)
+                    .Append(
+                        OperationsNotificationsDataRightsCoordinates.ForStaff(
+                            scopeId,
+                            staffMemberId))
+                    .Distinct()
+                    .ToArray(),
                 NotificationDeliveryPolicy.RespectPreferences),
             cancellationToken);
 

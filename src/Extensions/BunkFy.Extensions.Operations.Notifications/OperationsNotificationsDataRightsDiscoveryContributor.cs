@@ -16,7 +16,10 @@ internal sealed class OperationsNotificationsDataRightsDiscoveryContributor(
         OperationsNotificationsDataRightsCoordinates.Owner;
 
     public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes { get; } =
-        [DataRightsCaseType.GuestRights];
+        [
+            DataRightsCaseType.GuestRights,
+            DataRightsCaseType.StaffRights
+        ];
 
     public Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
         DataRightsSubjectDiscoveryRequest request,
@@ -24,11 +27,18 @@ internal sealed class OperationsNotificationsDataRightsDiscoveryContributor(
     {
         DataRightsSubjectDiscoveryResult result =
             request is not null &&
-            OperationsNotificationsDataRightsValidation.IsGuestPropertyScope(
-                scopeContext,
-                request.TenantId,
-                request.CaseType,
-                request.PropertyId) &&
+            (OperationsNotificationsDataRightsValidation
+                 .IsGuestPropertyScope(
+                     scopeContext,
+                     request.TenantId,
+                     request.CaseType,
+                     request.PropertyId) ||
+             OperationsNotificationsDataRightsValidation
+                 .IsStaffTenantScope(
+                     scopeContext,
+                     request.TenantId,
+                     request.CaseType,
+                     request.PropertyId)) &&
             request.Lookup is not null &&
             request.MaxCandidates is > 0 and <=
                 DataRightsSubjectDiscoveryLimits.MaxCandidates
@@ -43,28 +53,20 @@ internal sealed class OperationsNotificationsDataRightsDiscoveryContributor(
             CancellationToken cancellationToken)
     {
         if (request is null ||
-            !OperationsNotificationsDataRightsValidation.IsGuestPropertyScope(
-                scopeContext,
-                request.TenantId,
-                request.CaseType,
-                request.PropertyId) ||
-            !OperationsNotificationsDataRightsValidation
-                .IsReservationHistoryCoordinate(request.Coordinate))
+            !this.TryResolveReference(
+                request,
+                out NotificationHistoryReference? reference,
+                out string? recordType))
         {
             return DataRightsSubjectSelectionValidation.NotFound();
         }
 
         try
         {
-            NotificationHistoryReference reference =
-                OperationsNotificationsDataRightsCoordinates.ForReservation(
-                    request.TenantId,
-                    request.PropertyId!.Value,
-                    request.Coordinate.RecordId);
             NotificationHistoryReferenceSnapshot snapshot =
                 await lifecycle.GetSnapshotAsync(
                         request.TenantId,
-                        reference,
+                        reference!,
                         cancellationToken)
                     .ConfigureAwait(false);
             return snapshot.Status switch
@@ -75,8 +77,7 @@ internal sealed class OperationsNotificationsDataRightsDiscoveryContributor(
                     DataRightsSubjectSelectionValidation.Valid(
                         new DataRightsSubjectCoordinate(
                             this.OwnerKey,
-                            OperationsNotificationsDataRightsCoordinates
-                                .ReservationHistoryRecordType,
+                            recordType!,
                             request.Coordinate.RecordId,
                             snapshot.Version)),
                 NotificationHistoryReferenceStatus.Open =>
@@ -95,5 +96,55 @@ internal sealed class OperationsNotificationsDataRightsDiscoveryContributor(
                 exception.GetType().Name);
             return DataRightsSubjectSelectionValidation.ScopeUnavailable();
         }
+    }
+
+    private bool TryResolveReference(
+        DataRightsSubjectSelectionRequest request,
+        out NotificationHistoryReference? reference,
+        out string? recordType)
+    {
+        reference = null;
+        recordType = null;
+        if (OperationsNotificationsDataRightsValidation
+                .IsGuestPropertyScope(
+                    scopeContext,
+                    request.TenantId,
+                    request.CaseType,
+                    request.PropertyId) &&
+            OperationsNotificationsDataRightsValidation
+                .IsReservationHistoryCoordinate(request.Coordinate))
+        {
+            reference =
+                OperationsNotificationsDataRightsCoordinates
+                    .ForReservation(
+                        request.TenantId,
+                        request.PropertyId!.Value,
+                        request.Coordinate.RecordId);
+            recordType =
+                OperationsNotificationsDataRightsCoordinates
+                    .ReservationHistoryRecordType;
+            return true;
+        }
+
+        if (OperationsNotificationsDataRightsValidation
+                .IsStaffTenantScope(
+                    scopeContext,
+                    request.TenantId,
+                    request.CaseType,
+                    request.PropertyId) &&
+            OperationsNotificationsDataRightsValidation
+                .IsStaffHistoryCoordinate(request.Coordinate))
+        {
+            reference =
+                OperationsNotificationsDataRightsCoordinates.ForStaff(
+                    request.TenantId,
+                    request.Coordinate.RecordId);
+            recordType =
+                OperationsNotificationsDataRightsCoordinates
+                    .StaffInboxHistoryRecordType;
+            return true;
+        }
+
+        return false;
     }
 }

@@ -2,19 +2,19 @@ namespace BunkFy.Extensions.Operations.Notifications;
 
 using BunkFy.Modules.DataRights.Contracts;
 
-internal static class OperationsNotificationsDataRightsExportSchema
+internal static class OperationsNotificationsStaffDataRightsExportSchema
 {
     public const string ExportSchemaId =
-        "operations-notifications.reservation-history-export";
+        "operations-notifications.staff-inbox-history-export";
     public const int ExportSchemaVersion = 1;
 
     private static readonly
         OperationsNotificationsDataRightsExportSchemaDefinition<
-            ReservationNotificationHistoryDataRightsExport> Definition =
+            StaffNotificationHistoryDataRightsExport> Definition =
         new(
             ExportSchemaId,
             ExportSchemaVersion,
-            "include-in-authorized-guest-export",
+            "include-in-authorized-staff-notification-export",
             "operations-notifications-data-rights-export-fragment");
 
     public static DataRightsExportDescriptor Descriptor =>
@@ -23,7 +23,7 @@ internal static class OperationsNotificationsDataRightsExportSchema
     public static void EnsureValid() => Definition.EnsureValid();
 
     public static DataRightsExportRecord CreateRecord(
-        ReservationNotificationHistoryDataRightsExport value)
+        StaffNotificationHistoryDataRightsExport value)
     {
         ArgumentNullException.ThrowIfNull(value);
         IReadOnlyCollection<(string Member, object? Value)> values =

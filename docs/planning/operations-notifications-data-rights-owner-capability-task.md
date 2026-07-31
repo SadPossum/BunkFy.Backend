@@ -1,12 +1,12 @@
 # Operations Notifications Data Rights Owner Capability Task
 
-Status: completed
-Date: 2026-07-30
+Status: in progress (Staff Rights coverage complete)
+Date: 2026-07-31
 
 ## Goal
 
 Make BunkFy's Operations Notifications extension a complete Data Rights owner
-for reservation-linked durable inbox copies without writing directly to GMA
+for product-linked durable inbox copies without writing directly to GMA
 Notifications tables or moving hospitality and legal policy into GMA.
 
 This domain consumes the generic indexed history lifecycle capability described
@@ -43,11 +43,14 @@ Typed payloads declare their exact references when projected:
 - reservation notifications reference the Reservations reservation;
 - provider-attention notifications reference the Reservations reservation
   when one is present; and
+- every BunkFy-addressed copy references the recipient's stable Staff record;
+  and
 - every notification retains GMA's generic recipient reference.
 
 Property, room, inventory-block, and workspace coordinates remain operational
-account context. They are not silently treated as guest or staff identity.
-Staff and Ingestion subject coverage remain later product slices.
+account context. They are not silently treated as guest identity. Staff
+coverage is complete; Ingestion source-link subject coverage remains a later
+product slice.
 
 ## Data Rights Coordinate
 
@@ -124,8 +127,8 @@ directly.
    exact reservation references.
 2. Add reservation companion discovery, export, anonymisation, and restore
    adaptation.
-3. Add Staff companion coverage, including recipient-account correlation where
-   Workspaces can resolve it without exposing Auth internals.
+3. Add Staff companion coverage through Staff-owned, bounded recipient
+   correlation without exposing Auth internals. Completed.
 4. Add Ingestion graph resolution for source-link-related receipt and
    connection notifications.
 5. Align retention policy, catalogue, production admission, operator workflow,
@@ -134,6 +137,11 @@ directly.
 Only Operations Notifications is the active product domain. Existing owner
 modules may expose bounded contract readers needed to resolve their coordinates,
 but their persistence remains private.
+
+The completed implementation for delivery slice 3 is tracked in
+[Operations Notifications Staff Data Rights](operations-notifications-staff-data-rights-task.md).
+Staff is the post-provisioning authority for the Staff-to-account correlation;
+Workspaces remains the owner of onboarding and access-process history.
 
 ## Verification
 
@@ -164,14 +172,15 @@ but their persistence remains private.
 - The synchronized 283-project backend graph builds with zero warnings and
   zero errors, and all PostgreSQL and SQL Server migration models are
   drift-free.
-- Operations Notifications passes 32 tests and Data Rights passes 261 tests;
-  the privacy and module-boundary architecture suite passes 77 tests.
+- Operations Notifications passes 54 tests, Staff passes 147 tests, and Data
+  Rights passes 261 tests; the privacy and module-boundary architecture suite
+  passes 77 tests.
 - The exact PostgreSQL lifecycle scenario passes projection, active-delivery
   conflict, retry, close, replay suppression, and deterministic close-versus-
   late-projection concurrency coverage.
-- The executable catalogue contains 16 notification-surface fields and 13
-  Data Rights export fields, with the closed output-sink guard enforcing the
-  complete 29-field partition.
+- The executable catalogue contains 16 notification-surface fields, 13 Guest
+  export fields, and 13 Staff export fields, with the closed output-sink guard
+  enforcing the complete 42-field partition.
 
 ## Deferred
 

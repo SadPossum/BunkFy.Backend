@@ -312,6 +312,10 @@ public sealed class StaffPersonalDataCatalogTests
                                     type == typeof(StaffIdentityReconciliationResult) ||
                                     type == typeof(StaffAnonymisationRestoreState) ||
                                     type == typeof(
+                                        StaffDataRightsAuthorityState) ||
+                                    type == typeof(
+                                        StaffNotificationRecipient) ||
+                                    type == typeof(
                                         StaffRetentionAnonymisationPrerequisiteRequest) ||
                                     type == typeof(StaffOnboardingProvisioningRequest) ||
                                     type == typeof(StaffOnboardingProvisioningResult) ||
@@ -342,6 +346,11 @@ public sealed class StaffPersonalDataCatalogTests
                 yield return (PersonalDataSurface.ProjectionExport, type);
             }
             else if (type == typeof(StaffAnonymisationRestoreState))
+            {
+                yield return (PersonalDataSurface.ProjectionExport, type);
+            }
+            else if (type == typeof(StaffDataRightsAuthorityState) ||
+                     type == typeof(StaffNotificationRecipient))
             {
                 yield return (PersonalDataSurface.ProjectionExport, type);
             }

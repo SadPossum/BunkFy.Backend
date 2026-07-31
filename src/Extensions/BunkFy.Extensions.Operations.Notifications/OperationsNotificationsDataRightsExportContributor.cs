@@ -13,8 +13,6 @@ internal sealed class OperationsNotificationsDataRightsExportContributor(
 {
     internal const int MaximumRecords =
         OperationsNotificationsDataRightsReceipt.MaximumRecords;
-    private const int PageSize =
-        NotificationHistoryLifecycleLimits.MaximumPageSize;
 
     public string OwnerKey =>
         OperationsNotificationsDataRightsCoordinates.Owner;
@@ -53,124 +51,22 @@ internal sealed class OperationsNotificationsDataRightsExportContributor(
                 request.TenantId,
                 request.PropertyId!.Value,
                 request.Coordinate.RecordId);
-        NotificationHistoryReferenceSnapshot initial =
-            await lifecycle.GetSnapshotAsync(
-                    request.TenantId,
-                    reference,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        if (initial.Status is
-            NotificationHistoryReferenceStatus.Missing or
-            NotificationHistoryReferenceStatus.Closed)
-        {
-            return DataRightsSubjectExportResult.NotFound();
-        }
-
-        if (initial.Status != NotificationHistoryReferenceStatus.Open ||
-            initial.Version != request.Coordinate.RecordVersion)
-        {
-            return DataRightsSubjectExportResult.Stale();
-        }
-
-        if (initial.RecordCount > MaximumRecords)
-        {
-            return DataRightsSubjectExportResult.ScopeUnavailable();
-        }
-
-        List<DataRightsExportRecord> buffered =
-            new(initial.RecordCount);
-        HashSet<Guid> notificationIds = [];
-        long cursor = 0;
-        long previousSequence = 0;
-        while (true)
-        {
-            NotificationHistoryReferencePage page =
-                await lifecycle.ListAsync(
-                        request.TenantId,
-                        reference,
-                        cursor,
-                        PageSize,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            if (page.Status != NotificationHistoryReferenceStatus.Open ||
-                page.ReferenceVersion != request.Coordinate.RecordVersion)
-            {
-                return DataRightsSubjectExportResult.Stale();
-            }
-
-            if (page.Records.Count == 0 && page.HasMore)
-            {
-                return DataRightsSubjectExportResult.ScopeUnavailable();
-            }
-
-            foreach (NotificationHistoryReferenceRecord record in page.Records)
-            {
-                if (record.StreamSequence <= previousSequence ||
-                    !notificationIds.Add(record.NotificationId) ||
-                    !PayloadMatches(
-                        record.Payload,
-                        request.PropertyId.Value,
-                        request.Coordinate.RecordId))
-                {
-                    return DataRightsSubjectExportResult.ScopeUnavailable();
-                }
-
-                DataRightsExportRecord exportRecord;
-                try
-                {
-                    exportRecord =
-                        OperationsNotificationsDataRightsExportSchema
-                            .CreateRecord(Map(record));
-                }
-                catch (InvalidDataException)
-                {
-                    return DataRightsSubjectExportResult.ScopeUnavailable();
-                }
-
-                buffered.Add(exportRecord);
-                if (buffered.Count > MaximumRecords)
-                {
-                    return DataRightsSubjectExportResult.ScopeUnavailable();
-                }
-
-                previousSequence = record.StreamSequence;
-            }
-
-            if (!page.HasMore)
-            {
-                break;
-            }
-
-            if (page.NextStreamSequence <= cursor)
-            {
-                return DataRightsSubjectExportResult.ScopeUnavailable();
-            }
-
-            cursor = page.NextStreamSequence;
-        }
-
-        NotificationHistoryReferenceSnapshot final =
-            await lifecycle.GetSnapshotAsync(
-                    request.TenantId,
-                    reference,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        if (final.Status != NotificationHistoryReferenceStatus.Open ||
-            final.Version != request.Coordinate.RecordVersion ||
-            final.RecordCount != buffered.Count ||
-            (buffered.Count > 0 &&
-             final.LatestStreamSequence != previousSequence))
-        {
-            return DataRightsSubjectExportResult.Stale();
-        }
-
-        foreach (DataRightsExportRecord record in buffered)
-        {
-            await sink.WriteAsync(record, cancellationToken)
-                .ConfigureAwait(false);
-        }
-
-        return DataRightsSubjectExportResult.Success(buffered.Count);
+        return await NotificationHistoryDataRightsExportBuffer.ExportAsync(
+                lifecycle,
+                request.TenantId,
+                reference,
+                request.Coordinate.RecordVersion,
+                MaximumRecords,
+                record => PayloadMatches(
+                    record.Payload,
+                    request.PropertyId.Value,
+                    request.Coordinate.RecordId),
+                record =>
+                    OperationsNotificationsDataRightsExportSchema
+                        .CreateRecord(Map(record)),
+                sink,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private static ReservationNotificationHistoryDataRightsExport Map(

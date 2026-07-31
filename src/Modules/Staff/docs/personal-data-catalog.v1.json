@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 8,
+  "catalogVersion": 9,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -2567,6 +2567,13 @@
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffAnonymisationRestoreState",
+          "member": "AuthSubjectId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffNotificationRecipient",
           "member": "AuthSubjectId",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
@@ -9227,6 +9234,13 @@
           "member": "Version",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsAuthorityState",
+          "member": "Version",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -11504,6 +11518,20 @@
           "member": "StaffMemberId",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsAuthorityState",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffNotificationRecipient",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -11614,6 +11642,13 @@
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffAnonymisationRestoreState",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsAuthorityState",
           "member": "State",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"

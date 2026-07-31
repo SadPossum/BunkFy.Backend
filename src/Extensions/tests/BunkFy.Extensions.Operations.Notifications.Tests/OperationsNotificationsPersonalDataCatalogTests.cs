@@ -118,6 +118,30 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
     }
 
     [Fact]
+    public void Staff_history_export_schema_is_catalogue_complete()
+    {
+        OperationsNotificationsStaffDataRightsExportSchema.EnsureValid();
+
+        PropertyInfo[] properties =
+            typeof(StaffNotificationHistoryDataRightsExport)
+                .GetProperties(
+                    BindingFlags.Instance |
+                    BindingFlags.Public);
+        Assert.Equal(13, properties.Length);
+        Assert.Equal(
+            properties.Length,
+            OperationsNotificationsStaffDataRightsExportSchema
+                .Descriptor.FieldIds.Count);
+        foreach (PropertyInfo property in properties)
+        {
+            AssertBinding(
+                typeof(StaffNotificationHistoryDataRightsExport),
+                property.Name,
+                PersonalDataSurface.DataRightsExport);
+        }
+    }
+
+    [Fact]
     public void Generated_inventory_is_current()
     {
         string expected = File.ReadAllText(Path.Combine(

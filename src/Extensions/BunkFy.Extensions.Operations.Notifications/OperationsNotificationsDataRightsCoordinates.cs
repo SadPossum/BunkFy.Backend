@@ -13,10 +13,20 @@ internal static class OperationsNotificationsDataRightsCoordinates
         "notification-copy";
     public const string ReservationHistoryReferenceNamespace =
         "bunkfy-reservation-history";
+    public const string StaffInboxHistoryRecordType =
+        "staff-inbox-history";
+    public const string StaffInboxHistoryReferenceNamespace =
+        "bunkfy-staff-inbox-history";
     public const string ReservationAccessExportCompanionKey =
         "operations-notifications-reservation-access-export";
     public const string ReservationAnonymisationCompanionKey =
         "operations-notifications-reservation-anonymisation";
+    public const string StaffAccessExportCompanionKey =
+        "operations-notifications-staff-access-export";
+    public const string StaffAnonymisationCompanionKey =
+        "operations-notifications-staff-anonymisation";
+    public const string StaffHistoryStateBindingKey =
+        "operations-notifications.staff-inbox-history";
 
     public static NotificationHistoryReference ForReservation(
         string tenantId,
@@ -47,6 +57,29 @@ internal static class OperationsNotificationsDataRightsCoordinates
             $"{ReservationsDataRightsCoordinates.Owner}|" +
             $"{ReservationsDataRightsCoordinates.ReservationRecordType}|" +
             $"{reservationId:N}");
+    }
+
+    public static NotificationHistoryReference ForStaff(
+        string tenantId,
+        Guid staffMemberId)
+    {
+        string normalizedTenant = ScopeIds.Normalize(
+            tenantId,
+            nameof(tenantId));
+        if (staffMemberId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "staffMemberId must be non-empty.",
+                nameof(staffMemberId));
+        }
+
+        return NotificationHistoryReference.FromCanonicalCoordinate(
+            StaffInboxHistoryReferenceNamespace,
+            $"bunkfy-notification-reference/v1|{normalizedTenant}|" +
+            $"staff|{staffMemberId:N}|" +
+            $"{Modules.Staff.Contracts.StaffDataRightsCoordinates.Owner}|" +
+            $"{Modules.Staff.Contracts.StaffDataRightsCoordinates.StaffMemberRecordType}|" +
+            $"{staffMemberId:N}");
     }
 
     public static IReadOnlyList<NotificationHistoryReference>

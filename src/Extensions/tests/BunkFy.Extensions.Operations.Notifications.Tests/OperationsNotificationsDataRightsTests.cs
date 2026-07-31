@@ -3,6 +3,7 @@ namespace BunkFy.Extensions.Operations.Notifications.Tests;
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Gma.Modules.Notifications.Application.Ports;
@@ -23,6 +24,8 @@ public sealed class OperationsNotificationsDataRightsTests
         Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static readonly Guid ReservationId =
         Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+    private static readonly Guid StaffMemberId =
+        Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
 
     [Fact]
     public void Reservation_reference_is_deterministic_and_scope_exact()
@@ -60,6 +63,35 @@ public sealed class OperationsNotificationsDataRightsTests
         Assert.Equal(
             OperationsNotificationsDataRightsCoordinates
                 .ReservationHistoryReferenceNamespace,
+            expected.Namespace);
+    }
+
+    [Fact]
+    public void Staff_reference_is_deterministic_and_survives_account_identity_changes()
+    {
+        NotificationHistoryReference expected =
+            OperationsNotificationsDataRightsCoordinates.ForStaff(
+                ScopeId,
+                StaffMemberId);
+
+        Assert.Equal(
+            expected,
+            OperationsNotificationsDataRightsCoordinates.ForStaff(
+                ScopeId,
+                StaffMemberId));
+        Assert.NotEqual(
+            expected,
+            OperationsNotificationsDataRightsCoordinates.ForStaff(
+                Guid.NewGuid().ToString("D"),
+                StaffMemberId));
+        Assert.NotEqual(
+            expected,
+            OperationsNotificationsDataRightsCoordinates.ForStaff(
+                ScopeId,
+                Guid.NewGuid()));
+        Assert.Equal(
+            OperationsNotificationsDataRightsCoordinates
+                .StaffInboxHistoryReferenceNamespace,
             expected.Namespace);
     }
 
@@ -139,6 +171,107 @@ public sealed class OperationsNotificationsDataRightsTests
         Assert.Equal(1, coordinate.RecordVersion);
         Assert.Equal(1, lifecycle.EnsureOpenCalls);
         Assert.Equal(0, lifecycle.SnapshotCalls);
+    }
+
+    [Fact]
+    public async Task Staff_anonymisation_companion_freezes_exact_empty_inbox_history()
+    {
+        NotificationHistoryReference expected =
+            OperationsNotificationsDataRightsCoordinates.ForStaff(
+                ScopeId,
+                StaffMemberId);
+        var lifecycle = new TestLifecycle
+        {
+            EnsureOpen = (scopeId, reference, _) =>
+            {
+                Assert.Equal(ScopeId, scopeId);
+                Assert.Equal(expected, reference);
+                return Task.FromResult(
+                    new NotificationHistoryReferenceSnapshot(
+                        NotificationHistoryReferenceStatus.Open,
+                        3,
+                        0,
+                        0));
+            }
+        };
+        var contributor =
+            new OperationsNotificationsStaffAnonymisationCompanionContributor(
+                lifecycle,
+                new TestScopeContext(),
+                NullLogger<
+                    OperationsNotificationsStaffAnonymisationCompanionContributor>
+                    .Instance);
+
+        DataRightsRequiredCompanionResult result =
+            await contributor.ExpandAsync(
+                StaffCompanionRequest(DataRightsOperation.Anonymisation),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsRequiredCompanionStatus.Completed,
+            result.Status);
+        DataRightsSubjectCoordinate coordinate =
+            Assert.Single(result.Coordinates);
+        Assert.Equal(
+            OperationsNotificationsDataRightsCoordinates.Owner,
+            coordinate.OwnerKey);
+        Assert.Equal(
+            OperationsNotificationsDataRightsCoordinates
+                .StaffInboxHistoryRecordType,
+            coordinate.RecordType);
+        Assert.Equal(StaffMemberId, coordinate.RecordId);
+        Assert.Equal(3, coordinate.RecordVersion);
+    }
+
+    [Fact]
+    public async Task Staff_access_export_companion_respects_case_capacity()
+    {
+        var lifecycle = new TestLifecycle();
+        var contributor =
+            new OperationsNotificationsStaffAccessExportCompanionContributor(
+                lifecycle,
+                new TestScopeContext(),
+                NullLogger<
+                    OperationsNotificationsStaffAccessExportCompanionContributor>
+                    .Instance);
+        DataRightsRequiredCompanionRequest request =
+            StaffCompanionRequest(DataRightsOperation.AccessExport) with
+            {
+                RemainingSubjectCapacity = 0
+            };
+
+        DataRightsRequiredCompanionResult result =
+            await contributor.ExpandAsync(
+                request,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsRequiredCompanionStatus.Blocked,
+            result.Status);
+        Assert.Equal(0, lifecycle.EnsureOpenCalls);
+    }
+
+    [Fact]
+    public async Task Staff_companion_cannot_prepare_history_outside_the_active_scope()
+    {
+        var lifecycle = new TestLifecycle();
+        var contributor =
+            new OperationsNotificationsStaffAccessExportCompanionContributor(
+                lifecycle,
+                new TestScopeContext(Guid.NewGuid().ToString("D")),
+                NullLogger<
+                    OperationsNotificationsStaffAccessExportCompanionContributor>
+                    .Instance);
+
+        DataRightsRequiredCompanionResult result =
+            await contributor.ExpandAsync(
+                StaffCompanionRequest(DataRightsOperation.AccessExport),
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsRequiredCompanionStatus.Blocked,
+            result.Status);
+        Assert.Equal(0, lifecycle.EnsureOpenCalls);
     }
 
     [Fact]
@@ -463,16 +596,18 @@ public sealed class OperationsNotificationsDataRightsTests
         services.AddBunkFyOperationsNotifications();
 
         Assert.Equal(
-            2,
+            4,
             services.Count(descriptor =>
                 descriptor.ServiceType ==
                 typeof(IDataRightsRequiredCompanionContributor)));
         Assert.Single(services, descriptor =>
             descriptor.ServiceType ==
             typeof(IDataRightsSubjectDiscoveryContributor));
-        Assert.Single(services, descriptor =>
-            descriptor.ServiceType ==
-            typeof(IDataRightsSubjectExportContributor));
+        Assert.Equal(
+            2,
+            services.Count(descriptor =>
+                descriptor.ServiceType ==
+                typeof(IDataRightsSubjectExportContributor)));
         Assert.Single(services, descriptor =>
             descriptor.ServiceType ==
             typeof(IDataRightsAnonymisationContributor));
@@ -509,6 +644,22 @@ public sealed class OperationsNotificationsDataRightsTests
                     .ReservationHistoryRecordType,
                 ReservationId,
                 version));
+
+    private static DataRightsRequiredCompanionRequest
+        StaffCompanionRequest(DataRightsOperation operation) =>
+        new(
+            DataRightsRequiredCompanionContract.CurrentVersion,
+            ScopeId,
+            DataRightsCaseType.StaffRights,
+            operation,
+            PropertyId: null,
+            Guid.NewGuid(),
+            new DataRightsSubjectCoordinate(
+                StaffDataRightsCoordinates.Owner,
+                StaffDataRightsCoordinates.StaffMemberRecordType,
+                StaffMemberId,
+                7),
+            4);
 
     private static DataRightsAnonymisationContributionRequest
         AnonymisationRequest(Guid workItemId, long version) =>
@@ -582,10 +733,12 @@ public sealed class OperationsNotificationsDataRightsTests
             new string('d', 64),
             Now);
 
-    private sealed class TestScopeContext : IScopeContext
+    private sealed class TestScopeContext(string? scopeId = null)
+        : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => OperationsNotificationsDataRightsTests.ScopeId;
+        public string ScopeId =>
+            scopeId ?? OperationsNotificationsDataRightsTests.ScopeId;
     }
 
     private sealed class FixedClock : ISystemClock

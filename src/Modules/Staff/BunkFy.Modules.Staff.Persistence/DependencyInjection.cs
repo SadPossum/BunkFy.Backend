@@ -1,6 +1,10 @@
 namespace BunkFy.Modules.Staff.Persistence;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Staff.Application.Ports;
+using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -9,10 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Staff.Contracts;
-using BunkFy.Modules.Staff.Application.Ports;
-using BunkFy.Modules.Staff.Persistence.Repositories;
 
 public static class DependencyInjection
 {
@@ -36,6 +36,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IStaffAnonymisationRestoreStateReader,
             StaffAnonymisationRestoreStateReader>();
+        builder.Services.TryAddScoped<
+            IStaffDataRightsAuthorityReader,
+            StaffDataRightsAuthorityReader>();
         builder.Services.TryAddScoped<
             IStaffProcessingRestrictionRepository,
             StaffProcessingRestrictionRepository>();
@@ -61,6 +64,9 @@ public static class DependencyInjection
             IStaffProcessingRestrictionGate,
             StaffProcessingRestrictionGate>();
         builder.Services.TryAddScoped<IStaffPropertyAudienceReader, StaffPropertyAudienceReader>();
+        builder.Services.TryAddScoped<
+            IStaffNotificationRecipientResolver,
+            StaffNotificationRecipientResolver>();
         builder.Services.TryAddScoped<IStaffPropertyProjectionRepository, StaffPropertyProjectionRepository>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<

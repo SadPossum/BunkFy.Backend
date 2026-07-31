@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.TryAddSingleton<IWorkspaceOwnerNotificationAudienceReader, EmptyWorkspaceOwnerNotificationAudienceReader>();
         services.TryAddScoped<OperationalNotificationProjector>();
         OperationsNotificationsDataRightsExportSchema.EnsureValid();
+        OperationsNotificationsStaffDataRightsExportSchema.EnsureValid();
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsRequiredCompanionContributor,
@@ -29,6 +30,14 @@ public static class DependencyInjection
                 OperationsNotificationsReservationAnonymisationCompanionContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
+                IDataRightsRequiredCompanionContributor,
+                OperationsNotificationsStaffAccessExportCompanionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsRequiredCompanionContributor,
+                OperationsNotificationsStaffAnonymisationCompanionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
                 IDataRightsSubjectDiscoveryContributor,
                 OperationsNotificationsDataRightsDiscoveryContributor>());
         services.TryAddEnumerable(
@@ -37,12 +46,36 @@ public static class DependencyInjection
                 OperationsNotificationsDataRightsExportContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
+                IDataRightsSubjectExportContributor,
+                OperationsNotificationsStaffDataRightsExportContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationContributor,
                 OperationsNotificationsDataRightsAnonymisationContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationRestoreContributor,
                 OperationsNotificationsDataRightsAnonymisationRestoreContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationPolicyContributor,
+                OperationsNotificationsStaffAnonymisationPolicyContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationExecutionPrerequisiteV2,
+                OperationsNotificationsStaffAnonymisationPrerequisite>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationRestorePrerequisiteV3,
+                OperationsNotificationsStaffAnonymisationPrerequisite>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationContributorV2,
+                OperationsNotificationsStaffAnonymisationContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IDataRightsAnonymisationRestoreContributorV3,
+                OperationsNotificationsStaffAnonymisationRestoreContributor>());
 
         Add<PropertyRetiredIntegrationEvent, PropertyRetiredNotificationHandler>(
             services,

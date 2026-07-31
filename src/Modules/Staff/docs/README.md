@@ -42,6 +42,14 @@ correction, and processing restriction. Data Rights owns cases, requester
 verification, approval, orchestration, and central completion; it does not read
 Staff persistence.
 
+Staff also exposes two narrow cross-module contracts for operational
+notifications: a bounded resolver from already-authorized Auth subjects to
+active, unrestricted Staff records, and a minimal Staff Rights authority
+snapshot containing only record id, version, and lifecycle state. Operations
+Notifications uses them to maintain and govern a stable Staff inbox-history
+companion without reading Staff persistence or placing Auth identifiers in Data
+Rights coordinates.
+
 The
 [Staff anonymisation flow](../../../docs/planning/staff-data-rights-anonymisation-task.md)
 uses explicit employment-governance evidence, independently releasable Staff

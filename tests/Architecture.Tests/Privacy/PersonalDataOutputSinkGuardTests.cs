@@ -109,7 +109,7 @@ public sealed class PersonalDataOutputSinkGuardTests
         PersonalDataCatalogDocument notificationCatalogue = Assert.Single(
             catalogues,
             catalogue => catalogue.CatalogId == "operations-notifications.personal-data");
-        Assert.Equal(29, notificationCatalogue.Fields.Length);
+        Assert.Equal(42, notificationCatalogue.Fields.Length);
 
         PersonalDataFieldDefinition[] notificationFields = notificationCatalogue.Fields
             .Where(field =>
@@ -131,13 +131,23 @@ public sealed class PersonalDataOutputSinkGuardTests
                 field.Bindings.Any(binding =>
                     binding.Surface == PersonalDataSurface.DataRightsExport))
             .ToArray();
-        Assert.Equal(13, exportFields.Length);
+        Assert.Equal(26, exportFields.Length);
         Assert.All(exportFields, field =>
         {
             Assert.Contains(PersonalDataSurface.DataRightsExport, field.AllowedSurfaces);
             Assert.All(field.Bindings, binding =>
                 Assert.Equal(PersonalDataSurface.DataRightsExport, binding.Surface));
         });
+        Assert.Equal(
+            13,
+            exportFields.Count(field =>
+                field.DataSubject ==
+                    PersonalDataSubjectKind.Guest));
+        Assert.Equal(
+            13,
+            exportFields.Count(field =>
+                field.DataSubject ==
+                    PersonalDataSubjectKind.Staff));
         Assert.Equal(
             notificationCatalogue.Fields.Length,
             notificationFields.Length + exportFields.Length);
