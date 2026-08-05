@@ -152,6 +152,8 @@ public sealed class WorkerHostIntegrationTests
         Assert.True(result.IsValid, result.Report);
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<PropertiesDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<InventoryDbContext>());
+        Assert.NotNull(scope.ServiceProvider
+            .GetRequiredService<IWorkspaceTerminationFenceReader>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IInventoryAvailabilityProjectionExportSource>());
         Assert.Contains(
             worker.Services.GetRequiredService<IIntegrationEventSubscriptionRegistry>().Subscriptions,
@@ -572,6 +574,8 @@ public sealed class WorkerHostIntegrationTests
     private static async Task MigrateFileDropWorkerStoresAsync(IHost worker)
     {
         using IServiceScope scope = worker.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<TaskRuntimeDbContext>()

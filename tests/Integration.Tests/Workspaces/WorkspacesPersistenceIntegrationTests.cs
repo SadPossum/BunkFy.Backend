@@ -172,8 +172,7 @@ public sealed class WorkspacesPersistenceIntegrationTests
         {
             await previous.Database.GetService<IMigrator>().MigrateAsync(
                 ScopedStaffAccessSnapshotsMigration);
-            previous.StaffOnboardingApplications.Add(existing);
-            await previous.SaveChangesAsync();
+            await SeedLegacyApplicationAsync(previous, existing);
         }
 
         WorkspaceStaffAccessPlan plan = WorkspaceStaffAccessPlan.Create(
@@ -240,8 +239,7 @@ public sealed class WorkspacesPersistenceIntegrationTests
         {
             await previous.Database.GetService<IMigrator>().MigrateAsync(
                 StaffOnboardingCorrectionsMigration);
-            previous.StaffOnboardingApplications.Add(application);
-            await previous.SaveChangesAsync();
+            await SeedLegacyApplicationAsync(previous, application);
         }
 
         Guid restrictionId = Guid.NewGuid();
@@ -437,6 +435,30 @@ public sealed class WorkspacesPersistenceIntegrationTests
             .Options;
         return new WorkspacesDbContext(options, new TestScopeContext(scopeId));
     }
+
+    private static Task<int> SeedLegacyApplicationAsync(
+        WorkspacesDbContext dbContext,
+        WorkspaceStaffOnboarding application) =>
+        dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO workspaces.staff_onboarding_applications (
+                "Id", "SourceKind", "SourceId", "ClaimId", "ClaimVersion",
+                "SubjectId", "VerifiedAccountEmail", "DisplayName", "LegalName",
+                "WorkEmail", "WorkPhone", "EmployeeNumber", "JobTitle",
+                "Department", "Status", "StaffMemberId", "FailureCode",
+                "Version", "CreatedAtUtc", "LastChangedAtUtc", "ScopeId")
+            VALUES (
+                {application.Id}, {(int)application.SourceKind},
+                {application.SourceId}, {application.ClaimId},
+                {application.ClaimVersion}, {application.SubjectId},
+                {application.VerifiedAccountEmail}, {application.DisplayName},
+                {application.LegalName}, {application.WorkEmail},
+                {application.WorkPhone}, {application.EmployeeNumber},
+                {application.JobTitle}, {application.Department},
+                {(int)application.Status}, {application.StaffMemberId},
+                {application.FailureCode}, {application.Version},
+                {application.CreatedAtUtc}, {application.LastChangedAtUtc},
+                {application.ScopeId});
+            """);
 
     private static WorkspaceStaffOnboarding CreateApplication(
         string scopeId,

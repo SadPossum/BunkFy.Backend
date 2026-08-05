@@ -220,6 +220,7 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
             new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = connectionString;
+        builder.Configuration["Tenancy:Enabled"] = "true";
         builder.Configuration["Caching:Enabled"] = "false";
         builder.Configuration["NatsJetStream:Enabled"] = "false";
         builder.Configuration["NatsConsumers:Enabled"] = "false";

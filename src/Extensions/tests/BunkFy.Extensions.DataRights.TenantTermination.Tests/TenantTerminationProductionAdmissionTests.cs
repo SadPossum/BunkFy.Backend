@@ -1,8 +1,6 @@
 namespace BunkFy.Extensions.DataRights.TenantTermination.Tests;
 
-using BunkFy.Modules.DataRights.Application.Ports;
-using BunkFy.Modules.DataRights.Application.Production;
-using Gma.Framework.Results;
+using BunkFy.Modules.DataRights.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -66,10 +64,9 @@ public sealed class TenantTerminationProductionAdmissionTests
             Environments.Production,
             includeEvidence: true,
             includeWorkerGroup: true);
-        builder.Services.AddSingleton<ITenantTerminationProductionCatalog>(
-            new StubCatalog());
-        builder.Services.AddSingleton<ITenantTerminationReplayStore>(
-            new StubReplayStore(isProductionGrade: true));
+        builder.Services.AddSingleton<
+            ITenantTerminationProductionReadinessProbe>(
+            new StubReadinessProbe());
         builder.AddBunkFyTenantTerminationProductionAdmission(
             dataRightsComposed: true,
             completeOwnerTopology: true,
@@ -92,10 +89,9 @@ public sealed class TenantTerminationProductionAdmissionTests
             Environments.Production,
             includeEvidence: true,
             includeWorkerGroup: true);
-        drifted.Services.AddSingleton<ITenantTerminationProductionCatalog>(
-            new StubCatalog(new string('b', 64)));
-        drifted.Services.AddSingleton<ITenantTerminationReplayStore>(
-            new StubReplayStore(isProductionGrade: true));
+        drifted.Services.AddSingleton<
+            ITenantTerminationProductionReadinessProbe>(
+            new StubReadinessProbe(new string('b', 64)));
         drifted.AddBunkFyTenantTerminationProductionAdmission(
             true,
             true,
@@ -112,10 +108,9 @@ public sealed class TenantTerminationProductionAdmissionTests
             Environments.Production,
             includeEvidence: true,
             includeWorkerGroup: true);
-        nonDurable.Services.AddSingleton<ITenantTerminationProductionCatalog>(
-            new StubCatalog());
-        nonDurable.Services.AddSingleton<ITenantTerminationReplayStore>(
-            new StubReplayStore(isProductionGrade: false));
+        nonDurable.Services.AddSingleton<
+            ITenantTerminationProductionReadinessProbe>(
+            new StubReadinessProbe(isProductionGrade: false));
         nonDurable.AddBunkFyTenantTerminationProductionAdmission(
             true,
             true,
@@ -164,58 +159,23 @@ public sealed class TenantTerminationProductionAdmissionTests
         return builder;
     }
 
-    private sealed class StubCatalog(string? digest = null)
-        : ITenantTerminationProductionCatalog
+    private sealed class StubReadinessProbe(
+        string? digest = null,
+        bool isProductionGrade = true)
+        : ITenantTerminationProductionReadinessProbe
     {
-        public Result<TenantTerminationProductionCatalogEvidence> Validate(
-            IReadOnlyCollection<string> requiredOwnerKeys) =>
-            Result.Success(new TenantTerminationProductionCatalogEvidence(
-                requiredOwnerKeys.Count,
+        public Task<TenantTerminationProductionReadinessEvidence> CheckAsync(
+            IReadOnlyCollection<string> requiredOwnerKeys,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new TenantTerminationProductionReadinessEvidence(
+                IsCatalogValid: true,
+                OwnerCount: requiredOwnerKeys.Count,
                 ExportOwnerCount: 9,
                 TerminalOwnerKey: "workspaces",
-                CatalogSha256: digest ?? Digest));
-    }
-
-    private sealed class StubReplayStore(bool isProductionGrade)
-        : ITenantTerminationReplayStore
-    {
-        public Task<TenantTerminationReplayStoreReadiness> CheckReadinessAsync(
-            CancellationToken cancellationToken) =>
-            Task.FromResult(new TenantTerminationReplayStoreReadiness(
-                "test",
-                IsReady: true,
-                isProductionGrade,
-                FailureCode: null));
-
-        public Task<TenantTerminationReplayAppendReceipt> AppendAsync(
-            TenantTerminationReplayJournalEntry entry,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<TenantTerminationReplayAttempt?> ReadAttemptAsync(
-            TenantTerminationReplayAttemptCoordinate coordinate,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<TenantTerminationReplayIntent?> ReadIntentAsync(
-            string tenantId,
-            Guid processId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<TenantTerminationReplayCheckpoint>
-            ReadTrustedCheckpointAsync(
-                string tenantId,
-                Guid processId,
-                CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<TenantTerminationReplayPage> ReadAfterAsync(
-            string tenantId,
-            Guid processId,
-            TenantTerminationReplayCursor cursor,
-            int pageSize,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+                CatalogSha256: digest ?? Digest,
+                ReplayStoreProvider: "test",
+                IsReplayStoreReady: true,
+                IsReplayStoreProductionGrade: isProductionGrade,
+                ReplayStoreFailureCode: null));
     }
 }

@@ -9,6 +9,8 @@ internal static class GuestsTenantMutationLock
 {
     private const string DestroyOperationResourcePrefix =
         "bunkfy:guests:tenant-destroy-operation:";
+    private const string RevisionAdvanceResourcePrefix =
+        "bunkfy:guests:tenant-revision-advance:";
 
     public static Task AcquireAdmissionAsync(
         GuestsDbContext dbContext,
@@ -29,6 +31,27 @@ internal static class GuestsTenantMutationLock
             tenantId,
             EfTransactionKeyLockMode.Exclusive,
             cancellationToken);
+
+    public static Task AcquireRevisionAdvanceAsync(
+        GuestsDbContext dbContext,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(dbContext);
+        if (!TenantIds.TryNormalize(tenantId, out string? canonicalTenantId))
+        {
+            throw new GuestsOperationalAdmissionException(
+                GuestsOperationalAdmissionFailure.Unavailable);
+        }
+
+        return dbContext.Database.IsRelational()
+            ? EfTransactionKeyLock.AcquireAsync(
+                dbContext,
+                RevisionAdvanceResourcePrefix + canonicalTenantId,
+                EfTransactionKeyLockMode.Exclusive,
+                cancellationToken)
+            : Task.CompletedTask;
+    }
 
     private static Task AcquireAsync(
         GuestsDbContext dbContext,

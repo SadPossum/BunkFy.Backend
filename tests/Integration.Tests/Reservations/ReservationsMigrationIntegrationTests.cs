@@ -7,6 +7,7 @@ using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -155,13 +156,13 @@ public sealed class ReservationsMigrationIntegrationTests
         {
             await previous.Database.GetService<IMigrator>()
                 .MigrateAsync(PreviousRestrictionEligibilityMigration);
-            previous.GuestProfileProjections.Add(new ReservationGuestProfileProjection(
-                "tenant-a",
-                guestId,
-                propertyId,
-                GuestStatus.Active,
-                version: 1));
-            await previous.SaveChangesAsync();
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.guest_profile_projection (
+                    "ScopeId", "Id", "OriginPropertyId", "Status", "Version")
+                VALUES (
+                    {"tenant-a"}, {guestId}, {propertyId},
+                    {(int)GuestStatus.Active}, {1L});
+                """);
         }
 
         await using ReservationsDbContext upgraded = CreateDbContext(postgreSql.GetConnectionString());
@@ -447,7 +448,10 @@ public sealed class ReservationsMigrationIntegrationTests
                 .MigrationsAssembly(ReservationsMigrations.PostgreSqlAssembly)
                 .MigrationsHistoryTable(ReservationsMigrations.HistoryTable, ReservationsMigrations.Schema))
             .Options;
-        return new(options, new TestScopeContext());
+        return new(
+            options,
+            new TestScopeContext(),
+            OpenWorkspaceTerminationFenceReader.Instance);
     }
 
     private sealed class TestScopeContext : IScopeContext

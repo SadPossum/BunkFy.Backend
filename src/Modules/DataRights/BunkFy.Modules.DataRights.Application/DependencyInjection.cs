@@ -60,6 +60,9 @@ public static class DependencyInjection
             ITenantTerminationProductionCatalog,
             TenantTerminationProductionCatalog>();
         services.TryAddScoped<
+            ITenantTerminationProductionReadinessProbe,
+            TenantTerminationProductionReadinessProbe>();
+        services.TryAddScoped<
             ITenantTerminationCoordinationSignal,
             TenantTerminationCoordinationSignal>();
         services.TryAddScoped<

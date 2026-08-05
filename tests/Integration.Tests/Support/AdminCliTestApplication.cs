@@ -25,6 +25,7 @@ using Gma.Modules.Auth.Domain.Errors;
 using Gma.Modules.Auth.Persistence;
 using BunkFy.Modules.Ingestion.AdminCli;
 using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,6 +69,7 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         if (includeIngestion)
         {
             builder.Services.AddReservationMailParserDescriptor();
+            builder.AddWorkspacesTerminationAdmissionPersistence();
             builder.AddAdminModule<IngestionAdminCliModule>();
         }
 
@@ -85,6 +87,8 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         IngestionDbContext? ingestion = scope.ServiceProvider.GetService<IngestionDbContext>();
         if (ingestion is not null)
         {
+            await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
+                .Database.MigrateAsync().ConfigureAwait(false);
             await ingestion.Database.MigrateAsync().ConfigureAwait(false);
         }
     }

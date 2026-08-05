@@ -6,6 +6,7 @@ using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -101,7 +102,11 @@ public sealed class GuestAnonymisationPersistenceIntegrationTests
                 SET "ApprovalEvidenceSha256" = {new string('A', GuestAnonymisationReceipt.Sha256Length)}
                 WHERE "ScopeId" = {"tenant-a"} AND "Id" = {receipt.Id}
                 """));
-        Assert.Equal(PostgresErrorCodes.CheckViolation, invalidDigest.SqlState);
+        Assert.Equal(PostgresErrorCodes.RaiseException, invalidDigest.SqlState);
+        Assert.Contains(
+            "guest data-rights receipts are append-only",
+            invalidDigest.MessageText,
+            StringComparison.Ordinal);
 
         PostgresException unsafeDowngrade = await Assert.ThrowsAsync<PostgresException>(() =>
             dbContext.Database.GetService<IMigrator>().MigrateAsync(PreviousMigration));
@@ -187,7 +192,10 @@ public sealed class GuestAnonymisationPersistenceIntegrationTests
                         GuestsMigrations.HistoryTable,
                         GuestsMigrations.Schema))
                 .Options;
-        return new(options, new TestScopeContext());
+        return new(
+            options,
+            new TestScopeContext(),
+            OpenWorkspaceTerminationFenceReader.Instance);
     }
 
     private sealed class TestScopeContext : IScopeContext

@@ -36,7 +36,11 @@ internal sealed class IngestionPersistenceRetryBehavior<TCommand, TResponse>
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(next);
 
-        if (command is not ClaimRemoteAdapterLeaseCommand)
+        if (command is not (
+                ClaimRemoteAdapterLeaseCommand or
+                ReceiveObservationCommand or
+                PlaceLegalHoldCommand or
+                ReleaseLegalHoldCommand))
         {
             return await next().ConfigureAwait(false);
         }

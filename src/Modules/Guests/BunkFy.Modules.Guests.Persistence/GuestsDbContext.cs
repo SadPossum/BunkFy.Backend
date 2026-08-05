@@ -197,6 +197,13 @@ public sealed class GuestsDbContext(
                     this,
                     tenantId,
                     cancellationToken).ConfigureAwait(false);
+                if (hasOperationalMutation)
+                {
+                    await GuestsTenantMutationLock.AcquireRevisionAdvanceAsync(
+                        this,
+                        tenantId,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
 
             await this.EnsureOperationalAdmissionAsync(cancellationToken)

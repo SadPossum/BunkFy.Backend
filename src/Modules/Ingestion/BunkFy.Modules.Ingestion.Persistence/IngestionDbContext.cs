@@ -110,6 +110,10 @@ public sealed class IngestionDbContext(
                     this,
                     tenantId,
                     cancellationToken).ConfigureAwait(false);
+                await IngestionTenantMutationLock.AcquireRevisionAdvanceAsync(
+                    this,
+                    tenantId,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             await this.EnsureOperationalAdmissionAsync(cancellationToken)
@@ -217,6 +221,13 @@ public sealed class IngestionDbContext(
                     this,
                     tenantId,
                     cancellationToken).ConfigureAwait(false);
+                if (hasOperationalMutation)
+                {
+                    await IngestionTenantMutationLock.AcquireRevisionAdvanceAsync(
+                        this,
+                        tenantId,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
 
             await this.EnsureOperationalAdmissionAsync(cancellationToken)

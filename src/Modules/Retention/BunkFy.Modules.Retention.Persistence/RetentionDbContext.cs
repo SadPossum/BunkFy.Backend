@@ -97,6 +97,13 @@ public sealed class RetentionDbContext(
                     this,
                     tenantId,
                     cancellationToken).ConfigureAwait(false);
+                if (hasOperationalMutation)
+                {
+                    await RetentionTenantMutationLock.AcquireRevisionAdvanceAsync(
+                        this,
+                        tenantId,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
 
             await this.EnsureOperationalAdmissionAsync(cancellationToken)

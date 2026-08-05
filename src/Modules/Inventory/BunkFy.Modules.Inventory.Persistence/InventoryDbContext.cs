@@ -109,6 +109,13 @@ public sealed class InventoryDbContext(
                     this,
                     tenantId,
                     cancellationToken).ConfigureAwait(false);
+                if (hasOperationalMutation)
+                {
+                    await InventoryTenantMutationLock.AcquireRevisionAdvanceAsync(
+                        this,
+                        tenantId,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
 
             await this.EnsureOperationalAdmissionAsync(cancellationToken)

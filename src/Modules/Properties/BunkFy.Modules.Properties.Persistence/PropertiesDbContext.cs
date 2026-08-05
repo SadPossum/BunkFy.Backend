@@ -96,6 +96,13 @@ public sealed class PropertiesDbContext(
                     this,
                     tenantId,
                     cancellationToken).ConfigureAwait(false);
+                if (hasOperationalMutation)
+                {
+                    await PropertiesTenantMutationLock.AcquireRevisionAdvanceAsync(
+                        this,
+                        tenantId,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
 
             await this.EnsureOperationalAdmissionAsync(cancellationToken)

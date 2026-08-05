@@ -8,11 +8,6 @@ public interface ITenantTerminationProductionCatalog
         IReadOnlyCollection<string> requiredOwnerKeys);
 }
 
-public interface ITenantTerminationRequiredOwnerCatalog
-{
-    IReadOnlyCollection<string> RequiredOwnerKeys { get; }
-}
-
 public sealed record TenantTerminationProductionCatalogEvidence(
     int OwnerCount,
     int ExportOwnerCount,

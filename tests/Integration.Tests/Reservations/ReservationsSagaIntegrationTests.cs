@@ -89,7 +89,7 @@ public sealed class ReservationsSagaIntegrationTests
                 canonicalGuest.GuestId,
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
-            ReservationDto first = await CreateReservationAsync(
+            ReservationMutationReceiptDto first = await CreateReservationAsync(
                 client,
                 tokens.AccessToken,
                 new DateOnly(2026, 10, 1),
@@ -104,7 +104,7 @@ public sealed class ReservationsSagaIntegrationTests
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
             Assert.NotNull(confirmed.AllocationId);
 
-            ReservationDto overlapping = await CreateReservationAsync(
+            ReservationMutationReceiptDto overlapping = await CreateReservationAsync(
                 client,
                 tokens.AccessToken,
                 new DateOnly(2026, 10, 2),
@@ -126,7 +126,7 @@ public sealed class ReservationsSagaIntegrationTests
                 await AssertStatusAsync(HttpStatusCode.Forbidden, crossScope).ConfigureAwait(false);
             }
 
-            ReservationDto cancellationPending;
+            ReservationMutationReceiptDto cancellationPending;
             using (HttpResponseMessage cancel = await SendAsync(
                        client,
                        HttpMethod.Post,
@@ -134,7 +134,9 @@ public sealed class ReservationsSagaIntegrationTests
                        tokens.AccessToken,
                        new { expectedVersion = confirmed.Version }).ConfigureAwait(false))
             {
-                cancellationPending = await ReadSuccessAsync<ReservationDto>(cancel).ConfigureAwait(false);
+                cancellationPending =
+                    await ReadSuccessAsync<ReservationMutationReceiptDto>(cancel)
+                        .ConfigureAwait(false);
             }
 
             Assert.Equal(ReservationStatus.CancellationPending, cancellationPending.Status);
@@ -145,7 +147,7 @@ public sealed class ReservationsSagaIntegrationTests
                 ReservationStatus.Cancelled,
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
-            ReservationDto replacement = await CreateReservationAsync(
+            ReservationMutationReceiptDto replacement = await CreateReservationAsync(
                 client,
                 tokens.AccessToken,
                 new DateOnly(2026, 10, 1),
@@ -198,7 +200,7 @@ public sealed class ReservationsSagaIntegrationTests
                 isRestricted: false,
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
 
-            ReservationDto linked;
+            ReservationMutationReceiptDto linkedReceipt;
             using (HttpResponseMessage link = await SendAsync(
                        client,
                        HttpMethod.Put,
@@ -212,9 +214,17 @@ public sealed class ReservationsSagaIntegrationTests
                            expectedVersion = replacementConfirmed.Version
                        }).ConfigureAwait(false))
             {
-                linked = await ReadSuccessAsync<ReservationDto>(link).ConfigureAwait(false);
+                linkedReceipt = await ReadSuccessAsync<ReservationMutationReceiptDto>(link)
+                    .ConfigureAwait(false);
             }
 
+            ReservationDto linked = await WaitForStatusAsync(
+                client,
+                tokens.AccessToken,
+                replacement.ReservationId,
+                ReservationStatus.Confirmed,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+            Assert.Equal(linkedReceipt.Version, linked.Version);
             Assert.Equal(canonicalGuest.GuestId, Assert.Single(linked.Guests).GuestId);
 
             using (HttpResponseMessage idempotentRetry = await SendAsync(
@@ -230,8 +240,10 @@ public sealed class ReservationsSagaIntegrationTests
                            expectedVersion = replacementConfirmed.Version
                        }).ConfigureAwait(false))
             {
-                ReservationDto retried = await ReadSuccessAsync<ReservationDto>(idempotentRetry).ConfigureAwait(false);
-                Assert.Equal(linked.Version, retried.Version);
+                ReservationMutationReceiptDto retried =
+                    await ReadSuccessAsync<ReservationMutationReceiptDto>(idempotentRetry)
+                        .ConfigureAwait(false);
+                Assert.Equal(linkedReceipt.Version, retried.Version);
             }
 
             using (HttpResponseMessage deniedCheckIn = await SendAsync(
@@ -245,7 +257,7 @@ public sealed class ReservationsSagaIntegrationTests
                 await AssertStatusAsync(HttpStatusCode.Forbidden, deniedCheckIn).ConfigureAwait(false);
             }
 
-            ReservationDto checkedIn;
+            ReservationMutationReceiptDto checkedInReceipt;
             using (HttpResponseMessage checkIn = await SendAsync(
                        client,
                        HttpMethod.Post,
@@ -254,9 +266,18 @@ public sealed class ReservationsSagaIntegrationTests
                        new { businessDate = new DateOnly(2026, 10, 1), expectedVersion = linked.Version })
                        .ConfigureAwait(false))
             {
-                checkedIn = await ReadSuccessAsync<ReservationDto>(checkIn).ConfigureAwait(false);
+                checkedInReceipt =
+                    await ReadSuccessAsync<ReservationMutationReceiptDto>(checkIn)
+                        .ConfigureAwait(false);
             }
 
+            ReservationDto checkedIn = await WaitForStatusAsync(
+                client,
+                tokens.AccessToken,
+                replacement.ReservationId,
+                ReservationStatus.CheckedIn,
+                TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+            Assert.Equal(checkedInReceipt.Version, checkedIn.Version);
             Assert.Equal(ReservationStatus.CheckedIn, checkedIn.Status);
             Assert.Equal(new DateOnly(2026, 10, 1), checkedIn.CheckedInBusinessDate);
             Assert.StartsWith("user:", checkedIn.CheckedInBy, StringComparison.Ordinal);
@@ -272,7 +293,7 @@ public sealed class ReservationsSagaIntegrationTests
                 await AssertStatusAsync(HttpStatusCode.Conflict, staleCheckIn).ConfigureAwait(false);
             }
 
-            ReservationDto checkoutPending;
+            ReservationMutationReceiptDto checkoutPending;
             using (HttpResponseMessage checkOut = await SendAsync(
                        client,
                        HttpMethod.Post,
@@ -281,7 +302,9 @@ public sealed class ReservationsSagaIntegrationTests
                        new { businessDate = new DateOnly(2026, 10, 3), expectedVersion = checkedIn.Version })
                        .ConfigureAwait(false))
             {
-                checkoutPending = await ReadSuccessAsync<ReservationDto>(checkOut).ConfigureAwait(false);
+                checkoutPending =
+                    await ReadSuccessAsync<ReservationMutationReceiptDto>(checkOut)
+                        .ConfigureAwait(false);
             }
 
             Assert.Equal(ReservationStatus.CheckoutPending, checkoutPending.Status);
@@ -305,7 +328,7 @@ public sealed class ReservationsSagaIntegrationTests
             Assert.Equal(checkedIn.CheckedInBusinessDate, stay.CheckedInBusinessDate);
             Assert.Equal(checkedOut.CheckedOutBusinessDate, stay.CheckedOutBusinessDate);
 
-            await ApplyStaleGuestStayEventAsync(api, canonicalGuest.GuestId, replacement, linked.Version)
+            await ApplyStaleGuestStayEventAsync(api, canonicalGuest.GuestId, linked, linked.Version)
                 .ConfigureAwait(false);
             GuestStayHistoryItem afterStale = await GetGuestStayAsync(
                 client,
@@ -324,7 +347,7 @@ public sealed class ReservationsSagaIntegrationTests
                 await AssertStatusAsync(HttpStatusCode.Forbidden, crossPropertyGuest).ConfigureAwait(false);
             }
 
-            ReservationDto noShowCandidate = await CreateReservationAsync(
+            ReservationMutationReceiptDto noShowCandidate = await CreateReservationAsync(
                 client,
                 tokens.AccessToken,
                 new DateOnly(2026, 10, 1),
@@ -345,7 +368,9 @@ public sealed class ReservationsSagaIntegrationTests
                        new { businessDate = new DateOnly(2026, 10, 1), expectedVersion = noShowConfirmed.Version })
                        .ConfigureAwait(false))
             {
-                ReservationDto pending = await ReadSuccessAsync<ReservationDto>(noShow).ConfigureAwait(false);
+                ReservationMutationReceiptDto pending =
+                    await ReadSuccessAsync<ReservationMutationReceiptDto>(noShow)
+                        .ConfigureAwait(false);
                 Assert.Equal(ReservationStatus.NoShowPending, pending.Status);
             }
 
@@ -358,7 +383,7 @@ public sealed class ReservationsSagaIntegrationTests
             Assert.Equal(new DateOnly(2026, 10, 1), noShowTerminal.NoShowBusinessDate);
             Assert.StartsWith("user:", noShowTerminal.NoShowBy, StringComparison.Ordinal);
 
-            ReservationDto finalReplacement = await CreateReservationAsync(
+            ReservationMutationReceiptDto finalReplacement = await CreateReservationAsync(
                 client,
                 tokens.AccessToken,
                 new DateOnly(2026, 10, 1),
@@ -808,7 +833,7 @@ public sealed class ReservationsSagaIntegrationTests
             "--scope", $"tenant:{TenantId}/property:{PropertyId:D}"));
     }
 
-    private static async Task<ReservationDto> CreateReservationAsync(
+    private static async Task<ReservationMutationReceiptDto> CreateReservationAsync(
         HttpClient client,
         string accessToken,
         DateOnly arrival,
@@ -834,7 +859,8 @@ public sealed class ReservationsSagaIntegrationTests
                 sourceReference = (string?)null,
                 notes = (string?)null
             }).ConfigureAwait(false);
-        return await ReadSuccessAsync<ReservationDto>(response).ConfigureAwait(false);
+        return await ReadSuccessAsync<ReservationMutationReceiptDto>(response)
+            .ConfigureAwait(false);
     }
 
     private static async Task<ReservationDto> WaitForStatusAsync(

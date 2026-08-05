@@ -6,7 +6,9 @@ using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -123,6 +125,8 @@ public sealed class GuestDataRightsExportIntegrationTests
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = connectionString;
         builder.Services.AddSingleton<IScopeContext>(new TestScopeContext("tenant-a"));
+        builder.Services.AddSingleton<IWorkspaceTerminationFenceReader>(
+            OpenWorkspaceTerminationFenceReader.Instance);
         builder.AddGuestsPersistence();
         return builder.Services.BuildServiceProvider();
     }

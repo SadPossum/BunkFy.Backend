@@ -1,7 +1,6 @@
 namespace BunkFy.Extensions.DataRights.TenantTermination;
 
 using BunkFy.Modules.DataRights.Contracts;
-using BunkFy.Modules.DataRights.Application.Production;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

@@ -22,6 +22,7 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Messaging;
@@ -701,6 +702,9 @@ public sealed class DataRightsAnonymisationExecutionIntegrationTests
     private static async Task MigrateRestoreDatabasesAsync(IHost worker)
     {
         using IServiceScope scope = worker.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
             .Database.MigrateAsync()
             .ConfigureAwait(false);

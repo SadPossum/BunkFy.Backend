@@ -10,7 +10,9 @@ using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
 using BunkFy.Modules.Staff.Domain.Governance;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -72,8 +74,9 @@ public sealed class StaffDataRightsExportIntegrationTests
                 .GetRequiredService<StaffDbContext>();
             await legacy.Database.GetService<IMigrator>()
                 .MigrateAsync(LegacyStaffMigration);
-            legacy.StaffMembers.Add(member);
-            await legacy.SaveChangesAsync();
+            await LegacyStaffPersistenceTestData.InsertMemberAsync(
+                legacy,
+                member);
         }
 
         using (IServiceScope migratedScope = provider.CreateScope())
@@ -346,6 +349,8 @@ public sealed class StaffDataRightsExportIntegrationTests
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = connectionString;
         builder.Services.AddSingleton<IScopeContext>(new TestScopeContext("tenant-a"));
+        builder.Services.AddSingleton<IWorkspaceTerminationFenceReader>(
+            OpenWorkspaceTerminationFenceReader.Instance);
         builder.AddStaffPersistence();
         return builder.Services.BuildServiceProvider();
     }

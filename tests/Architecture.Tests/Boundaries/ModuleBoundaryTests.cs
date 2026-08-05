@@ -90,6 +90,26 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Project_reference_resolution_is_platform_neutral()
+    {
+        ProjectFile extension = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Extensions.DataRights.TenantTermination",
+                StringComparison.Ordinal));
+        string reference = Assert.Single(
+            extension.ProjectReferences,
+            candidate => candidate.EndsWith(
+                "BunkFy.Modules.DataRights.Contracts\\BunkFy.Modules.DataRights.Contracts.csproj",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(
+            "src/Modules/DataRights/BunkFy.Modules.DataRights.Contracts/BunkFy.Modules.DataRights.Contracts.csproj",
+            ResolveProjectReference(extension, reference));
+    }
+
+    [Fact]
     public void Product_extensions_use_access_control_through_its_contracts_facade()
     {
         string[] projectReferenceOffenders = ProjectFile.All()
@@ -846,7 +866,10 @@ public sealed class ModuleBoundaryTests
         }
 
         string projectDirectory = Path.GetDirectoryName(project.Path)!;
-        string absolute = Path.GetFullPath(reference, projectDirectory);
+        string platformReference = reference
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+        string absolute = Path.GetFullPath(platformReference, projectDirectory);
         return RepositoryPaths.ToRepositoryPath(absolute);
     }
 

@@ -286,8 +286,8 @@ public sealed class StaffProcessingRestrictionIntegrationTests
             "user:migration-seed",
             Guid.NewGuid(),
             SeededAtUtc.AddMinutes(1)).IsSuccess);
-        staff.StaffMembers.Add(member);
-        await staff.SaveChangesAsync().ConfigureAwait(false);
+        await LegacyStaffPersistenceTestData.InsertMemberAsync(staff, member)
+            .ConfigureAwait(false);
         return member;
     }
 
@@ -605,7 +605,10 @@ public sealed class StaffProcessingRestrictionIntegrationTests
                         StaffMigrations.HistoryTable,
                         StaffMigrations.Schema))
                 .Options;
-        return new(options, new TestScopeContext());
+        return new(
+            options,
+            new TestScopeContext(),
+            OpenWorkspaceTerminationFenceReader.Instance);
     }
 
     private static async Task<HttpResponseMessage> SendAsync(

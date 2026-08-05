@@ -22,6 +22,8 @@ public sealed class DataRightsPersistenceIntegrationTests
         "20260726022029_AddProcessingLedgerResultVersion";
     private const string BeforeStaffRightsMigration =
         "20260726214049_AddDataRightsExecutionBatches";
+    private const string StaffRightsMigration =
+        "20260727021342_SupportTenantScopedStaffRightsCases";
     private const string BeforeScopedAnonymisationExecutionMigration =
         "20260729131757_AllowStaffRestrictionCases";
 
@@ -649,16 +651,28 @@ public sealed class DataRightsPersistenceIntegrationTests
         {
             await previous.Database.GetService<IMigrator>()
                 .MigrateAsync(BeforeStaffRightsMigration);
-            previous.Cases.AddRange(guest, tenantTermination);
-            await previous.SaveChangesAsync();
+            await SeedLegacyCaseAsync(
+                previous,
+                guest.Id,
+                propertyId,
+                DataRightsCaseKind.GuestRights,
+                DataRightsCaseOperation.AccessExport,
+                DataRightsRequesterRelation.ControllerInitiated);
+            await SeedLegacyCaseAsync(
+                previous,
+                tenantTermination.Id,
+                propertyId: null,
+                DataRightsCaseKind.TenantTermination,
+                DataRightsCaseOperation.Anonymisation,
+                DataRightsRequesterRelation.TenantOwner);
         }
 
         await using DataRightsDbContext upgraded = CreateDbContext(connectionString);
-        await upgraded.Database.MigrateAsync();
+        await upgraded.Database.GetService<IMigrator>()
+            .MigrateAsync(StaffRightsMigration);
 
-        DataRightsCase[] preserved = await upgraded.Cases
-            .OrderBy(item => item.Kind)
-            .ToArrayAsync();
+        LegacyCaseCoordinates[] preserved =
+            await ReadLegacyCaseCoordinatesAsync(connectionString);
         Assert.Equal(2, preserved.Length);
         Assert.Contains(preserved, item =>
             item.Id == guest.Id &&
@@ -669,15 +683,20 @@ public sealed class DataRightsPersistenceIntegrationTests
             item.Kind == DataRightsCaseKind.TenantTermination &&
             item.PropertyId is null);
 
-        DataRightsCase staff = CreateCase(
+        Guid staffCaseId = Guid.NewGuid();
+        await SeedLegacyCaseAsync(
+            upgraded,
+            staffCaseId,
             propertyId: null,
             DataRightsCaseKind.StaffRights,
+            DataRightsCaseOperation.AccessExport,
             DataRightsRequesterRelation.DataSubject);
-        upgraded.Cases.Add(staff);
-        await upgraded.SaveChangesAsync();
-        Assert.Equal(
-            DataRightsCaseKind.StaffRights,
-            (await upgraded.Cases.SingleAsync(item => item.Id == staff.Id)).Kind);
+        LegacyCaseCoordinates[] withStaff =
+            await ReadLegacyCaseCoordinatesAsync(connectionString);
+        Assert.Contains(withStaff, item =>
+            item.Id == staffCaseId &&
+            item.Kind == DataRightsCaseKind.StaffRights &&
+            item.PropertyId is null);
 
         await AssertConstraintViolationAsync(
             upgraded,
@@ -707,10 +726,14 @@ public sealed class DataRightsPersistenceIntegrationTests
         DataRightsCaseKind kind,
         DataRightsRequesterRelation requesterRelationship)
     {
+        DataRightsCaseOperation requestedOperations =
+            kind == DataRightsCaseKind.TenantTermination
+                ? DataRightsCaseOperation.Anonymisation
+                : DataRightsCaseOperation.AccessExport;
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
             propertyId,
             kind,
-            DataRightsCaseOperation.AccessExport,
+            requestedOperations,
             requesterRelationship).Value;
         return DataRightsCase.Create(
             Guid.NewGuid(),
@@ -749,6 +772,61 @@ public sealed class DataRightsPersistenceIntegrationTests
         Assert.Equal(expectedConstraint, exception.ConstraintName);
     }
 
+    private static Task<int> SeedLegacyCaseAsync(
+        DataRightsDbContext dbContext,
+        Guid caseId,
+        Guid? propertyId,
+        DataRightsCaseKind kind,
+        DataRightsCaseOperation operations,
+        DataRightsRequesterRelation requesterRelationship)
+    {
+        DateTimeOffset createdAtUtc =
+            new(2026, 7, 27, 0, 0, 0, TimeSpan.Zero);
+        return dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "data-rights"."cases"
+                ("Id", "PropertyId", "Kind", "RequestedOperations",
+                 "RequesterRelationship", "VerificationStatus", "RoutingStatus",
+                 "Status", "Decision", "DecisionReason", "RestrictionDirective",
+                 "DueAtUtc", "Version", "CreatedBy", "CreatedAtUtc",
+                 "LastChangedBy", "LastChangedAtUtc", "ScopeId")
+            VALUES
+                ({caseId}, {propertyId}, {(int)kind}, {(int)operations},
+                 {(int)requesterRelationship},
+                 {(int)DataRightsVerificationState.NotRequired},
+                 {(int)DataRightsRoutingState.NotRequired},
+                 {(int)DataRightsCaseState.Draft},
+                 {(int)DataRightsCaseDecision.Unknown},
+                 {(int)DataRightsCaseDecisionReason.Unknown}, 0, NULL, 1,
+                 {"staff:privacy"}, {createdAtUtc}, {"staff:privacy"},
+                 {createdAtUtc}, {"tenant-a"})
+            """);
+    }
+
+    private static async Task<LegacyCaseCoordinates[]>
+        ReadLegacyCaseCoordinatesAsync(string connectionString)
+    {
+        await using NpgsqlConnection connection = new(connectionString);
+        await connection.OpenAsync();
+        await using NpgsqlCommand command = new(
+            """
+            SELECT "Id", "Kind", "PropertyId"
+            FROM "data-rights"."cases"
+            ORDER BY "Id"
+            """,
+            connection);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+        List<LegacyCaseCoordinates> cases = [];
+        while (await reader.ReadAsync())
+        {
+            cases.Add(new LegacyCaseCoordinates(
+                reader.GetGuid(0),
+                (DataRightsCaseKind)reader.GetInt32(1),
+                reader.IsDBNull(2) ? null : reader.GetGuid(2)));
+        }
+
+        return [.. cases];
+    }
+
     private static DataRightsDbContext CreateDbContext(string connectionString)
     {
         DbContextOptions<DataRightsDbContext> options = new DbContextOptionsBuilder<DataRightsDbContext>()
@@ -764,4 +842,9 @@ public sealed class DataRightsPersistenceIntegrationTests
         public bool IsEnabled => true;
         public string ScopeId => "tenant-a";
     }
+
+    private sealed record LegacyCaseCoordinates(
+        Guid Id,
+        DataRightsCaseKind Kind,
+        Guid? PropertyId);
 }

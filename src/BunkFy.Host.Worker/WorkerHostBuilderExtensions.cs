@@ -123,9 +123,13 @@ public static class WorkerHostBuilderExtensions
 
         AddConfiguredModuleGroups(builder, workerOptions);
 
-        if (workerOptions.TaskWorkerEnabled)
+        if (RequiresWorkspaceTerminationAdmission(workerOptions))
         {
             builder.AddWorkspacesTerminationAdmissionPersistence();
+        }
+
+        if (workerOptions.TaskWorkerEnabled)
+        {
             builder.AddTenantTaskExecutionContext();
             builder.Services.TryAddEnumerable(
                 ServiceDescriptor.Scoped<
@@ -387,6 +391,17 @@ public static class WorkerHostBuilderExtensions
         modules.Ingestion &&
         modules.Retention &&
         modules.TaskRuntime;
+
+    private static bool RequiresWorkspaceTerminationAdmission(
+        WorkerHostOptions options) =>
+        options.TaskWorkerEnabled ||
+        options.Modules.Properties ||
+        options.Modules.Inventory ||
+        options.Modules.Reservations ||
+        options.Modules.Guests ||
+        options.Modules.Staff ||
+        options.Modules.Ingestion ||
+        options.Modules.Retention;
 
     private static JsonFileDropAdapterOptions ResolveJsonFileDropOptions(IHostApplicationBuilder builder)
     {

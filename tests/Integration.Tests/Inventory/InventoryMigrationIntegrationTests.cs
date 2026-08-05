@@ -3,6 +3,7 @@ namespace Integration.Tests;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -92,7 +93,10 @@ public sealed class InventoryMigrationIntegrationTests
                         InventoryMigrations.HistoryTable,
                         InventoryMigrations.Schema))
                 .Options;
-        return new(options, new TestScopeContext());
+        return new(
+            options,
+            new TestScopeContext(),
+            OpenWorkspaceTerminationFenceReader.Instance);
     }
 
     private sealed class TestScopeContext : IScopeContext

@@ -4,6 +4,7 @@ using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Persistence;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -155,7 +156,10 @@ public sealed class GuestProcessingRestrictionPersistenceIntegrationTests
                         GuestsMigrations.HistoryTable,
                         GuestsMigrations.Schema))
                 .Options;
-        return new(options, new TestScopeContext());
+        return new(
+            options,
+            new TestScopeContext(),
+            OpenWorkspaceTerminationFenceReader.Instance);
     }
 
     private sealed class TestScopeContext : IScopeContext

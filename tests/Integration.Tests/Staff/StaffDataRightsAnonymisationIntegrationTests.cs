@@ -48,6 +48,12 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
     private const string TenantId =
         "8b000000-0000-0000-0000-000000000001";
     private const string StaffSubjectId = "private-auth-subject";
+    private const string BeforeStaffAnonymisationOwnerProofMigration =
+        "20260729161607_AddStaffEmploymentGovernanceAndDataHolds";
+    private const string BeforeScopedAnonymisationOwnerProtocolMigration =
+        "20260729191433_ScopeAnonymisationExecution";
+    private const string BeforeStaffAnonymisationRestoreProofMigration =
+        "20260729222732_AddStaffAnonymisationOwnerProof";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -891,29 +897,30 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
         await AssertDowngradeRejectedAsync<StaffDbContext>(
             api,
             "Cannot downgrade while Staff anonymisation state or proof exists.",
-            migrationsBack: 2)
+            BeforeStaffAnonymisationOwnerProofMigration)
             .ConfigureAwait(false);
         await AssertDowngradeRejectedAsync<DataRightsDbContext>(
             api,
-            "Cannot downgrade while scoped anonymisation owner work exists.")
+            "Cannot downgrade while scoped anonymisation owner work exists.",
+            BeforeScopedAnonymisationOwnerProtocolMigration)
             .ConfigureAwait(false);
     }
 
     private static async Task AssertDowngradeRejectedAsync<TContext>(
         AuthTestApplication api,
         string expectedMessage,
-        int migrationsBack = 1)
+        string targetMigration)
         where TContext : DbContext =>
         await AssertDowngradeRejectedAsync<TContext>(
                 api.Services,
                 expectedMessage,
-                migrationsBack)
+                targetMigration)
             .ConfigureAwait(false);
 
     private static async Task AssertDowngradeRejectedAsync<TContext>(
         IServiceProvider services,
         string expectedMessage,
-        int migrationsBack = 1)
+        string targetMigration)
         where TContext : DbContext
     {
         using IServiceScope scope = services.CreateScope();
@@ -926,12 +933,11 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
                 .GetAppliedMigrationsAsync()
                 .ConfigureAwait(false))
             .ToArray();
-        Assert.True(applied.Length > migrationsBack);
+        Assert.Contains(targetMigration, applied);
         IMigrator migrator =
             dbContext.Database.GetService<IMigrator>();
         Exception exception = await Assert.ThrowsAnyAsync<Exception>(
-            () => migrator.MigrateAsync(
-                applied[^(migrationsBack + 1)]));
+            () => migrator.MigrateAsync(targetMigration));
         Assert.Contains(
             expectedMessage,
             exception.ToString(),
@@ -972,5 +978,6 @@ public sealed class StaffDataRightsAnonymisationIntegrationTests
         IHost worker) =>
         AssertDowngradeRejectedAsync<StaffDbContext>(
             worker.Services,
-            "Cannot downgrade Staff anonymisation restore proof while restore evidence exists.");
+            "Cannot downgrade Staff anonymisation restore proof while restore evidence exists.",
+            BeforeStaffAnonymisationRestoreProofMigration);
 }

@@ -10,6 +10,7 @@ using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Persistence;
 using Gma.Framework.Scoping;
+using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -551,7 +552,10 @@ public sealed class IngestionMigrationIntegrationTests
                 .MigrationsAssembly(IngestionMigrations.PostgreSqlAssembly)
                 .MigrationsHistoryTable(IngestionMigrations.HistoryTable, IngestionMigrations.Schema))
             .Options;
-        return new(options, new TestScopeContext());
+        return new(
+            options,
+            new TestScopeContext(),
+            OpenWorkspaceTerminationFenceReader.Instance);
     }
 
     private sealed class TestScopeContext : IScopeContext

@@ -9,6 +9,7 @@ using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
+using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
@@ -353,7 +354,8 @@ public sealed class StaffDataRightsCorrectionIntegrationTests
             Guid.NewGuid(),
             [],
             SeededAtUtc.AddMinutes(1)).IsSuccess);
-        staff.StaffMembers.Add(member);
+        await scope.ServiceProvider.GetRequiredService<IStaffMemberRepository>()
+            .AddAsync(member, CancellationToken.None).ConfigureAwait(false);
         await staff.SaveChangesAsync().ConfigureAwait(false);
 
         DataRightsCaseRequest caseRequest = DataRightsCaseRequest.Create(

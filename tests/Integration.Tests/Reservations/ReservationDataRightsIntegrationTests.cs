@@ -18,6 +18,8 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Messaging;
@@ -763,6 +765,9 @@ public sealed class ReservationDataRightsIntegrationTests
     private static async Task MigrateCorrectionDatabasesAsync(AuthTestApplication api)
     {
         using IServiceScope scope = api.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
+            .Database.MigrateAsync()
+            .ConfigureAwait(false);
         scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
         await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
             .Database.MigrateAsync()
@@ -1242,6 +1247,8 @@ public sealed class ReservationDataRightsIntegrationTests
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = connectionString;
         builder.Services.AddSingleton<IScopeContext>(new TestScopeContext("tenant-a"));
+        builder.Services.AddSingleton<IWorkspaceTerminationFenceReader>(
+            OpenWorkspaceTerminationFenceReader.Instance);
         builder.AddReservationsPersistence();
         return builder.Services.BuildServiceProvider();
     }

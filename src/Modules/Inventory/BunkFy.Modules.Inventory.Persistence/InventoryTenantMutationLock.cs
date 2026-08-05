@@ -9,6 +9,8 @@ internal static class InventoryTenantMutationLock
 {
     private const string DestroyOperationResourcePrefix =
         "bunkfy:inventory:tenant-destroy-operation:";
+    private const string RevisionAdvanceResourcePrefix =
+        "bunkfy:inventory:tenant-revision-advance:";
 
     public static Task AcquireAdmissionAsync(
         InventoryDbContext dbContext,
@@ -29,6 +31,27 @@ internal static class InventoryTenantMutationLock
             tenantId,
             EfTransactionKeyLockMode.Exclusive,
             cancellationToken);
+
+    public static Task AcquireRevisionAdvanceAsync(
+        InventoryDbContext dbContext,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(dbContext);
+        if (!TenantIds.TryNormalize(tenantId, out string? canonicalTenantId))
+        {
+            throw new InventoryOperationalAdmissionException(
+                InventoryOperationalAdmissionFailure.Unavailable);
+        }
+
+        return dbContext.Database.IsRelational()
+            ? EfTransactionKeyLock.AcquireAsync(
+                dbContext,
+                RevisionAdvanceResourcePrefix + canonicalTenantId,
+                EfTransactionKeyLockMode.Exclusive,
+                cancellationToken)
+            : Task.CompletedTask;
+    }
 
     private static Task AcquireAsync(
         InventoryDbContext dbContext,
