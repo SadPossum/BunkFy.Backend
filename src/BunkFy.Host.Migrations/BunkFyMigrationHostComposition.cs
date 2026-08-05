@@ -19,6 +19,7 @@ using Gma.Modules.Notifications.Persistence;
 using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 public static class BunkFyMigrationHostComposition
@@ -46,6 +47,7 @@ public static class BunkFyMigrationHostComposition
         builder.AddWorkspacesPersistence();
         builder.AddIngestionPersistence();
         builder.AddRetentionPersistence();
+        builder.Services.RemoveAll<IHostedService>();
         return builder;
     }
 }
