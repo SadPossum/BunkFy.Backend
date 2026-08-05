@@ -321,17 +321,15 @@ exports, correction, restriction, anonymisation, restore, and processing-ledger
 workflows coordinate owner capabilities without reading or mutating another
 module's records.
 
-Guests, Reservations, Ingestion, Staff, Inventory, and Workspaces now
-implement the owner-local operations applicable to their current record
-types. Workspaces contributes bounded Staff Rights discovery, stale-safe
-selection validation, and protected export for onboarding, access processes,
-access plans, and immutable retention-correlation receipts. It also owns
-claim-bound correction of the seven staged applicant-profile fields while an
-onboarding record remains `Submitted`, with append-only replay proof and
-durable central-case completion. Restriction and destructive execution remain
-intentionally absent until their authority and required-companion semantics
-are specified. Consent records, document-retention schedules, and
-country-specific guest-registration obligations remain separate concerns.
+Guests, Reservations, Ingestion, Staff, Inventory, Operations Notifications,
+and Workspaces implement the owner-local operations applicable to their
+current record types. Workspaces owns bounded Staff Rights discovery,
+stale-safe selection, protected export, claim-bound correction, reversible
+restriction, required-companion anonymisation, restore proof, and tenant
+termination for onboarding, access, and retained-correlation records. Data
+Rights remains the coordinator and never reads or mutates an owner's schema.
+Consent records, document-retention schedules, and country-specific
+guest-registration obligations remain separate concerns.
 
 ### Integrations Marketplace
 
@@ -348,16 +346,16 @@ This overlaps with Data Providers/Ingestion but may become a separate management
 ## Suggested Next Slice
 
 Properties, Inventory, the provider-agnostic Ingestion platform, Reservations,
-Guest Records, Staff Profiles, the Data Rights coordinator, and the automatic
-Retention control plane are implemented through their current production
-milestones. Owner-local automatic retention covers Ingestion, Guests,
-Reservations, and Staff; Workspaces now removes its Staff/Auth correlation as
-part of that irreversible workflow.
+Guest Records, Staff Profiles, Workspaces, Operations Notifications, the Data
+Rights coordinator, and the automatic Retention control plane have completed
+their current repository-owned production milestones and are published as one
+exact product candidate.
 
-The suggested next slice remains inside Workspaces: define reversible
-processing restriction for the still-authoritative onboarding and access
-records without freezing Organizations, Auth, or Staff-owned state.
-Destructive Workspaces execution waits for a generic BunkFy Data Rights
-required-companion contract. Rates, Billing, business-day close/reopen,
-housekeeping, maintenance, and temporary holds remain separate later
+Do not start another product domain in this production-preparation sequence.
+The next slice is deployment-owned: publish and promote the reviewed image
+digests through the private release process, execute the migration plan/apply
+contract, verify edge and Admin API isolation, prove backup/restore and key
+continuity, and run deployed multi-account onboarding, access, notification,
+adapter, and rollback smokes. Rates, Billing, business-day close/reopen,
+housekeeping, maintenance, and temporary holds remain later product
 candidates.

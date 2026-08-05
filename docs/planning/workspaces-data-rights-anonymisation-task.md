@@ -1,6 +1,6 @@
 # Workspaces Data Rights Anonymisation Task
 
-Status: implementation and final local verification complete; publication pending
+Status: published; implementation and exact-candidate verification complete
 Date: 2026-07-30
 
 ## Goal
@@ -189,8 +189,8 @@ Architecture tests must prove:
    focused tests.
 8. [Complete] Run the coherent local non-Docker gate and the exact relational
    scenario.
-9. [Pending publication] Publish the backend and root pointers, then verify
-   exact-commit CI.
+9. [Complete] Publish the backend and root pointers, then verify exact-commit
+   CI.
 
 ## Verification
 

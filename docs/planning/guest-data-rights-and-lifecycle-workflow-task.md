@@ -1,6 +1,6 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: current owner workflows implemented and locally verified; publication pending
+Status: current owner workflows published and exactly verified
 ledger and restore replay complete; Reservations owner workflow complete;
 Ingestion exact discovery and catalogue-driven export implemented
 
@@ -274,7 +274,7 @@ needed, one owner capability at a time.
    download and destructive-action flows.
 7. [Complete] Add tenant-termination export, credential revocation, active-store deletion
    and external ledger-delta restore gating.
-8. [Local verification complete; publication pending] Run migration,
+8. [Complete] Run migration,
    architecture, focused relational/Docker, browser, and security gates, then
    verify the published exact candidates before any real guest data is allowed.
 

@@ -1,6 +1,6 @@
 # Backend Release-Candidate Publication Task
 
-Status: reusable source published; backend candidate verified locally
+Status: published; exact backend, web, and product candidate verification complete
 Date: 2026-08-05
 
 ## Scope
@@ -17,7 +17,7 @@ and deployed multi-account evidence remain deployment-owned.
 
 - Operations Notifications contributor and lifecycle coverage: 99 tests pass.
 - `eng/verify.ps1 -SkipRestore`: synchronized solution and source packages,
-  zero-warning build, zero migration drift, and 4,370 non-Docker tests pass.
+  zero-warning build, zero migration drift, and 4,377 non-Docker tests pass.
 - Repository security and release-evidence checks pass.
 - NuGet audit reports zero projects with vulnerable direct or transitive
   packages.
@@ -34,6 +34,27 @@ own slice ledgers. The final compatibility and documentation edits do not add a
 new persistence behavior, so another full Docker run would duplicate evidence
 without reducing risk. Exact candidate CI remains required after publication.
 
+## Exact Candidate Evidence
+
+- BunkFy Backend `9b776a5` passed
+  [validation](https://github.com/SadPossum/BunkFy.Backend/actions/runs/31026806385),
+  [security](https://github.com/SadPossum/BunkFy.Backend/actions/runs/31026806198),
+  [Docker integration](https://github.com/SadPossum/BunkFy.Backend/actions/runs/31046144477),
+  and [release evidence](https://github.com/SadPossum/BunkFy.Backend/actions/runs/31046151810).
+- BunkFy Web `e09f4e6` passed
+  [validation](https://github.com/SadPossum/BunkFy.Web/actions/runs/31047540673)
+  and [security](https://github.com/SadPossum/BunkFy.Web/actions/runs/31047540850).
+  Its generated OpenAPI contracts match backend `9b776a5`; the local coherent
+  gate passed type checking, lint, 150 tests, and the production build.
+- BunkFy root `74a334e` records those exact backend and web commits and passed
+  [validation](https://github.com/SadPossum/BunkFy/actions/runs/31047724330),
+  [security](https://github.com/SadPossum/BunkFy/actions/runs/31047724323),
+  [CodeQL](https://github.com/SadPossum/BunkFy/actions/runs/31047725182),
+  [source release evidence](https://github.com/SadPossum/BunkFy/actions/runs/31047867616),
+  and [unpublished OCI image evidence](https://github.com/SadPossum/BunkFy/actions/runs/31047869364).
+  The image workflow built both candidates, generated SBOMs, scanned them, and
+  attested the closed evidence set; it did not publish or deploy an image.
+
 ## Publication Order
 
 1. [x] Publish GMA Framework at `0d84c22`.
@@ -43,10 +64,11 @@ without reducing risk. Exact candidate CI remains required after publication.
 3. [x] Publish GMA-Skeleton at `3c77808` against that exact reusable source set;
    its generated-selection matrix, zero-warning build, migration drift, and
    2,385 non-Docker tests pass.
-4. [ ] Publish the locally verified BunkFy Backend candidate and collect its
-   exact GitHub Actions evidence.
-5. [ ] Update the product superproject pointer without staging or rewriting the
-   user-owned root solution, README, or private company-readiness material.
+4. [x] Publish BunkFy Backend `9b776a5` and BunkFy Web `e09f4e6`, then collect
+   their exact GitHub Actions evidence.
+5. [x] Publish product root `74a334e` with those exact pointers without staging
+   or rewriting the user-owned root solution, README, or private
+   company-readiness material.
 
 Use GitHub Actions once per exact candidate. Do not use remote CI as an
 edit-by-edit development loop.

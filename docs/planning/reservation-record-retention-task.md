@@ -1,6 +1,6 @@
 # Reservation Record Retention Task
 
-Status: implementation and final local gates complete; publication pending
+Status: published; implementation and exact-candidate gates complete
 
 ## Outcome
 
@@ -134,7 +134,7 @@ owner projections and downstream module contracts remain coherent.
 7. [x] Extend the existing PostgreSQL/Worker control-plane proof without
    creating another container.
 8. [x] Run the complete non-Docker gate once and the relevant Docker gate once.
-9. [ ] Publish and verify exact candidates.
+9. [x] Publish and verify exact candidates.
 
 ## Evidence
 

@@ -1,6 +1,6 @@
 # Workspaces Data Rights Owner Capability Task
 
-Status: current Workspaces owner capabilities complete and locally verified; publication pending
+Status: current Workspaces owner capabilities published and exactly verified
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # Staff Data Rights Correction Task
 
-Status: implementation and final local verification complete; publication pending
+Status: published; implementation and exact-candidate verification complete
 Date: 2026-07-28
 
 ## Goal

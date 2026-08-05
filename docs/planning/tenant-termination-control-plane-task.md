@@ -1,7 +1,7 @@
 # Tenant Termination Control Plane Task
 
-Status: complete; production activation intentionally disabled pending private
-admission evidence and an external replay provider
+Status: published and exactly verified; production activation intentionally
+disabled pending private admission evidence and an external replay provider
 Date: 2026-07-31
 
 ## Goal
@@ -355,7 +355,7 @@ deleted an external backup.
    keep repository defaults disabled.
 10. [x] Run the complete non-Docker gate once and each owner-specific exact
     PostgreSQL/Worker scenario once.
-11. [ ] Publish and verify exact release candidates.
+11. [x] Publish and verify exact release candidates.
 
 ## First Implementation Slice
 
