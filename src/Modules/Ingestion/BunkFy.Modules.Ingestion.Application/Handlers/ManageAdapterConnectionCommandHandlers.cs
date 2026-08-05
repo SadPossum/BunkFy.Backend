@@ -22,15 +22,15 @@ internal sealed class CreateAdapterConnectionCommandHandler(
     IIdGenerator idGenerator,
     ISystemClock clock,
     IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null)
-    : ICommandHandler<CreateAdapterConnectionCommand, AdapterConnectionDto>
+    : ICommandHandler<CreateAdapterConnectionCommand, AdapterConnectionMutationReceiptDto>
 {
-    public async Task<Result<AdapterConnectionDto>> HandleAsync(
+    public async Task<Result<AdapterConnectionMutationReceiptDto>> HandleAsync(
         CreateAdapterConnectionCommand command,
         CancellationToken cancellationToken)
     {
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
-            return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ScopeRequired);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ScopeRequired);
         }
 
         Result lifecycleAdmission =
@@ -41,7 +41,7 @@ internal sealed class CreateAdapterConnectionCommandHandler(
                 cancellationToken).ConfigureAwait(false);
         if (lifecycleAdmission.IsFailure)
         {
-            return Result.Failure<AdapterConnectionDto>(
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
                 lifecycleAdmission.Error);
         }
 
@@ -53,7 +53,7 @@ internal sealed class CreateAdapterConnectionCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (!countryPolicyDecision.IsAllowed)
         {
-            return Result.Failure<AdapterConnectionDto>(
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
                 IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
@@ -61,12 +61,12 @@ internal sealed class CreateAdapterConnectionCommandHandler(
             descriptors, command.AdapterType, command.ExecutionMode);
         if (capability.IsFailure)
         {
-            return Result.Failure<AdapterConnectionDto>(capability.Error);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(capability.Error);
         }
 
         if (!AdapterConnectionMappings.TryMap(command.ConflictPolicy, out IngestionConflictPolicy conflictPolicy))
         {
-            return Result.Failure<AdapterConnectionDto>(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConflictPolicyInvalid);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConflictPolicyInvalid);
         }
 
         Result<AdapterConnection> created = AdapterConnection.Create(
@@ -81,11 +81,11 @@ internal sealed class CreateAdapterConnectionCommandHandler(
             clock.UtcNow);
         if (created.IsFailure)
         {
-            return Result.Failure<AdapterConnectionDto>(created.Error);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(created.Error);
         }
 
         await connections.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
-        return Result.Success(AdapterConnectionMappings.Map(created.Value));
+        return Result.Success(AdapterConnectionMappings.MapReceipt(created.Value));
     }
 }
 
@@ -93,9 +93,9 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
     IAdapterConnectionRepository connections,
     IAdapterDescriptorRegistry descriptors,
     ISystemClock clock)
-    : ICommandHandler<UpdateAdapterConnectionCommand, AdapterConnectionDto>
+    : ICommandHandler<UpdateAdapterConnectionCommand, AdapterConnectionMutationReceiptDto>
 {
-    public async Task<Result<AdapterConnectionDto>> HandleAsync(
+    public async Task<Result<AdapterConnectionMutationReceiptDto>> HandleAsync(
         UpdateAdapterConnectionCommand command,
         CancellationToken cancellationToken)
     {
@@ -105,25 +105,25 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (connection is null)
         {
-            return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ConnectionNotFound);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
         Result capability = AdapterCapabilityValidation.Validate(
             descriptors, connection.AdapterType, command.ExecutionMode);
         if (capability.IsFailure)
         {
-            return Result.Failure<AdapterConnectionDto>(capability.Error);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(capability.Error);
         }
 
         if (!AdapterConnectionMappings.TryMap(command.ConflictPolicy, out IngestionConflictPolicy conflictPolicy))
         {
-            return Result.Failure<AdapterConnectionDto>(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConflictPolicyInvalid);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConflictPolicyInvalid);
         }
 
         Result<ResolvedSecretReference> secretReference = ResolveSecretReferenceUpdate(connection, command);
         if (secretReference.IsFailure)
         {
-            return Result.Failure<AdapterConnectionDto>(secretReference.Error);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(secretReference.Error);
         }
 
         Result configured = connection.Configure(
@@ -134,8 +134,8 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
             command.ExpectedVersion,
             clock.UtcNow);
         return configured.IsSuccess
-            ? Result.Success(AdapterConnectionMappings.Map(connection))
-            : Result.Failure<AdapterConnectionDto>(configured.Error);
+            ? Result.Success(AdapterConnectionMappings.MapReceipt(connection))
+            : Result.Failure<AdapterConnectionMutationReceiptDto>(configured.Error);
     }
 
     private static Result<ResolvedSecretReference> ResolveSecretReferenceUpdate(
@@ -159,9 +159,9 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
     IIngestionRunRepository runs,
     IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock)
-    : ICommandHandler<SetAdapterConnectionEnabledCommand, AdapterConnectionDto>
+    : ICommandHandler<SetAdapterConnectionEnabledCommand, AdapterConnectionMutationReceiptDto>
 {
-    public async Task<Result<AdapterConnectionDto>> HandleAsync(
+    public async Task<Result<AdapterConnectionMutationReceiptDto>> HandleAsync(
         SetAdapterConnectionEnabledCommand command,
         CancellationToken cancellationToken)
     {
@@ -171,7 +171,7 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (connection is null)
         {
-            return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ConnectionNotFound);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
         if (command.Enabled)
@@ -184,7 +184,7 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
                 cancellationToken).ConfigureAwait(false);
             if (!countryPolicyDecision.IsAllowed)
             {
-                return Result.Failure<AdapterConnectionDto>(
+                return Result.Failure<AdapterConnectionMutationReceiptDto>(
                     IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
             }
         }
@@ -199,7 +199,7 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
                 Result cancelled = run.CancelRemoteLease(connection.Checkpoint, run.Version, nowUtc);
                 if (cancelled.IsFailure)
                 {
-                    return Result.Failure<AdapterConnectionDto>(cancelled.Error);
+                    return Result.Failure<AdapterConnectionMutationReceiptDto>(cancelled.Error);
                 }
             }
         }
@@ -208,8 +208,8 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
             ? connection.Enable(command.ExpectedVersion, nowUtc)
             : connection.Disable(command.ExpectedVersion, nowUtc);
         return changed.IsSuccess
-            ? Result.Success(AdapterConnectionMappings.Map(connection))
-            : Result.Failure<AdapterConnectionDto>(changed.Error);
+            ? Result.Success(AdapterConnectionMappings.MapReceipt(connection))
+            : Result.Failure<AdapterConnectionMutationReceiptDto>(changed.Error);
     }
 }
 
@@ -217,9 +217,9 @@ internal sealed class ConfigureAdapterConnectionPollingScheduleCommandHandler(
     IAdapterConnectionRepository connections,
     IAdapterDescriptorRegistry descriptors,
     ISystemClock clock)
-    : ICommandHandler<ConfigureAdapterConnectionPollingScheduleCommand, AdapterConnectionDto>
+    : ICommandHandler<ConfigureAdapterConnectionPollingScheduleCommand, AdapterConnectionMutationReceiptDto>
 {
-    public async Task<Result<AdapterConnectionDto>> HandleAsync(
+    public async Task<Result<AdapterConnectionMutationReceiptDto>> HandleAsync(
         ConfigureAdapterConnectionPollingScheduleCommand command,
         CancellationToken cancellationToken)
     {
@@ -227,38 +227,38 @@ internal sealed class ConfigureAdapterConnectionPollingScheduleCommandHandler(
             command.PropertyId, command.ConnectionId, cancellationToken).ConfigureAwait(false);
         if (connection is null)
         {
-            return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ConnectionNotFound);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
         Result capability = AdapterCapabilityValidation.Validate(
             descriptors, connection.AdapterType, AdapterExecutionMode.Polling);
         if (capability.IsFailure)
         {
-            return Result.Failure<AdapterConnectionDto>(capability.Error);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(capability.Error);
         }
 
         _ = descriptors.TryGet(connection.AdapterType, out AdapterDescriptor? descriptor);
         if (descriptor?.Polling is { } polling &&
             command.IntervalSeconds < polling.MinimumInterval.TotalSeconds)
         {
-            return Result.Failure<AdapterConnectionDto>(
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
                 IngestionApplicationErrors.PollingIntervalBelowAdapterMinimum);
         }
 
         Result configured = connection.ConfigurePollingSchedule(
             command.IntervalSeconds, command.MaxAttempts, command.ExpectedVersion, clock.UtcNow);
         return configured.IsSuccess
-            ? Result.Success(AdapterConnectionMappings.Map(connection))
-            : Result.Failure<AdapterConnectionDto>(configured.Error);
+            ? Result.Success(AdapterConnectionMappings.MapReceipt(connection))
+            : Result.Failure<AdapterConnectionMutationReceiptDto>(configured.Error);
     }
 }
 
 internal sealed class ClearAdapterConnectionPollingScheduleCommandHandler(
     IAdapterConnectionRepository connections,
     ISystemClock clock)
-    : ICommandHandler<ClearAdapterConnectionPollingScheduleCommand, AdapterConnectionDto>
+    : ICommandHandler<ClearAdapterConnectionPollingScheduleCommand, AdapterConnectionMutationReceiptDto>
 {
-    public async Task<Result<AdapterConnectionDto>> HandleAsync(
+    public async Task<Result<AdapterConnectionMutationReceiptDto>> HandleAsync(
         ClearAdapterConnectionPollingScheduleCommand command,
         CancellationToken cancellationToken)
     {
@@ -266,22 +266,22 @@ internal sealed class ClearAdapterConnectionPollingScheduleCommandHandler(
             command.PropertyId, command.ConnectionId, cancellationToken).ConfigureAwait(false);
         if (connection is null)
         {
-            return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ConnectionNotFound);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
         Result cleared = connection.ClearPollingSchedule(command.ExpectedVersion, clock.UtcNow);
         return cleared.IsSuccess
-            ? Result.Success(AdapterConnectionMappings.Map(connection))
-            : Result.Failure<AdapterConnectionDto>(cleared.Error);
+            ? Result.Success(AdapterConnectionMappings.MapReceipt(connection))
+            : Result.Failure<AdapterConnectionMutationReceiptDto>(cleared.Error);
     }
 }
 
 internal sealed class ResetAdapterConnectionCheckpointCommandHandler(
     IAdapterConnectionRepository connections,
     ISystemClock clock)
-    : ICommandHandler<ResetAdapterConnectionCheckpointCommand, AdapterConnectionDto>
+    : ICommandHandler<ResetAdapterConnectionCheckpointCommand, AdapterConnectionMutationReceiptDto>
 {
-    public async Task<Result<AdapterConnectionDto>> HandleAsync(
+    public async Task<Result<AdapterConnectionMutationReceiptDto>> HandleAsync(
         ResetAdapterConnectionCheckpointCommand command,
         CancellationToken cancellationToken)
     {
@@ -291,12 +291,12 @@ internal sealed class ResetAdapterConnectionCheckpointCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (connection is null)
         {
-            return Result.Failure<AdapterConnectionDto>(IngestionApplicationErrors.ConnectionNotFound);
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
         Result reset = connection.ResetCheckpoint(command.ExpectedVersion, clock.UtcNow);
         return reset.IsSuccess
-            ? Result.Success(AdapterConnectionMappings.Map(connection))
-            : Result.Failure<AdapterConnectionDto>(reset.Error);
+            ? Result.Success(AdapterConnectionMappings.MapReceipt(connection))
+            : Result.Failure<AdapterConnectionMutationReceiptDto>(reset.Error);
     }
 }

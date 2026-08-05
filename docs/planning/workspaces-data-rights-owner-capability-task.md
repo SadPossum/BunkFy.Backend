@@ -1,6 +1,6 @@
 # Workspaces Data Rights Owner Capability Task
 
-Status: discovery and protected export complete; destructive operations deferred
+Status: current Workspaces owner capabilities complete and locally verified; publication pending
 
 ## Goal
 
@@ -8,10 +8,11 @@ Make Workspaces an explicit owner in the BunkFy Data Rights workflow without
 moving onboarding, access coordination, or retention-proof semantics into the
 Data Rights module or GMA.
 
-The first bounded capability covers tenant-scoped discovery, selection
-validation, and protected export for Workspaces-owned Staff records. It does
-not add a destructive operation until the interaction between active
-authority, required companion records, and restore proof is fully specified.
+The capability began with tenant-scoped discovery, selection validation, and
+protected export for Workspaces-owned Staff records. Subsequent bounded slices
+added correction, restriction, required-companion expansion, anonymisation,
+restore proof, retention correlation scrubbing, and tenant termination without
+moving Workspaces semantics into Data Rights or GMA.
 
 ## Ownership Boundary
 
@@ -140,73 +141,39 @@ stale, malformed, outside tenant scope, or exceeds an owner record bound.
 
 ## Correction
 
-Correction is not part of the first capability.
-
-The eventual design must distinguish:
-
-- applicant fields while an onboarding application is still editable;
-- fields whose authority has moved to Staff after provisioning;
-- Auth-owned verified account email and subject identity;
-- Organizations-owned source and claim facts; and
-- append-only access and audit history.
-
-An approved Workspaces correction may eventually replace editable applicant
-fields through the aggregate and record an immutable owner receipt. It must
-redirect authoritative Staff, Auth, or Organizations corrections to those
-owners. Historical actor or lifecycle facts require a corrective audit action,
-not an in-place rewrite.
+Correction is complete for the Workspaces-owned staged applicant profile while
+the onboarding record remains editable. Authority handoff, immutable proof,
+idempotency, export, and operator behavior are specified in
+[Workspaces Data Rights Correction](workspaces-data-rights-correction-task.md).
 
 ## Restriction
 
-Restriction is not part of the first capability.
-
-An eventual restriction may suppress non-required use of active applicant
-copies, but it must not prevent:
-
-- rejecting, expiring, or superseding onboarding;
-- denying access after suspension or departure;
-- completing an in-flight access-safety process;
-- responding to a legal hold; or
-- executing approved Data Rights and retention work.
-
-The operation needs an owner-local state model and receipt before it can be
-registered with Data Rights.
+Restriction is complete for exact Workspaces-owned onboarding records. The
+owner-local projection and receipts suppress optional processing while keeping
+access-safety, legal, rights, retention, and expiry paths available. See
+[Workspaces Data Rights Restriction](workspaces-data-rights-restriction-task.md).
 
 ## Anonymisation And Restore
 
-Anonymisation is not part of the first capability.
-
-The existing Workspaces prerequisite for Staff anonymisation closes access but
-does not claim to anonymise Workspaces-owned records. Automatic Staff
-retention separately performs an irreversible subject/actor scrub and writes
-its own append-only receipt. Those behaviors remain unchanged.
-
-A future Data Rights anonymisation capability must:
-
-1. block while a person-linked onboarding or access process is active;
-2. preserve the minimum Organizations, Access Control, and Staff authority
-   evidence required for safety and replay;
-3. pseudonymise remaining Workspaces-owned subject and actor correlation;
-4. create an idempotent owner receipt and protected tombstone;
-5. return canonical owner proof to Data Rights; and
-6. reproduce the same owner state after database restore without reopening
-   access or manufacturing deleted applicant data.
-
-Selecting only the Staff coordinate must not silently leave required
-Workspaces companion records untreated. Before destructive registration, the
-Data Rights product module needs a bounded, generic required-companion
-selection or expansion rule that is reusable by other BunkFy owners. That
-contract belongs in BunkFy Data Rights, not GMA, and must not contain
-Workspaces-specific semantics.
+Required-companion expansion, commutative Staff/Workspaces execution,
+idempotent owner proof, protected tombstones, and pre-ready restore replay are
+complete. The product contract remains in BunkFy Data Rights and contains no
+Workspaces-specific vocabulary. See
+[Workspaces Data Rights Anonymisation](workspaces-data-rights-anonymisation-task.md).
 
 ## Persistence And Efficiency
 
-The first capability adds no tables or business-state columns. One
+The discovery/export baseline adds no tables or business-state columns. One
 tenant-leading onboarding index is added for linked Staff-member discovery;
 existing indexes cover subject, access-process Staff member, actor,
 plan-creator, and retention-receipt lookups. Queries are `AsNoTracking`,
 projection-only where practical, deterministically ordered, and capped before
 materialization.
+
+Later correction, restriction, anonymisation, retention-correlation, and
+tenant-termination slices own their bounded state, indexes, locking, and
+append-only proof in Workspaces persistence; their task ledgers define those
+contracts and evidence.
 
 Export performs one indexed aggregate read plus one bounded child read for the
 selected coordinate. It never scans another tenant, another module's schema,
@@ -232,12 +199,14 @@ notifications, or support bundles.
    existing retention behavior, and Data Rights contract fit.
 2. [Complete] Add tenant-scoped discovery, selection validation,
    catalogue-driven protected export, and focused tests.
-3. [Deferred] Define and implement active-onboarding correction with exact
+3. [Complete] Define and implement active-onboarding correction with exact
    authority routing and immutable owner proof.
-4. [Deferred] Define and implement processing restriction without weakening
+4. [Complete] Define and implement processing restriction without weakening
    access-safety or legal obligations.
-5. [Deferred] Add generic BunkFy Data Rights required-companion selection,
+5. [Complete] Add generic BunkFy Data Rights required-companion selection,
    then implement Workspaces anonymisation and restore proof.
+6. [Complete] Add retention-correlation scrubbing and Workspaces-owned tenant
+   termination export/destruction with terminal proof.
 
 ## Verification
 
@@ -284,7 +253,4 @@ notifications, or support bundles.
 
 - approved legal bases and jurisdiction-specific response obligations;
 - founder or counsel approval of engineering-default retention policies;
-- correction, restriction, and destructive owner execution;
-- automatic expansion from Staff to required Workspaces companion records;
-- tenant-termination behavior; and
 - any cross-workspace subject search.

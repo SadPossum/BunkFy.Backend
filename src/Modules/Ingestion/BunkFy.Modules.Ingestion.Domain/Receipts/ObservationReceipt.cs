@@ -278,6 +278,27 @@ public sealed class ObservationReceipt : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
+    public Result CompleteTenantDestructionRawPayloadPurge(
+        Guid operationId,
+        DateTimeOffset nowUtc)
+    {
+        if (operationId == Guid.Empty || nowUtc == default ||
+            this.RawPayloadRetentionState == RawPayloadRetentionState.Purged)
+        {
+            return Result.Failure(
+                IngestionDomainErrors.RawPayloadPurgeClaimInvalid);
+        }
+
+        this.ActiveReprocessingAttemptId = null;
+        this.ReprocessingReservationExpiresAtUtc = null;
+        this.RawPayloadRetentionState = RawPayloadRetentionState.Purged;
+        this.RawPayloadPurgeClaimId = null;
+        this.RawPayloadPurgeStartedAtUtc ??= nowUtc;
+        this.RawPayloadPurgedAtUtc = nowUtc;
+        this.RawPayloadVersion++;
+        return Result.Success();
+    }
+
     public Result BeginAnonymisation(
         Guid claimId,
         DateTimeOffset nowUtc)

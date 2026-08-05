@@ -1,7 +1,5 @@
 namespace BunkFy.Modules.Workspaces.Persistence.Repositories;
 
-using System.Security.Cryptography;
-using System.Text;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
@@ -355,7 +353,7 @@ internal sealed class WorkspacesDataRightsExportContributor(
             await sink.WriteAsync(
                 WorkspacesDataRightsExportSchema.CreateRecord(
                     StaffAccessProfileSnapshotRecordType,
-                    CreateDeterministicChildId(
+                    DataRightsExportRecordIds.CreateDeterministicChild(
                         process.Id,
                         $"{profile.ProfileId:N}|{profile.AssignmentScope}"),
                     process.Version,
@@ -439,7 +437,7 @@ internal sealed class WorkspacesDataRightsExportContributor(
             await sink.WriteAsync(
                 WorkspacesDataRightsExportSchema.CreateRecord(
                     StaffAccessPlanPropertyRecordType,
-                    CreateDeterministicChildId(
+                    DataRightsExportRecordIds.CreateDeterministicChild(
                         plan.Id,
                         property.PropertyId.ToString("N")),
                     plan.Version,
@@ -513,32 +511,5 @@ internal sealed class WorkspacesDataRightsExportContributor(
             tenantId?.Trim(),
             StringComparison.Ordinal) &&
         !propertyId.HasValue;
-
-    private static Guid CreateDeterministicChildId(
-        Guid namespaceId,
-        string name)
-    {
-        byte[] namespaceBytes = namespaceId.ToByteArray();
-        SwapByteOrder(namespaceBytes);
-        byte[] nameBytes = Encoding.UTF8.GetBytes(name);
-        byte[] input = new byte[namespaceBytes.Length + nameBytes.Length];
-        namespaceBytes.CopyTo(input, 0);
-        nameBytes.CopyTo(input, namespaceBytes.Length);
-
-        byte[] hash = SHA256.HashData(input);
-        hash[6] = (byte)((hash[6] & 0x0f) | 0x80);
-        hash[8] = (byte)((hash[8] & 0x3f) | 0x80);
-        Span<byte> guidBytes = hash.AsSpan(0, 16);
-        SwapByteOrder(guidBytes);
-        return new Guid(guidBytes);
-    }
-
-    private static void SwapByteOrder(Span<byte> bytes)
-    {
-        (bytes[0], bytes[3]) = (bytes[3], bytes[0]);
-        (bytes[1], bytes[2]) = (bytes[2], bytes[1]);
-        (bytes[4], bytes[5]) = (bytes[5], bytes[4]);
-        (bytes[6], bytes[7]) = (bytes[7], bytes[6]);
-    }
 
 }

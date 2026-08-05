@@ -22,4 +22,10 @@ internal static class AdapterIngressCredentialMappings
         credential.AdapterProtocolVersion,
         credential.ConfigurationSchemaVersion,
         credential.SourceSystem);
+
+    public static AdapterIngressCredentialMutationReceiptDto MapReceipt(AdapterIngressCredential credential) => new(
+        credential.Id,
+        credential.ConnectionId,
+        (AdapterIngressCredentialStatus)(int)credential.State,
+        credential.Version);
 }

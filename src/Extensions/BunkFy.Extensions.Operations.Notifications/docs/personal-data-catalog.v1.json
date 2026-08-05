@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "operations-notifications.personal-data",
-  "catalogVersion": 5,
+  "catalogVersion": 8,
   "module": "operations-notifications",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -28,6 +28,12 @@
       "scope": "exact-scope-pseudonymous-notification-history-reference",
       "readers": ["system:notifications-lifecycle", "system:data-rights"],
       "writers": ["system:bunk-fy-operations-notifications", "system:notifications-lifecycle"]
+    },
+    {
+      "id": "approved-tenant-portability-export",
+      "scope": "approved-tenant-scoped-operations-notifications-export",
+      "readers": ["system:tenant-termination-export"],
+      "writers": ["system:bunk-fy-operations-notifications"]
     }
   ],
   "retentionPolicies": [
@@ -51,6 +57,13 @@
       "startsAt": "notification-reference-first-prepared-or-requested",
       "endsAt": "approved-lifecycle-compaction-after-decision-and-backup-expiry",
       "legalHoldBehavior": "retain-reference-version-tombstone-and-receipt"
+    },
+    {
+      "id": "operations-notifications-tenant-termination-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-frozen-tenant-export-generation",
+      "endsAt": "protected-tenant-export-artifact-expiry",
+      "legalHoldBehavior": "follow-approved-tenant-export-artifact-policy"
     }
   ],
   "rightsPolicies": [
@@ -67,6 +80,13 @@
       "correction": "correct-authoritative-source-record",
       "restriction": "suppress-non-required-operational-delivery",
       "erasure": "remove-notification-copy-with-approved-guest-rights-workflow"
+    },
+    {
+      "id": "data-rights-case-reference",
+      "export": "resolve-through-authorized-data-rights-case",
+      "correction": "correct-authoritative-data-rights-case",
+      "restriction": "retain-mandatory-deadline-alert-for-authorized-operators",
+      "erasure": "retain-or-pseudonymize-under-approved-data-rights-case-policy"
     },
     {
       "id": "staff-operation-reference",
@@ -95,6 +115,13 @@
       "correction": "correct-authoritative-source-and-append-new-notification-if-required",
       "restriction": "suppress-non-required-operational-delivery",
       "erasure": "remove-notification-copy-with-approved-staff-rights-workflow"
+    },
+    {
+      "id": "tenant-operational-notification-history",
+      "export": "include-in-authorized-tenant-portability-export",
+      "correction": "correct-authoritative-source-and-append-new-notification-if-required",
+      "restriction": "freeze-new-operational-projection-before-export",
+      "erasure": "hard-delete-disposable-projection-after-approved-tenant-termination"
     }
   ],
   "fields": [
@@ -163,7 +190,7 @@
       "dataSubject": "subject-scoped",
       "classification": "pseudonymous-identifier",
       "sensitivity": "elevated",
-      "purposes": ["authorized-subject-history-export", "approved-history-closure", "source-link-rights-lifecycle", "stale-decision-detection", "replay-suppression"],
+      "purposes": ["authorized-subject-history-export", "approved-history-closure", "source-link-rights-lifecycle", "tenant-portability-export", "tenant-projection-closure", "stale-decision-detection", "replay-suppression"],
       "sources": ["ingestion", "reservations", "staff", "system-derived"],
       "authoritativeOwner": "operations-notifications",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
@@ -260,7 +287,28 @@
         { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockCreatedNotificationPayload", "member": "PropertyId", "surface": "notification" },
         { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.InventoryBlockReleasedNotificationPayload", "member": "PropertyId", "surface": "notification" },
         { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.RoomNotificationPayload", "member": "PropertyId", "surface": "notification" },
-        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.PropertyNotificationPayload", "member": "PropertyId", "surface": "notification" }
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.PropertyNotificationPayload", "member": "PropertyId", "surface": "notification" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.DataRightsDeadlineNotificationPayload", "member": "PropertyId", "surface": "notification" }
+      ]
+    },
+    {
+      "id": "operations-notifications.data-rights-case-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["privacy-request-navigation", "response-deadline-operations"],
+      "sources": ["data-rights"],
+      "authoritativeOwner": "data-rights",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations-inbox",
+      "countryPolicyKey": "operations-notifications.data-rights-case-id",
+      "retentionPolicy": "notification-inbox",
+      "rightsPolicy": "data-rights-case-reference",
+      "allowedSurfaces": ["notification"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.DataRightsDeadlineNotificationPayload", "member": "CaseId", "surface": "notification" }
       ]
     },
     {
@@ -943,6 +991,758 @@
       "approvalState": "engineering-default",
       "bindings": [
         { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.StaffNotificationHistoryDataRightsExport", "member": "DeliveryPolicy", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-notification-id",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "notification-correlation"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "NotificationId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryTenantExport", "member": "NotificationId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-recipient-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "addressed-history-correlation"],
+      "sources": ["auth", "organizations", "staff"],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "RecipientId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastReadTenantExport", "member": "RecipientId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-source-module",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "notification-provenance"],
+      "sources": ["source-module"],
+      "authoritativeOwner": "source-module",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "SourceModule", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-notification-name",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "notification-provenance"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "NotificationName", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-notification-version",
+      "dataSubject": "account-holder",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "notification-schema-versioning"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "NotificationVersion", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-title",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "operational-awareness"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "Title", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-body",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "operational-awareness"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "Body", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-severity",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "attention-context"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "Severity", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-stream-sequence",
+      "dataSubject": "account-holder",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "stable-history-ordering", "owner-consistency-proof"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "StreamSequence", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-occurred-at",
+      "dataSubject": "account-holder",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "operational-timeline"],
+      "sources": ["source-module"],
+      "authoritativeOwner": "source-module",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "OccurredAtUtc", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-created-at",
+      "dataSubject": "account-holder",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "inbox-lifecycle"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "CreatedAtUtc", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-payload",
+      "dataSubject": "account-holder",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "resource-correlation"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "Payload", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-tags",
+      "dataSubject": "account-holder",
+      "classification": "structured-payload",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "delivery-context"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "Tags", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-delivery-policy",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "delivery-context"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "DeliveryPolicy", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-read-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "read-state"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "ReadAtUtc", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastReadTenantExport", "member": "ReadAtUtc", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-inbox-visible",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "inbox-visibility"],
+      "sources": ["operations-notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "IsInboxVisible", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-history-references",
+      "dataSubject": "subject-scoped",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "source-link-rights-lifecycle"],
+      "sources": ["ingestion", "reservations", "staff", "system-derived"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTenantExport", "member": "References", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-preference-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "preference-correlation"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationPreferenceTenantExport", "member": "PreferenceId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-user-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "preference-subject-correlation"],
+      "sources": ["auth", "organizations", "staff"],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationPreferenceTenantExport", "member": "UserId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-preference-state",
+      "dataSubject": "staff",
+      "classification": "preference",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "notification-delivery-preference"],
+      "sources": ["staff"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationPreferenceTenantExport", "member": "State", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-route-id",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "delivery-routing-correlation"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryRouteTenantExport", "member": "RouteId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-route-state",
+      "dataSubject": "account-holder",
+      "classification": "structured-payload",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "delivery-routing-configuration"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryRouteTenantExport", "member": "State", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-updated-by",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "configuration-attribution"],
+      "sources": ["auth", "staff", "system-derived"],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryRouteTenantExport", "member": "UpdatedBy", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTagDefinitionTenantExport", "member": "UpdatedBy", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-tag-definition-id",
+      "dataSubject": "account-holder",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "notification-taxonomy-correlation"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTagDefinitionTenantExport", "member": "DefinitionId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-tag-definition-state",
+      "dataSubject": "account-holder",
+      "classification": "structured-payload",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "notification-taxonomy-configuration"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTagDefinitionTenantExport", "member": "State", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-created-by",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "configuration-attribution"],
+      "sources": ["auth", "staff", "system-derived"],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationTagDefinitionTenantExport", "member": "CreatedBy", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-delivery-id",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "delivery-correlation"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryTenantExport", "member": "DeliveryId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryAttemptTenantExport", "member": "DeliveryId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-delivery-state",
+      "dataSubject": "account-holder",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "delivery-processing-history"],
+      "sources": ["notifications", "provider"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryTenantExport", "member": "State", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-delivery-attempt-id",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "delivery-attempt-correlation"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryAttemptTenantExport", "member": "AttemptId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-delivery-attempt-state",
+      "dataSubject": "account-holder",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "delivery-attempt-history"],
+      "sources": ["notifications", "provider"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationDeliveryAttemptTenantExport", "member": "State", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-broadcast-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "broadcast-correlation"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastTenantExport", "member": "BroadcastId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastReadTenantExport", "member": "BroadcastId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-broadcast-audience",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "broadcast-targeting"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastTenantExport", "member": "Audience", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-broadcast-message",
+      "dataSubject": "staff",
+      "classification": "structured-payload",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "workspace-announcement-history"],
+      "sources": ["source-module", "notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastTenantExport", "member": "Message", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-broadcast-read-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "broadcast-read-correlation"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastReadTenantExport", "member": "ReadId", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-recipient-kind",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["authorized-tenant-portability-export", "broadcast-recipient-correlation"],
+      "sources": ["auth", "notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationBroadcastReadTenantExport", "member": "RecipientKind", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-history-reference",
+      "dataSubject": "subject-scoped",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "history-lifecycle-correlation"],
+      "sources": ["ingestion", "reservations", "staff", "system-derived"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryReferenceStateTenantExport", "member": "Reference", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryCloseReceiptTenantExport", "member": "Reference", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryBatchCloseOperationTenantExport", "member": "Reference", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryBatchCloseReceiptTenantExport", "member": "Reference", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "operations-notifications.tenant-export-history-lifecycle-proof",
+      "dataSubject": "subject-scoped",
+      "classification": "lifecycle",
+      "sensitivity": "elevated",
+      "purposes": ["authorized-tenant-portability-export", "history-closure-proof", "replay-suppression"],
+      "sources": ["notifications"],
+      "authoritativeOwner": "operations-notifications",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "approved-tenant-portability-export",
+      "countryPolicyKey": "operations-notifications.tenant-portability",
+      "retentionPolicy": "operations-notifications-tenant-termination-export-fragment",
+      "rightsPolicy": "tenant-operational-notification-history",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module", "customer-api", "processor"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryReferenceStateTenantExport", "member": "Proof", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryCloseReceiptTenantExport", "member": "Proof", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryBatchCloseOperationTenantExport", "member": "Proof", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" },
+        { "assembly": "BunkFy.Extensions.Operations.Notifications", "type": "BunkFy.Extensions.Operations.Notifications.OperationsNotificationHistoryBatchCloseReceiptTenantExport", "member": "Proof", "surface": "data-rights-export", "retentionPolicy": "operations-notifications-tenant-termination-export-fragment" }
       ]
     }
   ]

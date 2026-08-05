@@ -6,15 +6,16 @@ public static class CountryPolicyPackValidator
 {
     private const int MaximumCollectionItems = 512;
     private const int MaximumSourceItems = 32;
+    private const int MaximumTimeZoneItems = 64;
 
     public static IReadOnlyList<string> Validate(CountryPolicyPackDocument pack)
     {
         ArgumentNullException.ThrowIfNull(pack);
         List<string> errors = [];
 
-        if (pack.SchemaVersion != 1)
+        if (pack.SchemaVersion is not 1 and not 2)
         {
-            errors.Add("SchemaVersion must be 1.");
+            errors.Add("SchemaVersion must be 1 or 2.");
         }
 
         ValidateKey(pack.PolicyId, "PolicyId", errors);
@@ -40,7 +41,7 @@ public static class CountryPolicyPackValidator
         HashSet<string> purposeCodes = ValidatePurposeRules(pack.PurposeRules, errors);
         ValidateFieldRules(pack.FieldRules, guestCategories, purposeCodes, errors);
         ValidateRetentionRules(pack.RetentionRules, errors);
-        ValidateRightsRule(pack.RightsRule, errors);
+        ValidateRightsRule(pack.RightsRule, pack.SchemaVersion, errors);
         ValidateRestrictions(pack.Restrictions, errors);
         ValidateKeys(pack.PermittedDataRegions, "PermittedDataRegions", errors);
         ValidateKeys(pack.PermittedTransferProfiles, "PermittedTransferProfiles", errors);
@@ -175,7 +176,10 @@ public static class CountryPolicyPackValidator
         }
     }
 
-    private static void ValidateRightsRule(CountryPolicyRightsRule? rule, List<string> errors)
+    private static void ValidateRightsRule(
+        CountryPolicyRightsRule? rule,
+        int schemaVersion,
+        List<string> errors)
     {
         if (rule is null)
         {
@@ -188,6 +192,118 @@ public static class CountryPolicyPackValidator
         ValidateKey(rule.Correction, "RightsRule.Correction", errors);
         ValidateKey(rule.Restriction, "RightsRule.Restriction", errors);
         ValidateKey(rule.Erasure, "RightsRule.Erasure", errors);
+
+        if (schemaVersion == 1)
+        {
+            if (rule.ResponseRules is { Length: > 0 })
+            {
+                errors.Add("RightsRule.ResponseRules requires SchemaVersion 2.");
+            }
+
+            return;
+        }
+
+        if (!ValidateCollection(
+                rule.ResponseRules,
+                "RightsRule.ResponseRules",
+                errors))
+        {
+            return;
+        }
+
+        HashSet<CountryPolicyRight> rights = [];
+        for (int index = 0; index < rule.ResponseRules!.Length; index++)
+        {
+            CountryPolicyRightsResponseRule? responseRule =
+                rule.ResponseRules[index];
+            if (responseRule is null)
+            {
+                errors.Add($"RightsRule.ResponseRules[{index}] cannot be null.");
+                continue;
+            }
+
+            string path =
+                $"RightsRule.ResponseRules[{responseRule.Right}]";
+            ValidateEnum(responseRule.Right, $"{path}.Right", errors);
+            if (!rights.Add(responseRule.Right))
+            {
+                errors.Add(
+                    $"Duplicate rights response rule '{responseRule.Right}'.");
+            }
+
+            if (!CountryPolicyCalendarDeadlineCalculator.IsValid(
+                    responseRule.Period))
+            {
+                errors.Add(
+                    $"{path}.Period must contain a positive bounded calendar period.");
+            }
+
+            ValidateTimeZoneIds(
+                responseRule.AllowedTimeZoneIds,
+                $"{path}.AllowedTimeZoneIds",
+                errors);
+        }
+
+        CountryPolicyRight[] required =
+        [
+            CountryPolicyRight.Export,
+            CountryPolicyRight.Correction,
+            CountryPolicyRight.Restriction,
+            CountryPolicyRight.Erasure
+        ];
+        foreach (CountryPolicyRight right in required.Where(value =>
+                     !rights.Contains(value)))
+        {
+            errors.Add(
+                $"RightsRule.ResponseRules must contain one '{right}' rule.");
+        }
+    }
+
+    private static void ValidateTimeZoneIds(
+        string[]? values,
+        string path,
+        List<string> errors)
+    {
+        if (!ValidateCollection(
+                values,
+                path,
+                errors,
+                MaximumTimeZoneItems))
+        {
+            return;
+        }
+
+        HashSet<string> unique = new(StringComparer.Ordinal);
+        foreach (string? value in values!)
+        {
+            if (string.IsNullOrWhiteSpace(value) ||
+                value.Length > 128 ||
+                value.Any(char.IsControl))
+            {
+                errors.Add(
+                    $"{path} must contain bounded time-zone identifiers.");
+                continue;
+            }
+
+            if (!unique.Add(value))
+            {
+                errors.Add($"{path} contains duplicate value '{value}'.");
+                continue;
+            }
+
+            try
+            {
+                _ = TimeZoneInfo.FindSystemTimeZoneById(value);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                errors.Add($"{path} contains unavailable time zone '{value}'.");
+            }
+            catch (InvalidTimeZoneException)
+            {
+                errors.Add($"{path} contains invalid time zone '{value}'.");
+            }
+        }
     }
 
     private static void ValidateRestrictions(CountryPolicyRestrictionRule? rule, List<string> errors)

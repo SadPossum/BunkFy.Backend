@@ -75,7 +75,7 @@ public sealed class IngestionMetadataTests
     {
         Assert.DoesNotContain(
             "Diff",
-            typeof(ChangeProposalSummaryDto).GetProperties().Select(property => property.Name));
+            typeof(ChangeProposalListItemDto).GetProperties().Select(property => property.Name));
         Assert.Contains(
             nameof(ChangeProposalDto.Diff),
             typeof(ChangeProposalDto).GetProperties().Select(property => property.Name));

@@ -1,7 +1,8 @@
 # Ingestion Module
 
-Status: reservation ingestion workflow and data-rights restore safety slice
-implemented
+Status: reservation ingestion workflow, data-rights restore safety, and
+tenant-termination export/destruction owner implemented; production termination
+activation remains deferred
 
 Ingestion is BunkFy's tenant- and property-scoped control plane for external source adapters, durable observations, normalization, and staff-reviewed change proposals.
 
@@ -29,7 +30,12 @@ The current foundation contains:
 - property-scoped connection lifecycle management with immutable adapter identity, versioned future-run settings, and explicit keep/replace/clear secret-reference updates;
 - connection create/update/start validation against composed adapter descriptors, plus worker-side descriptor/runner drift rejection;
 - factual connection health derived from latest durable run outcome, last success/observation, receipt backlog, and retention backlog;
-- paged connection, run, and receipt operations views in the authenticated API, Admin API, and Admin CLI;
+- paged connection, run, receipt, reprocessing, proposal, and credential
+  directories that project minimized list items directly, use one-row
+  look-ahead for `HasMore`, and reserve full records for explicit detail reads;
+- minimal connection-management, credential-revocation, and proposal-decision
+  receipts, with explicit response metadata and `no-store` caching policy on
+  authenticated API and Admin API operational surfaces;
 - property-scoped, hash-verified raw-payload downloads behind the separate sensitive-data permission;
 - durable raw-payload retention deadlines and optimistic two-phase purge ownership across PostgreSQL and object storage;
 - independent 90-day terminal normalized-history deadlines, reason-preserving proposal/dispatch redaction, and factual claimable/protected/due/redacted health counts;
@@ -39,7 +45,13 @@ The current foundation contains:
 - separate scoped permissions for ordinary reads, connection management, run control, raw payload access, sensitive normalized history, and proposal decisions;
 - versioned parser capability discovery plus retained-source reprocessing with immutable source receipts, derived lineage, per-output audit, bounded evidence reservations, and TaskRuntime execution;
 - exact reservation-linked DataRights discovery with versioned Ingestion-owned source-link coordinates and no raw or fuzzy identity search;
-- catalogue-driven DataRights export of the selected provider-evidence graph, including deterministic protected raw-payload chunking and fail-closed retained-object reads;
+- catalogue-driven DataRights export of the selected provider-evidence graph, including deterministic protected raw-payload and normalized-history chunking plus fail-closed retained-object reads;
+- a mandatory tenant-termination owner that exports connection and non-secret credential metadata, tenant ingress controls, run and receipt provenance, reprocessing history, proposals, source links, dispatches, holds, retention execution, and minimum anonymisation proof under the shared workspace fence;
+- a destructive tenant-termination lifecycle that closes local admission,
+  blocks on active legal holds and live outbox leases, proves raw-object absence
+  before removing receipt rows, deletes the complete owner graph in bounded
+  resumable batches, and retains only a closed lifecycle row plus immutable
+  PII-free proof;
 - an executable [personal-data catalogue](personal-data-catalog.v1.json) and deterministic [resolved inventory](personal-data-inventory.v1.md) covering persistence, application/API boundaries, adapter/parser ingress, raw evidence, credentials, audit data, and the minimal cross-module event.
 
 GMA TaskRuntime owns enqueue state, worker leases, retries, cancellation, timeout, and daemon lifecycle. Ingestion records the linked task run/attempt and source-specific outcome rather than implementing a parallel scheduler. Admin orchestration resolves an Ingestion-owned connection or run first, then delegates execution control to TaskRuntime.
@@ -78,7 +90,9 @@ anonymisation so late provider-attention events hit the closed notification
 reference instead of recreating history.
 Available raw objects are emitted as deterministic bounded chunks, a missing
 available object makes the fragment unavailable, and a purged object is never
-reconstructed. Destructive DataRights execution remains intentionally
+reconstructed. Proposal diffs, source baselines, and dispatch snapshots use
+the same bounded reconstruction pattern rather than risking the shared export
+field limit. Destructive DataRights execution remains intentionally
 unregistered. The module now registers protected restore only: immutable
 owner plans, keyed anti-resurrection fingerprints, local tombstones, ordinary
 ingress/dispatch/reprocessing/raw/discovery/export barriers protect ordinary
@@ -88,6 +102,46 @@ PostgreSQL and object storage remain a two-phase state machine; reducing
 tombstones are unhealthy until every planned object is absent and final
 receipt state is committed. See
 [Ingestion Data Rights Workflow Task](../../../docs/planning/ingestion-data-rights-workflow-task.md).
+
+Tenant termination is deliberately a different export surface. It contains
+portable adapter configuration metadata and normalized operational history,
+but excludes secret references, credential hashes and hash algorithms, raw
+payload bytes, inbox/outbox state, projections, checkpoints, source-operation
+locks, global ingress control, anonymisation plans, and fingerprints. Raw
+payload bytes remain available only through the separately authorized
+subject/evidence export while the retention policy still permits them.
+Relational writes, direct credential expiry/telemetry updates, and export use
+the shared BunkFy tenant-mutation transaction key; a frozen Workspaces fence
+therefore serializes export against late Ingestion writes. Owner proof is
+append-only in EF and independently protected by PostgreSQL triggers.
+Tenant revision rows are GMA scope-classified entities, so another tenant can
+never select or advance the revision used as export proof. The existing
+termination owners also use distinct typed DI registrations; one composition
+guard assembles all eight current phase and export contributors in the same
+host.
+
+Destruction reuses that tenant lifecycle and exclusive mutation lock. An
+active Ingestion legal hold blocks before closing or external deletion starts;
+released holds are ordinary tenant history and are removed. Raw payloads are
+deleted in bounded groups outside database transactions and read back to prove
+absence before their receipts can advance to `Purged`. A crash at either side
+of that storage/row boundary safely repeats the same deterministic work. Row
+removal then advances through foreign-key-safe stages, including derived
+reprocessing lineage, with one non-empty batch of at most 500 records per
+call. The deployment-global adapter ingress control is deliberately excluded.
+Completion leaves only the closed tenant revision and an append-only receipt
+with separate record and object proof chains. Personal-data catalogue version
+11 classifies that minimum control-plane proof and the bounded operator
+responses under their own access, retention, and rights policies. See
+[Ingestion Tenant Termination Owner Task](../../../docs/planning/ingestion-tenant-termination-owner-task.md).
+
+Tenant normalized-history bodies are deterministic 12,000-byte UTF-8 chunks.
+This keeps individual fields bounded, but the current Data Rights contract
+still stores one protected fragment per owner. A tenant with sufficiently
+large retained Ingestion history can exceed that fragment ceiling. Production
+termination task and route registration remain disabled until bounded
+multi-fragment owner output or an equally explicit volume policy is designed
+and proven; increasing the global limit is not an accepted substitute.
 
 New evidence is written under a deterministic receipt key before the PostgreSQL transaction commits. This avoids acknowledging a receipt whose evidence was never stored and makes command retries idempotent, but a process crash can leave an unreferenced object. Production launch therefore still requires a bounded, grace-period orphan reconciliation job built on a provider-neutral GMA storage-inventory capability; Ingestion must not depend directly on MinIO listing APIs.
 
@@ -101,7 +155,7 @@ Connection health keeps its operational state factual: `NoActivity`, `RunActive`
 
 Health also reports whether the current host knows the connection's adapter descriptor and still supports its execution mode, together with protocol/configuration schema versions. This detects deployment composition drift without claiming that a registered adapter is operationally healthy.
 
-Focused Docker coverage proves PostgreSQL, MinIO, JetStream, exact deduplication, worker-downtime recovery, automatic reservation creation, accepted and rejected allocation amendments, fresh worker restarts, the staff-conflict proposal path, real-token property-scoped connection management and health, separately authorized raw-payload retrieval, retention migration backfill, active-proposal evidence protection, legacy PII baseline reduction, normalized-history redaction and constraints, overlapping legal holds and fence conflicts, protected-ledger restore replay, anti-resurrection barriers, physical object purge, one-time adapter credential rotation, tenant/connection denial, direct push acceptance/replay, standalone and remote-leased runner delivery plus checkpointing, revocation, queued JSON file-drop receipt/archive/quarantine behavior, real SMTP-to-IMAP reservation acquisition and poison-message progress through GreenMail, and Admin API/CLI confirmation. Vendor-specific connectors, federated workload identity, remote fleet discovery, orphan reconciliation, irreversible anonymisation execution, and broader operational workflows remain later slices.
+Focused Docker coverage proves PostgreSQL, MinIO, JetStream, exact deduplication, worker-downtime recovery, automatic reservation creation, accepted and rejected allocation amendments, fresh worker restarts, the staff-conflict proposal path, real-token property-scoped connection management and health, separately authorized raw-payload retrieval, retention migration backfill, active-proposal evidence protection, legacy PII baseline reduction, normalized-history redaction and constraints, overlapping legal holds and fence conflicts, protected-ledger restore replay, anti-resurrection barriers, physical object purge, one-time adapter credential rotation, tenant/connection denial, direct push acceptance/replay, standalone and remote-leased runner delivery plus checkpointing, revocation, queued JSON file-drop receipt/archive/quarantine behavior, real SMTP-to-IMAP reservation acquisition and poison-message progress through GreenMail, tenant-termination export across all 15 streams with cross-tenant revision isolation and frozen-write serialization, crash-safe tenant destruction across raw objects and derived/source receipt lineage, and Admin API/CLI confirmation. Vendor-specific connectors, federated workload identity, remote fleet discovery, orphan reconciliation, irreversible anonymisation execution, and broader operational workflows remain later slices.
 
 Retained rejected evidence can be parsed again without reopening the source receipt; the durable attempt, lineage, and retention-fence contract is in [Ingestion Source Reprocessing Task](../../../docs/planning/ingestion-source-reprocessing-task.md).
 

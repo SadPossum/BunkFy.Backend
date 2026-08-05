@@ -41,6 +41,12 @@ public static class DataRightsApplicationErrors
     public static readonly Error AnonymisationApprovalPolicyDenied = new(
         "DataRights.AnonymisationApprovalPolicyDenied",
         "The property policy does not authorize anonymisation.");
+    public static readonly Error ResponseDeadlinePolicyUnavailable = new(
+        "DataRights.ResponseDeadlinePolicyUnavailable",
+        "The guest-rights response deadline policy is not available for this property.");
+    public static readonly Error DeadlineAlertTaskOptionsInvalid = new(
+        "DataRights.DeadlineAlertTaskOptionsInvalid",
+        "The response-deadline alert task options are invalid.");
     public static readonly Error AnonymisationMustBeApprovedSeparately = new(
         "DataRights.AnonymisationMustBeApprovedSeparately",
         "Anonymisation must be reviewed and approved as the case's only operation.");
@@ -143,14 +149,52 @@ public static class DataRightsApplicationErrors
     public static readonly Error TenantTerminationContributorCatalogInvalid = new(
         "DataRights.TenantTerminationContributorCatalogInvalid",
         "The tenant-termination owner catalogue is incomplete or invalid.");
+    public static readonly Error TenantTerminationCaseNotFound = new(
+        "DataRights.TenantTerminationCaseNotFound",
+        "The tenant-termination case was not found.");
+    public static readonly Error TenantTerminationActiveCaseExists = new(
+        "DataRights.TenantTerminationActiveCaseExists",
+        "An active tenant-termination case already exists.");
+    public static readonly Error TenantTerminationRequestConflict = new(
+        "DataRights.TenantTerminationRequestConflict",
+        "The tenant-termination request id is already bound to another request.");
+    public static readonly Error TenantTerminationDecisionConflict = new(
+        "DataRights.TenantTerminationDecisionConflict",
+        "The tenant-termination decision conflicts with the durable case state.");
+    public static readonly Error TenantTerminationApprovalEvidenceInvalid = new(
+        "DataRights.TenantTerminationApprovalEvidenceInvalid",
+        "The tenant-termination approval evidence is invalid or no longer matches the production owner catalogue.");
+    public static readonly Error TenantTerminationStartConflict = new(
+        "DataRights.TenantTerminationStartConflict",
+        "The tenant-termination process coordinates conflict with durable state.");
+    public static readonly Error TenantTerminationReplayIntentInvalid = new(
+        "DataRights.TenantTerminationReplayIntentInvalid",
+        "The protected tenant-termination start intent is missing, unavailable, or inconsistent.");
+    public static readonly Error TenantTerminationRecoveryRequiresRetry = new(
+        "DataRights.TenantTerminationRecoveryRequiresRetry",
+        "The tenant-termination process is blocked or failed and must be retried explicitly.");
+    public static readonly Error TenantTerminationProcessNotFound = new(
+        "DataRights.TenantTerminationProcessNotFound",
+        "The tenant-termination process was not found.");
+    public static readonly Error TenantTerminationExecutionStateInvalid = new(
+        "DataRights.TenantTerminationExecutionStateInvalid",
+        "The tenant-termination phase or durable owner work set is incomplete or inconsistent.");
     public static readonly Error TenantTerminationCancellationProofInvalid = new(
         "DataRights.TenantTerminationCancellationProofInvalid",
         "Tenant termination cannot be cancelled until every restore owner has durable completion proof.");
+    public static readonly Error TenantTerminationExportProofInvalid = new(
+        "DataRights.TenantTerminationExportProofInvalid",
+        "The tenant-termination export does not contain the exact durable owner proof set.");
+    public static readonly Error TenantTerminationVerificationProofInvalid = new(
+        "DataRights.TenantTerminationVerificationProofInvalid",
+        "Tenant termination cannot complete until every destruction owner and protected replay proof is verified.");
 
     public static Error VersionConflict => DataRightsDomainErrors.VersionConflict;
     public static Error TransitionInvalid => DataRightsDomainErrors.TransitionInvalid;
     public static Error VerificationRequired => DataRightsDomainErrors.VerificationRequired;
     public static Error ControllerRoutingRequired => DataRightsDomainErrors.ControllerRoutingRequired;
+    public static Error ResponseDeadlinePolicyRequired =>
+        DataRightsDomainErrors.ResponseDeadlinePolicyRequired;
     public static Error SubjectCoordinateInvalid => DataRightsDomainErrors.SubjectCoordinateInvalid;
     public static Error SubjectAlreadySelected => DataRightsDomainErrors.SubjectAlreadySelected;
     public static Error SubjectNotSelected => DataRightsDomainErrors.SubjectNotSelected;

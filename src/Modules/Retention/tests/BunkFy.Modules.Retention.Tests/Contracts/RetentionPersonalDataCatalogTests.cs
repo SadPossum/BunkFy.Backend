@@ -4,6 +4,7 @@ using System.Reflection;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.Retention.Application.Ports;
 using BunkFy.Modules.Retention.Contracts;
+using BunkFy.Modules.Retention.Domain.Aggregates;
 using BunkFy.Modules.Retention.Persistence;
 using Xunit;
 
@@ -15,6 +16,7 @@ public sealed class RetentionPersonalDataCatalogTests
     {
         typeof(RetentionModuleMetadata).Assembly,
         typeof(RetentionScheduleTarget).Assembly,
+        typeof(RetentionExecution).Assembly,
         typeof(RetentionDbContext).Assembly
     }.ToDictionary(assembly => assembly.GetName().Name!, StringComparer.Ordinal);
 
@@ -22,7 +24,14 @@ public sealed class RetentionPersonalDataCatalogTests
     public void Catalogue_classifies_only_the_minimized_scope_coordinates()
     {
         Assert.Equal(
-            ["retention.property-reference", "retention.tenant-scope-reference"],
+            RetentionTenantTerminationMetadata.PersonalDataCatalogVersion,
+            Catalogue.CatalogVersion);
+        Assert.Equal(
+            [
+                "retention.property-reference",
+                "retention.tenant-destruction.owner-proof",
+                "retention.tenant-scope-reference"
+            ],
             Catalogue.Fields.Select(field => field.Id).Order(StringComparer.Ordinal));
 
         Assert.All(
@@ -33,6 +42,36 @@ public sealed class RetentionPersonalDataCatalogTests
                     PersonalDataSurface.Metric or
                     PersonalDataSurface.Trace or
                     PersonalDataSurface.SupportBundle));
+    }
+
+    [Fact]
+    public void Tenant_export_and_execution_storage_have_exact_scope_bindings()
+    {
+        PersonalDataFieldDefinition tenant = Catalogue.Fields.Single(
+            field => field.Id == "retention.tenant-scope-reference");
+        PersonalDataFieldDefinition property = Catalogue.Fields.Single(
+            field => field.Id == "retention.property-reference");
+
+        Assert.Contains(
+            tenant.Bindings,
+            binding => binding.Type ==
+                    typeof(RetentionExecution).FullName &&
+                binding.Member == nameof(RetentionExecution.ScopeId) &&
+                binding.Surface == PersonalDataSurface.Persistence);
+        Assert.Contains(
+            property.Bindings,
+            binding => binding.Type ==
+                    typeof(RetentionExecution).FullName &&
+                binding.Member == nameof(RetentionExecution.PropertyId) &&
+                binding.Surface == PersonalDataSurface.Persistence);
+        Assert.Equal(
+            2,
+            tenant.Bindings.Count(binding =>
+                binding.Surface == PersonalDataSurface.DataRightsExport));
+        Assert.Equal(
+            2,
+            property.Bindings.Count(binding =>
+                binding.Surface == PersonalDataSurface.DataRightsExport));
     }
 
     [Fact]

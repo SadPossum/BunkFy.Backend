@@ -24,7 +24,7 @@ internal sealed class BunkFyDeploymentOptionsValidator(
                 .Get<ProductionDataProtectionOptions>() ?? new(),
             configuration.GetSection(MinioFileStorageOptions.SectionName)
                 .Get<MinioFileStorageOptions>() ?? new(),
-            configuration.GetValue<bool>("FileManagement:Enabled"));
+            surface.FileManagementEnabled);
 
         return failures.Length == 0
             ? ValidateOptionsResult.Success
@@ -54,8 +54,12 @@ internal static class BunkFyDeploymentOptionsValidation
         }
 
         List<string> failures = [];
-        ValidateDeploymentIdentity(options, failures);
-        ValidateHttpBoundary(options, surface, http, failures);
+        ValidateDeploymentIdentity(options, surface, failures);
+
+        if (surface != BunkFyDeploymentSurface.Worker)
+        {
+            ValidateHttpBoundary(options, surface, http, failures);
+        }
 
         if (surface == BunkFyDeploymentSurface.PublicApi)
         {
@@ -78,6 +82,7 @@ internal static class BunkFyDeploymentOptionsValidation
 
     private static void ValidateDeploymentIdentity(
         BunkFyDeploymentOptions options,
+        BunkFyDeploymentSurface surface,
         List<string> failures)
     {
         if (options.Profile is not (
@@ -88,20 +93,23 @@ internal static class BunkFyDeploymentOptionsValidation
                 "BunkFy:Deployment:Profile must be SelfHosted or Hosted in Production. Preview and Unspecified are not production profiles.");
         }
 
-        if (options.ApiTopology is not (
-                BunkFyApiTopology.SingleReplica or
-                BunkFyApiTopology.MultiReplica))
+        if (surface != BunkFyDeploymentSurface.Worker)
         {
-            failures.Add(
-                "BunkFy:Deployment:ApiTopology must be SingleReplica or MultiReplica in Production.");
-        }
+            if (options.ApiTopology is not (
+                    BunkFyApiTopology.SingleReplica or
+                    BunkFyApiTopology.MultiReplica))
+            {
+                failures.Add(
+                    "BunkFy:Deployment:ApiTopology must be SingleReplica or MultiReplica in Production.");
+            }
 
-        if (options.EdgeMode is not (
-                BunkFyEdgeMode.DirectHttps or
-                BunkFyEdgeMode.TrustedReverseProxy))
-        {
-            failures.Add(
-                "BunkFy:Deployment:EdgeMode must be DirectHttps or TrustedReverseProxy in Production.");
+            if (options.EdgeMode is not (
+                    BunkFyEdgeMode.DirectHttps or
+                    BunkFyEdgeMode.TrustedReverseProxy))
+            {
+                failures.Add(
+                    "BunkFy:Deployment:EdgeMode must be DirectHttps or TrustedReverseProxy in Production.");
+            }
         }
 
         if (options.Runtime is not (
@@ -125,12 +133,13 @@ internal static class BunkFyDeploymentOptionsValidation
                 "BunkFy:Deployment:ContainerImageDigest must be an immutable lowercase sha256 OCI digest for a Production container.");
         }
 
-        if (options.DataProtectionKeyProtection is not (
-                BunkFyKeyProtectionKind.EncryptedVolume or
-                BunkFyKeyProtectionKind.Certificate or
-                BunkFyKeyProtectionKind.Kms or
-                BunkFyKeyProtectionKind.Hsm or
-                BunkFyKeyProtectionKind.PlatformManaged))
+        if (surface != BunkFyDeploymentSurface.Worker &&
+            options.DataProtectionKeyProtection is not (
+                    BunkFyKeyProtectionKind.EncryptedVolume or
+                    BunkFyKeyProtectionKind.Certificate or
+                    BunkFyKeyProtectionKind.Kms or
+                    BunkFyKeyProtectionKind.Hsm or
+                    BunkFyKeyProtectionKind.PlatformManaged))
         {
             failures.Add(
                 "BunkFy:Deployment:DataProtectionKeyProtection must declare the deployment key-ring protection mechanism.");
@@ -271,4 +280,5 @@ internal static class BunkFyDeploymentOptionsValidation
 }
 
 internal sealed record BunkFyDeploymentSurfaceRegistration(
-    BunkFyDeploymentSurface Surface);
+    BunkFyDeploymentSurface Surface,
+    bool FileManagementEnabled);

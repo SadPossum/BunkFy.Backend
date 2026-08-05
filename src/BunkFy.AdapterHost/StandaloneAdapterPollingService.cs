@@ -12,6 +12,7 @@ internal sealed class StandaloneAdapterPollingService(
     IAdapterRuntimeMaterialProvider materialProvider,
     AdapterHostOptions options,
     AdapterHostStatus status,
+    AdapterHostStartupPreflight startupPreflight,
     TimeProvider timeProvider,
     ILogger<StandaloneAdapterPollingService> logger)
     : BackgroundService
@@ -20,6 +21,8 @@ internal sealed class StandaloneAdapterPollingService(
     {
         IAdapterRunner runner = this.ResolveRunner();
         this.ValidateRunner(runner);
+        await startupPreflight.ValidateAsync(runner.Descriptor, stoppingToken)
+            .ConfigureAwait(false);
         await using IAdapterCheckpointLease checkpoint = await checkpointStore.AcquireAsync(
             options.ConnectionId,
             stoppingToken).ConfigureAwait(false);

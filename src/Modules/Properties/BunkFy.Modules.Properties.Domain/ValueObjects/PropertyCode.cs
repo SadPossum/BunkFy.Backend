@@ -4,7 +4,7 @@ using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Errors;
 using Gma.Framework.Results;
 
-public readonly record struct PropertyCode
+public readonly record struct PropertyCode : IComparable<PropertyCode>
 {
     private readonly string? value;
 
@@ -31,6 +31,14 @@ public readonly record struct PropertyCode
     }
 
     public static string Normalize(string? value) => Create(value).Value.Value;
+
+    public int CompareTo(PropertyCode other) =>
+        StringComparer.Ordinal.Compare(this.Value, other.Value);
+
+    public static bool operator <(PropertyCode left, PropertyCode right) => left.CompareTo(right) < 0;
+    public static bool operator <=(PropertyCode left, PropertyCode right) => left.CompareTo(right) <= 0;
+    public static bool operator >(PropertyCode left, PropertyCode right) => left.CompareTo(right) > 0;
+    public static bool operator >=(PropertyCode left, PropertyCode right) => left.CompareTo(right) >= 0;
 
     public override string ToString() => this.Value;
 

@@ -21,8 +21,8 @@ internal static class WorkspacesDataRightsExportSchema
 
     private static readonly HashSet<string> AllowedExportPolicies =
     [
-        "include-in-authorized-staff-export",
-        "include-in-authorized-audit-export"
+        "include-in-authorized-staff-or-tenant-export",
+        "include-in-authorized-audit-or-tenant-export"
     ];
 
     private static readonly HashSet<string> AllowedAuthorities =
@@ -58,6 +58,9 @@ internal static class WorkspacesDataRightsExportSchema
 
     public static DataRightsExportDescriptor Descriptor =>
         State.Value.Descriptor;
+
+    public static DataRightsExportDescriptor TenantTerminationDescriptor =>
+        State.Value.TenantTerminationDescriptor;
 
     public static void EnsureValid() => _ = State.Value;
 
@@ -239,7 +242,18 @@ internal static class WorkspacesDataRightsExportSchema
             ExportSchemaId,
             ExportSchemaVersion,
             Array.AsReadOnly(fieldIds));
-        return new SchemaState(descriptor, fieldIdsByMember);
+        DataRightsExportDescriptor tenantTerminationDescriptor = new(
+            WorkspacesDataRightsCoordinates.Owner,
+            catalog.CatalogId,
+            catalog.SchemaVersion,
+            catalog.CatalogVersion,
+            WorkspacesTenantTerminationMetadata.ExportSchemaId,
+            WorkspacesTenantTerminationMetadata.ExportSchemaVersion,
+            Array.AsReadOnly(fieldIds));
+        return new SchemaState(
+            descriptor,
+            tenantTerminationDescriptor,
+            fieldIdsByMember);
     }
 
     private static string MemberKey(Type sourceType, string member) =>
@@ -257,5 +271,6 @@ internal static class WorkspacesDataRightsExportSchema
 
     private sealed record SchemaState(
         DataRightsExportDescriptor Descriptor,
+        DataRightsExportDescriptor TenantTerminationDescriptor,
         IReadOnlyDictionary<string, string> FieldIdsByMember);
 }

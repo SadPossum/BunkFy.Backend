@@ -19,16 +19,16 @@ internal sealed class CreateReservationCommandHandler(
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<CreateReservationCommand, ReservationDto>
+    : ICommandHandler<CreateReservationCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         CreateReservationCommand command,
         CancellationToken cancellationToken)
     {
         string? scopeId = scopeContext.ScopeId;
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeId))
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.TenantRequired);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.TenantRequired);
         }
 
         CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
@@ -39,7 +39,7 @@ internal sealed class CreateReservationCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (!policyDecision.IsAllowed)
         {
-            return Result.Failure<ReservationDto>(
+            return Result.Failure<ReservationMutationReceiptDto>(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
@@ -51,7 +51,7 @@ internal sealed class CreateReservationCommandHandler(
                 command.SourceReference.Trim(),
                 cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ExternalSourceAlreadyExists);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ExternalSourceAlreadyExists);
         }
 
         InventoryUnitSelectionValidation unitValidation = await inventoryProjection
@@ -59,12 +59,12 @@ internal sealed class CreateReservationCommandHandler(
             .ConfigureAwait(false);
         if (unitValidation == InventoryUnitSelectionValidation.UnitNotFound)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.InventoryUnitNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.InventoryUnitNotFound);
         }
 
         if (unitValidation == InventoryUnitSelectionValidation.PropertyMismatch)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.InventoryUnitPropertyMismatch);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.InventoryUnitPropertyMismatch);
         }
 
         Result<Reservation> created = Reservation.Create(
@@ -95,10 +95,10 @@ internal sealed class CreateReservationCommandHandler(
             command.ExpectedDepartureTime);
         if (created.IsFailure)
         {
-            return Result.Failure<ReservationDto>(created.Error);
+            return Result.Failure<ReservationMutationReceiptDto>(created.Error);
         }
 
         await reservations.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
-        return Result.Success(created.Value.ToDto());
+        return Result.Success(created.Value.ToMutationReceipt());
     }
 }

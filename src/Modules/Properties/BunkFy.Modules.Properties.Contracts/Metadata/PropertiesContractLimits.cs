@@ -13,4 +13,5 @@ public static class PropertiesContractLimits
     public const int RoomNameMaxLength = 128;
     public const int PhysicalLabelMaxLength = 128;
     public const int BedLabelMaxLength = 128;
+    public const int MaximumBedsPerBatch = 100;
 }

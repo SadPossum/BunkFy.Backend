@@ -58,6 +58,12 @@ public static class DataRightsDomainErrors
     public static readonly Error ControllerRoutingRequired = new(
         "DataRights.ControllerRoutingRequired",
         "Controller routing must complete before sensitive discovery.");
+    public static readonly Error ResponseDeadlinePolicyEvidenceInvalid = new(
+        "DataRights.ResponseDeadlinePolicyEvidenceInvalid",
+        "The response deadline policy evidence is invalid or conflicts with the case.");
+    public static readonly Error ResponseDeadlinePolicyRequired = new(
+        "DataRights.ResponseDeadlinePolicyRequired",
+        "A response deadline policy must be assigned before controller routing completes.");
     public static readonly Error SubjectCoordinateInvalid = new(
         "DataRights.SubjectCoordinateInvalid",
         "The selected subject coordinate is invalid.");
@@ -175,10 +181,58 @@ public static class DataRightsDomainErrors
     public static readonly Error TenantTerminationTransitionInvalid = new(
         "DataRights.TenantTerminationTransitionInvalid",
         "The tenant-termination process cannot make that transition.");
+    public static readonly Error TenantTerminationFreezeCheckpointInvalid = new(
+        "DataRights.TenantTerminationFreezeCheckpointInvalid",
+        "The tenant-termination freeze checkpoint is invalid or conflicts with durable proof.");
     public static readonly Error TenantTerminationExecutorInvalid = new(
         "DataRights.TenantTerminationExecutorInvalid",
         "The tenant-termination decision actor cannot begin destructive execution.");
     public static readonly Error TenantTerminationOwnerWorkInvalid = new(
         "DataRights.TenantTerminationOwnerWorkInvalid",
         "The tenant-termination owner work is invalid or conflicts with durable proof.");
+    public static readonly Error TenantTerminationExportFragmentInvalid = new(
+        "DataRights.TenantTerminationExportFragmentInvalid",
+        "The tenant-termination export fragment coordinate is invalid.");
+    public static readonly Error TenantTerminationExportFragmentTransitionInvalid = new(
+        "DataRights.TenantTerminationExportFragmentTransitionInvalid",
+        "The tenant-termination export fragment cannot make that transition.");
+    public static readonly Error TenantTerminationExportFragmentGenerationInvalid = new(
+        "DataRights.TenantTerminationExportFragmentGenerationInvalid",
+        "The tenant-termination export fragment generation attempt is invalid.");
+    public static readonly Error TenantTerminationExportFragmentCompletionInvalid = new(
+        "DataRights.TenantTerminationExportFragmentCompletionInvalid",
+        "The tenant-termination export fragment completion proof is invalid.");
+    public static readonly Error TenantTerminationExportFragmentFailureInvalid = new(
+        "DataRights.TenantTerminationExportFragmentFailureInvalid",
+        "The tenant-termination export fragment failure proof is invalid.");
+    public static readonly Error TenantTerminationExportFragmentDeletionInvalid = new(
+        "DataRights.TenantTerminationExportFragmentDeletionInvalid",
+        "The tenant-termination export fragment deletion proof is invalid.");
+    public static readonly Error TenantTerminationExportArtifactInvalid = new(
+        "DataRights.TenantTerminationExportArtifactInvalid",
+        "The tenant-termination export artifact coordinate is invalid.");
+    public static readonly Error TenantTerminationExportArtifactTransitionInvalid = new(
+        "DataRights.TenantTerminationExportArtifactTransitionInvalid",
+        "The tenant-termination export artifact cannot make that transition.");
+    public static readonly Error TenantTerminationExportArtifactGenerationInvalid = new(
+        "DataRights.TenantTerminationExportArtifactGenerationInvalid",
+        "The tenant-termination export artifact generation attempt is invalid.");
+    public static readonly Error TenantTerminationExportArtifactCompletionInvalid = new(
+        "DataRights.TenantTerminationExportArtifactCompletionInvalid",
+        "The tenant-termination export artifact completion proof is invalid.");
+    public static readonly Error TenantTerminationExportArtifactFailureInvalid = new(
+        "DataRights.TenantTerminationExportArtifactFailureInvalid",
+        "The tenant-termination export artifact failure proof is invalid.");
+    public static readonly Error TenantTerminationExportArtifactDeletionInvalid = new(
+        "DataRights.TenantTerminationExportArtifactDeletionInvalid",
+        "The tenant-termination export artifact deletion proof is invalid.");
+    public static readonly Error TenantTerminationExportConfirmationInvalid = new(
+        "DataRights.TenantTerminationExportConfirmationInvalid",
+        "The tenant-termination export confirmation proof is invalid.");
+    public static readonly Error TenantTerminationVerificationConfirmationInvalid = new(
+        "DataRights.TenantTerminationVerificationConfirmationInvalid",
+        "The tenant-termination verification confirmation proof is invalid.");
+    public static readonly Error TenantTerminationTerminalReceiptInvalid = new(
+        "DataRights.TenantTerminationTerminalReceiptInvalid",
+        "The tenant-termination terminal receipt is invalid or conflicts with durable proof.");
 }

@@ -35,6 +35,8 @@ internal sealed class WorkspaceStaffOnboardingOperationLock(
                 .ConfigureAwait(false);
         }
 
+        await dbContext.AcquireOperationalMutationAdmissionAsync(
+            cancellationToken).ConfigureAwait(false);
         int affected = await dbContext.StaffOnboardingApplications
             .Where(application => application.Id == applicationId)
             .ExecuteUpdateAsync(

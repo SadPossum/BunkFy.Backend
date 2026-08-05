@@ -18,4 +18,4 @@ public sealed record RevokeAdapterIngressCredentialCommand(
     Guid CredentialId,
     long ExpectedVersion,
     string RevokedBy)
-    : ITransactionalCommand<AdapterIngressCredentialDto>;
+    : ITransactionalCommand<AdapterIngressCredentialMutationReceiptDto>;

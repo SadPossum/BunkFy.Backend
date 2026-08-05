@@ -36,6 +36,7 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
             .WithModuleName(this.Name)
             .WithTags("Properties Admin")
             .RequireAuthorization();
+        properties.AddEndpointFilter(SensitiveResponseFilter);
 
         properties.MapGet("/", async (
             int? page,
@@ -51,7 +52,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 token => dispatcher.QueryAsync(
                     new ListPropertiesQuery(page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize),
                     token),
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken).ConfigureAwait(false))
+            .Produces<PropertyListResponse>(StatusCodes.Status200OK);
 
         properties.MapGet("/{propertyId:guid}", async (
             Guid propertyId,
@@ -65,7 +67,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetPropertyQuery(propertyId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<PropertyDto>(StatusCodes.Status200OK);
 
         properties.MapPost("/", async (
             PropertyCreateRequest request,
@@ -79,7 +82,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(new CreatePropertyCommand(request.Name, request.Code, request.TimeZoneId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK);
 
         properties.MapPut("/{propertyId:guid}", async (
             Guid propertyId,
@@ -96,7 +100,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                     new UpdatePropertyCommand(propertyId, request.Name, request.Code, request.TimeZoneId, request.ExpectedVersion),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK);
 
         properties.MapPost("/{propertyId:guid}/retire", async (
             Guid propertyId,
@@ -113,7 +118,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                     ? dispatcher.SendAsync(new RetirePropertyCommand(propertyId, request.ExpectedVersion), token)
                     : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces(StatusCodes.Status204NoContent);
 
         properties.MapGet("/{propertyId:guid}/rooms", async (
             Guid propertyId,
@@ -131,7 +137,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                     new ListRoomsQuery(propertyId, page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomListResponse>(StatusCodes.Status200OK);
 
         properties.MapPost("/{propertyId:guid}/rooms", async (
             Guid propertyId,
@@ -153,7 +160,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                         request.FloorLabel),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomMutationReceiptDto>(StatusCodes.Status200OK);
 
         properties.MapGet("/{propertyId:guid}/rooms/{roomId:guid}", async (
             Guid propertyId,
@@ -168,7 +176,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetRoomQuery(propertyId, roomId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomDto>(StatusCodes.Status200OK);
 
         properties.MapPut("/{propertyId:guid}/rooms/{roomId:guid}", async (
             Guid propertyId,
@@ -192,7 +201,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                         request.FloorLabel),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomMutationReceiptDto>(StatusCodes.Status200OK);
 
         properties.MapPost("/{propertyId:guid}/rooms/{roomId:guid}/retire", async (
             Guid propertyId,
@@ -212,7 +222,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                         token)
                     : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces(StatusCodes.Status204NoContent);
 
         properties.MapGet("/{propertyId:guid}/rooms/{roomId:guid}/beds", async (
             Guid propertyId,
@@ -231,7 +242,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                     new ListBedsQuery(propertyId, roomId, page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedListResponse>(StatusCodes.Status200OK);
 
         properties.MapPost("/{propertyId:guid}/rooms/{roomId:guid}/beds", async (
             Guid propertyId,
@@ -249,7 +261,27 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                     new AddBedCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Label),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedMutationReceiptDto>(StatusCodes.Status200OK);
+
+        properties.MapPost("/{propertyId:guid}/rooms/{roomId:guid}/beds/batch", async (
+            Guid propertyId,
+            Guid roomId,
+            BedBatchWriteRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(PropertiesAdminOperationNames.BedsAddBatch, PropertiesAdminPermissions.BedsManage),
+                requireTenant: true,
+                token => dispatcher.SendAsync(
+                    new AddBedsCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Labels),
+                    token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedBatchMutationReceiptDto>(StatusCodes.Status200OK);
 
         properties.MapPut("/{propertyId:guid}/rooms/{roomId:guid}/beds/{bedId:guid}", async (
             Guid propertyId,
@@ -268,7 +300,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                     new UpdateBedCommand(propertyId, roomId, bedId, request.ExpectedRoomVersion, request.Label),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedMutationReceiptDto>(StatusCodes.Status200OK);
 
         properties.MapPost("/{propertyId:guid}/rooms/{roomId:guid}/beds/{bedId:guid}/retire", async (
             Guid propertyId,
@@ -289,7 +322,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                         token)
                     : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces(StatusCodes.Status204NoContent);
     }
 
     public sealed record PropertyCreateRequest(string Name, string Code, string TimeZoneId);
@@ -307,9 +341,27 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
         string? FloorLabel = null);
     public sealed record RetireRoomRequest(bool Confirmed, long ExpectedVersion, bool CascadeBeds = false);
     public sealed record BedWriteRequest(string Label, long ExpectedRoomVersion);
+    public sealed record BedBatchWriteRequest(IReadOnlyCollection<string> Labels, long ExpectedRoomVersion);
     public sealed record RetireBedRequest(bool Confirmed, long ExpectedRoomVersion);
 
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
+
     private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+        new(PropertiesApplicationErrors.BedBatchRequired.Code, StatusCodes.Status400BadRequest),
+        new(PropertiesApplicationErrors.BedBatchTooLarge.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.RoomNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.BedNotFound.Code, StatusCodes.Status404NotFound),
@@ -321,6 +373,8 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
         new(PropertiesApplicationErrors.PropertyRetired.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.ProcessingLifecycleRestricted.Code, StatusCodes.Status423Locked),
         new(PropertiesApplicationErrors.ProcessingLifecycleAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+        new(PropertiesApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(PropertiesApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(PropertiesApplicationErrors.PropertyHasActiveRooms.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomStatusUnknown.Code, StatusCodes.Status409Conflict),

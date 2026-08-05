@@ -9,4 +9,4 @@ public sealed record CreateRoomCommand(
     string Name,
     string? BuildingLabel,
     string? FloorLabel)
-    : ITransactionalCommand<RoomDto>;
+    : ITransactionalCommand<RoomMutationReceiptDto>;

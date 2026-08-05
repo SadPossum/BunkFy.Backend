@@ -26,4 +26,5 @@ public sealed record WorkspaceStaffOnboardingDto(
 public sealed record WorkspaceStaffOnboardingListResponse(
     IReadOnlyList<WorkspaceStaffOnboardingDto> Items,
     int Page,
-    int PageSize);
+    int PageSize,
+    bool HasMore);

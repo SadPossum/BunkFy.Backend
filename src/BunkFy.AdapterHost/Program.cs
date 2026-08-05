@@ -5,6 +5,7 @@ using BunkFy.Adapters.Http;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
 using BunkFy.AdapterHost;
+using Microsoft.Extensions.Hosting;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -12,8 +13,16 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationO
     ContentRootPath = AppContext.BaseDirectory
 });
 AdapterHostOptions options = AdapterHostOptions.FromConfiguration(builder.Configuration);
+AdapterHostProductionAdmissionOptions productionAdmission =
+    AdapterHostProductionAdmissionOptions.FromConfiguration(builder.Configuration);
+bool isProduction = builder.Environment.IsProduction();
+AdapterHostProductionAdmission.ValidateOrThrow(
+    productionAdmission,
+    options,
+    isProduction);
 builder.WebHost.UseUrls(options.ListenUrl);
 builder.Services.AddSingleton(options);
+builder.Services.AddSingleton(productionAdmission);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(options.CreateRuntimeIdentity());
 if (options.CoordinationMode == AdapterHostCoordinationMode.LocalFile)
@@ -28,6 +37,7 @@ builder.Services.AddSingleton<IAdapterRuntimeMaterialProvider>(new FileAdapterRu
         options.SecretFilePath,
         options.SecretContentType)));
 builder.Services.AddSingleton<IAdapterIngressTokenProvider, ReloadingAdapterIngressTokenProvider>();
+builder.Services.AddSingleton<AdapterHostStartupPreflight>();
 builder.Services.AddHttpClient("adapter-ingress", client => client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 builder.Services.AddSingleton(provider => new AdapterHttpIngressClient(
@@ -80,10 +90,20 @@ else
 }
 
 WebApplication app = builder.Build();
+AdapterHostProductionAdmission.ReportApproved(
+    app.Logger,
+    productionAdmission,
+    options,
+    isProduction);
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
 app.MapGet("/health/ready", (AdapterHostStatus status) =>
     status.Snapshot().Ready
         ? Results.Ok(new { status = "ready" })
         : Results.Json(new { status = "starting" }, statusCode: StatusCodes.Status503ServiceUnavailable));
-app.MapGet("/status", (AdapterHostStatus status) => Results.Ok(status.Snapshot()));
+if (productionAdmission.StatusEndpointExposure !=
+    AdapterHostStatusEndpointExposure.Disabled)
+{
+    app.MapGet("/status", (AdapterHostStatus status) =>
+        Results.Ok(status.Snapshot()));
+}
 await app.RunAsync().ConfigureAwait(false);

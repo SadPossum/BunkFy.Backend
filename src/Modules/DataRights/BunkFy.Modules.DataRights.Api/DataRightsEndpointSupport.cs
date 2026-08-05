@@ -18,6 +18,8 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.TransitionInvalid.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.VerificationRequired.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.ControllerRoutingRequired.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.ResponseDeadlinePolicyRequired.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.ResponseDeadlinePolicyUnavailable.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.DiscoveryCriteriaInvalid.Code, StatusCodes.Status400BadRequest),
             new(DataRightsApplicationErrors.DiscoveryScopeUnavailable.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectOwnerUnavailable.Code, StatusCodes.Status409Conflict),
@@ -97,6 +99,14 @@ internal static class DataRightsEndpointSupport
         return subject is null
             ? null
             : $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
+    }
+
+    public static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        DataRightsSensitiveResponseHeaders.Apply(context.HttpContext.Response);
+        return await next(context).ConfigureAwait(false);
     }
 }
 

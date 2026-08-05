@@ -36,6 +36,7 @@ public sealed class DataRightsModule : IModule
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, DataRightsPropertyAccessScopeResolver>());
         builder.Services.AddOptions<DataRightsApiSecurityOptions>();
         builder.Services.AddDataRightsApplication();
+        builder.Services.AddDataRightsUnavailableTenantTerminationTaskScheduling();
         builder.AddDataRightsPersistence();
         builder.AddDataRightsRestoreReadinessGate();
     }
@@ -50,6 +51,7 @@ public sealed class DataRightsModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Data rights")
             .RequireAuthorization();
+        group.AddEndpointFilter(DataRightsEndpointSupport.SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,

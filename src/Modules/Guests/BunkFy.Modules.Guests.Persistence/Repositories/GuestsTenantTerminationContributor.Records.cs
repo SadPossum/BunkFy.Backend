@@ -1,0 +1,96 @@
+namespace BunkFy.Modules.Guests.Persistence.Repositories;
+
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Domain.Aggregates;
+using Microsoft.EntityFrameworkCore;
+
+internal sealed partial class GuestsTenantTerminationContributor
+{
+    private async Task<long> ExportRecordsAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        CancellationToken cancellationToken)
+    {
+        long count = 0;
+        count = await this.ExportProfilesAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
+        count = await this.ExportGovernanceRecordsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
+        return await this.ExportRetentionRecordsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<long> ExportProfilesAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (GuestProfile profile in dbContext.GuestProfiles
+            .AsNoTracking()
+            .Where(item => item.ScopeId == tenantId)
+            .OrderBy(item => item.Id)
+            .AsAsyncEnumerable()
+            .WithCancellation(cancellationToken)
+            .ConfigureAwait(false))
+        {
+            GuestProfileTenantExport record = new(
+                profile.ScopeId,
+                profile.OriginPropertyId,
+                profile.Id,
+                new GuestProfileStateTenantExport(
+                    profile.DisplayName,
+                    profile.LegalName,
+                    profile.Email,
+                    profile.Phone,
+                    profile.DateOfBirth,
+                    profile.NationalityCountryCode,
+                    profile.PreferredLanguageTag,
+                    profile.Notes,
+                    profile.Status,
+                    profile.Version,
+                    profile.CreatedAtUtc,
+                    profile.LastChangedAtUtc,
+                    profile.ArchivedAtUtc,
+                    profile.AnonymisedAtUtc),
+                new GuestProfileStaffTenantExport(
+                    profile.CreatedBy,
+                    profile.LastChangedBy));
+            await WriteAsync(
+                GuestsTenantTerminationMetadata.GuestProfileRecordType,
+                profile.Id,
+                profile.Version,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private static ValueTask WriteAsync(
+        string recordType,
+        Guid recordId,
+        long recordVersion,
+        object source,
+        IDataRightsExportSink sink,
+        CancellationToken cancellationToken) =>
+        sink.WriteAsync(
+            GuestsTenantTerminationExportSchema.CreateRecord(
+                recordType,
+                recordId,
+                recordVersion,
+                source),
+            cancellationToken);
+}

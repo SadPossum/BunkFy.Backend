@@ -29,6 +29,10 @@ public sealed class StaffPersonalDataCatalogTests
     private static readonly Dictionary<string, Assembly> Assemblies = CreateAssemblyIndex();
     private static readonly string[] ExpectedDirectoryMemberProperties =
         ["Assignments", "Department", "DisplayName", "JobTitle", "StaffMemberId", "Status", "Version"];
+    private static readonly string[] ExpectedDirectoryListItemProperties =
+        ["CurrentPropertyCount", "Department", "DisplayName", "JobTitle", "StaffMemberId", "Status", "Version"];
+    private static readonly string[] ExpectedPropertyDirectoryListItemProperties =
+        ["Assignment", "Department", "DisplayName", "JobTitle", "StaffMemberId", "Status", "Version"];
     private static readonly string[] ExpectedDirectoryAssignmentProperties =
         ["AssignmentId", "EffectiveFrom", "IsPrimary", "PropertyId", "PropertyJobTitle"];
     private static readonly Dictionary<Type, string[]> ExpectedEfShadowRelationshipProperties = new()
@@ -49,7 +53,12 @@ public sealed class StaffPersonalDataCatalogTests
             [nameof(ListStaffDataHoldsQuery.Page), nameof(ListStaffDataHoldsQuery.PageSize)],
             StringComparer.Ordinal),
         [typeof(StaffDirectoryListResponse)] = new(
-            [nameof(StaffDirectoryListResponse.Page), nameof(StaffDirectoryListResponse.PageSize)],
+            [nameof(StaffDirectoryListResponse.Page), nameof(StaffDirectoryListResponse.PageSize),
+                nameof(StaffDirectoryListResponse.HasMore)],
+            StringComparer.Ordinal),
+        [typeof(StaffPropertyDirectoryListResponse)] = new(
+            [nameof(StaffPropertyDirectoryListResponse.Page), nameof(StaffPropertyDirectoryListResponse.PageSize),
+                nameof(StaffPropertyDirectoryListResponse.HasMore)],
             StringComparer.Ordinal),
         [typeof(StaffDataHoldListResponse)] = new(
             [nameof(StaffDataHoldListResponse.Page), nameof(StaffDataHoldListResponse.PageSize)],
@@ -213,6 +222,14 @@ public sealed class StaffPersonalDataCatalogTests
             .Select(property => property.Name)
             .Order(StringComparer.Ordinal)
             .ToArray();
+        string[] listItemProperties = typeof(StaffDirectoryListItemDto).GetProperties()
+            .Select(property => property.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        string[] propertyListItemProperties = typeof(StaffPropertyDirectoryListItemDto).GetProperties()
+            .Select(property => property.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
 
         Assert.Equal(
             ExpectedDirectoryMemberProperties.Order(StringComparer.Ordinal),
@@ -220,6 +237,12 @@ public sealed class StaffPersonalDataCatalogTests
         Assert.Equal(
             ExpectedDirectoryAssignmentProperties.Order(StringComparer.Ordinal),
             assignmentProperties);
+        Assert.Equal(
+            ExpectedDirectoryListItemProperties.Order(StringComparer.Ordinal),
+            listItemProperties);
+        Assert.Equal(
+            ExpectedPropertyDirectoryListItemProperties.Order(StringComparer.Ordinal),
+            propertyListItemProperties);
     }
 
     [Fact]
@@ -308,6 +331,7 @@ public sealed class StaffPersonalDataCatalogTests
                      .Where(type => typeof(IIntegrationEvent).IsAssignableFrom(type) ||
                                     type.Name.EndsWith("Dto", StringComparison.Ordinal) ||
                                     type == typeof(StaffDirectoryListResponse) ||
+                                    type == typeof(StaffPropertyDirectoryListResponse) ||
                                     type == typeof(StaffIdentityReconciliationRequest) ||
                                     type == typeof(StaffIdentityReconciliationResult) ||
                                     type == typeof(StaffAnonymisationRestoreState) ||

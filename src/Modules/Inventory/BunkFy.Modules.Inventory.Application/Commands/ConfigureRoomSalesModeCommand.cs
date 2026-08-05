@@ -9,4 +9,4 @@ public sealed record ConfigureRoomSalesModeCommand(
     InventorySalesMode SalesMode,
     long ExpectedVersion,
     string? ActorId = null)
-    : ITransactionalCommand<RoomInventoryDto>;
+    : ITransactionalCommand<RoomInventoryMutationReceiptDto>;

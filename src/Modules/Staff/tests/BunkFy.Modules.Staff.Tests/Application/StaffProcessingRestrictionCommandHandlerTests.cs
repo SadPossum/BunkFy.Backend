@@ -441,7 +441,7 @@ public sealed class StaffProcessingRestrictionCommandHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<StaffDirectoryListResponse> ListDirectoryAtPropertyAsync(
+        public Task<StaffPropertyDirectoryListResponse> ListDirectoryAtPropertyAsync(
             Guid propertyId,
             string? search,
             StaffStatus? status,

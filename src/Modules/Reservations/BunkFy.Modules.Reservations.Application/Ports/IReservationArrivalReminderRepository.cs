@@ -1,5 +1,7 @@
 namespace BunkFy.Modules.Reservations.Application.Ports;
 
+using System.Runtime.CompilerServices;
+
 public interface IReservationArrivalReminderRepository
 {
     Task ApplyPropertyAsync(
@@ -20,6 +22,19 @@ public interface IReservationArrivalReminderRepository
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<string>> ListScheduleScopeIdsAsync(CancellationToken cancellationToken);
+
+    async IAsyncEnumerable<string> StreamScheduleScopeIdsAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string> scopeIds =
+            await this.ListScheduleScopeIdsAsync(cancellationToken)
+                .ConfigureAwait(false);
+        foreach (string scopeId in scopeIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return scopeId;
+        }
+    }
 }
 
 public sealed record ReservationReminderPropertyWriteModel(

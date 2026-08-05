@@ -23,10 +23,11 @@ public sealed class StaffCommandHandlerTests
         FakeStaffMemberRepository members = new();
         using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository(),
             new TestScopeContext(false, null));
-        ICommandHandler<CreateStaffMemberCommand, StaffMemberDto> handler = provider
-            .GetRequiredService<ICommandHandler<CreateStaffMemberCommand, StaffMemberDto>>();
+        ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto> handler = provider
+            .GetRequiredService<ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>>();
 
-        Result<StaffMemberDto> result = await handler.HandleAsync(CreateCommand(), CancellationToken.None);
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            CreateCommand(), CancellationToken.None);
 
         Assert.Equal(StaffApplicationErrors.TenantRequired, result.Error);
         Assert.Null(members.AddedMember);
@@ -41,12 +42,12 @@ public sealed class StaffCommandHandlerTests
             ExistingAuthSubjectId = "user-100"
         };
         using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
-        ICommandHandler<CreateStaffMemberCommand, StaffMemberDto> handler = provider
-            .GetRequiredService<ICommandHandler<CreateStaffMemberCommand, StaffMemberDto>>();
+        ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto> handler = provider
+            .GetRequiredService<ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>>();
 
-        Result<StaffMemberDto> employeeConflict = await handler.HandleAsync(
+        Result<StaffDirectoryMemberDto> employeeConflict = await handler.HandleAsync(
             CreateCommand(employeeNumber: " EMP-100 ", authSubjectId: null), CancellationToken.None);
-        Result<StaffMemberDto> subjectConflict = await handler.HandleAsync(
+        Result<StaffDirectoryMemberDto> subjectConflict = await handler.HandleAsync(
             CreateCommand(employeeNumber: null, authSubjectId: " user-100 "), CancellationToken.None);
 
         Assert.Equal(StaffApplicationErrors.EmployeeNumberConflict, employeeConflict.Error);
@@ -426,12 +427,14 @@ public sealed class StaffCommandHandlerTests
 
         public Task<StaffDirectoryListResponse> ListDirectoryAsync(string? search, StaffStatus? status,
             PageRequest pageRequest, CancellationToken cancellationToken) =>
-            Task.FromResult(new StaffDirectoryListResponse([], pageRequest.Page, pageRequest.PageSize));
+            Task.FromResult(new StaffDirectoryListResponse(
+                [], pageRequest.Page, pageRequest.PageSize, false));
 
-        public Task<StaffDirectoryListResponse> ListDirectoryAtPropertyAsync(Guid propertyId,
+        public Task<StaffPropertyDirectoryListResponse> ListDirectoryAtPropertyAsync(Guid propertyId,
             string? search, StaffStatus? status, PageRequest pageRequest,
             CancellationToken cancellationToken) => Task.FromResult(
-            new StaffDirectoryListResponse([], pageRequest.Page, pageRequest.PageSize));
+            new StaffPropertyDirectoryListResponse(
+                [], pageRequest.Page, pageRequest.PageSize, false));
 
         public Task<bool> EmployeeNumberExistsAsync(string employeeNumber, Guid? exceptStaffMemberId,
             CancellationToken cancellationToken) => Task.FromResult(

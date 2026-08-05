@@ -10,7 +10,7 @@ using BunkFy.Modules.DataRights.Contracts;
 internal static class IngestionDataRightsExportSchema
 {
     public const string ExportSchemaId = "ingestion.subject-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 2;
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Ingestion.Persistence.DataGovernance.personal-data-catalog.v1.json";
@@ -30,7 +30,8 @@ internal static class IngestionDataRightsExportSchema
         typeof(ReservationDispatchDataRightsExport),
         typeof(ObservationReprocessingAttemptDataRightsExport),
         typeof(ObservationReprocessingOutputDataRightsExport),
-        typeof(RawPayloadChunkDataRightsExport)
+        typeof(RawPayloadChunkDataRightsExport),
+        typeof(SensitiveHistoryChunkDataRightsExport)
     ];
 
     private static readonly JsonSerializerOptions ValueSerializerOptions =
@@ -136,7 +137,13 @@ internal static class IngestionDataRightsExportSchema
             PersonalDataRightsPolicy rightsPolicy = catalog.RightsPolicies.Single(
                 policy => string.Equals(policy.Id, field.RightsPolicy, StringComparison.Ordinal));
             foreach (PersonalDataMemberBinding binding in field.Bindings.Where(
-                         binding => binding.Surface == PersonalDataSurface.DataRightsExport))
+                         binding =>
+                             binding.Surface ==
+                                 PersonalDataSurface.DataRightsExport &&
+                             string.Equals(
+                                 binding.RetentionPolicy,
+                                 ExportRetentionPolicy,
+                                 StringComparison.Ordinal)))
             {
                 string key = string.Join('|', binding.Type, binding.Member);
                 if (!expectedMembers.Contains(key) ||

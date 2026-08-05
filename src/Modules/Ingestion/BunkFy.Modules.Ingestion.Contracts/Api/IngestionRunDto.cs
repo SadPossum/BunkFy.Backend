@@ -40,8 +40,19 @@ public sealed record IngestionRunDto(
     DateTimeOffset StartedAtUtc,
     DateTimeOffset? CompletedAtUtc);
 
+public sealed record IngestionRunListItemDto(
+    Guid RunId,
+    Guid ConnectionId,
+    IngestionRunStatus Status,
+    int ObservedCount,
+    int AcceptedCount,
+    int RejectedCount,
+    string? ErrorCode,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset? CompletedAtUtc);
+
 public sealed record IngestionRunListResponse(
-    IReadOnlyCollection<IngestionRunDto> Runs,
+    IReadOnlyCollection<IngestionRunListItemDto> Runs,
     int Page,
     int PageSize,
-    long TotalCount);
+    bool HasMore);

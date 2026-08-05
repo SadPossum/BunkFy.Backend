@@ -15,12 +15,11 @@ internal sealed class ConfigureRoomSalesModeCommandHandler(
     IInventoryTopologyRepository topologyRepository,
     IRoomInventoryConfigurationRepository configurationRepository,
     IInventoryAvailabilityRepository availability,
-    IInventoryReadRepository readRepository,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>
+    : ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>
 {
-    public async Task<Result<RoomInventoryDto>> HandleAsync(
+    public async Task<Result<RoomInventoryMutationReceiptDto>> HandleAsync(
         ConfigureRoomSalesModeCommand command,
         CancellationToken cancellationToken)
     {
@@ -29,17 +28,17 @@ internal sealed class ConfigureRoomSalesModeCommandHandler(
             .ConfigureAwait(false);
         if (topology is null)
         {
-            return Result.Failure<RoomInventoryDto>(InventoryDomainErrors.RoomNotFound);
+            return Result.Failure<RoomInventoryMutationReceiptDto>(InventoryDomainErrors.RoomNotFound);
         }
 
         if (topology.Status == RoomStatus.Retired)
         {
-            return Result.Failure<RoomInventoryDto>(InventoryDomainErrors.RoomRetired);
+            return Result.Failure<RoomInventoryMutationReceiptDto>(InventoryDomainErrors.RoomRetired);
         }
 
         if (command.SalesMode == InventorySalesMode.BedLevel && topology.ActiveBedCount == 0)
         {
-            return Result.Failure<RoomInventoryDto>(InventoryDomainErrors.BedLevelRequiresBeds);
+            return Result.Failure<RoomInventoryMutationReceiptDto>(InventoryDomainErrors.BedLevelRequiresBeds);
         }
 
         RoomInventoryConfiguration? configuration = await configurationRepository
@@ -47,7 +46,7 @@ internal sealed class ConfigureRoomSalesModeCommandHandler(
             .ConfigureAwait(false);
         if (configuration is null)
         {
-            return Result.Failure<RoomInventoryDto>(InventoryDomainErrors.RoomNotFound);
+            return Result.Failure<RoomInventoryMutationReceiptDto>(InventoryDomainErrors.RoomNotFound);
         }
 
         RoomSalesMode salesMode = command.SalesMode == InventorySalesMode.RoomLevel
@@ -60,7 +59,7 @@ internal sealed class ConfigureRoomSalesModeCommandHandler(
                 .ConfigureAwait(false);
             if (impact?.PreventsSalesModeChange == true)
             {
-                return Result.Failure<RoomInventoryDto>(InventoryApplicationErrors.RoomHasActiveClaims);
+                return Result.Failure<RoomInventoryMutationReceiptDto>(InventoryApplicationErrors.RoomHasActiveClaims);
             }
         }
 
@@ -72,14 +71,19 @@ internal sealed class ConfigureRoomSalesModeCommandHandler(
             command.ActorId);
         if (result.IsFailure)
         {
-            return Result.Failure<RoomInventoryDto>(result.Error);
+            return Result.Failure<RoomInventoryMutationReceiptDto>(result.Error);
         }
 
-        RoomInventoryDto? room = await readRepository
-            .GetRoomAsync(command.PropertyId, command.RoomId, cancellationToken)
-            .ConfigureAwait(false);
-        return room is null
-            ? Result.Failure<RoomInventoryDto>(InventoryDomainErrors.RoomNotFound)
-            : Result.Success(room);
+        InventorySalesMode configuredMode = configuration.SalesMode switch
+        {
+            RoomSalesMode.RoomLevel => InventorySalesMode.RoomLevel,
+            RoomSalesMode.BedLevel => InventorySalesMode.BedLevel,
+            _ => InventorySalesMode.Unknown
+        };
+        return Result.Success(new RoomInventoryMutationReceiptDto(
+            configuration.PropertyId,
+            configuration.Id,
+            configuredMode,
+            configuration.Version));
     }
 }

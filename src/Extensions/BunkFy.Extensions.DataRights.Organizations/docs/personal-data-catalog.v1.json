@@ -1,0 +1,1445 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "organizations.personal-data",
+  "catalogVersion": 1,
+  "module": "organizations",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "organizations-tenant-portability",
+      "scope": "tenant-authorized-organization-portability",
+      "readers": [
+        "system:data-rights.export-assembler"
+      ],
+      "writers": [
+        "system:organizations-data-rights-adapter"
+      ]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "organizations-tenant-termination-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "owner-fragment-created",
+      "endsAt": "protected-export-assembly-completed-or-failed",
+      "legalHoldBehavior": "not-applicable"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "organizations-tenant-portability",
+      "export": "include-in-authorized-tenant-portability-export",
+      "correction": "correct-through-authoritative-organization-workflow",
+      "restriction": "enforce-frozen-organization-scope",
+      "erasure": "destroy-after-approved-tenant-termination"
+    }
+  ],
+  "fields": [
+    {
+      "id": "organizations.accepted-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.accepted-at",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "AcceptedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.accepted-membership-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.accepted-membership-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "AcceptedMembershipId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.accepted-subject-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "organizations"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.accepted-subject-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "AcceptedSubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.active-owner-count",
+      "dataSubject": "subject-scoped",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.active-owner-count",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "ActiveOwnerCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.approval-mode",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.approval-mode",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "ApprovalMode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.created-at",
+      "dataSubject": "subject-scoped",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.created-at",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.created-by",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "organizations"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.created-by",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "CreatedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "CreatedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "CreatedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "CreatedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.creator-subject-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "organizations"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.creator-subject-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "CreatorSubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.decision-expires-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.decision-expires-at",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "DecisionExpiresAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.enrollment-claim-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.enrollment-claim-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "EnrollmentClaimId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.enrollment-claim-status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.enrollment-claim-status",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.enrollment-link-expires-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.enrollment-link-expires-at",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "ExpiresAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.enrollment-link-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.enrollment-link-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "EnrollmentLinkId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "EnrollmentLinkId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.enrollment-link-status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.enrollment-link-status",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.enrollment-link-token-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.enrollment-link-token-version",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "TokenVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.invitation-expires-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.invitation-expires-at",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "ExpiresAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.invitation-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.invitation-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "InvitationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.invitation-status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.invitation-status",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.invitation-token-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.invitation-token-version",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "TokenVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.inviter-subject-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "organizations"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.inviter-subject-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "InviterSubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.joined-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.joined-at",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "JoinedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.last-changed-at",
+      "dataSubject": "subject-scoped",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.last-changed-at",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "LastChangedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "LastChangedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "LastChangedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "LastChangedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "LastChangedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.last-changed-by",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "organizations"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.last-changed-by",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "LastChangedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "LastChangedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "LastChangedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "LastChangedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "LastChangedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.maximum-claims",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.maximum-claims",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "MaximumClaims",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.membership-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.membership-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "MembershipId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "MembershipId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.membership-role",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.membership-role",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "Role",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.membership-status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.membership-status",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.organization-id",
+      "dataSubject": "subject-scoped",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.organization-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "OrganizationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "OrganizationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "OrganizationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "OrganizationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "OrganizationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.organization-name",
+      "dataSubject": "subject-scoped",
+      "classification": "direct-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.organization-name",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "Name",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.organization-slug",
+      "dataSubject": "subject-scoped",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.organization-slug",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "Slug",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.organization-status",
+      "dataSubject": "subject-scoped",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.organization-status",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.recipient-email",
+      "dataSubject": "staff",
+      "classification": "contact",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.recipient-email",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "RecipientEmail",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.record-version",
+      "dataSubject": "subject-scoped",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.record-version",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationTenantExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationInvitationTenantExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.reserved-claims",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "organizations"
+      ],
+      "authoritativeOwner": "organizations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.reserved-claims",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentLinkTenantExport",
+          "member": "ReservedClaims",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "organizations.subject-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "organizations"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "organizations-tenant-portability",
+      "countryPolicyKey": "organizations.subject-id",
+      "retentionPolicy": "organizations-tenant-termination-export-fragment",
+      "rightsPolicy": "organizations-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationMembershipTenantExport",
+          "member": "SubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.Organizations",
+          "type": "BunkFy.Extensions.DataRights.Organizations.OrganizationEnrollmentClaimTenantExport",
+          "member": "SubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "organizations-tenant-termination-export-fragment"
+        }
+      ]
+    }
+  ]
+}

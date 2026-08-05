@@ -200,7 +200,7 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             .ConfigureAwait(false);
         if (property is null)
         {
-            return new([], pageRequest.Page, pageRequest.PageSize);
+            return new([], pageRequest.Page, pageRequest.PageSize, false);
         }
 
         List<InventoryRoomTopology> rooms = await dbContext.RoomTopology
@@ -209,9 +209,15 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
             .OrderBy(room => room.Name)
             .ThenBy(room => room.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
+            .Take(pageRequest.PageSize + 1)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+        bool hasMore = rooms.Count > pageRequest.PageSize;
+        if (hasMore)
+        {
+            rooms.RemoveAt(rooms.Count - 1);
+        }
+
         Guid[] roomIds = rooms.Select(room => room.Id).ToArray();
         Dictionary<Guid, RoomInventoryConfiguration> configurations = await dbContext.RoomConfigurations
             .AsNoTracking()
@@ -240,7 +246,7 @@ internal sealed class InventoryReadRepository(InventoryDbContext dbContext) : II
                 drainingRoomIds,
                 fullyDrainingRoomIds))
             .ToArray();
-        return new(result, pageRequest.Page, pageRequest.PageSize);
+        return new(result, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 
     public async Task<InventoryAvailabilityResponse> GetAvailabilityAsync(

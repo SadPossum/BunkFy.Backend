@@ -11,28 +11,28 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
 internal sealed class SetStaffAuthSubjectCommandHandler(IStaffMemberRepository members,
-    ISystemClock clock, IIdGenerator ids) : ICommandHandler<SetStaffAuthSubjectCommand, StaffMemberDto>
+    ISystemClock clock, IIdGenerator ids) : ICommandHandler<SetStaffAuthSubjectCommand, StaffDirectoryMemberDto>
 {
-    public async Task<Result<StaffMemberDto>> HandleAsync(SetStaffAuthSubjectCommand command,
+    public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(SetStaffAuthSubjectCommand command,
         CancellationToken cancellationToken)
     {
         StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
         if (member is null)
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+            return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
         }
 
         Result uniqueness = await StaffMemberUniqueness.EnsureAsync(members, member.EmployeeNumber,
             command.AuthSubjectId, member.Id, cancellationToken).ConfigureAwait(false);
         if (uniqueness.IsFailure)
         {
-            return Result.Failure<StaffMemberDto>(uniqueness.Error);
+            return Result.Failure<StaffDirectoryMemberDto>(uniqueness.Error);
         }
 
         Result changed = member.SetAuthSubject(command.AuthSubjectId, command.ExpectedVersion,
             command.ActorId, ids.NewId(), clock.UtcNow);
         return changed.IsSuccess
-            ? Result.Success(member.ToDto())
-            : Result.Failure<StaffMemberDto>(changed.Error);
+            ? Result.Success(member.ToDirectoryDto())
+            : Result.Failure<StaffDirectoryMemberDto>(changed.Error);
     }
 }

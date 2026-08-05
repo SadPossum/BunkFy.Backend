@@ -87,7 +87,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         ProfileOptions options = new();
         Command command = new("create", "Create a staff profile.");
         options.AddTo(command, false);
-        command.SetAction((parse, token) => ExecuteFullProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             StaffAdminOperationNames.Create, StaffAdminPermissions.Create,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                 new CreateStaffMemberCommand(parse.GetRequiredValue(options.DisplayName),
@@ -104,7 +104,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         ProfileOptions options = new();
         Command command = new("update", "Update a staff profile.") { member };
         options.AddTo(command, true);
-        command.SetAction((parse, token) => ExecuteFullProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             StaffAdminOperationNames.Update, StaffAdminPermissions.Manage,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                 new UpdateStaffMemberCommand(parse.GetRequiredValue(member),
@@ -124,13 +124,13 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Option<bool> yes = new("--yes");
         Command command = new("set-auth-subject", "Link, replace, or clear an Auth user subject.")
             { member, subject, version, yes };
-        command.SetAction((parse, token) => ExecuteFullProfileAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.Manage,
             (provider, ct) => parse.GetValue(yes)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new SetStaffAuthSubjectCommand(parse.GetRequiredValue(member), parse.GetValue(subject),
                         parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffMemberDto>(AdminErrors.ConfirmationRequired)), token));
+                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(AdminErrors.ConfirmationRequired)), token));
         return command;
     }
 
@@ -260,6 +260,18 @@ public sealed class StaffAdminCliModule : IAdminCliModule
             ("Status", profile => profile.Status.ToString()),
             ("AuthSubjectId", profile => profile.AuthSubjectId ?? string.Empty),
             ("Assignments", profile => profile.Assignments.Count.ToString(CultureInfo.InvariantCulture)),
+            ("Version", profile => profile.Version.ToString(CultureInfo.InvariantCulture))
+        ]);
+
+    private static void Write(IReadOnlyCollection<StaffDirectoryListItemDto> profiles, string output) =>
+        AdminCliOutput.WriteRows(profiles, output,
+        [
+            ("StaffMemberId", profile => profile.StaffMemberId.ToString()),
+            ("DisplayName", profile => profile.DisplayName),
+            ("JobTitle", profile => profile.JobTitle ?? string.Empty),
+            ("Department", profile => profile.Department ?? string.Empty),
+            ("Status", profile => profile.Status.ToString()),
+            ("CurrentProperties", profile => profile.CurrentPropertyCount.ToString(CultureInfo.InvariantCulture)),
             ("Version", profile => profile.Version.ToString(CultureInfo.InvariantCulture))
         ]);
 

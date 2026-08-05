@@ -49,15 +49,59 @@ public sealed class StaffDirectoryRepositoryTests
             status: null,
             new PageRequest(PageRequest.DefaultPage, PageRequest.DefaultPageSize),
             CancellationToken.None);
+        StaffPropertyDirectoryListResponse propertyList = await repository.ListDirectoryAtPropertyAsync(
+            firstPropertyId,
+            search: null,
+            status: null,
+            new PageRequest(PageRequest.DefaultPage, PageRequest.DefaultPageSize),
+            CancellationToken.None);
 
         Assert.Equal(2, tenantDirectory.Assignments.Count);
         Assert.Equal(firstPropertyId, Assert.Single(propertyDirectory.Assignments).PropertyId);
-        Assert.Single(displayNameSearch.Items);
+        StaffDirectoryListItemDto listItem = Assert.Single(displayNameSearch.Items);
+        Assert.Equal(2, listItem.CurrentPropertyCount);
+        Assert.Equal(firstPropertyId, Assert.Single(propertyList.Items).Assignment.PropertyId);
+        Assert.False(displayNameSearch.HasMore);
+        Assert.False(propertyList.HasMore);
         Assert.Empty(emailSearch.Items);
         Assert.DoesNotContain(
             typeof(StaffDirectoryMemberDto).GetProperties(),
             property => property.Name is "LegalName" or "WorkEmail" or "WorkPhone" or
                 "EmployeeNumber" or "AuthSubjectId" or "CreatedBy" or "LastChangedBy");
+        Assert.DoesNotContain(
+            typeof(StaffDirectoryListItemDto).GetProperties(),
+            property => property.Name is "LegalName" or "WorkEmail" or "WorkPhone" or
+                "EmployeeNumber" or "AuthSubjectId" or "Assignments");
+    }
+
+    [Fact]
+    public async Task Directory_pagination_uses_one_row_look_ahead()
+    {
+        await using StaffDbContext dbContext = CreateDbContext();
+        StaffMember first = CreateMember("Ada Operator", "ada");
+        StaffMember second = CreateMember("Grace Manager", "grace");
+        dbContext.StaffMembers.AddRange(first, second);
+        dbContext.ProcessingRestrictionProjections.AddRange(
+            CreateRestrictionProjection(first),
+            CreateRestrictionProjection(second));
+        await dbContext.SaveChangesAsync();
+        StaffMemberRepository repository = new(dbContext);
+
+        StaffDirectoryListResponse firstPage = await repository.ListDirectoryAsync(
+            search: null,
+            status: null,
+            new PageRequest(1, 1),
+            CancellationToken.None);
+        StaffDirectoryListResponse secondPage = await repository.ListDirectoryAsync(
+            search: null,
+            status: null,
+            new PageRequest(2, 1),
+            CancellationToken.None);
+
+        Assert.Equal(first.Id, Assert.Single(firstPage.Items).StaffMemberId);
+        Assert.True(firstPage.HasMore);
+        Assert.Equal(second.Id, Assert.Single(secondPage.Items).StaffMemberId);
+        Assert.False(secondPage.HasMore);
     }
 
     [Fact]
@@ -118,17 +162,19 @@ public sealed class StaffDirectoryRepositoryTests
             CancellationToken.None));
     }
 
-    private static StaffMember CreateMember() => StaffMember.Create(
+    private static StaffMember CreateMember(
+        string displayName = "Ada Operator",
+        string identity = "private") => StaffMember.Create(
         Guid.NewGuid(),
         "tenant-a",
-        "Ada Operator",
-        "Ada Private",
-        "private@example.test",
+        displayName,
+        $"{displayName} Legal",
+        $"{identity}@example.test",
         "+15550100",
-        "EMP-PRIVATE",
+        $"EMP-{identity.ToUpperInvariant()}",
         "Manager",
         "Operations",
-        "auth-private",
+        $"auth-{identity}",
         "user:owner",
         Guid.NewGuid(),
         new DateTimeOffset(2026, 7, 21, 9, 0, 0, TimeSpan.Zero)).Value;

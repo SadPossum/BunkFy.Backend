@@ -19,10 +19,12 @@ public sealed class RetentionScheduleProviderTests
             scopes,
             [new Contributor("raw-source-evidence")]);
 
-        IReadOnlyList<ScheduledTaskDefinition> first =
-            await provider.GetSchedulesAsync(CancellationToken.None);
-        IReadOnlyList<ScheduledTaskDefinition> second =
-            await provider.GetSchedulesAsync(CancellationToken.None);
+        IReadOnlyList<ScheduledTaskDefinition> first = await provider
+            .GetSchedulesAsync(CancellationToken.None)
+            .ToArrayAsync(CancellationToken.None);
+        IReadOnlyList<ScheduledTaskDefinition> second = await provider
+            .GetSchedulesAsync(CancellationToken.None)
+            .ToArrayAsync(CancellationToken.None);
 
         Assert.Equal(
             first.Select(schedule => schedule.ScheduleName),
@@ -48,7 +50,8 @@ public sealed class RetentionScheduleProviderTests
             ]);
 
         InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => provider.GetSchedulesAsync(CancellationToken.None));
+            async () => await provider.GetSchedulesAsync(CancellationToken.None)
+                .ToArrayAsync(CancellationToken.None));
 
         Assert.Equal("Retention.ContributorDescriptorDuplicate", exception.Message);
     }

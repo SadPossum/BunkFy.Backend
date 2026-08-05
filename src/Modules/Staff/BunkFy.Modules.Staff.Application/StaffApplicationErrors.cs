@@ -6,6 +6,12 @@ using BunkFy.Modules.Staff.Domain.Errors;
 
 public static class StaffApplicationErrors
 {
+    public static readonly Error WorkspaceProcessingRestricted = new(
+        "Staff.WorkspaceProcessingRestricted",
+        "The workspace is not accepting Staff changes.");
+    public static readonly Error WorkspaceProcessingAdmissionUnavailable = new(
+        "Staff.WorkspaceProcessingAdmissionUnavailable",
+        "Workspace processing admission is unavailable.");
     public static readonly Error ConfirmationRequired = new(
         "Staff.ConfirmationRequired",
         "Confirmation is required.");

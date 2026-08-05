@@ -1,4 +1,4 @@
-# guests Personal-Data Inventory v9
+# guests Personal-Data Inventory v12
 
 Generated from `guests.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -38,6 +38,7 @@ Engineering metadata is not legal or country-launch approval.
 | guest-retention-anonymisation-proof | engineering-default | guest-retention-anonymisation-completed | approved-audit-retention-expired-or-tenant-termination | retain-minimum-irreversible-operation-proof |
 | guest-retention-execution-evidence | engineering-default | guest-retention-execution-started | approved-audit-retention-expired-or-tenant-termination | retain-minimum-schedule-and-execution-evidence |
 | guest-stay-history-lifecycle | engineering-default | reservation-guest-linked | approved-erasure-or-tenant-termination | pause-approved-erasure |
+| guests-tenant-termination-export-fragment | engineering-default | tenant-owner-export-started | 01:00:00 | not-applicable |
 | integration-message-journal | engineering-default | message-created | message-journal-retention-completed | no-payload-hold |
 | projection-transfer | engineering-default | projection-batch-created | projection-batch-completed | not-applicable |
 | transient-domain-event | engineering-default | domain-event-raised | outbox-projection-completed | not-applicable |
@@ -49,15 +50,15 @@ Engineering metadata is not legal or country-launch approval.
 | Id | Export | Correction | Restriction | Erasure |
 |---|---|---|---|---|
 | guest-anonymisation-eligibility-control | include-digests-and-blocker-in-authorized-case-ledger | re-evaluate-from-current-owner-projections | fail-closed-on-missing-stale-or-unsupported-evidence | authorize-only-the-exact-approved-current-record-version |
-| guest-anonymisation-proof-control | include-minimum-proof-in-authorized-case-ledger | immutable-owner-receipt-and-monotonic-tombstone-only | exclude-terminal-record-from-ordinary-surfaces | retain-pii-free-proof-and-reapply-after-restore |
-| guest-data-hold-control | include-minimum-coordinate-in-authorized-case-ledger | immutable-append-superseding-receipt | block-anonymisation-while-any-hold-is-active | retain-until-every-independent-hold-is-released |
-| guest-data-rights-correction-accountability | include-minimum-coordinate-in-authorized-case-ledger | immutable-append-superseding-receipt | retain-minimum-approved-operation-proof | pseudonymize-subject-coordinate-while-preserving-operation-proof |
+| guest-anonymisation-proof-control | include-minimum-proof-in-authorized-case-ledger-or-tenant-export | immutable-owner-receipt-and-monotonic-tombstone-only | exclude-terminal-record-from-ordinary-surfaces | retain-pii-free-proof-and-reapply-after-restore |
+| guest-data-hold-control | include-minimum-coordinate-in-authorized-case-ledger-or-tenant-export | immutable-append-superseding-receipt | block-anonymisation-while-any-hold-is-active | retain-until-every-independent-hold-is-released |
+| guest-data-rights-correction-accountability | include-minimum-coordinate-in-authorized-case-ledger-or-tenant-export | immutable-append-superseding-receipt | retain-minimum-approved-operation-proof | pseudonymize-subject-coordinate-while-preserving-operation-proof |
 | guest-operational-history | include-in-authorized-guest-export | correct-authoritative-reservation-source | suppress-non-required-operational-use | unlink-or-anonymize-subject-identifiers |
-| guest-processing-restriction-control | include-current-state-in-authorized-guest-export | change-only-through-approved-restriction-workflow | enforce-effective-processing-restriction | remove-with-approved-subject-disposition |
-| guest-profile-editable | include-in-authorized-guest-export | replace-through-guest-profile-workflow | suppress-non-required-operational-use | irreversibly-anonymize-or-delete |
-| guest-retention-control | not-in-current-subject-export | retry-through-the-same-execution-coordinate | block-destructive-mutation-while-any-independent-hold-is-active | dispose-execution-evidence-after-approved-audit-lifecycle |
-| guest-retention-proof-control | not-in-current-subject-export-or-protected-replay-ledger | immutable-owner-receipt-and-authority-bound-tombstone-only | exclude-terminal-record-from-ordinary-surfaces | retain-pii-free-local-proof-after-anonymisation |
-| staff-audit-attribution | route-through-staff-subject-workflow | correct-authoritative-account-source | retain-minimum-required-audit-attribution | pseudonymize-subject-to-minimum-audit-receipt |
+| guest-processing-restriction-control | include-current-state-in-authorized-guest-or-tenant-export | change-only-through-approved-restriction-workflow | enforce-effective-processing-restriction | remove-with-approved-subject-disposition |
+| guest-profile-editable | include-in-authorized-guest-or-tenant-export | replace-through-guest-profile-workflow | suppress-non-required-operational-use | irreversibly-anonymize-or-delete |
+| guest-retention-control | include-in-controller-authorized-tenant-export | retry-through-the-same-execution-coordinate | block-destructive-mutation-while-any-independent-hold-is-active | dispose-execution-evidence-after-approved-audit-lifecycle |
+| guest-retention-proof-control | include-minimum-retention-proof-in-controller-authorized-tenant-export | immutable-owner-receipt-and-authority-bound-tombstone-only | exclude-terminal-record-from-ordinary-surfaces | retain-pii-free-local-proof-after-anonymisation |
+| staff-audit-attribution | include-in-authorized-staff-or-tenant-export | correct-authoritative-account-source | retain-minimum-required-audit-attribution | pseudonymize-subject-to-minimum-audit-receipt |
 | transient-request-data | not-retained-after-request | replace-before-submission | discard-request | discard-on-request-completion |
 
 ## Fields
@@ -182,6 +183,14 @@ Engineering metadata is not legal or country-launch approval.
 | guest.stay.reservation-version | guest | lifecycle | standard | projection-consistency | reservation-projection | guests | customer-controller-bunk-fy-processor | guest-stay-history | guest.stay-history | guest-stay-history-lifecycle | guest-operational-history | api-response<br>data-rights-export<br>integration-event<br>persistence<br>projection-export | cross-module<br>customer-api<br>intra-module | engineering-default |
 | guest.stay.role | guest | linked-operational | standard | guest-stay-history<br>reservation-operations | reservation-projection | guests | customer-controller-bunk-fy-processor | guest-stay-history | guest.stay-history | guest-stay-history-lifecycle | guest-operational-history | api-response<br>data-rights-export<br>integration-event<br>persistence<br>projection-export | cross-module<br>customer-api<br>intra-module | engineering-default |
 | guest.stay.status | guest | lifecycle | standard | guest-stay-history<br>reservation-operations | reservation-projection | guests | customer-controller-bunk-fy-processor | guest-stay-history | guest.stay-history | guest-stay-history-lifecycle | guest-operational-history | api-response<br>data-rights-export<br>integration-event<br>persistence<br>projection-export | cross-module<br>customer-api<br>intra-module | engineering-default |
+| guests.anonymisation-proof | guest | linked-operational | elevated | guest-anonymisation<br>owner-proof<br>restore-safety | guests-anonymisation-workflow<br>system-generated | guests | customer-controller-bunk-fy-processor | guest-anonymisation-proof | guest.data-rights-anonymisation | guest-anonymisation-owner-proof | guest-anonymisation-proof-control | data-rights-export | cross-module | engineering-default |
+| guests.data-hold | guest | linked-operational | elevated | data-hold-correlation<br>immutable-transition-proof | guest-data-hold-workflow | guests | customer-controller-bunk-fy-processor | guest-data-holds | guest.data-hold | guest-data-hold-lifecycle | guest-data-hold-control | data-rights-export | cross-module | engineering-default |
+| guests.data-rights-proof | guest | linked-operational | standard | accountability<br>data-rights-correction | authorized-data-rights-case<br>system-generated | guests | customer-controller-bunk-fy-processor | guest-data-rights-correction-receipts | guest.data-rights.correction-receipt | guest-data-rights-correction-receipt | guest-data-rights-correction-accountability | data-rights-export | cross-module | engineering-default |
+| guests.processing-restriction | guest | linked-operational | standard | accountability<br>data-rights-restriction | authorized-data-rights-case<br>system-generated | guests | customer-controller-bunk-fy-processor | guest-processing-restrictions | guest.processing-restriction | guest-processing-restriction-record | guest-processing-restriction-control | data-rights-export | cross-module | engineering-default |
+| guests.profile-state | guest | direct-identifier | elevated | guest-record-portability<br>tenant-termination-export | guest-entry<br>guests-persistence | guests | customer-controller-bunk-fy-processor | guest-records | guest.profile | guest-profile-lifecycle | guest-profile-editable | data-rights-export | cross-module | engineering-default |
+| guests.retention-execution | guest | pseudonymous-identifier | elevated | operational-audit<br>retention-execution<br>retention-idempotency | guests-persistence<br>retention-control-plane | guests | customer-controller-bunk-fy-processor | guest-retention-execution | guest.retention.guest-operational | guest-retention-execution-evidence | guest-retention-control | data-rights-export | cross-module | engineering-default |
+| guests.retention-proof | guest | linked-operational | elevated | immutable-owner-proof<br>operational-audit<br>retention-anonymisation | country-policy-evaluation<br>guests-retention-execution<br>system-clock | guests | customer-controller-bunk-fy-processor | guest-retention-proof | guest.retention.guest-operational | guest-retention-anonymisation-proof | guest-retention-proof-control | data-rights-export | cross-module | engineering-default |
+| guests.staff-attribution | staff | audit-attribution | standard | accountability<br>authorized-change-traceability | authenticated-subject | guests | customer-controller-bunk-fy-processor | guest-records | staff.audit-attribution | guest-profile-lifecycle | staff-audit-attribution | data-rights-export | cross-module | engineering-default |
 
 ## Code Bindings
 
@@ -412,6 +421,7 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.audit-actor-id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ArchiveGuestProfileCommand | ActorId | application-command | transient-request |
 | guest.profile.audit-actor-id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | ActorId | application-command | transient-request |
 | guest.profile.audit-actor-id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | ActorId | application-command | transient-request |
+| guest.profile.audit-actor-id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | LastChangedBy | api-response | transient-response |
 | guest.profile.audit-actor-id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | CreatedBy | api-response | transient-response |
 | guest.profile.audit-actor-id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | LastChangedBy | api-response | transient-response |
 | guest.profile.audit-actor-id | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | CreatedBy | persistence | guest-profile-lifecycle |
@@ -419,6 +429,8 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.created-at-utc | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | CreatedAtUtc | api-response | transient-response |
 | guest.profile.created-at-utc | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | CreatedAtUtc | persistence | guest-profile-lifecycle |
 | guest.profile.created-at-utc | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | CreatedAtUtc | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.date-of-birth | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | DateOfBirth | api-input | transient-request |
+| guest.profile.date-of-birth | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | DateOfBirth | api-input | transient-request |
 | guest.profile.date-of-birth | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | DateOfBirth | api-input | transient-request |
 | guest.profile.date-of-birth | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | DateOfBirth | api-input | transient-request |
 | guest.profile.date-of-birth | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | DateOfBirth | api-input | transient-request |
@@ -428,23 +440,29 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.date-of-birth | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | DateOfBirth | api-response | transient-response |
 | guest.profile.date-of-birth | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | DateOfBirth | persistence | guest-profile-lifecycle |
 | guest.profile.date-of-birth | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | DateOfBirth | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.display-name | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | DisplayName | api-input | transient-request |
+| guest.profile.display-name | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | DisplayName | api-input | transient-request |
 | guest.profile.display-name | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | DisplayName | api-input | transient-request |
 | guest.profile.display-name | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | DisplayName | api-input | transient-request |
 | guest.profile.display-name | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | DisplayName | api-input | transient-request |
 | guest.profile.display-name | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand | DisplayName | application-command | transient-request |
 | guest.profile.display-name | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | DisplayName | application-command | transient-request |
 | guest.profile.display-name | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | DisplayName | application-command | transient-request |
+| guest.profile.display-name | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | DisplayName | api-response | transient-response |
 | guest.profile.display-name | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | DisplayName | api-response | transient-response |
 | guest.profile.display-name | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | DisplayName | persistence | guest-profile-lifecycle |
 | guest.profile.display-name | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | DisplayNameSearch | persistence | guest-profile-lifecycle |
 | guest.profile.display-name | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | DisplayNameSearch | search-index | guest-profile-lifecycle |
 | guest.profile.display-name | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | DisplayName | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.email | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | Email | api-input | transient-request |
+| guest.profile.email | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | Email | api-input | transient-request |
 | guest.profile.email | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | Email | api-input | transient-request |
 | guest.profile.email | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | Email | api-input | transient-request |
 | guest.profile.email | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | Email | api-input | transient-request |
 | guest.profile.email | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand | Email | application-command | transient-request |
 | guest.profile.email | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | Email | application-command | transient-request |
 | guest.profile.email | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | Email | application-command | transient-request |
+| guest.profile.email | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | Email | api-response | transient-response |
 | guest.profile.email | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | Email | api-response | transient-response |
 | guest.profile.email | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | Email | persistence | guest-profile-lifecycle |
 | guest.profile.email | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | EmailSearch | persistence | guest-profile-lifecycle |
@@ -457,6 +475,8 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Queries.GetGuestProfileQuery | GuestId | application-query | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Queries.GetGuestStayHistoryQuery | GuestId | application-query | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestDataRightsCorrectionReceiptDto | GuestId | api-response | transient-response |
+| guest.profile.id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | GuestId | api-response | transient-response |
+| guest.profile.id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestMutationReceiptDto | GuestId | api-response | transient-response |
 | guest.profile.id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileArchivedIntegrationEvent | GuestId | integration-event | integration-message-journal |
 | guest.profile.id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileCreatedIntegrationEvent | GuestId | integration-event | integration-message-journal |
 | guest.profile.id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | GuestId | api-response | transient-response |
@@ -469,29 +489,39 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.id | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt | GuestId | persistence | guest-data-rights-correction-receipt |
 | guest.profile.id | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.GuestStayHistoryEntry | GuestId | persistence | guest-stay-history-lifecycle |
 | guest.profile.id | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | GuestId | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.last-changed-at-utc | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | LastChangedAtUtc | api-response | transient-response |
+| guest.profile.last-changed-at-utc | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestMutationReceiptDto | LastChangedAtUtc | api-response | transient-response |
 | guest.profile.last-changed-at-utc | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | LastChangedAtUtc | api-response | transient-response |
 | guest.profile.last-changed-at-utc | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | LastChangedAtUtc | persistence | guest-profile-lifecycle |
 | guest.profile.last-changed-at-utc | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | LastChangedAtUtc | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.legal-name | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | LegalName | api-input | transient-request |
+| guest.profile.legal-name | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | LegalName | api-input | transient-request |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | LegalName | api-input | transient-request |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | LegalName | api-input | transient-request |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | LegalName | api-input | transient-request |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand | LegalName | application-command | transient-request |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | LegalName | application-command | transient-request |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | LegalName | application-command | transient-request |
+| guest.profile.legal-name | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | LegalName | api-response | transient-response |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | LegalName | api-response | transient-response |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | LegalName | persistence | guest-profile-lifecycle |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | LegalNameSearch | persistence | guest-profile-lifecycle |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | LegalNameSearch | search-index | guest-profile-lifecycle |
 | guest.profile.legal-name | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | LegalName | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.nationality-country-code | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | NationalityCountryCode | api-input | transient-request |
+| guest.profile.nationality-country-code | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | NationalityCountryCode | api-input | transient-request |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | NationalityCountryCode | api-input | transient-request |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | NationalityCountryCode | api-input | transient-request |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | NationalityCountryCode | api-input | transient-request |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand | NationalityCountryCode | application-command | transient-request |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | NationalityCountryCode | application-command | transient-request |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | NationalityCountryCode | application-command | transient-request |
+| guest.profile.nationality-country-code | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | NationalityCountryCode | api-response | transient-response |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | NationalityCountryCode | api-response | transient-response |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | NationalityCountryCode | persistence | guest-profile-lifecycle |
 | guest.profile.nationality-country-code | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | NationalityCountryCode | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.notes | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | Notes | api-input | transient-request |
+| guest.profile.notes | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | Notes | api-input | transient-request |
 | guest.profile.notes | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | Notes | api-input | transient-request |
 | guest.profile.notes | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | Notes | api-input | transient-request |
 | guest.profile.notes | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | Notes | api-input | transient-request |
@@ -507,27 +537,35 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.origin-property-id | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileEligibilityProjectionExport | OriginPropertyId | projection-export | projection-transfer |
 | guest.profile.origin-property-id | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | OriginPropertyId | persistence | guest-profile-lifecycle |
 | guest.profile.origin-property-id | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | OriginPropertyId | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.phone | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | Phone | api-input | transient-request |
+| guest.profile.phone | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | Phone | api-input | transient-request |
 | guest.profile.phone | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | Phone | api-input | transient-request |
 | guest.profile.phone | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | Phone | api-input | transient-request |
 | guest.profile.phone | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | Phone | api-input | transient-request |
 | guest.profile.phone | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand | Phone | application-command | transient-request |
 | guest.profile.phone | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | Phone | application-command | transient-request |
 | guest.profile.phone | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | Phone | application-command | transient-request |
+| guest.profile.phone | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | Phone | api-response | transient-response |
 | guest.profile.phone | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | Phone | api-response | transient-response |
 | guest.profile.phone | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | Phone | persistence | guest-profile-lifecycle |
 | guest.profile.phone | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | PhoneSearch | persistence | guest-profile-lifecycle |
 | guest.profile.phone | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | PhoneSearch | search-index | guest-profile-lifecycle |
 | guest.profile.phone | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | Phone | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.preferred-language-tag | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | PreferredLanguageTag | api-input | transient-request |
+| guest.profile.preferred-language-tag | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | PreferredLanguageTag | api-input | transient-request |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | PreferredLanguageTag | api-input | transient-request |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | PreferredLanguageTag | api-input | transient-request |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | PreferredLanguageTag | api-input | transient-request |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand | PreferredLanguageTag | application-command | transient-request |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | PreferredLanguageTag | application-command | transient-request |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | PreferredLanguageTag | application-command | transient-request |
+| guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | PreferredLanguageTag | api-response | transient-response |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | PreferredLanguageTag | api-response | transient-response |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | PreferredLanguageTag | persistence | guest-profile-lifecycle |
 | guest.profile.preferred-language-tag | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | PreferredLanguageTag | data-rights-export | guest-data-rights-export-fragment |
 | guest.profile.projection-ordinal | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | ProjectionOrdinal | persistence | guest-profile-lifecycle |
+| guest.profile.record-version | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+ArchiveGuestProfileRequest | ExpectedVersion | api-input | transient-request |
+| guest.profile.record-version | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest | ExpectedVersion | api-input | transient-request |
 | guest.profile.record-version | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+ArchiveGuestProfileRequest | ExpectedVersion | api-input | transient-request |
 | guest.profile.record-version | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | ExpectedVersion | api-input | transient-request |
 | guest.profile.record-version | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest | ExpectedVersion | api-input | transient-request |
@@ -536,6 +574,7 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.record-version | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | ExpectedVersion | application-command | transient-request |
 | guest.profile.record-version | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestDataRightsCorrectionReceiptDto | CurrentVersion | api-response | transient-response |
 | guest.profile.record-version | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestDataRightsCorrectionReceiptDto | PreviousVersion | api-response | transient-response |
+| guest.profile.record-version | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestMutationReceiptDto | Version | api-response | transient-response |
 | guest.profile.record-version | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileArchivedIntegrationEvent | GuestVersion | integration-event | integration-message-journal |
 | guest.profile.record-version | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileCreatedIntegrationEvent | GuestVersion | integration-event | integration-message-journal |
 | guest.profile.record-version | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | Version | api-response | transient-response |
@@ -545,6 +584,8 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.record-version | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt | CurrentRecordVersion | persistence | guest-data-rights-correction-receipt |
 | guest.profile.record-version | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.DataRights.GuestDataRightsCorrectionReceipt | SelectedRecordVersion | persistence | guest-data-rights-correction-receipt |
 | guest.profile.record-version | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | Version | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.status | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestListItemDto | Status | api-response | transient-response |
+| guest.profile.status | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestMutationReceiptDto | Status | api-response | transient-response |
 | guest.profile.status | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileCreatedIntegrationEvent | Status | integration-event | integration-message-journal |
 | guest.profile.status | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileDto | Status | api-response | transient-response |
 | guest.profile.status | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.GuestProfileEligibilityProjectionExport | Status | projection-export | projection-transfer |
@@ -825,3 +866,21 @@ Engineering metadata is not legal or country-launch approval.
 | guest.stay.status | BunkFy.Modules.Guests.Contracts | BunkFy.Modules.Guests.Contracts.ReservationGuestStayProjectionExport | Status | projection-export | projection-transfer |
 | guest.stay.status | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.GuestStayHistoryEntry | Status | persistence | guest-stay-history-lifecycle |
 | guest.stay.status | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestStayDataRightsExport | Status | data-rights-export | guest-data-rights-export-fragment |
+| guests.anonymisation-proof | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestAnonymisationReceiptTenantExport | AnonymisationProof | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.anonymisation-proof | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestAnonymisationRestoreReceiptTenantExport | AnonymisationProof | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.anonymisation-proof | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestAnonymisationTombstoneTenantExport | AnonymisationProof | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.data-hold | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestDataHoldReceiptTenantExport | DataHold | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.data-hold | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestDataHoldTenantExport | DataHold | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.data-rights-proof | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestDataRightsCorrectionReceiptTenantExport | DataRightsProof | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.processing-restriction | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProcessingRestrictionReceiptTenantExport | ProcessingRestriction | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.processing-restriction | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProcessingRestrictionTenantExport | ProcessingRestriction | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.profile-state | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileTenantExport | ProfileState | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.retention-execution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestRetentionExecutionTenantExport | RetentionExecution | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.retention-proof | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestRetentionAnonymisationReceiptTenantExport | RetentionProof | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.staff-attribution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestAnonymisationReceiptTenantExport | StaffAttribution | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.staff-attribution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestDataHoldReceiptTenantExport | StaffAttribution | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.staff-attribution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestDataHoldTenantExport | StaffAttribution | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.staff-attribution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProcessingRestrictionReceiptTenantExport | StaffAttribution | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.staff-attribution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProcessingRestrictionTenantExport | StaffAttribution | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.staff-attribution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileTenantExport | StaffAttribution | data-rights-export | guests-tenant-termination-export-fragment |
+| guests.staff-attribution | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestRetentionAnonymisationReceiptTenantExport | StaffAttribution | data-rights-export | guests-tenant-termination-export-fragment |

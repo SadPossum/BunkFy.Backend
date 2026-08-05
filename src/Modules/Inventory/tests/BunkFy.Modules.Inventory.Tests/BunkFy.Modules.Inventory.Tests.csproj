@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Inventory.Api\BunkFy.Modules.Inventory.Api.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Inventory.AdminApi\BunkFy.Modules.Inventory.AdminApi.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Inventory.Application\BunkFy.Modules.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Inventory.Contracts\BunkFy.Modules.Inventory.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Inventory.Domain\BunkFy.Modules.Inventory.Domain.csproj" />
@@ -28,6 +29,7 @@
     <ProjectReference Include="$(GmaFrameworkRoot)Results\Gma.Framework.Results\Gma.Framework.Results.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Runtime\Gma.Framework.Runtime\Gma.Framework.Runtime.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Security\Gma.Framework.Permissions\Gma.Framework.Permissions.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Api\Gma.Framework.Administration.Api.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Scoping\Gma.Framework.Scoping\Gma.Framework.Scoping.csproj" />
   </ItemGroup>
   <ItemGroup>

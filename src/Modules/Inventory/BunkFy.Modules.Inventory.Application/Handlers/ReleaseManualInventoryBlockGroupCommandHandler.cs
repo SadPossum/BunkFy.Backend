@@ -15,9 +15,9 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
     InventoryRetirementCoordinator retirements,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<ReleaseManualInventoryBlockGroupCommand, ManualInventoryBlockGroupDto>
+    : ICommandHandler<ReleaseManualInventoryBlockGroupCommand, ManualInventoryBlockGroupMutationReceiptDto>
 {
-    public async Task<Result<ManualInventoryBlockGroupDto>> HandleAsync(
+    public async Task<Result<ManualInventoryBlockGroupMutationReceiptDto>> HandleAsync(
         ReleaseManualInventoryBlockGroupCommand command,
         CancellationToken cancellationToken)
     {
@@ -26,7 +26,7 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
             .ConfigureAwait(false);
         if (group.Count == 0)
         {
-            return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.BlockGroupNotFound);
+            return Result.Failure<ManualInventoryBlockGroupMutationReceiptDto>(InventoryApplicationErrors.BlockGroupNotFound);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -35,7 +35,7 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
             Result released = block.Release(block.Version, idGenerator.NewId(), nowUtc, command.ActorId);
             if (released.IsFailure)
             {
-                return Result.Failure<ManualInventoryBlockGroupDto>(released.Error);
+                return Result.Failure<ManualInventoryBlockGroupMutationReceiptDto>(released.Error);
             }
         }
 
@@ -50,6 +50,9 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
             excludedAllocationId: null,
             excludedBlockIds: group.Select(block => block.Id).ToArray(),
             cancellationToken).ConfigureAwait(false);
-        return Result.Success(group.ToGroupDto(command.BlockGroupId));
+        return Result.Success(new ManualInventoryBlockGroupMutationReceiptDto(
+            command.BlockGroupId,
+            command.PropertyId,
+            group.Count));
     }
 }

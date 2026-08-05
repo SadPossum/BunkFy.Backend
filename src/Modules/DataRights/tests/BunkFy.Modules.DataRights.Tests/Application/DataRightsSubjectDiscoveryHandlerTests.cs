@@ -48,6 +48,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal([reservation], result.Value.Candidates);
+        Assert.False(result.Value.LimitReached);
         Assert.Equal(0, guests.DiscoveryInvocationCount);
         Assert.Equal(1, reservations.DiscoveryInvocationCount);
     }
@@ -165,6 +166,41 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal([first, second], result.Value.Candidates);
+    }
+
+    [Fact]
+    public async Task Discovery_reports_when_the_bounded_candidate_limit_is_reached()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        DataRightsSubjectCandidate[] candidates = Enumerable
+            .Range(0, DataRightsSubjectDiscoveryLimits.MaxCandidates)
+            .Select(_ => Candidate("guests", Guid.NewGuid()))
+            .ToArray();
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [
+                new StubContributor(
+                    "guests",
+                    _ => DataRightsSubjectDiscoveryResult.Success(candidates))
+            ],
+            new TestScopeContext());
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(
+                    null,
+                    "guest@example.test",
+                    null,
+                    null,
+                    null)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(DataRightsSubjectDiscoveryLimits.MaxCandidates, result.Value.Candidates.Count);
+        Assert.True(result.Value.LimitReached);
     }
 
     [Fact]

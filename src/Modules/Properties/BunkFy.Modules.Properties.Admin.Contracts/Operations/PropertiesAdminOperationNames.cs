@@ -14,6 +14,7 @@ public static class PropertiesAdminOperationNames
     public const string RoomsRetire = "properties.rooms.retire";
     public const string BedsList = "properties.beds.list";
     public const string BedsAdd = "properties.beds.add";
+    public const string BedsAddBatch = "properties.beds.add-batch";
     public const string BedsUpdate = "properties.beds.update";
     public const string BedsRetire = "properties.beds.retire";
 }

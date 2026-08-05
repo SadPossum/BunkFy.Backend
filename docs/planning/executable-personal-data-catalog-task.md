@@ -1,6 +1,6 @@
 # Executable Personal-Data Catalogue Task
 
-Status: in progress
+Status: implemented for the current module catalogue and locally verified; hosted evidence pending
 
 ## Goal
 
@@ -175,8 +175,8 @@ bundles.
 4. Continue one module at a time through Inventory and Properties. Operations
    Notifications, Workspaces, Staff, and Inventory are published; Properties is
    also published with local and exact-commit production proof.
-5. Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
-6. Add log, trace, metric, and notification test sinks after the relevant module catalogues exist.
+5. [Complete] Add runtime ingress enforcement only where a catalogue policy can meaningfully reject unknown or prohibited fields; static internal contracts remain build-time guarded.
+6. [Complete] Add log, trace, metric, notification, and support-diagnostic sink enforcement after the relevant module catalogues exist. See [Personal-Data Output Sink Enforcement](personal-data-output-sink-enforcement-task.md).
 
 ## Non-Goals For The Guests Slice
 
@@ -292,7 +292,7 @@ Current Properties evidence:
 - The product-wide log, trace, metric, notification, and support-diagnostic
   boundary is implemented by [Personal-Data Output Sink Enforcement](personal-data-output-sink-enforcement-task.md).
 - Founder/counsel approval of controller/processor allocation, field purposes, legal bases, retention periods, country rules, and rights exceptions.
-- SP-002 rights orchestration across modules and deletion ledger.
-- SP-003 automatic retention provisioning, monitoring, legal holds, and backup consequences.
+- Production approval and activation of the implemented rights and automatic
+  retention controls, including market-specific legal policy.
 - Provider-neutral object-storage inventory plus bounded orphan reconciliation for the crash window between evidence storage and receipt transaction commit.
 - Production evidence and independent review for the completed product-wide control.

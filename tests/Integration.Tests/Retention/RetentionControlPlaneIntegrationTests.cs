@@ -848,13 +848,14 @@ public sealed class RetentionControlPlaneIntegrationTests
         GetExpectedRetentionSchedulesAsync(IHost worker)
     {
         using IServiceScope scope = worker.Services.CreateScope();
-        IReadOnlyList<ScheduledTaskDefinition>[] providerSchedules =
+        ScheduledTaskDefinition[][] providerSchedules =
             await Task.WhenAll(
                 scope.ServiceProvider
                     .GetServices<ITaskScheduleProvider>()
-                    .Select(provider =>
-                        provider.GetSchedulesAsync(
-                            CancellationToken.None)))
+                    .Select(async provider =>
+                        await provider
+                            .GetSchedulesAsync(CancellationToken.None)
+                            .ToArrayAsync(CancellationToken.None)))
                 .ConfigureAwait(false);
         return providerSchedules
             .SelectMany(definitions => definitions)

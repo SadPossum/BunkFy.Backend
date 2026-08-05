@@ -146,7 +146,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ParserTypeList, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new ListObservationParserCapabilitiesQuery(), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ObservationParserCapabilityListResponse>(StatusCodes.Status200OK);
     }
 
     private static void MapAdapterTypes(IEndpointRouteBuilder endpoints)
@@ -157,7 +158,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.AdapterTypeList, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new ListAdapterTypeCapabilitiesQuery(), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterTypeCapabilityListResponse>(StatusCodes.Status200OK);
     }
 
     private static void MapConnections(IEndpointRouteBuilder endpoints)
@@ -169,26 +171,30 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 AdminOperation.Create(IngestionAdminOperationNames.ConnectionList, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new ListAdapterConnectionsQuery(propertyId, status,
                     page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionListResponse>(StatusCodes.Status200OK);
         group.MapGet("/{connectionId:guid}", async (Guid propertyId, Guid connectionId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ConnectionGet, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new GetAdapterConnectionQuery(propertyId, connectionId), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionDto>(StatusCodes.Status200OK);
         group.MapGet("/{connectionId:guid}/health", async (Guid propertyId, Guid connectionId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ConnectionHealth, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new GetAdapterConnectionHealthQuery(propertyId, connectionId), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionHealthDto>(StatusCodes.Status200OK);
         group.MapPost("", async (Guid propertyId, CreateConnectionRequest request, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ConnectionCreate, IngestionAdminPermissions.ConnectionsManage), true,
                 ct => dispatcher.SendAsync(new CreateAdapterConnectionCommand(propertyId, request.AdapterType,
                     request.ExecutionMode, request.ConflictPolicy, request.ConfigurationReference, request.SecretReference), ct),
-                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPut("/{connectionId:guid}", async (Guid propertyId, Guid connectionId, UpdateConnectionRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
@@ -197,7 +203,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     request.ExecutionMode, request.ConflictPolicy, request.ConfigurationReference,
                     ResolveSecretReferenceUpdateMode(request.SecretReference, request.ClearSecretReference),
                     request.SecretReference,
-                    request.ExpectedVersion), ct), token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                    request.ExpectedVersion), ct), token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPut("/{connectionId:guid}/polling-schedule", async (
             Guid propertyId, Guid connectionId, ConfigurePollingScheduleRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
@@ -209,7 +216,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 ct => dispatcher.SendAsync(new ConfigureAdapterConnectionPollingScheduleCommand(
                     propertyId, connectionId, request.IntervalSeconds, request.MaxAttempts, request.ExpectedVersion), ct),
                 token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/polling-schedule/clear", async (
             Guid propertyId, Guid connectionId, VersionRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
@@ -221,13 +229,16 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 ct => dispatcher.SendAsync(new ClearAdapterConnectionPollingScheduleCommand(
                     propertyId, connectionId, request.ExpectedVersion), ct),
                 token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/enable", (Guid propertyId, Guid connectionId, VersionRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
-            SetEnabledAsync(propertyId, connectionId, request, true, context, executor, dispatcher, token));
+            SetEnabledAsync(propertyId, connectionId, request, true, context, executor, dispatcher, token))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/disable", (Guid propertyId, Guid connectionId, VersionRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
-            SetEnabledAsync(propertyId, connectionId, request, false, context, executor, dispatcher, token));
+            SetEnabledAsync(propertyId, connectionId, request, false, context, executor, dispatcher, token))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/reset-checkpoint", async (Guid propertyId, Guid connectionId,
             ConfirmedVersionRequest request, HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher,
             CancellationToken token) => await executor.ExecuteAsync(context,
@@ -235,8 +246,9 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 async ct => request.Confirmed
                     ? await dispatcher.SendAsync(new ResetAdapterConnectionCheckpointCommand(
                         propertyId, connectionId, request.ExpectedVersion), ct).ConfigureAwait(false)
-                    : Result.Failure<AdapterConnectionDto>(AdminErrors.ConfirmationRequired),
-                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                    : Result.Failure<AdapterConnectionMutationReceiptDto>(AdminErrors.ConfirmationRequired),
+                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapGet("/{connectionId:guid}/credentials", async (
             Guid propertyId, Guid connectionId, int? page, int? pageSize,
@@ -251,7 +263,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize), ct),
                 token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterIngressCredentialListResponse>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/credentials", async (
             Guid propertyId, Guid connectionId, CreateIngressCredentialRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
@@ -279,7 +292,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     return result;
                 },
                 token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<CreateAdapterIngressCredentialResponse>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/credentials/{credentialId:guid}/revoke", async (
             Guid propertyId, Guid connectionId, Guid credentialId, RevokeIngressCredentialRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
@@ -291,9 +305,11 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 ct => request.Confirmed
                     ? dispatcher.SendAsync(new RevokeAdapterIngressCredentialCommand(
                         propertyId, connectionId, credentialId, request.ExpectedVersion, Actor(context)), ct)
-                    : Task.FromResult(Result.Failure<AdapterIngressCredentialDto>(AdminErrors.ConfirmationRequired)),
+                    : Task.FromResult(Result.Failure<AdapterIngressCredentialMutationReceiptDto>(
+                        AdminErrors.ConfirmationRequired)),
                 token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<AdapterIngressCredentialMutationReceiptDto>(StatusCodes.Status200OK);
     }
 
     private static void MapRuns(IEndpointRouteBuilder endpoints)
@@ -305,13 +321,15 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 AdminOperation.Create(IngestionAdminOperationNames.RunList, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new ListIngestionRunsQuery(propertyId, connectionId, status,
                     page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<IngestionRunListResponse>(StatusCodes.Status200OK);
         group.MapGet("/{runId:guid}", async (Guid propertyId, Guid runId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.RunGet, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new GetIngestionRunQuery(propertyId, runId), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<IngestionRunDto>(StatusCodes.Status200OK);
         group.MapPost("", async (Guid propertyId, EnqueueRunRequest request, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, ITenantContext tenantContext, CancellationToken token) =>
             await executor.ExecuteAsync(context,
@@ -377,13 +395,15 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 AdminOperation.Create(IngestionAdminOperationNames.ReceiptList, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new ListObservationReceiptsQuery(propertyId, connectionId, runId, status,
                     page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ObservationReceiptListResponse>(StatusCodes.Status200OK);
         group.MapGet("/{receiptId:guid}", async (Guid propertyId, Guid receiptId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ReceiptGet, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new GetObservationReceiptQuery(propertyId, receiptId), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ObservationReceiptDto>(StatusCodes.Status200OK);
         group.MapGet("/{receiptId:guid}/raw-payload", async (Guid propertyId, Guid receiptId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
@@ -513,13 +533,15 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     status,
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ObservationReprocessingAttemptListResponse>(StatusCodes.Status200OK);
         group.MapGet("/{attemptId:guid}", async (Guid propertyId, Guid attemptId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ReprocessingGet, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new GetObservationReprocessingAttemptQuery(propertyId, attemptId), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ObservationReprocessingAttemptDetailsDto>(StatusCodes.Status200OK);
         group.MapPost("", async (Guid propertyId, EnqueueReprocessingRequest request, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, ITenantContext tenantContext,
             CancellationToken token) => await executor.ExecuteAsync(
@@ -669,7 +691,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 AdminOperation.Create(IngestionAdminOperationNames.ProposalList, IngestionAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new ListChangeProposalsQuery(propertyId, status,
                     page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ChangeProposalListResponse>(StatusCodes.Status200OK);
         group.MapGet("/{proposalId:guid}", async (Guid propertyId, Guid proposalId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
@@ -677,21 +700,24 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     IngestionAdminOperationNames.ProposalGet,
                     IngestionAdminPermissions.SensitiveHistoryRead), true,
                 ct => dispatcher.QueryAsync(new GetChangeProposalQuery(propertyId, proposalId), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ChangeProposalDto>(StatusCodes.Status200OK);
         group.MapPost("/{proposalId:guid}/accept", async (Guid propertyId, Guid proposalId, AcceptProposalRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ProposalAccept, IngestionAdminPermissions.ProposalsDecide), true,
                 ct => dispatcher.SendAsync(new AcceptChangeProposalCommand(propertyId, proposalId, Actor(context),
                     request.ExpectedProposalVersion, request.ExpectedReservationDetailsRevision), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ChangeProposalMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{proposalId:guid}/reject", async (Guid propertyId, Guid proposalId, RejectProposalRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ProposalReject, IngestionAdminPermissions.ProposalsDecide), true,
                 ct => dispatcher.SendAsync(new RejectChangeProposalCommand(propertyId, proposalId, Actor(context),
                     request.Reason, request.ExpectedProposalVersion), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ChangeProposalMutationReceiptDto>(StatusCodes.Status200OK);
     }
 
     private static void MapLegalHolds(IEndpointRouteBuilder endpoints)
@@ -776,11 +802,16 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
     }
 
-    private static RouteGroupBuilder Group(IEndpointRouteBuilder endpoints, string segment) =>
-        endpoints.MapGroup($"/api/admin/ingestion/properties/{{propertyId:guid}}/{segment}")
+    private static RouteGroupBuilder Group(IEndpointRouteBuilder endpoints, string segment)
+    {
+        RouteGroupBuilder group = endpoints.MapGroup(
+                $"/api/admin/ingestion/properties/{{propertyId:guid}}/{segment}")
             .WithModuleName(IngestionModuleMetadata.Name)
             .WithTags("Ingestion Admin")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
+        return group;
+    }
 
     private static IResult RawPayloadDownload(
         HttpContext context,
@@ -796,6 +827,21 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
             "application/octet-stream",
             $"ingestion-receipt-{receiptId:N}.payload",
             enableRangeProcessing: false);
+    }
+
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
     }
 
     private static Task<IResult> SetEnabledAsync(

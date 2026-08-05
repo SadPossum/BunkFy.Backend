@@ -16,15 +16,23 @@ internal sealed class AdapterIngressCredentialRepository(IngestionDbContext dbCo
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
-        _ = await dbContext.AdapterIngressCredentials
-            .Where(credential => credential.ConnectionId == connectionId &&
-                                 credential.State == AdapterIngressCredentialState.Active &&
-                                 credential.ExpiresAtUtc <= nowUtc)
-            .ExecuteUpdateAsync(
-                update => update.SetProperty(
-                    credential => credential.State,
-                    AdapterIngressCredentialState.Expired),
-                cancellationToken)
+        _ = await dbContext.ExecuteCoordinatedMutationAsync(
+            token => dbContext.AdapterIngressCredentials
+                .Where(credential =>
+                    credential.ConnectionId == connectionId &&
+                    credential.State ==
+                        AdapterIngressCredentialState.Active &&
+                    credential.ExpiresAtUtc <= nowUtc)
+                .ExecuteUpdateAsync(
+                    update => update
+                        .SetProperty(
+                            credential => credential.State,
+                            AdapterIngressCredentialState.Expired)
+                        .SetProperty(
+                            credential => credential.Version,
+                            credential => credential.Version + 1),
+                    token),
+            cancellationToken)
             .ConfigureAwait(false);
         int[] occupied = await dbContext.AdapterIngressCredentials
             .AsNoTracking()
@@ -66,16 +74,27 @@ internal sealed class AdapterIngressCredentialRepository(IngestionDbContext dbCo
         CancellationToken cancellationToken)
     {
         DateTimeOffset updateBeforeUtc = authenticatedAtUtc.Subtract(AuthenticationTelemetryInterval);
-        _ = await dbContext.AdapterIngressCredentials
-            .Where(credential => credential.Id == credentialId &&
-                                 (credential.LastAuthenticatedAtUtc == null ||
-                                  credential.LastAuthenticatedAtUtc < updateBeforeUtc))
-            .ExecuteUpdateAsync(
-                update => update.SetProperty(
-                    credential => credential.LastAuthenticatedAtUtc,
-                    authenticatedAtUtc),
-                cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            _ = await dbContext.ExecuteCoordinatedMutationAsync(
+                token => dbContext.AdapterIngressCredentials
+                    .Where(credential => credential.Id == credentialId &&
+                        (credential.LastAuthenticatedAtUtc == null ||
+                         credential.LastAuthenticatedAtUtc <
+                            updateBeforeUtc))
+                    .ExecuteUpdateAsync(
+                        update => update.SetProperty(
+                            credential =>
+                                credential.LastAuthenticatedAtUtc,
+                            authenticatedAtUtc),
+                        token),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (IngestionOperationalAdmissionException)
+        {
+            // Authentication telemetry is best effort. The ingress gate owns
+            // the user-visible lifecycle decision after authentication.
+        }
     }
 
     public async Task<AdapterIngressCredentialListResponse> ListAsync(
@@ -86,32 +105,24 @@ internal sealed class AdapterIngressCredentialRepository(IngestionDbContext dbCo
         IQueryable<AdapterIngressCredential> query = dbContext.AdapterIngressCredentials
             .AsNoTracking()
             .Where(credential => credential.ConnectionId == connectionId);
-        long totalCount = await query.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        AdapterIngressCredentialDto[] values = await query
+        AdapterIngressCredentialListItemDto[] fetched = await query
             .OrderByDescending(credential => credential.CreatedAtUtc)
             .ThenBy(credential => credential.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
-            .Select(credential => new AdapterIngressCredentialDto(
+            .Take(pageRequest.PageSize + 1)
+            .Select(credential => new AdapterIngressCredentialListItemDto(
                 credential.Id,
-                credential.ConnectionId,
                 credential.Slot,
                 credential.Label,
                 (AdapterIngressCredentialStatus)(int)credential.State,
                 credential.ExpiresAtUtc,
-                credential.CreatedBy,
-                credential.CreatedAtUtc,
-                credential.RevokedBy,
-                credential.RevokedAtUtc,
                 credential.LastAuthenticatedAtUtc,
-                credential.Version,
-                credential.AdapterType,
-                credential.AdapterProtocolVersion,
-                credential.ConfigurationSchemaVersion,
-                credential.SourceSystem))
+                credential.Version))
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
+        bool hasMore = fetched.Length > pageRequest.PageSize;
+        AdapterIngressCredentialListItemDto[] values = hasMore ? fetched[..pageRequest.PageSize] : fetched;
         return new AdapterIngressCredentialListResponse(
-            values, pageRequest.Page, pageRequest.PageSize, totalCount);
+            values, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 }

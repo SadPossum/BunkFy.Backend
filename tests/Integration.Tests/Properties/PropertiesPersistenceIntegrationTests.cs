@@ -1,64 +1,97 @@
 namespace Integration.Tests;
 
 using System.Globalization;
+using System.Text.Json;
+using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Properties.Application.Ports;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.Entities;
+using BunkFy.Modules.Properties.Domain.ValueObjects;
+using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.Modules.Workspaces.Domain.Termination;
+using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Pagination;
 using Gma.Framework.ProjectionRebuild;
+using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using BunkFy.Modules.Properties.Application.Ports;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Properties.Domain.Aggregates;
-using BunkFy.Modules.Properties.Domain.Entities;
-using BunkFy.Modules.Properties.Persistence;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
+using DomainGovernanceAcknowledgement =
+    BunkFy.Modules.Properties.Domain.ValueObjects.PropertyGovernanceAcknowledgement;
 
-public sealed class PropertiesPersistenceIntegrationTests
+public sealed partial class PropertiesPersistenceIntegrationTests
 {
     private const string InitialMigration = "20260709104355_InitialCreate";
     private static readonly Guid PropertyId = Guid.Parse("10000000-0000-0000-0000-000000000001");
     private static readonly Guid RoomId = Guid.Parse("20000000-0000-0000-0000-000000000001");
     private static readonly Guid BedId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+    private const string TenantA = "tenant-a";
+    private const string TenantB = "tenant-b";
+    private static readonly DateTimeOffset ExportNowUtc =
+        new(2026, 7, 31, 12, 1, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FrozenAtUtc =
+        ExportNowUtc.AddMinutes(-1);
+    private static readonly string Digest = new('a', 64);
 
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Bed_listing_orders_converted_labels_on_postgresql()
+    public async Task Queries_and_tenant_export_use_authoritative_postgresql_records()
     {
         await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
             .WithDatabase("bunkfy_properties_bed_listing_tests")
             .Build();
         await postgreSql.StartAsync();
 
-        DateTimeOffset nowUtc = new(2026, 7, 11, 8, 0, 0, TimeSpan.Zero);
-        Property property = CreateProperty("hostel-one", "Hostel One");
-        Room room = Room.Create(
-            Guid.NewGuid(),
-            "tenant-a",
-            property.Id,
-            "101",
-            null,
-            null,
-            Guid.NewGuid(),
-            nowUtc).Value;
-        Assert.True(room.AddBed(Guid.NewGuid(), "B", room.Version, Guid.NewGuid(), nowUtc).IsSuccess);
-        Assert.True(room.AddBed(Guid.NewGuid(), "A", room.Version, Guid.NewGuid(), nowUtc).IsSuccess);
-
-        await using (PropertiesDbContext dbContext = CreateDbContext(postgreSql.GetConnectionString()))
+        using ServiceProvider tenantAProvider = CreatePersistenceProvider(
+            postgreSql.GetConnectionString(),
+            TenantA);
+        Property property;
+        Room room;
+        using (IServiceScope seedScope = tenantAProvider.CreateScope())
         {
+            PropertiesDbContext dbContext = seedScope.ServiceProvider
+                .GetRequiredService<PropertiesDbContext>();
             await dbContext.Database.MigrateAsync();
-            dbContext.Properties.Add(property);
-            dbContext.Rooms.Add(room);
-            await dbContext.SaveChangesAsync();
+            WorkspacesDbContext workspaces = seedScope.ServiceProvider
+                .GetRequiredService<WorkspacesDbContext>();
+            await workspaces.Database.MigrateAsync();
+            (property, room) = await SeedExportGraphAsync(
+                seedScope.ServiceProvider);
         }
 
-        using ServiceProvider provider = CreatePersistenceProvider(postgreSql.GetConnectionString());
-        using IServiceScope scope = provider.CreateScope();
-        IPropertiesReadRepository repository = scope.ServiceProvider.GetRequiredService<IPropertiesReadRepository>();
+        Property otherTenantProperty;
+        using (ServiceProvider tenantBProvider = CreatePersistenceProvider(
+                   postgreSql.GetConnectionString(),
+                   TenantB))
+        using (IServiceScope tenantBScope = tenantBProvider.CreateScope())
+        {
+            PropertiesDbContext tenantBContext = tenantBScope.ServiceProvider
+                .GetRequiredService<PropertiesDbContext>();
+            otherTenantProperty = CreateProperty(
+                "other-hostel",
+                "Other Hostel",
+                TenantB);
+            tenantBContext.Properties.Add(otherTenantProperty);
+            await tenantBContext.SaveChangesAsync();
+        }
+
+        using IServiceScope scope = tenantAProvider.CreateScope();
+        WorkspacesDbContext workspacesDbContext = scope.ServiceProvider
+            .GetRequiredService<WorkspacesDbContext>();
+        WorkspaceTerminationFence fence = CreateTerminationFence();
+        workspacesDbContext.WorkspaceTerminationFences.Add(fence);
+        await workspacesDbContext.SaveChangesAsync();
+        IPropertiesReadRepository repository = scope.ServiceProvider
+            .GetRequiredService<IPropertiesReadRepository>();
 
         BedListResponse response = await repository.ListBedsAsync(
             property.Id,
@@ -68,6 +101,66 @@ public sealed class PropertiesPersistenceIntegrationTests
 
         Assert.Equal(["A", "B"], response.Beds.Select(bed => bed.Label));
         Assert.All(response.Beds, bed => Assert.Equal(room.Version, bed.RoomVersion));
+
+        ITenantTerminationExportContributor contributor = scope.ServiceProvider
+            .GetServices<ITenantTerminationExportContributor>()
+            .Single(candidate => candidate.ExportDescriptor.ExportSchemaId ==
+                PropertiesTenantTerminationMetadata.ExportSchemaId);
+        CollectingSink first = new();
+        TenantTerminationContributionResult result =
+            await contributor.ExportAsync(
+                TenantTerminationRequest(fence),
+                first,
+                CancellationToken.None);
+
+        Assert.Equal(
+            TenantTerminationContributionStatus.Completed,
+            result.Status);
+        Assert.Equal("properties.termination.exported", result.ResultCode);
+        Assert.Equal(6, result.AffectedCount);
+        Assert.Equal(1, result.SelectedProofRevision);
+        Assert.Equal(1, result.ResultingProofRevision);
+        Assert.Equal(
+            [
+                PropertiesTenantTerminationMetadata.PropertyRecordType,
+                PropertiesTenantTerminationMetadata
+                    .GovernanceAcknowledgementRecordType,
+                PropertiesTenantTerminationMetadata.RoomRecordType,
+                PropertiesTenantTerminationMetadata.BedRecordType,
+                PropertiesTenantTerminationMetadata.BedRecordType,
+                PropertiesTenantTerminationMetadata
+                    .GovernanceRevisionRecordType
+            ],
+            first.Records.Select(record => record.RecordType).ToArray());
+        Assert.DoesNotContain(
+            first.Records,
+            record => record.RecordId == otherTenantProperty.Id);
+        Assert.Equal(
+            "user:owner",
+            Field(
+                    first.Records[^1],
+                    "properties.staff-actor-reference")
+                .GetString());
+
+        CollectingSink replay = new();
+        TenantTerminationContributionResult replayResult =
+            await contributor.ExportAsync(
+                TenantTerminationRequest(fence),
+                replay,
+                CancellationToken.None);
+        Assert.Equal(result.AffectedCount, replayResult.AffectedCount);
+        Assert.Equal(
+            first.Records.Select(RecordIdentity).ToArray(),
+            replay.Records.Select(RecordIdentity).ToArray());
+
+        await AssertExportSerializesOperationalMutationAsync(
+            contributor,
+            tenantAProvider,
+            fence,
+            property.Id);
+        await AssertGovernanceHistoryIsAppendOnlyAsync(
+            scope.ServiceProvider,
+            property.Id);
     }
 
     [DockerFact]
@@ -161,6 +254,219 @@ public sealed class PropertiesPersistenceIntegrationTests
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
     }
 
+    private static async Task<(Property Property, Room Room)>
+        SeedExportGraphAsync(IServiceProvider services)
+    {
+        PropertiesDbContext dbContext = services
+            .GetRequiredService<PropertiesDbContext>();
+        IPropertyGovernanceRevisionWriter revisionWriter = services
+            .GetRequiredService<IPropertyGovernanceRevisionWriter>();
+        Property property = CreateProperty("hostel-one", "Hostel One");
+        PropertyGovernanceBinding binding =
+            PropertyGovernanceBinding.Create(
+                "GB",
+                "uk-hostel-policy",
+                policyVersion: 3,
+                "eu-west",
+                "standard-transfer",
+                "hostel-retention",
+                retentionPolicyVersion: 2,
+                Digest,
+                FrozenAtUtc.AddDays(-10),
+                FrozenAtUtc.AddDays(10),
+                FrozenAtUtc.AddDays(-2)).Value;
+        DomainGovernanceAcknowledgement acknowledgement =
+            DomainGovernanceAcknowledgement.Create(
+                "controller-terms",
+                acknowledgementVersion: 2).Value;
+        Assert.True(property.ActivateProcessing(
+            binding,
+            [acknowledgement],
+            property.Version,
+            Guid.NewGuid(),
+            FrozenAtUtc.AddDays(-2),
+            "user:owner").IsSuccess);
+
+        Room room = Room.Create(
+            Guid.NewGuid(),
+            TenantA,
+            property.Id,
+            "101",
+            null,
+            null,
+            Guid.NewGuid(),
+            FrozenAtUtc.AddDays(-5)).Value;
+        Assert.True(room.AddBed(
+            Guid.NewGuid(),
+            "B",
+            room.Version,
+            Guid.NewGuid(),
+            FrozenAtUtc.AddDays(-5)).IsSuccess);
+        Assert.True(room.AddBed(
+            Guid.NewGuid(),
+            "A",
+            room.Version,
+            Guid.NewGuid(),
+            FrozenAtUtc.AddDays(-5)).IsSuccess);
+
+        PropertyGovernanceRevisionCoordinates current = new(
+            binding.OperatingCountryCode,
+            binding.PolicyId,
+            binding.PolicyVersion,
+            binding.DataRegionId,
+            binding.TransferProfileId,
+            binding.RetentionPolicyId,
+            binding.RetentionPolicyVersion,
+            binding.ContentSha256,
+            Digest);
+        dbContext.Properties.Add(property);
+        dbContext.Rooms.Add(room);
+        await revisionWriter.AppendAsync(
+            new PropertyGovernanceRevisionWriteModel(
+                Guid.Parse("40000000-0000-0000-0000-000000000001"),
+                TenantA,
+                property.Id,
+                property.Version,
+                PropertyGovernanceRevisionAction.Activated,
+                "policy-allowed",
+                Previous: null,
+                Current: current,
+                "user:owner",
+                FrozenAtUtc.AddDays(-2)),
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+        return (property, room);
+    }
+
+    private static async Task AssertExportSerializesOperationalMutationAsync(
+        ITenantTerminationExportContributor contributor,
+        IServiceProvider rootServices,
+        WorkspaceTerminationFence fence,
+        Guid propertyId)
+    {
+        BlockingSink sink = new();
+        Task<TenantTerminationContributionResult> export =
+            contributor.ExportAsync(
+                TenantTerminationRequest(fence),
+                sink,
+                CancellationToken.None);
+        Assert.Same(
+            sink.FirstRecordObserved,
+            await Task.WhenAny(sink.FirstRecordObserved, export));
+
+        Task write = AttemptOperationalWriteAsync(rootServices, propertyId);
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+            Assert.False(write.IsCompleted);
+        }
+        finally
+        {
+            sink.Release();
+        }
+
+        Assert.Equal(
+            TenantTerminationContributionStatus.Completed,
+            (await export).Status);
+        InvalidOperationException failure =
+            await Assert.ThrowsAnyAsync<InvalidOperationException>(() => write);
+        Assert.Equal(
+            "The workspace is not accepting Properties mutations.",
+            failure.Message);
+    }
+
+    private static async Task AttemptOperationalWriteAsync(
+        IServiceProvider rootServices,
+        Guid propertyId)
+    {
+        using IServiceScope scope = rootServices.CreateScope();
+        PropertiesDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<PropertiesDbContext>();
+        Property property = await dbContext.Properties.SingleAsync(candidate =>
+            candidate.Id == propertyId);
+        Assert.True(property.Update(
+            "Blocked update",
+            property.Code.Value,
+            property.TimeZoneId.Value,
+            property.Version,
+            Guid.NewGuid(),
+            ExportNowUtc).IsSuccess);
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task AssertGovernanceHistoryIsAppendOnlyAsync(
+        IServiceProvider services,
+        Guid propertyId)
+    {
+        PropertiesDbContext dbContext = services
+            .GetRequiredService<PropertiesDbContext>();
+        const string tamperedReason = "tampered";
+        PostgresException update = await Assert.ThrowsAsync<
+            PostgresException>(() =>
+            dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE properties.property_governance_revisions
+                SET "DecisionReasonCode" = {tamperedReason}
+                WHERE "PropertyId" = {propertyId};
+                """));
+        Assert.Equal("P0001", update.SqlState);
+        Assert.Contains(
+            "property governance revisions are append-only",
+            update.MessageText,
+            StringComparison.Ordinal);
+
+        PostgresException delete = await Assert.ThrowsAsync<
+            PostgresException>(() =>
+            dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                DELETE FROM properties.property_governance_revisions
+                WHERE "PropertyId" = {propertyId};
+                """));
+        Assert.Equal("P0001", delete.SqlState);
+    }
+
+    private static WorkspaceTerminationFence CreateTerminationFence() =>
+        WorkspaceTerminationFence.Freeze(
+            Guid.Parse("50000000-0000-0000-0000-000000000001"),
+            TenantA,
+            Guid.Parse("60000000-0000-0000-0000-000000000001"),
+            Guid.Parse("70000000-0000-0000-0000-000000000001"),
+            approvalRevision: 1,
+            Guid.Parse("80000000-0000-0000-0000-000000000001"),
+            Digest,
+            "termination-operator",
+            FrozenAtUtc).Value;
+
+    private static TenantTerminationExportRequest TenantTerminationRequest(
+        WorkspaceTerminationFence fence) =>
+        new(
+            new TenantTerminationContributionRequest(
+                TenantTerminationContract.CurrentVersion,
+                TenantA,
+                fence.ProcessId,
+                fence.CaseId,
+                fence.ApprovalRevision,
+                OperationRevision: 2,
+                fence.TerminationEpoch,
+                TenantTerminationContributionPhase.Export,
+                Guid.Parse("90000000-0000-0000-0000-000000000001"),
+                Guid.Parse("a0000000-0000-0000-0000-000000000001"),
+                fence.PolicyEvidenceSha256,
+                "termination-exporter",
+                ExportNowUtc.AddMinutes(5)),
+            FreezeOperationRevision: 1,
+            fence.Version,
+            Digest,
+            FrozenAtUtc);
+
+    private static JsonElement Field(
+        DataRightsExportRecord record,
+        string fieldId) =>
+        Assert.Single(
+            record.Fields,
+            field => field.FieldId == fieldId).Value;
+
+    private static string RecordIdentity(DataRightsExportRecord record) =>
+        $"{record.RecordType}|{record.RecordId:N}|{record.RecordVersion}";
+
     private static async Task SeedInitialSchemaAsync(PropertiesDbContext dbContext)
     {
         DateTimeOffset createdAtUtc = new(2026, 7, 9, 12, 0, 0, TimeSpan.Zero);
@@ -198,32 +504,100 @@ public sealed class PropertiesPersistenceIntegrationTests
                     .MigrationsHistoryTable(PropertiesMigrations.HistoryTable, PropertiesMigrations.Schema))
             .Options;
 
-        return new PropertiesDbContext(options, new TestScopeContext());
+        return new PropertiesDbContext(
+            options,
+            new TestScopeContext(),
+            new NoTerminationFenceReader());
     }
 
-    private static ServiceProvider CreatePersistenceProvider(string connectionString)
+    private static ServiceProvider CreatePersistenceProvider(
+        string connectionString,
+        string tenantId = TenantA,
+        TestClock? clock = null)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder();
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
         builder.Configuration["ConnectionStrings:PostgreSql"] = connectionString;
-        builder.Services.AddSingleton<IScopeContext>(new TestScopeContext());
+        builder.Services.AddSingleton<IScopeContext>(
+            new TestScopeContext(tenantId));
+        builder.Services.AddSingleton<ISystemClock>(
+            clock ?? new TestClock(ExportNowUtc));
+        builder.AddWorkspacesPersistence();
         builder.AddPropertiesPersistence();
         return builder.Services.BuildServiceProvider();
     }
 
-    private static Property CreateProperty(string code, string name) =>
+    private static Property CreateProperty(
+        string code,
+        string name,
+        string tenantId = TenantA) =>
         Property.Create(
             Guid.NewGuid(),
-            "tenant-a",
+            tenantId,
             name,
             code,
             "UTC",
             Guid.NewGuid(),
             DateTimeOffset.UtcNow).Value;
 
-    private sealed class TestScopeContext : IScopeContext
+    private sealed class TestScopeContext(string scopeId = TenantA)
+        : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => "tenant-a";
+        public string ScopeId { get; } = scopeId;
+    }
+
+    private sealed class TestClock(DateTimeOffset utcNow) : ISystemClock
+    {
+        public DateTimeOffset UtcNow { get; set; } = utcNow;
+    }
+
+    private sealed class CollectingSink : IDataRightsExportSink
+    {
+        public List<DataRightsExportRecord> Records { get; } = [];
+
+        public ValueTask WriteAsync(
+            DataRightsExportRecord record,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            this.Records.Add(record);
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class BlockingSink : IDataRightsExportSink
+    {
+        private readonly TaskCompletionSource firstRecordObserved = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource release = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private int blocked;
+
+        public Task FirstRecordObserved => this.firstRecordObserved.Task;
+
+        public async ValueTask WriteAsync(
+            DataRightsExportRecord record,
+            CancellationToken cancellationToken)
+        {
+            if (Interlocked.Exchange(ref this.blocked, 1) == 0)
+            {
+                this.firstRecordObserved.TrySetResult();
+                await this.release.Task.WaitAsync(cancellationToken);
+            }
+        }
+
+        public void Release() => this.release.TrySetResult();
+    }
+
+    private sealed class NoTerminationFenceReader
+        : IWorkspaceTerminationFenceReader
+    {
+        public Task<WorkspaceTerminationFenceSnapshot?> GetCurrentAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<WorkspaceTerminationFenceSnapshot?>(null);
+        }
     }
 }

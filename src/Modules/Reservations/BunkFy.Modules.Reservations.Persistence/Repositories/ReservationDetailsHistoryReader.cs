@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using System.Text.Json;
+using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
@@ -11,18 +12,27 @@ internal sealed class ReservationDetailsHistoryReader(ReservationsDbContext dbCo
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<IReadOnlyList<ReservationDetailsHistoryItem>> ListAsync(
+    public async Task<ReservationDetailsHistoryListResponse> ListAsync(
         Guid propertyId,
         Guid reservationId,
+        PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
         ReservationDetailsHistoryEntry[] entries = await dbContext.ReservationDetailsHistory
             .AsNoTracking()
             .Where(entry => entry.PropertyId == propertyId && entry.ReservationId == reservationId)
-            .OrderBy(entry => entry.ToRevision)
+            .OrderByDescending(entry => entry.ToRevision)
+            .ThenByDescending(entry => entry.Id)
+            .Skip(pageRequest.SkipCount)
+            .Take(pageRequest.PageSize + 1)
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
-        return entries.Select(Map).ToArray();
+        bool hasMore = entries.Length > pageRequest.PageSize;
+        return new(
+            entries.Take(pageRequest.PageSize).Select(Map).ToArray(),
+            pageRequest.Page,
+            pageRequest.PageSize,
+            hasMore);
     }
 
     private static ReservationDetailsHistoryItem Map(ReservationDetailsHistoryEntry entry) => new(

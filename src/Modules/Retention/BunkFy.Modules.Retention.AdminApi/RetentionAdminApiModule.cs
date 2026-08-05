@@ -10,13 +10,16 @@ using BunkFy.Modules.Retention.Persistence;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.Observability;
+using Gma.Framework.Api.Results;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tenancy;
 using Gma.Modules.TaskRuntime.Application.Commands;
 using Gma.Modules.TaskRuntime.Application.Queries;
+using Gma.Modules.TaskRuntime.Application;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -42,8 +45,11 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
             .WithModuleName(this.Name)
             .WithTags("Retention Admin")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("/schedules", async (
+            int? page,
+            int? pageSize,
             HttpContext context,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
@@ -55,9 +61,13 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
                     RetentionAdminPermissions.Read),
                 requireTenant: true,
                 token => dispatcher.QueryAsync(
-                    new ListRetentionScheduleHealthQuery(),
+                    new ListRetentionScheduleHealthQuery(
+                        page ?? PageRequest.DefaultPage,
+                        pageSize ?? PageRequest.DefaultPageSize),
                     token),
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RetentionScheduleHealthListResponse>(StatusCodes.Status200OK);
 
         group.MapPost("/runs/{runId:guid}/retry", async (
             Guid runId,
@@ -82,12 +92,14 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
                         dispatcher,
                         token)
                     : Task.FromResult(
-                        Result.Failure<Unit>(
+                        Result.Failure<RetentionRunRetryReceiptDto>(
                             AdminErrors.ConfirmationRequired)),
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RetentionRunRetryReceiptDto>(StatusCodes.Status200OK);
     }
 
-    private static async Task<Result<Unit>> RetryAsync(
+    private static async Task<Result<RetentionRunRetryReceiptDto>> RetryAsync(
         Guid runId,
         DateTimeOffset? scheduledAtUtc,
         string actor,
@@ -100,7 +112,7 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
             cancellationToken).ConfigureAwait(false);
         if (loaded.IsFailure)
         {
-            return Result.Failure<Unit>(loaded.Error);
+            return Result.Failure<RetentionRunRetryReceiptDto>(loaded.Error);
         }
 
         TaskRunSummary run = loaded.Value.Summary;
@@ -115,14 +127,52 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
                 ExecuteRetentionSchedulePayload.TaskName,
                 StringComparison.Ordinal))
         {
-            return Result.Failure<Unit>(
+            return Result.Failure<RetentionRunRetryReceiptDto>(
                 RetentionApplicationErrors.TaskRunUnavailable);
         }
 
-        return await dispatcher.SendAsync(
+        Result<Unit> retried = await dispatcher.SendAsync(
             new RetryTaskRunCommand(runId, actor, scheduledAtUtc),
             cancellationToken).ConfigureAwait(false);
+        return retried.IsFailure
+            ? Result.Failure<RetentionRunRetryReceiptDto>(retried.Error)
+            : Result.Success(new RetentionRunRetryReceiptDto(
+                runId,
+                scheduledAtUtc));
     }
+
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
+
+    private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes =
+        ApiErrorStatusCodeMap.Create(
+            new(
+                RetentionApplicationErrors.TaskRunUnavailable.Code,
+                StatusCodes.Status404NotFound),
+            new(
+                TaskRuntimeApplicationErrors.RunNotFound.Code,
+                StatusCodes.Status404NotFound),
+            new(
+                TaskRuntimeApplicationErrors.RunCannotBeRetried.Code,
+                StatusCodes.Status409Conflict),
+            new(
+                TaskRuntimeApplicationErrors.ConcurrentMutation.Code,
+                StatusCodes.Status409Conflict),
+            new(
+                TaskRuntimeApplicationErrors.ScopeClosed.Code,
+                StatusCodes.Status423Locked));
 
     private static string Actor(HttpContext context)
     {

@@ -140,7 +140,7 @@ public sealed class ListVisiblePropertiesQueryHandlerTests
             CancellationToken cancellationToken)
         {
             this.Visibility = visibility;
-            return Task.FromResult(new PropertyListResponse([], pageRequest.Page, pageRequest.PageSize));
+            return Task.FromResult(new PropertyListResponse([], pageRequest.Page, pageRequest.PageSize, false));
         }
 
         public Task<RoomDto?> GetRoomAsync(Guid propertyId, Guid roomId, CancellationToken cancellationToken) =>

@@ -4,7 +4,7 @@ using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Errors;
 using Gma.Framework.Results;
 
-public readonly record struct RoomName
+public readonly record struct RoomName : IComparable<RoomName>
 {
     private readonly string? value;
 
@@ -24,6 +24,14 @@ public readonly record struct RoomName
             ? Result.Success(new RoomName(normalized))
             : Result.Failure<RoomName>(PropertiesDomainErrors.RoomNameTooLong);
     }
+
+    public int CompareTo(RoomName other) =>
+        StringComparer.Ordinal.Compare(this.Value, other.Value);
+
+    public static bool operator <(RoomName left, RoomName right) => left.CompareTo(right) < 0;
+    public static bool operator <=(RoomName left, RoomName right) => left.CompareTo(right) <= 0;
+    public static bool operator >(RoomName left, RoomName right) => left.CompareTo(right) > 0;
+    public static bool operator >=(RoomName left, RoomName right) => left.CompareTo(right) >= 0;
 
     public override string ToString() => this.Value;
 }

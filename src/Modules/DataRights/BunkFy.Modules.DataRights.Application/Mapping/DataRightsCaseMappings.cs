@@ -26,7 +26,40 @@ public static class DataRightsCaseMappings
         dataRightsCase.Version,
         dataRightsCase.CreatedAtUtc,
         dataRightsCase.LastChangedAtUtc,
-        dataRightsCase.ToApprovalEvidence());
+        dataRightsCase.ToApprovalEvidence(),
+        dataRightsCase.ToResponseDeadlineEvidence());
+
+    public static DataRightsResponseDeadlineEvidence? ToResponseDeadlineEvidence(
+        this DataRightsCase dataRightsCase) =>
+        dataRightsCase.ResponseDeadlinePolicyEvidence is null
+            ? null
+            : new DataRightsResponseDeadlineEvidence(
+                dataRightsCase.ResponseDeadlinePolicyEvidence.SchemaVersion,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.PropertyId,
+                dataRightsCase.ResponseDeadlinePolicyEvidence
+                    .PropertyTopologySourceVersion,
+                dataRightsCase.ResponseDeadlinePolicyEvidence
+                    .PropertyPolicySourceVersion,
+                dataRightsCase.ResponseDeadlinePolicyEvidence
+                    .OperatingCountryCode,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.PolicyId,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.PolicyVersion,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.ContentSha256,
+                (DataRightsResponseDeadlineRight)
+                    dataRightsCase.ResponseDeadlinePolicyEvidence
+                        .ControllingRight,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.RuleReference,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.PeriodYears,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.PeriodMonths,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.PeriodDays,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.TimeZoneId,
+                dataRightsCase.ResponseDeadlinePolicyEvidence
+                    .PolicyEffectiveAtUtc,
+                dataRightsCase.ResponseDeadlinePolicyEvidence
+                    .PolicyExpiresAtUtc,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.ReceivedAtUtc,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.EvaluatedAtUtc,
+                dataRightsCase.ResponseDeadlinePolicyEvidence.DueAtUtc);
 
     public static DataRightsApprovalEvidence? ToApprovalEvidence(
         this DataRightsCase dataRightsCase) =>

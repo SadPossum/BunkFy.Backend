@@ -10,4 +10,4 @@ public sealed record CreateManualInventoryBlockGroupCommand(
     DateOnly Departure,
     string Reason,
     string? ActorId = null)
-    : ITransactionalCommand<ManualInventoryBlockGroupDto>;
+    : ITransactionalCommand<ManualInventoryBlockGroupMutationReceiptDto>;

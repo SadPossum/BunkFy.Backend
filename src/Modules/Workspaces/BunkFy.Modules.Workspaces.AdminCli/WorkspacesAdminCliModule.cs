@@ -13,6 +13,7 @@ using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Modules.Auth.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -123,6 +124,7 @@ public sealed class WorkspacesAdminCliModule : IAdminCliModule
                 ("SeedVersion", item => item.SeedVersion.ToString(CultureInfo.InvariantCulture)),
                 ("ExpectedSeeds", item => item.ExpectedSeedProfileCount.ToString(CultureInfo.InvariantCulture)),
                 ("ActiveSeeds", item => item.ActiveSeedProfileCount.ToString(CultureInfo.InvariantCulture)),
+                ("DriftedSeeds", item => item.DriftedSeedProfileCount.ToString(CultureInfo.InvariantCulture)),
                 ("ArchivedSeeds", item => item.ArchivedSeedProfileCount.ToString(CultureInfo.InvariantCulture)),
                 ("LegacyMembers", item => item.LegacyMemberCount.ToString(CultureInfo.InvariantCulture)),
                 ("MarkerMembers", item => item.MarkerMemberCount.ToString(CultureInfo.InvariantCulture)),
@@ -133,7 +135,19 @@ public sealed class WorkspacesAdminCliModule : IAdminCliModule
         IServiceProvider services,
         AdminCliGlobalOptions global)
     {
-        Command command = new("list", "List non-completed Staff access lifecycle processes.");
+        Option<int> page = new("--page")
+        {
+            DefaultValueFactory = _ => PageRequest.DefaultPage
+        };
+        Option<int> pageSize = new("--page-size")
+        {
+            DefaultValueFactory = _ => PageRequest.DefaultPageSize
+        };
+        Command command = new("list", "List non-completed Staff access lifecycle processes.")
+        {
+            page,
+            pageSize
+        };
         command.SetAction((parse, cancellationToken) => services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
             parse,
             AdminOperation.Create(
@@ -145,7 +159,9 @@ public sealed class WorkspacesAdminCliModule : IAdminCliModule
             {
                 Result<WorkspaceStaffAccessProcessListResponse> result = await provider
                     .GetRequiredService<IRequestDispatcher>()
-                    .QueryAsync(new ListOpenWorkspaceStaffAccessProcessesQuery(1, 100), token)
+                    .QueryAsync(new ListOpenWorkspaceStaffAccessProcessesQuery(
+                        parse.GetValue(page),
+                        parse.GetValue(pageSize)), token)
                     .ConfigureAwait(false);
                 if (result.IsSuccess)
                 {

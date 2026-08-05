@@ -51,6 +51,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
             {
                 CreateListBedsCommand(commands.Services, globalOptions),
                 CreateAddBedCommand(commands.Services, globalOptions),
+                CreateAddBedsCommand(commands.Services, globalOptions),
                 CreateUpdateBedCommand(commands.Services, globalOptions),
                 CreateRetireBedCommand(commands.Services, globalOptions)
             }
@@ -161,7 +162,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 async (provider, token) =>
                 {
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
-                    Result<PropertyDto> result = await dispatcher.SendAsync(
+                    Result<PropertyMutationReceiptDto> result = await dispatcher.SendAsync(
                         new CreatePropertyCommand(
                             parseResult.GetRequiredValue(nameOption),
                             parseResult.GetRequiredValue(codeOption),
@@ -170,7 +171,9 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
                     if (result.IsSuccess)
                     {
-                        AdminCliOutput.WriteMessage($"Created property '{result.Value.PropertyId}'.");
+                        AdminCliOutput.WriteObject(
+                            result.Value,
+                            parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                     }
 
                     return result;
@@ -207,7 +210,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 async (provider, token) =>
                 {
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
-                    Result<PropertyDto> result = await dispatcher.SendAsync(
+                    Result<PropertyMutationReceiptDto> result = await dispatcher.SendAsync(
                         new UpdatePropertyCommand(
                             parseResult.GetRequiredValue(propertyIdOption),
                             parseResult.GetRequiredValue(nameOption),
@@ -218,7 +221,9 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
                     if (result.IsSuccess)
                     {
-                        AdminCliOutput.WriteMessage("Property updated.");
+                        AdminCliOutput.WriteObject(
+                            result.Value,
+                            parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                     }
 
                     return result;
@@ -346,7 +351,6 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                         parseResult.GetValue(buildingOption),
                         parseResult.GetValue(floorOption)),
                     cancellationToken),
-                "Created room",
                 cancellationToken));
         return command;
     }
@@ -384,7 +388,6 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                         parseResult.GetValue(buildingOption),
                         parseResult.GetValue(floorOption)),
                     cancellationToken),
-                "Room updated",
                 cancellationToken));
         return command;
     }
@@ -490,8 +493,58 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                         parseResult.GetRequiredValue(expectedRoomVersionOption),
                         parseResult.GetRequiredValue(labelOption)),
                     cancellationToken),
-                "Added bed",
                 cancellationToken));
+        return command;
+    }
+
+    private static Command CreateAddBedsCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
+    {
+        Option<Guid> propertyIdOption = CreatePropertyIdOption();
+        Option<Guid> roomIdOption = CreateRoomIdOption();
+        Option<long> expectedRoomVersionOption = CreateRequiredVersionOption("--expected-room-version");
+        Option<string[]> labelsOption = new("--label")
+        {
+            Required = true,
+            AllowMultipleArgumentsPerToken = true
+        };
+        Command command = new("add-many", "Add multiple beds atomically.")
+        {
+            propertyIdOption,
+            roomIdOption,
+            expectedRoomVersionOption,
+            labelsOption
+        };
+        command.SetAction((parseResult, cancellationToken) =>
+        {
+            AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
+            return executor.ExecuteAsync(
+                parseResult,
+                AdminOperation.Create(PropertiesAdminOperationNames.BedsAddBatch, PropertiesAdminPermissions.BedsManage),
+                parseResult.GetValue(globalOptions.TenantOption),
+                requireTenant: true,
+                async (provider, token) =>
+                {
+                    Result<BedBatchMutationReceiptDto> result = await provider
+                        .GetRequiredService<IRequestDispatcher>()
+                        .SendAsync(
+                            new AddBedsCommand(
+                                parseResult.GetRequiredValue(propertyIdOption),
+                                parseResult.GetRequiredValue(roomIdOption),
+                                parseResult.GetRequiredValue(expectedRoomVersionOption),
+                                parseResult.GetValue(labelsOption) ?? []),
+                            token)
+                        .ConfigureAwait(false);
+                    if (result.IsSuccess)
+                    {
+                        AdminCliOutput.WriteObject(
+                            result.Value,
+                            parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
+                    }
+
+                    return result;
+                },
+                cancellationToken);
+        });
         return command;
     }
 
@@ -525,7 +578,6 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                         parseResult.GetRequiredValue(expectedRoomVersionOption),
                         parseResult.GetRequiredValue(labelOption)),
                     cancellationToken),
-                "Bed updated",
                 cancellationToken));
         return command;
     }
@@ -600,8 +652,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         ParseResult parseResult,
         string operationName,
         AdminPermission permission,
-        Func<IServiceProvider, Task<Result<RoomDto>>> execute,
-        string successPrefix,
+        Func<IServiceProvider, Task<Result<RoomMutationReceiptDto>>> execute,
         CancellationToken cancellationToken)
     {
         AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
@@ -612,10 +663,12 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
             requireTenant: true,
             async (provider, _) =>
             {
-                Result<RoomDto> result = await execute(provider).ConfigureAwait(false);
+                Result<RoomMutationReceiptDto> result = await execute(provider).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
-                    AdminCliOutput.WriteMessage($"{successPrefix} '{result.Value.RoomId}'.");
+                    AdminCliOutput.WriteObject(
+                        result.Value,
+                        parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                 }
 
                 return result;
@@ -629,8 +682,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         ParseResult parseResult,
         string operationName,
         AdminPermission permission,
-        Func<IServiceProvider, Task<Result<BedDto>>> execute,
-        string successPrefix,
+        Func<IServiceProvider, Task<Result<BedMutationReceiptDto>>> execute,
         CancellationToken cancellationToken)
     {
         AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
@@ -641,10 +693,12 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
             requireTenant: true,
             async (provider, _) =>
             {
-                Result<BedDto> result = await execute(provider).ConfigureAwait(false);
+                Result<BedMutationReceiptDto> result = await execute(provider).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
-                    AdminCliOutput.WriteMessage($"{successPrefix} '{result.Value.BedId}'.");
+                    AdminCliOutput.WriteObject(
+                        result.Value,
+                        parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                 }
 
                 return result;
@@ -681,6 +735,20 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
             cancellationToken).ConfigureAwait(false);
     }
 
+    private static void WriteRooms(IReadOnlyCollection<RoomListItemDto> rooms, string output) =>
+        AdminCliOutput.WriteRows(
+            rooms,
+            output,
+            [
+                ("RoomId", room => room.RoomId.ToString()),
+                ("PropertyId", room => room.PropertyId.ToString()),
+                ("Name", room => room.Name),
+                ("Building", room => room.BuildingLabel ?? string.Empty),
+                ("Floor", room => room.FloorLabel ?? string.Empty),
+                ("Status", room => room.Status.ToString()),
+                ("Version", room => room.Version.ToString(CultureInfo.InvariantCulture))
+            ]);
+
     private static void WriteRooms(IReadOnlyCollection<RoomDto> rooms, string output) =>
         AdminCliOutput.WriteRows(
             rooms,
@@ -695,7 +763,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 ("Version", room => room.Version.ToString(CultureInfo.InvariantCulture))
             ]);
 
-    private static void WriteBeds(IReadOnlyCollection<BedDto> beds, string output) =>
+    private static void WriteBeds(IReadOnlyCollection<BedListItemDto> beds, string output) =>
         AdminCliOutput.WriteRows(
             beds,
             output,

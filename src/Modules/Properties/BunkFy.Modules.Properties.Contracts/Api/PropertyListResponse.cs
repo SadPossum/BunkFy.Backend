@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Properties.Contracts;
 
 public sealed record PropertyListResponse(
-    IReadOnlyCollection<PropertyDto> Properties,
+    IReadOnlyCollection<PropertyListItemDto> Properties,
     int Page,
-    int PageSize);
+    int PageSize,
+    bool HasMore);

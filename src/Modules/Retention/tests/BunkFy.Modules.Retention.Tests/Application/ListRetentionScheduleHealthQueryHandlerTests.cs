@@ -16,11 +16,13 @@ public sealed class ListRetentionScheduleHealthQueryHandlerTests
         new(2026, 7, 27, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Overdue_schedule_is_prioritized_ahead_of_never_run_schedule()
+    public async Task Health_snapshot_is_prioritized_paginated_and_exposes_run_coordinate()
     {
         Guid propertyId = Guid.NewGuid();
+        Guid runId = Guid.NewGuid();
         RetentionScheduleDescriptor overdue = Descriptor("raw-source-evidence");
         RetentionScheduleDescriptor neverRun = Descriptor("sensitive-history");
+        TestClock clock = new();
         ListRetentionScheduleHealthQueryHandler handler = new(
             new FakeScopeRepository(new("tenant-a", propertyId)),
             new FakeHealthReader(new RetentionScheduleStateSnapshot(
@@ -29,6 +31,7 @@ public sealed class ListRetentionScheduleHealthQueryHandlerTests
                 propertyId,
                 overdue.ExecutionPolicyVersion,
                 (int)RetentionExecutionState.Failed,
+                runId,
                 Now.AddHours(-2),
                 Now.AddHours(-2).AddMinutes(1),
                 Now.AddHours(-1),
@@ -42,30 +45,62 @@ public sealed class ListRetentionScheduleHealthQueryHandlerTests
                 new Contributor(neverRun),
                 new Contributor(overdue)
             ],
-            new TestClock());
+            clock);
 
-        Result<RetentionScheduleHealthListResponse> result =
+        Result<RetentionScheduleHealthListResponse> firstPage =
             await handler.HandleAsync(
-                new ListRetentionScheduleHealthQuery(),
+                new ListRetentionScheduleHealthQuery(1, 1),
+                CancellationToken.None);
+        Result<RetentionScheduleHealthListResponse> secondPage =
+            await handler.HandleAsync(
+                new ListRetentionScheduleHealthQuery(2, 1),
                 CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.Collection(
-            result.Value.Items,
-            item =>
-            {
-                Assert.Equal(overdue.DataClassKey, item.DataClassKey);
-                Assert.Equal(RetentionExecutionStatus.Failed, item.Status);
-                Assert.True(item.Overdue);
-                Assert.Equal(2, item.ConsecutiveFailures);
-            },
-            item =>
-            {
-                Assert.Equal(neverRun.DataClassKey, item.DataClassKey);
-                Assert.Equal(RetentionExecutionStatus.NeverRun, item.Status);
-                Assert.False(item.Overdue);
-                Assert.Equal(Now, item.NextDueAtUtc);
-            });
+        Assert.True(firstPage.IsSuccess);
+        RetentionScheduleHealthDto failed = Assert.Single(firstPage.Value.Items);
+        Assert.Equal(overdue.DataClassKey, failed.DataClassKey);
+        Assert.Equal(RetentionExecutionStatus.Failed, failed.Status);
+        Assert.Equal(runId, failed.LastRunId);
+        Assert.True(failed.Overdue);
+        Assert.Equal(2, failed.ConsecutiveFailures);
+        Assert.Equal(1, firstPage.Value.Page);
+        Assert.Equal(1, firstPage.Value.PageSize);
+        Assert.True(firstPage.Value.HasMore);
+        Assert.Equal(
+            new RetentionScheduleHealthSummaryDto(2, 0, 0, 1),
+            firstPage.Value.Summary);
+
+        Assert.True(secondPage.IsSuccess);
+        RetentionScheduleHealthDto pending = Assert.Single(secondPage.Value.Items);
+        Assert.Equal(neverRun.DataClassKey, pending.DataClassKey);
+        Assert.Equal(RetentionExecutionStatus.NeverRun, pending.Status);
+        Assert.Null(pending.LastRunId);
+        Assert.False(pending.Overdue);
+        Assert.Equal(Now, pending.NextDueAtUtc);
+        Assert.False(secondPage.Value.HasMore);
+        Assert.Equal(firstPage.Value.Summary, secondPage.Value.Summary);
+        Assert.Equal(2, clock.AccessCount);
+    }
+
+    [Fact]
+    public async Task Duplicate_contributor_coordinate_fails_health_read_closed()
+    {
+        RetentionScheduleDescriptor duplicate = Descriptor("raw-source-evidence");
+        ListRetentionScheduleHealthQueryHandler handler = new(
+            new FakeScopeRepository(new("tenant-a", Guid.NewGuid())),
+            new FakeHealthReader(),
+            [new Contributor(duplicate), new Contributor(duplicate)],
+            new TestClock());
+
+        InvalidOperationException exception =
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                handler.HandleAsync(
+                    new ListRetentionScheduleHealthQuery(),
+                    CancellationToken.None));
+
+        Assert.Equal(
+            "Retention.ContributorDescriptorDuplicate",
+            exception.Message);
     }
 
     private static RetentionScheduleDescriptor Descriptor(string dataClassKey) => new(
@@ -132,6 +167,15 @@ public sealed class ListRetentionScheduleHealthQueryHandlerTests
 
     private sealed class TestClock : ISystemClock
     {
-        public DateTimeOffset UtcNow => Now;
+        public int AccessCount { get; private set; }
+
+        public DateTimeOffset UtcNow
+        {
+            get
+            {
+                this.AccessCount++;
+                return Now;
+            }
+        }
     }
 }

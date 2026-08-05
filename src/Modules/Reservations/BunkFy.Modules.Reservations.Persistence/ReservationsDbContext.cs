@@ -4,14 +4,23 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
 using BunkFy.Modules.Reservations.Domain.Retention;
+using BunkFy.Modules.Reservations.Persistence.TenantTermination;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Messaging.Infrastructure;
+using Gma.Framework.Naming;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
-public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext> options, IScopeContext scopeContext)
+public sealed class ReservationsDbContext(
+    DbContextOptions<ReservationsDbContext> options,
+    IScopeContext scopeContext,
+    IWorkspaceTerminationFenceReader? terminationFences = null)
     : ScopeAwareDbContext<ReservationsDbContext>(options, scopeContext)
 {
+    private readonly IScopeContext scopeContext = scopeContext;
+
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
     public DbSet<Reservation> Reservations => this.Set<Reservation>();
@@ -53,24 +62,39 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
     public DbSet<ReservationPropertyProjection> PropertyProjections => this.Set<ReservationPropertyProjection>();
     public DbSet<ReservationArrivalReminder> ArrivalReminders => this.Set<ReservationArrivalReminder>();
     public DbSet<ReservationExternalOperation> ExternalOperations => this.Set<ReservationExternalOperation>();
+    internal DbSet<ReservationOperationLock> OperationLocks =>
+        this.Set<ReservationOperationLock>();
     public DbSet<ReservationInventoryUnitProjection> InventoryUnitProjections => this.Set<ReservationInventoryUnitProjection>();
     public DbSet<ReservationInventoryBlockProjection> InventoryBlockProjections => this.Set<ReservationInventoryBlockProjection>();
     public DbSet<ReservationInventoryAllocationProjection> InventoryAllocationProjections => this.Set<ReservationInventoryAllocationProjection>();
     public DbSet<ReservationInventoryAllocationUnitProjection> InventoryAllocationUnitProjections => this.Set<ReservationInventoryAllocationUnitProjection>();
     public DbSet<ReservationsProjectionRebuildCheckpoint> ProjectionRebuildCheckpoints => this.Set<ReservationsProjectionRebuildCheckpoint>();
+    internal DbSet<ReservationsTenantRevision> TenantRevisions =>
+        this.Set<ReservationsTenantRevision>();
+    internal DbSet<ReservationsTenantDestroyOperation>
+        TenantDestroyOperations =>
+        this.Set<ReservationsTenantDestroyOperation>();
+    internal DbSet<ReservationsTenantDestroyReceipt> TenantDestroyReceipts =>
+        this.Set<ReservationsTenantDestroyReceipt>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         this.EnsureDataRightsReceiptsAreAppendOnly();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        return this.SaveChangesWithAdmissionAsync(
+                acceptAllChangesOnSuccess,
+                CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
     }
 
-    public override Task<int> SaveChangesAsync(
+    public override async Task<int> SaveChangesAsync(
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
         this.EnsureDataRightsReceiptsAreAppendOnly();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        return await this.SaveChangesWithAdmissionAsync(
+            acceptAllChangesOnSuccess,
+            cancellationToken).ConfigureAwait(false);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -78,6 +102,291 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         modelBuilder.HasDefaultSchema(ReservationsMigrations.Schema);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ReservationsDbContext).Assembly);
         this.ApplyScopeConventions(modelBuilder);
+    }
+
+    private async Task<int> SaveChangesWithAdmissionAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken)
+    {
+        bool hasOperationalMutation = this.HasOperationalMutation();
+        if (!hasOperationalMutation && !this.HasTenantOwnedMutation())
+        {
+            return await base.SaveChangesAsync(
+                acceptAllChangesOnSuccess,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!this.scopeContext.IsEnabled ||
+            string.IsNullOrWhiteSpace(this.scopeContext.ScopeId))
+        {
+            throw new ReservationsOperationalAdmissionException(
+                ReservationsOperationalAdmissionFailure.Unavailable);
+        }
+
+        string tenantId = this.scopeContext.ScopeId;
+        IDbContextTransaction? ownedTransaction = null;
+        if (this.Database.IsRelational() &&
+            this.Database.CurrentTransaction is null)
+        {
+            ownedTransaction = await this.Database
+                .BeginTransactionAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        try
+        {
+            if (this.Database.IsRelational())
+            {
+                await ReservationsTenantMutationLock.AcquireAdmissionAsync(
+                    this,
+                    tenantId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            await this.EnsureOperationalAdmissionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (hasOperationalMutation)
+            {
+                await this.AdvanceTenantRevisionAsync(
+                    tenantId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            int affected = await base.SaveChangesAsync(
+                acceptAllChangesOnSuccess,
+                cancellationToken).ConfigureAwait(false);
+            if (ownedTransaction is not null)
+            {
+                await ownedTransaction.CommitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            return affected;
+        }
+        catch
+        {
+            if (ownedTransaction is not null)
+            {
+                await ownedTransaction.RollbackAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+
+            throw;
+        }
+        finally
+        {
+            if (ownedTransaction is not null)
+            {
+                await ownedTransaction.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task EnsureOperationalAdmissionAsync(
+        CancellationToken cancellationToken)
+    {
+        ReservationsTenantRevision? localState =
+            this.TenantRevisions.Local.SingleOrDefault() ??
+            await this.TenantRevisions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (localState is not null && !localState.IsOpen)
+        {
+            throw new ReservationsOperationalAdmissionException(
+                ReservationsOperationalAdmissionFailure.Restricted);
+        }
+
+        if (terminationFences is null)
+        {
+            if (this.Database.IsRelational())
+            {
+                throw new ReservationsOperationalAdmissionException(
+                    ReservationsOperationalAdmissionFailure.Unavailable);
+            }
+
+            return;
+        }
+
+        WorkspaceTerminationFenceSnapshot? fence;
+        try
+        {
+            fence = await terminationFences.GetCurrentAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+            when (exception is not OperationCanceledException)
+        {
+            throw new ReservationsOperationalAdmissionException(
+                ReservationsOperationalAdmissionFailure.Unavailable);
+        }
+
+        if (fence is null)
+        {
+            return;
+        }
+
+        bool valid = fence.ProcessId != Guid.Empty &&
+            fence.TerminationEpoch != Guid.Empty &&
+            fence.Version > 0 &&
+            fence.State is
+                WorkspaceTerminationFenceState.Frozen or
+                WorkspaceTerminationFenceState.DestructionStarted or
+                WorkspaceTerminationFenceState.Closed;
+        throw new ReservationsOperationalAdmissionException(
+            valid
+                ? ReservationsOperationalAdmissionFailure.Restricted
+                : ReservationsOperationalAdmissionFailure.Unavailable);
+    }
+
+    private async Task AdvanceTenantRevisionAsync(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        ReservationsTenantRevision? revision =
+            this.TenantRevisions.Local.SingleOrDefault() ??
+            await this.TenantRevisions
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (revision is null)
+        {
+            this.TenantRevisions.Add(
+                ReservationsTenantRevision.Create(tenantId));
+        }
+        else
+        {
+            revision.Advance();
+        }
+    }
+
+    private bool HasOperationalMutation() =>
+        this.ChangeTracker.Entries().Any(entry =>
+            (entry.State is EntityState.Added or
+                EntityState.Modified or EntityState.Deleted) &&
+            entry.Entity is not (
+                InboxMessage or
+                OutboxMessage or
+                ReservationProcessingRestrictionProjection or
+                ReservationGuestProcessingRestrictionProjection or
+                ReservationGuestProfileProjection or
+                ReservationInventoryAllocationProjection or
+                ReservationInventoryAllocationUnitProjection or
+                ReservationInventoryBlockProjection or
+                ReservationInventoryUnitProjection or
+                ReservationPropertyProjection or
+                ReservationPropertyPolicyBinding or
+                ReservationPropertyPolicyAcknowledgement or
+                ReservationOperationLock or
+                ReservationsProjectionRebuildCheckpoint or
+                ReservationRetentionSweepCheckpoint or
+                ReservationsTenantRevision or
+                ReservationsTenantDestroyOperation or
+                ReservationsTenantDestroyReceipt));
+
+    private bool HasTenantOwnedMutation() =>
+        this.ChangeTracker.Entries().Any(entry =>
+            (entry.State is EntityState.Added or
+                EntityState.Modified or EntityState.Deleted) &&
+            entry.Entity switch
+            {
+                InboxMessage message =>
+                    entry.State == EntityState.Added &&
+                    !string.IsNullOrWhiteSpace(message.ScopeId),
+                OutboxMessage message =>
+                    entry.State == EntityState.Added &&
+                    !string.IsNullOrWhiteSpace(message.ScopeId),
+                ReservationsTenantRevision or
+                ReservationsTenantDestroyOperation or
+                ReservationsTenantDestroyReceipt => false,
+                _ => true
+            });
+
+    internal async ValueTask<bool> TryAdmitMessageMutationAsync(
+        string? tenantId,
+        CancellationToken cancellationToken)
+    {
+        if (!TenantIds.TryNormalize(tenantId, out string? canonicalTenantId) ||
+            !this.scopeContext.IsEnabled ||
+            !string.Equals(
+                this.scopeContext.ScopeId,
+                canonicalTenantId,
+                StringComparison.Ordinal) ||
+            (this.Database.IsRelational() &&
+             this.Database.CurrentTransaction is null))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (this.Database.IsRelational())
+            {
+                await ReservationsTenantMutationLock.AcquireAdmissionAsync(
+                    this,
+                    canonicalTenantId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            await this.EnsureOperationalAdmissionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return true;
+        }
+        catch (ReservationsOperationalAdmissionException)
+        {
+            return false;
+        }
+        catch (Exception exception)
+            when (exception is not OperationCanceledException)
+        {
+            return false;
+        }
+    }
+
+    internal async Task<int> SaveTenantDestructionChangesAsync(
+        string tenantId,
+        Guid operationId,
+        CancellationToken cancellationToken)
+    {
+        if (!TenantIds.TryNormalize(tenantId, out string? canonicalTenantId) ||
+            operationId == Guid.Empty ||
+            !this.scopeContext.IsEnabled ||
+            !string.Equals(
+                this.scopeContext.ScopeId,
+                canonicalTenantId,
+                StringComparison.Ordinal) ||
+            (this.Database.IsRelational() &&
+             this.Database.CurrentTransaction is null))
+        {
+            throw new InvalidOperationException(
+                "Reservations tenant destruction admission is invalid.");
+        }
+
+        ReservationsTenantRevision? state =
+            this.TenantRevisions.Local.SingleOrDefault() ??
+            await this.TenantRevisions
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (state is null || state.DestroyOperationId != operationId ||
+            state.LifecycleStatus is not (
+                ReservationsTenantLifecycleStatus.Closing or
+                ReservationsTenantLifecycleStatus.Closed))
+        {
+            throw new InvalidOperationException(
+                "Reservations tenant destruction state is invalid.");
+        }
+
+        if (this.Database.IsNpgsql())
+        {
+            await this.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT set_config('bunkfy.reservations_tenant_destroy_operation_id', {operationId.ToString("D")}, true)",
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return await base.SaveChangesAsync(
+                acceptAllChangesOnSuccess: true,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private void EnsureDataRightsReceiptsAreAppendOnly()
@@ -148,6 +457,16 @@ public sealed class ReservationsDbContext(DbContextOptions<ReservationsDbContext
         {
             throw new InvalidOperationException(
                 "Reservation anonymisation tombstones cannot be deleted.");
+        }
+
+        bool tenantDestroyReceiptMutationRequested = this.ChangeTracker
+            .Entries<ReservationsTenantDestroyReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        if (tenantDestroyReceiptMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Reservations tenant destruction receipts are append-only.");
         }
     }
 }

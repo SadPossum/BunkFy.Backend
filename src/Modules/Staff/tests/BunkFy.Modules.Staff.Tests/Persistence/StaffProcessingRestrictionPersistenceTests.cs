@@ -104,7 +104,7 @@ public sealed class StaffProcessingRestrictionPersistenceTests
             status: null,
             new PageRequest(1, 20),
             CancellationToken.None);
-        StaffDirectoryMemberDto onlyVisible = Assert.Single(visible.Items);
+        StaffDirectoryListItemDto onlyVisible = Assert.Single(visible.Items);
         Assert.Equal(unrestricted.Id, onlyVisible.StaffMemberId);
 
         Assert.NotNull(await members.GetForDataRightsAsync(

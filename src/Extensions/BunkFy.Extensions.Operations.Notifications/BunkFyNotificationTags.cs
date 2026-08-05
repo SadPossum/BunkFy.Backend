@@ -36,11 +36,18 @@ internal static class BunkFyNotificationTags
         "Staff",
         "Staff access, assignment, and lifecycle activity.");
 
+    private static readonly NotificationTag DataRights = Domain(
+        "domain:data-rights",
+        "Data rights",
+        "Privacy request lifecycle and response deadline activity.");
+
     public static IReadOnlyList<NotificationTag> PropertyActivity { get; } = [Web, Properties];
     public static IReadOnlyList<NotificationTag> InventoryActivity { get; } = [Web, Inventory];
     public static IReadOnlyList<NotificationTag> ReservationActivity { get; } = [Web, Reservations];
     public static IReadOnlyList<NotificationTag> ProviderAttention { get; } = [Web, Providers, Reservations];
     public static IReadOnlyList<NotificationTag> StaffActivity { get; } = [Web, Staff];
+    public static IReadOnlyList<NotificationTag> DataRightsAttention { get; } =
+        [Web, DataRights];
 
     private static NotificationTag Domain(string key, string displayName, string description) =>
         new(key, NotificationTagKind.Domain, displayName, description);

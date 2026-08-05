@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Persistence.Repositories;
 
+using System.Runtime.CompilerServices;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,25 @@ internal sealed class AdapterPollingScheduleReader(IngestionDbContext dbContext)
 {
     public async Task<IReadOnlyList<AdapterPollingScheduleDefinition>> ListActiveAsync(
         CancellationToken cancellationToken) =>
-        await dbContext.AdapterConnections
+        await this.ActiveSchedules()
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    public async IAsyncEnumerable<AdapterPollingScheduleDefinition> StreamActiveAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (AdapterPollingScheduleDefinition schedule in this
+            .ActiveSchedules()
+            .AsAsyncEnumerable()
+            .WithCancellation(cancellationToken)
+            .ConfigureAwait(false))
+        {
+            yield return schedule;
+        }
+    }
+
+    private IQueryable<AdapterPollingScheduleDefinition> ActiveSchedules() =>
+        dbContext.AdapterConnections
             .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(connection =>
@@ -23,7 +42,5 @@ internal sealed class AdapterPollingScheduleReader(IngestionDbContext dbContext)
                 connection.ScopeId,
                 connection.Id,
                 connection.PollingIntervalSeconds!.Value,
-                connection.PollingScheduleMaxAttempts!.Value))
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
+                connection.PollingScheduleMaxAttempts!.Value));
 }

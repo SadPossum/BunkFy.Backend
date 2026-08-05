@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Tests;
 
 using System.Reflection;
 using BunkFy.DataGovernance;
+using BunkFy.Modules.Guests.AdminApi;
 using BunkFy.Modules.Guests.Api;
 using BunkFy.Modules.Guests.Application.Commands;
 using BunkFy.Modules.Guests.Application.Policies;
@@ -114,7 +115,11 @@ public sealed class GuestsPersonalDataCatalogTests
             typeof(GuestRetentionEligibilityResult),
             PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(GetGuestProfileQuery), PersonalDataSurface.ApplicationQuery);
-        AssertType(typeof(GetGuestStayHistoryQuery), PersonalDataSurface.ApplicationQuery);
+        AssertType(
+            typeof(GetGuestStayHistoryQuery),
+            PersonalDataSurface.ApplicationQuery,
+            nameof(GetGuestStayHistoryQuery.Page),
+            nameof(GetGuestStayHistoryQuery.PageSize));
         AssertType(
             typeof(ListGuestProcessingRestrictionsQuery),
             PersonalDataSurface.ApplicationQuery,
@@ -151,8 +156,20 @@ public sealed class GuestsPersonalDataCatalogTests
             typeof(GuestsModule.ArchiveGuestProfileRequest),
             PersonalDataSurface.ApiInput,
             nameof(GuestsModule.ArchiveGuestProfileRequest.Confirmed));
+        AssertType(
+            typeof(GuestsAdminApiModule.GuestProfileWriteRequest),
+            PersonalDataSurface.ApiInput);
+        AssertType(
+            typeof(GuestsAdminApiModule.GuestProfileUpdateRequest),
+            PersonalDataSurface.ApiInput);
+        AssertType(
+            typeof(GuestsAdminApiModule.ArchiveGuestProfileRequest),
+            PersonalDataSurface.ApiInput,
+            nameof(GuestsAdminApiModule.ArchiveGuestProfileRequest.Confirmed));
 
         AssertType(typeof(GuestProfileDto), PersonalDataSurface.ApiResponse);
+        AssertType(typeof(GuestListItemDto), PersonalDataSurface.ApiResponse);
+        AssertType(typeof(GuestMutationReceiptDto), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestDataRightsCorrectionReceiptDto), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestProcessingRestrictionDto), PersonalDataSurface.ApiResponse);
         AssertType(
@@ -292,6 +309,7 @@ public sealed class GuestsPersonalDataCatalogTests
     private static Dictionary<string, Assembly> CreateAssemblyIndex() =>
         new[]
         {
+            typeof(GuestsAdminApiModule).Assembly,
             typeof(GuestsModule).Assembly,
             typeof(CreateGuestProfileCommand).Assembly,
             typeof(GuestsModuleMetadata).Assembly,

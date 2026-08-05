@@ -1,0 +1,1142 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "access-control.personal-data",
+  "catalogVersion": 1,
+  "module": "access-control",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "access-control-tenant-portability",
+      "scope": "tenant-authorized-access-control-portability",
+      "readers": [
+        "system:data-rights.export-assembler"
+      ],
+      "writers": [
+        "system:access-control-data-rights-adapter"
+      ]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "access-control-tenant-termination-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "owner-fragment-created",
+      "endsAt": "protected-export-assembly-completed-or-failed",
+      "legalHoldBehavior": "not-applicable"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "access-control-tenant-portability",
+      "export": "include-in-authorized-tenant-portability-export",
+      "correction": "correct-through-authoritative-access-control-workflow",
+      "restriction": "enforce-frozen-access-control-scope",
+      "erasure": "destroy-after-approved-tenant-termination"
+    }
+  ],
+  "fields": [
+    {
+      "id": "access-control.access-scope",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.access-scope",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "AccessScopeValue",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.actor-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "access-control"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.actor-id",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "ActorId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.actor-kind",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.actor-kind",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "ActorKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.assignment-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.assignment-id",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "AssignmentId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "AssignmentId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.assignment-scope",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.assignment-scope",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "AssignmentScopeValue",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "AssignmentScopeValue",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.change-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.change-id",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "ChangeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.change-kind",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.change-kind",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "Kind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.created-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.created-at",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "CreatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.created-by-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "access-control"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.created-by-id",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "CreatedById",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "CreatedById",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.created-by-kind",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.created-by-kind",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "CreatedByKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "CreatedByKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.description",
+      "dataSubject": "staff",
+      "classification": "free-text",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.description",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "Description",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.display-name",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.display-name",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "DisplayName",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.expires-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.expires-at",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "ExpiresAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.last-changed-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.last-changed-at",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "LastChangedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.last-changed-by-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "access-control"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.last-changed-by-id",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "LastChangedById",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.last-changed-by-kind",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.last-changed-by-kind",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "LastChangedByKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.occurred-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.occurred-at",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "OccurredAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.permissions",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.permissions",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "Permissions",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.profile-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.profile-id",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "ProfileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "ProfileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "ProfileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.profile-key",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.profile-key",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "Key",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "ProfileKey",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "ProfileKey",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.profile-owner-scope",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.profile-owner-scope",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "OwnerScopeValue",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "ProfileOwnerScopeValue",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "ProfileOwnerScopeValue",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.record-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.record-version",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "Version",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "ProfileVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.revoked-at",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.revoked-at",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "RevokedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.role-name",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.role-name",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "RoleName",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.role-permissions",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.role-permissions",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "RolePermissions",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.status",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileTenantExport",
+          "member": "Status",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.subject-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "auth",
+        "access-control"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.subject-id",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "SubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "SubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "SubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "access-control.subject-kind",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "tenant-portability",
+        "tenant-termination-accountability"
+      ],
+      "sources": [
+        "access-control"
+      ],
+      "authoritativeOwner": "access-control",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "access-control-tenant-portability",
+      "countryPolicyKey": "access-control.subject-kind",
+      "retentionPolicy": "access-control-tenant-termination-export-fragment",
+      "rightsPolicy": "access-control-tenant-portability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlRoleAssignmentTenantExport",
+          "member": "SubjectKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileAssignmentTenantExport",
+          "member": "SubjectKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Extensions.DataRights.AccessControl",
+          "type": "BunkFy.Extensions.DataRights.AccessControl.AccessControlProfileChangeTenantExport",
+          "member": "SubjectKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "access-control-tenant-termination-export-fragment"
+        }
+      ]
+    }
+  ]
+}

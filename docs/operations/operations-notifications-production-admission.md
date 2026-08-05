@@ -50,8 +50,8 @@ Choose exactly one disposition before first admission:
   delivery work, and replayable product source events before tenant traffic;
   or
 - `VerifiedReferenceComplete`: prove every retained product notification has
-  its mandatory current Staff reference and, where applicable, Reservation or
-  Ingestion source-link reference.
+  its mandatory tenant operational-history and current Staff references and,
+  where applicable, Reservation or Ingestion source-link reference.
 
 Retain the bounded query or reset procedure, result counts, database identity,
 timestamp, source commit, operator, approver, and rollback decision in the
@@ -148,6 +148,23 @@ The reusable engine protects pending, processing, and retry-scheduled
 deliveries, advances open history-reference versions before deleting content,
 and retains closure evidence for replay suppression. Do not delete its
 reference-state or close-receipt tables by age.
+
+Tenant termination uses the product-neutral Notifications scope lifecycle in
+bounded resumable batches. The matching frozen Workspace fence and owner
+idempotency key are mandatory. Export selects one scope revision across all 12
+typed stores; destruction installs a scope tombstone on its first accepted call
+and removes disposable notifications, preferences, routes, tenant broadcasts,
+delivery state, transport inbox rows, and related children before returning a
+terminal payload-free receipt. Platform-global broadcasts remain outside the
+tenant owner, while exact history-reference and scope proofs are retained only
+for authorized replay suppression.
+
+The exact PostgreSQL scope-destruction proof passed against the final migration
+and foreign-key shape on 2026-08-04:
+
+```powershell
+dotnet test gma/modules/notifications/tests/Gma.Modules.Notifications.IntegrationTests/Gma.Modules.Notifications.IntegrationTests.csproj --filter 'FullyQualifiedName~Scope_destruction_resumes_and_retains_only_terminal_proof_on_postgresql'
+```
 
 ## Pause And Rollback
 

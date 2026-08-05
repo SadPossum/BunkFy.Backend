@@ -36,6 +36,12 @@ public static class InventoryApplicationErrors
     public static readonly Error RoomRetirementRetryInvalid = new("Inventory.RoomRetirementRetryInvalid", "Only a rejected room retirement can be retried.");
     public static readonly Error RoomRetirementStillDraining = new("Inventory.RoomRetirementStillDraining", "Active reservations, inventory blocks, or bed retirements still depend on this room.");
     public static readonly Error RoomRetirementInProgress = new("Inventory.RoomRetirementInProgress", "The room is already being retired, so its beds cannot be retired independently.");
+    public static readonly Error WorkspaceProcessingRestricted = new(
+        "Inventory.WorkspaceProcessingRestricted",
+        "The workspace is not accepting operational changes.");
+    public static readonly Error WorkspaceProcessingAdmissionUnavailable = new(
+        "Inventory.WorkspaceProcessingAdmissionUnavailable",
+        "Workspace processing admission is temporarily unavailable.");
     public static readonly Error AnonymisationRequestInvalid = new(
         "Inventory.AnonymisationRequestInvalid",
         "The inventory allocation anonymisation request is invalid.");

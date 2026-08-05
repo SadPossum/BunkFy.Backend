@@ -3,7 +3,9 @@ namespace BunkFy.Modules.Inventory.Tests;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Inventory.Persistence.TenantTermination;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using BunkFy.Modules.Properties.Contracts;
 using Xunit;
@@ -11,6 +13,67 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class InventoryTopologyModelTests
 {
+    [Fact]
+    public void Tenant_revision_is_scope_filtered()
+    {
+        using InventoryDbContext dbContext = CreateDbContext();
+
+        IEntityType revisionEntity = dbContext.Model.FindEntityType(
+            typeof(InventoryTenantRevision))!;
+
+        Assert.NotEmpty(revisionEntity.GetDeclaredQueryFilters());
+    }
+
+    [Fact]
+    public void Tenant_destruction_progress_and_receipt_are_scope_unique_and_constrained()
+    {
+        using InventoryDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(InventoryTenantDestroyOperation))!;
+        IEntityType receipt = designModel.FindEntityType(
+            typeof(InventoryTenantDestroyReceipt))!;
+
+        Assert.Equal(
+            [nameof(InventoryTenantDestroyOperation.OperationId)],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(operation.FindProperty(
+            nameof(InventoryTenantDestroyOperation.ConcurrencyVersion))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            operation.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(InventoryTenantDestroyOperation.ScopeId)
+                    ]));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_inventory_tenant_destroy_operation_batch");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_inventory_tenant_destroy_operation_progress");
+
+        Assert.Equal(
+            [nameof(InventoryTenantDestroyReceipt.OperationId)],
+            receipt.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(InventoryTenantDestroyReceipt.ScopeId)
+                    ]));
+        Assert.Contains(
+            receipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_inventory_tenant_destroy_receipt_progress");
+    }
+
     [Fact]
     public void Delayed_room_event_can_authoritatively_fill_a_bed_created_placeholder()
     {

@@ -13,6 +13,23 @@ module. The generated
 [`personal-data-inventory.v1.md`](personal-data-inventory.v1.md) is checked by
 reflection tests against every selected mapped member and public contract.
 
+## Operational surfaces
+
+Workspaces-owned onboarding and access-recovery queues use stable offset
+ordering and `pageSize + 1` lookahead. Their contracts expose `HasMore` without
+issuing exact-count queries or requiring clients to probe an empty terminal
+page. The access-process queue projects only the scalar fields it serves,
+including its profile count, instead of loading aggregate-owned profile
+snapshots. Admin responses are non-cacheable and publish explicit success
+contracts, and the Admin CLI accepts deliberate page and page-size selection.
+
+Workflow detail and mutation responses remain bounded, decision-oriented
+models because their immediate state is needed to continue onboarding and
+access recovery. Membership, invitation, enrollment-link, and join-claim
+directories remain owned by GMA Organizations; adding truthful continuation to
+those generic contracts requires a separate Organizations change and
+coordinated consumer alignment.
+
 Copied applicant identity and contact fields are transient onboarding data.
 Completion, rejection, supersession, invitation expiry, and claim expiry
 redact those fields from the Workspaces record; the Staff module becomes
@@ -39,6 +56,25 @@ access processes, access plans, and immutable retention-correlation receipts
 as separate versioned coordinates. Exact record or Auth account-subject
 lookups are accepted; weak, mixed, property-scoped, cross-tenant, and retained
 pseudonym lookups fail closed.
+
+For an approved optional tenant-termination export, Workspaces streams the
+same catalogue-approved portable staff and access-history shapes across the
+whole frozen tenant. A tenant-scoped transaction lock drains local writes
+before the fence is accepted and remains held through a repeatable-read
+snapshot. The export excludes property projections, transport journals,
+rebuild checkpoints, termination accountability proofs, anonymisation
+tombstones, and generic Organizations, Auth, or Access Control state owned by
+other modules.
+
+For irreversible tenant termination, Workspaces is the final product owner.
+It waits for the terminal Properties and Task Runtime branches, transitions
+the exact frozen fence into destruction, and removes its remaining operational,
+projection, transport, governance, anonymisation, and historical proof rows in
+foreign-key-safe batches of at most 500 physical rows. Completion retains only
+the closed fence, its final close receipt, and one immutable PII-free destruction
+receipt with a versioned SHA-256 proof chain. Equivalent retries resume or
+replay exactly, changed requests conflict, and generic Organizations, Access
+Control, Notifications, and Task Runtime records remain under their own owners.
 
 An approved Staff Rights correction may replace only the seven applicant
 profile fields on one exact `Submitted` onboarding version. The claim-bound

@@ -1,12 +1,17 @@
 namespace BunkFy.Extensions.Workspaces;
 
 using BunkFy.Modules.Workspaces.Contracts;
+using Gma.Framework.AccessControl;
 using Gma.Modules.AccessControl.Contracts;
 
 internal sealed class WorkspaceAccessProfileMutationAdmissionPolicy(
     IWorkspaceOperationalAdmissionPolicy operationalAdmission)
     : IAccessProfileMutationAdmissionPolicy
 {
+    private static readonly HashSet<string> ProtectedSeedKeys =
+        WorkspaceAccessPermissionCatalogue.ProtectedSeedKeys.ToHashSet(
+            StringComparer.Ordinal);
+
     public async ValueTask<AccessProfileMutationAdmissionDecision>
         EvaluateAsync(
             AccessProfileMutationAdmissionContext context,
@@ -17,6 +22,13 @@ internal sealed class WorkspaceAccessProfileMutationAdmissionPolicy(
                 context.OwnerScope))
         {
             return AccessProfileMutationAdmissionDecision.Allowed;
+        }
+
+        if (context.ProfileKey is not null &&
+            ProtectedSeedKeys.Contains(context.ProfileKey) &&
+            !IsProvisioner(context.Actor))
+        {
+            return AccessProfileMutationAdmissionDecision.Denied;
         }
 
         WorkspaceOperationalAdmissionDecision decision =
@@ -32,4 +44,11 @@ internal sealed class WorkspaceAccessProfileMutationAdmissionPolicy(
             _ => AccessProfileMutationAdmissionDecision.Unavailable
         };
     }
+
+    private static bool IsProvisioner(AccessSubject actor) =>
+        actor.Kind == AccessSubjectKind.System &&
+        string.Equals(
+            actor.Id,
+            WorkspaceAccessActors.Provisioner,
+            StringComparison.Ordinal);
 }

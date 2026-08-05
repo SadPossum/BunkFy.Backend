@@ -47,7 +47,7 @@ internal sealed class TenantTerminationOwnerWorkItemConfiguration
                 "(\"State\" = 6 AND \"ResultCode\" IS NOT NULL AND " +
                 "\"AffectedCount\" >= 0 AND \"RetainedMinimumCount\" >= 0 AND " +
                 "\"RemainingActiveCount\" = 0 AND \"HoldReviewAtUtc\" IS NULL AND " +
-                "\"SelectedProofRevision\" >= 1 AND " +
+                "\"SelectedProofRevision\" >= 0 AND " +
                 "\"ResultingProofRevision\" >= \"SelectedProofRevision\" AND " +
                 "\"ResultRecordedAtUtc\" IS NOT NULL) OR " +
                 "(\"State\" = 4 AND \"ResultCode\" IS NOT NULL AND " +

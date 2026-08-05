@@ -18,7 +18,8 @@ public sealed record WorkspaceStaffAccessProcessDto(
 public sealed record WorkspaceStaffAccessProcessListResponse(
     IReadOnlyList<WorkspaceStaffAccessProcessDto> Items,
     int Page,
-    int PageSize);
+    int PageSize,
+    bool HasMore);
 
 public enum WorkspaceStaffAccessTargetStatus
 {

@@ -7,6 +7,7 @@ public sealed record RetentionScheduleHealthDto(
     Guid? PropertyId,
     int ExecutionPolicyVersion,
     RetentionExecutionStatus Status,
+    Guid? LastRunId,
     DateTimeOffset? LastStartedAtUtc,
     DateTimeOffset? LastCompletedAtUtc,
     DateTimeOffset NextDueAtUtc,
@@ -18,8 +19,18 @@ public sealed record RetentionScheduleHealthDto(
     string? OutcomeCode,
     DateTimeOffset? HoldReviewDueAtUtc);
 
+public sealed record RetentionScheduleHealthSummaryDto(
+    int Total,
+    int Healthy,
+    int Running,
+    int NeedsAttention);
+
 public sealed record RetentionScheduleHealthListResponse(
-    IReadOnlyList<RetentionScheduleHealthDto> Items);
+    IReadOnlyList<RetentionScheduleHealthDto> Items,
+    int Page,
+    int PageSize,
+    bool HasMore,
+    RetentionScheduleHealthSummaryDto Summary);
 
 public enum RetentionExecutionStatus
 {

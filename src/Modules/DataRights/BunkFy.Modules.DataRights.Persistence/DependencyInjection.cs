@@ -39,6 +39,11 @@ public static class DependencyInjection
                 DataRightsMigrations.HistoryTable));
         builder.Services.TryAddScoped<IDataRightsCaseRepository, DataRightsCaseRepository>();
         builder.Services.TryAddScoped<
+            IDataRightsResponseDeadlineAlertRepository,
+            DataRightsResponseDeadlineAlertRepository>();
+        builder.Services.TryAddScoped<ITenantTerminationCaseRepository, DataRightsCaseRepository>();
+        builder.Services.TryAddScoped<ITenantTerminationOperatorStatusRepository, TenantTerminationRepository>();
+        builder.Services.TryAddScoped<
             IDataRightsCorrectionExecutionRepository,
             DataRightsCorrectionExecutionRepository>();
         builder.Services.TryAddScoped<
@@ -62,6 +67,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             ITenantTerminationRepository,
             TenantTerminationRepository>();
+        builder.Services.TryAddScoped<
+            ITenantTerminationExportFragmentRepository,
+            TenantTerminationExportFragmentRepository>();
+        builder.Services.TryAddScoped<
+            ITenantTerminationExportArtifactRepository,
+            TenantTerminationExportArtifactRepository>();
+        builder.Services.TryAddScoped<
+            ITenantTerminationTerminalReceiptRepository,
+            TenantTerminationTerminalReceiptRepository>();
         AddProtectedLedgerServices(builder);
         AddProtectedExportServices(builder);
         builder.Services.TryAddScoped<
@@ -198,6 +212,7 @@ public static class DependencyInjection
             IValidateOptions<DataRightsLedgerDeltaOptions>>(
             new DataRightsLedgerDeltaOptionsValidator(isProduction)));
         builder.Services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+        AddTenantTerminationReplayServices(builder, isProduction);
 
         DataRightsLedgerDeltaProvider configuredProvider =
             useDevelopmentLedgerDelta
@@ -229,6 +244,57 @@ public static class DependencyInjection
                 DataRightsLedgerDeltaStartupValidator>());
     }
 
+    private static void AddTenantTerminationReplayServices(
+        IHostApplicationBuilder builder,
+        bool isProduction)
+    {
+        IConfigurationSection section = builder.Configuration.GetSection(
+            DataRightsTenantTerminationReplayOptions.SectionName);
+        bool useDevelopmentProvider = !isProduction && !section.Exists();
+        builder.Services
+            .AddOptions<DataRightsTenantTerminationReplayOptions>()
+            .Bind(section)
+            .PostConfigure(options =>
+            {
+                if (useDevelopmentProvider)
+                {
+                    options.Provider =
+                        DataRightsTenantTerminationReplayProvider.LocalFile;
+                    options.LocalFilePath = Path.Combine(
+                        builder.Environment.ContentRootPath,
+                        ".data",
+                        "tenant-termination-replay");
+                }
+            })
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<
+            IValidateOptions<DataRightsTenantTerminationReplayOptions>>(
+            new DataRightsTenantTerminationReplayOptionsValidator(
+                isProduction)));
+
+        DataRightsTenantTerminationReplayProvider provider =
+            useDevelopmentProvider
+                ? DataRightsTenantTerminationReplayProvider.LocalFile
+                : ParseTenantTerminationReplayProvider(
+                    section[nameof(
+                        DataRightsTenantTerminationReplayOptions.Provider)]);
+        if (provider ==
+            DataRightsTenantTerminationReplayProvider.LocalFile)
+        {
+            builder.Services.TryAddSingleton<
+                LocalFileTenantTerminationReplayStore>();
+            builder.Services.TryAddSingleton<ITenantTerminationReplayStore>(
+                services => services.GetRequiredService<
+                    LocalFileTenantTerminationReplayStore>());
+        }
+
+        builder.Services.TryAddSingleton<ITenantTerminationReplayStore,
+            MissingTenantTerminationReplayStore>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService,
+                DataRightsTenantTerminationReplayStartupValidator>());
+    }
+
     private static void AddProtectedExportServices(
         IHostApplicationBuilder builder)
     {
@@ -256,14 +322,22 @@ public static class DependencyInjection
             IValidateOptions<Gma.Framework.FileManagement.FileManagementOptions>,
             DataRightsExportArtifactStorageOptionsValidator>());
         builder.Services.TryAddSingleton<
-            IDataRightsExportArtifactProtector,
-            AesGcmDataRightsExportArtifactProtector>();
+            IDataRightsExportEnvelopeProtector,
+            AesGcmDataRightsExportEnvelopeProtector>();
+        builder.Services.TryAddScoped<ProtectedDataRightsExportObjectWriter>();
+        builder.Services.TryAddScoped<ProtectedDataRightsExportObjectReader>();
         builder.Services.TryAddSingleton<
             IDataRightsExportArtifactPolicy,
             DataRightsExportArtifactPolicy>();
         builder.Services.TryAddScoped<
             IDataRightsExportArtifactGenerator,
             ProtectedDataRightsExportArtifactGenerator>();
+        builder.Services.TryAddScoped<
+            ITenantTerminationExportFragmentGenerator,
+            ProtectedTenantTerminationExportFragmentGenerator>();
+        builder.Services.TryAddScoped<
+            ITenantTerminationExportArtifactGenerator,
+            ProtectedTenantTerminationExportArtifactGenerator>();
         builder.Services.TryAddScoped<
             IDataRightsExportArtifactReader,
             ProtectedDataRightsExportArtifactReader>();
@@ -277,4 +351,13 @@ public static class DependencyInjection
         Enum.TryParse(value, ignoreCase: true, out DataRightsLedgerDeltaProvider provider)
             ? provider
             : DataRightsLedgerDeltaProvider.Unknown;
+
+    private static DataRightsTenantTerminationReplayProvider
+        ParseTenantTerminationReplayProvider(string? value) =>
+        Enum.TryParse(
+            value,
+            ignoreCase: true,
+            out DataRightsTenantTerminationReplayProvider provider)
+            ? provider
+            : DataRightsTenantTerminationReplayProvider.Unknown;
 }

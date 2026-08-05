@@ -6,6 +6,14 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 internal static class ReservationMappings
 {
+    public static ReservationMutationReceiptDto ToMutationReceipt(
+        this Reservation reservation) => new(
+        reservation.Id,
+        reservation.PropertyId,
+        MapStatus(reservation.Status),
+        reservation.DetailsRevision,
+        reservation.Version);
+
     public static ReservationDto ToDto(this Reservation reservation) => new(
         reservation.Id,
         reservation.PropertyId,
@@ -65,4 +73,19 @@ internal static class ReservationMappings
         reservation.Guests.Where(guest => guest.IsCurrent).Select(guest => new ReservationGuestDto(
             guest.GuestId,
             (ReservationGuestRoleKind)(int)guest.Role)).ToArray());
+
+    private static ReservationStatus MapStatus(ReservationState status) => status switch
+    {
+        ReservationState.PendingAllocation => ReservationStatus.PendingAllocation,
+        ReservationState.Confirmed => ReservationStatus.Confirmed,
+        ReservationState.AllocationRejected => ReservationStatus.AllocationRejected,
+        ReservationState.CancellationPending => ReservationStatus.CancellationPending,
+        ReservationState.Cancelled => ReservationStatus.Cancelled,
+        ReservationState.CheckedIn => ReservationStatus.CheckedIn,
+        ReservationState.NoShowPending => ReservationStatus.NoShowPending,
+        ReservationState.NoShow => ReservationStatus.NoShow,
+        ReservationState.CheckoutPending => ReservationStatus.CheckoutPending,
+        ReservationState.CheckedOut => ReservationStatus.CheckedOut,
+        _ => ReservationStatus.Unknown
+    };
 }

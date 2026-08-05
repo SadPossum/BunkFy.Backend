@@ -16,7 +16,7 @@ internal static class InventoryDataRightsExportSchema
         "BunkFy.Modules.Inventory.Persistence.DataGovernance." +
         "personal-data-catalog.v1.json";
     private const string ExportPolicy =
-        "include-in-authorized-reservation-export";
+        "include-in-authorized-reservation-or-tenant-export";
     private const string ExportRetentionPolicy =
         "inventory-data-rights-export-fragment";
 

@@ -4,6 +4,7 @@ using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
+using Gma.Framework.Results;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;
 
@@ -148,19 +149,16 @@ public sealed class WorkspaceAccessProvisionerTests
     {
         FakeRoles roles = new([]);
         FakeProfiles profiles = new([]);
+        profiles.AddProfile(WorkspaceScope, WorkspaceAccessProfileSeeds.Manager);
         profiles.AddProfile(
             WorkspaceScope,
-            WorkspaceAccessProfileSeeds.ManagerKey,
-            WorkspaceAccessProfileSeeds.Manager.Permissions);
-        profiles.AddProfile(
-            WorkspaceScope,
-            WorkspaceAccessProfileSeeds.FrontDeskKey,
-            WorkspaceAccessProfileSeeds.FrontDesk.Permissions,
+            WorkspaceAccessProfileSeeds.FrontDesk,
             AccessProfileStatus.Archived);
+        profiles.AddProfile(WorkspaceScope, WorkspaceAccessProfileSeeds.Housekeeping);
         profiles.AddProfile(
             WorkspaceScope,
-            WorkspaceAccessProfileSeeds.HousekeepingKey,
-            WorkspaceAccessProfileSeeds.Housekeeping.Permissions);
+            WorkspaceAccessProfileSeeds.ViewerKey,
+            ["properties.read"]);
 
         foreach (int index in Enumerable.Range(1, 205))
         {
@@ -183,7 +181,8 @@ public sealed class WorkspaceAccessProvisionerTests
 
         Assert.Equal(WorkspaceAccessProfileSeeds.Version, status.SeedVersion);
         Assert.Equal(WorkspaceAccessProfileSeeds.All.Count, status.ExpectedSeedProfileCount);
-        Assert.Equal(2, status.ActiveSeedProfileCount);
+        Assert.Equal(3, status.ActiveSeedProfileCount);
+        Assert.Equal(1, status.DriftedSeedProfileCount);
         Assert.Equal(1, status.ArchivedSeedProfileCount);
         Assert.Equal(205, status.LegacyMemberCount);
         Assert.Equal(101, status.MarkerMemberCount);
@@ -200,24 +199,56 @@ public sealed class WorkspaceAccessProvisionerTests
     }
 
     [Fact]
-    public async Task Active_workspace_initialization_ensures_every_seed_without_overwriting_existing_profiles()
+    public async Task Active_workspace_initialization_reconciles_an_outdated_seed_once()
     {
         FakeProfiles profiles = new([]);
         AccessProfileDto existing = profiles.AddProfile(
             WorkspaceScope,
             WorkspaceAccessProfileSeeds.ManagerKey,
             ["properties.read"]);
-        WorkspaceAccessProvisioner provisioner = new(new FakeRoles([]), profiles);
+        FakeProfileManager profileManager = new(profiles);
+        WorkspaceAccessProvisioner provisioner = new(
+            new FakeRoles([]),
+            profiles,
+            profiles,
+            profileManager);
 
         await provisioner.EnsureSeedProfilesAsync(WorkspaceId, CancellationToken.None);
         await provisioner.EnsureSeedProfilesAsync(WorkspaceId, CancellationToken.None);
 
         Assert.Equal(WorkspaceAccessProfileSeeds.All.Count, profiles.Profiles.Length);
-        AccessProfileDto manager = Assert.Single(
+        AccessProfileDto managerProfile = Assert.Single(
             profiles.Profiles,
             profile => profile.Key == WorkspaceAccessProfileSeeds.ManagerKey);
-        Assert.Equal(existing.Id, manager.Id);
-        Assert.Equal(["properties.read"], manager.Permissions);
+        Assert.Equal(existing.Id, managerProfile.Id);
+        Assert.Equal(2, managerProfile.Version);
+        Assert.Equal(
+            WorkspaceAccessProfileSeeds.Manager.Permissions.Order(StringComparer.Ordinal),
+            managerProfile.Permissions.Order(StringComparer.Ordinal));
+        Assert.Equal(1, profileManager.UpdateCount);
+    }
+
+    [Fact]
+    public async Task Active_workspace_initialization_fails_when_an_outdated_seed_cannot_be_reconciled()
+    {
+        FakeProfiles profiles = new([]);
+        AccessProfileDto existing = profiles.AddProfile(
+            WorkspaceScope,
+            WorkspaceAccessProfileSeeds.ManagerKey,
+            ["properties.read"]);
+        FakeProfileManager profileManager = new(profiles) { FailUpdate = true };
+        WorkspaceAccessProvisioner provisioner = new(
+            new FakeRoles([]),
+            profiles,
+            profiles,
+            profileManager);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provisioner.EnsureSeedProfilesAsync(WorkspaceId, CancellationToken.None));
+
+        Assert.Contains("could not be reconciled", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(existing, Assert.Single(profiles.Profiles));
+        Assert.Equal(1, profileManager.UpdateCount);
     }
 
     [Fact]
@@ -492,6 +523,24 @@ public sealed class WorkspaceAccessProvisionerTests
             return profile;
         }
 
+        public AccessProfileDto AddProfile(
+            AccessScope scope,
+            AccessProfileDefinition definition,
+            AccessProfileStatus status = AccessProfileStatus.Active)
+        {
+            AccessProfileDto profile = CreateProfile(
+                scope,
+                definition.Key,
+                definition.DisplayName,
+                definition.Permissions,
+                status) with
+            {
+                Description = definition.Description?.Trim() ?? string.Empty
+            };
+            this.profiles[(scope.Value, definition.Key)] = profile;
+            return profile;
+        }
+
         public void Assign(AccessSubject subject, AccessScope scope, Guid profileId) =>
             this.GetAssignmentSet(subject, scope).Add(profileId);
 
@@ -510,12 +559,39 @@ public sealed class WorkspaceAccessProvisionerTests
                     ownerScope,
                     definition.Key,
                     definition.DisplayName,
-                    definition.Permissions);
+                    definition.Permissions) with
+                {
+                    Description = definition.Description?.Trim() ?? string.Empty
+                };
                 this.profiles[(ownerScope.Value, definition.Key)] = profile;
             }
 
             operations.Add($"profile:ensure:{definition.Key}");
             return Task.FromResult(profile);
+        }
+
+        public AccessProfileDto ReconcileProfile(
+            Guid profileId,
+            AccessProfileUpdate update)
+        {
+            KeyValuePair<(string Scope, string Key), AccessProfileDto> entry =
+                this.profiles.Single(pair => pair.Value.Id == profileId);
+            if (entry.Value.Version != update.ExpectedVersion)
+            {
+                throw new InvalidOperationException("Profile version conflict.");
+            }
+
+            AccessProfileDto reconciled = entry.Value with
+            {
+                DisplayName = update.DisplayName.Trim(),
+                Description = update.Description?.Trim() ?? string.Empty,
+                Permissions = update.Permissions.Order(StringComparer.Ordinal).ToArray(),
+                Version = entry.Value.Version + 1,
+                LastChangedAtUtc = entry.Value.LastChangedAtUtc.AddMinutes(1)
+            };
+            this.profiles[entry.Key] = reconciled;
+            operations.Add($"profile:update:{entry.Key.Key}");
+            return reconciled;
         }
 
         public Task<AccessProfileDto?> FindProfileByKeyAsync(
@@ -664,5 +740,67 @@ public sealed class WorkspaceAccessProvisionerTests
             0,
             DateTimeOffset.UnixEpoch,
             DateTimeOffset.UnixEpoch);
+    }
+
+    private sealed class FakeProfileManager(FakeProfiles profiles)
+        : IAccessProfileManager
+    {
+        public int UpdateCount { get; private set; }
+        public bool FailUpdate { get; init; }
+
+        public Task<Result<AccessProfileDto>> UpdateProfileAsync(
+            Guid profileId,
+            AccessScope ownerScope,
+            AccessProfileUpdate update,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default)
+        {
+            this.UpdateCount++;
+            if (this.FailUpdate)
+            {
+                return Task.FromResult(Result.Failure<AccessProfileDto>(
+                    new Error("Workspaces.AccessProfileSeedReconciliationFailed", "Failed.")));
+            }
+
+            return Task.FromResult(Result.Success(
+                profiles.ReconcileProfile(profileId, update)));
+        }
+
+        public Task<Result<AccessControlPage<AccessProfileDto>>> ListProfilesAsync(
+            AccessScope ownerScope,
+            bool includeArchived,
+            int page,
+            int pageSize,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<string>>> ListAllowedPermissionsAsync(
+            AccessScope ownerScope,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<AccessProfileDto>> GetProfileAsync(
+            Guid profileId,
+            AccessScope ownerScope,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<AccessProfileDto>> CreateProfileAsync(
+            AccessScope ownerScope,
+            AccessProfileDefinition definition,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result> ArchiveProfileAsync(
+            Guid profileId,
+            AccessScope ownerScope,
+            long expectedVersion,
+            AccessSubject actor,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

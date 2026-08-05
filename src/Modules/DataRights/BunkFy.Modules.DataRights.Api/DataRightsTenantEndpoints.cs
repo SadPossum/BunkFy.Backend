@@ -33,6 +33,7 @@ internal static class DataRightsTenantEndpoints
             .WithModuleName(moduleName)
             .WithTags("Data rights")
             .RequireAuthorization();
+        group.AddEndpointFilter(DataRightsEndpointSupport.SensitiveResponseFilter);
 
         group.MapGet("", async (
             DataRightsCaseStatus? status,

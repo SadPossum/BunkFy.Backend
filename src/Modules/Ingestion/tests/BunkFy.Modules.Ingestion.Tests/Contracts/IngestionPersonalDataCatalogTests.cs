@@ -6,8 +6,10 @@ using BunkFy.DataGovernance;
 using BunkFy.Modules.Ingestion.Api;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Contracts;
+using BunkFy.Modules.Ingestion.Domain.Credentials;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Persistence;
+using BunkFy.Modules.Ingestion.Persistence.Repositories;
 using BunkFy.ObservationParsing;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
@@ -20,15 +22,63 @@ public sealed class IngestionPersonalDataCatalogTests
 {
     private static readonly PersonalDataCatalogDocument Catalogue = LoadCatalogue();
     private static readonly Dictionary<string, Assembly> Assemblies = CreateAssemblyIndex();
+    private static readonly Type[] OperationalResponseTypes =
+    [
+        typeof(AdapterConnectionListItemDto),
+        typeof(AdapterConnectionListResponse),
+        typeof(AdapterConnectionMutationReceiptDto),
+        typeof(AdapterIngressCredentialDto),
+        typeof(AdapterIngressCredentialListItemDto),
+        typeof(AdapterIngressCredentialListResponse),
+        typeof(AdapterIngressCredentialMutationReceiptDto),
+        typeof(CreateAdapterIngressCredentialResponse),
+        typeof(ChangeProposalListItemDto),
+        typeof(ChangeProposalListResponse),
+        typeof(ChangeProposalMutationReceiptDto),
+        typeof(IngestionRunListItemDto),
+        typeof(IngestionRunListResponse),
+        typeof(ObservationReceiptListItemDto),
+        typeof(ObservationReceiptListResponse),
+        typeof(ObservationReprocessingAttemptListItemDto),
+        typeof(ObservationReprocessingAttemptListResponse)
+    ];
 
     [Fact]
-    public void Catalogue_version_includes_notification_source_link_projection()
+    public void Catalogue_version_includes_tenant_portability_and_notification_projection()
     {
-        Assert.Equal(7, Catalogue.CatalogVersion);
+        Assert.Equal(11, Catalogue.CatalogVersion);
         AssertBinding(
             typeof(IngestionNotificationSourceLink),
             nameof(IngestionNotificationSourceLink.SourceLinkId),
             PersonalDataSurface.ProjectionExport);
+    }
+
+    [Fact]
+    public void Tenant_portability_schema_is_complete_and_excludes_secret_material()
+    {
+        IngestionTenantTerminationExportSchema.EnsureValid();
+
+        Assert.Equal(
+            IngestionTenantTerminationMetadata.ExportFieldIds
+                .OrderBy(fieldId => fieldId, StringComparer.Ordinal),
+            IngestionTenantTerminationExportSchema.Descriptor.FieldIds);
+        Assert.DoesNotContain(
+            typeof(IngestionAdapterCredentialMetadataTenantExport)
+                .GetProperties(),
+            property => property.Name is
+                nameof(AdapterIngressCredential.SecretHash) or
+                nameof(AdapterIngressCredential.SecretHashAlgorithm));
+        Assert.DoesNotContain(
+            typeof(IngestionAdapterConnectionStateTenantExport)
+                .GetProperties(),
+            property => property.Name == "SecretReference");
+        Assert.DoesNotContain(
+            typeof(IngestionObservationEvidenceTenantExport)
+                .GetProperties(),
+            property => property.Name is
+                "RawPayload" or
+                "RawPayloadBytes" or
+                "RawPayloadContent");
     }
 
     [Fact]
@@ -241,6 +291,11 @@ public sealed class IngestionPersonalDataCatalogTests
             yield return (PersonalDataSurface.ApiInput, type);
         }
 
+        foreach (Type type in OperationalResponseTypes)
+        {
+            yield return (PersonalDataSurface.ApiResponse, type);
+        }
+
         Assembly contracts = typeof(IngestionModuleMetadata).Assembly;
         foreach (Type type in contracts.GetTypes().Where(IsPublicDataType))
         {
@@ -284,7 +339,9 @@ public sealed class IngestionPersonalDataCatalogTests
 
     private static bool IsProductPersistenceType(IEntityType entityType) =>
         entityType.ClrType.Namespace?.StartsWith("BunkFy.Modules.Ingestion", StringComparison.Ordinal) == true &&
-        entityType.ClrType.Name != "IngestionProjectionRebuildCheckpoint";
+        entityType.ClrType.Name is not (
+            "IngestionProjectionRebuildCheckpoint" or
+            "IngestionTenantRevision");
 
     private static bool IsPublicDataType(Type type) =>
         type.IsPublic && !type.IsAbstract && type.IsClass &&

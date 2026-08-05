@@ -49,6 +49,7 @@ internal sealed class RetentionScheduleStateRepository(RetentionDbContext dbCont
                 state.PropertyId,
                 state.ExecutionPolicyVersion,
                 (int)state.State,
+                state.LastExecutionId,
                 state.LastStartedAtUtc,
                 state.LastCompletedAtUtc,
                 state.NextDueAtUtc,

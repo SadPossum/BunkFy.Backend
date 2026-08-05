@@ -21,9 +21,9 @@ internal sealed class LinkReservationGuestCommandHandler(
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
-    : ICommandHandler<LinkReservationGuestCommand, ReservationDto>
+    : ICommandHandler<LinkReservationGuestCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         LinkReservationGuestCommand command,
         CancellationToken cancellationToken)
     {
@@ -35,7 +35,7 @@ internal sealed class LinkReservationGuestCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (!policyDecision.IsAllowed)
         {
-            return Result.Failure<ReservationDto>(
+            return Result.Failure<ReservationMutationReceiptDto>(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
@@ -45,12 +45,12 @@ internal sealed class LinkReservationGuestCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
         }
 
         if (command.GuestId == Guid.Empty || command.Role is not ReservationGuestRoleKind.Primary)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationGuestLinkInvalid);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationGuestLinkInvalid);
         }
 
         bool alreadyLinked = reservation.Guests.Any(guest => guest.IsCurrent &&
@@ -64,7 +64,7 @@ internal sealed class LinkReservationGuestCommandHandler(
                     command.GuestId,
                     cancellationToken).ConfigureAwait(false))
             {
-                return Result.Failure<ReservationDto>(
+                return Result.Failure<ReservationMutationReceiptDto>(
                     ReservationsApplicationErrors.GuestNotLinkable);
             }
 
@@ -77,7 +77,7 @@ internal sealed class LinkReservationGuestCommandHandler(
                     cancellationToken).ConfigureAwait(false);
             if (!restriction.IsAllowed)
             {
-                return Result.Failure<ReservationDto>(
+                return Result.Failure<ReservationMutationReceiptDto>(
                     ReservationsApplicationErrors.GuestNotLinkable);
             }
         }
@@ -91,7 +91,7 @@ internal sealed class LinkReservationGuestCommandHandler(
             ids.NewId(),
             clock.UtcNow);
         return linked.IsSuccess
-            ? Result.Success(reservation.ToDto())
-            : Result.Failure<ReservationDto>(linked.Error);
+            ? Result.Success(reservation.ToMutationReceipt())
+            : Result.Failure<ReservationMutationReceiptDto>(linked.Error);
     }
 }

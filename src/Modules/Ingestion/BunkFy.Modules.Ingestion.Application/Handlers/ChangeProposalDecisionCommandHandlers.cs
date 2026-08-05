@@ -7,6 +7,7 @@ using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Application.Reservations;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
@@ -19,16 +20,16 @@ internal sealed class AcceptChangeProposalCommandHandler(
     ReservationObservationPayloadLoader payloadLoader,
     ReservationExternalRequestPublisher requestPublisher,
     ISystemClock clock)
-    : ICommandHandler<AcceptChangeProposalCommand, ChangeProposalDecisionResult>
+    : ICommandHandler<AcceptChangeProposalCommand, ChangeProposalMutationReceiptDto>
 {
-    public async Task<Result<ChangeProposalDecisionResult>> HandleAsync(
+    public async Task<Result<ChangeProposalMutationReceiptDto>> HandleAsync(
         AcceptChangeProposalCommand command,
         CancellationToken cancellationToken)
     {
         ChangeProposal? proposal = await proposals.GetAsync(command.ProposalId, cancellationToken).ConfigureAwait(false);
         if (proposal is null || proposal.PropertyId != command.PropertyId)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(IngestionApplicationErrors.ProposalNotFound);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(IngestionApplicationErrors.ProposalNotFound);
         }
 
         Guid requestedOperationId = ReservationOperationIdentity.CreateProposalOperationId(
@@ -43,12 +44,12 @@ internal sealed class AcceptChangeProposalCommandHandler(
         {
             return proposal.ProductOperationId == existing.Id && existing.Id == requestedOperationId
                 ? Result.Success(ToResult(proposal))
-                : Result.Failure<ChangeProposalDecisionResult>(IngestionApplicationErrors.ProposalDecisionConflict);
+                : Result.Failure<ChangeProposalMutationReceiptDto>(IngestionApplicationErrors.ProposalDecisionConflict);
         }
 
         if (proposal.State != ChangeProposalState.Pending || command.ExpectedReservationDetailsRevision <= 0)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(IngestionApplicationErrors.ProposalDecisionConflict);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(IngestionApplicationErrors.ProposalDecisionConflict);
         }
 
         ObservationReceipt? receipt = await receipts.GetAsync(proposal.ReceiptId, cancellationToken).ConfigureAwait(false);
@@ -59,14 +60,14 @@ internal sealed class AcceptChangeProposalCommandHandler(
             link.PropertyId != proposal.PropertyId || link.ReservationId != proposal.ReservationId ||
             link.State != ReservationSourceLinkState.Linked || link.ActiveProductOperationId.HasValue)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(IngestionApplicationErrors.ProposalDecisionConflict);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(IngestionApplicationErrors.ProposalDecisionConflict);
         }
 
         Result<NormalizedReservationObservation> loaded = await payloadLoader.LoadAsync(receipt, cancellationToken)
             .ConfigureAwait(false);
         if (loaded.IsFailure)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(loaded.Error);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(loaded.Error);
         }
 
         ReservationDispatchKind kind = ReservationObservationDispatchClassifier.Classify(link, loaded.Value);
@@ -89,7 +90,7 @@ internal sealed class AcceptChangeProposalCommandHandler(
             clock.UtcNow);
         if (created.IsFailure)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(created.Error);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(created.Error);
         }
 
         Result applying = proposal.BeginApply(
@@ -99,13 +100,13 @@ internal sealed class AcceptChangeProposalCommandHandler(
             clock.UtcNow);
         if (applying.IsFailure)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(applying.Error);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(applying.Error);
         }
 
         Result begun = link.BeginDispatch(operationId, clock.UtcNow);
         if (begun.IsFailure)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(begun.Error);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(begun.Error);
         }
 
         await dispatches.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
@@ -120,24 +121,28 @@ internal sealed class AcceptChangeProposalCommandHandler(
         return Result.Success(ToResult(proposal));
     }
 
-    private static ChangeProposalDecisionResult ToResult(ChangeProposal proposal) =>
-        new(proposal.Id, proposal.State, proposal.Version, proposal.ProductOperationId);
+    private static ChangeProposalMutationReceiptDto ToResult(ChangeProposal proposal) =>
+        new(
+            proposal.Id,
+            (ChangeProposalStatus)(int)proposal.State,
+            proposal.Version,
+            proposal.ProductOperationId);
 }
 
 internal sealed class RejectChangeProposalCommandHandler(
     IChangeProposalRepository proposals,
     IIngestionRetentionPolicy retentionPolicy,
     ISystemClock clock)
-    : ICommandHandler<RejectChangeProposalCommand, ChangeProposalDecisionResult>
+    : ICommandHandler<RejectChangeProposalCommand, ChangeProposalMutationReceiptDto>
 {
-    public async Task<Result<ChangeProposalDecisionResult>> HandleAsync(
+    public async Task<Result<ChangeProposalMutationReceiptDto>> HandleAsync(
         RejectChangeProposalCommand command,
         CancellationToken cancellationToken)
     {
         ChangeProposal? proposal = await proposals.GetAsync(command.ProposalId, cancellationToken).ConfigureAwait(false);
         if (proposal is null || proposal.PropertyId != command.PropertyId)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(IngestionApplicationErrors.ProposalNotFound);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(IngestionApplicationErrors.ProposalNotFound);
         }
 
         string actor = command.Actor?.Trim() ?? string.Empty;
@@ -151,7 +156,7 @@ internal sealed class RejectChangeProposalCommandHandler(
 
         if (proposal.State != ChangeProposalState.Pending)
         {
-            return Result.Failure<ChangeProposalDecisionResult>(IngestionApplicationErrors.ProposalDecisionConflict);
+            return Result.Failure<ChangeProposalMutationReceiptDto>(IngestionApplicationErrors.ProposalDecisionConflict);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -166,9 +171,13 @@ internal sealed class RejectChangeProposalCommandHandler(
             nowUtc);
         return rejected.IsSuccess
             ? Result.Success(ToResult(proposal))
-            : Result.Failure<ChangeProposalDecisionResult>(rejected.Error);
+            : Result.Failure<ChangeProposalMutationReceiptDto>(rejected.Error);
     }
 
-    private static ChangeProposalDecisionResult ToResult(ChangeProposal proposal) =>
-        new(proposal.Id, proposal.State, proposal.Version, proposal.ProductOperationId);
+    private static ChangeProposalMutationReceiptDto ToResult(ChangeProposal proposal) =>
+        new(
+            proposal.Id,
+            (ChangeProposalStatus)(int)proposal.State,
+            proposal.Version,
+            proposal.ProductOperationId);
 }

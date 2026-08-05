@@ -27,7 +27,17 @@ and an Auth user may exist without a Staff profile.
 - `staff.employment-governance.manage`
 - `staff.data-holds.manage`
 
-`staff.read` exposes the operational directory only: display name, job title, department, status, and current assignment facts. Full profile reads require `staff.sensitive-profile.read`; the identity-bound self-service route remains available to the current Staff subject. Canonical profile/create/update/lifecycle routes require tenant scope. Property discovery and assignment routes require `tenant/property` scope. Property grants do not satisfy tenant operations.
+`staff.read` exposes the operational directory only: display name, job title,
+department, status, and bounded current-assignment facts. Tenant directory pages
+return a current-property count; property pages return only the assignment for
+the requested active property. Both use deterministic offset paging with a
+one-row look-ahead for `HasMore`. Full profile reads require
+`staff.sensitive-profile.read`; the identity-bound self-service route remains
+available to the current Staff subject. Create, update, and account-link writes
+return directory-safe receipts rather than the sensitive profile they mutate.
+Canonical profile/create/update/lifecycle routes require tenant scope. Property
+discovery and assignment routes require `tenant/property` scope. Property grants
+do not satisfy tenant operations.
 
 ## Processing restrictions
 
@@ -69,6 +79,51 @@ receives only counts and stable outcome codes.
 
 The executable delivery contract is
 [Staff record automatic retention](../../../docs/planning/staff-record-retention-task.md).
+
+## Tenant termination export
+
+Staff is the mandatory `staff` export owner after Guests. Its tenant-wide
+portability stream contains the authoritative profile and assignment history,
+correction proof, processing restrictions and receipts, employment governance
+and change proof, data holds and receipts, anonymisation receipts and
+tombstones, restore proof, and retention execution and anonymisation proof.
+Auth credentials and sessions, organization membership, roles, grants, and
+effective authorization remain with their GMA owners.
+
+Relational Staff writes and export selection share the BunkFy tenant-mutation
+transaction key. Each ordinary unit of work rechecks the authoritative
+Workspaces fence and advances one tenant-local revision; export holds the key
+in a repeatable-read transaction and succeeds only when the exact process,
+epoch, fence, and local revision remain unchanged. PostgreSQL independently
+protects all seven immutable receipt ledgers and prevents tombstone deletion.
+
+Property and restriction projections, inbox/outbox state, operation locks,
+rebuild and retention sweep checkpoints, search copies, and the internal
+revision row are excluded. The production owner task, API/download route, and
+cleanup runner remain disabled until every mandatory owner and final
+confirmation flow are complete.
+
+## Tenant termination destruction
+
+Staff owns destructive removal of its employment profiles, assignment history,
+employment governance, legal holds, projections, journals, checkpoints, and
+local proof. Auth accounts and sessions, organization memberships, and access
+control remain separate GMA-owner responsibilities.
+
+An active Staff legal hold blocks before progress. Otherwise the exact frozen
+request closes local admission and removes one non-empty batch of at most 500
+rows per call in foreign-key-safe order. Scoped inbox work and projection
+writes are rejected, outbox claims exclude closing scopes, and active leases
+must drain or expire. Exact retries resume or replay; changed coordinates
+conflict.
+
+Completion retains only the closed tenant lifecycle row and an immutable,
+PII-free receipt with selected/resulting revision, counts, and a versioned
+SHA-256 removal proof. PostgreSQL permits deletion of existing immutable
+receipts and tombstones only under the matching transaction-local destruction
+operation; updates and ordinary deletes remain blocked. Production execution
+stays disabled until cross-owner preflight, protected replay, operator
+controls, and final production admission are complete.
 
 ## Runtime
 

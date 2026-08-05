@@ -50,8 +50,18 @@ public sealed record ObservationReceiptDto(
     string? SourceSystem = null,
     string? CustomerOwner = null);
 
+public sealed record ObservationReceiptListItemDto(
+    Guid ReceiptId,
+    Guid ConnectionId,
+    string SourceRecordType,
+    string ExternalId,
+    string? ParserType,
+    int? ParserVersion,
+    ObservationReceiptStatus Status,
+    DateTimeOffset ReceivedAtUtc);
+
 public sealed record ObservationReceiptListResponse(
-    IReadOnlyCollection<ObservationReceiptDto> Receipts,
+    IReadOnlyCollection<ObservationReceiptListItemDto> Receipts,
     int Page,
     int PageSize,
-    long TotalCount);
+    bool HasMore);

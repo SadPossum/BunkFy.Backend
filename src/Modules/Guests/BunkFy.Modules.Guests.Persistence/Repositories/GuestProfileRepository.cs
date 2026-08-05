@@ -1,6 +1,5 @@
 namespace BunkFy.Modules.Guests.Persistence.Repositories;
 
-using BunkFy.Modules.Guests.Application.Mapping;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
@@ -68,14 +67,33 @@ internal sealed class GuestProfileRepository(
                 (profile.PhoneSearch != null && profile.PhoneSearch.Contains(normalizedSearch)));
         }
 
-        GuestProfile[] rows = await query
+        GuestListItemDto[] rows = await query
             .OrderBy(profile => profile.DisplayName)
             .ThenBy(profile => profile.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
+            .Take(pageRequest.PageSize + 1)
+            .Select(profile => new GuestListItemDto(
+                profile.Id,
+                profile.DisplayName,
+                profile.LegalName,
+                profile.Email,
+                profile.Phone,
+                profile.NationalityCountryCode,
+                profile.PreferredLanguageTag,
+                profile.Status == GuestProfileState.Active
+                    ? GuestStatus.Active
+                    : profile.Status == GuestProfileState.Archived
+                        ? GuestStatus.Archived
+                        : GuestStatus.Unknown,
+                profile.LastChangedBy,
+                profile.LastChangedAtUtc))
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
-        return new(rows.Select(profile => profile.ToDto()).ToArray(), pageRequest.Page, pageRequest.PageSize);
+        return new(
+            rows.Take(pageRequest.PageSize).ToArray(),
+            pageRequest.Page,
+            pageRequest.PageSize,
+            rows.Length > pageRequest.PageSize);
     }
 
     private IQueryable<GuestProfile> VisibleAt(Guid propertyId) =>

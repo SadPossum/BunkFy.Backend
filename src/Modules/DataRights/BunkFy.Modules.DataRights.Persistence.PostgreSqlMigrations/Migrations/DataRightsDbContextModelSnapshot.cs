@@ -101,6 +101,14 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<bool?>("TenantTerminationExportRequested")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TenantTerminationPolicyEvidenceSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
                     b.Property<int>("VerificationStatus")
                         .HasColumnType("integer");
 
@@ -110,11 +118,18 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ScopeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_data_rights_cases_active_tenant_termination")
+                        .HasFilter("\"Kind\" = 2 AND \"Status\" NOT IN (6, 9, 11)");
+
+                    b.HasIndex("ScopeId", "Kind", "RequesterRelationship", "DueAtUtc", "Id");
+
                     b.HasIndex("ScopeId", "PropertyId", "Status", "CreatedAtUtc", "Id");
 
                     b.ToTable("cases", "data-rights", t =>
                         {
-                            t.HasCheckConstraint("CK_data_rights_cases_approval_policy_evidence", "(\"Decision\" = 1 AND \"RequestedOperations\" = 16 AND \"ApprovalEvidenceSchemaVersion\" IN (1, 2) AND \"ApprovalEvidenceCaseKind\" = \"Kind\" AND \"ApprovalEvidenceOperatingCountryCode\" IS NOT NULL AND char_length(\"ApprovalEvidenceOperatingCountryCode\") = 2 AND \"ApprovalEvidencePolicyId\" IS NOT NULL AND length(trim(\"ApprovalEvidencePolicyId\")) > 0 AND \"ApprovalEvidencePolicyVersion\" > 0 AND \"ApprovalEvidenceRetentionPolicyId\" IS NOT NULL AND length(trim(\"ApprovalEvidenceRetentionPolicyId\")) > 0 AND \"ApprovalEvidenceRetentionPolicyVersion\" > 0 AND \"ApprovalEvidenceContentSha256\" IS NOT NULL AND char_length(\"ApprovalEvidenceContentSha256\") = 64 AND \"ApprovalEvidencePurposeCode\" IS NOT NULL AND length(trim(\"ApprovalEvidencePurposeCode\")) > 0 AND \"ApprovalEvidenceSurface\" = 'erasure' AND \"ApprovalEvidenceSourceProvenance\" IS NOT NULL AND length(trim(\"ApprovalEvidenceSourceProvenance\")) > 0 AND \"ApprovalEvidenceEvaluatedAtUtc\" IS NOT NULL AND \"ApprovalEvidenceRequiresDistinctExecutor\" = TRUE AND ((\"ApprovalEvidenceSchemaVersion\" = 1 AND \"Kind\" = 1 AND \"ApprovalEvidenceScopeKind\" = 1 AND \"ApprovalEvidencePropertyId\" = \"PropertyId\" AND \"ApprovalEvidencePropertyVersion\" > 0 AND \"ApprovalEvidencePurposeCode\" = 'data-rights-anonymisation' AND \"ApprovalEvidenceSourceProvenance\" = 'authorized-workspace-operator' AND \"ApprovalEvidenceRetentionDataClass\" = '' AND \"ApprovalEvidenceRetentionTrigger\" = '' AND \"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NULL AND \"ApprovalEvidenceRetentionDeadlineUtc\" IS NULL AND \"ApprovalEvidenceStateBindingsJson\" = '[]' AND \"ApprovalEvidenceStateBindingsSha256\" IS NOT NULL AND char_length(\"ApprovalEvidenceStateBindingsSha256\") = 64) OR (\"ApprovalEvidenceSchemaVersion\" = 2 AND ((\"Kind\" = 1 AND \"ApprovalEvidenceScopeKind\" = 1 AND \"ApprovalEvidencePropertyId\" = \"PropertyId\" AND \"ApprovalEvidencePropertyVersion\" > 0) OR (\"Kind\" IN (2, 3) AND \"ApprovalEvidenceScopeKind\" = 2 AND \"PropertyId\" IS NULL AND \"ApprovalEvidencePropertyId\" IS NULL AND \"ApprovalEvidencePropertyVersion\" = 0)) AND \"ApprovalEvidenceRetentionDataClass\" IS NOT NULL AND length(trim(\"ApprovalEvidenceRetentionDataClass\")) > 0 AND \"ApprovalEvidenceRetentionTrigger\" IS NOT NULL AND length(trim(\"ApprovalEvidenceRetentionTrigger\")) > 0 AND \"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NOT NULL AND \"ApprovalEvidenceRetentionDeadlineUtc\" > \"ApprovalEvidenceRetentionTriggeredAtUtc\" AND \"ApprovalEvidenceRetentionDeadlineUtc\" <= \"ApprovalEvidenceEvaluatedAtUtc\" AND \"ApprovalEvidenceStateBindingsJson\" IS NOT NULL AND char_length(\"ApprovalEvidenceStateBindingsJson\") > 2 AND \"ApprovalEvidenceStateBindingsSha256\" IS NOT NULL AND char_length(\"ApprovalEvidenceStateBindingsSha256\") = 64))) OR ((\"Decision\" <> 1 OR \"RequestedOperations\" <> 16) AND \"ApprovalEvidenceSchemaVersion\" IS NULL AND \"ApprovalEvidenceCaseKind\" IS NULL AND \"ApprovalEvidenceScopeKind\" IS NULL AND \"ApprovalEvidencePropertyId\" IS NULL AND \"ApprovalEvidencePropertyVersion\" IS NULL AND \"ApprovalEvidenceOperatingCountryCode\" IS NULL AND \"ApprovalEvidencePolicyId\" IS NULL AND \"ApprovalEvidencePolicyVersion\" IS NULL AND \"ApprovalEvidenceRetentionPolicyId\" IS NULL AND \"ApprovalEvidenceRetentionPolicyVersion\" IS NULL AND \"ApprovalEvidenceContentSha256\" IS NULL AND \"ApprovalEvidencePurposeCode\" IS NULL AND \"ApprovalEvidenceSurface\" IS NULL AND \"ApprovalEvidenceSourceProvenance\" IS NULL AND \"ApprovalEvidenceRetentionDataClass\" IS NULL AND \"ApprovalEvidenceRetentionTrigger\" IS NULL AND \"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NULL AND \"ApprovalEvidenceRetentionDeadlineUtc\" IS NULL AND \"ApprovalEvidenceEvaluatedAtUtc\" IS NULL AND \"ApprovalEvidenceStateBindingsJson\" IS NULL AND \"ApprovalEvidenceStateBindingsSha256\" IS NULL AND \"ApprovalEvidenceRequiresDistinctExecutor\" IS NULL)");
+                            t.HasCheckConstraint("CK_data_rights_cases_approval_policy_evidence", "(\"Kind\" <> 2 AND \"Decision\" = 1 AND \"RequestedOperations\" = 16 AND \"ApprovalEvidenceSchemaVersion\" IN (1, 2) AND \"ApprovalEvidenceCaseKind\" = \"Kind\" AND \"ApprovalEvidenceOperatingCountryCode\" IS NOT NULL AND char_length(\"ApprovalEvidenceOperatingCountryCode\") = 2 AND \"ApprovalEvidencePolicyId\" IS NOT NULL AND length(trim(\"ApprovalEvidencePolicyId\")) > 0 AND \"ApprovalEvidencePolicyVersion\" > 0 AND \"ApprovalEvidenceRetentionPolicyId\" IS NOT NULL AND length(trim(\"ApprovalEvidenceRetentionPolicyId\")) > 0 AND \"ApprovalEvidenceRetentionPolicyVersion\" > 0 AND \"ApprovalEvidenceContentSha256\" IS NOT NULL AND char_length(\"ApprovalEvidenceContentSha256\") = 64 AND \"ApprovalEvidencePurposeCode\" IS NOT NULL AND length(trim(\"ApprovalEvidencePurposeCode\")) > 0 AND \"ApprovalEvidenceSurface\" = 'erasure' AND \"ApprovalEvidenceSourceProvenance\" IS NOT NULL AND length(trim(\"ApprovalEvidenceSourceProvenance\")) > 0 AND \"ApprovalEvidenceEvaluatedAtUtc\" IS NOT NULL AND \"ApprovalEvidenceRequiresDistinctExecutor\" = TRUE AND ((\"ApprovalEvidenceSchemaVersion\" = 1 AND \"Kind\" = 1 AND \"ApprovalEvidenceScopeKind\" = 1 AND \"ApprovalEvidencePropertyId\" = \"PropertyId\" AND \"ApprovalEvidencePropertyVersion\" > 0 AND \"ApprovalEvidencePurposeCode\" = 'data-rights-anonymisation' AND \"ApprovalEvidenceSourceProvenance\" = 'authorized-workspace-operator' AND \"ApprovalEvidenceRetentionDataClass\" = '' AND \"ApprovalEvidenceRetentionTrigger\" = '' AND \"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NULL AND \"ApprovalEvidenceRetentionDeadlineUtc\" IS NULL AND \"ApprovalEvidenceStateBindingsJson\" = '[]' AND \"ApprovalEvidenceStateBindingsSha256\" IS NOT NULL AND char_length(\"ApprovalEvidenceStateBindingsSha256\") = 64) OR (\"ApprovalEvidenceSchemaVersion\" = 2 AND ((\"Kind\" = 1 AND \"ApprovalEvidenceScopeKind\" = 1 AND \"ApprovalEvidencePropertyId\" = \"PropertyId\" AND \"ApprovalEvidencePropertyVersion\" > 0) OR (\"Kind\" IN (2, 3) AND \"ApprovalEvidenceScopeKind\" = 2 AND \"PropertyId\" IS NULL AND \"ApprovalEvidencePropertyId\" IS NULL AND \"ApprovalEvidencePropertyVersion\" = 0)) AND \"ApprovalEvidenceRetentionDataClass\" IS NOT NULL AND length(trim(\"ApprovalEvidenceRetentionDataClass\")) > 0 AND \"ApprovalEvidenceRetentionTrigger\" IS NOT NULL AND length(trim(\"ApprovalEvidenceRetentionTrigger\")) > 0 AND \"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NOT NULL AND \"ApprovalEvidenceRetentionDeadlineUtc\" > \"ApprovalEvidenceRetentionTriggeredAtUtc\" AND \"ApprovalEvidenceRetentionDeadlineUtc\" <= \"ApprovalEvidenceEvaluatedAtUtc\" AND \"ApprovalEvidenceStateBindingsJson\" IS NOT NULL AND char_length(\"ApprovalEvidenceStateBindingsJson\") > 2 AND \"ApprovalEvidenceStateBindingsSha256\" IS NOT NULL AND char_length(\"ApprovalEvidenceStateBindingsSha256\") = 64))) OR ((\"Kind\" = 2 OR \"Decision\" <> 1 OR \"RequestedOperations\" <> 16) AND \"ApprovalEvidenceSchemaVersion\" IS NULL AND \"ApprovalEvidenceCaseKind\" IS NULL AND \"ApprovalEvidenceScopeKind\" IS NULL AND \"ApprovalEvidencePropertyId\" IS NULL AND \"ApprovalEvidencePropertyVersion\" IS NULL AND \"ApprovalEvidenceOperatingCountryCode\" IS NULL AND \"ApprovalEvidencePolicyId\" IS NULL AND \"ApprovalEvidencePolicyVersion\" IS NULL AND \"ApprovalEvidenceRetentionPolicyId\" IS NULL AND \"ApprovalEvidenceRetentionPolicyVersion\" IS NULL AND \"ApprovalEvidenceContentSha256\" IS NULL AND \"ApprovalEvidencePurposeCode\" IS NULL AND \"ApprovalEvidenceSurface\" IS NULL AND \"ApprovalEvidenceSourceProvenance\" IS NULL AND \"ApprovalEvidenceRetentionDataClass\" IS NULL AND \"ApprovalEvidenceRetentionTrigger\" IS NULL AND \"ApprovalEvidenceRetentionTriggeredAtUtc\" IS NULL AND \"ApprovalEvidenceRetentionDeadlineUtc\" IS NULL AND \"ApprovalEvidenceEvaluatedAtUtc\" IS NULL AND \"ApprovalEvidenceStateBindingsJson\" IS NULL AND \"ApprovalEvidenceStateBindingsSha256\" IS NULL AND \"ApprovalEvidenceRequiresDistinctExecutor\" IS NULL)");
 
                             t.HasCheckConstraint("CK_data_rights_cases_created_by", "length(trim(\"CreatedBy\")) > 0");
 
@@ -138,13 +153,15 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_cases_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
 
-                            t.HasCheckConstraint("CK_data_rights_cases_operations", "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR (\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4, 16))");
+                            t.HasCheckConstraint("CK_data_rights_cases_operations", "(\"Kind\" = 1 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR (\"Kind\" = 2 AND \"RequestedOperations\" = 16) OR (\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4, 16))");
 
                             t.HasCheckConstraint("CK_data_rights_cases_property_scope", "(\"Kind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"Kind\" IN (2, 3) AND \"PropertyId\" IS NULL)");
 
                             t.HasCheckConstraint("CK_data_rights_cases_requester", "\"RequesterRelationship\" IN (1, 2, 3, 4)");
 
                             t.HasCheckConstraint("CK_data_rights_cases_requester_scope", "(\"Kind\" IN (1, 3) AND \"RequesterRelationship\" IN (1, 2, 3)) OR (\"Kind\" = 2 AND \"RequesterRelationship\" IN (3, 4))");
+
+                            t.HasCheckConstraint("CK_data_rights_cases_response_deadline_evidence", "(\"ResponseDeadlineSchemaVersion\" IS NULL AND \"ResponseDeadlinePropertyId\" IS NULL AND \"ResponseDeadlineTopologySourceVersion\" IS NULL AND \"ResponseDeadlinePolicySourceVersion\" IS NULL AND \"ResponseDeadlineOperatingCountryCode\" IS NULL AND \"ResponseDeadlinePolicyId\" IS NULL AND \"ResponseDeadlinePolicyVersion\" IS NULL AND \"ResponseDeadlineContentSha256\" IS NULL AND \"ResponseDeadlineControllingRight\" IS NULL AND \"ResponseDeadlineRuleReference\" IS NULL AND \"ResponseDeadlinePeriodYears\" IS NULL AND \"ResponseDeadlinePeriodMonths\" IS NULL AND \"ResponseDeadlinePeriodDays\" IS NULL AND \"ResponseDeadlineTimeZoneId\" IS NULL AND \"ResponseDeadlinePolicyEffectiveAtUtc\" IS NULL AND \"ResponseDeadlinePolicyExpiresAtUtc\" IS NULL AND \"ResponseDeadlineReceivedAtUtc\" IS NULL AND \"ResponseDeadlineEvaluatedAtUtc\" IS NULL AND \"ResponseDeadlineDueAtUtc\" IS NULL AND \"DueAtUtc\" IS NULL) OR (\"Kind\" = 1 AND \"RequesterRelationship\" IN (1, 2) AND \"ResponseDeadlineSchemaVersion\" = 1 AND \"ResponseDeadlinePropertyId\" = \"PropertyId\" AND \"ResponseDeadlineTopologySourceVersion\" > 0 AND \"ResponseDeadlinePolicySourceVersion\" > 0 AND char_length(\"ResponseDeadlineOperatingCountryCode\") = 2 AND length(trim(\"ResponseDeadlinePolicyId\")) > 0 AND \"ResponseDeadlinePolicyVersion\" > 0 AND char_length(\"ResponseDeadlineContentSha256\") = 64 AND \"ResponseDeadlineControllingRight\" BETWEEN 1 AND 4 AND length(trim(\"ResponseDeadlineRuleReference\")) > 0 AND \"ResponseDeadlinePeriodYears\" BETWEEN 0 AND 10 AND \"ResponseDeadlinePeriodMonths\" BETWEEN 0 AND 11 AND \"ResponseDeadlinePeriodDays\" BETWEEN 0 AND 366 AND (\"ResponseDeadlinePeriodYears\" + \"ResponseDeadlinePeriodMonths\" + \"ResponseDeadlinePeriodDays\") > 0 AND length(trim(\"ResponseDeadlineTimeZoneId\")) > 0 AND \"ResponseDeadlinePolicyEffectiveAtUtc\" < \"ResponseDeadlinePolicyExpiresAtUtc\" AND \"ResponseDeadlineReceivedAtUtc\" = \"CreatedAtUtc\" AND \"ResponseDeadlineReceivedAtUtc\" >= \"ResponseDeadlinePolicyEffectiveAtUtc\" AND \"ResponseDeadlineReceivedAtUtc\" < \"ResponseDeadlinePolicyExpiresAtUtc\" AND \"ResponseDeadlineEvaluatedAtUtc\" >= \"ResponseDeadlineReceivedAtUtc\" AND \"ResponseDeadlineDueAtUtc\" = \"DueAtUtc\" AND \"ResponseDeadlineDueAtUtc\" > \"CreatedAtUtc\")");
 
                             t.HasCheckConstraint("CK_data_rights_cases_restriction_directive", "((\"RequestedOperations\" & 4) = 0 AND \"RestrictionDirective\" = 0) OR ((\"RequestedOperations\" & 4) = 4 AND \"RestrictionDirective\" BETWEEN 0 AND 2)");
 
@@ -153,6 +170,8 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                             t.HasCheckConstraint("CK_data_rights_cases_routing", "\"RoutingStatus\" IN (1, 2, 3)");
 
                             t.HasCheckConstraint("CK_data_rights_cases_status", "\"Status\" BETWEEN 1 AND 11");
+
+                            t.HasCheckConstraint("CK_data_rights_cases_tenant_termination", "(\"Kind\" = 2 AND \"TenantTerminationExportRequested\" IS NOT NULL AND ((\"Decision\" = 1 AND \"TenantTerminationPolicyEvidenceSha256\" IS NOT NULL AND char_length(\"TenantTerminationPolicyEvidenceSha256\") = 64 AND \"TenantTerminationPolicyEvidenceSha256\" ~ '^[0-9a-f]{64}$') OR (\"Decision\" <> 1 AND \"TenantTerminationPolicyEvidenceSha256\" IS NULL))) OR (\"Kind\" <> 2 AND \"TenantTerminationExportRequested\" IS NULL AND \"TenantTerminationPolicyEvidenceSha256\" IS NULL)");
 
                             t.HasCheckConstraint("CK_data_rights_cases_timestamps", "\"LastChangedAtUtc\" >= \"CreatedAtUtc\" AND (\"DueAtUtc\" IS NULL OR \"DueAtUtc\" >= \"CreatedAtUtc\")");
 
@@ -727,6 +746,322 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationExportArtifact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("AvailableAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletionRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletionStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("EncryptedByteLength")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("EncryptionKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ExpectedFragmentCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ExportOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("FormatVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("FragmentCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FragmentSetSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("FreezeOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FrozenRevisionSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int?>("GenerationAttempt")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("GenerationRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("GenerationStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlaintextSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("PolicyEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("RecordCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("TerminationEpoch")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ProcessId", "ExportOperationRevision")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "State", "ExpiresAtUtc", "Id");
+
+                    b.HasIndex("ScopeId", "ProcessId", "CaseId", "ApprovalRevision", "TerminationEpoch", "PolicyEvidenceSha256");
+
+                    b.ToTable("tenant_termination_export_artifacts", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_coordinates", "\"ApprovalRevision\" >= 1 AND \"FreezeOperationRevision\" >= 1 AND \"ExportOperationRevision\" > \"FreezeOperationRevision\" AND \"ExpectedFragmentCount\" BETWEEN 1 AND 100 AND char_length(\"FrozenRevisionSha256\") = 64 AND \"FrozenRevisionSha256\" ~ '^[0-9a-f]{64}$' AND char_length(\"PolicyEvidenceSha256\") = 64 AND \"PolicyEvidenceSha256\" ~ '^[0-9a-f]{64}$' AND char_length(\"FragmentSetSha256\") = 64 AND \"FragmentSetSha256\" ~ '^[0-9a-f]{64}$'");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_failure", "(\"State\" = 4 AND \"FailureCode\" IS NOT NULL) OR (\"State\" <> 4 AND \"FailureCode\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_fragments", "(\"FragmentCount\" IS NULL AND \"RecordCount\" IS NULL) OR (\"FragmentCount\" = \"ExpectedFragmentCount\" AND \"RecordCount\" BETWEEN 0 AND 100000000)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_generation", "(\"GenerationRunId\" IS NULL AND \"GenerationAttempt\" IS NULL AND \"GenerationStartedAtUtc\" IS NULL) OR (\"GenerationRunId\" IS NOT NULL AND \"GenerationAttempt\" > 0 AND \"GenerationStartedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_lifecycle", "(\"State\" = 1 AND \"GenerationRunId\" IS NULL AND \"FailureCode\" IS NULL AND \"FragmentCount\" IS NULL AND \"StorageKey\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 2 AND \"GenerationRunId\" IS NOT NULL AND \"FailureCode\" IS NULL AND \"FragmentCount\" IS NULL AND \"StorageKey\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 3 AND \"GenerationRunId\" IS NOT NULL AND \"FailureCode\" IS NULL AND \"FragmentCount\" IS NOT NULL AND \"StorageKey\" IS NOT NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 4 AND \"GenerationRunId\" IS NOT NULL AND \"FailureCode\" IS NOT NULL AND \"FragmentCount\" IS NULL AND \"StorageKey\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 5 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 6 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NOT NULL AND \"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 7 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NOT NULL AND \"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_state", "\"State\" BETWEEN 1 AND 7");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_storage", "(\"StorageKey\" IS NULL AND \"EncryptedByteLength\" IS NULL AND \"PlaintextSha256\" IS NULL AND \"EncryptionKeyVersion\" IS NULL AND \"FormatVersion\" IS NULL AND \"AvailableAtUtc\" IS NULL) OR (\"StorageKey\" IS NOT NULL AND \"EncryptedByteLength\" > 0 AND char_length(\"PlaintextSha256\") = 64 AND \"PlaintextSha256\" ~ '^[0-9a-f]{64}$' AND \"EncryptionKeyVersion\" > 0 AND \"FormatVersion\" > 0 AND \"AvailableAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_timestamps", "\"ExpiresAtUtc\" > \"RequestedAtUtc\" AND (\"GenerationStartedAtUtc\" IS NULL OR (\"GenerationStartedAtUtc\" >= \"RequestedAtUtc\" AND \"GenerationStartedAtUtc\" < \"ExpiresAtUtc\")) AND (\"AvailableAtUtc\" IS NULL OR (\"GenerationStartedAtUtc\" IS NOT NULL AND \"AvailableAtUtc\" >= \"GenerationStartedAtUtc\" AND \"AvailableAtUtc\" < \"ExpiresAtUtc\")) AND (\"DeletionStartedAtUtc\" IS NULL OR \"DeletionStartedAtUtc\" >= \"ExpiresAtUtc\") AND (\"DeletedAtUtc\" IS NULL OR (\"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" >= \"DeletionStartedAtUtc\"))");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_artifact_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationExportFragment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("AvailableAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CatalogSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("CatalogVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletionRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletionStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("EncryptedByteLength")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("EncryptionKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ExportOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("FormatVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("FreezeOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FrozenRevisionSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int?>("GenerationAttempt")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("GenerationRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("GenerationStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OwnerContractVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OwnerKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PlaintextSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("PolicyEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("RecordCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResultCode")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long?>("ResultingProofRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long?>("SelectedProofRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("TerminationEpoch")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ProcessId", "ExportOperationRevision", "OwnerKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "State", "ExpiresAtUtc", "Id");
+
+                    b.HasIndex("ScopeId", "ProcessId", "ExportOperationRevision", "State", "OwnerKey", "Id")
+                        .HasDatabaseName("IX_tenant_termination_export_fragments_ScopeId_ProcessId_Expo~1");
+
+                    b.ToTable("tenant_termination_export_fragments", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_coordinates", "\"ApprovalRevision\" >= 1 AND \"FreezeOperationRevision\" >= 1 AND \"ExportOperationRevision\" > \"FreezeOperationRevision\" AND \"OwnerContractVersion\" >= 1 AND \"CatalogVersion\" >= 1 AND length(trim(\"OwnerKey\")) > 0 AND \"OwnerKey\" ~ '^[a-z0-9][a-z0-9._-]{0,99}$' AND char_length(\"CatalogSha256\") = 64 AND \"CatalogSha256\" ~ '^[0-9a-f]{64}$' AND char_length(\"FrozenRevisionSha256\") = 64 AND \"FrozenRevisionSha256\" ~ '^[0-9a-f]{64}$' AND char_length(\"PolicyEvidenceSha256\") = 64 AND \"PolicyEvidenceSha256\" ~ '^[0-9a-f]{64}$'");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_failure", "(\"State\" = 4 AND \"FailureCode\" IS NOT NULL) OR (\"State\" <> 4 AND \"FailureCode\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_generation", "(\"GenerationRunId\" IS NULL AND \"GenerationAttempt\" IS NULL AND \"GenerationStartedAtUtc\" IS NULL) OR (\"GenerationRunId\" IS NOT NULL AND \"GenerationAttempt\" > 0 AND \"GenerationStartedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_lifecycle", "(\"State\" = 1 AND \"GenerationRunId\" IS NULL AND \"FailureCode\" IS NULL AND \"RecordCount\" IS NULL AND \"StorageKey\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 2 AND \"GenerationRunId\" IS NOT NULL AND \"FailureCode\" IS NULL AND \"RecordCount\" IS NULL AND \"StorageKey\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 3 AND \"GenerationRunId\" IS NOT NULL AND \"FailureCode\" IS NULL AND \"RecordCount\" IS NOT NULL AND \"StorageKey\" IS NOT NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 4 AND \"GenerationRunId\" IS NOT NULL AND \"FailureCode\" IS NOT NULL AND \"RecordCount\" IS NULL AND \"StorageKey\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 5 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NULL AND \"DeletionStartedAtUtc\" IS NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 6 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NOT NULL AND \"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" IS NULL) OR (\"State\" = 7 AND \"FailureCode\" IS NULL AND \"DeletionRunId\" IS NOT NULL AND \"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_proof", "(\"RecordCount\" IS NULL AND \"SelectedProofRevision\" IS NULL AND \"ResultingProofRevision\" IS NULL AND \"ResultCode\" IS NULL) OR (\"RecordCount\" BETWEEN 0 AND 1000000 AND \"SelectedProofRevision\" >= 0 AND \"ResultingProofRevision\" = \"SelectedProofRevision\" AND \"ResultCode\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_state", "\"State\" BETWEEN 1 AND 7");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_storage", "(\"StorageKey\" IS NULL AND \"EncryptedByteLength\" IS NULL AND \"PlaintextSha256\" IS NULL AND \"EncryptionKeyVersion\" IS NULL AND \"FormatVersion\" IS NULL AND \"AvailableAtUtc\" IS NULL) OR (\"StorageKey\" IS NOT NULL AND \"EncryptedByteLength\" > 0 AND char_length(\"PlaintextSha256\") = 64 AND \"PlaintextSha256\" ~ '^[0-9a-f]{64}$' AND \"EncryptionKeyVersion\" > 0 AND \"FormatVersion\" > 0 AND \"AvailableAtUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_timestamps", "\"ExpiresAtUtc\" > \"RequestedAtUtc\" AND (\"GenerationStartedAtUtc\" IS NULL OR (\"GenerationStartedAtUtc\" >= \"RequestedAtUtc\" AND \"GenerationStartedAtUtc\" < \"ExpiresAtUtc\")) AND (\"AvailableAtUtc\" IS NULL OR (\"GenerationStartedAtUtc\" IS NOT NULL AND \"AvailableAtUtc\" >= \"GenerationStartedAtUtc\" AND \"AvailableAtUtc\" < \"ExpiresAtUtc\")) AND (\"DeletionStartedAtUtc\" IS NULL OR \"DeletionStartedAtUtc\" >= \"ExpiresAtUtc\") AND (\"DeletedAtUtc\" IS NULL OR (\"DeletionStartedAtUtc\" IS NOT NULL AND \"DeletedAtUtc\" >= \"DeletionStartedAtUtc\"))");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_export_fragment_version", "\"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -833,8 +1168,6 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("ScopeId", "Id");
-
                     b.HasIndex("ScopeId", "IdempotencyKey")
                         .IsUnique();
 
@@ -854,7 +1187,7 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_owner_phase", "\"Phase\" BETWEEN 1 AND 5");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_owner_result", "(\"State\" IN (1, 2) AND \"ResultCode\" IS NULL AND \"AffectedCount\" IS NULL AND \"RetainedMinimumCount\" IS NULL AND \"RemainingActiveCount\" IS NULL AND \"HoldReviewAtUtc\" IS NULL AND \"SelectedProofRevision\" IS NULL AND \"ResultingProofRevision\" IS NULL AND \"ResultRecordedAtUtc\" IS NULL) OR (\"State\" = 6 AND \"ResultCode\" IS NOT NULL AND \"AffectedCount\" >= 0 AND \"RetainedMinimumCount\" >= 0 AND \"RemainingActiveCount\" = 0 AND \"HoldReviewAtUtc\" IS NULL AND \"SelectedProofRevision\" >= 1 AND \"ResultingProofRevision\" >= \"SelectedProofRevision\" AND \"ResultRecordedAtUtc\" IS NOT NULL) OR (\"State\" = 4 AND \"ResultCode\" IS NOT NULL AND \"AffectedCount\" >= 0 AND \"RetainedMinimumCount\" >= 0 AND \"RemainingActiveCount\" >= 0 AND \"HoldReviewAtUtc\" >= \"ResultRecordedAtUtc\" AND \"SelectedProofRevision\" IS NULL AND \"ResultingProofRevision\" IS NULL AND \"ResultRecordedAtUtc\" IS NOT NULL) OR (\"State\" IN (3, 5) AND \"ResultCode\" IS NOT NULL AND \"AffectedCount\" >= 0 AND \"RetainedMinimumCount\" >= 0 AND \"RemainingActiveCount\" >= 0 AND \"HoldReviewAtUtc\" IS NULL AND \"SelectedProofRevision\" IS NULL AND \"ResultingProofRevision\" IS NULL AND \"ResultRecordedAtUtc\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_owner_result", "(\"State\" IN (1, 2) AND \"ResultCode\" IS NULL AND \"AffectedCount\" IS NULL AND \"RetainedMinimumCount\" IS NULL AND \"RemainingActiveCount\" IS NULL AND \"HoldReviewAtUtc\" IS NULL AND \"SelectedProofRevision\" IS NULL AND \"ResultingProofRevision\" IS NULL AND \"ResultRecordedAtUtc\" IS NULL) OR (\"State\" = 6 AND \"ResultCode\" IS NOT NULL AND \"AffectedCount\" >= 0 AND \"RetainedMinimumCount\" >= 0 AND \"RemainingActiveCount\" = 0 AND \"HoldReviewAtUtc\" IS NULL AND \"SelectedProofRevision\" >= 0 AND \"ResultingProofRevision\" >= \"SelectedProofRevision\" AND \"ResultRecordedAtUtc\" IS NOT NULL) OR (\"State\" = 4 AND \"ResultCode\" IS NOT NULL AND \"AffectedCount\" >= 0 AND \"RetainedMinimumCount\" >= 0 AND \"RemainingActiveCount\" >= 0 AND \"HoldReviewAtUtc\" >= \"ResultRecordedAtUtc\" AND \"SelectedProofRevision\" IS NULL AND \"ResultingProofRevision\" IS NULL AND \"ResultRecordedAtUtc\" IS NOT NULL) OR (\"State\" IN (3, 5) AND \"ResultCode\" IS NOT NULL AND \"AffectedCount\" >= 0 AND \"RetainedMinimumCount\" >= 0 AND \"RemainingActiveCount\" >= 0 AND \"HoldReviewAtUtc\" IS NULL AND \"SelectedProofRevision\" IS NULL AND \"ResultingProofRevision\" IS NULL AND \"ResultRecordedAtUtc\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_owner_result_code", "\"ResultCode\" IS NULL OR \"ResultCode\" ~ '^[a-z0-9][a-z0-9._-]{0,199}$'");
 
@@ -893,8 +1226,58 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<long?>("DestroyCompletedOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("DestroyedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ExportArtifactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ExportArtifactVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ExportConfirmationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ExportConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExportConfirmedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long?>("ExportConfirmedOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ExportFragmentSetSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ExportFrozenRevisionSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
                     b.Property<bool>("ExportRequested")
                         .HasColumnType("boolean");
+
+                    b.Property<long?>("FreezeOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("FrozenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FrozenBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FrozenRevisionSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
 
                     b.Property<DateTimeOffset?>("HoldReviewAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -934,11 +1317,38 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("TerminalReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("TerminalReceiptVersion")
+                        .HasColumnType("bigint");
+
                     b.Property<Guid>("TerminationEpoch")
                         .HasColumnType("uuid");
 
+                    b.Property<long>("VerificationConfirmationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("VerificationConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerificationConfirmedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long?>("VerificationConfirmedOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("VerificationOwnerProofSetSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("WorkspaceFenceRevision")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
@@ -955,6 +1365,9 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("ScopeId", "IdempotencyKey")
                         .IsUnique();
 
+                    b.HasIndex("ScopeId", "Id", "TerminalReceiptId", "TerminalReceiptVersion")
+                        .IsUnique();
+
                     b.HasIndex("ScopeId", "Status", "Phase", "LastChangedAtUtc", "Id");
 
                     b.ToTable("tenant_termination_processes", "data-rights", t =>
@@ -965,9 +1378,15 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_process_completion", "(\"Phase\" = 5 AND \"Status\" = 5) OR (\"Phase\" = 6 AND \"Status\" IN (1, 2, 3, 4, 6)) OR (\"Phase\" BETWEEN 1 AND 4 AND \"Status\" BETWEEN 1 AND 4)");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_operation", "\"OperationRevision\" >= 0 AND ((\"Status\" = 1 AND \"OperationRevision\" >= 0) OR (\"Status\" BETWEEN 2 AND 6 AND \"OperationRevision\" >= 1))");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_destroy_checkpoint", "((\"Phase\" IN (1, 2, 3, 6) AND \"DestroyCompletedOperationRevision\" IS NULL AND \"DestroyedAtUtc\" IS NULL) OR (\"Phase\" IN (4, 5) AND \"DestroyCompletedOperationRevision\" > \"ApprovalRevision\" AND \"DestroyCompletedOperationRevision\" <= \"OperationRevision\" AND \"DestroyedAtUtc\" >= \"CreatedAtUtc\" AND \"DestroyedAtUtc\" <= \"LastChangedAtUtc\"))");
 
-                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_outcome", "(\"Status\" = 3 AND \"OutcomeCode\" IS NOT NULL AND \"HoldReviewAtUtc\" IS NOT NULL AND \"HoldReviewAtUtc\" >= \"LastChangedAtUtc\") OR (\"Status\" = 4 AND \"OutcomeCode\" IS NOT NULL AND \"HoldReviewAtUtc\" IS NULL) OR (\"Status\" IN (1, 2, 5, 6) AND \"OutcomeCode\" IS NULL AND \"HoldReviewAtUtc\" IS NULL)");
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_export_confirmation", "\"ExportConfirmationRevision\" >= 0 AND ((\"ExportConfirmedOperationRevision\" IS NULL AND \"ExportArtifactId\" IS NULL AND \"ExportArtifactVersion\" IS NULL AND \"ExportFrozenRevisionSha256\" IS NULL AND \"ExportFragmentSetSha256\" IS NULL AND \"ExportConfirmedBy\" IS NULL AND \"ExportConfirmedAtUtc\" IS NULL) OR (\"ExportConfirmationRevision\" >= 1 AND \"ExportConfirmedOperationRevision\" >= 1 AND \"ExportConfirmedOperationRevision\" <= \"OperationRevision\" AND \"ExportArtifactId\" IS NOT NULL AND \"ExportArtifactVersion\" >= 1 AND char_length(\"ExportFrozenRevisionSha256\") = 64 AND \"ExportFrozenRevisionSha256\" ~ '^[0-9a-f]{64}$' AND \"ExportFrozenRevisionSha256\" = \"FrozenRevisionSha256\" AND char_length(\"ExportFragmentSetSha256\") = 64 AND \"ExportFragmentSetSha256\" ~ '^[0-9a-f]{64}$' AND length(trim(\"ExportConfirmedBy\")) > 0 AND \"ExportConfirmedAtUtc\" >= \"CreatedAtUtc\" AND \"ExportConfirmedAtUtc\" <= \"LastChangedAtUtc\")) AND ((\"ExportRequested\" = FALSE AND \"ExportConfirmationRevision\" = 0 AND \"ExportConfirmedOperationRevision\" IS NULL) OR \"ExportRequested\" = TRUE) AND (\"ExportRequested\" = FALSE OR \"Phase\" IN (1, 2, 6) OR \"ExportConfirmedOperationRevision\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_freeze_checkpoint", "((\"Phase\" = 1 AND \"FreezeOperationRevision\" IS NULL AND \"WorkspaceFenceRevision\" IS NULL AND \"FrozenRevisionSha256\" IS NULL AND \"FrozenBy\" IS NULL AND \"FrozenAtUtc\" IS NULL) OR (\"Phase\" BETWEEN 2 AND 6 AND \"FreezeOperationRevision\" > \"ApprovalRevision\" AND \"FreezeOperationRevision\" <= \"OperationRevision\" AND \"WorkspaceFenceRevision\" >= 1 AND char_length(\"FrozenRevisionSha256\") = 64 AND \"FrozenRevisionSha256\" ~ '^[0-9a-f]{64}$' AND length(trim(\"FrozenBy\")) > 0 AND \"FrozenAtUtc\" >= \"CreatedAtUtc\" AND \"FrozenAtUtc\" <= \"LastChangedAtUtc\"))");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_operation", "\"OperationRevision\" >= \"ApprovalRevision\" AND ((\"Status\" = 1 AND \"OperationRevision\" >= \"ApprovalRevision\") OR (\"Status\" BETWEEN 2 AND 6 AND \"OperationRevision\" > \"ApprovalRevision\"))");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_outcome", "(\"Status\" = 3 AND \"OutcomeCode\" IS NOT NULL AND (\"HoldReviewAtUtc\" IS NULL OR \"HoldReviewAtUtc\" >= \"LastChangedAtUtc\")) OR (\"Status\" = 4 AND \"OutcomeCode\" IS NOT NULL AND \"HoldReviewAtUtc\" IS NULL) OR (\"Status\" IN (1, 2, 5, 6) AND \"OutcomeCode\" IS NULL AND \"HoldReviewAtUtc\" IS NULL)");
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_process_outcome_code", "\"OutcomeCode\" IS NULL OR \"OutcomeCode\" ~ '^[a-z0-9][a-z0-9._-]{0,199}$'");
 
@@ -977,7 +1396,153 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_process_timestamps", "\"LastChangedAtUtc\" >= \"CreatedAtUtc\"");
 
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_process_verification_confirmation", "\"VerificationConfirmationRevision\" >= 0 AND ((\"VerificationConfirmedOperationRevision\" IS NULL AND \"TerminalReceiptId\" IS NULL AND \"TerminalReceiptVersion\" IS NULL AND \"VerificationOwnerProofSetSha256\" IS NULL AND \"VerificationConfirmedBy\" IS NULL AND \"VerificationConfirmedAtUtc\" IS NULL) OR (\"Phase\" IN (4, 5) AND \"VerificationConfirmationRevision\" >= 1 AND \"VerificationConfirmedOperationRevision\" = \"OperationRevision\" AND \"VerificationConfirmedOperationRevision\" > \"DestroyCompletedOperationRevision\" AND \"TerminalReceiptId\" IS NOT NULL AND \"TerminalReceiptVersion\" >= 1 AND char_length(\"VerificationOwnerProofSetSha256\") = 64 AND \"VerificationOwnerProofSetSha256\" ~ '^[0-9a-f]{64}$' AND length(trim(\"VerificationConfirmedBy\")) > 0 AND \"VerificationConfirmedAtUtc\" >= \"DestroyedAtUtc\" AND \"VerificationConfirmedAtUtc\" <= \"LastChangedAtUtc\")) AND (\"Phase\" <> 5 OR \"VerificationConfirmedOperationRevision\" IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_data_rights_tenant_termination_process_version", "\"Version\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationTerminalReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ApprovalRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("DestroyOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ExportArtifactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ExportArtifactVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ExportFragmentSetSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<bool>("ExportRequested")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FrozenRevisionSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OwnerCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OwnerProofSetSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("PolicyEvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ProcessId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReplayCheckpointFlushedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReplayCheckpointProofSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ReplayCheckpointRecordSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ReplayCheckpointSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ReplayIntegrityKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("SealedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SealedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("TerminalOwnerKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("TerminalOwnerResultingProofRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TerminalOwnerSelectedProofRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TerminationEpoch")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("VerificationOperationRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("VerificationTaskAttempt")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("VerificationTaskRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ProcessId", "VerificationOperationRevision")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ProcessId", "CaseId", "ApprovalRevision", "TerminationEpoch", "PolicyEvidenceSha256");
+
+                    b.ToTable("tenant_termination_terminal_receipts", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_terminal_receipt_coordinates", "\"ApprovalRevision\" >= 1 AND \"DestroyOperationRevision\" > \"ApprovalRevision\" AND \"VerificationOperationRevision\" > \"DestroyOperationRevision\" AND \"VerificationTaskRunId\" IS NOT NULL AND \"VerificationTaskAttempt\" > 0 AND char_length(\"PolicyEvidenceSha256\") = 64 AND \"PolicyEvidenceSha256\" ~ '^[0-9a-f]{64}$' AND char_length(\"FrozenRevisionSha256\") = 64 AND \"FrozenRevisionSha256\" ~ '^[0-9a-f]{64}$'");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_terminal_receipt_export", "(\"ExportRequested\" = FALSE AND \"ExportArtifactId\" IS NULL AND \"ExportArtifactVersion\" IS NULL AND \"ExportFragmentSetSha256\" IS NULL) OR (\"ExportRequested\" = TRUE AND \"ExportArtifactId\" IS NOT NULL AND \"ExportArtifactVersion\" >= 1 AND char_length(\"ExportFragmentSetSha256\") = 64 AND \"ExportFragmentSetSha256\" ~ '^[0-9a-f]{64}$')");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_terminal_receipt_owners", "\"OwnerCount\" BETWEEN 1 AND 64 AND char_length(\"OwnerProofSetSha256\") = 64 AND \"OwnerProofSetSha256\" ~ '^[0-9a-f]{64}$' AND length(trim(\"TerminalOwnerKey\")) > 0 AND \"TerminalOwnerKey\" ~ '^[a-z0-9][a-z0-9._-]{0,99}$' AND \"TerminalOwnerSelectedProofRevision\" >= 0 AND \"TerminalOwnerResultingProofRevision\" >= \"TerminalOwnerSelectedProofRevision\"");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_terminal_receipt_replay", "\"ReplayCheckpointSequence\" > 0 AND char_length(\"ReplayCheckpointRecordSha256\") = 64 AND \"ReplayCheckpointRecordSha256\" ~ '^[0-9a-f]{64}$' AND \"ReplayIntegrityKeyVersion\" > 0 AND char_length(\"ReplayCheckpointProofSha256\") = 64 AND \"ReplayCheckpointProofSha256\" ~ '^[0-9a-f]{64}$'");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_terminal_receipt_seal", "length(trim(\"SealedBy\")) > 0 AND \"SealedAtUtc\" >= \"ReplayCheckpointFlushedAtUtc\"");
+
+                            t.HasCheckConstraint("CK_data_rights_tenant_termination_terminal_receipt_version", "\"Version\" = 1");
                         });
                 });
 
@@ -1394,6 +1959,10 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TimeZoneId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<long>("TopologySourceVersion")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
@@ -1409,6 +1978,49 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                             t.HasCheckConstraint("CK_data_rights_property_projection_processing_status", "\"ProcessingStatus\" BETWEEN 1 AND 3");
 
                             t.HasCheckConstraint("CK_data_rights_property_projection_versions", "\"TopologySourceVersion\" >= 0 AND \"PolicySourceVersion\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Persistence.DataRightsResponseDeadlineAlertDispatchReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AlertKind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("DispatchedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DueAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "AlertKind", "DispatchedAtUtc");
+
+                    b.HasIndex("ScopeId", "CaseId", "AlertKind")
+                        .IsUnique();
+
+                    b.ToTable("response_deadline_alert_dispatches", "data-rights", t =>
+                        {
+                            t.HasCheckConstraint("CK_response_deadline_alert_dispatches_kind", "\"AlertKind\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_response_deadline_alert_dispatches_timing", "(\"AlertKind\" = 1 AND \"DispatchedAtUtc\" < \"DueAtUtc\") OR (\"AlertKind\" = 2 AND \"DispatchedAtUtc\" >= \"DueAtUtc\")");
                         });
                 });
 
@@ -1707,6 +2319,106 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                                 .HasForeignKey("DataRightsCaseId");
                         });
 
+                    b.OwnsOne("BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsResponseDeadlinePolicyEvidence", "ResponseDeadlinePolicyEvidence", b1 =>
+                        {
+                            b1.Property<Guid>("DataRightsCaseId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("ContentSha256")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character(64)")
+                                .HasColumnName("ResponseDeadlineContentSha256")
+                                .IsFixedLength();
+
+                            b1.Property<int>("ControllingRight")
+                                .HasColumnType("integer")
+                                .HasColumnName("ResponseDeadlineControllingRight");
+
+                            b1.Property<DateTimeOffset>("DueAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("ResponseDeadlineDueAtUtc");
+
+                            b1.Property<DateTimeOffset>("EvaluatedAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("ResponseDeadlineEvaluatedAtUtc");
+
+                            b1.Property<string>("OperatingCountryCode")
+                                .IsRequired()
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)")
+                                .HasColumnName("ResponseDeadlineOperatingCountryCode");
+
+                            b1.Property<int>("PeriodDays")
+                                .HasColumnType("integer")
+                                .HasColumnName("ResponseDeadlinePeriodDays");
+
+                            b1.Property<int>("PeriodMonths")
+                                .HasColumnType("integer")
+                                .HasColumnName("ResponseDeadlinePeriodMonths");
+
+                            b1.Property<int>("PeriodYears")
+                                .HasColumnType("integer")
+                                .HasColumnName("ResponseDeadlinePeriodYears");
+
+                            b1.Property<DateTimeOffset>("PolicyEffectiveAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("ResponseDeadlinePolicyEffectiveAtUtc");
+
+                            b1.Property<DateTimeOffset>("PolicyExpiresAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("ResponseDeadlinePolicyExpiresAtUtc");
+
+                            b1.Property<string>("PolicyId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("ResponseDeadlinePolicyId");
+
+                            b1.Property<int>("PolicyVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("ResponseDeadlinePolicyVersion");
+
+                            b1.Property<Guid>("PropertyId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("ResponseDeadlinePropertyId");
+
+                            b1.Property<long>("PropertyPolicySourceVersion")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ResponseDeadlinePolicySourceVersion");
+
+                            b1.Property<long>("PropertyTopologySourceVersion")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ResponseDeadlineTopologySourceVersion");
+
+                            b1.Property<DateTimeOffset>("ReceivedAtUtc")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("ResponseDeadlineReceivedAtUtc");
+
+                            b1.Property<string>("RuleReference")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("ResponseDeadlineRuleReference");
+
+                            b1.Property<int>("SchemaVersion")
+                                .HasColumnType("integer")
+                                .HasColumnName("ResponseDeadlineSchemaVersion");
+
+                            b1.Property<string>("TimeZoneId")
+                                .IsRequired()
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("ResponseDeadlineTimeZoneId");
+
+                            b1.HasKey("DataRightsCaseId");
+
+                            b1.ToTable("cases", "data-rights");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DataRightsCaseId");
+                        });
+
                     b.OwnsOne("BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionExecutionProof", "RestrictionExecutionProof", b1 =>
                         {
                             b1.Property<Guid>("DataRightsCaseId")
@@ -1795,6 +2507,8 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
 
                     b.Navigation("ApprovalPolicyEvidence");
 
+                    b.Navigation("ResponseDeadlinePolicyEvidence");
+
                     b.Navigation("RestrictionExecutionProof");
 
                     b.Navigation("SelectedSubjects");
@@ -1847,6 +2561,26 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationExportArtifact", b =>
+                {
+                    b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "ProcessId", "CaseId", "ApprovalRevision", "TerminationEpoch", "PolicyEvidenceSha256")
+                        .HasPrincipalKey("ScopeId", "Id", "CaseId", "ApprovalRevision", "TerminationEpoch", "PolicyEvidenceSha256")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationExportFragment", b =>
+                {
+                    b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationExportFragment", "ScopeId", "Id")
+                        .HasPrincipalKey("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationOwnerWorkItem", b =>
                 {
                     b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess", null)
@@ -1863,6 +2597,67 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         .WithOne()
                         .HasForeignKey("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess", "ScopeId", "CaseId")
                         .HasPrincipalKey("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase", "ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationTerminalReceipt", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess", "ScopeId", "Id", "TerminalReceiptId", "TerminalReceiptVersion")
+                        .HasPrincipalKey("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationTerminalReceipt", "ScopeId", "ProcessId", "Id", "Version")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.OwnsMany("BunkFy.Modules.DataRights.Domain.Entities.TenantTerminationFrozenOwner", "FrozenExportOwners", b1 =>
+                        {
+                            b1.Property<Guid>("ProcessId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("Ordinal")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("CatalogSha256")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character(64)")
+                                .IsFixedLength();
+
+                            b1.Property<int>("CatalogVersion")
+                                .HasColumnType("integer");
+
+                            b1.Property<int>("ContractVersion")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("OwnerKey")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.HasKey("ProcessId", "Ordinal");
+
+                            b1.HasIndex("ProcessId", "OwnerKey")
+                                .IsUnique();
+
+                            b1.ToTable("tenant_termination_frozen_export_owners", "data-rights", t =>
+                                {
+                                    t.HasCheckConstraint("CK_data_rights_tenant_termination_frozen_owner_catalog", "\"ContractVersion\" >= 1 AND \"CatalogVersion\" >= 1 AND char_length(\"CatalogSha256\") = 64 AND \"CatalogSha256\" ~ '^[0-9a-f]{64}$'");
+
+                                    t.HasCheckConstraint("CK_data_rights_tenant_termination_frozen_owner_key", "length(trim(\"OwnerKey\")) > 0 AND \"OwnerKey\" ~ '^[a-z0-9][a-z0-9._-]{0,99}$'");
+
+                                    t.HasCheckConstraint("CK_data_rights_tenant_termination_frozen_owner_ordinal", "\"Ordinal\" BETWEEN 1 AND 64");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProcessId");
+                        });
+
+                    b.Navigation("FrozenExportOwners");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationTerminalReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.TenantTerminationProcess", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "ProcessId", "CaseId", "ApprovalRevision", "TerminationEpoch", "PolicyEvidenceSha256")
+                        .HasPrincipalKey("ScopeId", "Id", "CaseId", "ApprovalRevision", "TerminationEpoch", "PolicyEvidenceSha256")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -1968,6 +2763,16 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         });
 
                     b.Navigation("GovernancePolicy");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.DataRights.Persistence.DataRightsResponseDeadlineAlertDispatchReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.DataRights.Domain.Aggregates.DataRightsCase", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "CaseId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

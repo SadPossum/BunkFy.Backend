@@ -15,6 +15,7 @@ public sealed record CountryPolicyDescriptorDto(
     IReadOnlyCollection<string> AccommodationTypes,
     IReadOnlyCollection<string> PermittedDataRegions,
     IReadOnlyCollection<string> PermittedTransferProfiles,
+    bool SupportsRightsResponseDeadlines,
     IReadOnlyCollection<CountryPolicyRetentionDescriptorDto> RetentionPolicies,
     IReadOnlyCollection<PropertyGovernanceAcknowledgementDto> RequiredAcknowledgements);
 

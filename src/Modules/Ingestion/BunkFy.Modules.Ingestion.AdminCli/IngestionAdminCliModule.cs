@@ -360,7 +360,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 Result<AdapterConflictPolicy> parsedPolicy = ParseEnum<AdapterConflictPolicy>(parse.GetRequiredValue(policy));
                 if (parsedMode.IsFailure || parsedPolicy.IsFailure)
                 {
-                    return Result.Failure<AdapterConnectionDto>(
+                    return Result.Failure<AdapterConnectionMutationReceiptDto>(
                         parsedMode.IsFailure ? parsedMode.Error : parsedPolicy.Error);
                 }
 
@@ -395,7 +395,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 Result<AdapterConflictPolicy> parsedPolicy = ParseEnum<AdapterConflictPolicy>(parse.GetRequiredValue(policy));
                 if (parsedMode.IsFailure || parsedPolicy.IsFailure)
                 {
-                    return Result.Failure<AdapterConnectionDto>(
+                    return Result.Failure<AdapterConnectionMutationReceiptDto>(
                         parsedMode.IsFailure ? parsedMode.Error : parsedPolicy.Error);
                 }
 
@@ -446,7 +446,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new ResetAdapterConnectionCheckpointCommand(parse.GetRequiredValue(property),
                         parse.GetRequiredValue(connection), parse.GetRequiredValue(version)), ct)
-                : Task.FromResult(Result.Failure<AdapterConnectionDto>(AdminErrors.ConfirmationRequired)), token));
+                : Task.FromResult(Result.Failure<AdapterConnectionMutationReceiptDto>(
+                    AdminErrors.ConfirmationRequired)), token));
         return command;
     }
 
@@ -849,7 +850,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         {
             property, connection, credential, version, yes
         };
-        command.SetAction((parse, token) => ExecuteObjectAsync<AdapterIngressCredentialDto>(
+        command.SetAction((parse, token) => ExecuteObjectAsync<AdapterIngressCredentialMutationReceiptDto>(
             services,
             globalOptions,
             parse,
@@ -865,7 +866,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                         $"admin-cli:{ResolveActor(parse, globalOptions)}"),
                     ct)
                 : (_, _) => Task.FromResult(
-                    Result.Failure<AdapterIngressCredentialDto>(AdminErrors.ConfirmationRequired)),
+                    Result.Failure<AdapterIngressCredentialMutationReceiptDto>(
+                        AdminErrors.ConfirmationRequired)),
             token));
         return command;
     }
@@ -1489,7 +1491,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                         parseResult.GetRequiredValue(proposalVersionOption),
                         parseResult.GetRequiredValue(detailsRevisionOption)),
                     token)
-                : (_, _) => Task.FromResult(Result.Failure<ChangeProposalDecisionResult>(AdminErrors.ConfirmationRequired)),
+                : (_, _) => Task.FromResult(Result.Failure<ChangeProposalMutationReceiptDto>(
+                    AdminErrors.ConfirmationRequired)),
             cancellationToken));
         return command;
     }
@@ -1520,7 +1523,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                         parseResult.GetRequiredValue(reasonOption),
                         parseResult.GetRequiredValue(proposalVersionOption)),
                     token)
-                : (_, _) => Task.FromResult(Result.Failure<ChangeProposalDecisionResult>(AdminErrors.ConfirmationRequired)),
+                : (_, _) => Task.FromResult(Result.Failure<ChangeProposalMutationReceiptDto>(
+                    AdminErrors.ConfirmationRequired)),
             cancellationToken));
         return command;
     }
@@ -1530,7 +1534,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         AdminCliGlobalOptions globalOptions,
         ParseResult parseResult,
         string operationName,
-        Func<IServiceProvider, CancellationToken, Task<Result<ChangeProposalDecisionResult>>> execute,
+        Func<IServiceProvider, CancellationToken, Task<Result<ChangeProposalMutationReceiptDto>>> execute,
         CancellationToken cancellationToken) => services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
             parseResult,
             AdminOperation.Create(operationName, IngestionAdminPermissions.ProposalsDecide),
@@ -1538,7 +1542,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             requireTenant: true,
             async (provider, token) =>
             {
-                Result<ChangeProposalDecisionResult> result = await execute(provider, token).ConfigureAwait(false);
+                Result<ChangeProposalMutationReceiptDto> result = await execute(provider, token).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
                     AdminCliOutput.WriteObject(result.Value, Output(parseResult, globalOptions));
@@ -1548,7 +1552,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             },
             cancellationToken);
 
-    private static void WriteProposals(IReadOnlyCollection<ChangeProposalSummaryDto> proposals, string output) =>
+    private static void WriteProposals(IReadOnlyCollection<ChangeProposalListItemDto> proposals, string output) =>
         AdminCliOutput.WriteRows(
             proposals,
             output,
@@ -1557,9 +1561,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 ("Reservation", proposal => proposal.ReservationId.ToString("D")),
                 ("Status", proposal => proposal.Status.ToString()),
                 ("Reason", proposal => proposal.ReasonCode),
-                ("Sensitive data", proposal => proposal.SensitiveHistoryStatus.ToString()),
                 ("Base rev", proposal => proposal.BaseReservationDetailsRevision.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                ("Version", proposal => proposal.Version.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 ("Created UTC", proposal => proposal.CreatedAtUtc.ToString("O"))
             ]);
 

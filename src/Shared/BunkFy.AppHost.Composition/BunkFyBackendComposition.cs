@@ -164,9 +164,11 @@ public static class BunkFyBackendComposition
             .WithEnvironment("Tasks__Scheduler__Enabled", "true")
             .WithEnvironment("Worker__Modules__AccessControl", "true")
             .WithEnvironment("Worker__Modules__Auth", "true")
+            .WithEnvironment("Auth__Retention__Enabled", "true")
             .WithEnvironment("Worker__Modules__Notifications", "true")
             .WithEnvironment("Worker__Modules__Organizations", "true")
             .WithEnvironment("Organizations__Lifecycle__Enabled", "true")
+            .WithEnvironment("Organizations__Retention__Enabled", "true")
             .WithEnvironment("Worker__Modules__Properties", "true")
             .WithEnvironment("Worker__Modules__Inventory", "true")
             .WithEnvironment("Worker__Modules__Reservations", "true")
@@ -182,7 +184,8 @@ public static class BunkFyBackendComposition
             .WithEnvironment("Tasks__Worker__WorkerGroups__3", "ingestion-adapters")
             .WithEnvironment("Tasks__Worker__WorkerGroups__4", "ingestion-maintenance")
             .WithEnvironment("Tasks__Worker__WorkerGroups__5", "data-rights-workers")
-            .WithEnvironment("Tasks__Worker__WorkerGroups__6", "retention-workers");
+            .WithEnvironment("Tasks__Worker__WorkerGroups__6", "retention-workers")
+            .WithEnvironment("Tasks__Worker__WorkerGroups__7", "tenant-termination-workers");
         if (sqlServer is { } configuredSqlServer)
         {
             worker.WithReference(configuredSqlServer).WaitFor(configuredSqlServer);

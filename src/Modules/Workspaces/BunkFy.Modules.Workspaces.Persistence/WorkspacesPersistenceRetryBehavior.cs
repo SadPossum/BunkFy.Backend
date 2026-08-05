@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Persistence;
 
+using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -42,11 +43,23 @@ internal sealed class WorkspacesPersistenceRetryBehavior<TCommand, TResponse>
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(next);
 
-        if (command is not IWorkspacePersistenceRetryableCommand)
+        try
         {
-            return await next().ConfigureAwait(false);
+            return command is IWorkspacePersistenceRetryableCommand
+                ? await this.ExecuteRetryableAsync(next).ConfigureAwait(false)
+                : await next().ConfigureAwait(false);
         }
+        catch (WorkspaceOperationalMutationRejectedException)
+        {
+            this.dbContext.ChangeTracker.Clear();
+            return Result.Failure<TResponse>(
+                WorkspaceOperationalAdmissionErrors.ProcessingRestricted);
+        }
+    }
 
+    private async Task<Result<TResponse>> ExecuteRetryableAsync(
+        CommandNext<TResponse> next)
+    {
         try
         {
             return await next().ConfigureAwait(false);

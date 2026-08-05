@@ -9,16 +9,40 @@ using Xunit;
 public sealed class HostCompositionGuardTests
 {
     [Fact]
-    public void Development_country_policy_is_synthetic_and_identically_digest_pinned_across_api_and_worker()
+    public void Development_country_policies_are_synthetic_and_identically_digest_pinned_across_api_and_worker()
     {
-        string packPath = RepositoryPaths.Resolve(
-            "eng",
-            "country-policies",
-            "development",
-            "example-hostel-policy.v1.json");
-        string digest = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(packPath)));
-        using JsonDocument pack = JsonDocument.Parse(File.ReadAllText(packPath));
-        Assert.Equal("example", pack.RootElement.GetProperty("approvalState").GetString());
+        (string FileName, int SchemaVersion, int PolicyVersion)[] expectedArtifacts =
+        [
+            ("example-hostel-policy.v1.json", 1, 1),
+            ("example-hostel-policy.v2.json", 2, 2)
+        ];
+        Dictionary<int, string> digests = [];
+
+        foreach ((string fileName, int schemaVersion, int policyVersion) in expectedArtifacts)
+        {
+            string packPath = RepositoryPaths.Resolve(
+                "eng",
+                "country-policies",
+                "development",
+                fileName);
+            digests.Add(
+                policyVersion,
+                Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(packPath))));
+            using JsonDocument pack = JsonDocument.Parse(File.ReadAllText(packPath));
+            Assert.Equal(schemaVersion, pack.RootElement.GetProperty("schemaVersion").GetInt32());
+            Assert.Equal(policyVersion, pack.RootElement.GetProperty("policyVersion").GetInt32());
+            Assert.Equal("example", pack.RootElement.GetProperty("approvalState").GetString());
+
+            JsonElement rightsRule = pack.RootElement.GetProperty("rightsRule");
+            if (schemaVersion == 1)
+            {
+                Assert.False(rightsRule.TryGetProperty("responseRules", out _));
+            }
+            else
+            {
+                Assert.Equal(4, rightsRule.GetProperty("responseRules").GetArrayLength());
+            }
+        }
 
         (string Host, string PackDirectory)[] hosts =
         [
@@ -37,12 +61,22 @@ public sealed class HostCompositionGuardTests
                 RepositoryPaths.Read("src", host, "appsettings.Development.json"));
             JsonElement policies = development.RootElement.GetProperty("BunkFy").GetProperty("CountryPolicies");
             Assert.Equal(packDirectory, policies.GetProperty("PackDirectory").GetString());
-            JsonElement allowlist = Assert.Single(policies.GetProperty("Allowlist").EnumerateArray());
-            Assert.Equal("GB", allowlist.GetProperty("OperatingCountryCode").GetString());
-            Assert.Equal("development-hostel-example", allowlist.GetProperty("PolicyId").GetString());
-            Assert.Equal(1, allowlist.GetProperty("PolicyVersion").GetInt32());
-            Assert.Equal(digest, allowlist.GetProperty("ContentSha256").GetString());
-            Assert.Equal("Engineering", allowlist.GetProperty("LaunchStatus").GetString());
+            JsonElement[] allowlist = policies.GetProperty("Allowlist")
+                .EnumerateArray()
+                .OrderBy(entry => entry.GetProperty("PolicyVersion").GetInt32())
+                .ToArray();
+            Assert.Equal(expectedArtifacts.Length, allowlist.Length);
+
+            foreach ((_, _, int policyVersion) in expectedArtifacts)
+            {
+                JsonElement entry = Assert.Single(
+                    allowlist,
+                    candidate => candidate.GetProperty("PolicyVersion").GetInt32() == policyVersion);
+                Assert.Equal("GB", entry.GetProperty("OperatingCountryCode").GetString());
+                Assert.Equal("development-hostel-example", entry.GetProperty("PolicyId").GetString());
+                Assert.Equal(digests[policyVersion], entry.GetProperty("ContentSha256").GetString());
+                Assert.Equal("Engineering", entry.GetProperty("LaunchStatus").GetString());
+            }
         }
     }
 
@@ -75,6 +109,8 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddOrganizationsTenancyExtension();",
             "builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);",
             "builder.Services.AddBunkFyWorkspaceAdmission(builder.Configuration, builder.Environment.IsProduction());",
+            "builder.Services.AddBunkFyOrganizationsDataRights();",
+            "builder.Services.AddBunkFyTenantTerminationOperatorCatalog();",
             "builder.Services.AddBunkFyOperationsNotifications();",
             "builder.Services.AddBunkFyOperationsIngestionNotifications();",
             "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",
@@ -260,15 +296,205 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Public_api_does_not_expose_the_generic_files_front_door()
+    public void Bunkfy_hosts_do_not_compose_the_generic_files_front_door()
     {
-        string program = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
-        string project = RepositoryPaths.Read("src", "BunkFy.Host.Api", "BunkFy.Host.Api.csproj");
+        string[] hostFiles = RepositoryPaths
+            .EnumerateFiles("src", "*.cs")
+            .Concat(RepositoryPaths.EnumerateFiles("src", "*.csproj"))
+            .Where(path => Path.GetFileName(path).StartsWith("BunkFy.Host.", StringComparison.Ordinal) ||
+                path.Split(Path.DirectorySeparatorChar).Any(segment =>
+                    segment.StartsWith("BunkFy.Host.", StringComparison.Ordinal)))
+            .ToArray();
 
-        Assert.DoesNotContain("Gma.Modules.Files.Api", program, StringComparison.Ordinal);
-        Assert.DoesNotContain("AddModule<FilesModule>()", program, StringComparison.Ordinal);
-        Assert.DoesNotContain("Gma.Modules.Files.Api.csproj", project, StringComparison.Ordinal);
-        Assert.Contains("builder.AddMinioFileStorage();", program, StringComparison.Ordinal);
+        Assert.NotEmpty(hostFiles);
+        foreach (string path in hostFiles)
+        {
+            string source = File.ReadAllText(path);
+            Assert.DoesNotContain("Gma.Modules.Files.Api", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("AddModule<FilesModule>()", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Gma.Modules.Files.Api.csproj", source, StringComparison.Ordinal);
+        }
+
+        Assert.Contains(
+            "builder.AddMinioFileStorage();",
+            RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs"),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Migrations_host_is_fail_closed_bounded_and_product_catalogued()
+    {
+        using JsonDocument settings = JsonDocument.Parse(
+            RepositoryPaths.Read(
+                "src",
+                "BunkFy.Host.Migrations",
+                "appsettings.json"));
+        JsonElement migrations = settings.RootElement.GetProperty("Migrations");
+        Assert.Equal("Apply", migrations.GetProperty("Mode").GetString());
+        Assert.InRange(
+            migrations.GetProperty("LockAcquireTimeoutSeconds").GetInt32(),
+            1,
+            600);
+        Assert.InRange(
+            migrations.GetProperty("OperationTimeoutSeconds").GetInt32(),
+            30,
+            7200);
+        Assert.InRange(
+            migrations.GetProperty("CommandTimeoutSeconds").GetInt32(),
+            5,
+            1800);
+
+        JsonElement admission = migrations.GetProperty("ProductionAdmission");
+        Assert.Equal("Pending", admission.GetProperty("ApprovalState").GetString());
+        Assert.Equal(
+            "Unspecified",
+            admission.GetProperty("DeploymentProfile").GetString());
+        Assert.Equal("Unspecified", admission.GetProperty("Runtime").GetString());
+        Assert.Equal(
+            JsonValueKind.Null,
+            admission.GetProperty("SourceCommitSha").ValueKind);
+        Assert.Equal(
+            JsonValueKind.Null,
+            admission.GetProperty("ApprovedDatabaseTargetSha256").ValueKind);
+        Assert.Equal(
+            JsonValueKind.Null,
+            admission.GetProperty("ApprovedTargetCatalogSha256").ValueKind);
+        Assert.Equal(
+            "Unspecified",
+            admission.GetProperty("ExistingHistoryDisposition").GetString());
+
+        string program = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Migrations",
+            "Program.cs");
+        Assert.Contains(
+            "MigrationsProductionAdmission.ValidateConfigurationOrThrow",
+            program,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "BunkFyMigrationCatalog.Resolve",
+            program,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "BunkFyMigrationCoordinator",
+            program,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("CancellationToken.None", program, StringComparison.Ordinal);
+
+        string coordinator = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Migrations",
+            "BunkFyMigrationCoordinator.cs");
+        Assert.Contains(
+            "PostgreSqlMigrationLock.AcquireAsync",
+            coordinator,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "GetAppliedMigrationsAsync(cancellationToken)",
+            coordinator,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "MigrateAsync(cancellationToken)",
+            coordinator,
+            StringComparison.Ordinal);
+
+        string migrationLock = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Migrations",
+            "PostgreSqlMigrationLock.cs");
+        Assert.Contains("pg_try_advisory_lock", migrationLock, StringComparison.Ordinal);
+        Assert.Contains("pg_advisory_unlock", migrationLock, StringComparison.Ordinal);
+
+        string catalog = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Migrations",
+            "BunkFyMigrationCatalog.cs");
+        string[] expectedModules =
+        [
+            "administration",
+            "access-control",
+            "auth",
+            "notifications",
+            "organizations",
+            "task-runtime",
+            "data-rights",
+            "properties",
+            "inventory",
+            "reservations",
+            "guests",
+            "staff",
+            "workspaces",
+            "ingestion",
+            "retention"
+        ];
+        Assert.All(expectedModules, module =>
+            Assert.Contains($"\"{module}\"", catalog, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Integration_api_fixture_provisions_workspace_admission_schema()
+    {
+        string fixture = RepositoryPaths.Read(
+            "tests",
+            "Integration.Tests",
+            "Support",
+            "AuthTestApplication.cs");
+
+        Assert.Contains(
+            "private async Task MigrateWorkspaceAdmissionDatabaseAsync()",
+            fixture,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "GetRequiredService<WorkspacesDbContext>()",
+            fixture,
+            StringComparison.Ordinal);
+        Assert.Equal(
+            2,
+            CountOccurrences(
+                fixture,
+                "await this.MigrateWorkspaceAdmissionDatabaseAsync()"));
+    }
+
+    [Fact]
+    public void Integration_api_fixture_disables_unrelated_notification_workers()
+    {
+        string fixture = RepositoryPaths.Read(
+            "tests",
+            "Integration.Tests",
+            "Support",
+            "AuthTestApplication.cs");
+
+        Assert.Equal(
+            2,
+            CountOccurrences(fixture, "Notifications:Delivery:Enabled"));
+        Assert.Equal(
+            2,
+            CountOccurrences(
+                fixture,
+                "Notifications:DurableStreams:MonitorEnabled"));
+    }
+
+    [Fact]
+    public void Production_object_storage_consumers_have_explicit_product_owners()
+    {
+        string[] consumers = RepositoryPaths
+            .EnumerateFiles("src/Modules", "*.cs")
+            .Where(path => !path.Contains(
+                $"{Path.DirectorySeparatorChar}tests{Path.DirectorySeparatorChar}",
+                StringComparison.OrdinalIgnoreCase))
+            .Where(path => File.ReadAllText(path).Contains("IFileStorage", StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+        [
+            "src/Modules/DataRights/BunkFy.Modules.DataRights.Persistence/DataRightsExportArtifactObjectStore.cs",
+            "src/Modules/DataRights/BunkFy.Modules.DataRights.Persistence/ProtectedDataRightsExportObjectReader.cs",
+            "src/Modules/DataRights/BunkFy.Modules.DataRights.Persistence/ProtectedDataRightsExportObjectWriter.cs",
+            "src/Modules/Ingestion/BunkFy.Modules.Ingestion.Persistence/IngestionRawPayloadStore.cs"
+        ],
+            consumers);
     }
 
     [Fact]
@@ -416,7 +642,7 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Admin_front_doors_compose_allowed_modules_and_exclude_data_rights()
+    public void Admin_front_doors_compose_the_complete_tenant_termination_control_plane()
     {
         string adminApi = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
         string adminCli = RepositoryPaths.Read("src", "BunkFy.Host.AdminCli", "Program.cs");
@@ -433,10 +659,10 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAuthAdminApiModule(AuthProfile.Global(authScopeId));", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<NotificationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<OrganizationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
-        Assert.DoesNotContain("DataRightsAdminApiModule", adminApi, StringComparison.Ordinal);
-        Assert.DoesNotContain("DataRightsDbContext", adminApi, StringComparison.Ordinal);
-        Assert.DoesNotContain("BunkFy.Modules.DataRights", adminApi, StringComparison.Ordinal);
-        Assert.DoesNotContain("Modules\\DataRights", adminApiProject, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminApiModule<DataRightsAdminApiModule>();", adminApi, StringComparison.Ordinal);
+        Assert.Contains("DataRightsDbContext", adminApi, StringComparison.Ordinal);
+        Assert.Contains("Modules\\DataRights\\BunkFy.Modules.DataRights.AdminApi", adminApiProject, StringComparison.Ordinal);
+        Assert.Contains("Modules\\DataRights\\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations", adminApiProject, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<PropertiesAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<InventoryAdminApiModule>();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminApiModule<ReservationsAdminApiModule>();", adminApi, StringComparison.Ordinal);
@@ -454,10 +680,11 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("app.UseGmaProductionHttp();", adminApi, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<AccessControlAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAuthAdminModule(AuthProfile.Global(authScopeId));", adminCli, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<NotificationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<OrganizationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
-        Assert.DoesNotContain("DataRightsAdminCliModule", adminCli, StringComparison.Ordinal);
-        Assert.DoesNotContain("BunkFy.Modules.DataRights", adminCli, StringComparison.Ordinal);
-        Assert.DoesNotContain("Modules\\DataRights", adminCliProject, StringComparison.Ordinal);
+        Assert.Contains("builder.AddAdminModule<DataRightsAdminCliModule>();", adminCli, StringComparison.Ordinal);
+        Assert.Contains("Modules\\DataRights\\BunkFy.Modules.DataRights.AdminCli", adminCliProject, StringComparison.Ordinal);
+        Assert.Contains("Modules\\DataRights\\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations", adminCliProject, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<PropertiesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<InventoryAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<ReservationsAdminCliModule>();", adminCli, StringComparison.Ordinal);
@@ -467,6 +694,59 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.AddAdminModule<RetentionAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<WorkspacesAdminCliModule>();", adminCli, StringComparison.Ordinal);
         Assert.Contains("builder.AddAdminModule<TaskRuntimeAdminCliModule>();", adminCli, StringComparison.Ordinal);
+
+        foreach (string composition in new[] { adminApi, adminCli })
+        {
+            Assert.Contains("builder.Services.AddBunkFyOperationsNotifications();", composition, StringComparison.Ordinal);
+            Assert.Contains("builder.Services.AddBunkFyAccessControlDataRights();", composition, StringComparison.Ordinal);
+            Assert.Contains("builder.Services.AddBunkFyOrganizationsDataRights();", composition, StringComparison.Ordinal);
+            Assert.Contains("builder.Services.AddBunkFyTaskRuntimeDataRights();", composition, StringComparison.Ordinal);
+            Assert.DoesNotContain("AddBunkFyTenantTerminationProductionAdmission", composition, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Tenant_termination_admin_mutations_use_granular_permissions_and_confirmation()
+    {
+        string endpoints = RepositoryPaths.Read(
+            "src",
+            "Modules",
+            "DataRights",
+            "BunkFy.Modules.DataRights.AdminApi",
+            "TenantTerminationAdminEndpoints.cs");
+        string commands = RepositoryPaths.Read(
+            "src",
+            "Modules",
+            "DataRights",
+            "BunkFy.Modules.DataRights.AdminCli",
+            "TenantTerminationAdminCliCommandMap.cs");
+        (string Operation, string Permission)[] operationPermissionPairs =
+        [
+            ("TenantTerminationStatus", "TenantTerminationRead"),
+            ("TenantTerminationRequest", "TenantTerminationRequest"),
+            ("TenantTerminationDecide", "TenantTerminationApprove"),
+            ("TenantTerminationStart", "TenantTerminationExecute"),
+            ("TenantTerminationRetry", "TenantTerminationRetry"),
+            ("TenantTerminationCancel", "TenantTerminationCancel"),
+            ("TenantTerminationRecover", "TenantTerminationRecover")
+        ];
+
+        foreach ((string operation, string permission) in
+                 operationPermissionPairs)
+        {
+            Assert.Contains($"DataRightsAdminOperationNames.{operation}", endpoints, StringComparison.Ordinal);
+            Assert.Contains($"DataRightsAdminPermissions.{permission}", endpoints, StringComparison.Ordinal);
+            Assert.Contains($"DataRightsAdminOperationNames.{operation}", commands, StringComparison.Ordinal);
+            Assert.Contains($"DataRightsAdminPermissions.{permission}", commands, StringComparison.Ordinal);
+        }
+
+        Assert.Equal(
+            6,
+            CountOccurrences(
+                endpoints,
+                "AdminErrors.ConfirmationRequired"));
+        Assert.Contains("ExecuteConfirmedAsync", commands, StringComparison.Ordinal);
+        Assert.Contains("Option<bool> yes = new(\"--yes\")", commands, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -543,6 +823,14 @@ public sealed class HostCompositionGuardTests
             "WorkspaceTerminationTaskExecutionContextContributor",
             composition,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "builder.Services.AddBunkFyTaskRuntimeDataRights();",
+            composition,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "modules.TaskRuntime",
+            composition,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -604,6 +892,8 @@ public sealed class HostCompositionGuardTests
             "Worker__Modules__Retention",
             "Tasks__Worker__WorkerGroups__6",
             "retention-workers",
+            "Tasks__Worker__WorkerGroups__7",
+            "tenant-termination-workers",
             "AppHost:AdminApi:Enabled",
             "AppHost:Worker:Enabled",
             "AppHost:Redis:Enabled"
@@ -629,6 +919,10 @@ public sealed class HostCompositionGuardTests
             .OfType<string>()
             .ToArray();
         Assert.Contains("retention-workers", workerGroups, StringComparer.Ordinal);
+        Assert.Contains(
+            "tenant-termination-workers",
+            workerGroups,
+            StringComparer.Ordinal);
     }
 
     [Fact]
@@ -751,4 +1045,57 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("JsonFileDropFailedQuarantineRetention", adapterHostOptions, StringComparison.Ordinal);
         Assert.Contains("options.JsonFileDropRetentionEnabled", adapterHostProgram, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Adapter_host_production_admission_is_fail_closed_and_status_is_gated()
+    {
+        string program = RepositoryPaths.Read(
+            "src",
+            "BunkFy.AdapterHost",
+            "Program.cs");
+        string options = RepositoryPaths.Read(
+            "src",
+            "BunkFy.AdapterHost",
+            "AdapterHostOptions.cs");
+        string admission = RepositoryPaths.Read(
+            "src",
+            "BunkFy.AdapterHost",
+            "AdapterHostProductionAdmission.cs");
+        string settings = RepositoryPaths.Read(
+            "src",
+            "BunkFy.AdapterHost",
+            "appsettings.json");
+
+        Assert.Contains(
+            "AdapterHostProductionAdmission.ValidateOrThrow(",
+            program,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "AdapterHostStartupPreflight",
+            program,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "AdapterHostStatusEndpointExposure.Disabled",
+            program,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "AdapterHostCoordinationMode.ServerLease",
+            admission,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "runtime.AllowInsecureLoopback",
+            admission,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "listenUri.AbsolutePath != \"/\"",
+            options,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "\"ApprovalState\": \"Pending\"",
+            settings,
+            StringComparison.Ordinal);
+    }
+
+    private static int CountOccurrences(string source, string value) =>
+        source.Split(value, StringSplitOptions.None).Length - 1;
 }

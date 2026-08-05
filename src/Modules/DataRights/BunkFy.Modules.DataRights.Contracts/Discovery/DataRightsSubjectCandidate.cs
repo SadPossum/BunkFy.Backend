@@ -33,4 +33,5 @@ public sealed record DataRightsSubjectDiscoveryResult(
 }
 
 public sealed record DataRightsSubjectDiscoveryResponse(
-    IReadOnlyCollection<DataRightsSubjectCandidate> Candidates);
+    IReadOnlyCollection<DataRightsSubjectCandidate> Candidates,
+    bool LimitReached);

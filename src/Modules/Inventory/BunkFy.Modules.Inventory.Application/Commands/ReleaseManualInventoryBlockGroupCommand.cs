@@ -7,4 +7,4 @@ public sealed record ReleaseManualInventoryBlockGroupCommand(
     Guid PropertyId,
     Guid BlockGroupId,
     string? ActorId = null)
-    : ITransactionalCommand<ManualInventoryBlockGroupDto>;
+    : ITransactionalCommand<ManualInventoryBlockGroupMutationReceiptDto>;

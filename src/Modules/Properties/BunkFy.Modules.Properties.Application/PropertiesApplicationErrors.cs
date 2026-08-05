@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Properties.Application;
 
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Errors;
 using Gma.Framework.Results;
 using BunkFy.DataGovernance;
@@ -25,6 +26,10 @@ public static class PropertiesApplicationErrors
     public static readonly Error RoomRetired = PropertiesDomainErrors.RoomRetired;
     public static readonly Error RoomHasActiveBeds = PropertiesDomainErrors.RoomHasActiveBeds;
     public static readonly Error BedAlreadyExists = PropertiesDomainErrors.BedAlreadyExists;
+    public static readonly Error BedBatchRequired = PropertiesDomainErrors.BedBatchRequired;
+    public static readonly Error BedBatchTooLarge = new(
+        "Properties.BedBatchTooLarge",
+        $"A bed batch cannot contain more than {PropertiesContractLimits.MaximumBedsPerBatch} beds.");
     public static readonly Error BedNotFound = PropertiesDomainErrors.BedNotFound;
     public static readonly Error BedStatusUnknown = PropertiesDomainErrors.BedStatusUnknown;
     public static readonly Error BedAlreadyRetired = PropertiesDomainErrors.BedAlreadyRetired;
@@ -36,6 +41,12 @@ public static class PropertiesApplicationErrors
     public static readonly Error ProcessingLifecycleAdmissionUnavailable = new(
         "Properties.ProcessingLifecycleAdmissionUnavailable",
         "Workspace lifecycle admission is temporarily unavailable.");
+    public static readonly Error WorkspaceProcessingRestricted = new(
+        "Properties.WorkspaceProcessingRestricted",
+        "The workspace is not accepting operational changes.");
+    public static readonly Error WorkspaceProcessingAdmissionUnavailable = new(
+        "Properties.WorkspaceProcessingAdmissionUnavailable",
+        "Workspace processing admission is temporarily unavailable.");
 
     public static Error CountryPolicyDenied(CountryPolicyDecisionReason reason) =>
         new(

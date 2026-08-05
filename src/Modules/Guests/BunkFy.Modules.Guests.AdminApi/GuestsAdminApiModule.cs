@@ -37,6 +37,7 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
             .WithModuleName(this.Name)
             .WithTags("Guests Admin")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -58,7 +59,8 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize), token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<GuestListResponse>(StatusCodes.Status200OK);
 
         group.MapGet("/{guestId:guid}", async (
             Guid propertyId,
@@ -72,11 +74,14 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetGuestProfileQuery(propertyId, guestId), token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<GuestProfileDto>(StatusCodes.Status200OK);
 
         group.MapGet("/{guestId:guid}/stays", async (
             Guid propertyId,
             Guid guestId,
+            int? page,
+            int? pageSize,
             HttpContext context,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
@@ -84,9 +89,14 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                 context,
                 AdminOperation.Create(GuestsAdminOperationNames.StayHistory, GuestsAdminPermissions.Read),
                 requireTenant: true,
-                token => dispatcher.QueryAsync(new GetGuestStayHistoryQuery(propertyId, guestId), token),
+                token => dispatcher.QueryAsync(new GetGuestStayHistoryQuery(
+                    propertyId,
+                    guestId,
+                    page ?? PageRequest.DefaultPage,
+                    pageSize ?? PageRequest.DefaultPageSize), token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<GuestStayHistoryListResponse>(StatusCodes.Status200OK);
 
         group.MapPost("", async (
             Guid propertyId,
@@ -110,7 +120,8 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                     request.Notes,
                     Actor(context)), token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<GuestMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPut("/{guestId:guid}", async (
             Guid propertyId,
@@ -137,7 +148,8 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                     request.ExpectedVersion,
                     Actor(context)), token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<GuestMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPost("/{guestId:guid}/archive", async (
             Guid propertyId,
@@ -153,9 +165,10 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                 token => request.Confirmed
                     ? dispatcher.SendAsync(new ArchiveGuestProfileCommand(
                         propertyId, guestId, request.ExpectedVersion, Actor(context)), token)
-                    : Task.FromResult(Result.Failure<GuestProfileDto>(AdminErrors.ConfirmationRequired)),
+                    : Task.FromResult(Result.Failure<GuestMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<GuestMutationReceiptDto>(StatusCodes.Status200OK);
     }
 
     public sealed record GuestProfileWriteRequest(
@@ -181,6 +194,21 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
 
     public sealed record ArchiveGuestProfileRequest(long ExpectedVersion, bool Confirmed);
 
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
+
     private static string Actor(HttpContext context)
     {
         string identity = context.User.FindFirst("sub")?.Value
@@ -192,6 +220,8 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(GuestsApplicationErrors.GuestNotFound.Code, StatusCodes.Status404NotFound),
+        new(GuestsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(GuestsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(GuestsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestArchived.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestAlreadyArchived.Code, StatusCodes.Status409Conflict));

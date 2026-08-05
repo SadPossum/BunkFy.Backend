@@ -24,7 +24,7 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             new UpdateReservationGuestDetailsCommand(
                 reservation.PropertyId,
                 reservation.Id,
@@ -62,7 +62,7 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             new UpdateReservationGuestDetailsCommand(
                 reservation.PropertyId,
                 reservation.Id,
@@ -78,8 +78,8 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value.DetailsRevision);
-        Assert.Equal(ReservationDetailsChangeOriginKind.Staff, result.Value.LastDetailsChangeOrigin);
         Assert.Equal(3, result.Value.Version);
+        Assert.Equal(ReservationDetailsChangeOrigin.Staff, reservation.LastDetailsChangeOrigin);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             new UpdateReservationGuestDetailsCommand(
                 reservation.PropertyId,
                 reservation.Id,
@@ -169,7 +169,7 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
             ReservationListOrder order,
             PageRequest pageRequest,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize, 0));
+            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize, false));
     }
 
     private sealed class TestClock : ISystemClock

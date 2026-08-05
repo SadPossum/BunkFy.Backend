@@ -28,7 +28,7 @@ internal static class StaffPropertyAssignmentEndpoints
             (await dispatcher.QueryAsync(new ListStaffMembersAtPropertyQuery(propertyId, search, status,
                 page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .Produces<StaffDirectoryListResponse>(StatusCodes.Status200OK)
+            .Produces<StaffPropertyDirectoryListResponse>(StatusCodes.Status200OK)
             .RequireTenant().RequireResolvedScopePermission(StaffAdminPermissionCodes.Read,
                 StaffPropertyAccessScopeResolver.ResolverName);
         members.MapGet("/{staffMemberId:guid}", async (Guid propertyId, Guid staffMemberId,

@@ -126,11 +126,32 @@ public sealed class TenantTerminationOwnerWorkItem : ScopedAggregateRoot<Guid>
             return Result.Failure(DataRightsDomainErrors.VersionConflict);
         }
 
+        if (this.State == TenantTerminationOwnerWorkState.Processing)
+        {
+            if (this.TaskRunId != taskRunId ||
+                taskRunId == Guid.Empty ||
+                taskAttempt <= this.LastTaskAttempt ||
+                nowUtc == default ||
+                nowUtc < this.LastChangedAtUtc)
+            {
+                return Result.Failure(
+                    DataRightsDomainErrors.TenantTerminationOwnerWorkInvalid);
+            }
+
+            this.LastTaskAttempt = taskAttempt;
+            this.LastAttemptAtUtc = nowUtc;
+            this.AttemptCount++;
+            this.LastChangedAtUtc = nowUtc;
+            this.Version++;
+            return Result.Success();
+        }
+
         if (this.State is not TenantTerminationOwnerWorkState.Prepared and
                 not TenantTerminationOwnerWorkState.RetryRequired ||
             taskRunId == Guid.Empty ||
             taskAttempt <= 0 ||
-            taskAttempt <= this.LastTaskAttempt ||
+            (this.TaskRunId == taskRunId &&
+                taskAttempt <= this.LastTaskAttempt) ||
             nowUtc == default ||
             nowUtc < this.LastChangedAtUtc)
         {
@@ -314,11 +335,12 @@ public sealed class TenantTerminationOwnerWorkItem : ScopedAggregateRoot<Guid>
             TenantTerminationOwnerWorkState.Completed =>
                 remainingActiveCount == 0 &&
                 !holdReviewAtUtc.HasValue &&
-                selectedProofRevision is > 0 &&
+                selectedProofRevision is >= 0 &&
                 resultingProofRevision >= selectedProofRevision,
             TenantTerminationOwnerWorkState.Blocked =>
-                holdReviewAtUtc.HasValue &&
-                holdReviewAtUtc.Value >= recordedAtUtc &&
+                remainingActiveCount > 0 &&
+                (!holdReviewAtUtc.HasValue ||
+                 holdReviewAtUtc.Value >= recordedAtUtc) &&
                 !selectedProofRevision.HasValue &&
                 !resultingProofRevision.HasValue,
             TenantTerminationOwnerWorkState.RetryRequired or

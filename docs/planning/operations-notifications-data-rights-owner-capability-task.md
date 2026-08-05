@@ -1,6 +1,7 @@
 # Operations Notifications Data Rights Owner Capability Task
 
-Status: in progress (delivery slices 1-4 complete; production admission pending)
+Status: complete; production activation remains blocked pending private
+approval and deployment evidence
 Date: 2026-07-31
 
 ## Goal
@@ -136,8 +137,8 @@ directly.
    correlation without exposing Auth internals. Completed.
 4. Add Ingestion graph resolution for source-link-related receipt and
    connection notifications. Completed.
-5. Align retention policy, catalogue, production admission, operator workflow,
-   and exact deployment proof.
+5. Align retention policy, catalogue, production admission, and operator
+   workflow. Completed; exact deployment proof remains private rollout work.
 
 Only Operations Notifications is the active product domain. Existing owner
 modules may expose bounded contract readers needed to resolve their coordinates,
@@ -177,6 +178,10 @@ correlation.
 
 ## Completion Evidence
 
+The counts below record the original capability publication gate. Subsequent
+tenant-termination and production-admission slices extend this owner and carry
+their own current verification evidence.
+
 - GMA Notifications `bd6c8af` is published with green Security Baseline,
   Ubuntu, Windows, and relational-provider validation.
 - The synchronized 283-project backend graph builds with zero warnings and
@@ -198,7 +203,7 @@ correlation.
 
 - provider-side deletion after an email, SMS, or push has been delivered;
 - public account self-service export or deletion;
-- broad tenant-termination deletion and database backup expiry;
+- hosted backup-expiry evidence for tenant termination;
 - legal approval of notification retention periods;
 - parsing or backfilling producer references from legacy arbitrary payload JSON;
 - product-specific notification semantics in GMA; and

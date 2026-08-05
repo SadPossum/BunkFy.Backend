@@ -16,6 +16,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 using DataRightsCaseListResponse =
     BunkFy.Modules.DataRights.Contracts.DataRightsCaseListResponse;
+using DataRightsRequesterRelationship =
+    BunkFy.Modules.DataRights.Contracts.DataRightsRequesterRelationship;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsModelTests
@@ -79,13 +81,22 @@ public sealed class DataRightsModelTests
         Assert.Contains(
             designEntity.GetCheckConstraints(),
             constraint =>
+                constraint.Name ==
+                    "CK_data_rights_cases_response_deadline_evidence");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
+            constraint => constraint.Name == "CK_data_rights_cases_tenant_termination");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
+            constraint =>
                 constraint.Name == "CK_data_rights_cases_restriction_execution_proof");
         Assert.Equal(
             "\"Kind\" IN (1, 2, 3)",
             designEntity.GetCheckConstraints().Single(
                 constraint => constraint.Name == "CK_data_rights_cases_kind").Sql);
         Assert.Equal(
-            "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
+            "(\"Kind\" = 1 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
+            "(\"Kind\" = 2 AND \"RequestedOperations\" = 16) OR " +
             "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4, 16))",
             designEntity.GetCheckConstraints().Single(
                 constraint => constraint.Name == "CK_data_rights_cases_operations").Sql);
@@ -100,8 +111,68 @@ public sealed class DataRightsModelTests
             designEntity.GetCheckConstraints().Single(
                 constraint => constraint.Name == "CK_data_rights_cases_requester_scope").Sql);
         Assert.Equal(
+            TenantTerminationProcess.Sha256Length,
+            entity.FindProperty(
+                nameof(DataRightsCase.TenantTerminationPolicyEvidenceSha256))!
+                .GetMaxLength());
+        IIndex activeTenantTermination = Assert.Single(
+            entity.GetIndexes(),
+            index =>
+                index.GetDatabaseName() ==
+                    "UX_data_rights_cases_active_tenant_termination");
+        Assert.True(activeTenantTermination.IsUnique);
+        Assert.Equal(
+            [nameof(DataRightsCase.ScopeId)],
+            activeTenantTermination.Properties.Select(property => property.Name));
+        Assert.Equal(
+            "\"Kind\" = 2 AND \"Status\" NOT IN (6, 9, 11)",
+            activeTenantTermination.GetFilter());
+        Assert.Equal(
             DataRightsCase.ActorIdMaxLength,
             entity.FindProperty(nameof(DataRightsCase.DecidedBy))!.GetMaxLength());
+        IEntityType responseDeadlineEvidence = entity.FindNavigation(
+            nameof(DataRightsCase.ResponseDeadlinePolicyEvidence))!
+            .TargetEntityType;
+        Assert.Equal(
+            DataRightsResponseDeadlinePolicyEvidence.ContentSha256Length,
+            responseDeadlineEvidence.FindProperty(
+                nameof(DataRightsResponseDeadlinePolicyEvidence.ContentSha256))!
+                .GetMaxLength());
+        Assert.Equal(
+            DataRightsResponseDeadlinePolicyEvidence.TimeZoneIdMaxLength,
+            responseDeadlineEvidence.FindProperty(
+                nameof(DataRightsResponseDeadlinePolicyEvidence.TimeZoneId))!
+                .GetMaxLength());
+        IEntityType deadlineAlertDispatch = dbContext.Model.FindEntityType(
+            typeof(DataRightsResponseDeadlineAlertDispatchReceipt))!;
+        IEntityType designDeadlineAlertDispatch = dbContext
+            .GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsResponseDeadlineAlertDispatchReceipt))!;
+        Assert.Contains(deadlineAlertDispatch.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(DataRightsResponseDeadlineAlertDispatchReceipt.ScopeId),
+                nameof(DataRightsResponseDeadlineAlertDispatchReceipt.CaseId),
+                nameof(DataRightsResponseDeadlineAlertDispatchReceipt.AlertKind)
+            ]));
+        Assert.Contains(
+            designDeadlineAlertDispatch.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_response_deadline_alert_dispatches_timing");
+        Assert.Contains(
+            designDeadlineAlertDispatch.GetForeignKeys(),
+            foreignKey => foreignKey.PrincipalEntityType.ClrType ==
+                typeof(DataRightsCase) &&
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict);
+        IEntityType propertyProjection = dbContext.Model.FindEntityType(
+            typeof(DataRightsPropertyProjection))!;
+        Assert.Equal(
+            BunkFy.Modules.Properties.Contracts.PropertiesContractLimits
+                .TimeZoneIdMaxLength,
+            propertyProjection.FindProperty(
+                nameof(DataRightsPropertyProjection.TimeZoneId))!
+                .GetMaxLength());
         IEntityType selectedSubject =
             dbContext.Model.FindEntityType(typeof(DataRightsSubjectCoordinate))!;
         IEntityType designSelectedSubject = dbContext.GetService<IDesignTimeModel>()
@@ -542,6 +613,79 @@ public sealed class DataRightsModelTests
             new PageRequest(1, 20),
             CancellationToken.None);
         Assert.Equal(staff.Id, Assert.Single(staffCases.Items).Id);
+        Assert.False(staffCases.HasMore);
+    }
+
+    [Fact]
+    public async Task Case_list_returns_stable_summary_pages_with_truthful_continuation()
+    {
+        string databaseName = $"data-rights-case-pages-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        DataRightsCase[] cases =
+        [
+            CreateTenantCase(
+                "tenant-a",
+                DataRightsCaseKind.StaffRights,
+                DataRightsRequesterRelation.ControllerInitiated),
+            CreateTenantCase(
+                "tenant-a",
+                DataRightsCaseKind.StaffRights,
+                DataRightsRequesterRelation.ControllerInitiated),
+            CreateTenantCase(
+                "tenant-a",
+                DataRightsCaseKind.StaffRights,
+                DataRightsRequesterRelation.ControllerInitiated)
+        ];
+        Assert.True(cases[0].BeginDiscovery(
+            cases[0].Version,
+            "user:operator",
+            cases[0].LastChangedAtUtc.AddMinutes(1)).IsSuccess);
+        Assert.True(cases[0].SelectSubject(
+            "staff",
+            "staff-profile",
+            Guid.NewGuid(),
+            4,
+            cases[0].Version,
+            "user:operator",
+            cases[0].LastChangedAtUtc.AddMinutes(1)).IsSuccess);
+
+        await using DataRightsDbContext dbContext = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        dbContext.Cases.AddRange(cases);
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+        DataRightsCaseRepository repository = new(dbContext);
+        DataRightsCase[] expected = cases
+            .OrderByDescending(dataRightsCase => dataRightsCase.CreatedAtUtc)
+            .ThenBy(dataRightsCase => dataRightsCase.Id)
+            .ToArray();
+
+        DataRightsCaseListResponse firstPage = await repository.ListAsync(
+            DataRightsCaseScope.Staff,
+            status: null,
+            new PageRequest(1, 2),
+            CancellationToken.None);
+        DataRightsCaseListResponse secondPage = await repository.ListAsync(
+            DataRightsCaseScope.Staff,
+            status: null,
+            new PageRequest(2, 2),
+            CancellationToken.None);
+
+        Assert.Equal(expected.Take(2).Select(item => item.Id), firstPage.Items.Select(item => item.Id));
+        Assert.Equal([expected[2].Id], secondPage.Items.Select(item => item.Id));
+        Assert.True(firstPage.HasMore);
+        Assert.False(secondPage.HasMore);
+        Assert.Equal(1, firstPage.Items.Concat(secondPage.Items)
+            .Single(item => item.Id == cases[0].Id)
+            .SelectedSubjectCount);
+        Assert.All(
+            firstPage.Items.Concat(secondPage.Items),
+            item => Assert.Equal(
+                DataRightsRequesterRelationship.ControllerInitiated,
+                item.RequesterRelationship));
+        Assert.Empty(dbContext.ChangeTracker.Entries());
     }
 
     [Fact]
@@ -756,6 +900,72 @@ public sealed class DataRightsModelTests
         Assert.Equal(proof.IdempotencyKey, restored.RestrictionExecutionProof.IdempotencyKey);
         Assert.Equal(proof.ReceiptSha256, restored.RestrictionExecutionProof.ReceiptSha256);
         Assert.True(restored.RestrictionExecutionProof.EffectiveRestricted);
+    }
+
+    [Fact]
+    public async Task Guest_response_deadline_evidence_round_trips_with_the_case()
+    {
+        string databaseName =
+            $"data-rights-response-deadline-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        Guid propertyId = Guid.NewGuid();
+        DateTimeOffset receivedAt =
+            new(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.AccessExport,
+            DataRightsRequesterRelation.DataSubject).Value;
+        DataRightsResponseDeadlinePolicyEvidence evidence =
+            DataRightsResponseDeadlinePolicyEvidence.Create(
+                propertyId,
+                17,
+                19,
+                "GB",
+                "development-hostel-example",
+                2,
+                new string('d', 64),
+                DataRightsResponseRight.Export,
+                "development-example",
+                0,
+                1,
+                0,
+                "Europe/London",
+                new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                receivedAt,
+                receivedAt.AddMinutes(2),
+                receivedAt.AddMonths(1)).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator",
+            receivedAt,
+            evidence).Value;
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        DataRightsResponseDeadlinePolicyEvidence restoredEvidence =
+            Assert.IsType<DataRightsResponseDeadlinePolicyEvidence>(
+                restored.ResponseDeadlinePolicyEvidence);
+        Assert.Equal(evidence.DueAtUtc, restored.DueAtUtc);
+        Assert.Equal(17, restoredEvidence.PropertyTopologySourceVersion);
+        Assert.Equal(19, restoredEvidence.PropertyPolicySourceVersion);
+        Assert.Equal("Europe/London", restoredEvidence.TimeZoneId);
+        Assert.True(restoredEvidence.HasValidShape());
     }
 
     [Fact]
@@ -1176,14 +1386,26 @@ public sealed class DataRightsModelTests
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
             propertyId: null,
             kind,
-            DataRightsCaseOperation.AccessExport,
+            kind == DataRightsCaseKind.TenantTermination
+                ? DataRightsCaseOperation.Anonymisation
+                : DataRightsCaseOperation.AccessExport,
             requesterRelationship).Value;
-        return DataRightsCase.Create(
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
             Guid.NewGuid(),
             tenantId,
             request,
             "user:operator",
             new DateTimeOffset(2026, 7, 23, 12, 0, 0, TimeSpan.Zero)).Value;
+        if (kind == DataRightsCaseKind.TenantTermination)
+        {
+            Assert.True(dataRightsCase.PrepareTenantTerminationReview(
+                exportRequested: false,
+                1,
+                "user:operator",
+                dataRightsCase.CreatedAtUtc.AddMinutes(1)).IsSuccess);
+        }
+
+        return dataRightsCase;
     }
 
     private static (DataRightsCase Case, DataRightsExecutionWorkItem WorkItem)

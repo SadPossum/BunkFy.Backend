@@ -1,13 +1,15 @@
 namespace BunkFy.Modules.Guests.Application.Ports;
 
 using BunkFy.Modules.Guests.Contracts;
+using Gma.Framework.Pagination;
 
 public interface IGuestStayHistoryRepository
 {
     Task ApplyAsync(GuestStayHistoryWriteModel stay, CancellationToken cancellationToken);
-    Task<IReadOnlyCollection<GuestStayHistoryItem>> ListAsync(
+    Task<GuestStayHistoryListResponse> ListAsync(
         Guid propertyId,
         Guid guestId,
+        PageRequest pageRequest,
         CancellationToken cancellationToken);
 }
 

@@ -12,6 +12,7 @@ internal sealed class RemoteAdapterPollingService(
     IAdapterRuntimeMaterialProvider materialProvider,
     AdapterHostOptions options,
     AdapterHostStatus status,
+    AdapterHostStartupPreflight startupPreflight,
     TimeProvider timeProvider,
     ILogger<RemoteAdapterPollingService> logger)
     : BackgroundService
@@ -20,6 +21,8 @@ internal sealed class RemoteAdapterPollingService(
     {
         IAdapterRunner runner = this.ResolveRunner();
         this.ValidateRunner(runner);
+        await startupPreflight.ValidateAsync(runner.Descriptor, stoppingToken)
+            .ConfigureAwait(false);
         DateTimeOffset? firstCycle = options.RunOnStart
             ? timeProvider.GetUtcNow()
             : timeProvider.GetUtcNow().Add(options.PollInterval);

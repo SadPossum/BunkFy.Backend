@@ -12,6 +12,7 @@ using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Tasks;
 using Gma.Modules.TaskRuntime.Application.Commands;
@@ -50,7 +51,19 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
         IServiceProvider services,
         AdminCliGlobalOptions globalOptions)
     {
-        Command command = new("list", "List retention schedule health.");
+        Option<int> page = new("--page")
+        {
+            DefaultValueFactory = _ => PageRequest.DefaultPage
+        };
+        Option<int> pageSize = new("--page-size")
+        {
+            DefaultValueFactory = _ => PageRequest.DefaultPageSize
+        };
+        Command command = new("list", "List retention schedule health.")
+        {
+            page,
+            pageSize
+        };
         command.SetAction((parse, token) =>
             services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
                 parse,
@@ -64,7 +77,9 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
                     Result<RetentionScheduleHealthListResponse> result =
                         await provider.GetRequiredService<IRequestDispatcher>()
                             .QueryAsync(
-                                new ListRetentionScheduleHealthQuery(),
+                                new ListRetentionScheduleHealthQuery(
+                                    parse.GetValue(page),
+                                    parse.GetValue(pageSize)),
                                 cancellationToken)
                             .ConfigureAwait(false);
                     if (result.IsSuccess)
@@ -103,22 +118,33 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
                     RetentionAdminPermissions.Retry),
                 parse.GetValue(globalOptions.TenantOption),
                 requireTenant: true,
-                (provider, cancellationToken) => parse.GetValue(yes)
-                    ? RetryAsync(
-                        parse.GetRequiredValue(run),
-                        parse.GetValue(scheduledAt),
-                        parse.GetValue(globalOptions.TenantOption),
-                        ResolveActor(parse, globalOptions),
-                        provider.GetRequiredService<IRequestDispatcher>(),
-                        cancellationToken)
-                    : Task.FromResult(
-                        Result.Failure<Unit>(
-                            AdminErrors.ConfirmationRequired)),
+                async (provider, cancellationToken) =>
+                {
+                    Result<RetentionRunRetryReceiptDto> result =
+                        parse.GetValue(yes)
+                            ? await RetryAsync(
+                                parse.GetRequiredValue(run),
+                                parse.GetValue(scheduledAt),
+                                parse.GetValue(globalOptions.TenantOption),
+                                ResolveActor(parse, globalOptions),
+                                provider.GetRequiredService<IRequestDispatcher>(),
+                                cancellationToken).ConfigureAwait(false)
+                            : Result.Failure<RetentionRunRetryReceiptDto>(
+                                AdminErrors.ConfirmationRequired);
+                    if (result.IsSuccess)
+                    {
+                        AdminCliOutput.WriteObject(
+                            result.Value,
+                            Output(parse, globalOptions));
+                    }
+
+                    return result;
+                },
                 token));
         return command;
     }
 
-    private static async Task<Result<Unit>> RetryAsync(
+    private static async Task<Result<RetentionRunRetryReceiptDto>> RetryAsync(
         Guid runId,
         DateTimeOffset? scheduledAtUtc,
         string? tenantId,
@@ -131,7 +157,7 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
             cancellationToken).ConfigureAwait(false);
         if (loaded.IsFailure)
         {
-            return Result.Failure<Unit>(loaded.Error);
+            return Result.Failure<RetentionRunRetryReceiptDto>(loaded.Error);
         }
 
         TaskRunSummary run = loaded.Value.Summary;
@@ -146,16 +172,21 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
                 ExecuteRetentionSchedulePayload.TaskName,
                 StringComparison.Ordinal))
         {
-            return Result.Failure<Unit>(
+            return Result.Failure<RetentionRunRetryReceiptDto>(
                 RetentionApplicationErrors.TaskRunUnavailable);
         }
 
-        return await dispatcher.SendAsync(
+        Result<Unit> retried = await dispatcher.SendAsync(
             new RetryTaskRunCommand(
                 runId,
                 $"admin-cli:{actor}",
                 scheduledAtUtc),
             cancellationToken).ConfigureAwait(false);
+        return retried.IsFailure
+            ? Result.Failure<RetentionRunRetryReceiptDto>(retried.Error)
+            : Result.Success(new RetentionRunRetryReceiptDto(
+                runId,
+                scheduledAtUtc));
     }
 
     private static void WriteSchedules(
@@ -170,6 +201,8 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
                 ("Target", schedule =>
                     schedule.PropertyId?.ToString("D") ?? "tenant"),
                 ("Status", schedule => schedule.Status.ToString()),
+                ("Last run", schedule =>
+                    schedule.LastRunId?.ToString("D") ?? string.Empty),
                 ("Next due UTC", schedule => schedule.NextDueAtUtc.ToString("O")),
                 ("Overdue", schedule => schedule.Overdue ? "yes" : "no"),
                 ("Failures", schedule =>

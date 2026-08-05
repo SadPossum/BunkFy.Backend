@@ -19,6 +19,10 @@ public static class PropertiesDomainErrors
     public static readonly Error PropertyIdRequired = new("Properties.PropertyIdRequired", "A property id is required.");
     public static readonly Error RoomIdRequired = new("Properties.RoomIdRequired", "A room id is required.");
     public static readonly Error BedIdRequired = new("Properties.BedIdRequired", "A bed id is required.");
+    public static readonly Error BedBatchRequired = new("Properties.BedBatchRequired", "At least one bed is required.");
+    public static readonly Error BedBatchInvalid = new(
+        "Properties.BedBatchInvalid",
+        "The bed batch contains invalid or duplicate identifiers.");
     public static readonly Error PropertyNameRequired = new("Properties.PropertyNameRequired", "A property name is required.");
     public static readonly Error PropertyNameTooLong = new("Properties.PropertyNameTooLong", "The property name is too long.");
     public static readonly Error PropertyCodeRequired = new("Properties.PropertyCodeRequired", "A property code is required.");

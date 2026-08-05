@@ -62,5 +62,6 @@ public enum BunkFyStorageCredentialProfile
 public enum BunkFyDeploymentSurface
 {
     PublicApi = 1,
-    AdminApi = 2
+    AdminApi = 2,
+    Worker = 3
 }

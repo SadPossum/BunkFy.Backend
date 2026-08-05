@@ -110,7 +110,9 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                         token).ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
-                        WriteReservations(result.Value.Reservations, parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
+                        WriteReservationSummaries(
+                            result.Value.Reservations,
+                            parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                     }
 
                     return result;
@@ -185,18 +187,18 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                         !TryParseDate(parseResult.GetRequiredValue(departureOption), out DateOnly departure) ||
                         arrival >= departure)
                     {
-                        return Result.Failure<ReservationDto>(ReservationsApplicationErrors.StayRangeInvalid);
+                        return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.StayRangeInvalid);
                     }
 
                     if (!TryParseOptionalTime(parseResult.GetValue(expectedArrivalTimeOption), out TimeOnly? expectedArrivalTime) ||
                         !TryParseOptionalTime(parseResult.GetValue(expectedDepartureTimeOption), out TimeOnly? expectedDepartureTime))
                     {
-                        return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ExpectedStayTimeInvalid);
+                        return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ExpectedStayTimeInvalid);
                     }
 
                     if (!TryParseUnitIds(parseResult.GetRequiredValue(unitIdsOption), out Guid[] unitIds))
                     {
-                        return Result.Failure<ReservationDto>(ReservationsApplicationErrors.RequestedUnitsInvalid);
+                        return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.RequestedUnitsInvalid);
                     }
 
                     string? sourceSystem = parseResult.GetValue(sourceSystemOption);
@@ -205,7 +207,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                         ? ReservationSourceKind.Direct
                         : ReservationSourceKind.External;
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
-                    Result<ReservationDto> result = await dispatcher.SendAsync(
+                    Result<ReservationMutationReceiptDto> result = await dispatcher.SendAsync(
                         new CreateReservationCommand(
                             parseResult.GetRequiredValue(propertyOption),
                             arrival,
@@ -224,7 +226,9 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                         token).ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
-                        WriteReservations([result.Value], parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
+                        WriteReservationMutationReceipts(
+                            [result.Value],
+                            parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                     }
 
                     return result;
@@ -247,7 +251,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             versionOption,
             yesOption
         };
-        command.SetAction((parseResult, cancellationToken) => ExecuteReservationAsync(
+        command.SetAction((parseResult, cancellationToken) => ExecuteReservationMutationAsync(
             services,
             globalOptions,
             parseResult,
@@ -260,7 +264,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                         parseResult.GetRequiredValue(reservationOption),
                         parseResult.GetRequiredValue(versionOption)),
                     cancellationToken)
-                : Task.FromResult(Result.Failure<ReservationDto>(AdminErrors.ConfirmationRequired)),
+                : Task.FromResult(Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
             cancellationToken));
         return command;
     }
@@ -272,7 +276,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
         string description,
         string operationName,
         AdminPermission permission,
-        Func<Guid, Guid, DateOnly, long, string, ICommand<ReservationDto>> createCommand)
+        Func<Guid, Guid, DateOnly, long, string, ICommand<ReservationMutationReceiptDto>> createCommand)
     {
         Option<Guid> propertyOption = PropertyOption();
         Option<Guid> reservationOption = ReservationOption();
@@ -287,7 +291,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             versionOption,
             yesOption
         };
-        command.SetAction((parseResult, cancellationToken) => ExecuteReservationAsync(
+        command.SetAction((parseResult, cancellationToken) => ExecuteReservationMutationAsync(
             services,
             globalOptions,
             parseResult,
@@ -297,12 +301,12 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             {
                 if (!parseResult.GetValue(yesOption))
                 {
-                    return Task.FromResult(Result.Failure<ReservationDto>(AdminErrors.ConfirmationRequired));
+                    return Task.FromResult(Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired));
                 }
 
                 if (!TryParseDate(parseResult.GetRequiredValue(businessDateOption), out DateOnly businessDate))
                 {
-                    return Task.FromResult(Result.Failure<ReservationDto>(
+                    return Task.FromResult(Result.Failure<ReservationMutationReceiptDto>(
                         ReservationsApplicationErrors.StayBusinessDateInvalid));
                 }
 
@@ -336,7 +340,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             replaceOption,
             versionOption
         };
-        command.SetAction((parseResult, cancellationToken) => ExecuteReservationAsync(
+        command.SetAction((parseResult, cancellationToken) => ExecuteReservationMutationAsync(
             services,
             globalOptions,
             parseResult,
@@ -392,6 +396,69 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             },
             cancellationToken).ConfigureAwait(false);
     }
+
+    private static async Task<int> ExecuteReservationMutationAsync(
+        IServiceProvider services,
+        AdminCliGlobalOptions globalOptions,
+        ParseResult parseResult,
+        string operationName,
+        AdminPermission permission,
+        Func<IServiceProvider, Task<Result<ReservationMutationReceiptDto>>> execute,
+        CancellationToken cancellationToken)
+    {
+        AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
+        return await executor.ExecuteAsync(
+            parseResult,
+            AdminOperation.Create(operationName, permission),
+            parseResult.GetValue(globalOptions.TenantOption),
+            requireTenant: true,
+            async (provider, _) =>
+            {
+                Result<ReservationMutationReceiptDto> result = await execute(provider)
+                    .ConfigureAwait(false);
+                if (result.IsSuccess)
+                {
+                    WriteReservationMutationReceipts(
+                        [result.Value],
+                        parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
+                }
+
+                return result;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void WriteReservationSummaries(
+        IReadOnlyCollection<ReservationListItemDto> reservations,
+        string output) =>
+        AdminCliOutput.WriteRows(
+            reservations,
+            output,
+            [
+                ("ReservationId", reservation => reservation.ReservationId.ToString()),
+                ("PropertyId", reservation => reservation.PropertyId.ToString()),
+                ("Arrival", reservation => reservation.Arrival.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                ("Departure", reservation => reservation.Departure.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                ("ExpectedArrival", reservation => reservation.ExpectedArrivalTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty),
+                ("ExpectedDeparture", reservation => reservation.ExpectedDepartureTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty),
+                ("Guest", reservation => reservation.PrimaryGuestName),
+                ("Status", reservation => reservation.Status.ToString()),
+                ("Units", reservation => reservation.InventoryUnitCount.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+    private static void WriteReservationMutationReceipts(
+        IReadOnlyCollection<ReservationMutationReceiptDto> receipts,
+        string output) =>
+        AdminCliOutput.WriteRows(
+            receipts,
+            output,
+            [
+                ("ReservationId", receipt => receipt.ReservationId.ToString()),
+                ("PropertyId", receipt => receipt.PropertyId.ToString()),
+                ("Status", receipt => receipt.Status.ToString()),
+                ("DetailsRevision", receipt => receipt.DetailsRevision.ToString(CultureInfo.InvariantCulture)),
+                ("Version", receipt => receipt.Version.ToString(CultureInfo.InvariantCulture))
+            ]);
 
     private static void WriteReservations(IReadOnlyCollection<ReservationDto> reservations, string output) =>
         AdminCliOutput.WriteRows(

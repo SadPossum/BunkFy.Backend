@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "retention.personal-data",
-  "catalogVersion": 1,
+  "catalogVersion": 3,
   "module": "retention",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -11,11 +11,24 @@
       "readers": [
         "permission:retention.read",
         "permission:retention.retry",
+        "system:retention.tenant-termination-export",
         "system:retention-scheduler"
       ],
       "writers": [
         "system:retention-scheduler",
         "system:retention-scope-projections"
+      ]
+    },
+    {
+      "id": "retention-tenant-destruction-proof",
+      "scope": "tenant-termination-control-and-accountability-proof",
+      "readers": [
+        "permission:data-rights.tenant-termination",
+        "system:authorized-audit-consumer",
+        "system:tenant-termination-coordinator"
+      ],
+      "writers": [
+        "system:authorized-tenant-termination-owner"
       ]
     }
   ],
@@ -33,6 +46,20 @@
       "startsAt": "owner-retention-contribution-requested",
       "endsAt": "owner-retention-contribution-completed",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "retention-tenant-termination-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "authorized-tenant-export-started",
+      "endsAt": "authorized-tenant-export-completed",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "retention-tenant-destruction-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-retention-tenant-destruction-started",
+      "endsAt": "approved-minimum-termination-proof-retention-completed",
+      "legalHoldBehavior": "retain-minimum-required-termination-proof"
     }
   ],
   "rightsPolicies": [
@@ -42,6 +69,13 @@
       "correction": "correct-through-authoritative-organization-or-property-workflow",
       "restriction": "stop-scheduling-when-authoritative-scope-is-inactive",
       "erasure": "remove-or-pseudonymize-after-approved-tenant-termination-policy"
+    },
+    {
+      "id": "retention-tenant-destruction-proof-control",
+      "export": "include-in-authorized-tenant-termination-audit",
+      "correction": "append-a-corrective-control-plane-record",
+      "restriction": "retain-only-the-minimum-owner-proof",
+      "erasure": "remove-after-approved-proof-retention"
     }
   ],
   "fields": [
@@ -67,6 +101,7 @@
       "rightsPolicy": "retention-scope-coordinate",
       "allowedSurfaces": [
         "application-query",
+        "data-rights-export",
         "integration-command",
         "persistence"
       ],
@@ -92,6 +127,13 @@
           "retentionPolicy": "transient-owner-execution-request"
         },
         {
+          "assembly": "BunkFy.Modules.Retention.Domain",
+          "type": "BunkFy.Modules.Retention.Domain.Aggregates.RetentionExecution",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "retention-control-plane-evidence"
+        },
+        {
           "assembly": "BunkFy.Modules.Retention.Persistence",
           "type": "BunkFy.Modules.Retention.Persistence.RetentionTenantProjection",
           "member": "ScopeId",
@@ -104,6 +146,20 @@
           "member": "ScopeId",
           "surface": "persistence",
           "retentionPolicy": "retention-control-plane-evidence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.Repositories.RetentionExecutionTenantExport",
+          "member": "ScopeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "retention-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.Repositories.RetentionScheduleStateTenantExport",
+          "member": "ScopeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "retention-tenant-termination-export-fragment"
         }
       ]
     },
@@ -129,6 +185,7 @@
       "allowedSurfaces": [
         "api-response",
         "application-query",
+        "data-rights-export",
         "integration-command",
         "persistence"
       ],
@@ -162,6 +219,13 @@
           "retentionPolicy": "transient-owner-execution-request"
         },
         {
+          "assembly": "BunkFy.Modules.Retention.Domain",
+          "type": "BunkFy.Modules.Retention.Domain.Aggregates.RetentionExecution",
+          "member": "PropertyId",
+          "surface": "persistence",
+          "retentionPolicy": "retention-control-plane-evidence"
+        },
+        {
           "assembly": "BunkFy.Modules.Retention.Persistence",
           "type": "BunkFy.Modules.Retention.Persistence.RetentionPropertyProjection",
           "member": "Id",
@@ -174,7 +238,78 @@
           "member": "PropertyId",
           "surface": "persistence",
           "retentionPolicy": "retention-control-plane-evidence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.Repositories.RetentionExecutionTenantExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "retention-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Retention.Persistence",
+          "type": "BunkFy.Modules.Retention.Persistence.Repositories.RetentionScheduleStateTenantExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "retention-tenant-termination-export-fragment"
         }
+      ]
+    },
+    {
+      "id": "retention.tenant-destruction.owner-proof",
+      "dataSubject": "subject-scoped",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-termination-safety",
+        "owner-proof-correlation",
+        "destruction-accountability"
+      ],
+      "sources": [
+        "approved-tenant-termination-case",
+        "retention-owner-destruction"
+      ],
+      "authoritativeOwner": "retention",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "retention-tenant-destruction-proof",
+      "countryPolicyKey": "retention.tenant-destruction.owner-proof",
+      "retentionPolicy": "retention-tenant-destruction-proof",
+      "rightsPolicy": "retention-tenant-destruction-proof-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "processor"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "OperationId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "RequestSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "SelectedRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "ResultingRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "BatchSize", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "Stage", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "RemovedRecordCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "CompletedBatchCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "ProofVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "RemovalProofSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "StartedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "UpdatedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyOperation", "member": "ConcurrencyVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "OperationId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "RequestSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "SelectedRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "ResultingRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "BatchSize", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "RemovedRecordCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "CompletedBatchCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "RemovalProofVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "RemovalProofSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "StartedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Retention.Persistence", "type": "BunkFy.Modules.Retention.Persistence.TenantTermination.RetentionTenantDestroyReceipt", "member": "CompletedAtUtc", "surface": "persistence" }
       ]
     }
   ]

@@ -27,6 +27,54 @@ Inventory does not own Properties topology, reservation lifecycle/contact data, 
 
 Grouped blocks resolve against Inventory's local topology projection at creation time and persist one correlated block per currently sellable unit. Creation and group release are transactional, so a broad physical target cannot leave a partially blocked floor or room. Existing single-unit create/release contracts remain available for compatibility.
 
+## Operational Surfaces
+
+Room and manual-block directories use deterministic, bounded pages with `HasMore`; repositories determine continuation with `pageSize + 1` lookahead and do not execute exact count queries. Callers should continue only while `HasMore` is true. Availability intentionally remains one complete property and date-range decision snapshot because partial availability would be unsafe for assignment decisions.
+
+Ordinary sales-mode and manual-block writes return identity, status, version, and affected-count receipts instead of nested read models. API and web callers invalidate and refetch the authoritative room, block, or availability read after a successful write. Retirement operations keep their bounded process DTOs because their impact and retry state are part of the immediate operator decision.
+
+Public and Admin Inventory endpoints emit `Cache-Control: no-store`, `Pragma: no-cache`, and an expired response date. This prevents block reasons, staff references, claim identifiers, and current availability state from being retained by shared caches. Admin endpoints also declare explicit success response metadata so generated clients match runtime responses.
+
+## Tenant Termination
+
+Inventory is a mandatory `Export` and `Destroy` owner. Export depends on
+Properties and contains Inventory-owned unit identities, room sales
+configuration, manual blocks, allocations and allocation units, amendment
+decisions, anonymisation proof, and bed or room retirement processes.
+Replicated topology, transport journals, rebuild checkpoints, operation locks,
+and the internal tenant revision are deliberately excluded from portability.
+
+Destruction depends on Reservations so booking authority is removed before
+allocations disappear. It closes local admission, waits for live outbox leases,
+and removes all 18 tenant-owned record families in foreign-key-safe stages.
+One invocation removes at most one non-empty batch of 500 physical rows;
+allocation units are explicitly removed before allocations. Completion retains
+only a closed lifecycle row and one immutable, PII-free destruction receipt
+with a versioned SHA-256 proof chain. Personal-data catalogue version 4 binds
+the retained proof to its dedicated tenant-destruction policy.
+
+Relational writes and export selection share the tenant mutation transaction
+key. Each operational save rechecks the authoritative Workspaces termination
+fence and advances a module-local revision in the same transaction. Export runs
+under repeatable-read, validates the exact frozen process, epoch, and fence
+before and after streaming, and succeeds only when that local revision remains
+unchanged. Closing also suppresses scoped inbox delivery and outbox claims.
+Anonymisation receipts, restore receipts, and the final destruction receipt are
+protected in EF and PostgreSQL; anonymisation tombstones remain updateable for
+restore proof but cannot be deleted outside the exact destruction operation.
+
+Migrations `AddInventoryTenantExportRevision` and
+`AddInventoryTenantDestructionLifecycle` add the revision/lifecycle state,
+resumable operation, receipt ledger, and provider-side proof guards. All 90
+Inventory tests pass, EF reports no pending model changes, and the exact
+PostgreSQL 16 scenario passed on 2026-08-04 with lock drain, outbox suppression,
+bounded graph removal, replay/conflict, trigger enforcement, closed admission,
+and tenant isolation.
+
+Production execution remains disabled until every mandatory owner, terminal
+orchestration, protected replay, operator controls, and final admission are
+complete.
+
 ## Runtime
 
 The API hosts expose management commands and reads. When the worker is enabled, compose Properties and Inventory; compose Reservations as well when allocation requests should be consumed. Enable NATS consumers and publishing, and enable the task worker when projection rebuild tasks should execute.

@@ -1,6 +1,6 @@
 # GMA Durable Runtime Alignment
 
-Status: code foundation passed; deployment activation pending
+Status: code and production-admission foundations passed; deployment activation pending
 
 ## Decision
 
@@ -93,3 +93,11 @@ The code foundation gate passed on 2026-07-12:
 No unexplained data loss, duplicate side effect, tenant leak, staff overwrite, migration drift, or unbounded configured broker limit was observed.
 
 The following are deployment activation work, not missing reusable code: select production retention/replay/legal-hold windows, enable the disabled-by-default cleanup services, provision recurring tenant-scoped Ingestion retention tasks, configure OTLP/Prometheus and alerts, size connection pools/worker replicas/JetStream replicas, and prove backup/restore on the target environment. Product feature development may resume before a deployment exists, but a live environment may not accept tenant data until these activation checks pass.
+
+On 2026-08-05, BunkFy also completed its application-side production admission
+boundary: all long-running hosts fail closed without an approved retention and
+replay declaration, exactly one declared Worker maintenance owner, consistent
+TaskRuntime/NATS composition, and exact Worker release identity. This closes the
+local topology-validation gap; actual approval references, replica evidence,
+restore drills, alert delivery, and target-environment activation remain
+deployment responsibilities.

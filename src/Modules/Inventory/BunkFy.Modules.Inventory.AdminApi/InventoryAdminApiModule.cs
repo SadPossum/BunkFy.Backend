@@ -36,6 +36,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             .WithModuleName(this.Name)
             .WithTags("Inventory Admin")
             .RequireAuthorization();
+        inventory.AddEndpointFilter(SensitiveResponseFilter);
 
         inventory.MapGet("/properties/{propertyId:guid}/rooms", async (
             Guid propertyId,
@@ -56,7 +57,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         pageSize ?? PageRequest.DefaultPageSize),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomInventoryListResponse>(StatusCodes.Status200OK);
 
         inventory.MapPut("/properties/{propertyId:guid}/rooms/{roomId:guid}/sales-mode", async (
             Guid propertyId,
@@ -78,7 +80,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         request.ExpectedVersion),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomInventoryMutationReceiptDto>(StatusCodes.Status200OK);
 
         inventory.MapGet("/properties/{propertyId:guid}/rooms/{roomId:guid}/change-impact", async (
             Guid propertyId,
@@ -93,7 +96,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetRoomInventoryChangeImpactQuery(propertyId, roomId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomInventoryChangeImpactDto>(StatusCodes.Status200OK);
 
         inventory.MapGet("/properties/{propertyId:guid}/availability", async (
             Guid propertyId,
@@ -109,7 +113,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetInventoryAvailabilityQuery(propertyId, arrival, departure), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<InventoryAvailabilityResponse>(StatusCodes.Status200OK);
 
         inventory.MapGet("/properties/{propertyId:guid}/blocks", async (
             Guid propertyId,
@@ -134,7 +139,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         pageSize ?? PageRequest.DefaultPageSize),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ManualInventoryBlockListResponse>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/blocks", async (
             Guid propertyId,
@@ -156,7 +162,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         request.Reason),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ManualInventoryBlockMutationReceiptDto>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/block-groups", async (
             Guid propertyId,
@@ -178,7 +185,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         request.Reason),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ManualInventoryBlockGroupMutationReceiptDto>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/blocks/{blockId:guid}/release", async (
             Guid propertyId,
@@ -196,7 +204,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                     new ReleaseManualInventoryBlockCommand(propertyId, blockId, request.ExpectedVersion),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ManualInventoryBlockMutationReceiptDto>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/block-groups/{blockGroupId:guid}/release", async (
             Guid propertyId,
@@ -213,7 +222,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                     new ReleaseManualInventoryBlockGroupCommand(propertyId, blockGroupId),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ManualInventoryBlockGroupMutationReceiptDto>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/rooms/{roomId:guid}/beds/{bedId:guid}/retirement", async (
             Guid propertyId,
@@ -237,7 +247,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         Actor(httpContext)),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK);
 
         inventory.MapGet("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}", async (
             Guid propertyId,
@@ -252,7 +263,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetBedRetirementQuery(propertyId, topologyChangeId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}/retry", async (
             Guid propertyId,
@@ -267,7 +279,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(new RetryBedRetirementCommand(propertyId, topologyChangeId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/rooms/{roomId:guid}/retirement", async (
             Guid propertyId,
@@ -289,7 +302,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         Actor(httpContext)),
                     token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK);
 
         inventory.MapGet("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}", async (
             Guid propertyId,
@@ -304,7 +318,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetRoomRetirementQuery(propertyId, topologyChangeId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK);
 
         inventory.MapPost("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}/retry", async (
             Guid propertyId,
@@ -319,7 +334,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(new RetryRoomRetirementCommand(propertyId, topologyChangeId), token),
                 cancellationToken,
-                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK);
     }
 
     public sealed record ConfigureSalesModeRequest(InventorySalesMode SalesMode, long ExpectedVersion);
@@ -337,7 +353,24 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
     public sealed record RequestBedRetirementRequest(string Reason);
     public sealed record RequestRoomRetirementRequest(string Reason);
 
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
+
     private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+        new(InventoryApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(InventoryApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(InventoryApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
         new(InventoryApplicationErrors.RoomNotFound.Code, StatusCodes.Status404NotFound),
         new(InventoryApplicationErrors.RoomRetired.Code, StatusCodes.Status409Conflict),

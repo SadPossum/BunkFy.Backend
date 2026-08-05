@@ -15,7 +15,11 @@ internal sealed class DataRightsPropertyProjectionRepository(DataRightsDbContext
             property.ScopeId,
             property.PropertyId,
             cancellationToken).ConfigureAwait(false);
-        current.ApplyTopology(property.Name, property.Status, property.SourceVersion);
+        current.ApplyTopology(
+            property.Name,
+            property.TimeZoneId,
+            property.Status,
+            property.SourceVersion);
     }
 
     public async Task ApplyPolicyAsync(
@@ -46,9 +50,11 @@ internal sealed class DataRightsPropertyProjectionRepository(DataRightsDbContext
             ? null
             : new DataRightsPropertyPolicySnapshot(
                 property.IsKnown,
-                property.Status == PropertyStatus.Active,
+                property.Status,
+                property.TimeZoneId,
                 property.ProcessingStatus,
                 MapPolicy(property.GovernancePolicy),
+                property.TopologySourceVersion,
                 property.PolicySourceVersion);
     }
 
@@ -70,6 +76,7 @@ internal sealed class DataRightsPropertyProjectionRepository(DataRightsDbContext
         current = new DataRightsPropertyProjection(
             scopeId,
             propertyId,
+            null,
             null,
             PropertyStatus.Unknown,
             0);

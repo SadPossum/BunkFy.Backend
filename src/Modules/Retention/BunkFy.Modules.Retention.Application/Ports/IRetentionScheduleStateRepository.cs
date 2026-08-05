@@ -26,6 +26,7 @@ public sealed record RetentionScheduleStateSnapshot(
     Guid? PropertyId,
     int ExecutionPolicyVersion,
     int State,
+    Guid LastExecutionId,
     DateTimeOffset LastStartedAtUtc,
     DateTimeOffset? LastCompletedAtUtc,
     DateTimeOffset NextDueAtUtc,

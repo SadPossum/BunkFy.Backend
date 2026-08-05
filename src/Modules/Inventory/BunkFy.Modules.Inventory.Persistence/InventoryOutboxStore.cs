@@ -2,6 +2,24 @@ namespace BunkFy.Modules.Inventory.Persistence;
 
 using Microsoft.Extensions.Options;
 using Gma.Framework.Messaging.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
-internal sealed class InventoryOutboxStore(InventoryDbContext dbContext, IOptions<OutboxOptions> options)
-    : EfOutboxStore<InventoryDbContext>(dbContext, options, InventoryMigrations.Schema);
+internal sealed class InventoryOutboxStore(
+    InventoryDbContext dbContext,
+    IOptions<OutboxOptions> options)
+    : EfOutboxStore<InventoryDbContext>(
+        dbContext,
+        options,
+        InventoryMigrations.Schema)
+{
+    protected override IQueryable<OutboxMessage> ApplyClaimAdmission(
+        IQueryable<OutboxMessage> candidates) =>
+        candidates.Where(message =>
+            message.ScopeId == null ||
+            !this.DbContext.TenantRevisions
+                .IgnoreQueryFilters()
+                .Any(state =>
+                    state.ScopeId == message.ScopeId &&
+                    state.LifecycleStatus !=
+                        InventoryTenantLifecycleStatus.Open));
+}

@@ -108,6 +108,9 @@ public static class DependencyInjection
             IOrganizationJoinAdmissionPolicy,
             WorkspaceStaffJoinAdmissionPolicy>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IOrganizationJoinSourceAuthorizationPolicy,
+            WorkspaceOrganizationJoinSourceAuthorizationPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IRetentionExecutionContributor,
             WorkspaceStaffOnboardingRetentionContributor>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<

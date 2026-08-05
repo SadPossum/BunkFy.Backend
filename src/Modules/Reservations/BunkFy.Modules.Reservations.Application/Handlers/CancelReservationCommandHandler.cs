@@ -13,9 +13,9 @@ internal sealed class CancelReservationCommandHandler(
     IReservationRepository reservations,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<CancelReservationCommand, ReservationDto>
+    : ICommandHandler<CancelReservationCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         CancelReservationCommand command,
         CancellationToken cancellationToken)
     {
@@ -24,7 +24,7 @@ internal sealed class CancelReservationCommandHandler(
             .ConfigureAwait(false);
         if (reservation is null)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
         }
 
         Result result = reservation.RequestCancellation(
@@ -34,7 +34,7 @@ internal sealed class CancelReservationCommandHandler(
             clock.UtcNow,
             command.ActorId);
         return result.IsFailure
-            ? Result.Failure<ReservationDto>(result.Error)
-            : Result.Success(reservation.ToDto());
+            ? Result.Failure<ReservationMutationReceiptDto>(result.Error)
+            : Result.Success(reservation.ToMutationReceipt());
     }
 }

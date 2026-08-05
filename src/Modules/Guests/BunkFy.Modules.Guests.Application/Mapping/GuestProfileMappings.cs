@@ -24,6 +24,12 @@ public static class GuestProfileMappings
         profile.LastChangedAtUtc,
         profile.ArchivedAtUtc);
 
+    public static GuestMutationReceiptDto ToMutationReceipt(this GuestProfile profile) => new(
+        profile.Id,
+        MapStatus(profile.Status),
+        profile.Version,
+        profile.LastChangedAtUtc);
+
     public static GuestStatus MapStatus(GuestProfileState status) => status switch
     {
         GuestProfileState.Active => GuestStatus.Active,

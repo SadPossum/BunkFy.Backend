@@ -24,25 +24,25 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
     IIdGenerator idGenerator,
     IEnumerable<IPropertyProcessingLifecyclePolicy>?
         lifecyclePolicies = null)
-    : ICommandHandler<ActivatePropertyProcessingCommand, PropertyDto>
+    : ICommandHandler<ActivatePropertyProcessingCommand, PropertyMutationReceiptDto>
 {
     internal const string AccommodationType = "hostel";
     internal const string ActivationPurpose = "property-activation";
     internal const string OperatorProvenance = "authorized-workspace-operator";
 
-    public async Task<Result<PropertyDto>> HandleAsync(
+    public async Task<Result<PropertyMutationReceiptDto>> HandleAsync(
         ActivatePropertyProcessingCommand command,
         CancellationToken cancellationToken)
     {
         if (!command.Confirmed)
         {
-            return Result.Failure<PropertyDto>(PropertiesApplicationErrors.ConfirmationRequired);
+            return Result.Failure<PropertyMutationReceiptDto>(PropertiesApplicationErrors.ConfirmationRequired);
         }
 
         Property? property = await properties.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
-            return Result.Failure<PropertyDto>(PropertiesDomainErrors.PropertyNotFound);
+            return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);
         }
 
         Result lifecycleAdmission = await AuthorizeLifecycleAsync(
@@ -52,7 +52,7 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (lifecycleAdmission.IsFailure)
         {
-            return Result.Failure<PropertyDto>(lifecycleAdmission.Error);
+            return Result.Failure<PropertyMutationReceiptDto>(lifecycleAdmission.Error);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -76,20 +76,20 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
             nowUtc));
         if (!decision.IsAllowed || decision.Evidence is null)
         {
-            return Result.Failure<PropertyDto>(PropertiesApplicationErrors.CountryPolicyDenied(decision.Reason));
+            return Result.Failure<PropertyMutationReceiptDto>(PropertiesApplicationErrors.CountryPolicyDenied(decision.Reason));
         }
 
         Result<PropertyGovernanceBinding> bindingResult = CreateBinding(decision.Evidence);
         if (bindingResult.IsFailure)
         {
-            return Result.Failure<PropertyDto>(bindingResult.Error);
+            return Result.Failure<PropertyMutationReceiptDto>(bindingResult.Error);
         }
 
         Result<IReadOnlyCollection<DomainAcknowledgement>> acknowledgementResult =
             CreateAcknowledgements(decision.Evidence.AcceptedAcknowledgements);
         if (acknowledgementResult.IsFailure)
         {
-            return Result.Failure<PropertyDto>(acknowledgementResult.Error);
+            return Result.Failure<PropertyMutationReceiptDto>(acknowledgementResult.Error);
         }
 
         PropertyGovernanceRevisionCoordinates? previous = ToCoordinates(
@@ -105,7 +105,7 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
             command.ActorId);
         if (activation.IsFailure)
         {
-            return Result.Failure<PropertyDto>(activation.Error);
+            return Result.Failure<PropertyMutationReceiptDto>(activation.Error);
         }
 
         PropertyGovernanceRevisionAction action = previous is null
@@ -128,7 +128,7 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
                 nowUtc),
             cancellationToken).ConfigureAwait(false);
 
-        return Result.Success(PropertiesMapper.ToDto(property));
+        return Result.Success(PropertiesMapper.ToReceipt(property));
     }
 
     private static async ValueTask<Result> AuthorizeLifecycleAsync(

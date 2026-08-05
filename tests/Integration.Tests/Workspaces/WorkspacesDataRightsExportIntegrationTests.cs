@@ -9,7 +9,9 @@ using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.Termination;
 using BunkFy.Modules.Workspaces.Persistence;
+using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -19,7 +21,7 @@ using Microsoft.Extensions.Hosting;
 using Testcontainers.PostgreSql;
 using Xunit;
 
-public sealed class WorkspacesDataRightsExportIntegrationTests
+public sealed partial class WorkspacesDataRightsExportIntegrationTests
 {
     private const string PreviousMigration =
         "20260730070545_AddWorkspaceStaffRetentionCorrelationScrub";
@@ -36,6 +38,10 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
         Guid.Parse("30000000-0000-0000-0000-000000000002");
     private static readonly DateTimeOffset Now =
         new(2026, 7, 30, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FrozenAtUtc = Now.AddDays(2);
+    private static readonly DateTimeOffset ExportNowUtc =
+        FrozenAtUtc.AddMinutes(1);
+    private static readonly string Digest = new('a', 64);
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -59,6 +65,7 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
                 .GetRequiredService<WorkspacesDbContext>();
             await dbContext.Database.GetService<IMigrator>()
                 .MigrateAsync(PreviousMigration);
+            await dbContext.Database.MigrateAsync();
             graph = SeedGraph(dbContext, TenantA, SubjectId);
             await dbContext.SaveChangesAsync();
         }
@@ -118,6 +125,10 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
                         "91000000-0000-0000-0000-000000000001"),
                     Now).Value);
             await staffDbContext.SaveChangesAsync();
+            WorkspaceTerminationFence fence = CreateTerminationFence();
+            dbContext.WorkspaceTerminationFences.Add(fence);
+            await dbContext.SaveChangesAsync();
+            dbContext.ChangeTracker.Clear();
 
             IDataRightsSubjectDiscoveryContributor[] discoveries =
                 scope.ServiceProvider.GetServices<
@@ -355,7 +366,135 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
                 replay.Records
                     .Select(record => record.RecordId)
                     .ToArray());
+
+            await AssertTenantTerminationExportAsync(
+                scope.ServiceProvider,
+                tenantAProvider,
+                fence);
         }
+    }
+
+    private static async Task AssertTenantTerminationExportAsync(
+        IServiceProvider services,
+        IServiceProvider rootServices,
+        WorkspaceTerminationFence fence)
+    {
+        ITenantTerminationExportContributor contributor =
+            services.GetServices<ITenantTerminationExportContributor>()
+                .Single(item =>
+                    item.ExportDescriptor.ExportSchemaId ==
+                    WorkspacesTenantTerminationMetadata.ExportSchemaId);
+        CollectingSink first = new();
+
+        TenantTerminationContributionResult result =
+            await contributor.ExportAsync(
+                TenantTerminationRequest(fence),
+                first,
+                CancellationToken.None);
+
+        Assert.Equal(
+            TenantTerminationContributionStatus.Completed,
+            result.Status);
+        Assert.Equal("workspace.termination.exported", result.ResultCode);
+        Assert.Equal(8, result.AffectedCount);
+        Assert.Equal(fence.Version, result.SelectedProofRevision);
+        Assert.Equal(fence.Version, result.ResultingProofRevision);
+        Assert.Equal(
+            [
+                WorkspacesDataRightsCoordinates.StaffOnboardingRecordType,
+                WorkspacesDataRightsCoordinates.StaffAccessProcessRecordType,
+                "staff-access-profile-snapshot",
+                "staff-access-profile-snapshot",
+                WorkspacesDataRightsCoordinates.StaffAccessPlanRecordType,
+                "staff-access-plan-property",
+                "staff-access-plan-property",
+                WorkspacesDataRightsCoordinates
+                    .StaffRetentionCorrelationReceiptRecordType
+            ],
+            first.Records.Select(record => record.RecordType).ToArray());
+
+        CollectingSink replay = new();
+        TenantTerminationContributionResult replayResult =
+            await contributor.ExportAsync(
+                TenantTerminationRequest(fence),
+                replay,
+                CancellationToken.None);
+
+        Assert.Equal(result.AffectedCount, replayResult.AffectedCount);
+        Assert.Equal(
+            first.Records.Select(RecordIdentity).ToArray(),
+            replay.Records.Select(RecordIdentity).ToArray());
+        Assert.DoesNotContain(
+            replay.Records,
+            record => record.RecordId ==
+                Guid.Parse("50000000-0000-0000-0000-000000000099"));
+
+        await AssertExportSerializesOperationalMutationAsync(
+            contributor,
+            rootServices,
+            fence);
+    }
+
+    private static async Task AssertExportSerializesOperationalMutationAsync(
+        ITenantTerminationExportContributor contributor,
+        IServiceProvider rootServices,
+        WorkspaceTerminationFence fence)
+    {
+        BlockingSink sink = new();
+        Task<TenantTerminationContributionResult> export =
+            contributor.ExportAsync(
+                TenantTerminationRequest(fence),
+                sink,
+                CancellationToken.None);
+        Task firstRecord = sink.FirstRecordObserved;
+        Assert.Same(
+            firstRecord,
+            await Task.WhenAny(firstRecord, export));
+
+        Task write = AttemptOperationalWriteAsync(rootServices);
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+            Assert.False(write.IsCompleted);
+        }
+        finally
+        {
+            sink.Release();
+        }
+
+        Assert.Equal(
+            TenantTerminationContributionStatus.Completed,
+            (await export).Status);
+        InvalidOperationException failure =
+            await Assert.ThrowsAnyAsync<InvalidOperationException>(() => write);
+        Assert.Equal(
+            "The workspace is not accepting operational mutations.",
+            failure.Message);
+    }
+
+    private static async Task AttemptOperationalWriteAsync(
+        IServiceProvider rootServices)
+    {
+        using IServiceScope scope = rootServices.CreateScope();
+        WorkspacesDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<WorkspacesDbContext>();
+        dbContext.StaffOnboardingApplications.Add(
+            WorkspaceStaffOnboarding.Create(
+                Guid.Parse("50000000-0000-0000-0000-000000000098"),
+                TenantA,
+                WorkspaceStaffOnboardingSource.Invitation,
+                Guid.Parse("40000000-0000-0000-0000-000000000098"),
+                "blocked-subject",
+                "blocked@example.test",
+                "Blocked operator",
+                legalName: null,
+                "blocked@example.test",
+                workPhone: null,
+                employeeNumber: null,
+                jobTitle: null,
+                department: null,
+                ExportNowUtc).Value);
+        await dbContext.SaveChangesAsync();
     }
 
     private static async Task<CollectingSink> AssertExportAsync(
@@ -540,6 +679,43 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
                 AccountSubjectId),
             DataRightsSubjectDiscoveryLimits.MaxCandidates);
 
+    private static WorkspaceTerminationFence CreateTerminationFence() =>
+        WorkspaceTerminationFence.Freeze(
+            Guid.Parse("a1000000-0000-0000-0000-000000000001"),
+            TenantA,
+            Guid.Parse("a2000000-0000-0000-0000-000000000001"),
+            Guid.Parse("a3000000-0000-0000-0000-000000000001"),
+            approvalRevision: 1,
+            Guid.Parse("a4000000-0000-0000-0000-000000000001"),
+            Digest,
+            "termination-operator",
+            FrozenAtUtc).Value;
+
+    private static TenantTerminationExportRequest TenantTerminationRequest(
+        WorkspaceTerminationFence fence) =>
+        new(
+            new TenantTerminationContributionRequest(
+                TenantTerminationContract.CurrentVersion,
+                TenantA,
+                fence.ProcessId,
+                fence.CaseId,
+                fence.ApprovalRevision,
+                OperationRevision: 2,
+                fence.TerminationEpoch,
+                TenantTerminationContributionPhase.Export,
+                Guid.Parse("a5000000-0000-0000-0000-000000000001"),
+                Guid.Parse("a6000000-0000-0000-0000-000000000001"),
+                fence.PolicyEvidenceSha256,
+                "termination-exporter",
+                ExportNowUtc.AddMinutes(5)),
+            FreezeOperationRevision: 1,
+            fence.Version,
+            Digest,
+            FrozenAtUtc);
+
+    private static string RecordIdentity(DataRightsExportRecord record) =>
+        $"{record.RecordType}|{record.RecordId:N}|{record.RecordVersion}";
+
     private static Guid ParsePropertyId(string? assignmentScope)
     {
         Assert.NotNull(assignmentScope);
@@ -561,7 +737,8 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
 
     private static ServiceProvider CreatePersistenceProvider(
         string connectionString,
-        string tenantId)
+        string tenantId,
+        TestClock? clock = null)
     {
         HostApplicationBuilder builder =
             Host.CreateApplicationBuilder();
@@ -571,6 +748,8 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
             connectionString;
         builder.Services.AddSingleton<IScopeContext>(
             new TestScopeContext(tenantId));
+        builder.Services.AddSingleton<ISystemClock>(
+            clock ?? new TestClock(ExportNowUtc));
         builder.AddStaffPersistence();
         builder.AddWorkspacesPersistence();
         return builder.Services.BuildServiceProvider();
@@ -590,11 +769,40 @@ public sealed class WorkspacesDataRightsExportIntegrationTests
         }
     }
 
+    private sealed class BlockingSink : IDataRightsExportSink
+    {
+        private readonly TaskCompletionSource firstRecordObserved = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource release = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private int blocked;
+
+        public Task FirstRecordObserved => this.firstRecordObserved.Task;
+
+        public async ValueTask WriteAsync(
+            DataRightsExportRecord record,
+            CancellationToken cancellationToken)
+        {
+            if (Interlocked.Exchange(ref this.blocked, 1) == 0)
+            {
+                this.firstRecordObserved.TrySetResult();
+                await this.release.Task.WaitAsync(cancellationToken);
+            }
+        }
+
+        public void Release() => this.release.TrySetResult();
+    }
+
     private sealed class TestScopeContext(string scopeId)
         : IScopeContext
     {
         public bool IsEnabled => true;
         public string ScopeId { get; } = scopeId;
+    }
+
+    private sealed class TestClock(DateTimeOffset utcNow) : ISystemClock
+    {
+        public DateTimeOffset UtcNow { get; set; } = utcNow;
     }
 
     private sealed record SeededGraph(

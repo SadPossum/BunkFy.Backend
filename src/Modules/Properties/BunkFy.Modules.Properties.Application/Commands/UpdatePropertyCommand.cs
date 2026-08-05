@@ -9,4 +9,4 @@ public sealed record UpdatePropertyCommand(
     string Code,
     string TimeZoneId,
     long ExpectedVersion)
-    : ITransactionalCommand<PropertyDto>;
+    : ITransactionalCommand<PropertyMutationReceiptDto>;

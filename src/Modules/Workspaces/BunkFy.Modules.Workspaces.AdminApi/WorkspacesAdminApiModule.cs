@@ -40,6 +40,7 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
             .WithModuleName(this.Name)
             .WithTags("Workspaces Admin")
             .RequireAuthorization();
+        access.AddEndpointFilter(SensitiveResponseFilter);
 
         access.MapGet("/", async (
             HttpContext httpContext,
@@ -53,7 +54,8 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
                     WorkspacesAdminPermissions.AccessBootstrap),
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetWorkspaceAccessBootstrapStatusQuery(), token),
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken).ConfigureAwait(false))
+            .Produces<WorkspaceAccessBootstrapStatus>(StatusCodes.Status200OK);
 
         access.MapPost("/", async (
             AccessBootstrapRequest request,
@@ -71,12 +73,14 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
                     ? dispatcher.SendAsync(new BootstrapWorkspaceAccessCommand(), token)
                     : Task.FromResult(Result.Failure<WorkspaceAccessBootstrapResult>(
                         AdminErrors.ConfirmationRequired)),
-                cancellationToken).ConfigureAwait(false));
+                cancellationToken).ConfigureAwait(false))
+            .Produces<WorkspaceAccessBootstrapResult>(StatusCodes.Status200OK);
 
         RouteGroupBuilder staffAccess = endpoints.MapGroup("/api/admin/workspaces/staff-access-processes")
             .WithModuleName(this.Name)
             .WithTags("Workspaces Admin")
             .RequireAuthorization();
+        staffAccess.AddEndpointFilter(SensitiveResponseFilter);
 
         staffAccess.MapGet("/", async (
             int? page,
@@ -85,9 +89,7 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-        {
-            MarkSensitiveResponse(httpContext);
-            return await executor.ExecuteAsync(
+            await executor.ExecuteAsync(
                 httpContext,
                 AdminOperation.Create(
                     WorkspacesAdminOperationNames.StaffAccessList,
@@ -96,8 +98,7 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
                 token => dispatcher.QueryAsync(new ListOpenWorkspaceStaffAccessProcessesQuery(
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize), token),
-                cancellationToken).ConfigureAwait(false);
-        })
+                cancellationToken).ConfigureAwait(false))
             .Produces<WorkspaceStaffAccessProcessListResponse>(StatusCodes.Status200OK);
 
         staffAccess.MapPost("/{processId:guid}/retry", async (
@@ -107,9 +108,7 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-        {
-            MarkSensitiveResponse(httpContext);
-            return await executor.ExecuteAsync(
+            await executor.ExecuteAsync(
                 httpContext,
                 AdminOperation.Create(
                     WorkspacesAdminOperationNames.StaffAccessRetry,
@@ -119,13 +118,20 @@ public sealed class WorkspacesAdminApiModule : IAdminApiModule
                     ? dispatcher.SendAsync(new RetryWorkspaceStaffAccessProcessCommand(processId), token)
                     : Task.FromResult(Result.Failure<WorkspaceStaffAccessProcessDto>(
                         AdminErrors.ConfirmationRequired)),
-                cancellationToken).ConfigureAwait(false);
-        })
+                cancellationToken).ConfigureAwait(false))
             .Produces<WorkspaceStaffAccessProcessDto>(StatusCodes.Status200OK);
     }
 
     public sealed record AccessBootstrapRequest(bool Confirmed);
     public sealed record StaffAccessRetryRequest(bool Confirmed);
+
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
 
     private static void MarkSensitiveResponse(HttpContext context)
     {

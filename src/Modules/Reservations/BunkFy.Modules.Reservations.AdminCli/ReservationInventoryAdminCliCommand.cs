@@ -43,15 +43,15 @@ internal static class ReservationInventoryAdminCliCommand
             {
                 if (!parse.GetValue(yes))
                 {
-                    return Result.Failure<ReservationDto>(AdminErrors.ConfirmationRequired);
+                    return Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired);
                 }
 
                 if (!TryParseUnitIds(parse.GetRequiredValue(units), out Guid[] unitIds))
                 {
-                    return Result.Failure<ReservationDto>(ReservationsApplicationErrors.RequestedUnitsInvalid);
+                    return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.RequestedUnitsInvalid);
                 }
 
-                Result<ReservationDto> result = await provider.GetRequiredService<IRequestDispatcher>().SendAsync(
+                Result<ReservationMutationReceiptDto> result = await provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new ReassignReservationInventoryCommand(
                         parse.GetValue(property),
                         parse.GetValue(reservation),
@@ -67,10 +67,10 @@ internal static class ReservationInventoryAdminCliCommand
                         parse.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table,
                         [
                             ("ReservationId", item => item.ReservationId.ToString()),
+                            ("PropertyId", item => item.PropertyId.ToString()),
                             ("Status", item => item.Status.ToString()),
-                            ("PendingAmendment", item => item.PendingAllocationAmendmentId?.ToString() ?? string.Empty),
-                            ("Units", item => string.Join(',', item.InventoryUnitIds)),
-                            ("DetailsRevision", item => item.DetailsRevision.ToString(CultureInfo.InvariantCulture))
+                            ("DetailsRevision", item => item.DetailsRevision.ToString(CultureInfo.InvariantCulture)),
+                            ("Version", item => item.Version.ToString(CultureInfo.InvariantCulture))
                         ]);
                 }
 

@@ -159,15 +159,17 @@ public sealed class InventoryAuthorizationIntegrationTests
                    operatorTokens.AccessToken,
                    new { salesMode = InventorySalesMode.RoomLevel, expectedVersion = 1 }).ConfigureAwait(false))
         {
-            RoomInventoryDto room = await ReadSuccessAsync<RoomInventoryDto>(configureRoom).ConfigureAwait(false);
-            Assert.Equal(InventorySalesMode.RoomLevel, room.SalesMode);
-            Assert.Equal(2, room.Version);
-            Assert.True(Assert.Single(room.Units).IsSellable);
+            RoomInventoryMutationReceiptDto receipt =
+                await ReadSuccessAsync<RoomInventoryMutationReceiptDto>(configureRoom).ConfigureAwait(false);
+            Assert.Equal(PropertyA, receipt.PropertyId);
+            Assert.Equal(RoomA, receipt.RoomId);
+            Assert.Equal(InventorySalesMode.RoomLevel, receipt.SalesMode);
+            Assert.Equal(2, receipt.Version);
         }
 
         await ExerciseAllocationAuthorityAsync(api).ConfigureAwait(false);
 
-        ManualInventoryBlockDto block;
+        ManualInventoryBlockMutationReceiptDto block;
         using (HttpResponseMessage createBlock = await SendAsync(
                    client,
                    HttpMethod.Post,
@@ -181,8 +183,9 @@ public sealed class InventoryAuthorizationIntegrationTests
                        reason = "Maintenance"
                    }).ConfigureAwait(false))
         {
-            block = await ReadSuccessAsync<ManualInventoryBlockDto>(createBlock).ConfigureAwait(false);
+            block = await ReadSuccessAsync<ManualInventoryBlockMutationReceiptDto>(createBlock).ConfigureAwait(false);
             Assert.NotEqual(Guid.Empty, block.BlockGroupId);
+            Assert.Equal(PropertyA, block.PropertyId);
             Assert.Equal(1, block.Version);
             Assert.Equal(ManualInventoryBlockStatus.Active, block.Status);
         }
@@ -245,12 +248,16 @@ public sealed class InventoryAuthorizationIntegrationTests
                    operatorTokens.AccessToken,
                    new { expectedVersion = 1 }).ConfigureAwait(false))
         {
-            ManualInventoryBlockDto released = await ReadSuccessAsync<ManualInventoryBlockDto>(release).ConfigureAwait(false);
+            ManualInventoryBlockMutationReceiptDto released =
+                await ReadSuccessAsync<ManualInventoryBlockMutationReceiptDto>(release).ConfigureAwait(false);
+            Assert.Equal(block.BlockId, released.BlockId);
+            Assert.Equal(block.BlockGroupId, released.BlockGroupId);
+            Assert.Equal(PropertyA, released.PropertyId);
             Assert.Equal(ManualInventoryBlockStatus.Released, released.Status);
             Assert.Equal(2, released.Version);
         }
 
-        ManualInventoryBlockGroupDto blockGroup;
+        ManualInventoryBlockGroupMutationReceiptDto blockGroup;
         using (HttpResponseMessage createBlockGroup = await SendAsync(
                    client,
                    HttpMethod.Post,
@@ -264,10 +271,11 @@ public sealed class InventoryAuthorizationIntegrationTests
                        reason = "Property maintenance"
                    }).ConfigureAwait(false))
         {
-            blockGroup = await ReadSuccessAsync<ManualInventoryBlockGroupDto>(createBlockGroup).ConfigureAwait(false);
-            ManualInventoryBlockDto groupedBlock = Assert.Single(blockGroup.Blocks);
-            Assert.Equal(blockGroup.BlockGroupId, groupedBlock.BlockGroupId);
-            Assert.Equal(RoomA, groupedBlock.InventoryUnitId);
+            blockGroup =
+                await ReadSuccessAsync<ManualInventoryBlockGroupMutationReceiptDto>(createBlockGroup).ConfigureAwait(false);
+            Assert.NotEqual(Guid.Empty, blockGroup.BlockGroupId);
+            Assert.Equal(PropertyA, blockGroup.PropertyId);
+            Assert.Equal(1, blockGroup.AffectedBlockCount);
         }
 
         InventoryAvailabilityResponse groupBlocked = await GetAvailabilityAsync(
@@ -283,9 +291,11 @@ public sealed class InventoryAuthorizationIntegrationTests
                    $"/api/inventory/properties/{PropertyA:D}/block-groups/{blockGroup.BlockGroupId:D}/release",
                    operatorTokens.AccessToken).ConfigureAwait(false))
         {
-            ManualInventoryBlockGroupDto releasedGroup =
-                await ReadSuccessAsync<ManualInventoryBlockGroupDto>(releaseBlockGroup).ConfigureAwait(false);
-            Assert.Equal(ManualInventoryBlockStatus.Released, Assert.Single(releasedGroup.Blocks).Status);
+            ManualInventoryBlockGroupMutationReceiptDto releasedGroup =
+                await ReadSuccessAsync<ManualInventoryBlockGroupMutationReceiptDto>(releaseBlockGroup).ConfigureAwait(false);
+            Assert.Equal(blockGroup.BlockGroupId, releasedGroup.BlockGroupId);
+            Assert.Equal(PropertyA, releasedGroup.PropertyId);
+            Assert.Equal(1, releasedGroup.AffectedBlockCount);
         }
 
         InventoryAvailabilityResponse available = await GetAvailabilityAsync(
@@ -428,9 +438,9 @@ public sealed class InventoryAuthorizationIntegrationTests
         using (IServiceScope setupScope = api.Services.CreateScope())
         {
             setupScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
-            ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto> configure = setupScope.ServiceProvider
-                .GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>>();
-            Result<RoomInventoryDto> configured = await configure.HandleAsync(
+            ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> configure = setupScope.ServiceProvider
+                .GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
+            Result<RoomInventoryMutationReceiptDto> configured = await configure.HandleAsync(
                 new(PropertyB, RoomB, InventorySalesMode.BedLevel, ExpectedVersion: 1),
                 CancellationToken.None).ConfigureAwait(false);
             Assert.True(configured.IsSuccess);
@@ -483,7 +493,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                 PropertyB, otherBedContext.ConflictUnitIds, new(2026, 11, 2), new(2026, 11, 4), null, [], CancellationToken.None))
                 .HasActiveAllocationConflict);
 
-            Result<RoomInventoryDto> blockedModeChange = await configure.HandleAsync(
+            Result<RoomInventoryMutationReceiptDto> blockedModeChange = await configure.HandleAsync(
                 new(PropertyB, RoomB, InventorySalesMode.RoomLevel, ExpectedVersion: 2),
                 CancellationToken.None).ConfigureAwait(false);
             Assert.True(blockedModeChange.IsFailure);
@@ -513,9 +523,9 @@ public sealed class InventoryAuthorizationIntegrationTests
                 [BedB]),
             CancellationToken.None).ConfigureAwait(false);
 
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto> raceConfigure = modeScope.ServiceProvider
-            .GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>>();
-        Result<RoomInventoryDto> concurrentModeChange = await raceConfigure.HandleAsync(
+        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> raceConfigure = modeScope.ServiceProvider
+            .GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
+        Result<RoomInventoryMutationReceiptDto> concurrentModeChange = await raceConfigure.HandleAsync(
             new(PropertyB, RoomB, InventorySalesMode.RoomLevel, ExpectedVersion: 2),
             CancellationToken.None).ConfigureAwait(false);
         Assert.True(concurrentModeChange.IsSuccess);

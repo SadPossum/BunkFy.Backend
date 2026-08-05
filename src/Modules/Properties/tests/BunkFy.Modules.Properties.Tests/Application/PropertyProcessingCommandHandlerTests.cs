@@ -32,7 +32,7 @@ public sealed class PropertyProcessingCommandHandlerTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<PropertyDto> result = await handler.HandleAsync(
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
                 "GB",
@@ -52,7 +52,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Assert.Equal(PropertyProcessingState.Enabled, property.ProcessingState);
         Assert.Equal(PropertyProcessingStatus.Enabled, result.Value.ProcessingStatus);
         Assert.Equal(artifact.ContentSha256, property.GovernanceBinding!.ContentSha256);
-        Assert.Equal(artifact.ContentSha256, result.Value.GovernancePolicy!.ContentSha256);
+        Assert.Equal(property.Version, result.Value.Version);
         PropertyGovernanceRevisionWriteModel revision = Assert.Single(revisions.Items);
         Assert.Equal(PropertyGovernanceRevisionAction.Activated, revision.Action);
         Assert.Null(revision.Previous);
@@ -73,7 +73,7 @@ public sealed class PropertyProcessingCommandHandlerTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<PropertyDto> result = await handler.HandleAsync(
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
                 "GB",
@@ -119,7 +119,7 @@ public sealed class PropertyProcessingCommandHandlerTests
             [new TestLifecyclePolicy(
                 new PropertyProcessingLifecycleDecision(outcome))]);
 
-        Result<PropertyDto> result = await handler.HandleAsync(
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
                 "GB",
@@ -157,7 +157,7 @@ public sealed class PropertyProcessingCommandHandlerTests
             [new TestLifecyclePolicy(
                 exception: new InvalidOperationException())]);
 
-        Result<PropertyDto> result = await handler.HandleAsync(
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
                 "GB",
@@ -195,7 +195,7 @@ public sealed class PropertyProcessingCommandHandlerTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<PropertyDto> result = await handler.HandleAsync(
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
                 "GB",

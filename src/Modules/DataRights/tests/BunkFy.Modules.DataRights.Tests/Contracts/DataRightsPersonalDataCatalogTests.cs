@@ -4,6 +4,7 @@ using System.Reflection;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Application.Commands;
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Contracts;
@@ -20,6 +21,10 @@ using ProcessingLedgerSnapshot =
     DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot;
 using ExportAuditEntry =
     DataRights.Domain.Entities.DataRightsExportAuditEntry;
+using FrozenTenantOwner =
+    DataRights.Domain.Entities.TenantTerminationFrozenOwner;
+using FrozenTenantOwnerDescriptor =
+    DataRights.Domain.Models.TenantTerminationFrozenOwnerDescriptor;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsPersonalDataCatalogTests
@@ -54,6 +59,12 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(RecordRequesterVerificationCommand),
             typeof(PrepareDataRightsExportDownloadCommand),
             typeof(RequestDataRightsExportCommand),
+            typeof(RequestTenantTerminationCommand),
+            typeof(DecideTenantTerminationCommand),
+            typeof(StartTenantTerminationCommand),
+            typeof(RetryTenantTerminationCommand),
+            typeof(RequestTenantTerminationCancellationCommand),
+            typeof(RecoverTenantTerminationCommand),
             typeof(RequireDataRightsReviewCommand),
             typeof(SelectDataRightsSubjectCommand),
             typeof(StartDataRightsAnonymisationExecutionCommand),
@@ -86,6 +97,18 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsCorrectionExecutionDetailsDto),
             nameof(DataRightsCorrectionExecutionDetailsDto.ExecutedBy),
             PersonalDataSurface.ApiResponse);
+        AssertBinding(
+            typeof(TenantTerminationReplayIntent),
+            nameof(TenantTerminationReplayIntent.RequestedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(TenantTerminationReplayIntent),
+            nameof(TenantTerminationReplayIntent.ApprovedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(TenantTerminationReplayIntent),
+            nameof(TenantTerminationReplayIntent.ExecutingActorId),
+            PersonalDataSurface.Persistence);
         AssertBinding(typeof(DataRightsCase), nameof(DataRightsCase.CreatedBy), PersonalDataSurface.Persistence);
         AssertBinding(
             typeof(DataRightsCase),
@@ -124,6 +147,62 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsCorrectionExecution),
             nameof(DataRightsCorrectionExecution.ExecutedBy),
             PersonalDataSurface.Persistence);
+    }
+
+    [Fact]
+    public void Tenant_termination_operator_controls_are_explicitly_classified()
+    {
+        AssertPublicPropertiesClassified(
+            typeof(RequestTenantTerminationCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(RequestTenantTerminationCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(DecideTenantTerminationCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(DecideTenantTerminationCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(StartTenantTerminationCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(StartTenantTerminationCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(RetryTenantTerminationCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(RetryTenantTerminationCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(RequestTenantTerminationCancellationCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(RequestTenantTerminationCancellationCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(RecoverTenantTerminationCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(RecoverTenantTerminationCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(GetTenantTerminationOperatorStatusQuery),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationApprovalEvidence),
+            PersonalDataSurface.ApplicationCommand);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationReplayIntent),
+            PersonalDataSurface.Persistence,
+            nameof(TenantTerminationReplayIntent.RequestedBy),
+            nameof(TenantTerminationReplayIntent.ApprovedBy),
+            nameof(TenantTerminationReplayIntent.ExecutingActorId));
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationCaseDto),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationProcessDto),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationStartDto),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationOperatorStatusDto),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationOwnerWorkItemDto),
+            PersonalDataSurface.ApplicationQuery);
     }
 
     [Fact]
@@ -361,6 +440,11 @@ public sealed class DataRightsPersonalDataCatalogTests
     public void Tenant_termination_contract_and_proof_are_explicitly_classified()
     {
         AssertPublicPropertiesClassified(
+            typeof(TenantTerminationCoordinationRequestedIntegrationEvent),
+            PersonalDataSurface.IntegrationEvent,
+            nameof(TenantTerminationCoordinationRequestedIntegrationEvent.EventName),
+            nameof(TenantTerminationCoordinationRequestedIntegrationEvent.Version));
+        AssertPublicPropertiesClassified(
             typeof(TenantTerminationContributionRequest),
             PersonalDataSurface.IntegrationCommand,
             nameof(TenantTerminationContributionRequest.ExecutingActorId));
@@ -377,7 +461,10 @@ public sealed class DataRightsPersonalDataCatalogTests
             nameof(TenantTerminationProcess.DomainEvents),
             nameof(TenantTerminationProcess.ApprovedBy),
             nameof(TenantTerminationProcess.CreatedBy),
-            nameof(TenantTerminationProcess.LastChangedBy));
+            nameof(TenantTerminationProcess.ExportConfirmedBy),
+            nameof(TenantTerminationProcess.FrozenBy),
+            nameof(TenantTerminationProcess.LastChangedBy),
+            nameof(TenantTerminationProcess.VerificationConfirmedBy));
         AssertBinding(
             typeof(TenantTerminationProcess),
             nameof(TenantTerminationProcess.ApprovedBy),
@@ -390,6 +477,72 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(TenantTerminationProcess),
             nameof(TenantTerminationProcess.LastChangedBy),
             PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(TenantTerminationExportFragmentAssemblyRequest),
+            nameof(TenantTerminationExportFragmentAssemblyRequest.ExecutingActorId),
+            PersonalDataSurface.ApplicationQuery);
+        AssertBinding(
+            typeof(TenantTerminationProcess),
+            nameof(TenantTerminationProcess.ExportConfirmedBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(TenantTerminationProcess),
+            nameof(TenantTerminationProcess.FrozenBy),
+            PersonalDataSurface.Persistence);
+        AssertBinding(
+            typeof(TenantTerminationProcess),
+            nameof(TenantTerminationProcess.VerificationConfirmedBy),
+            PersonalDataSurface.Persistence);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationTerminalReceipt),
+            PersonalDataSurface.Persistence,
+            nameof(TenantTerminationTerminalReceipt.DomainEvents),
+            nameof(TenantTerminationTerminalReceipt.SealedBy));
+        AssertBinding(
+            typeof(TenantTerminationTerminalReceipt),
+            nameof(TenantTerminationTerminalReceipt.SealedBy),
+            PersonalDataSurface.Persistence);
+        AssertPublicPropertiesClassified(
+            typeof(FrozenTenantOwner),
+            PersonalDataSurface.Persistence);
+        AssertPublicPropertiesClassified(
+            typeof(FrozenTenantOwnerDescriptor),
+            PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationExportRequest),
+            PersonalDataSurface.IntegrationCommand);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationExportFragmentAssemblyRequest),
+            PersonalDataSurface.ApplicationQuery,
+            nameof(TenantTerminationExportFragmentAssemblyRequest.ExecutingActorId));
+        Type[] applicationProofTypes =
+        [
+            typeof(TenantTerminationExportOwnerWork),
+            typeof(TenantTerminationExportOwnerCatalogEntry),
+            typeof(TenantTerminationFrozenRevision),
+            typeof(TenantTerminationExportFragmentAssemblyResult),
+            typeof(TenantTerminationExportOwnerResult),
+            typeof(TenantTerminationExportFragmentGenerationRequest),
+            typeof(TenantTerminationProtectedExportFragment),
+            typeof(TenantTerminationProtectedExportArtifact),
+            typeof(TenantTerminationExportFragmentSetCoordinates),
+            typeof(TenantTerminationExportFragmentManifestEntry)
+        ];
+        foreach (Type proofType in applicationProofTypes)
+        {
+            AssertPublicPropertiesClassified(
+                proofType,
+                PersonalDataSurface.ApplicationQuery);
+        }
+
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationExportFragment),
+            PersonalDataSurface.Persistence,
+            nameof(TenantTerminationExportFragment.DomainEvents));
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationExportArtifact),
+            PersonalDataSurface.Persistence,
+            nameof(TenantTerminationExportArtifact.DomainEvents));
         AssertPublicPropertiesClassified(
             typeof(TenantTerminationOwnerWorkItem),
             PersonalDataSurface.Persistence,
@@ -399,7 +552,8 @@ public sealed class DataRightsPersonalDataCatalogTests
         [
             typeof(TenantTerminationContributorDescriptor),
             typeof(TenantTerminationContributionRequest),
-            typeof(TenantTerminationContributionResult)
+            typeof(TenantTerminationContributionResult),
+            typeof(TenantTerminationExportRequest)
         ];
         string[] prohibitedNameParts =
         [
@@ -477,7 +631,14 @@ public sealed class DataRightsPersonalDataCatalogTests
 
         Assert.Empty(offenders);
         Assert.Equal(
-            ["CreatedBy", "DecidedBy", "ExecutionStartedBy", "LastChangedBy", "ScopeId"],
+            [
+                "CreatedBy",
+                "DecidedBy",
+                "ExecutionStartedBy",
+                "LastChangedBy",
+                "ScopeId",
+                "TenantTerminationPolicyEvidenceSha256"
+            ],
             typeof(DataRightsCase)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Where(property => property.PropertyType == typeof(string))
@@ -677,6 +838,23 @@ public sealed class DataRightsPersonalDataCatalogTests
                 "WorkItemId"
             ],
             typeof(ExecuteTenantTerminationOwnerWorkPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "OperationRevision",
+                "OwnerKey",
+                "ProcessId",
+                "WorkItemId"
+            ],
+            typeof(ExecuteTenantTerminationExportOwnerWorkPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            ["OperationRevision", "ProcessId"],
+            typeof(GenerateTenantTerminationExportArtifactPayload)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Select(property => property.Name)
                 .Order(StringComparer.Ordinal));

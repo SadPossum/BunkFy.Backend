@@ -12,6 +12,8 @@ using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Entities;
 using BunkFy.Modules.Properties.Domain.Events;
 using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Properties.Persistence.Repositories;
+using BunkFy.Modules.Properties.Persistence.TenantTermination;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
@@ -24,6 +26,8 @@ public sealed class PropertiesPersonalDataCatalogTests
 {
     private const string AuthorizationFieldId = "properties.authorization-subject-reference";
     private const string ActorFieldId = "properties.staff-actor-reference";
+    private const string TerminationProofFieldId =
+        "properties.tenant-destruction.owner-proof";
 
     private static readonly PersonalDataCatalogDocument Catalogue = LoadCatalogue();
     private static readonly Dictionary<string, Assembly> Assemblies = CreateAssemblyIndex();
@@ -90,13 +94,13 @@ public sealed class PropertiesPersonalDataCatalogTests
     }
 
     [Fact]
-    public void Catalogue_contains_only_the_current_authorization_and_actor_coordinates()
+    public void Catalogue_contains_current_person_and_owner_proof_coordinates()
     {
         Assert.Equal(
-            [AuthorizationFieldId, ActorFieldId],
+            [AuthorizationFieldId, ActorFieldId, TerminationProofFieldId],
             Catalogue.Fields.Select(field => field.Id).Order(StringComparer.Ordinal));
 
-        string[] expectedBindings =
+        List<string> expectedBindings =
         [
             BindingKey(typeof(ListVisiblePropertiesQuery), nameof(ListVisiblePropertiesQuery.Subject), PersonalDataSurface.ApplicationQuery),
             BindingKey(typeof(ActivatePropertyProcessingCommand), nameof(ActivatePropertyProcessingCommand.ActorId), PersonalDataSurface.ApplicationCommand),
@@ -107,8 +111,24 @@ public sealed class PropertiesPersonalDataCatalogTests
             BindingKey(typeof(PropertyProcessingSuspendedDomainEvent), nameof(PropertyProcessingSuspendedDomainEvent.ActorId), PersonalDataSurface.DomainEvent),
             BindingKey(typeof(PropertyRetiredDomainEvent), nameof(PropertyRetiredDomainEvent.ActorId), PersonalDataSurface.DomainEvent),
             BindingKey(typeof(PropertyRetiredIntegrationEvent), nameof(PropertyRetiredIntegrationEvent.ActorId), PersonalDataSurface.IntegrationEvent),
-            BindingKey(typeof(PropertyGovernanceRevision), nameof(PropertyGovernanceRevision.ActorId), PersonalDataSurface.Persistence)
+            BindingKey(typeof(PropertyGovernanceRevision), nameof(PropertyGovernanceRevision.ActorId), PersonalDataSurface.Persistence),
+            BindingKey(
+                typeof(PropertiesGovernanceRevisionTenantExport),
+                nameof(PropertiesGovernanceRevisionTenantExport.ActorId),
+                PersonalDataSurface.DataRightsExport)
         ];
+        foreach (Type proofType in new[]
+                 {
+                     typeof(PropertiesTenantDestroyOperation),
+                     typeof(PropertiesTenantDestroyReceipt)
+                 })
+        {
+            expectedBindings.AddRange(PersistedMembers(proofType)
+                .Select(member => BindingKey(
+                    proofType,
+                    member,
+                    PersonalDataSurface.Persistence)));
+        }
 
         Assert.Equal(
             expectedBindings.Order(StringComparer.Ordinal),
@@ -157,9 +177,37 @@ public sealed class PropertiesPersonalDataCatalogTests
         Assert.True(candidates.Count == 0, string.Join(Environment.NewLine, candidates));
         PersonalDataMemberBinding persistedActor = Assert.Single(
             Bindings(),
-            binding => binding.Surface == PersonalDataSurface.Persistence);
+            binding =>
+                binding.Surface == PersonalDataSurface.Persistence &&
+                string.Equals(
+                    binding.Type,
+                    typeof(PropertyGovernanceRevision).FullName,
+                    StringComparison.Ordinal));
         Assert.Equal(typeof(PropertyGovernanceRevision).FullName, persistedActor.Type);
         Assert.Equal(nameof(PropertyGovernanceRevision.ActorId), persistedActor.Member);
+    }
+
+    [Fact]
+    public void Every_termination_proof_persistence_member_is_classified()
+    {
+        List<string> missing = [];
+        foreach (Type proofType in new[]
+                 {
+                     typeof(PropertiesTenantDestroyOperation),
+                     typeof(PropertiesTenantDestroyReceipt)
+                 })
+        {
+            foreach (string member in PersistedMembers(proofType))
+            {
+                AddMissing(
+                    missing,
+                    proofType,
+                    member,
+                    PersonalDataSurface.Persistence);
+            }
+        }
+
+        Assert.Empty(missing);
     }
 
     [Fact]
@@ -312,6 +360,18 @@ public sealed class PropertiesPersonalDataCatalogTests
 
     private static IEnumerable<PersonalDataMemberBinding> Bindings() =>
         Catalogue.Fields.SelectMany(field => field.Bindings);
+
+    private static string[] PersistedMembers(Type type)
+    {
+        using PropertiesDbContext dbContext = CreateDbContext();
+        IEntityType model = Assert.Single(
+            dbContext.Model.GetEntityTypes(),
+            candidate => candidate.ClrType == type);
+        return model.GetProperties()
+            .Where(property => !property.IsShadowProperty())
+            .Select(property => property.Name)
+            .ToArray();
+    }
 
     private static string BindingKey(PersonalDataMemberBinding binding) =>
         string.Join('|', binding.Assembly, binding.Type, binding.Member, binding.Surface);

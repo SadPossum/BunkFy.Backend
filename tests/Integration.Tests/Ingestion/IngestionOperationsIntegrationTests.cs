@@ -199,7 +199,7 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.Equal(HttpStatusCode.BadRequest, unsupportedMode.StatusCode);
         }
 
-        AdapterConnectionDto created = await PostAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto createdReceipt = await PostAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections",
             new
@@ -210,8 +210,14 @@ public sealed class IngestionOperationsIntegrationTests
                 configurationReference = "configuration://integration",
                 secretReference = "secret://integration"
             }).ConfigureAwait(false);
-        Assert.Equal(AdapterConnectionStatus.Enabled, created.Status);
-        Assert.Equal(1, created.Version);
+        Assert.Equal(AdapterConnectionStatus.Enabled, createdReceipt.Status);
+        Assert.Equal(1, createdReceipt.Version);
+        AdapterConnectionDto created = await GetAsync<AdapterConnectionDto>(
+            client,
+            $"/api/ingestion/properties/{PropertyId:D}/connections/{createdReceipt.ConnectionId:D}")
+            .ConfigureAwait(false);
+        Assert.Equal(createdReceipt.ConnectionId, created.ConnectionId);
+        Assert.Equal(createdReceipt.Version, created.Version);
         Assert.True(created.HasSecretReference);
 
         AdapterConnectionListResponse connections = await GetAsync<AdapterConnectionListResponse>(
@@ -236,7 +242,7 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.DoesNotContain("secret://integration", json, StringComparison.Ordinal);
         }
 
-        AdapterConnectionDto keptSecret = await PutAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto keptSecretReceipt = await PutAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}",
             new
@@ -246,8 +252,13 @@ public sealed class IngestionOperationsIntegrationTests
                 configurationReference = "configuration://integration-updated",
                 expectedVersion = created.Version
             }).ConfigureAwait(false);
+        AdapterConnectionDto keptSecret = await GetAsync<AdapterConnectionDto>(
+            client,
+            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
+            .ConfigureAwait(false);
+        Assert.Equal(keptSecretReceipt.Version, keptSecret.Version);
         Assert.True(keptSecret.HasSecretReference);
-        AdapterConnectionDto clearedSecret = await PutAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto clearedSecretReceipt = await PutAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}",
             new
@@ -258,6 +269,11 @@ public sealed class IngestionOperationsIntegrationTests
                 clearSecretReference = true,
                 expectedVersion = keptSecret.Version
             }).ConfigureAwait(false);
+        AdapterConnectionDto clearedSecret = await GetAsync<AdapterConnectionDto>(
+            client,
+            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
+            .ConfigureAwait(false);
+        Assert.Equal(clearedSecretReceipt.Version, clearedSecret.Version);
         Assert.False(clearedSecret.HasSecretReference);
 
         using (HttpResponseMessage invalidSchedule = await client.PutAsJsonAsync(
@@ -272,7 +288,7 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.Equal(HttpStatusCode.BadRequest, invalidSchedule.StatusCode);
         }
 
-        AdapterConnectionDto scheduled = await PutAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto scheduledReceipt = await PutAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
             new
@@ -281,6 +297,11 @@ public sealed class IngestionOperationsIntegrationTests
                 maxAttempts = 3,
                 expectedVersion = clearedSecret.Version
             }).ConfigureAwait(false);
+        AdapterConnectionDto scheduled = await GetAsync<AdapterConnectionDto>(
+            client,
+            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
+            .ConfigureAwait(false);
+        Assert.Equal(scheduledReceipt.Version, scheduled.Version);
         Assert.Equal(300, scheduled.PollingIntervalSeconds);
         Assert.Equal(3, scheduled.PollingScheduleMaxAttempts);
         Assert.NotNull(scheduled.PollingScheduleConfiguredAtUtc);
@@ -302,16 +323,22 @@ public sealed class IngestionOperationsIntegrationTests
             TimeSpan.FromMilliseconds(1));
         Assert.True(scheduledHealth.RunExpected);
 
-        AdapterConnectionDto scheduleCleared = await PostAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto scheduleClearedReceipt =
+            await PostAsync<AdapterConnectionMutationReceiptDto>(
+                client,
+                $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule/clear",
+                new { expectedVersion = scheduled.Version }).ConfigureAwait(false);
+        AdapterConnectionDto scheduleCleared = await GetAsync<AdapterConnectionDto>(
             client,
-            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule/clear",
-            new { expectedVersion = scheduled.Version }).ConfigureAwait(false);
+            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
+            .ConfigureAwait(false);
+        Assert.Equal(scheduleClearedReceipt.Version, scheduleCleared.Version);
         Assert.Null(scheduleCleared.PollingIntervalSeconds);
         Assert.Null(scheduleCleared.PollingScheduleMaxAttempts);
         Assert.Null(scheduleCleared.PollingScheduleConfiguredAtUtc);
         await AssertScheduleDiscoveryAsync(api, created.ConnectionId, expectedCount: 0).ConfigureAwait(false);
 
-        AdapterConnectionDto rescheduled = await PutAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto rescheduled = await PutAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
             new
@@ -380,11 +407,16 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Equal(1, retainedHealth.RedactedSensitiveHistoryCount);
         Assert.Equal(0, retainedHealth.ActiveLegalHoldCount);
 
-        AdapterConnectionDto disabled = await PostAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto disabledReceipt = await PostAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/disable",
             new { expectedVersion = rescheduled.Version }).ConfigureAwait(false);
-        Assert.Equal(AdapterConnectionStatus.Disabled, disabled.Status);
+        Assert.Equal(AdapterConnectionStatus.Disabled, disabledReceipt.Status);
+        AdapterConnectionDto disabled = await GetAsync<AdapterConnectionDto>(
+            client,
+            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
+            .ConfigureAwait(false);
+        Assert.Equal(disabledReceipt.Version, disabled.Version);
         Assert.Equal(300, disabled.PollingIntervalSeconds);
         Assert.Equal(4, disabled.PollingScheduleMaxAttempts);
         await AssertScheduleDiscoveryAsync(api, created.ConnectionId, expectedCount: 0).ConfigureAwait(false);
@@ -398,7 +430,7 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Null(disabledHealth.NextRunExpectedAtUtc);
         Assert.False(disabledHealth.RunExpected);
 
-        AdapterConnectionDto reset = await PostAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto reset = await PostAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/reset-checkpoint",
             new { expectedVersion = disabled.Version }).ConfigureAwait(false);
@@ -426,7 +458,7 @@ public sealed class IngestionOperationsIntegrationTests
         AuthTestApplication api,
         HttpClient managementClient)
     {
-        AdapterConnectionDto connection = await PostAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto connection = await PostAsync<AdapterConnectionMutationReceiptDto>(
             managementClient,
             $"/api/ingestion/properties/{PropertyId:D}/connections",
             new
@@ -519,7 +551,7 @@ public sealed class IngestionOperationsIntegrationTests
                 managementClient,
                 $"/api/ingestion/properties/{PropertyId:D}/receipts?connectionId={connection.ConnectionId:D}")
                 .ConfigureAwait(false);
-            ObservationReceiptDto receipt = Assert.Single(receipts.Receipts);
+            ObservationReceiptListItemDto receipt = Assert.Single(receipts.Receipts);
             Assert.Equal("booking-file-drop-43", receipt.ExternalId);
             Assert.False(File.Exists(pendingPath));
             Assert.True(File.Exists(Path.Combine(
@@ -877,13 +909,21 @@ public sealed class IngestionOperationsIntegrationTests
             $"/api/ingestion/properties/{PropertyId:D}/runs?connectionId={RemoteConnectionId:D}")
             .ConfigureAwait(false);
         Assert.Equal(3, remoteRuns.Runs.Count);
-        Assert.All(remoteRuns.Runs, run =>
-            Assert.Equal(IngestionRunExecutionKindDto.RemoteLease, run.ExecutionKind));
         Assert.Equal(2, remoteRuns.Runs.Count(run => run.Status == IngestionRunStatus.Succeeded));
-        IngestionRunDto heartbeatRun = Assert.Single(remoteRuns.Runs, run => run.ObservedCount == 1);
+        List<IngestionRunDto> remoteRunDetails = [];
+        foreach (IngestionRunListItemDto run in remoteRuns.Runs)
+        {
+            remoteRunDetails.Add(await GetAsync<IngestionRunDto>(
+                managementClient,
+                $"/api/ingestion/properties/{PropertyId:D}/runs/{run.RunId:D}").ConfigureAwait(false));
+        }
+
+        Assert.All(remoteRunDetails, run =>
+            Assert.Equal(IngestionRunExecutionKindDto.RemoteLease, run.ExecutionKind));
+        IngestionRunDto heartbeatRun = Assert.Single(remoteRunDetails, run => run.ObservedCount == 1);
         Assert.True(heartbeatRun.Version >= 3);
         IngestionRunDto expiredRun = Assert.Single(
-            remoteRuns.Runs,
+            remoteRunDetails,
             run => run.Status == IngestionRunStatus.Failed);
         Assert.Equal("ingestion.remote-lease-expired", expiredRun.ErrorCode);
     }
@@ -912,7 +952,7 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Equal(FakeHttpAdapterDescriptor.Value.AdapterType, primary.Credential.SourceSystem);
         AdapterIngressCredentialListResponse initialList = await GetAsync<AdapterIngressCredentialListResponse>(
             managementClient, credentialsPath).ConfigureAwait(false);
-        AdapterIngressCredentialDto listedPrimary = Assert.Single(initialList.Credentials);
+        AdapterIngressCredentialListItemDto listedPrimary = Assert.Single(initialList.Credentials);
         string listedJson = JsonSerializer.Serialize(initialList);
         Assert.DoesNotContain(primary.Token, listedJson, StringComparison.Ordinal);
         Assert.DoesNotContain("secretHash", listedJson, StringComparison.OrdinalIgnoreCase);
@@ -971,9 +1011,13 @@ public sealed class IngestionOperationsIntegrationTests
             managementClient,
             $"/api/ingestion/properties/{PropertyId:D}/receipts?connectionId={PushConnectionId:D}")
             .ConfigureAwait(false);
-        ObservationReceiptDto ingressReceipt = Assert.Single(
+        ObservationReceiptListItemDto ingressReceiptItem = Assert.Single(
             ingressReceipts.Receipts,
             receipt => receipt.ExternalId == "remote-push-1");
+        ObservationReceiptDto ingressReceipt = await GetAsync<ObservationReceiptDto>(
+            managementClient,
+            $"/api/ingestion/properties/{PropertyId:D}/receipts/{ingressReceiptItem.ReceiptId:D}")
+            .ConfigureAwait(false);
         Assert.Equal(primary.Credential.CredentialId, ingressReceipt.IngressCredentialId);
         Assert.Equal(primary.Credential.AdapterType, ingressReceipt.AdapterType);
         Assert.Equal(primary.Credential.AdapterProtocolVersion, ingressReceipt.AdapterProtocolVersion);
@@ -987,7 +1031,8 @@ public sealed class IngestionOperationsIntegrationTests
             new { label = "integration rotated" }).ConfigureAwait(false);
         Assert.NotEqual(primary.Token, secondary.Token);
 
-        AdapterIngressCredentialDto revoked = await PostAsync<AdapterIngressCredentialDto>(
+        AdapterIngressCredentialMutationReceiptDto revoked =
+            await PostAsync<AdapterIngressCredentialMutationReceiptDto>(
             managementClient,
             $"{credentialsPath}/{primary.Credential.CredentialId:D}/revoke",
             new { expectedVersion = primary.Credential.Version }).ConfigureAwait(false);
@@ -1138,7 +1183,7 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Contains(standaloneReceipts.Receipts, receipt =>
             receipt.ExternalId == "remote-standalone-3");
 
-        AdapterConnectionDto disabled = await PostAsync<AdapterConnectionDto>(
+        AdapterConnectionMutationReceiptDto disabled = await PostAsync<AdapterConnectionMutationReceiptDto>(
             managementClient,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{PushConnectionId:D}/disable",
             new { expectedVersion = 1L }).ConfigureAwait(false);
@@ -1158,7 +1203,8 @@ public sealed class IngestionOperationsIntegrationTests
 
         AdapterIngressCredentialListResponse finalList = await GetAsync<AdapterIngressCredentialListResponse>(
             managementClient, credentialsPath).ConfigureAwait(false);
-        Assert.Equal(2, finalList.TotalCount);
+        Assert.Equal(2, finalList.Credentials.Count);
+        Assert.False(finalList.HasMore);
         Assert.Contains(finalList.Credentials, credential =>
             credential.CredentialId == listedPrimary.CredentialId && credential.LastAuthenticatedAtUtc.HasValue);
 

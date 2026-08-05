@@ -12,3 +12,12 @@ public sealed record PropertyDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
     DateTimeOffset? RetiredAtUtc);
+
+public sealed record PropertyListItemDto(
+    Guid PropertyId,
+    string Name,
+    string Code,
+    string TimeZoneId,
+    PropertyStatus Status,
+    PropertyProcessingStatus ProcessingStatus,
+    long Version);

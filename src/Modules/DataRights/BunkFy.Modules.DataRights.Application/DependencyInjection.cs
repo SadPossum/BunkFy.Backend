@@ -5,6 +5,7 @@ using BunkFy.Modules.DataRights.Application.Authorization;
 using BunkFy.Modules.DataRights.Application.Handlers;
 using BunkFy.Modules.DataRights.Application.Policies;
 using BunkFy.Modules.DataRights.Application.Ports;
+using BunkFy.Modules.DataRights.Application.Production;
 using BunkFy.Modules.DataRights.Application.Security;
 using BunkFy.Modules.DataRights.Application.Tasks;
 using BunkFy.Modules.DataRights.Contracts;
@@ -43,14 +44,30 @@ public static class DependencyInjection
         services.TryAddScoped<
             IDataRightsAnonymisationApprovalPolicy,
             DataRightsAnonymisationApprovalPolicy>();
+        services.TryAddScoped<
+            IDataRightsResponseDeadlinePolicy,
+            GuestDataRightsResponseDeadlinePolicy>();
         services.TryAddScoped<DataRightsRequiredCompanionExpander>();
         services.TryAddScoped<
             IDataRightsRestoreCoordinator,
             DataRightsRestoreCoordinator>();
         services.TryAddScoped<TenantTerminationCancellationCoordinator>();
+        services.TryAddScoped<TenantTerminationStartCoordinator>();
+        services.TryAddScoped<TenantTerminationPhasePlanner>();
+        services.TryAddScoped<TenantTerminationPhaseEvaluator>();
+        services.TryAddScoped<TenantTerminationVerificationPlanner>();
+        services.TryAddScoped<
+            ITenantTerminationProductionCatalog,
+            TenantTerminationProductionCatalog>();
+        services.TryAddScoped<
+            ITenantTerminationCoordinationSignal,
+            TenantTerminationCoordinationSignal>();
         services.TryAddScoped<
             IDataRightsExportAssembler,
             DataRightsExportAssembler>();
+        services.TryAddScoped<
+            ITenantTerminationExportFragmentAssembler,
+            TenantTerminationExportFragmentAssembler>();
         services.AddIntegrationEventHandler<
             PropertyCreatedIntegrationEvent,
             DataRightsPropertyCreatedHandler>(
@@ -105,6 +122,10 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddProjectionRebuildTasks();
+        services.AddDataRightsTenantTerminationTaskScheduling();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            ITaskScheduleProvider,
+            DataRightsResponseDeadlineAlertScheduleProvider>());
         services.TryAddScoped<
             DataRightsAnonymisationExecutionReconciler>();
         services.AddTaskHandler<
@@ -135,6 +156,11 @@ public static class DependencyInjection
             DataRightsExportArtifactRequestedHandler>(
                 DataRightsModuleMetadata.Name,
                 DataRightsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            TenantTerminationCoordinationRequestedIntegrationEvent,
+            TenantTerminationCoordinationRequestedHandler>(
+                DataRightsModuleMetadata.Name,
+                DataRightsModuleMetadata.Name);
         services.AddTaskHandler<
             ExecuteDataRightsAnonymisationPayload,
             ExecuteDataRightsAnonymisationTaskHandler>(
@@ -151,6 +177,52 @@ public static class DependencyInjection
             DeleteExpiredDataRightsExportArtifactPayload,
             DeleteExpiredDataRightsExportArtifactTaskHandler>(
                 DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            ExecuteTenantTerminationOwnerWorkPayload,
+            ExecuteTenantTerminationOwnerWorkTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            ExecuteTenantTerminationExportOwnerWorkPayload,
+            ExecuteTenantTerminationExportOwnerWorkTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            ExecuteGlobalTenantTerminationOwnerWorkPayload,
+            ExecuteGlobalTenantTerminationOwnerWorkTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            GenerateTenantTerminationExportArtifactPayload,
+            GenerateTenantTerminationExportArtifactTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            VerifyTenantTerminationPayload,
+            VerifyTenantTerminationTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        services.AddTaskHandler<
+            DispatchDataRightsResponseDeadlineAlertsPayload,
+            DispatchDataRightsResponseDeadlineAlertsTaskHandler>(
+                DataRightsModuleMetadata.Name);
+        return services;
+    }
+
+    public static IServiceCollection
+        AddDataRightsTenantTerminationTaskScheduling(
+            this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddScoped<
+            ITenantTerminationTaskScheduler,
+            TenantTerminationTaskScheduler>();
+        return services;
+    }
+
+    public static IServiceCollection
+        AddDataRightsUnavailableTenantTerminationTaskScheduling(
+            this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddScoped<
+            ITenantTerminationTaskScheduler,
+            UnavailableTenantTerminationTaskScheduler>();
         return services;
     }
 }

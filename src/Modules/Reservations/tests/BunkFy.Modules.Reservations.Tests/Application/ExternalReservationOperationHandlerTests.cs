@@ -393,7 +393,7 @@ public sealed class ExternalReservationOperationHandlerTests
             ReservationListOrder order,
             PageRequest pageRequest,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize, 0));
+            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize, false));
     }
 
     private sealed class FakeOperationRepository : IReservationExternalOperationRepository

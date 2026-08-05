@@ -18,15 +18,15 @@ internal sealed class CreateGuestProfileCommandHandler(
     IGuestCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
-    IIdGenerator ids) : ICommandHandler<CreateGuestProfileCommand, GuestProfileDto>
+    IIdGenerator ids) : ICommandHandler<CreateGuestProfileCommand, GuestMutationReceiptDto>
 {
-    public async Task<Result<GuestProfileDto>> HandleAsync(
+    public async Task<Result<GuestMutationReceiptDto>> HandleAsync(
         CreateGuestProfileCommand command,
         CancellationToken cancellationToken)
     {
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
-            return Result.Failure<GuestProfileDto>(GuestsApplicationErrors.TenantRequired);
+            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.TenantRequired);
         }
 
         CountryPolicyDecision policyDecision = await countryPolicy.EvaluateAsync(
@@ -37,7 +37,7 @@ internal sealed class CreateGuestProfileCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (!policyDecision.IsAllowed)
         {
-            return Result.Failure<GuestProfileDto>(
+            return Result.Failure<GuestMutationReceiptDto>(
                 GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
@@ -58,11 +58,11 @@ internal sealed class CreateGuestProfileCommandHandler(
             clock.UtcNow);
         if (created.IsFailure)
         {
-            return Result.Failure<GuestProfileDto>(created.Error);
+            return Result.Failure<GuestMutationReceiptDto>(created.Error);
         }
 
         await profiles.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
-        return Result.Success(created.Value.ToDto());
+        return Result.Success(created.Value.ToMutationReceipt());
     }
 }
 
@@ -70,9 +70,9 @@ internal sealed class UpdateGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
     IGuestCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
-    IIdGenerator ids) : ICommandHandler<UpdateGuestProfileCommand, GuestProfileDto>
+    IIdGenerator ids) : ICommandHandler<UpdateGuestProfileCommand, GuestMutationReceiptDto>
 {
-    public async Task<Result<GuestProfileDto>> HandleAsync(
+    public async Task<Result<GuestMutationReceiptDto>> HandleAsync(
         UpdateGuestProfileCommand command,
         CancellationToken cancellationToken)
     {
@@ -84,7 +84,7 @@ internal sealed class UpdateGuestProfileCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (!policyDecision.IsAllowed)
         {
-            return Result.Failure<GuestProfileDto>(
+            return Result.Failure<GuestMutationReceiptDto>(
                 GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
@@ -92,7 +92,7 @@ internal sealed class UpdateGuestProfileCommandHandler(
             command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
         if (profile is null)
         {
-            return Result.Failure<GuestProfileDto>(GuestsApplicationErrors.GuestNotFound);
+            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
         }
 
         Result updated = profile.Update(
@@ -109,17 +109,17 @@ internal sealed class UpdateGuestProfileCommandHandler(
             ids.NewId(),
             clock.UtcNow);
         return updated.IsSuccess
-            ? Result.Success(profile.ToDto())
-            : Result.Failure<GuestProfileDto>(updated.Error);
+            ? Result.Success(profile.ToMutationReceipt())
+            : Result.Failure<GuestMutationReceiptDto>(updated.Error);
     }
 }
 
 internal sealed class ArchiveGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
     ISystemClock clock,
-    IIdGenerator ids) : ICommandHandler<ArchiveGuestProfileCommand, GuestProfileDto>
+    IIdGenerator ids) : ICommandHandler<ArchiveGuestProfileCommand, GuestMutationReceiptDto>
 {
-    public async Task<Result<GuestProfileDto>> HandleAsync(
+    public async Task<Result<GuestMutationReceiptDto>> HandleAsync(
         ArchiveGuestProfileCommand command,
         CancellationToken cancellationToken)
     {
@@ -127,7 +127,7 @@ internal sealed class ArchiveGuestProfileCommandHandler(
             command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
         if (profile is null)
         {
-            return Result.Failure<GuestProfileDto>(GuestsApplicationErrors.GuestNotFound);
+            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
         }
 
         Result archived = profile.Archive(
@@ -136,7 +136,7 @@ internal sealed class ArchiveGuestProfileCommandHandler(
             ids.NewId(),
             clock.UtcNow);
         return archived.IsSuccess
-            ? Result.Success(profile.ToDto())
-            : Result.Failure<GuestProfileDto>(archived.Error);
+            ? Result.Success(profile.ToMutationReceipt())
+            : Result.Failure<GuestMutationReceiptDto>(archived.Error);
     }
 }

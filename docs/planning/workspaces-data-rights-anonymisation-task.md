@@ -1,6 +1,6 @@
 # Workspaces Data Rights Anonymisation Task
 
-Status: publication in progress
+Status: implementation and final local verification complete; publication pending
 Date: 2026-07-30
 
 ## Goal
@@ -187,8 +187,10 @@ Architecture tests must prove:
 6. [Completed] Add database-restore replay, tombstone, and restore receipt.
 7. [Completed] Add migrations, catalogue coverage, architecture guards, and
    focused tests.
-8. [In progress] Local verification is complete. Publish the backend and root
-   pointers, then verify exact-commit CI.
+8. [Complete] Run the coherent local non-Docker gate and the exact relational
+   scenario.
+9. [Pending publication] Publish the backend and root pointers, then verify
+   exact-commit CI.
 
 ## Verification
 

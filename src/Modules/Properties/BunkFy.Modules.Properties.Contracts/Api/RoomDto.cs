@@ -11,3 +11,12 @@ public sealed record RoomDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
     DateTimeOffset? RetiredAtUtc);
+
+public sealed record RoomListItemDto(
+    Guid RoomId,
+    Guid PropertyId,
+    string Name,
+    string? BuildingLabel,
+    string? FloorLabel,
+    RoomStatus Status,
+    long Version);

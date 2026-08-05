@@ -10,4 +10,4 @@ public sealed record ReassignReservationInventoryCommand(
     IReadOnlyCollection<Guid> InventoryUnitIds,
     long ExpectedDetailsRevision,
     string ActorId)
-    : ITransactionalCommand<ReservationDto>;
+    : ITransactionalCommand<ReservationMutationReceiptDto>;

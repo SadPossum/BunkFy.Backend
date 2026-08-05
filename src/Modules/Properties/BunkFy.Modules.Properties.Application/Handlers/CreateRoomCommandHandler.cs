@@ -18,19 +18,21 @@ internal sealed class CreateRoomCommandHandler(
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<CreateRoomCommand, RoomDto>
+    : ICommandHandler<CreateRoomCommand, RoomMutationReceiptDto>
 {
-    public async Task<Result<RoomDto>> HandleAsync(CreateRoomCommand command, CancellationToken cancellationToken)
+    public async Task<Result<RoomMutationReceiptDto>> HandleAsync(
+        CreateRoomCommand command,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
-            return Result.Failure<RoomDto>(PropertiesDomainErrors.TenantRequired);
+            return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.TenantRequired);
         }
 
         Property? property = await propertyRepository.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
-            return Result.Failure<RoomDto>(PropertiesDomainErrors.PropertyNotFound);
+            return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
@@ -46,23 +48,23 @@ internal sealed class CreateRoomCommandHandler(
 
         if (roomResult.IsFailure)
         {
-            return Result.Failure<RoomDto>(roomResult.Error);
+            return Result.Failure<RoomMutationReceiptDto>(roomResult.Error);
         }
 
         Room room = roomResult.Value;
         if (await roomRepository.RoomNameExistsAsync(room.PropertyId, room.Name.Value, null, cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure<RoomDto>(PropertiesDomainErrors.RoomAlreadyExists);
+            return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.RoomAlreadyExists);
         }
 
         Result registrationResult = property.RegisterRoom(command.ExpectedPropertyVersion);
         if (registrationResult.IsFailure)
         {
-            return Result.Failure<RoomDto>(registrationResult.Error);
+            return Result.Failure<RoomMutationReceiptDto>(registrationResult.Error);
         }
 
         await roomRepository.AddAsync(room, cancellationToken).ConfigureAwait(false);
 
-        return Result.Success(PropertiesMapper.ToDto(room));
+        return Result.Success(PropertiesMapper.ToReceipt(room));
     }
 }

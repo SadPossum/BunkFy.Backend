@@ -19,6 +19,7 @@ using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Application.Queries;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Persistence;
@@ -330,7 +331,7 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
             new(Guid.NewGuid(), TenantId, now, PropertyId, RoomId, "101", null, null, RoomStatus.Active, 1),
             CancellationToken.None).ConfigureAwait(false);
         await inventory.SaveChangesAsync().ConfigureAwait(false);
-        Result<RoomInventoryDto> configured = await scope.ServiceProvider.GetRequiredService<IRequestDispatcher>()
+        Result<RoomInventoryMutationReceiptDto> configured = await scope.ServiceProvider.GetRequiredService<IRequestDispatcher>()
             .SendAsync(
                 new ConfigureRoomSalesModeCommand(PropertyId, RoomId, InventorySalesMode.RoomLevel, 1),
                 CancellationToken.None)
@@ -413,7 +414,8 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
             .AsNoTracking()
             .SingleAsync(item => item.SourceReference == "booking-42")
             .ConfigureAwait(false);
-        Result<ReservationDto> result = await scope.ServiceProvider.GetRequiredService<IRequestDispatcher>()
+        IRequestDispatcher dispatcher = scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        Result<ReservationMutationReceiptDto> result = await dispatcher
             .SendAsync(
                 new UpdateReservationGuestDetailsCommand(
                     PropertyId,
@@ -429,7 +431,11 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
                 CancellationToken.None)
             .ConfigureAwait(false);
         Assert.True(result.IsSuccess, result.Error.Code);
-        return result.Value;
+        Result<ReservationDto> refreshed = await dispatcher.QueryAsync(
+            new GetReservationQuery(PropertyId, reservation.Id),
+            CancellationToken.None).ConfigureAwait(false);
+        Assert.True(refreshed.IsSuccess, refreshed.Error.Code);
+        return refreshed.Value;
     }
 
     private static async Task SeedConflictingAllocationAsync(AuthTestApplication api)

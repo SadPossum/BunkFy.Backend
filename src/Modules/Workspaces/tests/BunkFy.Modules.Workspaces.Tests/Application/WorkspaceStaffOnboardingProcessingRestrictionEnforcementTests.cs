@@ -78,6 +78,75 @@ public sealed class
     }
 
     [Fact]
+    public async Task Invitation_acceptance_is_observed_after_the_locked_reload()
+    {
+        WorkspaceStaffOnboarding application =
+            CreateSubmittedApplication(
+                WorkspaceStaffOnboardingSource.Invitation);
+        List<string> calls = [];
+        WorkspaceStaffOnboardingProcessor processor = CreateProcessor(
+            new RecordingStaffProvisioner(),
+            new RecordingStaffPropertyProvisioner(),
+            new RecordingApplicationRepository(application, calls),
+            new RecordingProjectionRepository(null, calls),
+            new RecordingOperationLock(calls),
+            new RecordingPlanRepository());
+
+        Result result = await processor.ProcessInvitationAcceptanceAsync(
+            application,
+            CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors
+                .RestrictionProjectionUnavailable,
+            result.Error);
+        Assert.Equal(["lock", "reload", "projection"], calls);
+        Assert.Equal(
+            WorkspaceStaffOnboardingState.Provisioning,
+            application.Status);
+        Assert.Equal(2, application.Version);
+    }
+
+    [Fact]
+    public async Task Enrollment_acceptance_is_observed_after_the_locked_reload()
+    {
+        WorkspaceStaffOnboarding application =
+            CreateSubmittedApplication(
+                WorkspaceStaffOnboardingSource.EnrollmentLink);
+        Guid claimId = Guid.NewGuid();
+        Assert.True(application.ObserveClaimRequested(
+            claimId,
+            claimVersion: 1,
+            Now.AddMinutes(1)).IsSuccess);
+        List<string> calls = [];
+        WorkspaceStaffOnboardingProcessor processor = CreateProcessor(
+            new RecordingStaffProvisioner(),
+            new RecordingStaffPropertyProvisioner(),
+            new RecordingApplicationRepository(application, calls),
+            new RecordingProjectionRepository(null, calls),
+            new RecordingOperationLock(calls),
+            new RecordingPlanRepository());
+
+        Result result = await processor
+            .ProcessEnrollmentClaimAcceptanceAsync(
+                application,
+                claimId,
+                claimVersion: 2,
+                CancellationToken.None);
+
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors
+                .RestrictionProjectionUnavailable,
+            result.Error);
+        Assert.Equal(["lock", "reload", "projection"], calls);
+        Assert.Equal(
+            WorkspaceStaffOnboardingState.Provisioning,
+            application.Status);
+        Assert.Equal(3, application.Version);
+        Assert.Equal(2, application.ClaimVersion);
+    }
+
+    [Fact]
     public async Task Termination_fence_stops_onboarding_before_projection_or_provisioning()
     {
         WorkspaceStaffOnboarding application = CreateAcceptedApplication();
@@ -350,27 +419,32 @@ public sealed class
     private static WorkspaceStaffOnboarding CreateAcceptedApplication()
     {
         WorkspaceStaffOnboarding application =
-            WorkspaceStaffOnboarding.Create(
-                Guid.NewGuid(),
-                TenantId,
-                WorkspaceStaffOnboardingSource.EnrollmentLink,
-                Guid.NewGuid(),
-                Guid.NewGuid().ToString("D"),
-                "applicant@example.test",
-                "Applicant",
-                legalName: null,
-                workEmail: null,
-                workPhone: null,
-                employeeNumber: null,
-                jobTitle: null,
-                department: null,
-                Now).Value;
+            CreateSubmittedApplication(
+                WorkspaceStaffOnboardingSource.EnrollmentLink);
         Assert.True(application.ObserveClaimAccepted(
             Guid.NewGuid(),
             claimVersion: 1,
             Now.AddMinutes(1)).IsSuccess);
         return application;
     }
+
+    private static WorkspaceStaffOnboarding CreateSubmittedApplication(
+        WorkspaceStaffOnboardingSource sourceKind) =>
+        WorkspaceStaffOnboarding.Create(
+            Guid.NewGuid(),
+            TenantId,
+            sourceKind,
+            Guid.NewGuid(),
+            Guid.NewGuid().ToString("D"),
+            "applicant@example.test",
+            "Applicant",
+            legalName: null,
+            workEmail: null,
+            workPhone: null,
+            employeeNumber: null,
+            jobTitle: null,
+            department: null,
+            Now).Value;
 
     private static WorkspaceStaffAccessPlan CreateActivePlan(Guid sourceId)
     {

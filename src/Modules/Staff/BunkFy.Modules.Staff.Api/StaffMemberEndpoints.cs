@@ -47,24 +47,22 @@ internal static class StaffMemberEndpoints
         members.MapPost("", async (StaffProfileWriteRequest request, HttpContext context,
             IAccessHttpSubjectResolver subjects, IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            StaffApiEndpointSupport.MarkSensitiveResponse(context);
             return (await dispatcher.SendAsync(new CreateStaffMemberCommand(request.DisplayName, request.LegalName,
                 request.WorkEmail, request.WorkPhone, request.EmployeeNumber, request.JobTitle,
                 request.Department, request.AuthSubjectId, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffMemberDto>(StatusCodes.Status200OK)
+        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.Create);
         members.MapPut("/{staffMemberId:guid}", async (Guid staffMemberId,
             StaffProfileUpdateRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            StaffApiEndpointSupport.MarkSensitiveResponse(context);
             return (await dispatcher.SendAsync(new UpdateStaffMemberCommand(staffMemberId, request.DisplayName,
                 request.LegalName, request.WorkEmail, request.WorkPhone, request.EmployeeNumber,
                 request.JobTitle, request.Department, request.ExpectedVersion,
                 StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffMemberDto>(StatusCodes.Status200OK)
+        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);
@@ -72,11 +70,10 @@ internal static class StaffMemberEndpoints
             StaffAuthSubjectRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            StaffApiEndpointSupport.MarkSensitiveResponse(context);
             return (await dispatcher.SendAsync(new SetStaffAuthSubjectCommand(staffMemberId, request.AuthSubjectId,
                 request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffMemberDto>(StatusCodes.Status200OK)
+        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);

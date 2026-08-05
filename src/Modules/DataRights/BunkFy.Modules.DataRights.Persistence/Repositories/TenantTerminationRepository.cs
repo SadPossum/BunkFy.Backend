@@ -6,7 +6,9 @@ using BunkFy.Modules.DataRights.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed class TenantTerminationRepository(
-    DataRightsDbContext dbContext) : ITenantTerminationRepository
+    DataRightsDbContext dbContext) :
+    ITenantTerminationRepository,
+    ITenantTerminationOperatorStatusRepository
 {
     public Task AddProcessAsync(
         TenantTerminationProcess process,
@@ -46,6 +48,15 @@ internal sealed class TenantTerminationRepository(
             process => process.IdempotencyKey == idempotencyKey,
             cancellationToken);
 
+    public Task<TenantTerminationProcess?> GetProcessByCaseIdAsync(
+        Guid caseId,
+        CancellationToken cancellationToken) =>
+        dbContext.TenantTerminationProcesses
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                process => process.CaseId == caseId,
+                cancellationToken);
+
     public Task<TenantTerminationOwnerWorkItem?> GetOwnerWorkItemAsync(
         Guid processId,
         TenantTerminationOwnerPhase phase,
@@ -75,6 +86,20 @@ internal sealed class TenantTerminationRepository(
                 workItem.Phase == phase &&
                 workItem.OperationRevision == operationRevision)
             .OrderBy(workItem => workItem.OwnerKey)
+            .ThenBy(workItem => workItem.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<TenantTerminationOwnerWorkItem>>
+        ListOwnerWorkItemsAsync(
+            Guid processId,
+            CancellationToken cancellationToken) =>
+        await dbContext.TenantTerminationOwnerWorkItems
+            .AsNoTracking()
+            .Where(workItem => workItem.ProcessId == processId)
+            .OrderBy(workItem => workItem.OperationRevision)
+            .ThenBy(workItem => workItem.Phase)
+            .ThenBy(workItem => workItem.OwnerKey)
             .ThenBy(workItem => workItem.Id)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

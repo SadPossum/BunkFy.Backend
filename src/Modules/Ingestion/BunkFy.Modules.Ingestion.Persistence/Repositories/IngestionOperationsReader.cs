@@ -246,15 +246,16 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
             query = query.Where(connection => connection.State == state);
         }
 
-        long total = await query.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        AdapterConnectionDto[] rows = await query
+        AdapterConnectionListItemDto[] fetched = await query
             .OrderBy(connection => connection.AdapterType)
             .ThenBy(connection => connection.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
-            .Select(ConnectionProjection)
+            .Take(pageRequest.PageSize + 1)
+            .Select(ConnectionListProjection)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
-        return new(rows, pageRequest.Page, pageRequest.PageSize, total);
+        bool hasMore = fetched.Length > pageRequest.PageSize;
+        AdapterConnectionListItemDto[] rows = hasMore ? fetched[..pageRequest.PageSize] : fetched;
+        return new(rows, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 
     public Task<IngestionRunDto?> GetRunAsync(
@@ -284,13 +285,16 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
             query = query.Where(run => run.State == state);
         }
 
-        long total = await query.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        IngestionRunDto[] rows = await query.OrderByDescending(run => run.StartedAtUtc).ThenBy(run => run.Id)
+        IngestionRunListItemDto[] fetched = await query
+            .OrderByDescending(run => run.StartedAtUtc)
+            .ThenBy(run => run.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
-            .Select(RunProjection)
+            .Take(pageRequest.PageSize + 1)
+            .Select(RunListProjection)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
-        return new(rows, pageRequest.Page, pageRequest.PageSize, total);
+        bool hasMore = fetched.Length > pageRequest.PageSize;
+        IngestionRunListItemDto[] rows = hasMore ? fetched[..pageRequest.PageSize] : fetched;
+        return new(rows, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 
     public Task<ObservationReceiptDto?> GetReceiptAsync(
@@ -327,13 +331,16 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
             query = query.Where(receipt => receipt.State == state);
         }
 
-        long total = await query.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        ObservationReceiptDto[] rows = await query.OrderByDescending(receipt => receipt.ReceivedAtUtc).ThenBy(receipt => receipt.Id)
+        ObservationReceiptListItemDto[] fetched = await query
+            .OrderByDescending(receipt => receipt.ReceivedAtUtc)
+            .ThenBy(receipt => receipt.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
-            .Select(ReceiptProjection)
+            .Take(pageRequest.PageSize + 1)
+            .Select(ReceiptListProjection)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
-        return new(rows, pageRequest.Page, pageRequest.PageSize, total);
+        bool hasMore = fetched.Length > pageRequest.PageSize;
+        ObservationReceiptListItemDto[] rows = hasMore ? fetched[..pageRequest.PageSize] : fetched;
+        return new(rows, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 
     public Task<ObservationReprocessingAttemptDto?> GetReprocessingAttemptAsync(
@@ -372,15 +379,16 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
             query = query.Where(attempt => attempt.State == state);
         }
 
-        long total = await query.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        ObservationReprocessingAttemptDto[] rows = await query
+        ObservationReprocessingAttemptListItemDto[] fetched = await query
             .OrderByDescending(attempt => attempt.RequestedAtUtc)
             .ThenBy(attempt => attempt.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
-            .Select(ReprocessingAttemptProjection)
+            .Take(pageRequest.PageSize + 1)
+            .Select(ReprocessingAttemptListProjection)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
-        return new(rows, pageRequest.Page, pageRequest.PageSize, total);
+        bool hasMore = fetched.Length > pageRequest.PageSize;
+        ObservationReprocessingAttemptListItemDto[] rows = hasMore ? fetched[..pageRequest.PageSize] : fetched;
+        return new(rows, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 
     private static readonly Expression<Func<AdapterConnection, AdapterConnectionDto>> ConnectionProjection = connection => new(
@@ -399,6 +407,15 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
         connection.Version,
         connection.CreatedAtUtc,
         connection.UpdatedAtUtc);
+
+    private static readonly Expression<Func<AdapterConnection, AdapterConnectionListItemDto>>
+        ConnectionListProjection = connection => new(
+            connection.Id,
+            connection.AdapterType,
+            connection.ExecutionMode,
+            connection.PollingIntervalSeconds,
+            (AdapterConflictPolicy)(int)connection.ConflictPolicy,
+            (AdapterConnectionStatus)(int)connection.State);
 
     private static readonly Expression<Func<IngestionRun, IngestionRunDto>> RunProjection = run => new(
         run.Id,
@@ -420,6 +437,17 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
         run.RejectedCount,
         run.ErrorCode,
         run.Version,
+        run.StartedAtUtc,
+        run.CompletedAtUtc);
+
+    private static readonly Expression<Func<IngestionRun, IngestionRunListItemDto>> RunListProjection = run => new(
+        run.Id,
+        run.ConnectionId,
+        (IngestionRunStatus)(int)run.State,
+        run.ObservedCount,
+        run.AcceptedCount,
+        run.RejectedCount,
+        run.ErrorCode,
         run.StartedAtUtc,
         run.CompletedAtUtc);
 
@@ -457,6 +485,17 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
         receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.SourceSystem,
         receipt.AdapterProvenance == null ? null : receipt.AdapterProvenance.CustomerOwner);
 
+    private static readonly Expression<Func<ObservationReceipt, ObservationReceiptListItemDto>> ReceiptListProjection =
+        receipt => new(
+            receipt.Id,
+            receipt.ConnectionId,
+            receipt.SourceRecordType,
+            receipt.ExternalId,
+            receipt.ParserType,
+            receipt.ParserVersion,
+            (ObservationReceiptStatus)(int)receipt.State,
+            receipt.ReceivedAtUtc);
+
     private static readonly Expression<Func<ObservationReprocessingAttempt, ObservationReprocessingAttemptDto>>
         ReprocessingAttemptProjection = attempt => new(
             attempt.Id,
@@ -479,6 +518,22 @@ internal sealed class IngestionOperationsReader(IngestionDbContext dbContext) : 
             attempt.CompletedAtUtc,
             attempt.ReservationExpiresAtUtc,
             attempt.Version);
+
+    private static readonly Expression<
+        Func<ObservationReprocessingAttempt, ObservationReprocessingAttemptListItemDto>>
+        ReprocessingAttemptListProjection = attempt => new(
+            attempt.Id,
+            attempt.ParserType,
+            attempt.ParserVersion,
+            (ObservationReprocessingStatus)(int)attempt.State,
+            attempt.ParsedCount,
+            attempt.AcceptedCount,
+            attempt.DuplicateCount,
+            attempt.RejectedCount,
+            attempt.LastErrorCode,
+            attempt.RequestedAtUtc,
+            attempt.StartedAtUtc,
+            attempt.CompletedAtUtc);
 
     private static readonly Expression<Func<ObservationReprocessingOutput, ObservationReprocessingOutputDto>>
         ReprocessingOutputProjection = output => new(

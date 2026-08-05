@@ -40,6 +40,7 @@ public sealed class InventoryModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Inventory")
             .RequireAuthorization();
+        inventory.AddEndpointFilter(SensitiveResponseFilter);
 
         inventory.MapGet("/properties/{propertyId:guid}/rooms", async (
             Guid propertyId,
@@ -75,7 +76,7 @@ public sealed class InventoryModule : IModule
                     request.ExpectedVersion,
                     ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<RoomInventoryDto>(StatusCodes.Status200OK)
+            .Produces<RoomInventoryMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.Configure,
@@ -148,7 +149,7 @@ public sealed class InventoryModule : IModule
                     request.Reason,
                     ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<ManualInventoryBlockDto>(StatusCodes.Status200OK)
+            .Produces<ManualInventoryBlockMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,
@@ -170,7 +171,7 @@ public sealed class InventoryModule : IModule
                     request.Reason,
                     ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<ManualInventoryBlockGroupDto>(StatusCodes.Status200OK)
+            .Produces<ManualInventoryBlockGroupMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,
@@ -191,7 +192,7 @@ public sealed class InventoryModule : IModule
                     request.ExpectedVersion,
                     ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<ManualInventoryBlockDto>(StatusCodes.Status200OK)
+            .Produces<ManualInventoryBlockMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,
@@ -210,7 +211,7 @@ public sealed class InventoryModule : IModule
                     blockGroupId,
                     ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<ManualInventoryBlockGroupDto>(StatusCodes.Status200OK)
+            .Produces<ManualInventoryBlockGroupMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.BlocksManage,
@@ -342,6 +343,21 @@ public sealed class InventoryModule : IModule
     public sealed record RequestBedRetirementRequest(string Reason);
     public sealed record RequestRoomRetirementRequest(string Reason);
 
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
+
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
     {
         Gma.Framework.AccessControl.AccessSubject? subject = subjectResolver.ResolveSubject(context);
@@ -352,6 +368,8 @@ public sealed class InventoryModule : IModule
 
     private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(InventoryApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
+        new(InventoryApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(InventoryApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(InventoryApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
         new(InventoryApplicationErrors.RoomNotFound.Code, StatusCodes.Status404NotFound),
         new(InventoryApplicationErrors.RoomRetired.Code, StatusCodes.Status409Conflict),

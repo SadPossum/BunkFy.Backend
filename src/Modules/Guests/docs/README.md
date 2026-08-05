@@ -12,6 +12,13 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 
 - bounded profile/contact fields with actor provenance, archive lifecycle, optimistic concurrency, and duplicate-contact allowance;
 - property-scoped create, search, read, update, archive, and stay-history surfaces across public management API, Admin API, and Admin CLI;
+- PII-minimal create, update, and archive receipts shared by every management
+  front door; sensitive profile data remains behind the explicit detail read;
+- explicit success schemas and fail-safe `no-store` headers on every public and
+  Admin Guest HTTP response;
+- minimized directory rows projected directly from persistence with one-row
+  look-ahead pagination, plus independently bounded and deterministically
+  ordered stay history across every read front door;
 - visibility through the profile's origin property or any current or historical
   stay association at the property;
 - an in-process DataRights discovery contributor that accepts exactly one
@@ -23,6 +30,8 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - fail-closed embedded-catalogue validation at composition time, explicit
   one-hour transient export bindings, bounded field values and no staff audit
   attribution, normalized search copies or unrelated-property stays;
+- executable catalogue coverage for both public and Admin API profile inputs,
+  plus the bounded mutation receipt;
 - normalization-aware profile update outcomes containing only changed field
   semantics, previous/current versions, event id and time, ready for later
   PII-free correction receipts without a second mutation path;
@@ -72,6 +81,29 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
   DataRights approval. The proof is currently local to Guests and is
   deliberately excluded from the DataRights subject export and protected
   replay ledger;
+- a mandatory tenant-termination owner whose `Export` and `Destroy` phases
+  depend on Reservations. Export streams 11 deterministic authoritative
+  record types: profiles,
+  correction proof, processing restrictions and receipts, data holds and
+  receipts, anonymisation receipts, tombstones and restore proof, plus
+  retention execution and anonymisation proof;
+- a tenant-local monotonic revision and shared tenant-mutation transaction key
+  that serialize relational writes with repeatable-read export selection. The
+  exporter validates the exact frozen Workspaces process, epoch and fence both
+  before and after streaming, while ordinary writes fail closed when fence
+  admission is unavailable or restricted;
+- PostgreSQL append-only triggers for all six immutable receipt ledgers and a
+  delete guard for anonymisation tombstones. Replicated property, stay and
+  effective-restriction projections, inbox/outbox state, rebuild checkpoints,
+  operation locks and retention sweep cursors remain outside the tenant
+  portability artifact. Destroy removes that complete owner graph in
+  foreign-key-safe batches of at most 500 rows, blocks active Guest legal
+  holds before local progress, fences scoped messages and projections, and
+  retains only a closed lifecycle row plus an immutable PII-free receipt;
+- a transaction-local PostgreSQL destroy authorization bound to the live
+  operation, scope, request digest, and `Closing` lifecycle. It permits only
+  the owner deletion path through existing receipt/tombstone triggers; normal
+  updates and deletes remain prohibited;
 - PII-free profile and reservation/stay integration contracts;
 - monotonic stay history that retains inactive replaced links for audit without granting visibility;
 - local Properties projection plus task-driven rebuilds for Properties and Reservation stay history;
@@ -83,5 +115,8 @@ Identity documents, consent, orphan-profile retention triggers, duplicate
 merge/split, entity resolution, guest flags, preferences, and guest accounts
 remain deferred.
 Protected export artifacts and download surfaces remain owned by DataRights.
+The production tenant-termination task, download route and cleanup runner stay
+disabled until every frozen mandatory owner, protected replay, operator
+controls, and the final confirmation flow are complete.
 Reservations owns its local restriction-eligibility projection and rechecks
 this module's authoritative gate before every new canonical Guest link.

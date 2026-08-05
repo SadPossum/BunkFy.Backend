@@ -53,12 +53,19 @@ try {
     $env:MessageJournalCleanup__Enabled = 'false'
     $env:NatsJetStream__Enabled = 'false'
     $env:NatsConsumers__Enabled = 'false'
-    $process = Start-Process `
-        -FilePath $dotnet `
-        -ArgumentList @($assembly, '--urls', $url) `
-        -WorkingDirectory (Split-Path -Parent $project) `
-        -WindowStyle Hidden `
-        -PassThru
+    $startProcess = @{
+        FilePath = $dotnet
+        ArgumentList = @($assembly, '--urls', $url)
+        WorkingDirectory = Split-Path -Parent $project
+        PassThru = $true
+    }
+    $isWindowsHost = $PSVersionTable.PSEdition -eq 'Desktop' -or
+        ($PSVersionTable.ContainsKey('Platform') -and $PSVersionTable.Platform -eq 'Win32NT')
+    if ($isWindowsHost) {
+        $startProcess.WindowStyle = 'Hidden'
+    }
+
+    $process = Start-Process @startProcess
 
     $deadline = [DateTime]::UtcNow.AddSeconds(60)
     $response = $null

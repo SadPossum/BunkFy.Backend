@@ -74,7 +74,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
                     token).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
-                    Write(result.Value.Guests, Output(parse, global));
+                    WriteList(result.Value.Guests, Output(parse, global));
                 }
 
                 return result;
@@ -107,7 +107,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
         ProfileOptions options = new();
         Command command = new("create", "Create a guest record.") { property };
         options.AddTo(command, includeVersion: false);
-        command.SetAction((parse, cancellationToken) => ExecuteProfileAsync(
+        command.SetAction((parse, cancellationToken) => ExecuteMutationAsync(
             services,
             global,
             parse,
@@ -127,7 +127,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
                         values.Notes,
                         ResolveActor(parse, global)),
                     token)
-                : Task.FromResult(Result.Failure<GuestProfileDto>(InvalidDateError)),
+                : Task.FromResult(Result.Failure<GuestMutationReceiptDto>(InvalidDateError)),
             cancellationToken));
         return command;
     }
@@ -136,7 +136,15 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
     {
         Option<Guid> property = PropertyOption();
         Option<Guid> guest = GuestOption();
-        Command command = new("stay-history", "List a guest's stay history at a property.") { property, guest };
+        Option<int> page = new("--page") { DefaultValueFactory = _ => PageRequest.DefaultPage };
+        Option<int> pageSize = new("--page-size") { DefaultValueFactory = _ => PageRequest.DefaultPageSize };
+        Command command = new("stay-history", "List a guest's stay history at a property.")
+        {
+            property,
+            guest,
+            page,
+            pageSize
+        };
         command.SetAction((parse, cancellationToken) => ExecuteAsync(
             services,
             global,
@@ -145,16 +153,18 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
             GuestsAdminPermissions.Read,
             async (provider, token) =>
             {
-                Result<IReadOnlyCollection<GuestStayHistoryItem>> result = await provider
+                Result<GuestStayHistoryListResponse> result = await provider
                     .GetRequiredService<IRequestDispatcher>()
                     .QueryAsync(new GetGuestStayHistoryQuery(
                         parse.GetRequiredValue(property),
-                        parse.GetRequiredValue(guest)), token)
+                        parse.GetRequiredValue(guest),
+                        parse.GetValue(page),
+                        parse.GetValue(pageSize)), token)
                     .ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
                     AdminCliOutput.WriteRows(
-                        result.Value,
+                        result.Value.Stays,
                         Output(parse, global),
                         [
                             ("ReservationId", stay => stay.ReservationId.ToString()),
@@ -179,7 +189,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
         ProfileOptions options = new();
         Command command = new("update", "Update a guest record.") { property, guest };
         options.AddTo(command, includeVersion: true);
-        command.SetAction((parse, cancellationToken) => ExecuteProfileAsync(
+        command.SetAction((parse, cancellationToken) => ExecuteMutationAsync(
             services,
             global,
             parse,
@@ -201,7 +211,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
                         parse.GetRequiredValue(options.ExpectedVersion),
                         ResolveActor(parse, global)),
                     token)
-                : Task.FromResult(Result.Failure<GuestProfileDto>(InvalidDateError)),
+                : Task.FromResult(Result.Failure<GuestMutationReceiptDto>(InvalidDateError)),
             cancellationToken));
         return command;
     }
@@ -213,7 +223,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
         Option<long> version = new("--expected-version") { Required = true };
         Option<bool> yes = new("--yes");
         Command command = new("archive", "Archive a guest record.") { property, guest, version, yes };
-        command.SetAction((parse, cancellationToken) => ExecuteProfileAsync(
+        command.SetAction((parse, cancellationToken) => ExecuteMutationAsync(
             services,
             global,
             parse,
@@ -227,7 +237,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
                         parse.GetRequiredValue(version),
                         ResolveActor(parse, global)),
                     token)
-                : Task.FromResult(Result.Failure<GuestProfileDto>(AdminErrors.ConfirmationRequired)),
+                : Task.FromResult(Result.Failure<GuestMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
             cancellationToken));
         return command;
     }
@@ -250,7 +260,32 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
             Result<GuestProfileDto> result = await action(provider, token).ConfigureAwait(false);
             if (result.IsSuccess)
             {
-                Write([result.Value], Output(parse, global));
+                WriteProfiles([result.Value], Output(parse, global));
+            }
+
+            return result;
+        },
+        cancellationToken).ConfigureAwait(false);
+
+    private static async Task<int> ExecuteMutationAsync(
+        IServiceProvider services,
+        AdminCliGlobalOptions global,
+        ParseResult parse,
+        string operationName,
+        AdminPermission permission,
+        Func<IServiceProvider, CancellationToken, Task<Result<GuestMutationReceiptDto>>> action,
+        CancellationToken cancellationToken) => await ExecuteAsync(
+        services,
+        global,
+        parse,
+        operationName,
+        permission,
+        async (provider, token) =>
+        {
+            Result<GuestMutationReceiptDto> result = await action(provider, token).ConfigureAwait(false);
+            if (result.IsSuccess)
+            {
+                WriteMutationReceipts([result.Value], Output(parse, global));
             }
 
             return result;
@@ -304,7 +339,20 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
         return true;
     }
 
-    private static void Write(IReadOnlyCollection<GuestProfileDto> profiles, string output) =>
+    private static void WriteList(IReadOnlyCollection<GuestListItemDto> profiles, string output) =>
+        AdminCliOutput.WriteRows(
+            profiles,
+            output,
+            [
+                ("GuestId", profile => profile.GuestId.ToString()),
+                ("DisplayName", profile => profile.DisplayName),
+                ("Email", profile => profile.Email ?? string.Empty),
+                ("Phone", profile => profile.Phone ?? string.Empty),
+                ("Status", profile => profile.Status.ToString()),
+                ("LastChangedAtUtc", profile => profile.LastChangedAtUtc.ToString("O", CultureInfo.InvariantCulture))
+            ]);
+
+    private static void WriteProfiles(IReadOnlyCollection<GuestProfileDto> profiles, string output) =>
         AdminCliOutput.WriteRows(
             profiles,
             output,
@@ -317,6 +365,18 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
                 ("Status", profile => profile.Status.ToString()),
                 ("Version", profile => profile.Version.ToString(CultureInfo.InvariantCulture))
             ]);
+
+    private static void WriteMutationReceipts(
+        IReadOnlyCollection<GuestMutationReceiptDto> receipts,
+        string output) => AdminCliOutput.WriteRows(
+        receipts,
+        output,
+        [
+            ("GuestId", receipt => receipt.GuestId.ToString()),
+            ("Status", receipt => receipt.Status.ToString()),
+            ("Version", receipt => receipt.Version.ToString(CultureInfo.InvariantCulture)),
+            ("LastChangedAtUtc", receipt => receipt.LastChangedAtUtc.ToString("O", CultureInfo.InvariantCulture))
+        ]);
 
     private static string Output(ParseResult parse, AdminCliGlobalOptions global) =>
         parse.GetValue(global.OutputOption) ?? AdminCliOutput.Table;

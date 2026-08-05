@@ -12,6 +12,9 @@ public sealed class DataRightsDbContext(
     IScopeContext scopeContext) : ScopeAwareDbContext<DataRightsDbContext>(options, scopeContext)
 {
     public DbSet<DataRightsCase> Cases => this.Set<DataRightsCase>();
+    public DbSet<DataRightsResponseDeadlineAlertDispatchReceipt>
+        ResponseDeadlineAlertDispatches =>
+        this.Set<DataRightsResponseDeadlineAlertDispatchReceipt>();
     public DbSet<DataRightsCorrectionExecution> CorrectionExecutions =>
         this.Set<DataRightsCorrectionExecution>();
     public DbSet<DataRightsExecutionBatch> ExecutionBatches =>
@@ -34,6 +37,15 @@ public sealed class DataRightsDbContext(
         this.Set<TenantTerminationProcess>();
     public DbSet<TenantTerminationOwnerWorkItem> TenantTerminationOwnerWorkItems =>
         this.Set<TenantTerminationOwnerWorkItem>();
+    public DbSet<TenantTerminationExportFragment>
+        TenantTerminationExportFragments =>
+        this.Set<TenantTerminationExportFragment>();
+    public DbSet<TenantTerminationExportArtifact>
+        TenantTerminationExportArtifacts =>
+        this.Set<TenantTerminationExportArtifact>();
+    public DbSet<TenantTerminationTerminalReceipt>
+        TenantTerminationTerminalReceipts =>
+        this.Set<TenantTerminationTerminalReceipt>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
 
@@ -76,6 +88,26 @@ public sealed class DataRightsDbContext(
         {
             throw new InvalidOperationException(
                 "Data-rights export audit entries are append-only.");
+        }
+
+        bool terminalReceiptMutationRequested = this.ChangeTracker
+            .Entries<TenantTerminationTerminalReceipt>()
+            .Any(entry => entry.State is
+                EntityState.Modified or EntityState.Deleted);
+        if (terminalReceiptMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Tenant-termination terminal receipts are append-only.");
+        }
+
+        bool deadlineAlertMutationRequested = this.ChangeTracker
+            .Entries<DataRightsResponseDeadlineAlertDispatchReceipt>()
+            .Any(entry => entry.State is
+                EntityState.Modified or EntityState.Deleted);
+        if (deadlineAlertMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Data-rights response-deadline alert dispatches are append-only.");
         }
     }
 }

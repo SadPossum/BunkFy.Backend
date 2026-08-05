@@ -29,7 +29,7 @@ public sealed class ReassignReservationInventoryCommandHandlerTests
             new TestIdGenerator());
         Guid amendmentRequestId = Guid.NewGuid();
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             new(
                 reservation.PropertyId,
                 reservation.Id,
@@ -40,8 +40,9 @@ public sealed class ReassignReservationInventoryCommandHandlerTests
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(amendmentRequestId, result.Value.PendingAllocationAmendmentId);
-        Assert.Equal([currentUnitId], result.Value.InventoryUnitIds);
+        Assert.Equal(reservation.DetailsRevision, result.Value.DetailsRevision);
+        Assert.Equal(amendmentRequestId, reservation.PendingAllocationAmendmentId);
+        Assert.Equal([currentUnitId], reservation.RequestedUnits.Select(unit => unit.InventoryUnitId));
         ReservationAllocationAmendmentRequestedDomainEvent domainEvent =
             Assert.IsType<ReservationAllocationAmendmentRequestedDomainEvent>(Assert.Single(reservation.DomainEvents));
         Assert.Equal([targetUnitId], domainEvent.InventoryUnitIds);

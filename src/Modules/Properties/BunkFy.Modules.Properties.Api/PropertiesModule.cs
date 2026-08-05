@@ -42,6 +42,7 @@ public sealed class PropertiesModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Properties")
             .RequireAuthorization();
+        properties.AddEndpointFilter(SensitiveResponseFilter);
 
         properties.MapGet("/", async (
             int? page,
@@ -108,7 +109,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new CreatePropertyCommand(request.Name, request.Code, request.TimeZoneId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<PropertyDto>(StatusCodes.Status200OK)
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(PropertiesAdminPermissionCodes.PropertiesManage);
 
@@ -120,7 +121,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new UpdatePropertyCommand(propertyId, request.Name, request.Code, request.TimeZoneId, request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<PropertyDto>(StatusCodes.Status200OK)
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -143,6 +144,7 @@ public sealed class PropertiesModule : IModule
 
             return result.IsSuccess ? Results.NoContent() : result.ToHttpResult(PublicErrorStatusCodes);
         })
+            .Produces(StatusCodes.Status204NoContent)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -160,7 +162,7 @@ public sealed class PropertiesModule : IModule
                 return Results.Unauthorized();
             }
 
-            Result<PropertyDto> result = await dispatcher.SendAsync(
+            Result<PropertyMutationReceiptDto> result = await dispatcher.SendAsync(
                 new ActivatePropertyProcessingCommand(
                     propertyId,
                     request.OperatingCountryCode,
@@ -177,7 +179,7 @@ public sealed class PropertiesModule : IModule
                 cancellationToken).ConfigureAwait(false);
             return result.ToHttpResult(PublicErrorStatusCodes);
         })
-            .Produces<PropertyDto>(StatusCodes.Status200OK)
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -200,8 +202,9 @@ public sealed class PropertiesModule : IModule
                     new SuspendPropertyProcessingCommand(propertyId, request.ExpectedVersion, actorId),
                     cancellationToken).ConfigureAwait(false)
                 : Result.Failure<Unit>(PropertiesApplicationErrors.ConfirmationRequired);
-            return result.ToHttpResult(PublicErrorStatusCodes);
+            return result.IsSuccess ? Results.NoContent() : result.ToHttpResult(PublicErrorStatusCodes);
         })
+            .Produces(StatusCodes.Status204NoContent)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -231,7 +234,7 @@ public sealed class PropertiesModule : IModule
                     request.BuildingLabel,
                     request.FloorLabel),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<RoomDto>(StatusCodes.Status200OK)
+            .Produces<RoomMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.RoomsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -261,7 +264,7 @@ public sealed class PropertiesModule : IModule
                     request.BuildingLabel,
                     request.FloorLabel),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<RoomDto>(StatusCodes.Status200OK)
+            .Produces<RoomMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.RoomsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -280,6 +283,7 @@ public sealed class PropertiesModule : IModule
 
             return result.IsSuccess ? Results.NoContent() : result.ToHttpResult(PublicErrorStatusCodes);
         })
+            .Produces(StatusCodes.Status204NoContent)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.RoomsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -306,7 +310,20 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new AddBedCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Label),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<BedDto>(StatusCodes.Status200OK)
+            .Produces<BedMutationReceiptDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.BedsManage, PropertyAccessScopeResolver.ResolverName);
+
+        properties.MapPost("/{propertyId:guid}/rooms/{roomId:guid}/beds/batch", async (
+            Guid propertyId,
+            Guid roomId,
+            BedBatchWriteRequest request,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.SendAsync(
+                new AddBedsCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Labels),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<BedBatchMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.BedsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -320,7 +337,7 @@ public sealed class PropertiesModule : IModule
             (await dispatcher.SendAsync(
                 new UpdateBedCommand(propertyId, roomId, bedId, request.ExpectedRoomVersion, request.Label),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
-            .Produces<BedDto>(StatusCodes.Status200OK)
+            .Produces<BedMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.BedsManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -340,6 +357,7 @@ public sealed class PropertiesModule : IModule
 
             return result.IsSuccess ? Results.NoContent() : result.ToHttpResult(PublicErrorStatusCodes);
         })
+            .Produces(StatusCodes.Status204NoContent)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.BedsManage, PropertyAccessScopeResolver.ResolverName);
     }
@@ -371,7 +389,23 @@ public sealed class PropertiesModule : IModule
         string? FloorLabel = null);
     public sealed record RetireRoomRequest(bool Confirmed, long ExpectedVersion, bool CascadeBeds = false);
     public sealed record BedWriteRequest(string Label, long ExpectedRoomVersion);
+    public sealed record BedBatchWriteRequest(IReadOnlyCollection<string> Labels, long ExpectedRoomVersion);
     public sealed record RetireBedRequest(bool Confirmed, long ExpectedRoomVersion);
+
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
 
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
     {
@@ -384,6 +418,8 @@ public sealed class PropertiesModule : IModule
     private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = CreateErrorStatusCodes(
         new(PropertiesApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
         new(PropertiesApplicationErrors.ConfirmationRequired.Code, StatusCodes.Status400BadRequest),
+        new(PropertiesApplicationErrors.BedBatchRequired.Code, StatusCodes.Status400BadRequest),
+        new(PropertiesApplicationErrors.BedBatchTooLarge.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.RoomNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.BedNotFound.Code, StatusCodes.Status404NotFound),
@@ -396,6 +432,8 @@ public sealed class PropertiesModule : IModule
         new(PropertiesApplicationErrors.PropertyProcessingNotEnabled.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.ProcessingLifecycleRestricted.Code, StatusCodes.Status423Locked),
         new(PropertiesApplicationErrors.ProcessingLifecycleAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+        new(PropertiesApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(PropertiesApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(PropertiesApplicationErrors.PropertyHasActiveRooms.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomStatusUnknown.Code, StatusCodes.Status409Conflict),

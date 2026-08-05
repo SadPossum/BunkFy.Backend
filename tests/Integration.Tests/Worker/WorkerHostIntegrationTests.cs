@@ -5,7 +5,10 @@ using System.Text.Json;
 using BunkFy.Adapter.Abstractions;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
+using BunkFy.Extensions.DataRights.TenantTermination;
 using BunkFy.Host.Worker;
+using BunkFy.Modules.DataRights.Application.Production;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Contracts;
@@ -53,6 +56,78 @@ using Xunit;
 
 public sealed class WorkerHostIntegrationTests
 {
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void Worker_host_composes_the_exact_tenant_termination_catalogue()
+    {
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings { EnvironmentName = "Integration" });
+        builder.Configuration["Persistence:Provider"] = "PostgreSql";
+        builder.Configuration["ConnectionStrings:PostgreSql"] =
+            "Host=localhost;Database=unused;Username=unused;Password=unused";
+        builder.Configuration["NatsJetStream:Enabled"] = "false";
+        builder.Configuration["NatsConsumers:Enabled"] = "false";
+        builder.Configuration["Tasks:Worker:Enabled"] = "true";
+        builder.Configuration["Tasks:Worker:WorkerGroups:0"] =
+            DataRightsModuleMetadata.TenantTerminationWorkerGroup;
+        builder.Configuration["Tasks:Worker:TimeoutScannerEnabled"] = "false";
+        builder.Configuration["Tasks:Worker:MetricsSamplerEnabled"] = "false";
+        builder.Configuration[
+            $"{TenantTerminationProductionAdmissionOptions.SectionName}:ExecutionEnabled"] =
+            "false";
+        foreach (string module in new[]
+                 {
+                     "AccessControl",
+                     "Auth",
+                     "Notifications",
+                     "Organizations",
+                     "Properties",
+                     "Inventory",
+                     "Reservations",
+                     "Guests",
+                     "DataRights",
+                     "Staff",
+                     "Ingestion",
+                     "Retention",
+                     "TaskRuntime"
+                 })
+        {
+            builder.Configuration[$"Worker:Modules:{module}"] = "true";
+        }
+
+        builder.Configuration["FileManagement:Enabled"] = "true";
+        builder.Configuration["FileManagement:Provider"] = "Minio";
+        builder.Configuration["FileManagement:AllowedContentTypes:0"] =
+            "application/json";
+        builder.Configuration["FileManagement:Minio:Endpoint"] =
+            "localhost:9000";
+        builder.Configuration["FileManagement:Minio:AccessKey"] = "test";
+        builder.Configuration["FileManagement:Minio:SecretKey"] =
+            "test-secret";
+        builder.Configuration["FileManagement:Minio:BucketName"] = "test";
+        builder.Configuration["Notifications:Adapters:Email:Enabled"] =
+            "false";
+        AuthTestConfiguration.ConfigureTokenHashing(builder.Configuration);
+        builder.Logging.ClearProviders();
+
+        builder.AddWorkerHost();
+        ModuleCompositionValidationResult composition =
+            builder.ValidateModuleComposition();
+        using IHost worker = builder.Build();
+        using IServiceScope scope = worker.Services.CreateScope();
+        ITenantTerminationProductionCatalog catalog = scope.ServiceProvider
+            .GetRequiredService<ITenantTerminationProductionCatalog>();
+        Result<TenantTerminationProductionCatalogEvidence> evidence =
+            catalog.Validate(
+                TenantTerminationProductionOwnerCatalog.RequiredOwnerKeys);
+
+        Assert.True(composition.IsValid, composition.Report);
+        Assert.True(evidence.IsSuccess);
+        Assert.Equal(12, evidence.Value.OwnerCount);
+        Assert.Equal("workspaces", evidence.Value.TerminalOwnerKey);
+        Assert.Matches("^[0-9a-f]{64}$", evidence.Value.CatalogSha256);
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public void Worker_host_composes_properties_and_inventory_projection_services()

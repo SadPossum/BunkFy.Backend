@@ -80,7 +80,7 @@ public sealed class ReservationsSagaIntegrationTests
             await api.SeedOrganizationMembershipAsync(TenantId, operatorId).ConfigureAwait(false);
             await GrantReservationsAccessAsync(admin, operatorId).ConfigureAwait(false);
 
-            GuestProfileDto canonicalGuest = await CreateGuestAsync(
+            GuestMutationReceiptDto canonicalGuest = await CreateGuestAsync(
                 client,
                 tokens.AccessToken,
                 "Canonical Replacement Guest").ConfigureAwait(false);
@@ -435,7 +435,7 @@ public sealed class ReservationsSagaIntegrationTests
 
         using IServiceScope configurationScope = api.Services.CreateScope();
         configurationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
-        Result<RoomInventoryDto> configured = await configurationScope.ServiceProvider
+        Result<RoomInventoryMutationReceiptDto> configured = await configurationScope.ServiceProvider
             .GetRequiredService<IRequestDispatcher>()
             .SendAsync(
                 new ConfigureRoomSalesModeCommand(PropertyId, RoomId, InventorySalesMode.RoomLevel, 1),
@@ -513,7 +513,7 @@ public sealed class ReservationsSagaIntegrationTests
         return (IIntegrationEventHandler<TEvent>)services.GetRequiredService(subscription.HandlerType);
     }
 
-    private static async Task<GuestProfileDto> CreateGuestAsync(
+    private static async Task<GuestMutationReceiptDto> CreateGuestAsync(
         HttpClient client,
         string accessToken,
         string displayName)
@@ -534,7 +534,7 @@ public sealed class ReservationsSagaIntegrationTests
                 preferredLanguageTag = "en",
                 notes = (string?)null
             }).ConfigureAwait(false);
-        return await ReadSuccessAsync<GuestProfileDto>(response).ConfigureAwait(false);
+        return await ReadSuccessAsync<GuestMutationReceiptDto>(response).ConfigureAwait(false);
     }
 
     private static async Task WaitForGuestEligibilityProjectionAsync(
@@ -692,17 +692,17 @@ public sealed class ReservationsSagaIntegrationTests
         using HttpResponseMessage response = await SendAsync(
             client,
             HttpMethod.Get,
-            $"/api/guests/properties/{PropertyId:D}/{guestId:D}/stays",
+            $"/api/guests/properties/{PropertyId:D}/{guestId:D}/stays?page=1&pageSize=100",
             accessToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             return null;
         }
 
-        IReadOnlyCollection<GuestStayHistoryItem>? stays = await response.Content
-            .ReadFromJsonAsync<IReadOnlyCollection<GuestStayHistoryItem>>()
+        GuestStayHistoryListResponse? stays = await response.Content
+            .ReadFromJsonAsync<GuestStayHistoryListResponse>()
             .ConfigureAwait(false);
-        return stays?.SingleOrDefault(stay => stay.ReservationId == reservationId);
+        return stays?.Stays.SingleOrDefault(stay => stay.ReservationId == reservationId);
     }
 
     private static async Task ApplyStaleGuestStayEventAsync(

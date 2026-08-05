@@ -16,4 +16,4 @@ public sealed record ActivatePropertyProcessingCommand(
     bool Confirmed,
     long ExpectedVersion,
     string ActorId)
-    : ITransactionalCommand<PropertyDto>;
+    : ITransactionalCommand<PropertyMutationReceiptDto>;

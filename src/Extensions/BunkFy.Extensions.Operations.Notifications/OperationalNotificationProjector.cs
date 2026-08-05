@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
@@ -14,8 +15,11 @@ internal sealed class OperationalNotificationProjector(
     IStaffNotificationRecipientResolver recipientResolver,
     IWorkspaceOwnerNotificationAudienceReader workspaceOwnerAudienceReader,
     IOrganizationAccessCandidateFilter organizationAccess,
+    IAccessAuthorizationService authorization,
     IUserNotificationRequestProjectorV3 notificationProjector)
 {
+    private const int AuthorizationCandidateBatchSize = 500;
+
     public async Task ProjectForPropertyAsync(
         Guid sourceEventId,
         string scopeId,
@@ -40,6 +44,13 @@ internal sealed class OperationalNotificationProjector(
         IReadOnlyList<string> recipients = await this.FilterActiveMembersAsync(
                 scopeId,
                 candidates,
+                cancellationToken)
+            .ConfigureAwait(false);
+        recipients = await this.FilterAuthorizedRecipientsAsync(
+                scopeId,
+                propertyId,
+                recipients,
+                notification.RequiredPermission,
                 cancellationToken)
             .ConfigureAwait(false);
         IReadOnlyList<StaffNotificationRecipient> staffRecipients =
@@ -188,6 +199,52 @@ internal sealed class OperationalNotificationProjector(
             .ToArray();
     }
 
+    private async Task<IReadOnlyList<string>> FilterAuthorizedRecipientsAsync(
+        string scopeId,
+        Guid propertyId,
+        IReadOnlyList<string> recipients,
+        Gma.Framework.Permissions.PermissionCode? requiredPermission,
+        CancellationToken cancellationToken)
+    {
+        if (requiredPermission is null || recipients.Count == 0)
+        {
+            return recipients;
+        }
+
+        AccessScope propertyScope = WorkspaceAccessScopes.CreateProperty(
+            scopeId,
+            propertyId);
+        List<string> allowed = new(recipients.Count);
+        foreach (string[] batch in recipients.Chunk(
+                     AuthorizationCandidateBatchSize))
+        {
+            AccessRequirement[] requirements = batch
+                .Select(recipient => new AccessRequirement(
+                    AccessSubject.User(recipient),
+                    requiredPermission,
+                    propertyScope))
+                .ToArray();
+            IReadOnlyList<AccessDecision> decisions = await authorization
+                .AuthorizeManyAsync(requirements, cancellationToken)
+                .ConfigureAwait(false);
+            if (decisions.Count != batch.Length)
+            {
+                throw new InvalidOperationException(
+                    "The access authorization service returned an invalid operational notification decision set.");
+            }
+
+            for (int index = 0; index < decisions.Count; index++)
+            {
+                if (decisions[index].IsAllowed)
+                {
+                    allowed.Add(batch[index]);
+                }
+            }
+        }
+
+        return allowed;
+    }
+
     private Task ProjectAsync(
         Guid sourceEventId,
         string scopeId,
@@ -215,12 +272,15 @@ internal sealed class OperationalNotificationProjector(
                         notification.Payload)
                     .Concat(notification.References)
                     .Append(
+                        OperationsNotificationsDataRightsCoordinates
+                            .ForTenant(scopeId))
+                    .Append(
                         OperationsNotificationsDataRightsCoordinates.ForStaff(
                             scopeId,
                             staffMemberId))
                     .Distinct()
                     .ToArray(),
-                NotificationDeliveryPolicy.RespectPreferences),
+                notification.DeliveryPolicy),
             cancellationToken);
 
     internal static Guid CreateNotificationId(Guid sourceEventId, string recipient, string notificationName)

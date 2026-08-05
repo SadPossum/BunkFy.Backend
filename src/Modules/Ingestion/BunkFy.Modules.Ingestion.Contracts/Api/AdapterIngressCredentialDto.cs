@@ -26,11 +26,26 @@ public sealed record AdapterIngressCredentialDto(
     int ConfigurationSchemaVersion = 0,
     string SourceSystem = "");
 
+public sealed record AdapterIngressCredentialListItemDto(
+    Guid CredentialId,
+    int Slot,
+    string Label,
+    AdapterIngressCredentialStatus Status,
+    DateTimeOffset ExpiresAtUtc,
+    DateTimeOffset? LastAuthenticatedAtUtc,
+    long Version);
+
 public sealed record AdapterIngressCredentialListResponse(
-    IReadOnlyCollection<AdapterIngressCredentialDto> Credentials,
+    IReadOnlyCollection<AdapterIngressCredentialListItemDto> Credentials,
     int Page,
     int PageSize,
-    long TotalCount);
+    bool HasMore);
+
+public sealed record AdapterIngressCredentialMutationReceiptDto(
+    Guid CredentialId,
+    Guid ConnectionId,
+    AdapterIngressCredentialStatus Status,
+    long Version);
 
 public sealed record CreateAdapterIngressCredentialResponse(
     AdapterIngressCredentialDto Credential,

@@ -13,9 +13,9 @@ internal sealed class CheckInReservationCommandHandler(
     IReservationRepository reservations,
     ISystemClock clock,
     IIdGenerator ids)
-    : ICommandHandler<CheckInReservationCommand, ReservationDto>
+    : ICommandHandler<CheckInReservationCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         CheckInReservationCommand command,
         CancellationToken cancellationToken)
     {
@@ -23,7 +23,7 @@ internal sealed class CheckInReservationCommandHandler(
             command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
         }
 
         Result changed = reservation.CheckIn(
@@ -33,8 +33,8 @@ internal sealed class CheckInReservationCommandHandler(
             ids.NewId(),
             clock.UtcNow);
         return changed.IsSuccess
-            ? Result.Success(reservation.ToDto())
-            : Result.Failure<ReservationDto>(changed.Error);
+            ? Result.Success(reservation.ToMutationReceipt())
+            : Result.Failure<ReservationMutationReceiptDto>(changed.Error);
     }
 }
 
@@ -42,9 +42,9 @@ internal sealed class MarkReservationNoShowCommandHandler(
     IReservationRepository reservations,
     ISystemClock clock,
     IIdGenerator ids)
-    : ICommandHandler<MarkReservationNoShowCommand, ReservationDto>
+    : ICommandHandler<MarkReservationNoShowCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         MarkReservationNoShowCommand command,
         CancellationToken cancellationToken)
     {
@@ -52,7 +52,7 @@ internal sealed class MarkReservationNoShowCommandHandler(
             command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
         }
 
         Result changed = reservation.RequestNoShow(
@@ -63,8 +63,8 @@ internal sealed class MarkReservationNoShowCommandHandler(
             ids.NewId(),
             clock.UtcNow);
         return changed.IsSuccess
-            ? Result.Success(reservation.ToDto())
-            : Result.Failure<ReservationDto>(changed.Error);
+            ? Result.Success(reservation.ToMutationReceipt())
+            : Result.Failure<ReservationMutationReceiptDto>(changed.Error);
     }
 }
 
@@ -72,9 +72,9 @@ internal sealed class CheckOutReservationCommandHandler(
     IReservationRepository reservations,
     ISystemClock clock,
     IIdGenerator ids)
-    : ICommandHandler<CheckOutReservationCommand, ReservationDto>
+    : ICommandHandler<CheckOutReservationCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         CheckOutReservationCommand command,
         CancellationToken cancellationToken)
     {
@@ -82,7 +82,7 @@ internal sealed class CheckOutReservationCommandHandler(
             command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
         }
 
         Result changed = reservation.RequestCheckout(
@@ -93,7 +93,7 @@ internal sealed class CheckOutReservationCommandHandler(
             ids.NewId(),
             clock.UtcNow);
         return changed.IsSuccess
-            ? Result.Success(reservation.ToDto())
-            : Result.Failure<ReservationDto>(changed.Error);
+            ? Result.Success(reservation.ToMutationReceipt())
+            : Result.Failure<ReservationMutationReceiptDto>(changed.Error);
     }
 }

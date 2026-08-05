@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Ingestion.Persistence.Repositories;
 
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+using System.Text;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
@@ -23,8 +24,11 @@ internal sealed class IngestionDataRightsExportContributor(
     public const string ReprocessingAttemptRecordType = "ingestion-reprocessing-attempt";
     public const string ReprocessingOutputRecordType = "ingestion-reprocessing-output";
     public const string RawPayloadChunkRecordType = "ingestion-raw-payload-chunk";
+    public const string SensitiveHistoryChunkRecordType =
+        "ingestion-sensitive-history-chunk";
 
     private const int RawPayloadChunkBytes = 12_000;
+    private const int SensitiveHistoryChunkBytes = 12_000;
 
     public string OwnerKey => IngestionDataRightsDiscoveryContributor.Owner;
 
@@ -112,6 +116,15 @@ internal sealed class IngestionDataRightsExportContributor(
             sink,
             cancellationToken).ConfigureAwait(false);
         recordCount++;
+        recordCount = checked(recordCount +
+            await WriteSensitiveHistoryChunksAsync(
+                IngestionDataRightsDiscoveryContributor.SourceLinkRecordType,
+                sourceLink.Id,
+                sourceLink.Version,
+                "source-link.operational-baseline",
+                sourceLink.LastAppliedOperationalBaseline,
+                sink,
+                cancellationToken).ConfigureAwait(false));
 
         foreach (ChangeProposal proposal in graph.Proposals)
         {
@@ -123,6 +136,15 @@ internal sealed class IngestionDataRightsExportContributor(
                 sink,
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
+            recordCount = checked(recordCount +
+                await WriteSensitiveHistoryChunksAsync(
+                    ProposalRecordType,
+                    proposal.Id,
+                    proposal.Version,
+                    "proposal.diff",
+                    proposal.Diff,
+                    sink,
+                    cancellationToken).ConfigureAwait(false));
         }
 
         foreach (ReservationDispatch dispatch in graph.Dispatches)
@@ -135,6 +157,15 @@ internal sealed class IngestionDataRightsExportContributor(
                 sink,
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
+            recordCount = checked(recordCount +
+                await WriteSensitiveHistoryChunksAsync(
+                    DispatchRecordType,
+                    dispatch.Id,
+                    dispatch.Version,
+                    "dispatch.normalized-snapshot",
+                    dispatch.NormalizedSnapshot,
+                    sink,
+                    cancellationToken).ConfigureAwait(false));
         }
 
         foreach (ObservationReceipt receipt in graph.Receipts)
@@ -220,7 +251,7 @@ internal sealed class IngestionDataRightsExportContributor(
                     rawPayload.Content.Slice(offset, length).ToArray());
                 await WriteAsync(
                     RawPayloadChunkRecordType,
-                    CreateChunkId(receipt.Id, chunkIndex),
+                    CreateRawPayloadChunkId(receipt.Id, chunkIndex),
                     receipt.RawPayloadVersion,
                     chunk,
                     sink,
@@ -247,7 +278,9 @@ internal sealed class IngestionDataRightsExportContributor(
                 source),
             cancellationToken);
 
-    private static Guid CreateChunkId(Guid receiptId, int chunkIndex)
+    private static Guid CreateRawPayloadChunkId(
+        Guid receiptId,
+        int chunkIndex)
     {
         Span<byte> input = stackalloc byte[20];
         receiptId.TryWriteBytes(input[..16]);
@@ -276,7 +309,9 @@ internal sealed class IngestionDataRightsExportContributor(
             sourceLink.LastAppliedSourceRevision,
             sourceLink.LastAppliedSourceSequence,
             sourceLink.LastAppliedReservationDetailsRevision,
-            sourceLink.LastAppliedOperationalBaseline,
+            CreateSensitiveHistoryReference(
+                "source-link.operational-baseline",
+                sourceLink.LastAppliedOperationalBaseline),
             sourceLink.LastProductOperationId,
             sourceLink.ActiveProductOperationId,
             sourceLink.DeferredReceiptId,
@@ -344,7 +379,9 @@ internal sealed class IngestionDataRightsExportContributor(
             proposal.SourcePayloadFileId,
             proposal.BaseReservationDetailsRevision,
             proposal.ReasonCode,
-            proposal.Diff,
+            CreateSensitiveHistoryReference(
+                "proposal.diff",
+                proposal.Diff),
             proposal.State,
             proposal.DecisionReason,
             proposal.ProductOperationId,
@@ -369,7 +406,9 @@ internal sealed class IngestionDataRightsExportContributor(
             dispatch.Kind,
             dispatch.SourceRevision,
             dispatch.SourceSequence,
-            dispatch.NormalizedSnapshot,
+            CreateSensitiveHistoryReference(
+                "dispatch.normalized-snapshot",
+                dispatch.NormalizedSnapshot),
             dispatch.ExpectedDetailsRevision,
             dispatch.State,
             dispatch.ResultDetailsRevision,
@@ -419,6 +458,102 @@ internal sealed class IngestionDataRightsExportContributor(
             output.ContentHash,
             output.ErrorCode,
             output.RecordedAtUtc);
+
+    private static SensitiveHistoryReferenceDataRightsExport?
+        CreateSensitiveHistoryReference(
+            string contentKind,
+            string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        byte[] content = Encoding.UTF8.GetBytes(value);
+        try
+        {
+            return new(
+                contentKind,
+                Convert.ToHexStringLower(SHA256.HashData(content)),
+                content.Length,
+                checked(
+                    (content.Length + SensitiveHistoryChunkBytes - 1) /
+                    SensitiveHistoryChunkBytes),
+                "utf-8");
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(content);
+        }
+    }
+
+    private static async Task<int> WriteSensitiveHistoryChunksAsync(
+        string parentRecordType,
+        Guid parentRecordId,
+        long parentRecordVersion,
+        string contentKind,
+        string? value,
+        IDataRightsExportSink sink,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return 0;
+        }
+
+        byte[] content = Encoding.UTF8.GetBytes(value);
+        byte[] digest = SHA256.HashData(content);
+        try
+        {
+            int chunkCount = checked(
+                (content.Length + SensitiveHistoryChunkBytes - 1) /
+                SensitiveHistoryChunkBytes);
+            string contentSha256 = Convert.ToHexStringLower(digest);
+            for (int chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++)
+            {
+                int offset = checked(
+                    chunkIndex * SensitiveHistoryChunkBytes);
+                int length = Math.Min(
+                    SensitiveHistoryChunkBytes,
+                    content.Length - offset);
+                byte[] chunk = content.AsSpan(offset, length).ToArray();
+                try
+                {
+                    SensitiveHistoryChunkDataRightsExport record = new(
+                        new SensitiveHistoryChunkMetadataDataRightsExport(
+                            parentRecordType,
+                            parentRecordId,
+                            contentKind,
+                            chunkIndex,
+                            chunkCount,
+                            content.Length,
+                            contentSha256,
+                            "utf-8"),
+                        chunk);
+                    await WriteAsync(
+                        SensitiveHistoryChunkRecordType,
+                        DataRightsExportRecordIds.CreateDeterministicChild(
+                            parentRecordId,
+                            $"{contentKind}:{chunkIndex:D8}"),
+                        parentRecordVersion,
+                        record,
+                        sink,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(chunk);
+                }
+            }
+
+            return chunkCount;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(content);
+            CryptographicOperations.ZeroMemory(digest);
+        }
+    }
 
     private Task<bool> IsKnownPropertyAsync(
         Guid propertyId,

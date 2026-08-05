@@ -14,12 +14,21 @@ Payloads are a closed set of typed navigation records. Product source events may
 contain richer audit or workflow data, but the inbox receives only the minimal
 resource identifiers and dates needed to understand or open the affected item.
 
-Every BunkFy-addressed copy also carries an opaque reference to the
-authoritative Staff record for its recipient. The reference survives Auth
-account relinking and lets this extension contribute the exact inbox history to
-tenant-scoped Staff access export and anonymisation. Export accepts only the
-current source-module, notification-name, version, and payload combinations;
-recipient Auth subjects, read state, and delivery attempts are excluded.
+Data Rights owns Guest Rights deadline evaluation, append-only dispatch
+receipts, and the transactional outbox event. This extension resolves the
+current operational audience and then batch-authorizes every candidate for
+`data-rights.read` at the exact property scope before creating a mandatory
+inbox notification. The notification payload contains only property and case
+identifiers: requester identity, requested rights, notes, and policy evidence
+remain in Data Rights. The case identifier is governed through the authorized
+Data Rights case policy rather than treated as an ordinary guest-history copy.
+
+Every BunkFy-addressed copy carries two opaque lifecycle coordinates: one for
+the tenant's complete BunkFy operational history and one for the authoritative
+Staff record of its recipient. The Staff coordinate survives Auth account
+relinking and supports exact Staff access export and anonymisation. Those exact
+coordinates remain subject-rights tools; whole-tenant termination uses GMA
+Notifications' separate scope lifecycle.
 
 Reservation notifications carry an opaque reference to their authoritative
 Reservations record. Provider-operation attention notifications additionally
@@ -31,9 +40,25 @@ Ingestion Contracts, and the provider bridge is registered only by API or
 Worker hosts that also compose Ingestion.
 
 GMA Notifications owns generic inbox persistence, paging, delivery-lease
-coordination, close receipts, and replay suppression. This extension adapts
-those primitives to BunkFy's Staff, reservation, and Ingestion source-link Data
-Rights coordinates; no BunkFy policy is implemented in GMA.
+coordination, close receipts, replay suppression, and the product-neutral scope
+lifecycle. This extension adapts those primitives to BunkFy's Staff,
+reservation, Ingestion source-link, and tenant-termination policies; it owns no
+database and no BunkFy policy is implemented in GMA.
+
+Tenant owner catalogue v3 supports both `Export` and `Destroy`. The export
+selects one monotonic GMA scope revision and streams 12 deterministic typed
+stores: user notifications, preferences, routes, tag definitions, deliveries,
+attempts, tenant broadcasts and reads, plus history-reference lifecycle state
+and proof. Transport inbox rows and platform-global broadcasts remain excluded.
+Every field is bound to the protected tenant-portability surface; preference
+data is not admitted to the ordinary notification surface.
+
+Destruction requires the matching frozen Workspace fence and invokes GMA's
+bounded resumable scope lifecycle. The first accepted batch installs the scope
+tombstone; retries reuse the owner idempotency key, validate durable progress or
+the payload-free receipt, and report completion only after disposable scope
+state is gone. GMA retains only its scope tombstone and authorized lifecycle
+proof needed for replay suppression.
 
 ## Production Admission
 

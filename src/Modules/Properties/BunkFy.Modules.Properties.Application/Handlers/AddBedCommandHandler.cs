@@ -16,14 +16,16 @@ internal sealed class AddBedCommandHandler(
     IRoomRepository repository,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<AddBedCommand, BedDto>
+    : ICommandHandler<AddBedCommand, BedMutationReceiptDto>
 {
-    public async Task<Result<BedDto>> HandleAsync(AddBedCommand command, CancellationToken cancellationToken)
+    public async Task<Result<BedMutationReceiptDto>> HandleAsync(
+        AddBedCommand command,
+        CancellationToken cancellationToken)
     {
         Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
         if (room is null || room.PropertyId != command.PropertyId)
         {
-            return Result.Failure<BedDto>(PropertiesDomainErrors.RoomNotFound);
+            return Result.Failure<BedMutationReceiptDto>(PropertiesDomainErrors.RoomNotFound);
         }
 
         Result<Bed> bedResult = room.AddBed(
@@ -34,9 +36,9 @@ internal sealed class AddBedCommandHandler(
             clock.UtcNow);
         if (bedResult.IsFailure)
         {
-            return Result.Failure<BedDto>(bedResult.Error);
+            return Result.Failure<BedMutationReceiptDto>(bedResult.Error);
         }
 
-        return Result.Success(PropertiesMapper.ToDto(bedResult.Value, room.Version));
+        return Result.Success(PropertiesMapper.ToReceipt(bedResult.Value, room.Version));
     }
 }

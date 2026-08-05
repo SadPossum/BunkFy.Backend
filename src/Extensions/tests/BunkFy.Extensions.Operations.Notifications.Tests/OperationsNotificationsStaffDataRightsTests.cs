@@ -446,6 +446,77 @@ public sealed class OperationsNotificationsStaffDataRightsTests
             StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(
+        DataRightsResponseDeadlineNotificationHandler
+            .DueSoonNotificationName)]
+    [InlineData(
+        DataRightsResponseDeadlineNotificationHandler
+            .OverdueNotificationName)]
+    public async Task Staff_export_accepts_minimal_data_rights_deadline_payload(
+        string notificationName)
+    {
+        Guid caseId = Guid.NewGuid();
+        NotificationHistoryReferenceRecord record =
+            CreateNotificationRecord(sequence: 7) with
+            {
+                SourceModule = DataRightsModuleMetadata.Name,
+                NotificationName = notificationName,
+                Payload = JsonSerializer.SerializeToElement(
+                    new DataRightsDeadlineNotificationPayload(
+                        PropertyId,
+                        caseId)),
+                DeliveryPolicy = NotificationDeliveryPolicy.Mandatory
+            };
+        var lifecycle = new TestLifecycle
+        {
+            Snapshot = (_, _, _) => Task.FromResult(
+                new NotificationHistoryReferenceSnapshot(
+                    NotificationHistoryReferenceStatus.Open,
+                    3,
+                    1,
+                    7)),
+            Page = (_, _, _, _, _) => Task.FromResult(
+                new NotificationHistoryReferencePage(
+                    NotificationHistoryReferenceStatus.Open,
+                    3,
+                    [record],
+                    7,
+                    false))
+        };
+        var sink = new CapturingSink();
+        var contributor =
+            new OperationsNotificationsStaffDataRightsExportContributor(
+                lifecycle,
+                new TestScopeContext());
+
+        DataRightsSubjectExportResult result =
+            await contributor.ExportAsync(
+                new DataRightsSubjectExportRequest(
+                    ScopeId,
+                    DataRightsCaseType.StaffRights,
+                    PropertyId: null,
+                    StaffCoordinate(3)),
+                sink,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsSubjectExportStatus.Succeeded,
+            result.Status);
+        DataRightsExportRecord exported = Assert.Single(sink.Records);
+        DataRightsExportField notificationNameField = Assert.Single(
+            exported.Fields,
+            field => field.FieldId ==
+                "operations-notifications.staff-export-notification-name");
+        Assert.Equal(
+            notificationName,
+            notificationNameField.Value.GetString());
+        Assert.Contains(
+            caseId.ToString("D"),
+            JsonSerializer.Serialize(exported),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task Staff_export_rejects_unknown_payload_without_partial_output()
     {
@@ -895,5 +966,15 @@ public sealed class OperationsNotificationsStaffDataRightsTests
             NotificationHistoryReferenceCloseRequest request,
             CancellationToken cancellationToken) =>
             this.Close(request, cancellationToken);
+
+        public Task<NotificationHistoryReferenceCloseBatchResult>
+            CloseBatchAsync(
+                NotificationHistoryReferenceCloseBatchRequest request,
+                CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new NotificationHistoryReferenceCloseBatchResult(
+                    NotificationHistoryReferenceCloseBatchStatus.Invalid,
+                    null,
+                    null));
     }
 }

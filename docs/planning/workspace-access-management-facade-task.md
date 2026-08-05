@@ -1,11 +1,13 @@
 # Workspace Access Management Facade Task
 
-Status: backend and owner-facing UX implemented; multi-account proof pending
+Status: backend and capability-driven UX implemented; multi-account proof pending
 Date: 2026-07-22
 
 ## Goal
 
-Give workspace owners one BunkFy API for operational access profiles, member assignments, and Staff join sources without exposing GMA module administration APIs or leaking BunkFy policy into reusable modules.
+Give authorized workspace actors one BunkFy API for operational access
+profiles, member assignments, and Staff join sources without exposing GMA
+module administration APIs or leaking BunkFy policy into reusable modules.
 
 ## Ownership
 
@@ -20,12 +22,17 @@ Give workspace owners one BunkFy API for operational access profiles, member ass
 - The authenticated subject is resolved on the server and passed to every generic management contract.
 - The product permission catalogue is the intersection of active GMA permissions and BunkFy's explicit delegable allowlist.
 - Profile writes reject unknown, non-delegable, or dependency-incomplete permission sets before dispatch.
-- Seed profile keys remain present and identifiable. Owners may tune their permissions, but cannot archive them through the product facade.
+- Seed profile keys remain present, identifiable, and code-owned. Product and
+  raw generic APIs cannot create, edit, or archive them; authorized managers
+  use custom profiles for workspace-specific permission sets.
 - Assignment replacement is exact-scope and anti-escalating. The target must remain an ordinary member of the same workspace; owner governance access is never edited through this flow.
 - Join-source list responses contain lifecycle facts and sanitized BunkFy plan summaries, never token digests or plaintext secrets.
 - Revocation and replacement are deny-first. A replacement source is minted only after the previous source is denied or confirmed unusable, and uses a caller-supplied idempotency id through the existing issuance facade.
 - Plaintext join tokens are returned only by the successful creation call. Exact retries never mint another source and never replay the token; a lost token requires an explicit new replacement.
-- Organizations governance remains owner-only in this slice. Operational custom profiles do not silently grant invitation approval or ownership powers.
+- Organizations membership listing, lifecycle, and ownership remain owner-only.
+  Exact BunkFy Staff join-source and claim operations may be delegated through
+  the Workspaces policy, but operational custom profiles never grant broader
+  Organizations governance implicitly.
 
 ## Delivery
 
@@ -56,5 +63,11 @@ Give workspace owners one BunkFy API for operational access profiles, member ass
 - Focused Workspaces tests cover permission metadata, deny-before-inspect behavior, owner protection, exact assignment reconciliation, batched plan reads, replacement ordering, retry behavior, and one-time token semantics.
 - Generated contracts and the owner-facing Workspace settings UX now cover protected/custom roles, member assignments, recipient-aware invitations, reusable team QR sources, lifecycle review, revoke, and deny-first replacement.
 - Desktop and 390px mobile preview checks pass. Legacy Organizations invitations without a BunkFy access plan render as lifecycle-only records instead of failing the page.
-- The local preview workspace was bootstrapped to seed version `1` with all four product profiles active, zero legacy assignments, and no remaining backfill.
-- Remaining work in this task is the real owner/applicant multi-account browser proof and deployment-by-deployment activation evidence.
+- Seed version `2` protects and reconciles built-ins, exposes drift in bootstrap
+  status, and grants profile read/manage/assign to the Manager seed. Deployed
+  workspaces require fresh version 2 activation evidence.
+- The Workspace settings UX is permission-driven: Members remains owner-only,
+  Roles supports read-only and management modes, and Invites requires both
+  `staff.manage` and profile visibility.
+- Remaining work in this task is the real owner/applicant multi-account browser
+  proof and deployment-by-deployment activation evidence.

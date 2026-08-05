@@ -142,11 +142,57 @@ For hosted operation:
 Credentials, endpoints, and bucket policy evidence must not be committed to the
 repository.
 
+## Worker And Durable Runtime
+
+Production Workers declare the same immutable release identity as API
+processes, without HTTP-only edge or API-topology settings. A Worker that
+composes Ingestion also satisfies the hosted object-storage rules above.
+
+One explicitly single-replica Worker process profile owns message-journal and
+TaskRuntime cleanup. Every other long-running process keeps those cleanup
+services disabled. Approved replay and retention windows, task/NATS composition
+constraints, and activation evidence are defined in
+[Durable Runtime Production Admission](durable-runtime-production-admission.md).
+
+## External Adapter Daemons
+
+Every Production `BunkFy.AdapterHost` deployment declares its exact release,
+approved adapter type and BunkFy service base, uses Ingestion-owned server lease
+coordination, and makes its operational status either unavailable or
+loopback-only. Readiness does not turn healthy until the current ingress token
+and adapter material are readable. Configuration, activation, and replacement
+evidence are defined in
+[AdapterHost Production Admission](adapter-host-production-admission.md).
+
+## Identity Maintenance
+
+Auth retention and Organizations natural expiry/retention each have one
+independently declared Worker owner. Public API, Admin API, and non-owner Worker
+processes keep their maintenance services disabled. Production startup requires
+approved, runtime-matching history windows and explicit acknowledgement of how
+those windows apply to existing records. Owner topology, required switches, and
+activation evidence are defined in
+[Identity Maintenance Production Admission](identity-maintenance-production-admission.md).
+
+## Database Migrations
+
+Run the dedicated migrations executable in `Plan` mode against the intended
+database before candidate activation. Production `Apply` binds the same
+immutable release to the plan's database-target and target-catalogue hashes,
+requires non-secret approval/backup/recovery references, and serializes the
+complete module catalogue under one bounded PostgreSQL advisory lock.
+
+An interrupted run resumes only with the same approved release and an exact
+compatible migration-history prefix. Unknown or down-level history fails before
+mutation. Configuration and recovery evidence are defined in
+[Migrations Host Production Safety](migrations-host-production-safety.md).
+
 ## Failure Behavior
 
-Production startup fails before the host serves requests when deployment
-identity, topology, edge trust, key persistence, storage policy, or Admin API
-network declarations are missing or contradictory.
+Production startup fails before a host serves requests or executes background
+work when deployment identity, runtime maintenance, topology, edge trust, key
+persistence, storage policy, or Admin API network declarations are missing or
+contradictory.
 
 In distributed HTTP mode, Redis/provider unavailability fails closed with a
 bounded `503` response. An exceeded budget returns `429`; neither response

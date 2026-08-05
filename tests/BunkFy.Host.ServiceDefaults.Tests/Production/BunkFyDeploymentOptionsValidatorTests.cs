@@ -131,6 +131,26 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
     }
 
     [Fact]
+    public void Worker_requires_release_identity_without_http_only_declarations()
+    {
+        BunkFyDeploymentOptions options = new()
+        {
+            Profile = BunkFyDeploymentProfile.SelfHosted,
+            Runtime = BunkFyRuntimeKind.Process,
+            SourceCommitSha = new string('a', 40)
+        };
+
+        string[] failures = Validate(
+            options,
+            surface: BunkFyDeploymentSurface.Worker,
+            http: new ProductionHttpOptions(),
+            dataProtection: new ProductionDataProtectionOptions(),
+            fileManagementEnabled: false);
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
     public void Hosted_storage_rejects_insecure_transport_and_application_owned_bucket_creation()
     {
         BunkFyDeploymentOptions options = CreateValidOptions();

@@ -18,6 +18,8 @@ internal static class OperationsNotificationsDataRightsCoordinates
         "staff-inbox-history";
     public const string StaffInboxHistoryReferenceNamespace =
         "bunkfy-staff-inbox-history";
+    public const string TenantInboxHistoryReferenceNamespace =
+        "bunkfy-tenant-operations-history";
     public const string IngestionSourceLinkHistoryRecordType =
         "ingestion-source-link-history";
     public const string IngestionSourceLinkHistoryReferenceNamespace =
@@ -89,6 +91,17 @@ internal static class OperationsNotificationsDataRightsCoordinates
             $"{Modules.Staff.Contracts.StaffDataRightsCoordinates.Owner}|" +
             $"{Modules.Staff.Contracts.StaffDataRightsCoordinates.StaffMemberRecordType}|" +
             $"{staffMemberId:N}");
+    }
+
+    public static NotificationHistoryReference ForTenant(string tenantId)
+    {
+        string normalizedTenant = ScopeIds.Normalize(
+            tenantId,
+            nameof(tenantId));
+        return NotificationHistoryReference.FromCanonicalCoordinate(
+            TenantInboxHistoryReferenceNamespace,
+            $"bunkfy-notification-reference/v1|{normalizedTenant}|" +
+            $"{Owner}|tenant-operational-inbox");
     }
 
     public static NotificationHistoryReference ForIngestionSourceLink(

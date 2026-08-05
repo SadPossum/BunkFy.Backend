@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
+using System.Runtime.CompilerServices;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
@@ -228,14 +229,21 @@ internal sealed class ReservationArrivalReminderRepository(
     }
 
     public async Task<IReadOnlyList<string>> ListScheduleScopeIdsAsync(
-        CancellationToken cancellationToken) => await dbContext.Reservations
-        .IgnoreQueryFilters()
-        .AsNoTracking()
-        .Select(reservation => reservation.ScopeId)
-        .Distinct()
-        .Order()
-        .ToArrayAsync(cancellationToken)
-        .ConfigureAwait(false);
+        CancellationToken cancellationToken) => await this.ScheduleScopeIds()
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+    public async IAsyncEnumerable<string> StreamScheduleScopeIdsAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (string scopeId in this.ScheduleScopeIds()
+            .AsAsyncEnumerable()
+            .WithCancellation(cancellationToken)
+            .ConfigureAwait(false))
+        {
+            yield return scopeId;
+        }
+    }
 
     private void RefreshCore(
         ReservationReminderSource reservation,
@@ -281,6 +289,13 @@ internal sealed class ReservationArrivalReminderRepository(
             expectedArrivalAtUtc.AddMinutes(-ReservationsModuleMetadata.ArrivalReminderLeadTimeMinutes),
             ReservationsModuleMetadata.ArrivalReminderLeadTimeMinutes));
     }
+
+    private IQueryable<string> ScheduleScopeIds() => dbContext.Reservations
+        .IgnoreQueryFilters()
+        .AsNoTracking()
+        .Select(reservation => reservation.ScopeId)
+        .Distinct()
+        .Order();
 
     private static void Supersede(IEnumerable<ReservationArrivalReminder> reminders)
     {

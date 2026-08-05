@@ -9,6 +9,7 @@ using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
+using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Scoping;
 using Gma.Modules.AccessControl.Contracts;
@@ -215,6 +216,37 @@ public sealed class WorkspacesApiSecurityTests
             StatusCodes.Status200OK);
     }
 
+    [Fact]
+    public async Task Admin_operational_routes_publish_explicit_response_contracts()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
+        await using WebApplication app = builder.Build();
+        new WorkspacesAdminApiModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+
+        AssertAdminResponse<WorkspaceAccessBootstrapStatus>(
+            endpoints,
+            HttpMethods.Get,
+            "/api/admin/workspaces/access-bootstrap");
+        AssertAdminResponse<WorkspaceAccessBootstrapResult>(
+            endpoints,
+            HttpMethods.Post,
+            "/api/admin/workspaces/access-bootstrap");
+        AssertAdminResponse<WorkspaceStaffAccessProcessListResponse>(
+            endpoints,
+            HttpMethods.Get,
+            "/api/admin/workspaces/staff-access-processes");
+        AssertAdminResponse<WorkspaceStaffAccessProcessDto>(
+            endpoints,
+            HttpMethods.Post,
+            "/api/admin/workspaces/staff-access-processes/{processId:guid}/retry");
+    }
+
     private static void AssertProtectedIssuanceRoute(
         IEnumerable<RouteEndpoint> endpoints,
         string route)
@@ -243,6 +275,26 @@ public sealed class WorkspacesApiSecurityTests
         Assert.Equal("no-store", context.Response.Headers.CacheControl);
         Assert.Equal("no-cache", context.Response.Headers.Pragma);
         Assert.Equal("0", context.Response.Headers.Expires);
+    }
+
+    private static void AssertAdminResponse<TResponse>(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route)
+    {
+        RouteEndpoint endpoint = Assert.Single(endpoints, candidate =>
+            string.Equals(
+                candidate.RoutePattern.RawText?.Trim('/'),
+                route.Trim('/'),
+                StringComparison.Ordinal) &&
+            candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                method,
+                StringComparer.Ordinal) == true);
+        IProducesResponseTypeMetadata response = Assert.Single(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+
+        Assert.Equal(typeof(TResponse), response.Type);
     }
 
     private static void AssertProtectedRoute(

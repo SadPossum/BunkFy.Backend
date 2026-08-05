@@ -7,4 +7,4 @@ public sealed record ArchiveGuestProfileCommand(
     Guid PropertyId,
     Guid GuestId,
     long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<GuestProfileDto>;
+    string ActorId) : ITransactionalCommand<GuestMutationReceiptDto>;

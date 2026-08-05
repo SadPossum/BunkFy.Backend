@@ -8,4 +8,4 @@ public sealed record CancelReservationCommand(
     Guid ReservationId,
     long ExpectedVersion,
     string? ActorId = null)
-    : ITransactionalCommand<ReservationDto>;
+    : ITransactionalCommand<ReservationMutationReceiptDto>;

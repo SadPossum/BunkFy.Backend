@@ -25,7 +25,7 @@ public interface IStaffMemberRepository
         StaffStatus? status,
         PageRequest pageRequest,
         CancellationToken cancellationToken);
-    Task<StaffDirectoryListResponse> ListDirectoryAtPropertyAsync(
+    Task<StaffPropertyDirectoryListResponse> ListDirectoryAtPropertyAsync(
         Guid propertyId,
         string? search,
         StaffStatus? status,

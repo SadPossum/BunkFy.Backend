@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 9,
+  "catalogVersion": 11,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -212,6 +212,13 @@
       "legalHoldBehavior": "not-applicable"
     },
     {
+      "id": "staff-tenant-termination-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "frozen-tenant-export-assembly",
+      "endsAt": "protected-fragment-consumed-or-expired",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
       "id": "staff-employment-governance-current",
       "approvalState": "engineering-default",
       "startsAt": "staff-employment-governance-configured",
@@ -292,49 +299,49 @@
   "rightsPolicies": [
     {
       "id": "staff-anonymisation-proof-control",
-      "export": "include-minimum-proof-in-authorized-case-ledger",
+      "export": "include-minimum-proof-in-authorized-case-ledger-or-tenant-export",
       "correction": "immutable-owner-receipt-and-terminal-tombstone-only",
       "restriction": "exclude-terminal-record-from-ordinary-surfaces",
       "erasure": "retain-pii-free-terminal-operation-proof"
     },
     {
       "id": "staff-audit-attribution",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "correct-authoritative-account-source",
       "restriction": "retain-minimum-required-audit-attribution",
       "erasure": "pseudonymize-subject-to-minimum-audit-receipt"
     },
     {
       "id": "staff-data-hold-control",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "immutable-append-superseding-receipt",
       "restriction": "block-anonymisation-while-any-hold-is-active",
       "erasure": "retain-until-every-independent-hold-is-released"
     },
     {
       "id": "staff-data-rights-correction-accountability",
-      "export": "include-minimum-coordinate-in-authorized-case-ledger",
+      "export": "include-minimum-coordinate-in-authorized-case-ledger-or-tenant-export",
       "correction": "immutable-append-superseding-receipt",
       "restriction": "retain-minimum-approved-operation-proof",
       "erasure": "pseudonymize-subject-coordinate-while-preserving-operation-proof"
     },
     {
       "id": "staff-employment-governance-accountability",
-      "export": "not-in-current-subject-export",
+      "export": "include-minimum-proof-in-controller-authorized-tenant-export",
       "correction": "immutable-append-superseding-receipt",
       "restriction": "retain-minimum-policy-change-proof",
       "erasure": "pseudonymize-subject-while-preserving-operation-proof"
     },
     {
       "id": "staff-employment-governance-control",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "replace-through-versioned-governance-workflow",
       "restriction": "retain-minimum-current-policy-evidence",
       "erasure": "dispose-after-approved-employment-retention"
     },
     {
       "id": "staff-employment-history",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "append-corrective-employment-action",
       "restriction": "suppress-non-required-operational-use",
       "erasure": "anonymize-or-delete-after-approved-employment-retention"
@@ -348,28 +355,28 @@
     },
     {
       "id": "staff-processing-restriction-control",
-      "export": "include-current-state-in-authorized-staff-export",
+      "export": "include-current-state-in-authorized-staff-or-tenant-export",
       "correction": "change-only-through-approved-restriction-workflow",
       "restriction": "enforce-effective-processing-restriction",
       "erasure": "remove-with-approved-subject-disposition"
     },
     {
       "id": "staff-profile-editable",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "replace-through-staff-profile-workflow",
       "restriction": "suppress-non-required-operational-use",
       "erasure": "irreversibly-anonymize-or-delete"
     },
     {
       "id": "staff-retention-control",
-      "export": "not-in-current-subject-export",
+      "export": "include-in-controller-authorized-tenant-export",
       "correction": "retry-through-the-same-execution-coordinate",
       "restriction": "block-destructive-mutation-while-any-independent-hold-is-active",
       "erasure": "dispose-execution-evidence-after-approved-audit-lifecycle"
     },
     {
       "id": "staff-retention-proof-control",
-      "export": "not-in-current-subject-export-or-protected-replay-ledger",
+      "export": "include-minimum-retention-proof-in-controller-authorized-tenant-export",
       "correction": "immutable-owner-receipt-and-authority-bound-tombstone-only",
       "restriction": "exclude-terminal-record-from-ordinary-surfaces",
       "erasure": "retain-pii-free-local-proof-after-anonymisation"
@@ -2245,6 +2252,34 @@
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffMemberDto",
           "member": "Assignments",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "CurrentPropertyCount",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "CurrentPropertyCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Assignment",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Assignment",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
         }
@@ -4489,6 +4524,34 @@
           "member": "Department",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "Department",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "Department",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Department",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Department",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -4597,6 +4660,20 @@
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListResponse",
+          "member": "Items",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListResponse",
+          "member": "Items",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListResponse",
           "member": "Items",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
@@ -4782,6 +4859,34 @@
           "member": "DisplayName",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "DisplayName",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "DisplayName",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "DisplayName",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "DisplayName",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -8158,6 +8263,34 @@
           "member": "JobTitle",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "JobTitle",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "JobTitle",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "JobTitle",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "JobTitle",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -9240,6 +9373,34 @@
           "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsAuthorityState",
           "member": "Version",
           "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "Version",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "Version",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Version",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Version",
+          "surface": "api-response",
           "retentionPolicy": "transient-response"
         }
       ]
@@ -11532,6 +11693,34 @@
           "member": "StaffMemberId",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "StaffMemberId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "StaffMemberId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "StaffMemberId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "StaffMemberId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -11651,6 +11840,34 @@
           "type": "BunkFy.Modules.Staff.Contracts.StaffDataRightsAuthorityState",
           "member": "State",
           "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto",
+          "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto",
+          "member": "Status",
+          "surface": "api-response",
           "retentionPolicy": "transient-response"
         }
       ]
@@ -11974,6 +12191,485 @@
           "member": "WorkPhone",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-state",
+      "dataSubject": "staff",
+      "classification": "direct-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "staff-record-portability",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "staff-entry",
+        "staff-persistence"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-sensitive-profile",
+      "countryPolicyKey": "staff.profile",
+      "retentionPolicy": "staff-profile-lifecycle",
+      "rightsPolicy": "staff-profile-editable",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffMemberTenantExport",
+          "member": "ProfileState",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.staff-attribution",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "authorized-change-traceability"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-audit",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "staff-tenant-termination-export-fragment",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffMemberTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffPropertyAssignmentTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProcessingRestrictionTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProcessingRestrictionReceiptTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffEmploymentGovernanceTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffEmploymentGovernanceChangeReceiptTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffDataHoldTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffDataHoldReceiptTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffAnonymisationReceiptTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffRetentionAnonymisationReceiptTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.assignment-record",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "property-assignment-history",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "staff-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-directory",
+      "countryPolicyKey": "staff.assignment",
+      "retentionPolicy": "staff-assignment-history",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffPropertyAssignmentTenantExport",
+          "member": "AssignmentState",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-rights-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "data-rights-correction"
+      ],
+      "sources": [
+        "authorized-data-rights-case",
+        "system-generated"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-rights-correction-receipts",
+      "countryPolicyKey": "staff.data-rights.correction-receipt",
+      "retentionPolicy": "staff-data-rights-correction-receipt",
+      "rightsPolicy": "staff-data-rights-correction-accountability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffDataRightsCorrectionReceiptTenantExport",
+          "member": "DataRightsProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.processing-restriction",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "processing-restriction-enforcement",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "authorized-data-rights-case"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-processing-restrictions",
+      "countryPolicyKey": "staff.processing-restriction",
+      "retentionPolicy": "staff-processing-restriction-record",
+      "rightsPolicy": "staff-processing-restriction-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProcessingRestrictionTenantExport",
+          "member": "ProcessingRestriction",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProcessingRestrictionReceiptTenantExport",
+          "member": "ProcessingRestriction",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.employment-governance",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "employment-governance",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "staff-employment-governance"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-employment-governance",
+      "countryPolicyKey": "staff.employment-governance",
+      "retentionPolicy": "staff-employment-governance-current",
+      "rightsPolicy": "staff-employment-governance-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffEmploymentGovernanceTenantExport",
+          "member": "EmploymentGovernance",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.employment-governance-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "employment-governance-accountability",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "staff-employment-governance"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-employment-governance",
+      "countryPolicyKey": "staff.employment-governance",
+      "retentionPolicy": "staff-employment-governance-receipt",
+      "rightsPolicy": "staff-employment-governance-accountability",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffEmploymentGovernanceChangeReceiptTenantExport",
+          "member": "EmploymentGovernanceProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.data-hold",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "data-hold-enforcement",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "authorized-data-hold-workflow"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-data-holds",
+      "countryPolicyKey": "staff.data-hold",
+      "retentionPolicy": "staff-data-hold-lifecycle",
+      "rightsPolicy": "staff-data-hold-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffDataHoldTenantExport",
+          "member": "DataHold",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffDataHoldReceiptTenantExport",
+          "member": "DataHold",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.anonymisation-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "anonymisation-accountability",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "approved-data-rights-operation",
+        "retention-worker"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-anonymisation-proof",
+      "countryPolicyKey": "staff.data-rights-anonymisation",
+      "retentionPolicy": "staff-anonymisation-owner-proof",
+      "rightsPolicy": "staff-anonymisation-proof-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffAnonymisationReceiptTenantExport",
+          "member": "AnonymisationProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffAnonymisationTombstoneTenantExport",
+          "member": "AnonymisationProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffAnonymisationRestoreReceiptTenantExport",
+          "member": "AnonymisationProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention-execution",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-accountability",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "retention-worker"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-execution",
+      "countryPolicyKey": "staff.retention.staff-operational",
+      "retentionPolicy": "staff-retention-execution-evidence",
+      "rightsPolicy": "staff-retention-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffRetentionExecutionTenantExport",
+          "member": "RetentionExecution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.retention-proof",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "retention-accountability",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "retention-worker"
+      ],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-retention-proof",
+      "countryPolicyKey": "staff.retention.staff-operational",
+      "retentionPolicy": "staff-retention-anonymisation-proof",
+      "rightsPolicy": "staff-retention-proof-control",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffRetentionAnonymisationReceiptTenantExport",
+          "member": "RetentionProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
         }
       ]
     }

@@ -18,10 +18,16 @@ retention, and rights policies receive production approval.
 - check-in with explicit business date and actor provenance;
 - correlated no-show and check-out release flows that retain Inventory claims until release succeeds;
 - distinct scoped permissions for read, create, manage, cancel, check-in, no-show, and check-out;
+- directly projected, bounded operational directory pages with look-ahead
+  pagination and no aggregate hydration or count query;
 - public management API, Admin API, Admin CLI, PostgreSQL migration, and Worker composition;
 - a versioned local Inventory projection with live unit/block/allocation handlers and a rebuild task sourced from `IInventoryAvailabilityProjectionExportSource`;
 - an independent editable-details revision and provenance marker that does not move on allocation-only lifecycle changes;
-- a Reservations-owned before/after details history projection with management timeline reads;
+- a Reservations-owned before/after details history projection with bounded,
+  newest-first management timeline reads;
+- minimal management mutation receipts that disclose only identity, state, and
+  concurrency revisions, while explicit booking reads and history disable HTTP
+  storage;
 - revision-checked expected-time, guest/contact, and notes updates through the management API;
 - durable expected-arrival reminders dispatched two hours before the property-local arrival time, with revision/status checks that suppress stale, cancelled, checked-in, or already-arrived stays;
 - canonical primary-guest links with explicit replacement, inactive-link audit retention, and a dedicated scoped permission;
@@ -59,6 +65,39 @@ ordinal, mutates only a bounded batch, and persists its cursor and proof in the
 Reservations schema. `Reservations:Retention` may tune the interval, scan
 size, and mutation batch size; validated conservative defaults apply when the
 section is omitted.
+
+## Tenant Termination
+
+Reservations is the versioned `reservations` mandatory export owner and runs
+after Inventory. It streams 17 deterministic, flat record types directly from
+Reservations-owned booking, requested-unit, amendment, Guest-link, history,
+adapter-operation, reminder, data-rights, anonymisation, and retention tables.
+Consumer projections, inbox/outbox state, rebuild checkpoints, and the internal
+tenant-revision row are excluded.
+
+Export selection and relational writes share a tenant-scoped transaction key.
+The exporter holds that key in a repeatable-read transaction, validates the
+exact Workspaces process, epoch, and fence before and after streaming, and
+returns only the unchanged local monotonic revision as proof. Ordinary writes
+recheck the Workspaces fence while holding the same key and fail closed when
+admission cannot be established. PostgreSQL independently protects immutable
+data-rights receipts from update or deletion and anonymisation tombstones from
+deletion.
+
+The `Destroy` phase is also implemented as a Reservations-owned lifecycle. An
+active Reservations legal hold blocks before local progress begins. Otherwise,
+the owner closes ordinary, projection-rebuild, and scoped message creation
+paths, waits for any active outbox lease, and removes one non-empty batch of at
+most 500 rows per invocation in foreign-key-safe order. Retries resume the
+same operation; completion leaves only the closed tenant lifecycle row and an
+immutable, PII-free receipt with a chained removal proof. PostgreSQL protects
+that receipt independently, and a focused container scenario proves bounded
+resume, exact replay, conflict detection, tenant isolation, and post-close
+admission.
+
+The production coordinator, API/download route, protected replay, operator
+controls, and termination admission remain disabled until every mandatory
+owner and the cross-owner recovery contract are complete.
 
 The Guest restriction projection starts empty after its migration by design.
 Until `rebuild-reservation-guest-restrictions` completes for a tenant, missing

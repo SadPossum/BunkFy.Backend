@@ -16,9 +16,9 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
     IReservationCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<UpdateReservationGuestDetailsCommand, ReservationDto>
+    : ICommandHandler<UpdateReservationGuestDetailsCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         UpdateReservationGuestDetailsCommand command,
         CancellationToken cancellationToken)
     {
@@ -30,7 +30,7 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (!policyDecision.IsAllowed)
         {
-            return Result.Failure<ReservationDto>(
+            return Result.Failure<ReservationMutationReceiptDto>(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
@@ -40,7 +40,7 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
         }
 
         ReservationDetailsChangeOrigin origin = command.Origin switch
@@ -52,7 +52,7 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
         };
         if (origin == ReservationDetailsChangeOrigin.Unknown)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.DetailsChangeProvenanceInvalid);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.DetailsChangeProvenanceInvalid);
         }
 
         Result<ReservationDetailsChangeOutcome> changed = reservation.UpdateGuestDetails(
@@ -72,7 +72,7 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
             command.ExpectedArrivalTime,
             command.ExpectedDepartureTime);
         return changed.IsFailure
-            ? Result.Failure<ReservationDto>(changed.Error)
-            : Result.Success(reservation.ToDto());
+            ? Result.Failure<ReservationMutationReceiptDto>(changed.Error)
+            : Result.Success(reservation.ToMutationReceipt());
     }
 }

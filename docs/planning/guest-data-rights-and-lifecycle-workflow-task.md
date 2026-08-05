@@ -1,6 +1,6 @@
 # Guest Data Rights And Lifecycle Workflow Task
 
-Status: implementation in progress; Guests owner workflow through protected
+Status: current owner workflows implemented and locally verified; publication pending
 ledger and restore replay complete; Reservations owner workflow complete;
 Ingestion exact discovery and catalogue-driven export implemented
 
@@ -259,23 +259,24 @@ completion.
 Develop only the one new `DataRights` module. Existing modules may be changed as
 needed, one owner capability at a time.
 
-1. Scaffold DataRights contracts/domain/application/persistence, permissions,
+1. [Complete] Scaffold DataRights contracts/domain/application/persistence, permissions,
    case lifecycle, decision records and PII-free task model.
-2. Deliver a complete Guests vertical slice: scoped discovery, catalogue-driven
+2. [Complete] Deliver a complete Guests vertical slice: scoped discovery, catalogue-driven
    export, correction receipt, restriction, approved anonymisation, ledger and
    restore replay.
-3. Add Reservations, including unlinked booking discovery and historical
+3. [Complete] Add Reservations, including unlinked booking discovery and historical
    reservation/anonymisation semantics.
-4. Add Ingestion raw/normalized evidence with legal-hold and retained-source
+4. [Complete] Add Ingestion raw/normalized evidence with legal-hold and retained-source
    blockers.
-5. Add Inventory and Operations Notifications, then Staff/Workspaces where
+5. [Complete] Add Inventory and Operations Notifications, then Staff/Workspaces where
    guest or tenant-termination data requires them.
-6. Assemble protected export artifacts and the operator UI; add fresh-assurance
+6. [Complete] Assemble protected export artifacts and the operator UI; add fresh-assurance
    download and destructive-action flows.
-7. Add tenant-termination export, credential revocation, active-store deletion
+7. [Complete] Add tenant-termination export, credential revocation, active-store deletion
    and external ledger-delta restore gating.
-8. Run full migration, architecture, Docker, browser, security and exact-commit
-   publication gates before any real guest data is allowed.
+8. [Local verification complete; publication pending] Run migration,
+   architecture, focused relational/Docker, browser, and security gates, then
+   verify the published exact candidates before any real guest data is allowed.
 
 ### Completed Slice: Guests Discovery And Subject Selection
 
@@ -377,10 +378,10 @@ identity hints.
   receipt replay and conflicting idempotency-key rejection.
 - Full Docker suite: 36 passed with no skips.
 
-Restriction enforcement is implemented. Anonymisation is limited to a verified
-approval and immutable prepared work item; owner mutation, anonymisation
-receipts, ledger completion and restore replay are not yet implemented and must
-not be inferred from this foundation.
+This was the final incomplete state at the earlier Guests-only checkpoint.
+Guests owner mutation, immutable receipts, ledger completion, and restore
+replay are now implemented and verified by the dedicated restriction,
+anonymisation, retention, and tenant-termination task ledgers.
 
 ### Completed Slice: DataRights Decision And Approval Gate
 
@@ -429,13 +430,11 @@ The owner-local Guests restriction projection and dependent Reservations gate
 are complete. Their detailed implementation and acceptance plan is
 `guest-data-rights-restriction-task.md`.
 
-Guests-owned and Reservations-owned workflows through authoritative ledger
-completion and pre-ready restore replay are complete. Ingestion now owns the
-active domain slice. Its exact reservation-linked discovery and
-catalogue-driven export are implemented under
-`ingestion-data-rights-workflow-task.md`; destructive execution remains closed
-until Ingestion's legal-hold, retention, reprocessing, reconciliation,
-tombstone and restore guarantees are implemented together.
+Guests, Reservations, Ingestion, Inventory, Operations Notifications, Staff,
+and Workspaces now own their registered workflows through authoritative proof
+and restore-safe replay. Tenant-termination contributors are implemented for
+the current owner catalogue. The dedicated owner task ledgers remain the
+source of truth for each capability and its exact verification evidence.
 
 ## Acceptance Evidence
 

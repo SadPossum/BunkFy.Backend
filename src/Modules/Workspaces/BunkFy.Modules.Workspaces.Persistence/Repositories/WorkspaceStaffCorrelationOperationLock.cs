@@ -35,6 +35,8 @@ internal sealed class WorkspaceStaffCorrelationOperationLock(
                 .ConfigureAwait(false);
         }
 
+        await dbContext.AcquireOperationalMutationAdmissionAsync(
+            cancellationToken).ConfigureAwait(false);
         int affected = await dbContext.StaffAccessProcesses
             .Where(process => process.Id == anchorProcessId)
             .ExecuteUpdateAsync(

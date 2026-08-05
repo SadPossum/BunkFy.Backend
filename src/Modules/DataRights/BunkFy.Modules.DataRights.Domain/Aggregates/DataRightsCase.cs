@@ -33,11 +33,14 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
     public string? DecidedBy { get; private set; }
     public DateTimeOffset? DecidedAtUtc { get; private set; }
     public DataRightsApprovalPolicyEvidence? ApprovalPolicyEvidence { get; private set; }
+    public bool? TenantTerminationExportRequested { get; private set; }
+    public string? TenantTerminationPolicyEvidenceSha256 { get; private set; }
     public DataRightsRestrictionExecutionProof? RestrictionExecutionProof { get; private set; }
     public long? ExecutionRevision { get; private set; }
     public string? ExecutionStartedBy { get; private set; }
     public DateTimeOffset? ExecutionStartedAtUtc { get; private set; }
     public DateTimeOffset? DueAtUtc { get; private set; }
+    public DataRightsResponseDeadlinePolicyEvidence? ResponseDeadlinePolicyEvidence { get; private set; }
     public long Version { get; private set; } = 1;
     public string CreatedBy { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -51,7 +54,8 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
         string tenantId,
         DataRightsCaseRequest request,
         string actorId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        DataRightsResponseDeadlinePolicyEvidence? responseDeadlinePolicyEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -76,6 +80,15 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
             return Result.Failure<DataRightsCase>(DataRightsDomainErrors.TimestampInvalid);
         }
 
+        Result deadline = ValidateResponseDeadlinePolicyEvidence(
+            request,
+            nowUtc,
+            responseDeadlinePolicyEvidence);
+        if (deadline.IsFailure)
+        {
+            return Result.Failure<DataRightsCase>(deadline.Error);
+        }
+
         bool requesterNeedsVerification = request.RequesterRelationship is
             DataRightsRequesterRelation.DataSubject or
             DataRightsRequesterRelation.AuthorizedRepresentative;
@@ -92,6 +105,8 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
             RoutingStatus = requesterNeedsVerification
                 ? DataRightsRoutingState.Pending
                 : DataRightsRoutingState.NotRequired,
+            DueAtUtc = responseDeadlinePolicyEvidence?.DueAtUtc,
+            ResponseDeadlinePolicyEvidence = responseDeadlinePolicyEvidence,
             CreatedBy = actor.Value,
             CreatedAtUtc = nowUtc,
             LastChangedBy = actor.Value,
@@ -131,7 +146,8 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
     public Result RecordControllerRouting(
         long expectedVersion,
         string actorId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        DataRightsResponseDeadlinePolicyEvidence? responseDeadlinePolicyEvidence = null)
     {
         Result ready = this.EnsureTransition(
             expectedVersion,
@@ -143,9 +159,30 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
             return ready;
         }
 
-        if (this.RoutingStatus != DataRightsRoutingState.Pending)
+        bool needsDeadline = this.RequiresResponseDeadline();
+        bool legacyRoutedWithoutDeadline =
+            needsDeadline &&
+            this.RoutingStatus == DataRightsRoutingState.Routed &&
+            this.ResponseDeadlinePolicyEvidence is null;
+        if (this.RoutingStatus != DataRightsRoutingState.Pending &&
+            !legacyRoutedWithoutDeadline)
         {
             return Result.Failure(DataRightsDomainErrors.TransitionInvalid);
+        }
+
+        if (needsDeadline)
+        {
+            Result assigned = this.AssignResponseDeadlinePolicyEvidence(
+                responseDeadlinePolicyEvidence);
+            if (assigned.IsFailure)
+            {
+                return assigned;
+            }
+        }
+        else if (responseDeadlinePolicyEvidence is not null)
+        {
+            return Result.Failure(
+                DataRightsDomainErrors.ResponseDeadlinePolicyEvidenceInvalid);
         }
 
         this.RoutingStatus = DataRightsRoutingState.Routed;
@@ -177,10 +214,85 @@ public sealed partial class DataRightsCase : ScopedAggregateRoot<Guid>
             return Result.Failure(DataRightsDomainErrors.ControllerRoutingRequired);
         }
 
+        if (this.RequiresResponseDeadline() &&
+            (this.ResponseDeadlinePolicyEvidence is null || this.DueAtUtc is null))
+        {
+            return Result.Failure(DataRightsDomainErrors.ResponseDeadlinePolicyRequired);
+        }
+
         this.Status = DataRightsCaseState.Discovery;
         this.CompleteChange(actorId, nowUtc);
         return Result.Success();
     }
+
+    private static Result ValidateResponseDeadlinePolicyEvidence(
+        DataRightsCaseRequest request,
+        DateTimeOffset createdAtUtc,
+        DataRightsResponseDeadlinePolicyEvidence? evidence)
+    {
+        if (evidence is null)
+        {
+            return Result.Success();
+        }
+
+        bool requiresDeadline = request.Kind == DataRightsCaseKind.GuestRights &&
+            request.RequesterRelationship is
+                DataRightsRequesterRelation.DataSubject or
+                DataRightsRequesterRelation.AuthorizedRepresentative;
+        return requiresDeadline &&
+            evidence.HasValidShape() &&
+            request.PropertyId == evidence.PropertyId &&
+            evidence.ReceivedAtUtc == createdAtUtc
+                ? Result.Success()
+                : Result.Failure(
+                    DataRightsDomainErrors.ResponseDeadlinePolicyEvidenceInvalid);
+    }
+
+    private Result AssignResponseDeadlinePolicyEvidence(
+        DataRightsResponseDeadlinePolicyEvidence? evidence)
+    {
+        if (this.ResponseDeadlinePolicyEvidence is not null)
+        {
+            if (!this.ResponseDeadlinePolicyEvidence.HasValidShape() ||
+                this.DueAtUtc != this.ResponseDeadlinePolicyEvidence.DueAtUtc)
+            {
+                return Result.Failure(
+                    DataRightsDomainErrors.ResponseDeadlinePolicyEvidenceInvalid);
+            }
+
+            return evidence is null ||
+                this.ResponseDeadlinePolicyEvidence.HasSameCoordinates(evidence)
+                    ? Result.Success()
+                    : Result.Failure(
+                        DataRightsDomainErrors.ResponseDeadlinePolicyEvidenceInvalid);
+        }
+
+        if (evidence is null)
+        {
+            return Result.Failure(DataRightsDomainErrors.ResponseDeadlinePolicyRequired);
+        }
+
+        if (!evidence.HasValidShape() ||
+            this.PropertyId != evidence.PropertyId ||
+            this.CreatedAtUtc != evidence.ReceivedAtUtc)
+        {
+            return Result.Failure(
+                DataRightsDomainErrors.ResponseDeadlinePolicyEvidenceInvalid);
+        }
+
+        this.ResponseDeadlinePolicyEvidence = evidence;
+        this.DueAtUtc = evidence.DueAtUtc;
+        return this.DueAtUtc == evidence.DueAtUtc
+            ? Result.Success()
+            : Result.Failure(
+                DataRightsDomainErrors.ResponseDeadlinePolicyEvidenceInvalid);
+    }
+
+    private bool RequiresResponseDeadline() =>
+        this.Kind == DataRightsCaseKind.GuestRights &&
+        this.RequesterRelationship is
+            DataRightsRequesterRelation.DataSubject or
+            DataRightsRequesterRelation.AuthorizedRepresentative;
 
     public Result Cancel(long expectedVersion, string actorId, DateTimeOffset nowUtc)
     {

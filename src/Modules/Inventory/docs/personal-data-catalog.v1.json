@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "inventory.personal-data",
-  "catalogVersion": 1,
+  "catalogVersion": 4,
   "module": "inventory",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -55,6 +55,18 @@
         "permission:inventory.blocks.manage",
         "permission:inventory.configure"
       ]
+    },
+    {
+      "id": "inventory-tenant-destruction-proof",
+      "scope": "tenant-termination-control-and-accountability-proof",
+      "readers": [
+        "permission:data-rights.tenant-termination",
+        "system:authorized-audit-consumer",
+        "system:tenant-termination-coordinator"
+      ],
+      "writers": [
+        "system:authorized-tenant-termination-owner"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -94,6 +106,20 @@
       "legalHoldBehavior": "not-applicable"
     },
     {
+      "id": "inventory-tenant-termination-export-fragment",
+      "approvalState": "engineering-default",
+      "startsAt": "authorized-tenant-export-started",
+      "endsAt": "authorized-tenant-export-completed",
+      "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "inventory-tenant-destruction-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-inventory-tenant-destruction-started",
+      "endsAt": "approved-minimum-termination-proof-retention-completed",
+      "legalHoldBehavior": "retain-minimum-required-termination-proof"
+    },
+    {
       "id": "projection-rebuild-transfer",
       "approvalState": "engineering-default",
       "startsAt": "projection-export-created",
@@ -125,31 +151,38 @@
   "rightsPolicies": [
     {
       "id": "guest-allocation-data",
-      "export": "include-in-authorized-reservation-export",
+      "export": "include-in-authorized-reservation-or-tenant-export",
       "correction": "correct-through-authoritative-reservation-allocation-workflow",
       "restriction": "suppress-non-required-allocation-use",
       "erasure": "delete-or-pseudonymize-after-approved-reservation-retention"
     },
     {
       "id": "inventory-anonymisation-accountability",
-      "export": "include-minimum-anonymisation-proof-in-authorized-case-ledger",
+      "export": "include-minimum-anonymisation-proof-in-authorized-case-ledger-or-tenant-export",
       "correction": "immutable-owner-receipt-and-monotonic-tombstone-only",
       "restriction": "exclude-anonymised-allocation-from-ordinary-surfaces",
       "erasure": "retain-pii-free-proof-and-reapply-after-restore"
     },
     {
       "id": "operational-free-text",
-      "export": "include-after-authorized-subject-review",
+      "export": "include-after-authorized-subject-review-or-tenant-export",
       "correction": "replace-through-authorized-inventory-workflow",
       "restriction": "restrict-and-manually-review-subject-references",
       "erasure": "redact-subject-references-or-delete-after-approved-retention"
     },
     {
       "id": "staff-audit-attribution",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "append-corrective-operational-action",
       "restriction": "retain-minimum-required-audit-attribution",
       "erasure": "pseudonymize-subject-to-minimum-audit-receipt"
+    },
+    {
+      "id": "inventory-tenant-destruction-proof-control",
+      "export": "include-in-authorized-tenant-termination-audit",
+      "correction": "append-a-corrective-control-plane-record",
+      "restriction": "retain-only-the-minimum-owner-proof",
+      "erasure": "remove-after-approved-proof-retention"
     }
   ],
   "fields": [
@@ -184,6 +217,27 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAnonymisationReceiptTenantExport",
+          "member": "Proof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAnonymisationRestoreReceiptTenantExport",
+          "member": "Proof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAnonymisationTombstoneTenantExport",
+          "member": "Proof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Modules.Inventory.Application",
           "type": "BunkFy.Modules.Inventory.Application.Commands.ApplyInventoryAllocationAnonymisationCommand",
@@ -643,6 +697,27 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionTenantExport",
+          "member": "Payload",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationTenantExport",
+          "member": "Payload",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationUnitTenantExport",
+          "member": "Payload",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Modules.Inventory.Application",
           "type": "BunkFy.Modules.Inventory.Application.Ports.BedRetirementImpactSnapshot",
@@ -1975,6 +2050,20 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationAmendmentDecisionTenantExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAllocationTenantExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
           "assembly": "BunkFy.Modules.Inventory.Application",
           "type": "BunkFy.Modules.Inventory.Application.Ports.BedRetirementImpactSnapshot",
           "member": "AffectedReservationIds",
@@ -2228,16 +2317,39 @@
         "api-input",
         "api-response",
         "application-command",
+        "data-rights-export",
         "domain-event",
         "persistence"
       ],
       "allowedBoundaries": [
+        "cross-module",
         "customer-api",
         "intra-module",
         "support"
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryBedRetirementTenantExport",
+          "member": "Reason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryManualBlockTenantExport",
+          "member": "Reason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryRoomRetirementTenantExport",
+          "member": "Reason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Modules.Inventory.Api",
           "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CreateManualBlockGroupRequest",
@@ -2391,6 +2503,27 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAnonymisationReceiptTenantExport",
+          "member": "ActorId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryBedRetirementTenantExport",
+          "member": "RequestedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryRoomRetirementTenantExport",
+          "member": "RequestedBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Modules.Inventory.Application",
           "type": "BunkFy.Modules.Inventory.Application.Commands.ConfigureRoomSalesModeCommand",
@@ -3175,20 +3308,6 @@
           "assembly": "BunkFy.Modules.Inventory.Contracts",
           "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto",
           "member": "Version",
-          "surface": "api-response",
-          "retentionPolicy": "transient-response"
-        },
-        {
-          "assembly": "BunkFy.Modules.Inventory.Contracts",
-          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockGroupDto",
-          "member": "BlockGroupId",
-          "surface": "api-response",
-          "retentionPolicy": "transient-response"
-        },
-        {
-          "assembly": "BunkFy.Modules.Inventory.Contracts",
-          "type": "BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockGroupDto",
-          "member": "Blocks",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
         },
@@ -4329,6 +4448,63 @@
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
         }
+      ]
+    },
+    {
+      "id": "inventory.tenant-destruction.owner-proof",
+      "dataSubject": "subject-scoped",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-termination-safety",
+        "owner-proof-correlation",
+        "destruction-accountability"
+      ],
+      "sources": [
+        "approved-tenant-termination-case",
+        "inventory-owner-destruction"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-tenant-destruction-proof",
+      "countryPolicyKey": "inventory.tenant-destruction.owner-proof",
+      "retentionPolicy": "inventory-tenant-destruction-proof",
+      "rightsPolicy": "inventory-tenant-destruction-proof-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "processor"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "OperationId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "RequestSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "SelectedRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "ResultingRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "BatchSize", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "Stage", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "RemovedRecordCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "CompletedBatchCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "ProofVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "RemovalProofSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "StartedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "UpdatedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyOperation", "member": "ConcurrencyVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "OperationId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "RequestSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "SelectedRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "ResultingRevision", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "BatchSize", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "RemovedRecordCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "CompletedBatchCount", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "RemovalProofVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "RemovalProofSha256", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "StartedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Inventory.Persistence", "type": "BunkFy.Modules.Inventory.Persistence.TenantTermination.InventoryTenantDestroyReceipt", "member": "CompletedAtUtc", "surface": "persistence" }
       ]
     }
   ]

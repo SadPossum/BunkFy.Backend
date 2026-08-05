@@ -12,7 +12,8 @@ public static class BunkFyProductionDeploymentExtensions
 {
     public static IHostApplicationBuilder AddBunkFyProductionDeployment(
         this IHostApplicationBuilder builder,
-        BunkFyDeploymentSurface surface)
+        BunkFyDeploymentSurface surface,
+        bool? fileManagementEnabled = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -26,6 +27,8 @@ public static class BunkFyProductionDeploymentExtensions
             .GetSection(BunkFyDeploymentOptions.SectionName);
         BunkFyDeploymentOptions options =
             section.Get<BunkFyDeploymentOptions>() ?? new();
+        bool resolvedFileManagementEnabled = fileManagementEnabled ??
+            builder.Configuration.GetValue<bool>("FileManagement:Enabled");
         string[] failures = BunkFyDeploymentOptionsValidation.Validate(
             options,
             builder.Environment.IsProduction(),
@@ -36,7 +39,7 @@ public static class BunkFyProductionDeploymentExtensions
                 .Get<ProductionDataProtectionOptions>() ?? new(),
             builder.Configuration.GetSection(MinioFileStorageOptions.SectionName)
                 .Get<MinioFileStorageOptions>() ?? new(),
-            builder.Configuration.GetValue<bool>("FileManagement:Enabled"));
+            resolvedFileManagementEnabled);
         if (failures.Length > 0)
         {
             throw new OptionsValidationException(
@@ -46,7 +49,10 @@ public static class BunkFyProductionDeploymentExtensions
         }
 
         builder.Services.AddSingleton<BunkFyDeploymentRegistrationMarker>();
-        builder.Services.AddSingleton(new BunkFyDeploymentSurfaceRegistration(surface));
+        builder.Services.AddSingleton(
+            new BunkFyDeploymentSurfaceRegistration(
+                surface,
+                resolvedFileManagementEnabled));
         builder.Services
             .AddOptions<BunkFyDeploymentOptions>()
             .Bind(section)

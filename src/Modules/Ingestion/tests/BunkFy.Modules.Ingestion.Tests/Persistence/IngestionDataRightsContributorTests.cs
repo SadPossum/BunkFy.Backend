@@ -1,11 +1,14 @@
 namespace BunkFy.Modules.Ingestion.Tests;
 
 using System.Security.Cryptography;
+using System.Text;
 using BunkFy.Adapter.Abstractions;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Application.Ports;
+using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.LegalHolds;
+using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Persistence;
@@ -217,7 +220,9 @@ public sealed class IngestionDataRightsContributorTests
         Assert.Equal(result.RecordCount, sink.Records.Count);
         Assert.DoesNotContain(sink.Records, record => record.RecordId == unrelated.Id);
         Assert.Equal(2, sink.Records.Count(record =>
-            record.RecordType != IngestionDataRightsExportContributor.RawPayloadChunkRecordType));
+            record.RecordType is not (
+                IngestionDataRightsExportContributor.RawPayloadChunkRecordType or
+                IngestionDataRightsExportContributor.SensitiveHistoryChunkRecordType)));
 
         DataRightsExportRecord[] chunks = sink.Records
             .Where(record =>
@@ -241,10 +246,149 @@ public sealed class IngestionDataRightsContributorTests
                 payload.Length,
                 Field(record, "ingestion.operations.raw-payload-total-bytes").GetInt32());
         });
-        Assert.Equal(7, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(
+            IngestionTenantTerminationMetadata.PersonalDataCatalogVersion,
+            contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             IngestionDataRightsExportSchema.ExportSchemaVersion,
             contributor.Descriptor.ExportSchemaVersion);
+    }
+
+    [Fact]
+    public async Task Export_chunks_maximum_sensitive_history_deterministically()
+    {
+        TestScopeContext scope = new(ScopeId);
+        await using IngestionDbContext dbContext = CreateDbContext(scope);
+        Guid propertyId = Guid.NewGuid();
+        Guid reservationId = Guid.NewGuid();
+        Guid connectionId = Guid.NewGuid();
+        Guid receiptId = Guid.NewGuid();
+        SeedKnownProperty(dbContext, propertyId);
+
+        ObservationReceipt receipt = CreateReceipt(
+            receiptId,
+            propertyId,
+            connectionId,
+            "provider-large-history",
+            new string('a', 64),
+            Guid.NewGuid());
+        Guid purgeClaimId = Guid.NewGuid();
+        DateTimeOffset purgeAtUtc = Now.AddDays(31);
+        Assert.True(receipt.BeginRawPayloadPurge(
+            purgeClaimId,
+            purgeAtUtc,
+            purgeAtUtc.AddHours(-1)).IsSuccess);
+        Assert.True(receipt.CompleteRawPayloadPurge(
+            purgeClaimId,
+            purgeAtUtc.AddMinutes(1)).IsSuccess);
+
+        string baseline = new(
+            'b',
+            ReservationSourceLink.OperationalBaselineMaxLength);
+        string diff = new('d', ChangeProposal.DiffMaxLength);
+        string snapshot = new(
+            's',
+            ReservationDispatch.NormalizedSnapshotMaxLength);
+        ReservationSourceLink sourceLink = CreateLinkedSource(
+            Guid.NewGuid(),
+            propertyId,
+            reservationId,
+            connectionId,
+            receiptId,
+            "booking-com",
+            "provider-large-history",
+            contentHash: null,
+            baseline);
+        ChangeProposal proposal = ChangeProposal.Create(
+            Guid.NewGuid(),
+            ScopeId,
+            propertyId,
+            connectionId,
+            receiptId,
+            reservationId,
+            receipt.RawPayloadFileId,
+            baseReservationDetailsRevision: 1,
+            "staff-conflict",
+            diff,
+            Now).Value;
+        ReservationDispatch dispatch = ReservationDispatch.Create(
+            Guid.NewGuid(),
+            ScopeId,
+            sourceLink.Id,
+            ReservationDispatchTriggerKind.Observation,
+            receiptId,
+            receiptId,
+            connectionId,
+            propertyId,
+            reservationId,
+            ReservationDispatchKind.Amend,
+            "revision-1",
+            sourceSequence: 1,
+            snapshot,
+            expectedDetailsRevision: 1,
+            Now).Value;
+        Assert.True(dispatch.Complete(
+            ReservationDispatchState.Applied,
+            reservationId,
+            detailsRevision: 2,
+            reservationVersion: 2,
+            errorCode: null,
+            Now.AddDays(30),
+            Now.AddMinutes(1)).IsSuccess);
+        dbContext.AddRange(receipt, sourceLink, proposal, dispatch);
+        await dbContext.SaveChangesAsync();
+
+        IngestionDataRightsExportContributor contributor = new(
+            dbContext,
+            new IngestionDataRightsEvidenceGraphLoader(dbContext),
+            new TestRawPayloadStore(),
+            scope);
+        CollectingSink first = new();
+        DataRightsSubjectExportResult result = await contributor.ExportAsync(
+            RequestFor(propertyId, sourceLink),
+            first,
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
+        Assert.Equal(11, result.RecordCount);
+        DataRightsExportRecord[] chunks = first.Records
+            .Where(record => record.RecordType ==
+                IngestionDataRightsExportContributor
+                    .SensitiveHistoryChunkRecordType)
+            .ToArray();
+        Assert.Equal(7, chunks.Length);
+        Assert.Equal(
+            baseline,
+            ReconstructSensitiveHistory(
+                chunks,
+                "source-link.operational-baseline"));
+        Assert.Equal(
+            diff,
+            ReconstructSensitiveHistory(chunks, "proposal.diff"));
+        Assert.Equal(
+            snapshot,
+            ReconstructSensitiveHistory(
+                chunks,
+                "dispatch.normalized-snapshot"));
+        Assert.All(chunks, chunk => Assert.InRange(
+            Encoding.UTF8.GetByteCount(Field(
+                chunk,
+                "ingestion.normalized-history.chunk-content")
+                .GetRawText()),
+            1,
+            DataRightsExportLimits.MaxFieldValueBytes));
+
+        CollectingSink replay = new();
+        DataRightsSubjectExportResult replayResult =
+            await contributor.ExportAsync(
+                RequestFor(propertyId, sourceLink),
+                replay,
+                CancellationToken.None);
+        Assert.Equal(result.RecordCount, replayResult.RecordCount);
+        Assert.Equal(
+            first.Records.Select(RecordIdentity).ToArray(),
+            replay.Records.Select(RecordIdentity).ToArray());
+        Assert.Equal(2, contributor.Descriptor.ExportSchemaVersion);
     }
 
     [Fact]
@@ -489,7 +633,8 @@ public sealed class IngestionDataRightsContributorTests
         Guid receiptId,
         string sourceSystem,
         string sourceReference,
-        string? contentHash = null)
+        string? contentHash = null,
+        string operationalBaseline = "{\"guest\":\"Maya\"}")
     {
         string hash = contentHash ?? new string('a', 64);
         ReservationSourceLink sourceLink = ReservationSourceLink.Create(
@@ -514,7 +659,7 @@ public sealed class IngestionDataRightsContributorTests
             receiptId,
             "revision-1",
             sourceSequence: 1,
-            "{\"guest\":\"Maya\"}",
+            operationalBaseline,
             reservationId,
             detailsRevision: 1,
             keepActive: false,
@@ -524,6 +669,41 @@ public sealed class IngestionDataRightsContributorTests
             Now).IsSuccess);
         return sourceLink;
     }
+
+    private static string ReconstructSensitiveHistory(
+        IEnumerable<DataRightsExportRecord> records,
+        string contentKind)
+    {
+        byte[] content = records
+            .Where(record => string.Equals(
+                Field(
+                    record,
+                    "ingestion.normalized-history.chunk-metadata")
+                    .GetProperty("contentKind")
+                    .GetString(),
+                contentKind,
+                StringComparison.Ordinal))
+            .OrderBy(record => Field(
+                    record,
+                    "ingestion.normalized-history.chunk-metadata")
+                .GetProperty("chunkIndex")
+                .GetInt32())
+            .SelectMany(record => Field(
+                    record,
+                    "ingestion.normalized-history.chunk-content")
+                .GetBytesFromBase64())
+            .ToArray();
+        return Encoding.UTF8.GetString(content);
+    }
+
+    private static string RecordIdentity(DataRightsExportRecord record) =>
+        $"{record.RecordType}|{record.RecordId:N}|{record.RecordVersion}|" +
+        string.Join(
+            '|',
+            record.Fields
+                .OrderBy(field => field.FieldId, StringComparer.Ordinal)
+                .Select(field =>
+                    $"{field.FieldId}:{field.Value.GetRawText()}"));
 
     private static ObservationReceipt CreateReceipt(
         Guid receiptId,

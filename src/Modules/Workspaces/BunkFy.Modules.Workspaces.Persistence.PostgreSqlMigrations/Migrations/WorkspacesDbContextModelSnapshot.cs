@@ -739,8 +739,6 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("ScopeId", "Id");
-
                     b.HasIndex("ScopeId", "FenceId");
 
                     b.HasIndex("ScopeId", "IdempotencyKey")
@@ -1096,6 +1094,153 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation", b =>
+                {
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("BatchSize")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CompletedBatchCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("FenceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ProofVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RemovalProofSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("RemovedRecordCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RequestSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ResultingFenceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedFenceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Stage")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OperationId");
+
+                    b.HasIndex("ScopeId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "FenceId");
+
+                    b.ToTable("tenant_destroy_operations", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_workspaces_tenant_destroy_operation_batch", "\"BatchSize\" BETWEEN 1 AND 500");
+
+                            t.HasCheckConstraint("CK_workspaces_tenant_destroy_operation_progress", "\"Stage\" BETWEEN 1 AND 20 AND \"RemovedRecordCount\" >= 0 AND \"CompletedBatchCount\" >= 0 AND \"ProofVersion\" = 1 AND \"ConcurrencyVersion\" >= 1");
+
+                            t.HasCheckConstraint("CK_workspaces_tenant_destroy_operation_revisions", "\"SelectedFenceVersion\" >= 1 AND \"ResultingFenceVersion\" = \"SelectedFenceVersion\" + 2");
+
+                            t.HasCheckConstraint("CK_workspaces_tenant_destroy_operation_times", "\"UpdatedAtUtc\" >= \"StartedAtUtc\"");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt", b =>
+                {
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("BatchSize")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CloseFenceReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CompletedBatchCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("FenceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RemovalProofSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("RemovalProofVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("RemovedRecordCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RequestSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<long>("ResultingFenceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("SelectedFenceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OperationId");
+
+                    b.HasIndex("ScopeId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CloseFenceReceiptId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "FenceId");
+
+                    b.ToTable("tenant_destroy_receipts", "workspaces", t =>
+                        {
+                            t.HasCheckConstraint("CK_workspaces_tenant_destroy_receipt_progress", "((\"RemovedRecordCount\" = 0 AND \"CompletedBatchCount\" = 0) OR (\"RemovedRecordCount\" > 0 AND \"CompletedBatchCount\" > 0)) AND \"BatchSize\" BETWEEN 1 AND 500 AND \"RemovalProofVersion\" = 1");
+
+                            t.HasCheckConstraint("CK_workspaces_tenant_destroy_receipt_revisions", "\"SelectedFenceVersion\" >= 1 AND \"ResultingFenceVersion\" = \"SelectedFenceVersion\" + 2");
+
+                            t.HasCheckConstraint("CK_workspaces_tenant_destroy_receipt_times", "\"CompletedAtUtc\" >= \"StartedAtUtc\"");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Persistence.WorkspaceProjectionRebuildCheckpoint", b =>
                 {
                     b.Property<string>("ScopeId")
@@ -1347,6 +1492,33 @@ namespace BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.Migrations
                         });
 
                     b.Navigation("ProfileSnapshots");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "FenceId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFenceReceipt", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "CloseFenceReceiptId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BunkFy.Modules.Workspaces.Domain.Termination.WorkspaceTerminationFence", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "FenceId")
+                        .HasPrincipalKey("ScopeId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessPlan", b =>

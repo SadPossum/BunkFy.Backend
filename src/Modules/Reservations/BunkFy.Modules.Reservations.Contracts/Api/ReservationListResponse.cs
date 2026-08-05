@@ -1,7 +1,7 @@
 namespace BunkFy.Modules.Reservations.Contracts;
 
 public sealed record ReservationListResponse(
-    IReadOnlyCollection<ReservationDto> Reservations,
+    IReadOnlyCollection<ReservationListItemDto> Reservations,
     int Page,
     int PageSize,
-    int TotalCount);
+    bool HasMore);

@@ -17,6 +17,7 @@ internal sealed class DataRightsPropertyCreatedHandler(IDataRightsPropertyProjec
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
                 integrationEvent.Name,
+                integrationEvent.TimeZoneId,
                 integrationEvent.Status,
                 integrationEvent.PropertyVersion),
             cancellationToken);
@@ -34,6 +35,7 @@ internal sealed class DataRightsPropertyUpdatedHandler(IDataRightsPropertyProjec
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
                 integrationEvent.Name,
+                integrationEvent.TimeZoneId,
                 integrationEvent.Status,
                 integrationEvent.PropertyVersion),
             cancellationToken);
@@ -51,6 +53,7 @@ internal sealed class DataRightsPropertyRetiredHandler(IDataRightsPropertyProjec
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
                 string.Empty,
+                null,
                 PropertyStatus.Retired,
                 integrationEvent.PropertyVersion),
             cancellationToken);

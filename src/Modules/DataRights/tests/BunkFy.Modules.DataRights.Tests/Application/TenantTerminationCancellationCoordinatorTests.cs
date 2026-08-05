@@ -112,8 +112,8 @@ public sealed class TenantTerminationCancellationCoordinatorTests
             process.Version,
             Actor,
             Now.AddMinutes(1)).IsSuccess);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(TenantTerminationTestFixture.CompleteFreeze(
+            process,
             process.OperationRevision,
             process.Version,
             Actor,
@@ -179,8 +179,7 @@ public sealed class TenantTerminationCancellationCoordinatorTests
         new(new(
             OwnerKey,
             TenantTerminationContract.CurrentVersion,
-            [TenantTerminationContributionPhase.Restore],
-            [],
+            [new(TenantTerminationContributionPhase.Restore, [])],
             MandatoryForProduction: true,
             CatalogVersion: 1,
             CatalogSha256: CatalogDigest));

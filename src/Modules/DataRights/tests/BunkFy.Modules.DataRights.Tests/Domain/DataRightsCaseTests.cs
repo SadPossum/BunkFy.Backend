@@ -51,13 +51,82 @@ public sealed class DataRightsCaseTests
         Assert.True(dataRightsCase.RecordControllerRouting(
             2,
             "user:operator-b",
-            Now.AddMinutes(2)).IsSuccess);
+            Now.AddMinutes(2),
+            CreateDeadlineEvidence(dataRightsCase.PropertyId!.Value, Now.AddMinutes(2))).IsSuccess);
         Assert.True(dataRightsCase.BeginDiscovery(
             3,
             "user:operator-b",
             Now.AddMinutes(3)).IsSuccess);
         Assert.Equal(DataRightsCaseState.Discovery, dataRightsCase.Status);
         Assert.Equal(4, dataRightsCase.Version);
+    }
+
+    [Fact]
+    public void External_guest_routing_fails_closed_until_deadline_evidence_is_available()
+    {
+        DataRightsCase dataRightsCase = Create(
+            Guid.NewGuid(),
+            DataRightsRequesterRelation.DataSubject);
+
+        Result result = dataRightsCase.RecordControllerRouting(
+            1,
+            "user:operator-b",
+            Now.AddMinutes(1));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("DataRights.ResponseDeadlinePolicyRequired", result.Error.Code);
+        Assert.Equal(DataRightsRoutingState.Pending, dataRightsCase.RoutingStatus);
+        Assert.Equal(1, dataRightsCase.Version);
+    }
+
+    [Fact]
+    public void Deadline_evidence_can_be_frozen_at_intake_and_reused_during_routing()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.AccessExport,
+            DataRightsRequesterRelation.DataSubject).Value;
+        DataRightsResponseDeadlinePolicyEvidence evidence =
+            CreateDeadlineEvidence(propertyId, Now);
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator-a",
+            Now,
+            evidence).Value;
+
+        Assert.Equal(evidence.DueAtUtc, dataRightsCase.DueAtUtc);
+        Assert.Same(evidence, dataRightsCase.ResponseDeadlinePolicyEvidence);
+        Assert.True(dataRightsCase.RecordControllerRouting(
+            1,
+            "user:operator-b",
+            Now.AddMinutes(1)).IsSuccess);
+    }
+
+    [Fact]
+    public void Deadline_evidence_for_another_property_is_rejected()
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            Guid.NewGuid(),
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.AccessExport,
+            DataRightsRequesterRelation.DataSubject).Value;
+
+        Result<DataRightsCase> result = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:operator-a",
+            Now,
+            CreateDeadlineEvidence(Guid.NewGuid(), Now));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            "DataRights.ResponseDeadlinePolicyEvidenceInvalid",
+            result.Error.Code);
     }
 
     [Fact]
@@ -620,6 +689,29 @@ public sealed class DataRightsCaseTests
             "  user:operator-a  ",
             Now).Value;
     }
+
+    private static DataRightsResponseDeadlinePolicyEvidence CreateDeadlineEvidence(
+        Guid propertyId,
+        DateTimeOffset evaluatedAtUtc) =>
+        DataRightsResponseDeadlinePolicyEvidence.Create(
+            propertyId,
+            7,
+            8,
+            "GB",
+            "development-hostel-example",
+            2,
+            new string('a', 64),
+            DataRightsResponseRight.Export,
+            "development-example",
+            0,
+            1,
+            0,
+            "Europe/London",
+            new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Now,
+            evaluatedAtUtc,
+            Now.AddMonths(1)).Value;
 
     private static DataRightsCase CreateReviewRequired()
         => CreateReviewRequired(

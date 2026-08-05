@@ -67,7 +67,7 @@ public sealed class ReservationsModule : IModule
                     request.ExpectedDepartureTime,
                     ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
-            .Produces<ReservationDto>(StatusCodes.Status200OK)
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Create,
@@ -118,9 +118,12 @@ public sealed class ReservationsModule : IModule
             ReservationListOrder? order,
             int? page,
             int? pageSize,
+            HttpContext httpContext,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            (await dispatcher.QueryAsync(
+        {
+            MarkPersonalDataResponse(httpContext);
+            return (await dispatcher.QueryAsync(
                 new ListReservationsQuery(
                     propertyId,
                     status,
@@ -128,7 +131,8 @@ public sealed class ReservationsModule : IModule
                     order ?? ReservationListOrder.CreatedDescending,
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
-                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
             .Produces<ReservationListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
@@ -138,11 +142,15 @@ public sealed class ReservationsModule : IModule
         group.MapGet("/{reservationId:guid}", async (
             Guid propertyId,
             Guid reservationId,
+            HttpContext httpContext,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            (await dispatcher.QueryAsync(
+        {
+            MarkPersonalDataResponse(httpContext);
+            return (await dispatcher.QueryAsync(
                 new GetReservationQuery(propertyId, reservationId),
-                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
             .Produces<ReservationDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
@@ -152,11 +160,22 @@ public sealed class ReservationsModule : IModule
         group.MapGet("/{reservationId:guid}/details-history", async (
             Guid propertyId,
             Guid reservationId,
+            int? page,
+            int? pageSize,
+            HttpContext httpContext,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            (await dispatcher.QueryAsync(
-                new GetReservationDetailsHistoryQuery(propertyId, reservationId),
-                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+        {
+            MarkPersonalDataResponse(httpContext);
+            return (await dispatcher.QueryAsync(
+                new GetReservationDetailsHistoryQuery(
+                    propertyId,
+                    reservationId,
+                    page ?? PageRequest.DefaultPage,
+                    pageSize ?? PageRequest.DefaultPageSize),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<ReservationDetailsHistoryListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Read,
@@ -193,6 +212,7 @@ public sealed class ReservationsModule : IModule
                     request.ExpectedDepartureTime),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Manage,
@@ -220,7 +240,7 @@ public sealed class ReservationsModule : IModule
                         actorId),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
-            .Produces<ReservationDto>(StatusCodes.Status200OK)
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Manage,
@@ -249,6 +269,7 @@ public sealed class ReservationsModule : IModule
                         actorId),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.ManageGuests,
@@ -269,7 +290,7 @@ public sealed class ReservationsModule : IModule
                     request.ExpectedVersion,
                     ResolveActor(httpContext, subjectResolver)),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
-            .Produces<ReservationDto>(StatusCodes.Status200OK)
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.Cancel,
@@ -296,6 +317,7 @@ public sealed class ReservationsModule : IModule
                         actorId),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.CheckIn,
@@ -322,6 +344,7 @@ public sealed class ReservationsModule : IModule
                         actorId),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.NoShow,
@@ -348,6 +371,7 @@ public sealed class ReservationsModule : IModule
                         actorId),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 ReservationsAdminPermissionCodes.CheckOut,
@@ -410,6 +434,8 @@ public sealed class ReservationsModule : IModule
         long ExpectedDetailsRevision);
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
+        new(ReservationsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(ReservationsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status409Conflict),
@@ -435,6 +461,13 @@ public sealed class ReservationsModule : IModule
         ApiErrorStatusCodeMap.Create(entries.Concat(
             ReservationsApplicationErrors.CountryPolicyDenials.Select(error =>
                 new ApiErrorStatusCode(error.Code, StatusCodes.Status409Conflict))).ToArray());
+
+    private static void MarkPersonalDataResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
 
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
     {

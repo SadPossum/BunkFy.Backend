@@ -58,13 +58,15 @@ The polling service runs one cycle at a time, supports graceful cancellation, an
 
 ## Local Status
 
-The host exposes loopback-bound-by-default endpoints:
+The host exposes loopback-bound-by-default endpoints in Development. Production
+admission keeps `/status` disabled or loopback-only:
 
 - `/health/live`: process is serving;
-- `/health/ready`: configuration, runner selection, and checkpoint lease were acquired;
+- `/health/ready`: runner selection, ingress token, and current material were
+  acquired; local-file mode also acquired its checkpoint lease;
 - `/status`: adapter type, connection id, current state, last cycle timestamps/outcome/error code, next cycle time, consecutive failures, and whether a checkpoint exists.
 
-Status never exposes tenant id, property id, checkpoint text, provider configuration, secret material, token source path/value, or payload data. It is factual process evidence, not a provider-health verdict.
+Status never exposes tenant id, property id, checkpoint text, provider configuration, secret material, token source path/value, or payload data. It is factual process evidence, not a provider-health verdict. Production release, service-base, coordination, and exposure approval is defined in [AdapterHost Production Admission](../operations/adapter-host-production-admission.md).
 
 ## Security And Reliability Invariants
 

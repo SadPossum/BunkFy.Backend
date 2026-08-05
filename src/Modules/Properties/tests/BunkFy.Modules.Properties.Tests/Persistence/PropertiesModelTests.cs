@@ -3,8 +3,10 @@ namespace BunkFy.Modules.Properties.Tests;
 using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Entities;
 using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Properties.Persistence.TenantTermination;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
 
@@ -43,6 +45,91 @@ public sealed class PropertiesModelTests
         Assert.Contains(
             propertyEntity.GetIndexes(),
             index => index.IsUnique && index.Properties.Select(property => property.Name).SequenceEqual([nameof(Property.ProjectionOrdinal)]));
+    }
+
+    [Fact]
+    public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
+    {
+        using PropertiesDbContext dbContext = CreateDbContext();
+
+        IEntityType revisionEntity = dbContext.Model.FindEntityType(
+            typeof(PropertiesTenantRevision))!;
+        IEntityType designRevisionEntity = dbContext
+            .GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(PropertiesTenantRevision))!;
+
+        Assert.Equal(
+            [nameof(PropertiesTenantRevision.ScopeId)],
+            revisionEntity.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(
+            revisionEntity.FindProperty(
+                nameof(PropertiesTenantRevision.Revision))!
+                .IsConcurrencyToken);
+        Assert.NotEmpty(revisionEntity.GetDeclaredQueryFilters());
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_properties_tenant_revision_positive",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_properties_tenant_revision_lifecycle",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Tenant_destruction_progress_and_receipt_are_scope_unique_and_constrained()
+    {
+        using PropertiesDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(PropertiesTenantDestroyOperation))!;
+        IEntityType receipt = designModel.FindEntityType(
+            typeof(PropertiesTenantDestroyReceipt))!;
+
+        Assert.Equal(
+            [nameof(PropertiesTenantDestroyOperation.OperationId)],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(operation.FindProperty(
+            nameof(PropertiesTenantDestroyOperation.ConcurrencyVersion))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            operation.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(PropertiesTenantDestroyOperation.ScopeId)
+                    ]));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_tenant_destroy_operation_batch");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_tenant_destroy_operation_progress");
+
+        Assert.Equal(
+            [nameof(PropertiesTenantDestroyReceipt.OperationId)],
+            receipt.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(PropertiesTenantDestroyReceipt.ScopeId)
+                    ]));
+        Assert.Contains(
+            receipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_tenant_destroy_receipt_progress");
     }
 
     private static PropertiesDbContext CreateDbContext()

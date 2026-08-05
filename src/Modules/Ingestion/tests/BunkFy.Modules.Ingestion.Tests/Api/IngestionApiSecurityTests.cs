@@ -2,12 +2,15 @@ namespace BunkFy.Modules.Ingestion.Tests.Api;
 
 using System.Reflection;
 using BunkFy.Adapter.Abstractions;
+using BunkFy.Modules.Ingestion.AdminApi;
 using BunkFy.Modules.Ingestion.Api;
 using BunkFy.Modules.Ingestion.Application.Queries;
 using BunkFy.Modules.Ingestion.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
+using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Security;
+using Gma.Framework.Tenancy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -18,6 +21,46 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class IngestionApiSecurityTests
 {
+    [Fact]
+    public void Sensitive_response_policies_disable_storage()
+    {
+        MethodInfo apiPolicy = typeof(IngestionModule).GetMethod(
+            "MarkSensitiveResponse",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        MethodInfo adminPolicy = typeof(IngestionAdminApiModule).GetMethod(
+            "MarkSensitiveResponse",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        DefaultHttpContext apiContext = new();
+        DefaultHttpContext adminContext = new();
+
+        apiPolicy.Invoke(null, [apiContext]);
+        adminPolicy.Invoke(null, [adminContext]);
+
+        AssertNoStore(apiContext);
+        AssertNoStore(adminContext);
+    }
+
+    [Fact]
+    public async Task Operational_routes_publish_bounded_response_contracts()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
+        builder.Services.AddSingleton<ITenantContext>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new IngestionModule().MapEndpoints(app);
+        new IngestionAdminApiModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+
+        AssertOperationalResponses(endpoints, "/api/ingestion/properties/{propertyId:guid}");
+        AssertOperationalResponses(endpoints, "/api/admin/ingestion/properties/{propertyId:guid}");
+    }
+
     [Fact]
     public async Task Configured_assurance_protects_credential_mutations_only()
     {
@@ -188,6 +231,84 @@ public sealed class IngestionApiSecurityTests
         Assert.Equal(expected, configured);
     }
 
+    private static void AssertOperationalResponses(IEnumerable<RouteEndpoint> endpoints, string routeBase)
+    {
+        string connections = $"{routeBase}/connections";
+        AssertResponse<AdapterConnectionListResponse>(endpoints, HttpMethods.Get, connections);
+        AssertResponse<AdapterConnectionDto>(endpoints, HttpMethods.Get, $"{connections}/{{connectionId:guid}}");
+        AssertResponse<AdapterConnectionMutationReceiptDto>(endpoints, HttpMethods.Post, connections);
+        AssertResponse<AdapterConnectionMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Put,
+            $"{connections}/{{connectionId:guid}}");
+        AssertResponse<AdapterConnectionMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{connections}/{{connectionId:guid}}/enable");
+        AssertResponse<AdapterIngressCredentialListResponse>(
+            endpoints,
+            HttpMethods.Get,
+            $"{connections}/{{connectionId:guid}}/credentials");
+        AssertResponse<CreateAdapterIngressCredentialResponse>(
+            endpoints,
+            HttpMethods.Post,
+            $"{connections}/{{connectionId:guid}}/credentials");
+        AssertResponse<AdapterIngressCredentialMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{connections}/{{connectionId:guid}}/credentials/{{credentialId:guid}}/revoke");
+
+        string runs = $"{routeBase}/runs";
+        AssertResponse<IngestionRunListResponse>(endpoints, HttpMethods.Get, runs);
+        AssertResponse<IngestionRunDto>(endpoints, HttpMethods.Get, $"{runs}/{{runId:guid}}");
+
+        string receipts = $"{routeBase}/receipts";
+        AssertResponse<ObservationReceiptListResponse>(endpoints, HttpMethods.Get, receipts);
+        AssertResponse<ObservationReceiptDto>(
+            endpoints,
+            HttpMethods.Get,
+            $"{receipts}/{{receiptId:guid}}");
+
+        string attempts = $"{routeBase}/reprocessing-attempts";
+        AssertResponse<ObservationReprocessingAttemptListResponse>(endpoints, HttpMethods.Get, attempts);
+        AssertResponse<ObservationReprocessingAttemptDetailsDto>(
+            endpoints,
+            HttpMethods.Get,
+            $"{attempts}/{{attemptId:guid}}");
+
+        string proposals = $"{routeBase}/proposals";
+        AssertResponse<ChangeProposalListResponse>(endpoints, HttpMethods.Get, proposals);
+        AssertResponse<ChangeProposalDto>(endpoints, HttpMethods.Get, $"{proposals}/{{proposalId:guid}}");
+        AssertResponse<ChangeProposalMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{proposals}/{{proposalId:guid}}/accept");
+        AssertResponse<ChangeProposalMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{proposals}/{{proposalId:guid}}/reject");
+    }
+
+    private static void AssertResponse<TResponse>(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route)
+    {
+        RouteEndpoint endpoint = Assert.Single(endpoints, candidate =>
+            string.Equals(
+                candidate.RoutePattern.RawText?.Trim('/'),
+                route.Trim('/'),
+                StringComparison.Ordinal) &&
+            candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                method,
+                StringComparer.Ordinal) == true);
+        IProducesResponseTypeMetadata response = Assert.Single(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+
+        Assert.Equal(typeof(TResponse), response.Type);
+    }
+
     private static void AssertPermission(
         IEnumerable<RouteEndpoint> endpoints,
         string method,
@@ -220,5 +341,12 @@ public sealed class IngestionApiSecurityTests
         Span<byte> bytes = stackalloc byte[16];
         BitConverter.TryWriteBytes(bytes, value);
         return new Guid(bytes);
+    }
+
+    private static void AssertNoStore(HttpContext context)
+    {
+        Assert.Equal("no-store", context.Response.Headers.CacheControl);
+        Assert.Equal("no-cache", context.Response.Headers.Pragma);
+        Assert.Equal("0", context.Response.Headers.Expires);
     }
 }

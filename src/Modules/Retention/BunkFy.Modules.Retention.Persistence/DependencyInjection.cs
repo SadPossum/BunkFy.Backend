@@ -1,7 +1,10 @@
 namespace BunkFy.Modules.Retention.Persistence;
 
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Retention.Application.Ports;
 using BunkFy.Modules.Retention.Persistence.Repositories;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -36,6 +39,19 @@ public static class DependencyInjection
             provider.GetRequiredService<RetentionScheduleStateRepository>());
         builder.Services.TryAddScoped<IRetentionScheduleHealthReader>(provider =>
             provider.GetRequiredService<RetentionScheduleStateRepository>());
+        RetentionTenantTerminationExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationContributor,
+                RetentionTenantTerminationContributor>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationExportContributor,
+                RetentionTenantTerminationContributor>());
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(RetentionPersistenceAdmissionBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IUnitOfWork, RetentionUnitOfWork>());
         builder.Services.TryAddEnumerable(

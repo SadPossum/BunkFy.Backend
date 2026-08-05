@@ -46,7 +46,9 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            await executor.ExecuteAsync(
+        {
+            MarkPersonalDataResponse(httpContext);
+            return await executor.ExecuteAsync(
                 httpContext,
                 AdminOperation.Create(ReservationsAdminOperationNames.List, ReservationsAdminPermissions.Read),
                 requireTenant: true,
@@ -60,7 +62,9 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                         pageSize ?? PageRequest.DefaultPageSize),
                     token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
+        })
+            .Produces<ReservationListResponse>(StatusCodes.Status200OK);
 
         group.MapGet("/{reservationId:guid}", async (
             Guid propertyId,
@@ -69,30 +73,44 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            await executor.ExecuteAsync(
+        {
+            MarkPersonalDataResponse(httpContext);
+            return await executor.ExecuteAsync(
                 httpContext,
                 AdminOperation.Create(ReservationsAdminOperationNames.Get, ReservationsAdminPermissions.Read),
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetReservationQuery(propertyId, reservationId), token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
+        })
+            .Produces<ReservationDto>(StatusCodes.Status200OK);
 
         group.MapGet("/{reservationId:guid}/details-history", async (
             Guid propertyId,
             Guid reservationId,
+            int? page,
+            int? pageSize,
             HttpContext httpContext,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
-            await executor.ExecuteAsync(
+        {
+            MarkPersonalDataResponse(httpContext);
+            return await executor.ExecuteAsync(
                 httpContext,
                 AdminOperation.Create(ReservationsAdminOperationNames.History, ReservationsAdminPermissions.Read),
                 requireTenant: true,
                 token => dispatcher.QueryAsync(
-                    new GetReservationDetailsHistoryQuery(propertyId, reservationId),
+                    new GetReservationDetailsHistoryQuery(
+                        propertyId,
+                        reservationId,
+                        page ?? PageRequest.DefaultPage,
+                        pageSize ?? PageRequest.DefaultPageSize),
                     token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
+        })
+            .Produces<ReservationDetailsHistoryListResponse>(StatusCodes.Status200OK);
 
         group.MapPost("", async (
             Guid propertyId,
@@ -123,7 +141,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                         request.ExpectedDepartureTime),
                     token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPost("/{reservationId:guid}/cancel", async (
             Guid propertyId,
@@ -141,7 +160,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                     new CancelReservationCommand(propertyId, reservationId, request.ExpectedVersion),
                     token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPut("/{reservationId:guid}/guests", async (
             Guid propertyId,
@@ -166,7 +186,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                         Actor(httpContext)),
                     token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPut("/{reservationId:guid}/inventory", async (
             Guid propertyId,
@@ -192,7 +213,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                         Actor(httpContext)),
                     token),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPost("/{reservationId:guid}/check-in", async (
             Guid propertyId,
@@ -209,9 +231,10 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 token => request.Confirmed
                     ? dispatcher.SendAsync(new CheckInReservationCommand(
                         propertyId, reservationId, request.BusinessDate, request.ExpectedVersion, Actor(httpContext)), token)
-                    : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationDto>(AdminErrors.ConfirmationRequired)),
+                    : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPost("/{reservationId:guid}/no-show", async (
             Guid propertyId,
@@ -228,9 +251,10 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 token => request.Confirmed
                     ? dispatcher.SendAsync(new MarkReservationNoShowCommand(
                         propertyId, reservationId, request.BusinessDate, request.ExpectedVersion, Actor(httpContext)), token)
-                    : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationDto>(AdminErrors.ConfirmationRequired)),
+                    : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK);
 
         group.MapPost("/{reservationId:guid}/check-out", async (
             Guid propertyId,
@@ -247,9 +271,10 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 token => request.Confirmed
                     ? dispatcher.SendAsync(new CheckOutReservationCommand(
                         propertyId, reservationId, request.BusinessDate, request.ExpectedVersion, Actor(httpContext)), token)
-                    : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationDto>(AdminErrors.ConfirmationRequired)),
+                    : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<ReservationMutationReceiptDto>(StatusCodes.Status200OK);
     }
 
     public sealed record CreateReservationRequest(
@@ -283,6 +308,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
         long ExpectedDetailsRevision);
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+        new(ReservationsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(ReservationsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status409Conflict),
@@ -299,6 +326,13 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
         new(ReservationsApplicationErrors.ReservationGuestLinkInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.ReservationGuestRoleOccupied.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InvalidTransition.Code, StatusCodes.Status409Conflict));
+
+    private static void MarkPersonalDataResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
 
     private static string Actor(HttpContext context)
     {

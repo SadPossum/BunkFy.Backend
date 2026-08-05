@@ -41,7 +41,11 @@ public sealed class ChangeProposalQueryHandlerTests
             CancellationToken cancellationToken)
         {
             this.WasCalled = true;
-            return Task.FromResult(new ChangeProposalListResponse([], pageRequest.Page, pageRequest.PageSize, 0));
+            return Task.FromResult(new ChangeProposalListResponse(
+                [],
+                pageRequest.Page,
+                pageRequest.PageSize,
+                HasMore: false));
         }
     }
 }

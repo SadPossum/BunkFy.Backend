@@ -493,7 +493,11 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         public Task<WorkspaceStaffOnboardingListResponse> ListActionableAsync(
             PageRequest page,
             CancellationToken cancellationToken) => Task.FromResult(
-                new WorkspaceStaffOnboardingListResponse([], page.Page, page.PageSize));
+                new WorkspaceStaffOnboardingListResponse(
+                    [],
+                    page.Page,
+                    page.PageSize,
+                    HasMore: false));
 
         public Task ReloadAsync(
             WorkspaceStaffOnboarding application,

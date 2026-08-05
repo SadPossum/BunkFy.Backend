@@ -76,7 +76,7 @@ public sealed class WorkspaceMemberAccessManagerTests
             new WorkspaceMemberAccessUpdate(profiles.Profile.Id, []),
             Actor);
 
-        profiles.Profile = Profile(permissions: [AccessControlProfilePermissionCodes.Manage]);
+        profiles.Profile = Profile(permissions: [AccessControlPermissionGrants.OwnerWildcard]);
         Result<WorkspaceMemberAccessDto> nonProduct = await manager.UpdateAsync(
             "member-a",
             new WorkspaceMemberAccessUpdate(profiles.Profile.Id, []),

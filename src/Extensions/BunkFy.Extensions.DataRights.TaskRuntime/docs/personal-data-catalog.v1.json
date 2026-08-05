@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "task-runtime.personal-data",
+  "catalogVersion": 1,
+  "module": "task-runtime",
+  "approvalState": "engineering-default",
+  "accessPolicies": [
+    {
+      "id": "task-runtime-operational-state",
+      "scope": "task-runtime-maintenance-and-tenant-termination",
+      "readers": ["system:task-runtime", "system:data-rights-termination"],
+      "writers": ["system:task-runtime"]
+    }
+  ],
+  "retentionPolicies": [
+    {
+      "id": "task-runtime-product-configured-retention",
+      "approvalState": "engineering-default",
+      "startsAt": "task-copy-created",
+      "endsAt": "product-configured-retention-or-approved-tenant-termination",
+      "legalHoldBehavior": "product-policy-required"
+    }
+  ],
+  "rightsPolicies": [
+    {
+      "id": "task-runtime-operational-copy",
+      "export": "excluded-non-authoritative-operational-copy",
+      "correction": "correct-through-authoritative-task-owning-domain",
+      "restriction": "close-scope-and-drain-active-work",
+      "erasure": "destroy-after-approved-tenant-termination"
+    }
+  ],
+  "fields": [
+    {
+      "id": "task-runtime.actor-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["task-execution", "tenant-termination"],
+      "sources": ["auth", "task-runtime"],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "task-runtime-operational-state",
+      "countryPolicyKey": "task-runtime.actor-id",
+      "retentionPolicy": "task-runtime-product-configured-retention",
+      "rightsPolicy": "task-runtime-operational-copy",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "RequestedBy",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        },
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "CancellationRequestedBy",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        },
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskControlMessageState",
+          "member": "RequestedBy",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        }
+      ]
+    },
+    {
+      "id": "task-runtime.correlation-id",
+      "dataSubject": "subject-scoped",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["task-execution", "tenant-termination"],
+      "sources": ["product-task-owner", "task-runtime"],
+      "authoritativeOwner": "product-task-owner",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "task-runtime-operational-state",
+      "countryPolicyKey": "task-runtime.correlation-id",
+      "retentionPolicy": "task-runtime-product-configured-retention",
+      "rightsPolicy": "task-runtime-operational-copy",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "CorrelationId",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        }
+      ]
+    },
+    {
+      "id": "task-runtime.deduplication-key",
+      "dataSubject": "subject-scoped",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": ["task-execution", "tenant-termination"],
+      "sources": ["product-task-owner", "task-runtime"],
+      "authoritativeOwner": "product-task-owner",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "task-runtime-operational-state",
+      "countryPolicyKey": "task-runtime.deduplication-key",
+      "retentionPolicy": "task-runtime-product-configured-retention",
+      "rightsPolicy": "task-runtime-operational-copy",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "DeduplicationKey",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        }
+      ]
+    },
+    {
+      "id": "task-runtime.operational-message",
+      "dataSubject": "subject-scoped",
+      "classification": "free-text",
+      "sensitivity": "elevated",
+      "purposes": ["task-execution", "tenant-termination"],
+      "sources": ["product-task-owner", "task-runtime"],
+      "authoritativeOwner": "product-task-owner",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "task-runtime-operational-state",
+      "countryPolicyKey": "task-runtime.operational-message",
+      "retentionPolicy": "task-runtime-product-configured-retention",
+      "rightsPolicy": "task-runtime-operational-copy",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "ProgressMessage",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        },
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "LastError",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        },
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskControlMessageState",
+          "member": "LastError",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        }
+      ]
+    },
+    {
+      "id": "task-runtime.payload",
+      "dataSubject": "subject-scoped",
+      "classification": "free-text",
+      "sensitivity": "elevated",
+      "purposes": ["task-execution", "tenant-termination"],
+      "sources": ["product-task-owner", "task-runtime"],
+      "authoritativeOwner": "product-task-owner",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "task-runtime-operational-state",
+      "countryPolicyKey": "task-runtime.payload",
+      "retentionPolicy": "task-runtime-product-configured-retention",
+      "rightsPolicy": "task-runtime-operational-copy",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "Payload",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        },
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskControlMessageState",
+          "member": "Payload",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        }
+      ]
+    },
+    {
+      "id": "task-runtime.scope-id",
+      "dataSubject": "subject-scoped",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["task-execution", "tenant-termination"],
+      "sources": ["workspaces", "task-runtime"],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "task-runtime-operational-state",
+      "countryPolicyKey": "task-runtime.scope-id",
+      "retentionPolicy": "task-runtime-product-configured-retention",
+      "rightsPolicy": "task-runtime-operational-copy",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        },
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskControlMessageState",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        }
+      ]
+    },
+    {
+      "id": "task-runtime.worker-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["task-execution", "tenant-termination"],
+      "sources": ["task-runtime", "worker-host"],
+      "authoritativeOwner": "worker-host",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "task-runtime-operational-state",
+      "countryPolicyKey": "task-runtime.worker-id",
+      "retentionPolicy": "task-runtime-product-configured-retention",
+      "rightsPolicy": "task-runtime-operational-copy",
+      "allowedSurfaces": ["persistence"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "LockedBy",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        },
+        {
+          "assembly": "Gma.Framework.Tasks.Infrastructure",
+          "type": "Gma.Framework.Tasks.Infrastructure.TaskRun",
+          "member": "NodeId",
+          "surface": "persistence",
+          "retentionPolicy": "task-runtime-product-configured-retention"
+        }
+      ]
+    }
+  ]
+}

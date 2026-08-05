@@ -16,7 +16,7 @@ internal sealed class ManualInventoryBlockCreator(
     ISystemClock clock,
     IIdGenerator idGenerator)
 {
-    public async Task<Result<ManualInventoryBlockGroupDto>> CreateAsync(
+    public async Task<Result<ManualInventoryBlockCreationResult>> CreateAsync(
         Guid propertyId,
         InventoryBlockTarget target,
         DateOnly arrival,
@@ -28,12 +28,12 @@ internal sealed class ManualInventoryBlockCreator(
         string? scopeId = scopeContext.ScopeId;
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeId))
         {
-            return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.TenantRequired);
+            return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.TenantRequired);
         }
 
         if (!await inventory.PropertyExistsAsync(propertyId, cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.PropertyNotFound);
+            return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.PropertyNotFound);
         }
 
         IReadOnlyCollection<InventoryUnitSnapshot> resolved = await inventory
@@ -44,17 +44,17 @@ internal sealed class ManualInventoryBlockCreator(
             InventoryUnitSnapshot? unit = resolved.SingleOrDefault();
             if (unit is null)
             {
-                return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.InventoryUnitNotFound);
+                return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.InventoryUnitNotFound);
             }
 
             if (!unit.Unit.IsTopologyActive)
             {
-                return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.InventoryUnitInactive);
+                return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.InventoryUnitInactive);
             }
 
             if (!unit.IsSellable)
             {
-                return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.InventoryUnitNotSellable);
+                return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.InventoryUnitNotSellable);
             }
         }
 
@@ -66,7 +66,7 @@ internal sealed class ManualInventoryBlockCreator(
             .ToArray();
         if (inventoryUnitIds.Length == 0)
         {
-            return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.BlockTargetEmpty);
+            return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.BlockTargetEmpty);
         }
 
         InventoryAvailabilityContextSnapshot context = await availability
@@ -82,12 +82,12 @@ internal sealed class ManualInventoryBlockCreator(
                 cancellationToken).ConfigureAwait(false);
         if (conflicts.HasManualBlockConflict)
         {
-            return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.BlockOverlap);
+            return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.BlockOverlap);
         }
 
         if (conflicts.HasActiveAllocationConflict)
         {
-            return Result.Failure<ManualInventoryBlockGroupDto>(InventoryApplicationErrors.BlockAllocationConflict);
+            return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.BlockAllocationConflict);
         }
 
         Guid blockGroupId = idGenerator.NewId();
@@ -109,7 +109,7 @@ internal sealed class ManualInventoryBlockCreator(
                 actorId);
             if (result.IsFailure)
             {
-                return Result.Failure<ManualInventoryBlockGroupDto>(result.Error);
+                return Result.Failure<ManualInventoryBlockCreationResult>(result.Error);
             }
 
             created.Add(result.Value);
@@ -120,6 +120,10 @@ internal sealed class ManualInventoryBlockCreator(
             inventoryUnitIds,
             cancellationToken).ConfigureAwait(false);
         await blocks.AddRangeAsync(created, cancellationToken).ConfigureAwait(false);
-        return Result.Success(created.ToGroupDto(blockGroupId));
+        return Result.Success(new ManualInventoryBlockCreationResult(blockGroupId, created));
     }
 }
+
+internal sealed record ManualInventoryBlockCreationResult(
+    Guid BlockGroupId,
+    IReadOnlyCollection<ManualInventoryBlock> Blocks);

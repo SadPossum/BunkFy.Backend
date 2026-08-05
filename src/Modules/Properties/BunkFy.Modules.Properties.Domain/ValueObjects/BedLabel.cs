@@ -4,7 +4,7 @@ using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Errors;
 using Gma.Framework.Results;
 
-public readonly record struct BedLabel
+public readonly record struct BedLabel : IComparable<BedLabel>
 {
     private readonly string? value;
 
@@ -24,6 +24,14 @@ public readonly record struct BedLabel
             ? Result.Success(new BedLabel(normalized))
             : Result.Failure<BedLabel>(PropertiesDomainErrors.BedLabelTooLong);
     }
+
+    public int CompareTo(BedLabel other) =>
+        StringComparer.Ordinal.Compare(this.Value, other.Value);
+
+    public static bool operator <(BedLabel left, BedLabel right) => left.CompareTo(right) < 0;
+    public static bool operator <=(BedLabel left, BedLabel right) => left.CompareTo(right) <= 0;
+    public static bool operator >(BedLabel left, BedLabel right) => left.CompareTo(right) > 0;
+    public static bool operator >=(BedLabel left, BedLabel right) => left.CompareTo(right) >= 0;
 
     public override string ToString() => this.Value;
 }

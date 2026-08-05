@@ -5,6 +5,7 @@ using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
+using BunkFy.Modules.Workspaces.Persistence.TenantTermination;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
@@ -26,6 +27,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IWorkspaceTerminationFenceRepository,
             WorkspaceTerminationFenceRepository>();
+        builder.Services.TryAddScoped<
+            IWorkspaceTenantDestructionOwner,
+            WorkspaceTenantDestructionOwner>();
         builder.Services.TryAddScoped<
             IWorkspaceStaffOnboardingRepository,
             WorkspaceStaffOnboardingRepository>();
@@ -71,6 +75,10 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectExportContributor,
                 WorkspacesDataRightsExportContributor>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationExportContributor,
+                WorkspacesTenantTerminationExportContributor>());
         builder.Services.TryAddScoped<
             IWorkspacePropertyProjectionRepository,
             WorkspacePropertyProjectionRepository>();

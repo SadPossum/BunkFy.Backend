@@ -13,5 +13,19 @@ public static class DataRightsAdminPermissionCodes
     public const string Restrict = DataRightsModuleMetadata.Name + ".restrict";
     public const string Erase = DataRightsModuleMetadata.Name + ".erase";
     public const string TerminateTenant = DataRightsModuleMetadata.Name + ".tenant-termination";
+    public const string TenantTerminationRead =
+        TerminateTenant + ".read";
+    public const string TenantTerminationRequest =
+        TerminateTenant + ".request";
+    public const string TenantTerminationApprove =
+        TerminateTenant + ".approve";
+    public const string TenantTerminationExecute =
+        TerminateTenant + ".execute";
+    public const string TenantTerminationRetry =
+        TerminateTenant + ".retry";
+    public const string TenantTerminationCancel =
+        TerminateTenant + ".cancel";
+    public const string TenantTerminationRecover =
+        TerminateTenant + ".recover";
     public const string Manage = DataRightsModuleMetadata.Name + ".manage";
 }

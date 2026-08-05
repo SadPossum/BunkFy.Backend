@@ -6,16 +6,12 @@ using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
 public sealed class TenantTerminationPersistenceIntegrationTests
 {
-    private const string BeforeTenantTerminationMigration =
-        "20260729222749_VersionScopedAnonymisationOwnerProtocol";
     private static readonly string Digest = new('a', 64);
     private static readonly DateTimeOffset Now =
         new(2026, 7, 31, 10, 0, 0, TimeSpan.Zero);
@@ -32,110 +28,110 @@ public sealed class TenantTerminationPersistenceIntegrationTests
         await postgreSql.StartAsync();
         string connectionString = postgreSql.GetConnectionString();
 
-        DataRightsCase firstCase = CreateCase("tenant-a");
-        await using (DataRightsDbContext previous = CreateDbContext(
+        await using DataRightsDbContext tenantA = CreateDbContext(
             connectionString,
-            "tenant-a"))
-        {
-            await previous.Database.GetService<IMigrator>()
-                .MigrateAsync(BeforeTenantTerminationMigration);
-            previous.Cases.Add(firstCase);
-            await previous.SaveChangesAsync();
-        }
+            "tenant-a");
+        await tenantA.Database.MigrateAsync();
+        Assert.Empty(await tenantA.Database.GetPendingMigrationsAsync());
 
+        DataRightsCase firstCase = CreateCase(
+            "tenant-a",
+            Now.AddMinutes(-3));
         TenantTerminationProcess firstProcess = PrepareProcess(
             "tenant-a",
-            firstCase.Id);
-        DataRightsCase secondCase = CreateCase("tenant-a");
+            firstCase);
+        DataRightsCase deniedCase = CreateDeniedCase(
+            "tenant-a",
+            Now.AddMinutes(-3));
+        tenantA.Cases.AddRange(firstCase, deniedCase);
+        tenantA.TenantTerminationProcesses.Add(firstProcess);
+        await tenantA.SaveChangesAsync();
+
+        TenantTerminationProcess duplicateActive =
+            TenantTerminationProcess.Prepare(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                deniedCase.Id,
+                deniedCase.DecisionRevision!.Value,
+                Guid.NewGuid(),
+                exportRequested: false,
+                Digest,
+                "owner:approver",
+                deniedCase.DecidedAtUtc!.Value,
+                "system:tenant-termination",
+                Now).Value;
+        tenantA.TenantTerminationProcesses.Add(duplicateActive);
+        DbUpdateException duplicateFailure =
+            await Assert.ThrowsAsync<DbUpdateException>(
+                () => tenantA.SaveChangesAsync());
+        Assert.Equal(
+            PostgresErrorCodes.UniqueViolation,
+            Assert.IsType<PostgresException>(
+                duplicateFailure.GetBaseException()).SqlState);
+        tenantA.ChangeTracker.Clear();
+
+        firstCase = await tenantA.Cases.SingleAsync(candidate =>
+            candidate.Id == firstCase.Id);
+        firstProcess = await tenantA.TenantTerminationProcesses
+            .SingleAsync(candidate => candidate.Id == firstProcess.Id);
+        CancelProcess(firstProcess);
+        Assert.True(firstCase.CompleteTenantTerminationCancellation(
+            firstProcess.ApprovalRevision,
+            firstProcess.PolicyEvidenceSha256,
+            firstCase.Version,
+            "system:tenant-termination",
+            Now.AddMinutes(6)).IsSuccess);
+        await tenantA.SaveChangesAsync();
+
+        DataRightsCase secondCase = CreateCase(
+            "tenant-a",
+            Now.AddMinutes(7));
         TenantTerminationProcess secondProcess = PrepareProcess(
             "tenant-a",
-            secondCase.Id);
-        await using (DataRightsDbContext tenantA = CreateDbContext(
-            connectionString,
-            "tenant-a"))
-        {
-            await tenantA.Database.MigrateAsync();
-            Assert.Equal(
-                firstCase.Id,
-                (await tenantA.Cases.SingleAsync()).Id);
-            Assert.Empty(await tenantA.Database.GetPendingMigrationsAsync());
+            secondCase);
+        Assert.True(secondProcess.BeginPhase(
+            TenantTerminationProcessPhase.Freeze,
+            secondProcess.Version,
+            "system:tenant-termination",
+            Now.AddMinutes(10)).IsSuccess);
+        tenantA.Cases.Add(secondCase);
+        tenantA.TenantTerminationProcesses.Add(secondProcess);
+        await tenantA.SaveChangesAsync();
 
-            tenantA.Cases.Add(secondCase);
-            tenantA.TenantTerminationProcesses.Add(firstProcess);
-            await tenantA.SaveChangesAsync();
+        TenantTerminationOwnerWorkItem mismatched = PrepareOwnerWork(
+            secondProcess,
+            firstCase.Id,
+            Guid.NewGuid());
+        tenantA.TenantTerminationOwnerWorkItems.Add(mismatched);
+        DbUpdateException mismatch =
+            await Assert.ThrowsAsync<DbUpdateException>(
+                () => tenantA.SaveChangesAsync());
+        Assert.Equal(
+            PostgresErrorCodes.ForeignKeyViolation,
+            Assert.IsType<PostgresException>(
+                mismatch.GetBaseException()).SqlState);
+        tenantA.ChangeTracker.Clear();
 
-            PostgresException duplicateActive =
-                await Assert.ThrowsAsync<PostgresException>(() =>
-                    tenantA.Database.ExecuteSqlInterpolatedAsync($"""
-                        INSERT INTO "data-rights"."tenant_termination_processes"
-                            ("Id", "IdempotencyKey", "CaseId",
-                             "ApprovalRevision", "TerminationEpoch",
-                             "ExportRequested", "PolicyEvidenceSha256",
-                             "ApprovedBy", "ApprovedAtUtc", "Phase", "Status",
-                             "OperationRevision", "OutcomeCode",
-                             "HoldReviewAtUtc", "CreatedBy", "CreatedAtUtc",
-                             "LastChangedBy", "LastChangedAtUtc", "Version",
-                             "ScopeId")
-                        VALUES
-                            ({secondProcess.Id}, {secondProcess.IdempotencyKey},
-                             {secondProcess.CaseId},
-                             {secondProcess.ApprovalRevision},
-                             {secondProcess.TerminationEpoch},
-                             {secondProcess.ExportRequested},
-                             {secondProcess.PolicyEvidenceSha256},
-                             {secondProcess.ApprovedBy},
-                             {secondProcess.ApprovedAtUtc},
-                             {(int)secondProcess.Phase},
-                             {(int)secondProcess.Status},
-                             {secondProcess.OperationRevision}, NULL, NULL,
-                             {secondProcess.CreatedBy},
-                             {secondProcess.CreatedAtUtc},
-                             {secondProcess.LastChangedBy},
-                             {secondProcess.LastChangedAtUtc},
-                             {secondProcess.Version}, {"tenant-a"});
-                        """));
-            Assert.Equal(
-                PostgresErrorCodes.UniqueViolation,
-                duplicateActive.SqlState);
-
-            CompleteProcess(firstProcess);
-            await tenantA.SaveChangesAsync();
-            tenantA.TenantTerminationProcesses.Add(secondProcess);
-            await tenantA.SaveChangesAsync();
-
-            TenantTerminationOwnerWorkItem mismatched =
-                PrepareOwnerWork(
-                    secondProcess,
-                    firstCase.Id,
-                    Guid.NewGuid());
-            tenantA.TenantTerminationOwnerWorkItems.Add(mismatched);
-            DbUpdateException mismatch =
-                await Assert.ThrowsAsync<DbUpdateException>(
-                    () => tenantA.SaveChangesAsync());
-            Assert.Equal(
-                PostgresErrorCodes.ForeignKeyViolation,
-                Assert.IsType<PostgresException>(
-                    mismatch.GetBaseException()).SqlState);
-            tenantA.ChangeTracker.Clear();
-
-            TenantTerminationOwnerWorkItem valid = PrepareOwnerWork(
-                secondProcess,
-                secondProcess.CaseId,
-                Guid.NewGuid());
-            tenantA.TenantTerminationOwnerWorkItems.Add(valid);
-            await tenantA.SaveChangesAsync();
-            Assert.Equal(
-                valid.Id,
-                (await tenantA.TenantTerminationOwnerWorkItems.SingleAsync()).Id);
-        }
+        TenantTerminationOwnerWorkItem valid = PrepareOwnerWork(
+            secondProcess,
+            secondProcess.CaseId,
+            Guid.NewGuid());
+        tenantA.TenantTerminationOwnerWorkItems.Add(valid);
+        await tenantA.SaveChangesAsync();
+        Assert.Equal(
+            valid.Id,
+            (await tenantA.TenantTerminationOwnerWorkItems.SingleAsync()).Id);
 
         await using DataRightsDbContext tenantB = CreateDbContext(
             connectionString,
             "tenant-b");
-        DataRightsCase tenantBCase = CreateCase("tenant-b");
+        DataRightsCase tenantBCase = CreateCase(
+            "tenant-b",
+            Now.AddMinutes(-3));
         TenantTerminationProcess tenantBProcess = PrepareProcess(
             "tenant-b",
-            tenantBCase.Id);
+            tenantBCase);
         tenantB.Cases.Add(tenantBCase);
         tenantB.TenantTerminationProcesses.Add(tenantBProcess);
         await tenantB.SaveChangesAsync();
@@ -144,74 +140,117 @@ public sealed class TenantTerminationPersistenceIntegrationTests
             (await tenantB.TenantTerminationProcesses.SingleAsync()).Id);
     }
 
-    private static void CompleteProcess(TenantTerminationProcess process)
+    private static void CancelProcess(TenantTerminationProcess process)
     {
         Assert.True(process.BeginPhase(
             TenantTerminationProcessPhase.Freeze,
             process.Version,
-            "owner:approver",
+            "system:tenant-termination",
             Now.AddMinutes(1)).IsSuccess);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(process.CompleteFreeze(
             process.OperationRevision,
+            workspaceFenceRevision: 1,
+            Digest,
+            [new("workspaces", 1, 1, Digest)],
             process.Version,
-            "owner:approver",
+            "system:tenant-termination",
             Now.AddMinutes(2)).IsSuccess);
-        Assert.True(process.BeginPhase(
-            TenantTerminationProcessPhase.Destroy,
+        Assert.True(process.RequestCancellation(
             process.Version,
-            "owner:executor",
+            "system:tenant-termination",
             Now.AddMinutes(3)).IsSuccess);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Destroy,
-            process.OperationRevision,
-            process.Version,
-            "owner:executor",
-            Now.AddMinutes(4)).IsSuccess);
         Assert.True(process.BeginPhase(
-            TenantTerminationProcessPhase.Verify,
+            TenantTerminationProcessPhase.Restore,
             process.Version,
-            "owner:executor",
-            Now.AddMinutes(5)).IsSuccess);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Verify,
+            "system:tenant-termination",
+            Now.AddMinutes(4)).IsSuccess);
+        Assert.True(process.CompleteCancellation(
             process.OperationRevision,
             process.Version,
-            "owner:executor",
-            Now.AddMinutes(6)).IsSuccess);
+            "system:tenant-termination",
+            Now.AddMinutes(5)).IsSuccess);
     }
 
-    private static DataRightsCase CreateCase(string tenantId)
+    private static DataRightsCase CreateCase(
+        string tenantId,
+        DateTimeOffset requestedAtUtc)
     {
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
             propertyId: null,
             DataRightsCaseKind.TenantTermination,
-            DataRightsCaseOperation.AccessExport,
+            DataRightsCaseOperation.Anonymisation,
             DataRightsRequesterRelation.TenantOwner).Value;
-        return DataRightsCase.Create(
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
             Guid.NewGuid(),
             tenantId,
             request,
+            "owner:requester",
+            requestedAtUtc).Value;
+        Assert.True(dataRightsCase.PrepareTenantTerminationReview(
+            exportRequested: false,
+            dataRightsCase.Version,
+            "owner:requester",
+            requestedAtUtc).IsSuccess);
+        Assert.True(dataRightsCase.RecordTenantTerminationDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            Digest,
+            dataRightsCase.Version,
             "owner:approver",
-            Now).Value;
+            requestedAtUtc.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.BeginTenantTerminationExecution(
+            dataRightsCase.Version,
+            "system:tenant-termination",
+            requestedAtUtc.AddMinutes(2)).IsSuccess);
+        return dataRightsCase;
+    }
+
+    private static DataRightsCase CreateDeniedCase(
+        string tenantId,
+        DateTimeOffset requestedAtUtc)
+    {
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId: null,
+            DataRightsCaseKind.TenantTermination,
+            DataRightsCaseOperation.Anonymisation,
+            DataRightsRequesterRelation.TenantOwner).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            tenantId,
+            request,
+            "owner:requester",
+            requestedAtUtc).Value;
+        Assert.True(dataRightsCase.PrepareTenantTerminationReview(
+            exportRequested: false,
+            dataRightsCase.Version,
+            "owner:requester",
+            requestedAtUtc).IsSuccess);
+        Assert.True(dataRightsCase.RecordTenantTerminationDecision(
+            DataRightsCaseDecision.Denied,
+            DataRightsCaseDecisionReason.LegalObligation,
+            policyEvidenceSha256: null,
+            dataRightsCase.Version,
+            "owner:approver",
+            requestedAtUtc.AddMinutes(1)).IsSuccess);
+        return dataRightsCase;
     }
 
     private static TenantTerminationProcess PrepareProcess(
         string tenantId,
-        Guid caseId) =>
+        DataRightsCase dataRightsCase) =>
         TenantTerminationProcess.Prepare(
             Guid.NewGuid(),
             tenantId,
             Guid.NewGuid(),
-            caseId,
-            approvalRevision: 4,
+            dataRightsCase.Id,
+            dataRightsCase.DecisionRevision!.Value,
             Guid.NewGuid(),
             exportRequested: false,
-            Digest,
-            "owner:approver",
-            Now,
+            dataRightsCase.TenantTerminationPolicyEvidenceSha256!,
+            dataRightsCase.DecidedBy!,
+            dataRightsCase.DecidedAtUtc!.Value,
             "system:tenant-termination",
-            Now).Value;
+            dataRightsCase.ExecutionStartedAtUtc!.Value).Value;
 
     private static TenantTerminationOwnerWorkItem PrepareOwnerWork(
         TenantTerminationProcess process,
@@ -223,7 +262,7 @@ public sealed class TenantTerminationPersistenceIntegrationTests
             process.Id,
             caseId,
             process.ApprovalRevision,
-            operationRevision: 1,
+            process.OperationRevision,
             process.TerminationEpoch,
             idempotencyKey,
             TenantTerminationOwnerPhase.Freeze,
@@ -232,7 +271,7 @@ public sealed class TenantTerminationPersistenceIntegrationTests
             catalogVersion: 1,
             Digest,
             process.PolicyEvidenceSha256,
-            Now).Value;
+            Now.AddMinutes(10)).Value;
 
     private static DataRightsDbContext CreateDbContext(
         string connectionString,

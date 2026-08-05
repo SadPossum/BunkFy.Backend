@@ -41,7 +41,8 @@ public sealed class StaffAdminApiModule : IAdminApiModule
                 AdminOperation.Create(StaffAdminOperationNames.List, StaffAdminPermissions.Read), true,
                 ct => dispatcher.QueryAsync(new ListStaffMembersQuery(search, status,
                     page ?? PageRequest.DefaultPage, pageSize ?? PageRequest.DefaultPageSize), ct),
-                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<StaffDirectoryListResponse>(StatusCodes.Status200OK);
         group.MapGet("/{staffMemberId:guid}", async (Guid staffMemberId, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
         {
@@ -50,56 +51,55 @@ public sealed class StaffAdminApiModule : IAdminApiModule
                 AdminOperation.Create(StaffAdminOperationNames.Get, StaffAdminPermissions.SensitiveProfileRead), true,
                 ct => dispatcher.QueryAsync(new GetStaffMemberQuery(staffMemberId), ct), token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
-        });
+        }).Produces<StaffMemberDto>(StatusCodes.Status200OK);
         group.MapPost("", async (StaffProfileWriteRequest request, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            MarkSensitiveResponse(context);
             return await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Create, StaffAdminPermissions.Create), true,
                 ct => dispatcher.SendAsync(new CreateStaffMemberCommand(request.DisplayName,
                     request.LegalName, request.WorkEmail, request.WorkPhone, request.EmployeeNumber,
                     request.JobTitle, request.Department, request.AuthSubjectId, Actor(context)), ct),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
-        });
+        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPut("/{staffMemberId:guid}", async (Guid staffMemberId, StaffProfileUpdateRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher,
             CancellationToken token) =>
         {
-            MarkSensitiveResponse(context);
             return await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Update, StaffAdminPermissions.Manage), true,
                 ct => dispatcher.SendAsync(new UpdateStaffMemberCommand(staffMemberId,
                     request.DisplayName, request.LegalName, request.WorkEmail, request.WorkPhone,
                     request.EmployeeNumber, request.JobTitle, request.Department, request.ExpectedVersion,
                     Actor(context)), ct), token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
-        });
+        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPut("/{staffMemberId:guid}/auth-subject", async (Guid staffMemberId,
             StaffAuthSubjectRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            MarkSensitiveResponse(context);
             return await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.Manage), true,
                 ct => request.Confirmed ? dispatcher.SendAsync(new SetStaffAuthSubjectCommand(staffMemberId,
                     request.AuthSubjectId, request.ExpectedVersion, Actor(context)), ct)
-                    : Task.FromResult(Result.Failure<StaffMemberDto>(AdminErrors.ConfirmationRequired)),
+                    : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(AdminErrors.ConfirmationRequired)),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
-        });
+        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/suspend", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Suspend, StaffAdminPermissions.ManageLifecycle), true,
                 ct => dispatcher.SendAsync(new SuspendStaffMemberCommand(staffMemberId, request.Reason,
                     request.ExpectedVersion, Actor(context)), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/resume", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Resume, StaffAdminPermissions.ManageLifecycle), true,
                 ct => dispatcher.SendAsync(new ResumeStaffMemberCommand(staffMemberId, request.Reason,
                     request.ExpectedVersion, Actor(context)), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/depart", async (Guid staffMemberId,
             StaffDepartureRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
@@ -107,7 +107,8 @@ public sealed class StaffAdminApiModule : IAdminApiModule
                 ct => request.Confirmed ? dispatcher.SendAsync(new DepartStaffMemberCommand(staffMemberId,
                     request.EffectiveOn, request.Reason, request.ExpectedVersion, Actor(context)), ct)
                     : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(AdminErrors.ConfirmationRequired)),
-                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPut("/{staffMemberId:guid}/properties/{propertyId:guid}", async (Guid staffMemberId,
             Guid propertyId, StaffAssignmentRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
@@ -116,7 +117,8 @@ public sealed class StaffAdminApiModule : IAdminApiModule
                 ct => dispatcher.SendAsync(new AssignStaffPropertyCommand(staffMemberId, propertyId,
                     request.PropertyJobTitle, request.IsPrimary, request.EffectiveFrom,
                     request.ExpectedVersion, Actor(context)), ct), token,
-                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/properties/{propertyId:guid}/unassign", async (
             Guid staffMemberId, Guid propertyId, StaffUnassignmentRequest request, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
@@ -125,7 +127,8 @@ public sealed class StaffAdminApiModule : IAdminApiModule
                     StaffAdminPermissions.AssignProperties), true,
                 ct => dispatcher.SendAsync(new UnassignStaffPropertyCommand(staffMemberId, propertyId,
                     request.EffectiveTo, request.Reason, request.ExpectedVersion, Actor(context)), ct),
-                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
+                token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
+            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
     }
 
     public sealed record StaffProfileWriteRequest(string DisplayName, string? LegalName,

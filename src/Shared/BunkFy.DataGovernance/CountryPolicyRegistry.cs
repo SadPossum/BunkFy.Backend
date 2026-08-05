@@ -143,6 +143,8 @@ public sealed class CountryPolicyRegistry
                 [.. policy.Artifact.Document.AccommodationTypes],
                 [.. policy.Artifact.Document.PermittedDataRegions],
                 [.. policy.Artifact.Document.PermittedTransferProfiles],
+                policy.Artifact.Document.SchemaVersion >= 2 &&
+                policy.Artifact.Document.RightsRule.ResponseRules is { Length: > 0 },
                 [.. policy.Artifact.Document.RetentionRules
                     .Select(rule =>
                         new CountryPolicyRetentionDescriptor(
@@ -289,6 +291,84 @@ public sealed class CountryPolicyRegistry
                 period));
     }
 
+    public CountryPolicyRightsResponseDecision EvaluateRightsResponse(
+        CountryPolicyRightsResponseRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Binding is null)
+        {
+            return CountryPolicyRightsResponseDecision.Deny(
+                CountryPolicyDecisionReason.MissingBinding);
+        }
+
+        if (!Enum.IsDefined(request.Right) ||
+            request.Right == CountryPolicyRight.Unknown ||
+            string.IsNullOrWhiteSpace(request.TimeZoneId) ||
+            request.TimeZoneId.Length > 128 ||
+            request.TimeZoneId.Any(char.IsControl))
+        {
+            return CountryPolicyRightsResponseDecision.Deny(
+                CountryPolicyDecisionReason.InvalidRequest);
+        }
+
+        if (!this.TryEvaluateBoundPolicy(
+                request.Binding,
+                request.AccommodationType,
+                request.ReceivedAtUtc,
+                requireBindingDigest: true,
+                out BoundPolicyContext context,
+                out CountryPolicyDecisionReason reason))
+        {
+            return CountryPolicyRightsResponseDecision.Deny(reason);
+        }
+
+        CountryPolicyRightsResponseRule? rule =
+            context.Pack.RightsRule.ResponseRules?.SingleOrDefault(
+                candidate => candidate.Right == request.Right);
+        if (rule is null)
+        {
+            return CountryPolicyRightsResponseDecision.Deny(
+                CountryPolicyDecisionReason
+                    .RightsResponsePolicyNotPermitted);
+        }
+
+        if (!rule.AllowedTimeZoneIds.Contains(
+                request.TimeZoneId,
+                StringComparer.Ordinal))
+        {
+            return CountryPolicyRightsResponseDecision.Deny(
+                CountryPolicyDecisionReason.TimeZoneNotPermitted);
+        }
+
+        if (!CountryPolicyCalendarDeadlineCalculator.TryCalculate(
+                request.ReceivedAtUtc,
+                request.TimeZoneId,
+                rule.Period,
+                out DateTimeOffset dueAtUtc))
+        {
+            return CountryPolicyRightsResponseDecision.Deny(
+                CountryPolicyDecisionReason.DeadlineCalculationFailed);
+        }
+
+        CountryPolicyPackDocument pack = context.Pack;
+        return CountryPolicyRightsResponseDecision.Allow(
+            new(
+                pack.OperatingCountryCode,
+                pack.PolicyId,
+                pack.PolicyVersion,
+                context.Registered.Artifact.ContentSha256,
+                request.Right,
+                RightReference(pack.RightsRule, request.Right),
+                rule.Period.Years,
+                rule.Period.Months,
+                rule.Period.Days,
+                request.TimeZoneId,
+                pack.EffectiveAtUtc,
+                pack.ExpiresAtUtc,
+                request.ReceivedAtUtc,
+                dueAtUtc));
+    }
+
     private CountryPolicyDecision Evaluate(
         CountryPolicyBinding binding,
         string accommodationType,
@@ -298,103 +378,26 @@ public sealed class CountryPolicyRegistry
         DateTimeOffset observedAtUtc,
         bool requireBindingDigest)
     {
-        if (!IsCountryCode(binding.OperatingCountryCode) ||
-            !IsKey(binding.PolicyId) || binding.PolicyVersion <= 0 ||
-            !IsKey(binding.DataRegionId) || !IsKey(binding.TransferProfileId) ||
-            !IsKey(binding.RetentionPolicyId) || binding.RetentionPolicyVersion <= 0 ||
-            !IsKey(accommodationType) || !IsKey(purposeCode) || !IsKey(sourceProvenance) ||
+        if (!IsKey(purposeCode) || !IsKey(sourceProvenance) ||
             !Enum.IsDefined(surface) || surface == CountryPolicySurface.Unknown || observedAtUtc == default)
         {
             return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.InvalidRequest);
         }
 
-        CountryPolicyIdentity identity = new(binding.PolicyId, binding.PolicyVersion);
-        if (!this.policies.TryGetValue(identity, out RegisteredPolicy? registered))
+        if (!this.TryEvaluateBoundPolicy(
+                binding,
+                accommodationType,
+                observedAtUtc,
+                requireBindingDigest,
+                out BoundPolicyContext context,
+                out CountryPolicyDecisionReason reason))
         {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.UnknownPolicy);
+            return CountryPolicyDecision.Deny(reason);
         }
 
-        CountryPolicyPackDocument pack = registered.Artifact.Document;
-        if (!string.Equals(pack.OperatingCountryCode, binding.OperatingCountryCode, StringComparison.Ordinal))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.CountryMismatch);
-        }
-
-        if (registered.Entry.LaunchStatus == CountryLaunchStatus.Disabled)
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.CountryDisabled);
-        }
-
-        if (this.RuntimeMode == CountryPolicyRuntimeMode.Production &&
-            registered.Entry.LaunchStatus != CountryLaunchStatus.Approved)
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.CountryNotApproved);
-        }
-
-        if (this.RuntimeMode == CountryPolicyRuntimeMode.Production &&
-            pack.ApprovalState != CountryPolicyApprovalState.Approved)
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.PolicyNotApproved);
-        }
-
-        if (requireBindingDigest &&
-            !string.Equals(binding.ContentSha256, registered.Artifact.ContentSha256, StringComparison.Ordinal))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.ContentDigestMismatch);
-        }
-
-        if (observedAtUtc < pack.EffectiveAtUtc)
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.PolicyNotEffective);
-        }
-
-        if (observedAtUtc >= pack.ExpiresAtUtc)
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.PolicyExpired);
-        }
-
-        if (!pack.AccommodationTypes.Contains(accommodationType, StringComparer.Ordinal))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.AccommodationTypeUnsupported);
-        }
-
-        if (!pack.PermittedDataRegions.Contains(binding.DataRegionId, StringComparer.Ordinal))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.DataRegionNotPermitted);
-        }
-
-        if (!pack.PermittedTransferProfiles.Contains(binding.TransferProfileId, StringComparer.Ordinal))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.TransferProfileNotPermitted);
-        }
-
-        if (!pack.RetentionRules.Any(rule =>
-                string.Equals(rule.RetentionPolicyId, binding.RetentionPolicyId, StringComparison.Ordinal) &&
-                rule.RetentionPolicyVersion == binding.RetentionPolicyVersion))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.RetentionPolicyNotPermitted);
-        }
-
-        if (!TrySnapshotAcknowledgements(binding.AcceptedAcknowledgements, out CountryPolicyAcknowledgement[] accepted))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.InvalidRequest);
-        }
-
-        if (pack.RequiredAcknowledgements.Any(required =>
-                !accepted.Any(candidate =>
-                    string.Equals(candidate.AcknowledgementId, required.AcknowledgementId, StringComparison.Ordinal) &&
-                    candidate.AcknowledgementVersion == required.AcknowledgementVersion)))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.RequiredAcknowledgementMissing);
-        }
-
-        if (accepted.Any(candidate =>
-                !pack.RequiredAcknowledgements.Any(required =>
-                    string.Equals(candidate.AcknowledgementId, required.AcknowledgementId, StringComparison.Ordinal) &&
-                    candidate.AcknowledgementVersion == required.AcknowledgementVersion)))
-        {
-            return CountryPolicyDecision.Deny(CountryPolicyDecisionReason.InvalidRequest);
-        }
+        RegisteredPolicy registered = context.Registered;
+        CountryPolicyPackDocument pack = context.Pack;
+        CountryPolicyAcknowledgement[] accepted = context.Accepted;
 
         CountryPolicyPurposeRule? purpose = pack.PurposeRules.FirstOrDefault(rule =>
             string.Equals(rule.PurposeCode, purposeCode, StringComparison.Ordinal));
@@ -434,6 +437,177 @@ public sealed class CountryPolicyRegistry
                 .ToArray()));
         return CountryPolicyDecision.Allow(evidence);
     }
+
+    private bool TryEvaluateBoundPolicy(
+        CountryPolicyBinding binding,
+        string accommodationType,
+        DateTimeOffset observedAtUtc,
+        bool requireBindingDigest,
+        out BoundPolicyContext context,
+        out CountryPolicyDecisionReason reason)
+    {
+        context = null!;
+        reason = CountryPolicyDecisionReason.InvalidRequest;
+        if (!IsCountryCode(binding.OperatingCountryCode) ||
+            !IsKey(binding.PolicyId) || binding.PolicyVersion <= 0 ||
+            !IsKey(binding.DataRegionId) ||
+            !IsKey(binding.TransferProfileId) ||
+            !IsKey(binding.RetentionPolicyId) ||
+            binding.RetentionPolicyVersion <= 0 ||
+            !IsKey(accommodationType) || observedAtUtc == default)
+        {
+            return false;
+        }
+
+        CountryPolicyIdentity identity = new(
+            binding.PolicyId,
+            binding.PolicyVersion);
+        if (!this.policies.TryGetValue(
+                identity,
+                out RegisteredPolicy? registered))
+        {
+            reason = CountryPolicyDecisionReason.UnknownPolicy;
+            return false;
+        }
+
+        CountryPolicyPackDocument pack = registered.Artifact.Document;
+        if (!string.Equals(
+                pack.OperatingCountryCode,
+                binding.OperatingCountryCode,
+                StringComparison.Ordinal))
+        {
+            reason = CountryPolicyDecisionReason.CountryMismatch;
+            return false;
+        }
+
+        if (registered.Entry.LaunchStatus == CountryLaunchStatus.Disabled)
+        {
+            reason = CountryPolicyDecisionReason.CountryDisabled;
+            return false;
+        }
+
+        if (this.RuntimeMode == CountryPolicyRuntimeMode.Production &&
+            registered.Entry.LaunchStatus != CountryLaunchStatus.Approved)
+        {
+            reason = CountryPolicyDecisionReason.CountryNotApproved;
+            return false;
+        }
+
+        if (this.RuntimeMode == CountryPolicyRuntimeMode.Production &&
+            pack.ApprovalState != CountryPolicyApprovalState.Approved)
+        {
+            reason = CountryPolicyDecisionReason.PolicyNotApproved;
+            return false;
+        }
+
+        if (requireBindingDigest &&
+            !string.Equals(
+                binding.ContentSha256,
+                registered.Artifact.ContentSha256,
+                StringComparison.Ordinal))
+        {
+            reason = CountryPolicyDecisionReason.ContentDigestMismatch;
+            return false;
+        }
+
+        if (observedAtUtc < pack.EffectiveAtUtc)
+        {
+            reason = CountryPolicyDecisionReason.PolicyNotEffective;
+            return false;
+        }
+
+        if (observedAtUtc >= pack.ExpiresAtUtc)
+        {
+            reason = CountryPolicyDecisionReason.PolicyExpired;
+            return false;
+        }
+
+        if (!pack.AccommodationTypes.Contains(
+                accommodationType,
+                StringComparer.Ordinal))
+        {
+            reason =
+                CountryPolicyDecisionReason.AccommodationTypeUnsupported;
+            return false;
+        }
+
+        if (!pack.PermittedDataRegions.Contains(
+                binding.DataRegionId,
+                StringComparer.Ordinal))
+        {
+            reason = CountryPolicyDecisionReason.DataRegionNotPermitted;
+            return false;
+        }
+
+        if (!pack.PermittedTransferProfiles.Contains(
+                binding.TransferProfileId,
+                StringComparer.Ordinal))
+        {
+            reason = CountryPolicyDecisionReason.TransferProfileNotPermitted;
+            return false;
+        }
+
+        if (!pack.RetentionRules.Any(rule =>
+                string.Equals(
+                    rule.RetentionPolicyId,
+                    binding.RetentionPolicyId,
+                    StringComparison.Ordinal) &&
+                rule.RetentionPolicyVersion ==
+                    binding.RetentionPolicyVersion))
+        {
+            reason =
+                CountryPolicyDecisionReason.RetentionPolicyNotPermitted;
+            return false;
+        }
+
+        if (!TrySnapshotAcknowledgements(
+                binding.AcceptedAcknowledgements,
+                out CountryPolicyAcknowledgement[] accepted))
+        {
+            return false;
+        }
+
+        if (pack.RequiredAcknowledgements.Any(required =>
+                !accepted.Any(candidate =>
+                    string.Equals(
+                        candidate.AcknowledgementId,
+                        required.AcknowledgementId,
+                        StringComparison.Ordinal) &&
+                    candidate.AcknowledgementVersion ==
+                        required.AcknowledgementVersion)))
+        {
+            reason =
+                CountryPolicyDecisionReason.RequiredAcknowledgementMissing;
+            return false;
+        }
+
+        if (accepted.Any(candidate =>
+                !pack.RequiredAcknowledgements.Any(required =>
+                    string.Equals(
+                        candidate.AcknowledgementId,
+                        required.AcknowledgementId,
+                        StringComparison.Ordinal) &&
+                    candidate.AcknowledgementVersion ==
+                        required.AcknowledgementVersion)))
+        {
+            return false;
+        }
+
+        context = new(registered, pack, accepted);
+        reason = CountryPolicyDecisionReason.Allowed;
+        return true;
+    }
+
+    private static string RightReference(
+        CountryPolicyRightsRule rule,
+        CountryPolicyRight right) => right switch
+        {
+            CountryPolicyRight.Export => rule.Export,
+            CountryPolicyRight.Correction => rule.Correction,
+            CountryPolicyRight.Restriction => rule.Restriction,
+            CountryPolicyRight.Erasure => rule.Erasure,
+            _ => throw new ArgumentOutOfRangeException(nameof(right))
+        };
 
     private static void ValidateAllowlistEntry(
         CountryPolicyAllowlistEntry entry,
@@ -528,7 +702,23 @@ public sealed class CountryPolicyRegistry
                 AllowedSourceProvenance = rule.AllowedSourceProvenance?.ToArray()!
             }).ToArray()!,
         RetentionRules = pack.RetentionRules?.Select(rule => rule is null ? null! : rule with { }).ToArray()!,
-        RightsRule = pack.RightsRule is null ? null! : pack.RightsRule with { },
+        RightsRule = pack.RightsRule is null
+            ? null!
+            : pack.RightsRule with
+            {
+                ResponseRules = pack.RightsRule.ResponseRules?
+                    .Select(rule => rule is null
+                        ? null!
+                        : rule with
+                        {
+                            Period = rule.Period is null
+                                ? null!
+                                : rule.Period with { },
+                            AllowedTimeZoneIds =
+                                rule.AllowedTimeZoneIds?.ToArray()!
+                        })
+                    .ToArray()
+            },
         Restrictions = pack.Restrictions is null ? null! : pack.Restrictions with { },
         PermittedDataRegions = pack.PermittedDataRegions?.ToArray()!,
         PermittedTransferProfiles = pack.PermittedTransferProfiles?.ToArray()!,
@@ -560,6 +750,11 @@ public sealed class CountryPolicyRegistry
     private sealed record RegisteredPolicy(
         CountryPolicyPackArtifact Artifact,
         CountryPolicyAllowlistEntry Entry);
+
+    private sealed record BoundPolicyContext(
+        RegisteredPolicy Registered,
+        CountryPolicyPackDocument Pack,
+        CountryPolicyAcknowledgement[] Accepted);
 }
 
 public sealed record CountryPolicyAllowlistEntry(
@@ -614,6 +809,13 @@ public sealed record CountryPolicyRetentionRequest(
     string DataClass,
     string Trigger,
     DateTimeOffset ObservedAtUtc);
+
+public sealed record CountryPolicyRightsResponseRequest(
+    CountryPolicyBinding? Binding,
+    string AccommodationType,
+    CountryPolicyRight Right,
+    string TimeZoneId,
+    DateTimeOffset ReceivedAtUtc);
 
 public sealed record CountryPolicyBinding(
     string OperatingCountryCode,
@@ -741,6 +943,59 @@ public sealed record CountryPolicyRetentionRuleEvidence(
     string Trigger,
     TimeSpan Period);
 
+public sealed record CountryPolicyRightsResponseEvidence(
+    string OperatingCountryCode,
+    string PolicyId,
+    int PolicyVersion,
+    string ContentSha256,
+    CountryPolicyRight Right,
+    string RuleReference,
+    int PeriodYears,
+    int PeriodMonths,
+    int PeriodDays,
+    string TimeZoneId,
+    DateTimeOffset PolicyEffectiveAtUtc,
+    DateTimeOffset PolicyExpiresAtUtc,
+    DateTimeOffset ReceivedAtUtc,
+    DateTimeOffset DueAtUtc);
+
+public sealed record CountryPolicyRightsResponseDecision
+{
+    private CountryPolicyRightsResponseDecision(
+        bool isAllowed,
+        CountryPolicyDecisionReason reason,
+        CountryPolicyRightsResponseEvidence? evidence)
+    {
+        this.IsAllowed = isAllowed;
+        this.Reason = reason;
+        this.Evidence = evidence;
+    }
+
+    public bool IsAllowed { get; }
+    public CountryPolicyDecisionReason Reason { get; }
+    public CountryPolicyRightsResponseEvidence? Evidence { get; }
+
+    public static CountryPolicyRightsResponseDecision Allow(
+        CountryPolicyRightsResponseEvidence evidence) =>
+        new(
+            true,
+            CountryPolicyDecisionReason.Allowed,
+            evidence ?? throw new ArgumentNullException(nameof(evidence)));
+
+    public static CountryPolicyRightsResponseDecision Deny(
+        CountryPolicyDecisionReason reason)
+    {
+        if (!Enum.IsDefined(reason) ||
+            reason is CountryPolicyDecisionReason.Unknown or
+                CountryPolicyDecisionReason.Allowed)
+        {
+            throw new ArgumentOutOfRangeException(nameof(reason));
+        }
+
+        return new(false, reason, null);
+    }
+}
+
 public enum CountryPolicyDecisionReason
 {
     Unknown = 0,
@@ -762,7 +1017,10 @@ public enum CountryPolicyDecisionReason
     RequiredAcknowledgementMissing = 16,
     PurposeUnsupported = 17,
     SurfaceUnsupported = 18,
-    SourceProvenanceUnsupported = 19
+    SourceProvenanceUnsupported = 19,
+    RightsResponsePolicyNotPermitted = 20,
+    TimeZoneNotPermitted = 21,
+    DeadlineCalculationFailed = 22
 }
 
 public sealed record CountryPolicyDescriptor(
@@ -777,6 +1035,7 @@ public sealed record CountryPolicyDescriptor(
     IReadOnlyCollection<string> AccommodationTypes,
     IReadOnlyCollection<string> PermittedDataRegions,
     IReadOnlyCollection<string> PermittedTransferProfiles,
+    bool SupportsRightsResponseDeadlines,
     IReadOnlyCollection<CountryPolicyRetentionDescriptor> RetentionPolicies,
     IReadOnlyCollection<CountryPolicyAcknowledgement> RequiredAcknowledgements);
 

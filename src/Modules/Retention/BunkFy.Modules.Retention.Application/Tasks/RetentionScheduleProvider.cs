@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Retention.Application.Tasks;
 
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -12,26 +13,21 @@ internal sealed class RetentionScheduleProvider(
     IEnumerable<IRetentionExecutionContributor> contributors)
     : ITaskScheduleProvider
 {
-    public async Task<IReadOnlyList<ScheduledTaskDefinition>> GetSchedulesAsync(
-        CancellationToken cancellationToken)
+    public async IAsyncEnumerable<ScheduledTaskDefinition> GetSchedulesAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        RetentionScheduleDescriptor[] descriptors = contributors
-            .Select(contributor => contributor.Schedule)
-            .OrderBy(schedule => schedule.ContributorKey, StringComparer.Ordinal)
-            .ToArray();
-        EnsureUnique(descriptors);
+        RetentionScheduleDescriptor[] descriptors =
+            RetentionContributorCatalog.GetDescriptors(contributors);
 
-        List<ScheduledTaskDefinition> schedules = [];
         foreach (IGrouping<RetentionTargetScopeKind, RetentionScheduleDescriptor> group in
                  descriptors.GroupBy(descriptor => descriptor.TargetScopeKind))
         {
-            IReadOnlyList<RetentionScheduleTarget> targets =
-                await scopes.ListActiveTargetsAsync(
-                    group.Key,
-                    cancellationToken).ConfigureAwait(false);
-            foreach (RetentionScheduleDescriptor descriptor in group)
+            await foreach (RetentionScheduleTarget target in scopes
+                .StreamActiveTargetsAsync(group.Key, cancellationToken)
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
             {
-                foreach (RetentionScheduleTarget target in targets)
+                foreach (RetentionScheduleDescriptor descriptor in group)
                 {
                     ExecuteRetentionSchedulePayload payload = new(
                         descriptor.OwnerKey,
@@ -39,7 +35,7 @@ internal sealed class RetentionScheduleProvider(
                         descriptor.ExecutionPolicyVersion,
                         descriptor.TargetScopeKind,
                         target.PropertyId);
-                    schedules.Add(new ScheduledTaskDefinition(
+                    yield return new ScheduledTaskDefinition(
                         CreateScheduleName(descriptor, target),
                         RetentionModuleMetadata.Name,
                         ExecuteRetentionSchedulePayload.TaskName,
@@ -49,24 +45,9 @@ internal sealed class RetentionScheduleProvider(
                         target.ScopeId,
                         descriptor.MaxAttempts,
                         ExecuteRetentionSchedulePayload.PayloadVersion,
-                        runOnStart: true));
+                        runOnStart: true);
                 }
             }
-        }
-
-        return schedules;
-    }
-
-    private static void EnsureUnique(
-        IReadOnlyCollection<RetentionScheduleDescriptor> descriptors)
-    {
-        bool duplicate = descriptors
-            .GroupBy(descriptor => descriptor.ContributorKey, StringComparer.Ordinal)
-            .Any(group => group.Count() > 1);
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "Retention.ContributorDescriptorDuplicate");
         }
     }
 

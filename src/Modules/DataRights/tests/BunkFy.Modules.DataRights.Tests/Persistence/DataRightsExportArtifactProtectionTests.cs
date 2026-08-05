@@ -21,7 +21,7 @@ public sealed class DataRightsExportArtifactProtectionTests
     public async Task Chunked_envelope_round_trips_and_reports_lengths()
     {
         byte[] content = RandomNumberGenerator.GetBytes(40_000);
-        AesGcmDataRightsExportArtifactProtector protector = Protector();
+        AesGcmDataRightsExportEnvelopeProtector protector = Protector();
         await using MemoryStream plaintext = new(content, writable: false);
         await using MemoryStream encrypted = new();
 
@@ -52,7 +52,7 @@ public sealed class DataRightsExportArtifactProtectionTests
     public async Task Chunked_envelope_rejects_tampering_and_wrong_binding()
     {
         byte[] content = RandomNumberGenerator.GetBytes(20_000);
-        AesGcmDataRightsExportArtifactProtector protector = Protector();
+        AesGcmDataRightsExportEnvelopeProtector protector = Protector();
         await using MemoryStream plaintext = new(content, writable: false);
         await using MemoryStream encrypted = new();
         _ = await protector.ProtectAsync(
@@ -62,7 +62,7 @@ public sealed class DataRightsExportArtifactProtectionTests
             Context(),
             CancellationToken.None);
         byte[] tampered = encrypted.ToArray();
-        tampered[AesGcmDataRightsExportArtifactProtector.HeaderLength + 10] ^= 1;
+        tampered[AesGcmDataRightsExportEnvelopeProtector.HeaderLength + 10] ^= 1;
 
         await using MemoryStream tamperedStream = new(tampered, writable: false);
         await using MemoryStream restored = new();
@@ -175,6 +175,8 @@ public sealed class DataRightsExportArtifactProtectionTests
                     CancellationToken.None));
 
         Assert.Equal("artifact-authentication-failed", exception.Code);
+        Assert.Null(storage.Properties);
+        Assert.Empty(storage.Content);
         CryptographicOperations.ZeroMemory(content);
     }
 
@@ -184,13 +186,23 @@ public sealed class DataRightsExportArtifactProtectionTests
     {
         IOptions<DataRightsExportArtifactOptions> options =
             Options.Create(OptionsValue());
+        AesGcmDataRightsExportEnvelopeProtector protector = new(options);
         return new(
             new StaticAssembler(content),
-            new AesGcmDataRightsExportArtifactProtector(options),
-            storage,
-            options,
-            new TestClock(
-                new DateTimeOffset(2026, 7, 27, 13, 0, 0, TimeSpan.Zero)));
+            new ProtectedDataRightsExportObjectWriter(
+                protector,
+                storage,
+                options,
+                new TestClock(
+                    new DateTimeOffset(
+                        2026,
+                        7,
+                        27,
+                        13,
+                        0,
+                        0,
+                        TimeSpan.Zero))),
+            options);
     }
 
     private static DataRightsExportGenerationRequest Request() => new(
@@ -210,7 +222,7 @@ public sealed class DataRightsExportArtifactProtectionTests
         new DateTimeOffset(2026, 7, 27, 12, 30, 0, TimeSpan.Zero),
         ExpiresAt);
 
-    private static AesGcmDataRightsExportArtifactProtector Protector() =>
+    private static AesGcmDataRightsExportEnvelopeProtector Protector() =>
         new(Options.Create(OptionsValue()));
 
     private static DataRightsExportArtifactOptions OptionsValue() => new()
@@ -225,7 +237,7 @@ public sealed class DataRightsExportArtifactProtectionTests
         ArtifactLifetime = TimeSpan.FromHours(24)
     };
 
-    private static DataRightsExportProtectionContext Context() => new(
+    private static DataRightsSubjectExportProtectionContext Context() => new(
         Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         "tenant-a",
         Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
@@ -294,7 +306,7 @@ public sealed class DataRightsExportArtifactProtectionTests
             byte[] copy = [.. this.Content];
             if (this.TamperReads)
             {
-                copy[AesGcmDataRightsExportArtifactProtector.HeaderLength + 1] ^= 1;
+                copy[AesGcmDataRightsExportEnvelopeProtector.HeaderLength + 1] ^= 1;
             }
 
             return Task.FromResult<FileStorageReadResult?>(new(

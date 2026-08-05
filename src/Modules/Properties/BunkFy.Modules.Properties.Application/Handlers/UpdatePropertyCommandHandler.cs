@@ -15,14 +15,16 @@ internal sealed class UpdatePropertyCommandHandler(
     IPropertyRepository repository,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<UpdatePropertyCommand, PropertyDto>
+    : ICommandHandler<UpdatePropertyCommand, PropertyMutationReceiptDto>
 {
-    public async Task<Result<PropertyDto>> HandleAsync(UpdatePropertyCommand command, CancellationToken cancellationToken)
+    public async Task<Result<PropertyMutationReceiptDto>> HandleAsync(
+        UpdatePropertyCommand command,
+        CancellationToken cancellationToken)
     {
         Property? property = await repository.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
-            return Result.Failure<PropertyDto>(PropertiesDomainErrors.PropertyNotFound);
+            return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);
         }
 
         Result result = property.Update(
@@ -34,14 +36,14 @@ internal sealed class UpdatePropertyCommandHandler(
             clock.UtcNow);
         if (result.IsFailure)
         {
-            return Result.Failure<PropertyDto>(result.Error);
+            return Result.Failure<PropertyMutationReceiptDto>(result.Error);
         }
 
         if (await repository.CodeExistsAsync(property.Code.Value, property.Id, cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure<PropertyDto>(PropertiesDomainErrors.PropertyCodeAlreadyExists);
+            return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyCodeAlreadyExists);
         }
 
-        return Result.Success(PropertiesMapper.ToDto(property));
+        return Result.Success(PropertiesMapper.ToReceipt(property));
     }
 }

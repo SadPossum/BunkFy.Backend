@@ -10,7 +10,7 @@ public sealed record CreateAdapterConnectionCommand(
     AdapterExecutionMode ExecutionMode,
     AdapterConflictPolicy ConflictPolicy,
     string ConfigurationReference,
-    string? SecretReference) : ITransactionalCommand<AdapterConnectionDto>;
+    string? SecretReference) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record UpdateAdapterConnectionCommand(
     Guid PropertyId,
@@ -20,7 +20,7 @@ public sealed record UpdateAdapterConnectionCommand(
     string ConfigurationReference,
     SecretReferenceUpdateMode SecretReferenceUpdateMode,
     string? SecretReference,
-    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionDto>;
+    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public enum SecretReferenceUpdateMode
 {
@@ -35,20 +35,20 @@ public sealed record ConfigureAdapterConnectionPollingScheduleCommand(
     Guid ConnectionId,
     int IntervalSeconds,
     int MaxAttempts,
-    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionDto>;
+    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record ClearAdapterConnectionPollingScheduleCommand(
     Guid PropertyId,
     Guid ConnectionId,
-    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionDto>;
+    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record SetAdapterConnectionEnabledCommand(
     Guid PropertyId,
     Guid ConnectionId,
     bool Enabled,
-    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionDto>;
+    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record ResetAdapterConnectionCheckpointCommand(
     Guid PropertyId,
     Guid ConnectionId,
-    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionDto>;
+    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;

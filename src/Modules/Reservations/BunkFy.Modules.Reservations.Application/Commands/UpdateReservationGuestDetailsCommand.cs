@@ -16,4 +16,4 @@ public sealed record UpdateReservationGuestDetailsCommand(
     string ActorId,
     TimeOnly? ExpectedArrivalTime = null,
     TimeOnly? ExpectedDepartureTime = null)
-    : ITransactionalCommand<ReservationDto>;
+    : ITransactionalCommand<ReservationMutationReceiptDto>;

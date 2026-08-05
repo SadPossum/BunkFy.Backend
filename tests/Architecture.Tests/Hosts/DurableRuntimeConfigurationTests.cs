@@ -69,23 +69,129 @@ public sealed class DurableRuntimeConfigurationTests
     }
 
     [Fact]
-    public void Organizations_expiry_is_bounded_and_owned_by_the_worker_composition()
+    public void Long_running_hosts_expose_fail_closed_durable_runtime_admission_defaults()
     {
+        string[] hosts =
+        [
+            "BunkFy.Host.Api",
+            "BunkFy.Host.AdminApi",
+            "BunkFy.Host.Worker"
+        ];
+
+        foreach (string host in hosts)
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.json"));
+            JsonElement admission = document.RootElement
+                .GetProperty("BunkFy")
+                .GetProperty("DurableRuntime")
+                .GetProperty("ProductionAdmission");
+
+            Assert.Equal("Pending", admission.GetProperty("ApprovalState").GetString());
+            Assert.Equal("Unspecified", admission.GetProperty("MaintenanceOwner").GetString());
+            Assert.Equal(0, admission.GetProperty("MaintenanceOwnerInstanceCount").GetInt32());
+            Assert.False(admission.GetProperty("CurrentProcessOwnsMaintenance").GetBoolean());
+        }
+    }
+
+    [Fact]
+    public void Production_hosts_compose_durable_runtime_admission_at_their_actual_boundaries()
+    {
+        string publicApi = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
+        string adminApi = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
+        string worker = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Worker",
+            "WorkerHostBuilderExtensions.cs");
+
+        Assert.Contains(
+            "BunkFyDurableRuntimeHostRole.PublicApi",
+            publicApi,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "BunkFyDurableRuntimeHostRole.AdminApi",
+            adminApi,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "BunkFyDeploymentSurface.Worker",
+            worker,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "BunkFyDurableRuntimeHostRole.Worker",
+            worker,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Long_running_hosts_expose_fail_closed_identity_maintenance_admission_defaults()
+    {
+        foreach (string host in AuthRetentionHosts)
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.json"));
+            JsonElement bunkFy = document.RootElement.GetProperty("BunkFy");
+
+            AssertFailClosedMaintenanceAdmission(
+                bunkFy.GetProperty("AuthRetention").GetProperty("ProductionAdmission"));
+            AssertFailClosedMaintenanceAdmission(
+                bunkFy.GetProperty("OrganizationsMaintenance").GetProperty("ProductionAdmission"));
+        }
+    }
+
+    [Fact]
+    public void Production_hosts_compose_identity_maintenance_admission_at_actual_boundaries()
+    {
+        string publicApi = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
+        string adminApi = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
+        string worker = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Worker",
+            "WorkerHostBuilderExtensions.cs");
+
+        foreach (string source in new[] { publicApi, adminApi, worker })
+        {
+            Assert.Contains(
+                "AddBunkFyAuthRetentionProductionAdmission",
+                source,
+                StringComparison.Ordinal);
+            Assert.Contains(
+                "AddBunkFyOrganizationsMaintenanceProductionAdmission",
+                source,
+                StringComparison.Ordinal);
+        }
+
+        Assert.Contains("workerOptions.Modules.Auth", worker, StringComparison.Ordinal);
+        Assert.Contains("workerOptions.Modules.Organizations", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Organizations_expiry_and_retention_are_bounded_and_owned_by_the_worker_composition()
+    {
+        foreach (string host in AuthRetentionHosts)
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.json"));
+            JsonElement organizations = document.RootElement.GetProperty("Organizations");
+            JsonElement lifecycle = organizations.GetProperty("Lifecycle");
+            JsonElement retention = organizations.GetProperty("Retention");
+
+            Assert.False(lifecycle.GetProperty("Enabled").GetBoolean());
+            Assert.True(lifecycle.GetProperty("BatchSize").GetInt32() > 0);
+            Assert.True(lifecycle.GetProperty("MaxBatchesPerCategoryPerCycle").GetInt32() > 0);
+            Assert.True(lifecycle.GetProperty("IntervalMinutes").GetInt32() > 0);
+            Assert.False(retention.GetProperty("Enabled").GetBoolean());
+            Assert.InRange(retention.GetProperty("InvitationHistoryDays").GetInt32(), 1, 3650);
+            Assert.InRange(retention.GetProperty("EnrollmentHistoryDays").GetInt32(), 1, 3650);
+        }
+
         using JsonDocument apiDocument = JsonDocument.Parse(
             RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json"));
-        JsonElement apiOrganizations = apiDocument.RootElement.GetProperty("Organizations");
-        Assert.Equal(168, apiOrganizations.GetProperty("EnrollmentClaimLifetimeHours").GetInt32());
-        Assert.False(apiOrganizations.GetProperty("Lifecycle").GetProperty("Enabled").GetBoolean());
-
-        using JsonDocument workerDocument = JsonDocument.Parse(
-            RepositoryPaths.Read("src", "BunkFy.Host.Worker", "appsettings.json"));
-        JsonElement workerLifecycle = workerDocument.RootElement
-            .GetProperty("Organizations")
-            .GetProperty("Lifecycle");
-        Assert.False(workerLifecycle.GetProperty("Enabled").GetBoolean());
-        Assert.True(workerLifecycle.GetProperty("BatchSize").GetInt32() > 0);
-        Assert.True(workerLifecycle.GetProperty("MaxBatchesPerCategoryPerCycle").GetInt32() > 0);
-        Assert.True(workerLifecycle.GetProperty("IntervalMinutes").GetInt32() > 0);
+        Assert.Equal(
+            168,
+            apiDocument.RootElement
+                .GetProperty("Organizations")
+                .GetProperty("EnrollmentClaimLifetimeHours")
+                .GetInt32());
 
         string composition = RepositoryPaths.Read(
             "src",
@@ -94,6 +200,10 @@ public sealed class DurableRuntimeConfigurationTests
             "BunkFyBackendComposition.cs");
         Assert.Contains(
             ".WithEnvironment(\"Organizations__Lifecycle__Enabled\", \"true\")",
+            composition,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            ".WithEnvironment(\"Organizations__Retention__Enabled\", \"true\")",
             composition,
             StringComparison.Ordinal);
     }
@@ -122,8 +232,36 @@ public sealed class DurableRuntimeConfigurationTests
                 .GetProperty("Retention");
 
             Assert.False(retention.GetProperty("Enabled").GetBoolean());
+            Assert.InRange(retention.GetProperty("ExpiredExchangeHistoryHours").GetInt32(), 1, 8760);
+            Assert.InRange(retention.GetProperty("PasswordRecoveryHistoryHours").GetInt32(), 1, 8760);
+            Assert.InRange(retention.GetProperty("SessionHistoryDays").GetInt32(), 1, 3650);
+            Assert.InRange(retention.GetProperty("AuthenticationChallengeHistoryHours").GetInt32(), 1, 8760);
+            Assert.InRange(retention.GetProperty("ExpiredTotpEnrollmentHistoryHours").GetInt32(), 1, 8760);
+            Assert.InRange(retention.GetProperty("DisabledTotpAuthenticatorHistoryDays").GetInt32(), 1, 3650);
+            Assert.InRange(retention.GetProperty("MultiFactorFailureHistoryHours").GetInt32(), 1, 8760);
             Assert.InRange(retention.GetProperty("AuthenticationFailureHistoryHours").GetInt32(), 1, 8760);
         }
+
+        string composition = RepositoryPaths.Read(
+            "src",
+            "Shared",
+            "BunkFy.AppHost.Composition",
+            "BunkFyBackendComposition.cs");
+        Assert.Contains(
+            ".WithEnvironment(\"Auth__Retention__Enabled\", \"true\")",
+            composition,
+            StringComparison.Ordinal);
+    }
+
+    private static void AssertFailClosedMaintenanceAdmission(JsonElement admission)
+    {
+        Assert.Equal("Pending", admission.GetProperty("ApprovalState").GetString());
+        Assert.Equal("Unspecified", admission.GetProperty("MaintenanceOwner").GetString());
+        Assert.Equal(0, admission.GetProperty("MaintenanceOwnerInstanceCount").GetInt32());
+        Assert.False(admission.GetProperty("CurrentProcessOwnsMaintenance").GetBoolean());
+        Assert.Equal(
+            "Unspecified",
+            admission.GetProperty("ExistingHistoryDisposition").GetString());
     }
 
     private static TimeSpan ParseDuration(JsonElement section, string propertyName) =>

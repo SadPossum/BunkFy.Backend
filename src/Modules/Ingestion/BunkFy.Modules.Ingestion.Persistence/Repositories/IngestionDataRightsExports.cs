@@ -22,7 +22,8 @@ internal sealed record ReservationSourceLinkDataRightsExport(
     string? LastAppliedSourceRevision,
     long? LastAppliedSourceSequence,
     long? LastAppliedReservationDetailsRevision,
-    string? LastAppliedOperationalBaseline,
+    SensitiveHistoryReferenceDataRightsExport?
+        LastAppliedOperationalBaseline,
     Guid? LastProductOperationId,
     Guid? ActiveProductOperationId,
     Guid? DeferredReceiptId,
@@ -84,7 +85,7 @@ internal sealed record ChangeProposalDataRightsExport(
     Guid SourcePayloadFileId,
     long BaseReservationDetailsRevision,
     string ReasonCode,
-    string? Diff,
+    SensitiveHistoryReferenceDataRightsExport? Diff,
     ChangeProposalState State,
     string? DecisionReason,
     Guid? ProductOperationId,
@@ -107,7 +108,7 @@ internal sealed record ReservationDispatchDataRightsExport(
     ReservationDispatchKind Kind,
     string? SourceRevision,
     long? SourceSequence,
-    string? NormalizedSnapshot,
+    SensitiveHistoryReferenceDataRightsExport? NormalizedSnapshot,
     long? ExpectedDetailsRevision,
     ReservationDispatchState State,
     long? ResultDetailsRevision,
@@ -163,3 +164,24 @@ internal sealed record RawPayloadChunkDataRightsExport(
     string ContentType,
     string ContentSha256,
     byte[] Content);
+
+internal sealed record SensitiveHistoryReferenceDataRightsExport(
+    string ContentKind,
+    string ContentSha256,
+    int TotalBytes,
+    int ChunkCount,
+    string Encoding);
+
+internal sealed record SensitiveHistoryChunkDataRightsExport(
+    SensitiveHistoryChunkMetadataDataRightsExport Metadata,
+    byte[] Content);
+
+internal sealed record SensitiveHistoryChunkMetadataDataRightsExport(
+    string ParentRecordType,
+    Guid ParentRecordId,
+    string ContentKind,
+    int ChunkIndex,
+    int ChunkCount,
+    int TotalBytes,
+    string ContentSha256,
+    string Encoding);

@@ -12,21 +12,21 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
 internal sealed class CreateStaffMemberCommandHandler(IStaffMemberRepository members, IScopeContext scopeContext,
-    ISystemClock clock, IIdGenerator ids) : ICommandHandler<CreateStaffMemberCommand, StaffMemberDto>
+    ISystemClock clock, IIdGenerator ids) : ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>
 {
-    public async Task<Result<StaffMemberDto>> HandleAsync(CreateStaffMemberCommand command,
+    public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(CreateStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.TenantRequired);
+            return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.TenantRequired);
         }
 
         Result uniqueness = await StaffMemberUniqueness.EnsureAsync(members, command.EmployeeNumber,
             command.AuthSubjectId, null, cancellationToken).ConfigureAwait(false);
         if (uniqueness.IsFailure)
         {
-            return Result.Failure<StaffMemberDto>(uniqueness.Error);
+            return Result.Failure<StaffDirectoryMemberDto>(uniqueness.Error);
         }
 
         Result<StaffMember> created = StaffMember.Create(ids.NewId(), scopeContext.ScopeId,
@@ -35,10 +35,10 @@ internal sealed class CreateStaffMemberCommandHandler(IStaffMemberRepository mem
             command.ActorId, ids.NewId(), clock.UtcNow);
         if (created.IsFailure)
         {
-            return Result.Failure<StaffMemberDto>(created.Error);
+            return Result.Failure<StaffDirectoryMemberDto>(created.Error);
         }
 
         await members.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
-        return Result.Success(created.Value.ToDto());
+        return Result.Success(created.Value.ToDirectoryDto());
     }
 }

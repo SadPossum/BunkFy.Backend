@@ -1,6 +1,6 @@
 # Workspace Invitation Access Plans Task
 
-Status: backend issuance and provisioning implemented; management UX and deployment smoke pending
+Status: backend issuance, management UX, and delegated visibility implemented; deployment smoke pending
 Date: 2026-07-21
 
 ## Goal
@@ -31,7 +31,7 @@ Let an authorized workspace manager attach a server-owned Staff/property/access 
 2. [Complete] Add Staff Contracts provisioning for an exact property-assignment plan.
 3. [Complete] Persist Workspaces invitation/enrollment plans and bind them to Organizations source ids. Preparation and activation commit before Organizations may mint the one-time token, so there is no fallible BunkFy write after token issuance. An active plan without a corresponding Organizations source grants nothing and is safely retryable.
 4. [Complete] Extend Staff onboarding to revalidate and apply Staff data, exact property assignments, the permission-free membership marker, and the selected profile. Missing, inactive, or superseded plans fail closed.
-5. [In progress] Owner-facing invitation and enrollment-link creation endpoints are tenant-scoped and require `staff.manage`. Add product-facing list/revoke/rotate/retry surfaces and web flows without exposing raw Organizations administration.
+5. [Complete] Invitation and enrollment-link creation endpoints are tenant-scoped and require `staff.manage`. Product-facing list, revoke, replacement, and retry surfaces preserve the Workspaces access-plan boundary; delegated Organizations operations require active membership, operational workspace admission, `staff.manage`, profile visibility, and exact source or claim correlation. Generic raw issuance, reissue, and rotation remain owner-only. Workspace Settings exposes these flows to exactly the evaluated delegated capability without exposing raw Organizations administration.
 6. Add sanitized applicant preview and approval summaries.
 
 ## Verification
@@ -44,11 +44,11 @@ Let an authorized workspace manager attach a server-owned Staff/property/access 
 - reusable-link maximum-use and approval races retain one authoritative outcome;
 - deployed owner/applicant browser smoke covers password and external registration plus link and QR entry.
 
-Local verification covers aggregate lifecycle and exact replay, owner and delegated-manager anti-escalation, low-privilege reusable-link restrictions, prepare/activate/issue ordering, one-time token replay, endpoint authorization metadata, Staff/property/access retry behavior, migration drift, and a PostgreSQL upgrade from the prior Workspaces migration. The browser and broker/restart cases remain deployment gates.
+Local verification covers aggregate lifecycle and exact replay, owner and delegated-manager anti-escalation, low-privilege reusable-link restrictions, prepare/activate/issue ordering, one-time token replay, endpoint authorization metadata, Staff/property/access retry behavior, migration drift, a PostgreSQL upgrade from the prior Workspaces migration, and the delegated web capability matrix. The browser and broker/restart cases remain deployment gates.
 
 ## Not In This Slice
 
-- custom role editor UX;
+- custom role editor UX, delivered separately by `workspace-access-administration-task.md`;
 - ownership invitations;
 - public guest access;
 - adapter/service credentials;

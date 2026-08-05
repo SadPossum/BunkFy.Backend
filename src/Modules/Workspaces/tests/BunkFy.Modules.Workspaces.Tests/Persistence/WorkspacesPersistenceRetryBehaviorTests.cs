@@ -57,6 +57,44 @@ public sealed class WorkspacesPersistenceRetryBehaviorTests
             result.Error);
     }
 
+    [Fact]
+    public async Task Relational_fence_race_maps_to_the_stable_restriction_error()
+    {
+        await using WorkspacesDbContext dbContext = CreateContext();
+        WorkspacesPersistenceRetryBehavior<
+            ApplyWorkspaceTerminationFenceCommand,
+            WorkspaceTerminationFenceReceiptDto> behavior =
+            new(dbContext, _ => false);
+        ApplyWorkspaceTerminationFenceCommand command = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            1,
+            1,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new string('a', 64),
+            "operator-1");
+        int attempts = 0;
+
+        Task<Result<WorkspaceTerminationFenceReceiptDto>> Next()
+        {
+            attempts++;
+            throw new WorkspaceOperationalMutationRejectedException();
+        }
+
+        Result<WorkspaceTerminationFenceReceiptDto> result =
+            await behavior.HandleAsync(
+                command,
+                Next,
+                CancellationToken.None);
+
+        Assert.Equal(1, attempts);
+        Assert.Equal(
+            WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
+            result.Error);
+    }
+
     private static WorkspacesDbContext CreateContext()
     {
         DbContextOptions<WorkspacesDbContext> options =

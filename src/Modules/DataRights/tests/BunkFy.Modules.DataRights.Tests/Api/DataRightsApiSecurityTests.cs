@@ -4,6 +4,7 @@ using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Results;
 using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -298,6 +299,48 @@ public sealed class DataRightsApiSecurityTests
     }
 
     [Fact]
+    public async Task Public_case_route_groups_apply_the_no_store_policy()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(new CaseListDispatcher());
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+        new DataRightsModule().MapEndpoints(app);
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+        (string Route, Guid? PropertyId)[] routes =
+        [
+            ("/api/data-rights/properties/{propertyId:guid}/cases", Guid.NewGuid()),
+            ("/api/data-rights/tenant/cases", null)
+        ];
+
+        foreach ((string route, Guid? propertyId) in routes)
+        {
+            RouteEndpoint endpoint = FindEndpoint(endpoints, HttpMethods.Get, route);
+            DefaultHttpContext context = new()
+            {
+                RequestServices = app.Services,
+                Response = { Body = new MemoryStream() }
+            };
+            context.Request.Method = HttpMethods.Get;
+            if (propertyId.HasValue)
+            {
+                context.Request.RouteValues["propertyId"] = propertyId.Value.ToString("D");
+            }
+
+            await endpoint.RequestDelegate!(context);
+
+            Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+            Assert.Equal(
+                "no-store, no-cache, max-age=0",
+                context.Response.Headers.CacheControl);
+            Assert.Equal("no-cache", context.Response.Headers.Pragma);
+            Assert.Equal("0", context.Response.Headers.Expires);
+        }
+    }
+
+    [Fact]
     public async Task Operator_endpoints_publish_their_success_contracts()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
@@ -458,4 +501,18 @@ public sealed class DataRightsApiSecurityTests
             candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
                 method,
                 StringComparer.Ordinal) == true);
+
+    private sealed class CaseListDispatcher : IRequestDispatcher
+    {
+        public Task<Result<TResponse>> SendAsync<TResponse>(
+            ICommand<TResponse> command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<TResponse>> QueryAsync<TResponse>(
+            IQuery<TResponse> query,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult((Result<TResponse>)(object)Result.Success(
+                new DataRightsCaseListResponse([], 1, 20, HasMore: false)));
+    }
 }

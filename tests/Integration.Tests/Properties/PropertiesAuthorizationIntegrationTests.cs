@@ -82,19 +82,19 @@ public sealed class PropertiesAuthorizationIntegrationTests
         await AssignRoleAsync(admin, tenantManagerAId, "property-manager", $"tenant:{TenantA}").ConfigureAwait(false);
         await AssignRoleAsync(admin, tenantManagerBId, "property-manager", $"tenant:{TenantB}").ConfigureAwait(false);
 
-        PropertyDto propertyA1 = await CreatePropertyAsync(
+        PropertyMutationReceiptDto propertyA1 = await CreatePropertyAsync(
             client,
             TenantA,
             tenantManagerA.AccessToken,
             "Alpha House",
             "ALPHA").ConfigureAwait(false);
-        PropertyDto propertyA2 = await CreatePropertyAsync(
+        PropertyMutationReceiptDto propertyA2 = await CreatePropertyAsync(
             client,
             TenantA,
             tenantManagerA.AccessToken,
             "Beta House",
             "BETA").ConfigureAwait(false);
-        PropertyDto propertyB = await CreatePropertyAsync(
+        PropertyMutationReceiptDto propertyB = await CreatePropertyAsync(
             client,
             TenantB,
             tenantManagerB.AccessToken,
@@ -178,7 +178,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken).ConfigureAwait(false))
         {
             PropertyListResponse properties = await ReadSuccessAsync<PropertyListResponse>(propertyList).ConfigureAwait(false);
-            PropertyDto visible = Assert.Single(properties.Properties);
+            PropertyListItemDto visible = Assert.Single(properties.Properties);
             Assert.Equal(propertyA1.PropertyId, visible.PropertyId);
         }
 
@@ -250,7 +250,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
             await AssertStatusAsync(HttpStatusCode.Forbidden, rootCreateDenied).ConfigureAwait(false);
         }
 
-        PropertyDto updatedProperty;
+        PropertyMutationReceiptDto updatedProperty;
         using (HttpResponseMessage updateProperty = await SendAsync(
                    client,
                    HttpMethod.Put,
@@ -259,11 +259,13 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken,
                    new { name = "Alpha House Updated", code = "ALPHA", timeZoneId = "UTC", expectedVersion = 1 }).ConfigureAwait(false))
         {
-            updatedProperty = await ReadSuccessAsync<PropertyDto>(updateProperty).ConfigureAwait(false);
+            updatedProperty = await ReadSuccessAsync<PropertyMutationReceiptDto>(updateProperty).ConfigureAwait(false);
             Assert.Equal(2, updatedProperty.Version);
         }
 
-        CountryPolicyRetentionDescriptorDto retentionPolicy = Assert.Single(countryPolicy.RetentionPolicies);
+        CountryPolicyRetentionDescriptorDto retentionPolicy = Assert.Single(
+            countryPolicy.RetentionPolicies,
+            policy => policy.RetentionPolicyId == "integration-guest-operational");
         object activationRequest = new
         {
             operatingCountryCode = countryPolicy.OperatingCountryCode,
@@ -294,7 +296,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
             Assert.Contains(PropertiesApplicationErrors.ConfirmationRequired.Code, body, StringComparison.Ordinal);
         }
 
-        PropertyDto processingEnabledProperty;
+        PropertyMutationReceiptDto processingEnabledProperty;
         using (HttpResponseMessage activateProcessing = await SendAsync(
                    client,
                    HttpMethod.Post,
@@ -320,7 +322,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    }).ConfigureAwait(false))
         {
             processingEnabledProperty =
-                await ReadSuccessAsync<PropertyDto>(activateProcessing).ConfigureAwait(false);
+                await ReadSuccessAsync<PropertyMutationReceiptDto>(activateProcessing).ConfigureAwait(false);
             Assert.Equal(PropertyProcessingStatus.Enabled, processingEnabledProperty.ProcessingStatus);
         }
 
@@ -337,7 +339,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
             Assert.Equal(processingEnabledProperty.Version, state.PropertyVersion);
         }
 
-        RoomDto room;
+        RoomMutationReceiptDto room;
         using (HttpResponseMessage createRoom = await SendAsync(
                    client,
                    HttpMethod.Post,
@@ -346,10 +348,10 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken,
                    new { name = "Room 101", expectedPropertyVersion = processingEnabledProperty.Version, buildingLabel = "Main", floorLabel = "1" }).ConfigureAwait(false))
         {
-            room = await ReadSuccessAsync<RoomDto>(createRoom).ConfigureAwait(false);
+            room = await ReadSuccessAsync<RoomMutationReceiptDto>(createRoom).ConfigureAwait(false);
         }
 
-        BedDto bed;
+        BedMutationReceiptDto bed;
         using (HttpResponseMessage addBed = await SendAsync(
                    client,
                    HttpMethod.Post,
@@ -358,7 +360,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken,
                    new { label = "A", expectedRoomVersion = room.Version }).ConfigureAwait(false))
         {
-            bed = await ReadSuccessAsync<BedDto>(addBed).ConfigureAwait(false);
+            bed = await ReadSuccessAsync<BedMutationReceiptDto>(addBed).ConfigureAwait(false);
             Assert.Equal(room.RoomId, bed.RoomId);
         }
 
@@ -487,7 +489,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
             "--role", roleName,
             "--scope", scope));
 
-    private static async Task<PropertyDto> CreatePropertyAsync(
+    private static async Task<PropertyMutationReceiptDto> CreatePropertyAsync(
         HttpClient client,
         string tenantId,
         string accessToken,
@@ -502,7 +504,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
             accessToken,
             new { name, code, timeZoneId = "UTC" }).ConfigureAwait(false);
 
-        return await ReadSuccessAsync<PropertyDto>(response).ConfigureAwait(false);
+        return await ReadSuccessAsync<PropertyMutationReceiptDto>(response).ConfigureAwait(false);
     }
 
     private static async Task<HttpResponseMessage> SendAsync(

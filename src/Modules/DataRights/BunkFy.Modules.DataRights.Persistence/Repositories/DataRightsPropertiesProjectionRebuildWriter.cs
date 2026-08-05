@@ -29,6 +29,7 @@ internal sealed class DataRightsPropertiesProjectionRebuildWriter(
                     property.TenantId,
                     property.PropertyId,
                     property.Name,
+                    property.TimeZoneId,
                     property.Status,
                     property.Version),
                 cancellationToken).ConfigureAwait(false);

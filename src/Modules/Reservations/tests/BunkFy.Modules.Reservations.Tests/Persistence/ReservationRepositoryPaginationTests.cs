@@ -13,7 +13,7 @@ using Xunit;
 public sealed class ReservationRepositoryPaginationTests
 {
     [Fact]
-    public async Task List_filters_before_counting_and_paging_with_stable_ordering()
+    public async Task List_projects_summary_rows_with_stable_look_ahead_paging()
     {
         await using ReservationsDbContext dbContext = CreateDbContext();
         Guid propertyId = Guid.NewGuid();
@@ -44,7 +44,14 @@ public sealed class ReservationRepositoryPaginationTests
 
         await dbContext.SaveChangesAsync();
 
-        ReservationListResponse result = await repository.ListAsync(
+        ReservationListResponse firstPage = await repository.ListAsync(
+            propertyId,
+            [ReservationStatus.PendingAllocation, ReservationStatus.Confirmed],
+            "ADA",
+            ReservationListOrder.ArrivalAscending,
+            PageRequest.Normalize(page: 1, pageSize: 1),
+            CancellationToken.None);
+        ReservationListResponse secondPage = await repository.ListAsync(
             propertyId,
             [ReservationStatus.PendingAllocation, ReservationStatus.Confirmed],
             "ADA",
@@ -52,10 +59,14 @@ public sealed class ReservationRepositoryPaginationTests
             PageRequest.Normalize(page: 2, pageSize: 1),
             CancellationToken.None);
 
-        Assert.Equal(2, result.TotalCount);
-        Assert.Equal(2, result.Page);
-        Assert.Equal(1, result.PageSize);
-        Assert.Equal(second.Id, Assert.Single(result.Reservations).ReservationId);
+        ReservationListItemDto firstItem = Assert.Single(firstPage.Reservations);
+        Assert.Equal(first.Id, firstItem.ReservationId);
+        Assert.Equal(1, firstItem.InventoryUnitCount);
+        Assert.True(firstPage.HasMore);
+        Assert.Equal(2, secondPage.Page);
+        Assert.Equal(1, secondPage.PageSize);
+        Assert.Equal(second.Id, Assert.Single(secondPage.Reservations).ReservationId);
+        Assert.False(secondPage.HasMore);
     }
 
     private static Reservation CreateReservation(

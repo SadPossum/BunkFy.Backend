@@ -9,11 +9,97 @@ using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
 using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Reservations.Persistence.TenantTermination;
 using Xunit;
 
 [Trait("Category", "Unit")]
 public sealed class ReservationsModelTests
 {
+    [Fact]
+    public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+
+        IEntityType revisionEntity = dbContext.Model.FindEntityType(
+            typeof(ReservationsTenantRevision))!;
+        IEntityType designRevisionEntity = dbContext
+            .GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(ReservationsTenantRevision))!;
+
+        Assert.Equal(
+            [nameof(ReservationsTenantRevision.ScopeId)],
+            revisionEntity.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(
+            revisionEntity.FindProperty(
+                nameof(ReservationsTenantRevision.Revision))!
+                .IsConcurrencyToken);
+        Assert.NotEmpty(revisionEntity.GetDeclaredQueryFilters());
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_reservations_tenant_revision_positive",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_reservations_tenant_revision_lifecycle",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Tenant_destruction_progress_and_receipt_are_scope_unique_and_constrained()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(ReservationsTenantDestroyOperation))!;
+        IEntityType receipt = designModel.FindEntityType(
+            typeof(ReservationsTenantDestroyReceipt))!;
+
+        Assert.Equal(
+            [nameof(ReservationsTenantDestroyOperation.OperationId)],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(operation.FindProperty(
+            nameof(ReservationsTenantDestroyOperation.ConcurrencyVersion))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            operation.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(ReservationsTenantDestroyOperation.ScopeId)
+                    ]));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservations_tenant_destroy_operation_batch");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservations_tenant_destroy_operation_progress");
+
+        Assert.Equal(
+            [nameof(ReservationsTenantDestroyReceipt.OperationId)],
+            receipt.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(ReservationsTenantDestroyReceipt.ScopeId)
+                    ]));
+        Assert.Contains(
+            receipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_reservations_tenant_destroy_receipt_progress");
+    }
+
     [Fact]
     public void Model_has_scoped_requested_units_idempotency_and_version_concurrency()
     {

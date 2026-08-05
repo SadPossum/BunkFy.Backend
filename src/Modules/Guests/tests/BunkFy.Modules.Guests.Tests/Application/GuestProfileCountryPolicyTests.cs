@@ -28,7 +28,7 @@ public sealed class GuestProfileCountryPolicyTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<GuestProfileDto> result = await handler.HandleAsync(
+        Result<GuestMutationReceiptDto> result = await handler.HandleAsync(
             new CreateGuestProfileCommand(
                 Guid.NewGuid(),
                 "Ada Guest",

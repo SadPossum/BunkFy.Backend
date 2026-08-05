@@ -37,6 +37,9 @@
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Api\BunkFy.Modules.Ingestion.Api.csproj" />
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.DataRights.AccessControl\BunkFy.Extensions.DataRights.AccessControl.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.DataRights.Organizations\BunkFy.Extensions.DataRights.Organizations.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.DataRights.TenantTermination\BunkFy.Extensions.DataRights.TenantTermination.csproj" />
     <ProjectReference Include="..\Extensions\BunkFy.Extensions.Operations.Notifications\BunkFy.Extensions.Operations.Notifications.csproj" />
     <ProjectReference Include="..\Extensions\BunkFy.Extensions.Workspaces\BunkFy.Extensions.Workspaces.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.FakeHttp\BunkFy.Adapters.FakeHttp.csproj" />

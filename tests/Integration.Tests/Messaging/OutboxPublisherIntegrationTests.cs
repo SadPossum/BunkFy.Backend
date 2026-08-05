@@ -2,8 +2,10 @@ namespace Integration.Tests;
 
 using BunkFy.Host.Worker;
 using DotNet.Testcontainers.Containers;
+using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Integration.Tests.Support;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
@@ -70,6 +72,13 @@ public sealed class OutboxPublisherIntegrationTests
         await AuthApiClient.RegisterAsync(client, "tenant-worker", "worker@example.com");
         Assert.Equal(1, await application.CountPendingOutboxMessagesAsync().ConfigureAwait(false));
 
+        using (IServiceScope workerScope = worker.Services.CreateScope())
+        {
+            Assert.Contains(
+                workerScope.ServiceProvider.GetServices<IOutboxStore>(),
+                store => store.ModuleName == "auth");
+        }
+
         await worker.StartAsync().ConfigureAwait(false);
         try
         {
@@ -77,7 +86,17 @@ public sealed class OutboxPublisherIntegrationTests
                 await application.WaitForProcessedOutboxMessagesAsync(1, TimeSpan.FromSeconds(20)).ConfigureAwait(false);
             int pendingAfterWorkerPublish = await application.CountPendingOutboxMessagesAsync().ConfigureAwait(false);
 
-            Assert.Equal(1, processedAfterWorkerPublish);
+            if (processedAfterWorkerPublish != 1)
+            {
+                OutboxSnapshot snapshot = await application.GetOnlyOutboxSnapshotAsync().ConfigureAwait(false);
+                Assert.Fail(
+                    $"Auth Worker did not process outbox message {snapshot.Id:D}. " +
+                    $"Attempts={snapshot.Attempts}; LockedBy={snapshot.LockedBy ?? "none"}; " +
+                    $"LockedUntilUtc={snapshot.LockedUntilUtc?.ToString("O") ?? "none"}; " +
+                    $"NextAttemptAtUtc={snapshot.NextAttemptAtUtc?.ToString("O") ?? "none"}; " +
+                    $"Error={snapshot.Error ?? "none"}.");
+            }
+
             Assert.Equal(0, pendingAfterWorkerPublish);
         }
         finally
@@ -96,6 +115,7 @@ public sealed class OutboxPublisherIntegrationTests
             EnvironmentName = "Integration",
         });
         builder.Configuration["Persistence:Provider"] = "PostgreSql";
+        builder.Configuration["ApplicationIdentity:Namespace"] = "bunkfy";
         builder.Configuration["ConnectionStrings:PostgreSql"] = postgreSqlConnectionString;
         builder.Configuration["ConnectionStrings:nats"] = natsConnectionString;
         builder.Configuration["Tenancy:Enabled"] = "true";
@@ -106,7 +126,7 @@ public sealed class OutboxPublisherIntegrationTests
         builder.Configuration["Outbox:LockDurationMilliseconds"] = "1000";
         builder.Configuration["Worker:Modules:Auth"] = "true";
         AuthTestConfiguration.ConfigureTokenHashing(builder.Configuration);
-        builder.Logging.ClearProviders();
+        builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
         builder.AddWorkerHost();
         builder.ValidateModuleComposition();

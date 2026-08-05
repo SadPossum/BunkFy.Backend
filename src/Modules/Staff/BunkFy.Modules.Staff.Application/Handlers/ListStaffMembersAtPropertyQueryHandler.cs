@@ -8,9 +8,9 @@ using BunkFy.Modules.Staff.Application.Queries;
 using BunkFy.Modules.Staff.Contracts;
 
 internal sealed class ListStaffMembersAtPropertyQueryHandler(IStaffMemberRepository members)
-    : IQueryHandler<ListStaffMembersAtPropertyQuery, StaffDirectoryListResponse>
+    : IQueryHandler<ListStaffMembersAtPropertyQuery, StaffPropertyDirectoryListResponse>
 {
-    public async Task<Result<StaffDirectoryListResponse>> HandleAsync(ListStaffMembersAtPropertyQuery query,
+    public async Task<Result<StaffPropertyDirectoryListResponse>> HandleAsync(ListStaffMembersAtPropertyQuery query,
         CancellationToken cancellationToken) => Result.Success(await members.ListDirectoryAtPropertyAsync(
         query.PropertyId,
         query.Search,

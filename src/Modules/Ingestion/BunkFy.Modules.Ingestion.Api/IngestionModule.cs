@@ -81,6 +81,7 @@ public sealed class IngestionModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Ingestion Proposals")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -96,6 +97,7 @@ public sealed class IngestionModule : IModule
                     page ?? PageRequest.DefaultPage,
                     pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ChangeProposalListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -109,6 +111,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.QueryAsync(
                 new GetChangeProposalQuery(propertyId, proposalId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ChangeProposalDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.SensitiveHistoryRead,
@@ -138,6 +141,7 @@ public sealed class IngestionModule : IModule
                     request.ExpectedReservationDetailsRevision),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<ChangeProposalMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ProposalsDecide,
@@ -167,6 +171,7 @@ public sealed class IngestionModule : IModule
                     request.ExpectedProposalVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<ChangeProposalMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ProposalsDecide,
@@ -183,6 +188,7 @@ public sealed class IngestionModule : IModule
         group.MapGet("", async (IRequestDispatcher dispatcher, CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(new ListObservationParserCapabilitiesQuery(), cancellationToken)
                 .ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ObservationParserCapabilityListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -203,6 +209,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.QueryAsync(
                 new ListAdapterTypeCapabilitiesQuery(),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterTypeCapabilityListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -217,6 +224,7 @@ public sealed class IngestionModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Ingestion Connections")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -231,6 +239,7 @@ public sealed class IngestionModule : IModule
                 page ?? PageRequest.DefaultPage,
                 pageSize ?? PageRequest.DefaultPageSize), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -244,6 +253,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.QueryAsync(
                 new GetAdapterConnectionQuery(propertyId, connectionId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -257,6 +267,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.QueryAsync(
                 new GetAdapterConnectionHealthQuery(propertyId, connectionId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionHealthDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -274,6 +285,7 @@ public sealed class IngestionModule : IModule
                 request.ConflictPolicy,
                 request.ConfigurationReference,
                 request.SecretReference), cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
@@ -294,6 +306,7 @@ public sealed class IngestionModule : IModule
                 ResolveSecretReferenceUpdateMode(request.SecretReference, request.ClearSecretReference),
                 request.SecretReference,
                 request.ExpectedVersion), cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
@@ -311,6 +324,7 @@ public sealed class IngestionModule : IModule
                 request.IntervalSeconds,
                 request.MaxAttempts,
                 request.ExpectedVersion), cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
@@ -326,6 +340,7 @@ public sealed class IngestionModule : IModule
                 propertyId,
                 connectionId,
                 request.ExpectedVersion), cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
@@ -340,6 +355,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.SendAsync(new SetAdapterConnectionEnabledCommand(
                 propertyId, connectionId, Enabled: true, request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
@@ -354,6 +370,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.SendAsync(new SetAdapterConnectionEnabledCommand(
                 propertyId, connectionId, Enabled: false, request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
@@ -368,6 +385,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.SendAsync(new ResetAdapterConnectionCheckpointCommand(
                 propertyId, connectionId, request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
@@ -386,6 +404,7 @@ public sealed class IngestionModule : IModule
                 page ?? PageRequest.DefaultPage,
                 pageSize ?? PageRequest.DefaultPageSize), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<AdapterIngressCredentialListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.CredentialsManage,
@@ -422,6 +441,7 @@ public sealed class IngestionModule : IModule
 
             return result.ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<CreateAdapterIngressCredentialResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.CredentialsManage,
@@ -452,6 +472,7 @@ public sealed class IngestionModule : IModule
                 $"{Gma.Framework.AccessControl.AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}"),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<AdapterIngressCredentialMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.CredentialsManage,
@@ -1022,6 +1043,7 @@ public sealed class IngestionModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Ingestion Runs")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -1038,6 +1060,7 @@ public sealed class IngestionModule : IModule
                 page ?? PageRequest.DefaultPage,
                 pageSize ?? PageRequest.DefaultPageSize), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<IngestionRunListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -1050,6 +1073,7 @@ public sealed class IngestionModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(new GetIngestionRunQuery(propertyId, runId), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<IngestionRunDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -1062,6 +1086,7 @@ public sealed class IngestionModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Ingestion Receipts")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -1080,6 +1105,7 @@ public sealed class IngestionModule : IModule
                 page ?? PageRequest.DefaultPage,
                 pageSize ?? PageRequest.DefaultPageSize), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<ObservationReceiptListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -1092,6 +1118,7 @@ public sealed class IngestionModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(new GetObservationReceiptQuery(propertyId, receiptId), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<ObservationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -1124,6 +1151,7 @@ public sealed class IngestionModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Ingestion Reprocessing")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -1140,6 +1168,7 @@ public sealed class IngestionModule : IModule
                 page ?? PageRequest.DefaultPage,
                 pageSize ?? PageRequest.DefaultPageSize), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
+            .Produces<ObservationReprocessingAttemptListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -1153,6 +1182,7 @@ public sealed class IngestionModule : IModule
             (await dispatcher.QueryAsync(
                 new GetObservationReprocessingAttemptQuery(propertyId, attemptId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
+            .Produces<ObservationReprocessingAttemptDetailsDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.Read,
@@ -1173,6 +1203,21 @@ public sealed class IngestionModule : IModule
             "application/octet-stream",
             $"ingestion-receipt-{receiptId:N}.payload",
             enableRangeProcessing: false);
+    }
+
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
     }
 
     public sealed record AcceptProposalRequest(

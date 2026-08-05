@@ -41,6 +41,9 @@ internal sealed class WorkspaceStaffRetentionCorrelationRepository(
                 : InvalidProof();
         }
 
+        await dbContext.AcquireOperationalMutationAdmissionAsync(
+            cancellationToken).ConfigureAwait(false);
+
         string? subjectId = NormalizeSubject(command.SubjectId);
         if (subjectId is not null)
         {

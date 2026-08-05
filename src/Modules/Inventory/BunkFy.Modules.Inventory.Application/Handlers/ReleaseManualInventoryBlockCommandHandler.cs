@@ -15,9 +15,9 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
     InventoryRetirementCoordinator retirements,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<ReleaseManualInventoryBlockCommand, ManualInventoryBlockDto>
+    : ICommandHandler<ReleaseManualInventoryBlockCommand, ManualInventoryBlockMutationReceiptDto>
 {
-    public async Task<Result<ManualInventoryBlockDto>> HandleAsync(
+    public async Task<Result<ManualInventoryBlockMutationReceiptDto>> HandleAsync(
         ReleaseManualInventoryBlockCommand command,
         CancellationToken cancellationToken)
     {
@@ -26,7 +26,7 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
             .ConfigureAwait(false);
         if (block is null)
         {
-            return Result.Failure<ManualInventoryBlockDto>(InventoryApplicationErrors.BlockNotFound);
+            return Result.Failure<ManualInventoryBlockMutationReceiptDto>(InventoryApplicationErrors.BlockNotFound);
         }
 
         Result released = block.Release(
@@ -36,7 +36,7 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
             command.ActorId);
         if (released.IsFailure)
         {
-            return Result.Failure<ManualInventoryBlockDto>(released.Error);
+            return Result.Failure<ManualInventoryBlockMutationReceiptDto>(released.Error);
         }
 
         await availability.TouchUnitsAsync(
@@ -49,6 +49,6 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
             excludedAllocationId: null,
             excludedBlockIds: [block.Id],
             cancellationToken).ConfigureAwait(false);
-        return Result.Success(block.ToDto());
+        return Result.Success(block.ToMutationReceipt());
     }
 }

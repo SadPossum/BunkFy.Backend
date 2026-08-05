@@ -12,6 +12,7 @@ using BunkFy.Modules.Inventory.Domain.DataRights;
 using BunkFy.Modules.Inventory.Domain.Entities;
 using BunkFy.Modules.Inventory.Domain.Events;
 using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Inventory.Persistence.TenantTermination;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
@@ -209,7 +210,9 @@ public sealed class InventoryPersonalDataCatalogTests
         typeof(InventoryAllocationAnonymisationRestoreReceipt),
         typeof(ManualInventoryBlock),
         typeof(BedRetirementProcess),
-        typeof(RoomRetirementProcess)
+        typeof(RoomRetirementProcess),
+        typeof(InventoryTenantDestroyOperation),
+        typeof(InventoryTenantDestroyReceipt)
     ];
 
     private static IEnumerable<(PersonalDataSurface Surface, Type Type)> BoundaryTypes()
@@ -273,7 +276,6 @@ public sealed class InventoryPersonalDataCatalogTests
                      typeof(InventoryAvailabilityResponse),
                      typeof(InventoryUnitAvailabilityDto),
                      typeof(ManualInventoryBlockDto),
-                     typeof(ManualInventoryBlockGroupDto),
                      typeof(ManualInventoryBlockListResponse),
                      typeof(BedRetirementDto),
                      typeof(RoomRetirementDto),
@@ -353,7 +355,7 @@ public sealed class InventoryPersonalDataCatalogTests
         }.ToDictionary(assembly => assembly.GetName().Name!, StringComparer.Ordinal);
 
     private static HashSet<string> PaginationMembers() =>
-        new(["Page", "PageSize"], StringComparer.Ordinal);
+        new(["HasMore", "Page", "PageSize"], StringComparer.Ordinal);
 
     private static PersonalDataCatalogDocument LoadCatalogue() => PersonalDataCatalogJson.Parse(
         File.ReadAllBytes(Path.Combine(

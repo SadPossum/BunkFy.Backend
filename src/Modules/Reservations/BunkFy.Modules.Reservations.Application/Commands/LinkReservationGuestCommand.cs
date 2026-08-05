@@ -10,4 +10,4 @@ public sealed record LinkReservationGuestCommand(
     ReservationGuestRoleKind Role,
     bool ReplaceExistingRole,
     long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<ReservationDto>;
+    string ActorId) : ITransactionalCommand<ReservationMutationReceiptDto>;

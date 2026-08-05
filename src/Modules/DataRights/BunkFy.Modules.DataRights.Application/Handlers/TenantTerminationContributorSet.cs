@@ -13,15 +13,33 @@ internal static class TenantTerminationContributorSet
             phase == TenantTerminationContributionPhase.Unknown ||
             !TryValidateAndIndex(
                 contributors,
-                out Dictionary<string, ITenantTerminationContributor> index))
+                out Dictionary<string, ITenantTerminationContributor> index) ||
+            HasDependencyCycle(index))
+        {
+            return Invalid<IReadOnlyList<ITenantTerminationContributor>>();
+        }
+
+        Dictionary<string, TenantTerminationContributorPhasePlan> phasePlans =
+            index.Values
+                .Select(contributor => new
+                {
+                    Contributor = contributor,
+                    Plan = PhasePlanFor(contributor.Descriptor, phase)
+                })
+                .Where(item => item.Plan is not null)
+                .ToDictionary(
+                    item => item.Contributor.Descriptor.OwnerKey,
+                    item => item.Plan!,
+                    StringComparer.Ordinal);
+        if (phasePlans.Count == 0)
         {
             return Invalid<IReadOnlyList<ITenantTerminationContributor>>();
         }
 
         List<ITenantTerminationContributor> ordered = [];
-        Dictionary<string, int> incoming = index.ToDictionary(
+        Dictionary<string, int> incoming = phasePlans.ToDictionary(
             pair => pair.Key,
-            pair => pair.Value.Descriptor.DependsOnOwnerKeys.Count,
+            pair => pair.Value.DependsOnOwnerKeys.Count,
             StringComparer.Ordinal);
         SortedSet<string> ready = new(
             incoming.Where(pair => pair.Value == 0).Select(pair => pair.Key),
@@ -34,9 +52,9 @@ internal static class TenantTerminationContributorSet
             ITenantTerminationContributor contributor = index[ownerKey];
             ordered.Add(contributor);
 
-            foreach (KeyValuePair<string, ITenantTerminationContributor> candidate in index)
+            foreach (KeyValuePair<string, TenantTerminationContributorPhasePlan> candidate in phasePlans)
             {
-                if (!candidate.Value.Descriptor.DependsOnOwnerKeys.Contains(
+                if (!candidate.Value.DependsOnOwnerKeys.Contains(
                         ownerKey,
                         StringComparer.Ordinal))
                 {
@@ -51,19 +69,13 @@ internal static class TenantTerminationContributorSet
             }
         }
 
-        if (ordered.Count != index.Count)
+        if (ordered.Count != phasePlans.Count)
         {
             return Invalid<IReadOnlyList<ITenantTerminationContributor>>();
         }
 
-        ITenantTerminationContributor[] phaseOwners = ordered
-            .Where(contributor =>
-                contributor.Descriptor.SupportedPhases.Contains(phase))
-            .ToArray();
-        return phaseOwners.Length > 0
-            ? Result.Success<IReadOnlyList<ITenantTerminationContributor>>(
-                phaseOwners)
-            : Invalid<IReadOnlyList<ITenantTerminationContributor>>();
+        return Result.Success<IReadOnlyList<ITenantTerminationContributor>>(
+            ordered);
     }
 
     public static Result ValidateProductionCatalog(
@@ -130,24 +142,7 @@ internal static class TenantTerminationContributorSet
                 !IsStableKey(descriptor.OwnerKey) ||
                 descriptor.ContractVersion !=
                     TenantTerminationContract.CurrentVersion ||
-                descriptor.SupportedPhases is null ||
-                descriptor.SupportedPhases.Count == 0 ||
-                descriptor.SupportedPhases.Any(phase =>
-                    !Enum.IsDefined(phase) ||
-                    phase == TenantTerminationContributionPhase.Unknown) ||
-                descriptor.SupportedPhases.Distinct().Count() !=
-                    descriptor.SupportedPhases.Count ||
-                descriptor.DependsOnOwnerKeys is null ||
-                descriptor.DependsOnOwnerKeys.Count >
-                    TenantTerminationContract.MaximumDependencies ||
-                descriptor.DependsOnOwnerKeys.Any(ownerKey =>
-                    !IsStableKey(ownerKey) ||
-                    string.Equals(
-                        ownerKey,
-                        descriptor.OwnerKey,
-                        StringComparison.Ordinal)) ||
-                descriptor.DependsOnOwnerKeys.Distinct(StringComparer.Ordinal)
-                    .Count() != descriptor.DependsOnOwnerKeys.Count ||
+                !HasValidPhasePlans(descriptor) ||
                 descriptor.CatalogVersion <= 0 ||
                 !IsSha256(descriptor.CatalogSha256) ||
                 !index.TryAdd(descriptor.OwnerKey, contributor!))
@@ -158,10 +153,14 @@ internal static class TenantTerminationContributorSet
         }
 
         Dictionary<string, ITenantTerminationContributor> validatedIndex = index;
-        bool dependencyMissing = validatedIndex.Values.Any(contributor =>
-            contributor.Descriptor.DependsOnOwnerKeys.Any(
-                dependency => !validatedIndex.ContainsKey(dependency)));
-        if (dependencyMissing)
+        bool dependencyInvalid = validatedIndex.Values.Any(contributor =>
+            contributor.Descriptor.PhasePlans.Any(plan =>
+                plan.DependsOnOwnerKeys.Any(dependency =>
+                    !validatedIndex.TryGetValue(
+                        dependency,
+                        out ITenantTerminationContributor? dependencyOwner) ||
+                    PhasePlanFor(dependencyOwner.Descriptor, plan.Phase) is null)));
+        if (dependencyInvalid)
         {
             index.Clear();
             return false;
@@ -173,9 +172,33 @@ internal static class TenantTerminationContributorSet
     private static bool HasDependencyCycle(
         Dictionary<string, ITenantTerminationContributor> index)
     {
-        Dictionary<string, int> incoming = index.ToDictionary(
+        TenantTerminationContributionPhase[] phases = index.Values
+            .SelectMany(contributor => contributor.Descriptor.PhasePlans)
+            .Select(plan => plan.Phase)
+            .Distinct()
+            .ToArray();
+        return phases.Any(phase => HasDependencyCycle(index, phase));
+    }
+
+    private static bool HasDependencyCycle(
+        Dictionary<string, ITenantTerminationContributor> index,
+        TenantTerminationContributionPhase phase)
+    {
+        Dictionary<string, TenantTerminationContributorPhasePlan> phasePlans =
+            index.Values
+                .Select(contributor => new
+                {
+                    Contributor = contributor,
+                    Plan = PhasePlanFor(contributor.Descriptor, phase)
+                })
+                .Where(item => item.Plan is not null)
+                .ToDictionary(
+                    item => item.Contributor.Descriptor.OwnerKey,
+                    item => item.Plan!,
+                    StringComparer.Ordinal);
+        Dictionary<string, int> incoming = phasePlans.ToDictionary(
             pair => pair.Key,
-            pair => pair.Value.Descriptor.DependsOnOwnerKeys.Count,
+            pair => pair.Value.DependsOnOwnerKeys.Count,
             StringComparer.Ordinal);
         Queue<string> ready = new(
             incoming.Where(pair => pair.Value == 0).Select(pair => pair.Key));
@@ -184,9 +207,9 @@ internal static class TenantTerminationContributorSet
         {
             string ownerKey = ready.Dequeue();
             visited++;
-            foreach (KeyValuePair<string, ITenantTerminationContributor> candidate in index)
+            foreach (KeyValuePair<string, TenantTerminationContributorPhasePlan> candidate in phasePlans)
             {
-                if (!candidate.Value.Descriptor.DependsOnOwnerKeys.Contains(
+                if (!candidate.Value.DependsOnOwnerKeys.Contains(
                         ownerKey,
                         StringComparer.Ordinal))
                 {
@@ -201,8 +224,40 @@ internal static class TenantTerminationContributorSet
             }
         }
 
-        return visited != index.Count;
+        return visited != phasePlans.Count;
     }
+
+    private static bool HasValidPhasePlans(
+        TenantTerminationContributorDescriptor descriptor) =>
+        descriptor.PhasePlans is not null &&
+        descriptor.PhasePlans.Count > 0 &&
+        descriptor.PhasePlans.All(plan =>
+            plan is not null &&
+            Enum.IsDefined(plan.Phase) &&
+            plan.Phase != TenantTerminationContributionPhase.Unknown &&
+            Enum.IsDefined(plan.ExecutionBoundary) &&
+            plan.ExecutionBoundary != TenantTerminationExecutionBoundary.Unknown &&
+            (plan.ExecutionBoundary ==
+                TenantTerminationExecutionBoundary.TenantScopedTask ||
+             plan.Phase == TenantTerminationContributionPhase.Destroy) &&
+            plan.DependsOnOwnerKeys is not null &&
+            plan.DependsOnOwnerKeys.Count <=
+                TenantTerminationContract.MaximumDependencies &&
+            plan.DependsOnOwnerKeys.All(ownerKey =>
+                IsStableKey(ownerKey) &&
+                !string.Equals(
+                    ownerKey,
+                    descriptor.OwnerKey,
+                    StringComparison.Ordinal)) &&
+            plan.DependsOnOwnerKeys.Distinct(StringComparer.Ordinal).Count() ==
+                plan.DependsOnOwnerKeys.Count) &&
+        descriptor.PhasePlans.Select(plan => plan.Phase).Distinct().Count() ==
+            descriptor.PhasePlans.Count;
+
+    private static TenantTerminationContributorPhasePlan? PhasePlanFor(
+        TenantTerminationContributorDescriptor descriptor,
+        TenantTerminationContributionPhase phase) =>
+        descriptor.PhasePlans.FirstOrDefault(plan => plan.Phase == phase);
 
     private static bool IsStableKey(string? value)
     {

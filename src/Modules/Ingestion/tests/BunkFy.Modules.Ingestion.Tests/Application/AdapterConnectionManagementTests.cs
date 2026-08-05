@@ -46,8 +46,9 @@ public sealed class AdapterConnectionManagementTests
             rejected.Error);
         Assert.True(created.IsSuccess, created.Error.Code);
         Assert.Equal(AdapterConnectionStatus.Enabled, created.Value.Status);
-        Assert.Equal("fake.http", created.Value.AdapterType);
-        Assert.Single(connections.Items);
+        AdapterConnection stored = Assert.Single(connections.Items);
+        Assert.Equal(created.Value.ConnectionId, stored.Id);
+        Assert.Equal("fake.http", stored.AdapterType);
     }
 
     [Fact]
@@ -106,8 +107,8 @@ public sealed class AdapterConnectionManagementTests
             new(propertyId, connection.Id, Enabled: true, ExpectedVersion: 3), CancellationToken.None);
 
         Assert.True(updated.IsSuccess, updated.Error.Code);
-        Assert.Equal(AdapterExecutionMode.Continuous, updated.Value.ExecutionMode);
-        Assert.True(updated.Value.HasSecretReference);
+        Assert.Equal(AdapterExecutionMode.Continuous, connection.ExecutionMode);
+        Assert.Equal("secret://secondary", connection.SecretReference);
         Assert.Equal(IngestionApplicationErrors.ConnectionNotFound, wrongProperty.Error);
         Assert.Equal(AdapterConnectionStatus.Disabled, disabled.Value.Status);
         Assert.Equal(3, disabled.Value.Version);
@@ -132,7 +133,6 @@ public sealed class AdapterConnectionManagementTests
             propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
             "configuration://changed", SecretReferenceUpdateMode.Keep, null, 1), CancellationToken.None);
         Assert.True(kept.IsSuccess, kept.Error.Code);
-        Assert.True(kept.Value.HasSecretReference);
         Assert.Equal("secret://initial", connection.SecretReference);
 
         var invalid = await handler.HandleAsync(new(
@@ -147,7 +147,6 @@ public sealed class AdapterConnectionManagementTests
             "configuration://changed", SecretReferenceUpdateMode.Clear, null, 2), CancellationToken.None);
 
         Assert.True(cleared.IsSuccess, cleared.Error.Code);
-        Assert.False(cleared.Value.HasSecretReference);
         Assert.Null(connection.SecretReference);
     }
 
@@ -190,15 +189,19 @@ public sealed class AdapterConnectionManagementTests
             connections, descriptors, new TestClock()).HandleAsync(
             new(propertyId, connection.Id, IntervalSeconds: 180, MaxAttempts: 4, ExpectedVersion: 1),
             CancellationToken.None);
+
+        Assert.Equal(IngestionApplicationErrors.PollingIntervalBelowAdapterMinimum, tooFrequent.Error);
+        Assert.True(configured.IsSuccess, configured.Error.Code);
+        Assert.Equal(180, connection.PollingIntervalSeconds);
+        Assert.Equal(4, connection.PollingScheduleMaxAttempts);
+        Assert.NotNull(connection.PollingScheduleConfiguredAtUtc);
+
         var cleared = await new ClearAdapterConnectionPollingScheduleCommandHandler(
             connections, new TestClock()).HandleAsync(
             new(propertyId, connection.Id, configured.Value.Version), CancellationToken.None);
 
-        Assert.Equal(IngestionApplicationErrors.PollingIntervalBelowAdapterMinimum, tooFrequent.Error);
-        Assert.Equal(180, configured.Value.PollingIntervalSeconds);
-        Assert.Equal(4, configured.Value.PollingScheduleMaxAttempts);
-        Assert.NotNull(configured.Value.PollingScheduleConfiguredAtUtc);
-        Assert.Null(cleared.Value.PollingIntervalSeconds);
+        Assert.True(cleared.IsSuccess, cleared.Error.Code);
+        Assert.Null(connection.PollingIntervalSeconds);
         Assert.Equal(3, cleared.Value.Version);
     }
 

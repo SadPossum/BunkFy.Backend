@@ -32,6 +32,7 @@ public sealed partial class TenantTerminationProcess
 
         if (phase != this.Phase ||
             this.Status != TenantTerminationProcessStatus.Pending ||
+            this.OperationRevision == long.MaxValue ||
             phase is TenantTerminationProcessPhase.Unknown or
                 TenantTerminationProcessPhase.Completed)
         {
@@ -44,6 +45,16 @@ public sealed partial class TenantTerminationProcess
         {
             return Result.Failure(
                 DataRightsDomainErrors.TenantTerminationExecutorInvalid);
+        }
+
+        if (phase == TenantTerminationProcessPhase.Export)
+        {
+            this.ClearExportConfirmation();
+        }
+
+        if (phase == TenantTerminationProcessPhase.Verify)
+        {
+            this.ClearVerificationConfirmation();
         }
 
         this.Status = TenantTerminationProcessStatus.Running;
@@ -169,7 +180,12 @@ public sealed partial class TenantTerminationProcess
         if (phase != this.Phase ||
             operationRevision != this.OperationRevision ||
             this.Status != TenantTerminationProcessStatus.Running ||
-            phase == TenantTerminationProcessPhase.Restore)
+            phase is TenantTerminationProcessPhase.Freeze or
+                TenantTerminationProcessPhase.Restore ||
+            (phase == TenantTerminationProcessPhase.Export &&
+             !this.HasCurrentExportConfirmation()) ||
+            (phase == TenantTerminationProcessPhase.Verify &&
+             !this.HasCurrentVerificationConfirmation()))
         {
             return Result.Failure(
                 DataRightsDomainErrors.TenantTerminationTransitionInvalid);
@@ -181,6 +197,12 @@ public sealed partial class TenantTerminationProcess
                 DataRightsDomainErrors.TenantTerminationTransitionInvalid);
         }
 
+        if (phase == TenantTerminationProcessPhase.Destroy)
+        {
+            this.DestroyCompletedOperationRevision = operationRevision;
+            this.DestroyedAtUtc = nowUtc;
+        }
+
         this.ClearOutcome();
         this.Phase = nextPhase;
         this.Status = this.Phase == TenantTerminationProcessPhase.Completed
@@ -188,152 +210,6 @@ public sealed partial class TenantTerminationProcess
             : TenantTerminationProcessStatus.Pending;
         this.CompleteChange(actorId, nowUtc);
         return Result.Success();
-    }
-
-    public Result RecordBlocked(
-        TenantTerminationProcessPhase phase,
-        long operationRevision,
-        string blockerCode,
-        DateTimeOffset holdReviewAtUtc,
-        long expectedVersion,
-        string actorId,
-        DateTimeOffset nowUtc)
-    {
-        string normalizedCode = blockerCode?.Trim() ?? string.Empty;
-        string normalizedActor = NormalizeActor(actorId);
-        if (phase == this.Phase &&
-            operationRevision == this.OperationRevision &&
-            this.Status == TenantTerminationProcessStatus.Blocked &&
-            string.Equals(
-                normalizedCode,
-                this.OutcomeCode,
-                StringComparison.Ordinal) &&
-            holdReviewAtUtc == this.HoldReviewAtUtc &&
-            string.Equals(
-                normalizedActor,
-                this.LastChangedBy,
-                StringComparison.Ordinal) &&
-            nowUtc == this.LastChangedAtUtc)
-        {
-            return Result.Success();
-        }
-
-        Result ready = this.ValidateRunningOutcome(
-            phase,
-            operationRevision,
-            normalizedCode,
-            expectedVersion,
-            actorId,
-            nowUtc);
-        if (ready.IsFailure)
-        {
-            return ready;
-        }
-
-        if (holdReviewAtUtc == default || holdReviewAtUtc < nowUtc)
-        {
-            return Result.Failure(
-                DataRightsDomainErrors.TenantTerminationTransitionInvalid);
-        }
-
-        this.Status = TenantTerminationProcessStatus.Blocked;
-        this.OutcomeCode = normalizedCode;
-        this.HoldReviewAtUtc = holdReviewAtUtc;
-        this.CompleteChange(actorId, nowUtc);
-        return Result.Success();
-    }
-
-    public Result RecordFailed(
-        TenantTerminationProcessPhase phase,
-        long operationRevision,
-        string failureCode,
-        long expectedVersion,
-        string actorId,
-        DateTimeOffset nowUtc)
-    {
-        string normalizedCode = failureCode?.Trim() ?? string.Empty;
-        string normalizedActor = NormalizeActor(actorId);
-        if (phase == this.Phase &&
-            operationRevision == this.OperationRevision &&
-            this.Status == TenantTerminationProcessStatus.Failed &&
-            string.Equals(
-                normalizedCode,
-                this.OutcomeCode,
-                StringComparison.Ordinal) &&
-            string.Equals(
-                normalizedActor,
-                this.LastChangedBy,
-                StringComparison.Ordinal) &&
-            nowUtc == this.LastChangedAtUtc)
-        {
-            return Result.Success();
-        }
-
-        Result ready = this.ValidateRunningOutcome(
-            phase,
-            operationRevision,
-            normalizedCode,
-            expectedVersion,
-            actorId,
-            nowUtc);
-        if (ready.IsFailure)
-        {
-            return ready;
-        }
-
-        this.Status = TenantTerminationProcessStatus.Failed;
-        this.OutcomeCode = normalizedCode;
-        this.HoldReviewAtUtc = null;
-        this.CompleteChange(actorId, nowUtc);
-        return Result.Success();
-    }
-
-    public Result Requeue(
-        long expectedVersion,
-        string actorId,
-        DateTimeOffset nowUtc)
-    {
-        Result ready = this.ValidateChange(expectedVersion, actorId, nowUtc);
-        if (ready.IsFailure)
-        {
-            return ready;
-        }
-
-        if (this.Status is not TenantTerminationProcessStatus.Blocked and
-            not TenantTerminationProcessStatus.Failed)
-        {
-            return Result.Failure(
-                DataRightsDomainErrors.TenantTerminationTransitionInvalid);
-        }
-
-        this.Status = TenantTerminationProcessStatus.Pending;
-        this.ClearOutcome();
-        this.CompleteChange(actorId, nowUtc);
-        return Result.Success();
-    }
-
-    private Result ValidateRunningOutcome(
-        TenantTerminationProcessPhase phase,
-        long operationRevision,
-        string outcomeCode,
-        long expectedVersion,
-        string actorId,
-        DateTimeOffset nowUtc)
-    {
-        Result ready = this.ValidateChange(expectedVersion, actorId, nowUtc);
-        if (ready.IsFailure)
-        {
-            return ready;
-        }
-
-        string normalizedCode = outcomeCode?.Trim() ?? string.Empty;
-        return phase == this.Phase &&
-            operationRevision == this.OperationRevision &&
-            this.Status == TenantTerminationProcessStatus.Running &&
-            IsStableCode(normalizedCode, OutcomeCodeMaxLength)
-                ? Result.Success()
-                : Result.Failure(
-                    DataRightsDomainErrors.TenantTerminationTransitionInvalid);
     }
 
     private TenantTerminationProcessPhase GetNextPhase(

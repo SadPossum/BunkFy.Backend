@@ -97,31 +97,29 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
         string? search,
         StaffStatus? status,
         PageRequest pageRequest,
-        CancellationToken cancellationToken) => ListDirectoryCoreAsync(
-            this.OperationalMembers().AsNoTracking(),
-            visiblePropertyId: null,
-            search,
-            status,
+        CancellationToken cancellationToken) => ListDirectoryAsync(
+            ApplyDirectoryFilters(this.OperationalMembers().AsNoTracking(), search, status),
             pageRequest,
             cancellationToken);
 
-    public Task<StaffDirectoryListResponse> ListDirectoryAtPropertyAsync(
+    public Task<StaffPropertyDirectoryListResponse> ListDirectoryAtPropertyAsync(
         Guid propertyId,
         string? search,
         StaffStatus? status,
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
-        IQueryable<StaffMember> query = this.OperationalMembers().AsNoTracking()
+        IQueryable<StaffMember> query = ApplyDirectoryFilters(
+            this.OperationalMembers().AsNoTracking()
             .Where(member => member.Assignments.Any(assignment => assignment.PropertyId == propertyId &&
                     assignment.IsCurrent) &&
                 dbContext.PropertyProjections.Any(property => property.Id == propertyId &&
-                    property.Status == BunkFy.Modules.Properties.Contracts.PropertyStatus.Active));
-        return ListDirectoryCoreAsync(
+                    property.Status == BunkFy.Modules.Properties.Contracts.PropertyStatus.Active)),
+            search,
+            status);
+        return ListDirectoryAtPropertyAsync(
             query,
             propertyId,
-            search,
-            status,
             pageRequest,
             cancellationToken);
     }
@@ -153,13 +151,10 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
                     StaffProcessingRestrictionContract.CurrentVersion &&
                 !projection.IsRestricted));
 
-    private static async Task<StaffDirectoryListResponse> ListDirectoryCoreAsync(
+    private static IQueryable<StaffMember> ApplyDirectoryFilters(
         IQueryable<StaffMember> query,
-        Guid? visiblePropertyId,
         string? search,
-        StaffStatus? status,
-        PageRequest pageRequest,
-        CancellationToken cancellationToken)
+        StaffStatus? status)
     {
         if (status.HasValue)
         {
@@ -179,14 +174,64 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
             query = query.Where(member => member.DisplayNameSearch.Contains(normalizedSearch));
         }
 
-        StaffDirectoryMemberDto[] rows = await ProjectDirectory(
-                query.OrderBy(member => member.DisplayName)
-                    .ThenBy(member => member.Id)
-                    .Skip(pageRequest.SkipCount)
-                    .Take(pageRequest.PageSize),
-                visiblePropertyId)
+        return query;
+    }
+
+    private static async Task<StaffDirectoryListResponse> ListDirectoryAsync(
+        IQueryable<StaffMember> query,
+        PageRequest pageRequest,
+        CancellationToken cancellationToken)
+    {
+        StaffDirectoryListItemDto[] rows = await query
+            .OrderBy(member => member.DisplayName)
+            .ThenBy(member => member.Id)
+            .Skip(pageRequest.SkipCount)
+            .Take(pageRequest.PageSize + 1)
+            .Select(member => new StaffDirectoryListItemDto(
+                member.Id,
+                member.DisplayName,
+                member.JobTitle,
+                member.Department,
+                (StaffStatus)member.Status,
+                member.Version,
+                member.Assignments.Count(assignment => assignment.IsCurrent)))
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
-        return new(rows, pageRequest.Page, pageRequest.PageSize);
+        bool hasMore = rows.Length > pageRequest.PageSize;
+        return new(rows.Take(pageRequest.PageSize).ToArray(), pageRequest.Page,
+            pageRequest.PageSize, hasMore);
+    }
+
+    private static async Task<StaffPropertyDirectoryListResponse> ListDirectoryAtPropertyAsync(
+        IQueryable<StaffMember> query,
+        Guid propertyId,
+        PageRequest pageRequest,
+        CancellationToken cancellationToken)
+    {
+        StaffPropertyDirectoryListItemDto[] rows = await query
+            .OrderBy(member => member.DisplayName)
+            .ThenBy(member => member.Id)
+            .Skip(pageRequest.SkipCount)
+            .Take(pageRequest.PageSize + 1)
+            .Select(member => new StaffPropertyDirectoryListItemDto(
+                member.Id,
+                member.DisplayName,
+                member.JobTitle,
+                member.Department,
+                (StaffStatus)member.Status,
+                member.Version,
+                member.Assignments
+                    .Where(assignment => assignment.PropertyId == propertyId && assignment.IsCurrent)
+                    .Select(assignment => new StaffDirectoryAssignmentDto(
+                        assignment.Id,
+                        assignment.PropertyId,
+                        assignment.PropertyJobTitle,
+                        assignment.IsPrimary,
+                        assignment.EffectiveFrom))
+                    .Single()))
+            .ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        bool hasMore = rows.Length > pageRequest.PageSize;
+        return new(rows.Take(pageRequest.PageSize).ToArray(), pageRequest.Page,
+            pageRequest.PageSize, hasMore);
     }
 
     private static IQueryable<StaffDirectoryMemberDto> ProjectDirectory(

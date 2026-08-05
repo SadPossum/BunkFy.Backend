@@ -6,17 +6,22 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 
 internal sealed class CreateManualInventoryBlockGroupCommandHandler(ManualInventoryBlockCreator creator)
-    : ICommandHandler<CreateManualInventoryBlockGroupCommand, ManualInventoryBlockGroupDto>
+    : ICommandHandler<CreateManualInventoryBlockGroupCommand, ManualInventoryBlockGroupMutationReceiptDto>
 {
-    public Task<Result<ManualInventoryBlockGroupDto>> HandleAsync(
+    public async Task<Result<ManualInventoryBlockGroupMutationReceiptDto>> HandleAsync(
         CreateManualInventoryBlockGroupCommand command,
-        CancellationToken cancellationToken) =>
-        creator.CreateAsync(
+        CancellationToken cancellationToken)
+    {
+        Result<ManualInventoryBlockCreationResult> result = await creator.CreateAsync(
             command.PropertyId,
             command.Target,
             command.Arrival,
             command.Departure,
             command.Reason,
             command.ActorId,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+        return result.IsFailure
+            ? Result.Failure<ManualInventoryBlockGroupMutationReceiptDto>(result.Error)
+            : Result.Success(result.Value.ToMutationReceipt());
+    }
 }

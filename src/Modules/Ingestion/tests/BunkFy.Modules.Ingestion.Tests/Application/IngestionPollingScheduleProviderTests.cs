@@ -20,7 +20,8 @@ public sealed class IngestionPollingScheduleProviderTests
         ]));
 
         ScheduledTaskDefinition schedule = Assert.Single(
-            await provider.GetSchedulesAsync(CancellationToken.None));
+            await provider.GetSchedulesAsync(CancellationToken.None)
+                .ToArrayAsync(CancellationToken.None));
 
         Assert.Equal($"adapter-{connectionId:N}", schedule.ScheduleName);
         Assert.Equal(IngestionModuleMetadata.Name, schedule.ModuleName);

@@ -63,12 +63,12 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
             query = query.Where(block => block.Status == ManualInventoryBlockState.Active);
         }
 
-        ManualInventoryBlockDto[] blocks = await query
+        ManualInventoryBlockDto[] page = await query
             .OrderBy(block => block.Arrival)
             .ThenBy(block => block.InventoryUnitId)
             .ThenBy(block => block.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
+            .Take(pageRequest.PageSize + 1)
             .Select(block => new ManualInventoryBlockDto(
                 block.Id,
                 block.BlockGroupId,
@@ -86,6 +86,8 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return new(blocks, pageRequest.Page, pageRequest.PageSize);
+        bool hasMore = page.Length > pageRequest.PageSize;
+        ManualInventoryBlockDto[] blocks = hasMore ? page[..pageRequest.PageSize] : page;
+        return new(blocks, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 }

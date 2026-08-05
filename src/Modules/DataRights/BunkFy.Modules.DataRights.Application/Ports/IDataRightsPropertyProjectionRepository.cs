@@ -21,6 +21,7 @@ public sealed record DataRightsPropertyTopologyWriteModel(
     string ScopeId,
     Guid PropertyId,
     string Name,
+    string? TimeZoneId,
     PropertyStatus Status,
     long SourceVersion);
 
@@ -33,7 +34,9 @@ public sealed record DataRightsPropertyPolicyWriteModel(
 
 public sealed record DataRightsPropertyPolicySnapshot(
     bool IsKnown,
-    bool IsActive,
+    PropertyStatus Status,
+    string? TimeZoneId,
     PropertyProcessingStatus ProcessingStatus,
     PropertyGovernancePolicyBinding? GovernancePolicy,
+    long TopologySourceVersion,
     long PolicySourceVersion);

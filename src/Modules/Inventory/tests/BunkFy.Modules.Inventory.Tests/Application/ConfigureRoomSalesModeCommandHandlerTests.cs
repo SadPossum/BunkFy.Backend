@@ -26,10 +26,10 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
     {
         RoomInventoryConfiguration configuration = CreateConfiguration();
         ServiceProvider provider = CreateProvider(configuration, RoomStatus.Active, activeBedCount: 0);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>>();
+        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
 
-        Result<RoomInventoryDto> result = await handler.HandleAsync(
+        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
             new(PropertyId, RoomId, InventorySalesMode.BedLevel, 1),
             CancellationToken.None);
 
@@ -42,10 +42,10 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
     {
         RoomInventoryConfiguration configuration = CreateConfiguration();
         ServiceProvider provider = CreateProvider(configuration, RoomStatus.Retired, activeBedCount: 2);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>>();
+        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
 
-        Result<RoomInventoryDto> result = await handler.HandleAsync(
+        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
             new(PropertyId, RoomId, InventorySalesMode.RoomLevel, 1),
             CancellationToken.None);
 
@@ -54,14 +54,14 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
     }
 
     [Fact]
-    public async Task Valid_configuration_returns_the_materialized_room()
+    public async Task Valid_configuration_returns_a_minimal_receipt()
     {
         RoomInventoryConfiguration configuration = CreateConfiguration();
         ServiceProvider provider = CreateProvider(configuration, RoomStatus.Active, activeBedCount: 2);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>>();
+        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
 
-        Result<RoomInventoryDto> result = await handler.HandleAsync(
+        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
             new(PropertyId, RoomId, InventorySalesMode.BedLevel, 1),
             CancellationToken.None);
 
@@ -80,10 +80,10 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
             RoomStatus.Active,
             activeBedCount: 2,
             activeAllocationCount: 1);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryDto>>();
+        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
 
-        Result<RoomInventoryDto> result = await handler.HandleAsync(
+        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
             new(PropertyId, RoomId, InventorySalesMode.BedLevel, 1),
             CancellationToken.None);
 
@@ -241,7 +241,7 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
             Guid propertyId,
             PageRequest pageRequest,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new RoomInventoryListResponse([], pageRequest.Page, pageRequest.PageSize));
+            Task.FromResult(new RoomInventoryListResponse([], pageRequest.Page, pageRequest.PageSize, false));
 
         public Task<InventoryAvailabilityResponse> GetAvailabilityAsync(
             Guid propertyId,

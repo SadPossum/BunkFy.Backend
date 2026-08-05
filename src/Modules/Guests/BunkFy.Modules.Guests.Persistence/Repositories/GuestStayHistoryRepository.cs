@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Persistence.Repositories;
 
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
+using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed class GuestStayHistoryRepository(
@@ -64,14 +65,18 @@ internal sealed class GuestStayHistoryRepository(
             stay.ProjectionContractVersion);
     }
 
-    public async Task<IReadOnlyCollection<GuestStayHistoryItem>> ListAsync(
+    public async Task<GuestStayHistoryListResponse> ListAsync(
         Guid propertyId,
         Guid guestId,
-        CancellationToken cancellationToken) =>
-        await dbContext.StayHistory.AsNoTracking()
+        PageRequest pageRequest,
+        CancellationToken cancellationToken)
+    {
+        GuestStayHistoryItem[] rows = await dbContext.StayHistory.AsNoTracking()
             .Where(stay => stay.PropertyId == propertyId && stay.GuestId == guestId)
             .OrderByDescending(stay => stay.Arrival)
             .ThenBy(stay => stay.ReservationId)
+            .Skip(pageRequest.SkipCount)
+            .Take(pageRequest.PageSize + 1)
             .Select(stay => new GuestStayHistoryItem(
                 stay.ReservationId,
                 stay.PropertyId,
@@ -86,4 +91,11 @@ internal sealed class GuestStayHistoryRepository(
                 stay.ReservationVersion))
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return new(
+            rows.Take(pageRequest.PageSize).ToArray(),
+            pageRequest.Page,
+            pageRequest.PageSize,
+            rows.Length > pageRequest.PageSize);
+    }
 }

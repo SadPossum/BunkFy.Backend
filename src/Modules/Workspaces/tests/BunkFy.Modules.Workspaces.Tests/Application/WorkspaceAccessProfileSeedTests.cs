@@ -6,6 +6,7 @@ using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
+using Gma.Framework.Permissions;
 using Gma.Modules.AccessControl.Contracts;
 using Xunit;
 
@@ -64,7 +65,11 @@ public sealed class WorkspaceAccessProfileSeedTests
             .Select(permission => permission.Code)
             .ToHashSet(StringComparer.Ordinal);
 
-        Assert.Equal(12, dataRightsPermissions.Count);
+        Assert.Equal(
+            DataRightsModuleMetadata.Descriptor.GetPermissions()
+                .Select(permission => permission.Code)
+                .Order(StringComparer.Ordinal),
+            dataRightsPermissions.Order(StringComparer.Ordinal));
         Assert.DoesNotContain(
             WorkspaceAccessRoles.LegacyMemberPermissions,
             dataRightsPermissions.Contains);
@@ -85,6 +90,38 @@ public sealed class WorkspaceAccessProfileSeedTests
             Assert.DoesNotContain(
                 GuestsAdminPermissionCodes.DataHoldsManage,
                 profile.Permissions));
+    }
+
+    [Fact]
+    public void Workspace_access_profile_permissions_are_delegable_with_bounded_sensitivity()
+    {
+        WorkspaceAccessPermissionDto read = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All,
+            item => item.Code == AccessControlProfilePermissionCodes.Read);
+        WorkspaceAccessPermissionDto manage = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All,
+            item => item.Code == AccessControlProfilePermissionCodes.Manage);
+        WorkspaceAccessPermissionDto assign = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All,
+            item => item.Code == AccessControlProfilePermissionCodes.Assign);
+
+        Assert.False(read.IsSensitive);
+        Assert.Empty(read.RequiredPermissions);
+        Assert.True(manage.IsSensitive);
+        Assert.Equal([AccessControlProfilePermissionCodes.Read], manage.RequiredPermissions);
+        Assert.True(assign.IsSensitive);
+        Assert.Equal([AccessControlProfilePermissionCodes.Read], assign.RequiredPermissions);
+
+        string[] profilePermissionCodes = [read.Code, manage.Code, assign.Code];
+        Assert.All(
+            profilePermissionCodes,
+            code => Assert.Contains(code, WorkspaceAccessRoles.DelegablePermissions));
+        Assert.All(
+            profilePermissionCodes,
+            code => Assert.Contains(code, WorkspaceAccessProfileSeeds.Manager.Permissions));
+        Assert.Contains(read.Code, WorkspaceAccessRoles.CompanySupportPermissionCeiling);
+        Assert.DoesNotContain(manage.Code, WorkspaceAccessRoles.CompanySupportPermissionCeiling);
+        Assert.DoesNotContain(assign.Code, WorkspaceAccessRoles.CompanySupportPermissionCeiling);
     }
 
     [Theory]

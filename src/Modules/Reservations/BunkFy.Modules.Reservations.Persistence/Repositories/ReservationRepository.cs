@@ -36,6 +36,16 @@ internal sealed class ReservationRepository(
                 reservation => reservation.Id == reservationId && reservation.PropertyId == propertyId,
                 cancellationToken);
 
+    public Task<bool> ExistsAsync(
+        Guid propertyId,
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        this.OrdinaryReservations()
+            .AsNoTracking()
+            .AnyAsync(
+                reservation => reservation.Id == reservationId && reservation.PropertyId == propertyId,
+                cancellationToken);
+
     public Task<Reservation?> GetForDataRightsAsync(
         Guid propertyId,
         Guid reservationId,
@@ -142,7 +152,6 @@ internal sealed class ReservationRepository(
 #pragma warning restore CA1304, CA1311, CA1862
         }
 
-        int totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
         IOrderedQueryable<Reservation> ordered = order switch
         {
             ReservationListOrder.ArrivalAscending => query
@@ -157,15 +166,29 @@ internal sealed class ReservationRepository(
                 .OrderByDescending(reservation => reservation.CreatedAtUtc)
                 .ThenBy(reservation => reservation.Id)
         };
-        Reservation[] rows = await ordered
-            .AsSplitQuery()
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
+        ReservationListRow[] rows = await ordered
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
+            .Take(pageRequest.PageSize + 1)
+            .Select(reservation => new ReservationListRow(
+                reservation.Id,
+                reservation.PropertyId,
+                reservation.Arrival,
+                reservation.Departure,
+                reservation.ExpectedArrivalTime,
+                reservation.ExpectedDepartureTime,
+                reservation.PrimaryGuestName,
+                reservation.GuestCount,
+                reservation.RequestedUnits.Count,
+                reservation.Source,
+                reservation.Status))
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
-        return new(rows.Select(Map).ToArray(), pageRequest.Page, pageRequest.PageSize, totalCount);
+        bool hasMore = rows.Length > pageRequest.PageSize;
+        return new(
+            rows.Take(pageRequest.PageSize).Select(Map).ToArray(),
+            pageRequest.Page,
+            pageRequest.PageSize,
+            hasMore);
     }
 
     private IQueryable<Reservation> OrdinaryReservations() =>
@@ -178,52 +201,20 @@ internal sealed class ReservationRepository(
                     ReservationProcessingRestrictionContract.CurrentVersion &&
                 !projection.IsRestricted));
 
-    private static ReservationDto Map(Reservation reservation) => new(
-        reservation.Id,
+    private static ReservationListItemDto Map(ReservationListRow reservation) => new(
+        reservation.ReservationId,
         reservation.PropertyId,
         reservation.Arrival,
         reservation.Departure,
         reservation.ExpectedArrivalTime,
         reservation.ExpectedDepartureTime,
-        reservation.RequestedUnits.Select(unit => unit.InventoryUnitId).ToArray(),
         reservation.PrimaryGuestName,
-        reservation.Email,
-        reservation.Phone,
         reservation.GuestCount,
-        reservation.Source == ReservationSource.Direct ? ReservationSourceKind.Direct : ReservationSourceKind.External,
-        reservation.SourceSystem,
-        reservation.SourceReference,
-        reservation.Notes,
-        MapStatus(reservation.Status),
-        reservation.AllocationRequestId,
-        reservation.AllocationId,
-        reservation.AllocationVersion,
-        reservation.AllocationRejection.HasValue
-            ? (InventoryAllocationRejectionReason)(int)reservation.AllocationRejection.Value
-            : null,
-        reservation.PendingAllocationAmendmentId,
-        reservation.LastAllocationAmendmentRejectionCode.HasValue
-            ? (InventoryAllocationRejectionReason)reservation.LastAllocationAmendmentRejectionCode.Value
-            : null,
-        reservation.DetailsRevision,
-        (ReservationDetailsChangeOriginKind)(int)reservation.LastDetailsChangeOrigin,
-        reservation.Version,
-        reservation.CreatedAtUtc,
-        reservation.UpdatedAtUtc,
-        reservation.PendingStayBusinessDate,
-        reservation.PendingStayActorId,
-        reservation.CheckedInBusinessDate,
-        reservation.CheckedInAtUtc,
-        reservation.CheckedInBy,
-        reservation.NoShowBusinessDate,
-        reservation.NoShowAtUtc,
-        reservation.NoShowBy,
-        reservation.CheckedOutBusinessDate,
-        reservation.CheckedOutAtUtc,
-        reservation.CheckedOutBy,
-        reservation.Guests.Where(guest => guest.IsCurrent).Select(guest => new ReservationGuestDto(
-            guest.GuestId,
-            (ReservationGuestRoleKind)(int)guest.Role)).ToArray());
+        reservation.InventoryUnitCount,
+        reservation.Source == ReservationSource.Direct
+            ? ReservationSourceKind.Direct
+            : ReservationSourceKind.External,
+        MapStatus(reservation.Status));
 
     private static ReservationStatus MapStatus(ReservationState status) => status switch
     {
@@ -254,4 +245,17 @@ internal sealed class ReservationRepository(
         ReservationStatus.CheckedOut => ReservationState.CheckedOut,
         _ => null
     };
+
+    private sealed record ReservationListRow(
+        Guid ReservationId,
+        Guid PropertyId,
+        DateOnly Arrival,
+        DateOnly Departure,
+        TimeOnly? ExpectedArrivalTime,
+        TimeOnly? ExpectedDepartureTime,
+        string PrimaryGuestName,
+        int GuestCount,
+        int InventoryUnitCount,
+        ReservationSource Source,
+        ReservationState Status);
 }

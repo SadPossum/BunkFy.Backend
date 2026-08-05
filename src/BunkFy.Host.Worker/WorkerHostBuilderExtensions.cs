@@ -4,9 +4,14 @@ using BunkFy.Adapters.Configuration;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
+using BunkFy.Extensions.DataRights.AccessControl;
+using BunkFy.Extensions.DataRights.Organizations;
+using BunkFy.Extensions.DataRights.TaskRuntime;
+using BunkFy.Extensions.DataRights.TenantTermination;
 using BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Extensions.Workspaces;
 using BunkFy.Host.ServiceDefaults;
+using BunkFy.Host.ServiceDefaults.Production;
 using BunkFy.Modules.DataRights.Application;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Persistence;
@@ -81,6 +86,18 @@ public static class WorkerHostBuilderExtensions
 
         WorkerHostOptions workerOptions = WorkerHostOptions.FromConfiguration(builder.Configuration);
         builder.Services.AddSingleton(workerOptions);
+        builder.AddBunkFyProductionDeployment(
+            BunkFyDeploymentSurface.Worker,
+            fileManagementEnabled: workerOptions.Modules.Ingestion);
+        builder.AddBunkFyAuthRetentionProductionAdmission(
+            BunkFyDeploymentSurface.Worker,
+            workerOptions.Modules.Auth);
+        builder.AddBunkFyOrganizationsMaintenanceProductionAdmission(
+            BunkFyDeploymentSurface.Worker,
+            workerOptions.Modules.Organizations);
+        builder.AddBunkFyDurableRuntimeProductionAdmission(
+            BunkFyDurableRuntimeHostRole.Worker,
+            workerOptions.Modules.TaskRuntime);
         builder.AddBunkFyOperationsNotificationsProductionAdmission(
             OperationsNotificationsProductionHostRole.Worker,
             workerOptions.Modules.Notifications);
@@ -113,11 +130,20 @@ public static class WorkerHostBuilderExtensions
             builder.Services.TryAddEnumerable(
                 ServiceDescriptor.Scoped<
                     ITaskExecutionContextContributor,
+                    TenantTerminationGlobalTaskExecutionContextContributor>());
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Scoped<
+                    ITaskExecutionContextContributor,
                     WorkspaceTerminationTaskExecutionContextContributor>());
             builder.AddTaskCqrs();
             builder.AddTaskWorkerRuntime();
             builder.AddTaskRunScheduling();
         }
+
+        builder.AddBunkFyTenantTerminationProductionAdmission(
+            workerOptions.Modules.DataRights,
+            HasCompleteTenantTerminationOwnerTopology(workerOptions.Modules),
+            workerOptions.TaskWorkerEnabled);
 
         builder.AddServiceDefaults();
         return builder;
@@ -337,7 +363,30 @@ public static class WorkerHostBuilderExtensions
             builder.AddTaskRuntimePersistence();
         }
 
+        if (HasCompleteTenantTerminationOwnerTopology(workerOptions.Modules))
+        {
+            builder.Services.AddBunkFyAccessControlDataRights();
+            builder.Services.AddBunkFyOrganizationsDataRights();
+            builder.Services.AddBunkFyTaskRuntimeDataRights();
+        }
+
     }
+
+    private static bool HasCompleteTenantTerminationOwnerTopology(
+        WorkerModuleOptions modules) =>
+        modules.AccessControl &&
+        modules.Auth &&
+        modules.Notifications &&
+        modules.Organizations &&
+        modules.Properties &&
+        modules.Inventory &&
+        modules.Reservations &&
+        modules.Guests &&
+        modules.DataRights &&
+        modules.Staff &&
+        modules.Ingestion &&
+        modules.Retention &&
+        modules.TaskRuntime;
 
     private static JsonFileDropAdapterOptions ResolveJsonFileDropOptions(IHostApplicationBuilder builder)
     {

@@ -492,6 +492,12 @@ public sealed class WorkspacesModelTests
             Guid.Parse("30000000-0000-0000-0000-000000000005"),
             "10000000-0000-0000-0000-000000000005",
             WorkspaceStaffOnboardingTests.Now.AddMinutes(4));
+        WorkspaceStaffOnboarding unrestrictedSecond = CreateFailedOnboarding(
+            tenantA,
+            Guid.Parse("20000000-0000-0000-0000-000000000006"),
+            Guid.Parse("30000000-0000-0000-0000-000000000006"),
+            "10000000-0000-0000-0000-000000000006",
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(6));
 
         WorkspaceStaffOnboardingProcessingRestrictionProjection
             unrestrictedProjection = CreateProjection(
@@ -518,6 +524,11 @@ public sealed class WorkspacesModelTests
                 otherTenant,
                 WorkspaceStaffOnboardingProcessingRestrictionContract
                     .CurrentVersion);
+        WorkspaceStaffOnboardingProcessingRestrictionProjection
+            unrestrictedSecondProjection = CreateProjection(
+                unrestrictedSecond,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion);
 
         DbContextOptions<WorkspacesDbContext> options =
             new DbContextOptionsBuilder<WorkspacesDbContext>()
@@ -533,10 +544,12 @@ public sealed class WorkspacesModelTests
                 missing,
                 unsupported,
                 otherTenant,
+                unrestrictedSecond,
                 unrestrictedProjection,
                 restrictedProjection,
                 unsupportedProjection,
-                otherProjection);
+                otherProjection,
+                unrestrictedSecondProjection);
             await seed.SaveChangesAsync();
         }
 
@@ -576,12 +589,84 @@ public sealed class WorkspacesModelTests
                 restricted.SubjectId,
                 CancellationToken.None));
 
-        WorkspaceStaffOnboardingListResponse actionable =
+        WorkspaceStaffOnboardingListResponse firstPage =
             await repository.ListActionableAsync(
-                new Gma.Framework.Pagination.PageRequest(1, 20),
+                new Gma.Framework.Pagination.PageRequest(1, 1),
                 CancellationToken.None);
-        WorkspaceStaffOnboardingDto row = Assert.Single(actionable.Items);
-        Assert.Equal(unrestricted.Id, row.ApplicationId);
+        WorkspaceStaffOnboardingDto first = Assert.Single(firstPage.Items);
+        Assert.Equal(unrestricted.Id, first.ApplicationId);
+        Assert.True(firstPage.HasMore);
+
+        WorkspaceStaffOnboardingListResponse secondPage =
+            await repository.ListActionableAsync(
+                new Gma.Framework.Pagination.PageRequest(2, 1),
+                CancellationToken.None);
+        WorkspaceStaffOnboardingDto second = Assert.Single(secondPage.Items);
+        Assert.Equal(unrestrictedSecond.Id, second.ApplicationId);
+        Assert.False(secondPage.HasMore);
+    }
+
+    [Fact]
+    public async Task Open_staff_access_processes_are_projected_ordered_and_report_continuation()
+    {
+        Guid tenantId = WorkspaceStaffOnboardingTests.OrganizationId;
+        DateTimeOffset nowUtc = WorkspaceStaffOnboardingTests.Now;
+        WorkspaceStaffAccessProcess first = CreateAccessProcess(
+            tenantId,
+            Guid.Parse("50000000-0000-0000-0000-000000000001"),
+            Guid.Parse("60000000-0000-0000-0000-000000000001"),
+            targetStaffVersion: 2,
+            nowUtc: nowUtc,
+            profileCount: 2);
+        WorkspaceStaffAccessProcess second = CreateAccessProcess(
+            tenantId,
+            Guid.Parse("50000000-0000-0000-0000-000000000002"),
+            Guid.Parse("60000000-0000-0000-0000-000000000002"),
+            targetStaffVersion: 3,
+            nowUtc: nowUtc.AddMinutes(1),
+            profileCount: 1);
+        WorkspaceStaffAccessProcess completed = CreateAccessProcess(
+            tenantId,
+            Guid.Parse("50000000-0000-0000-0000-000000000003"),
+            Guid.Parse("60000000-0000-0000-0000-000000000003"),
+            targetStaffVersion: 4,
+            nowUtc: nowUtc.AddMinutes(2),
+            profileCount: 1);
+        Assert.True(completed.MarkAwaitingStaffCommit(nowUtc.AddMinutes(3)).IsSuccess);
+        Assert.True(completed.ObserveStaffCommit(nowUtc.AddMinutes(4)).IsSuccess);
+
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using (WorkspacesDbContext seed = new(
+            options,
+            new TestScopeContext(enabled: false, scopeId: null)))
+        {
+            seed.AddRange(first, second, completed);
+            await seed.SaveChangesAsync();
+        }
+
+        await using WorkspacesDbContext context = new(
+            options,
+            new TestScopeContext());
+        WorkspaceStaffAccessProcessRepository repository = new(context);
+
+        WorkspaceStaffAccessProcessListResponse firstPage =
+            await repository.ListOpenAsync(
+                new Gma.Framework.Pagination.PageRequest(1, 1),
+                CancellationToken.None);
+        WorkspaceStaffAccessProcessDto firstRow = Assert.Single(firstPage.Items);
+        Assert.Equal(first.Id, firstRow.ProcessId);
+        Assert.Equal(2, firstRow.ProfileCount);
+        Assert.True(firstPage.HasMore);
+
+        WorkspaceStaffAccessProcessListResponse secondPage =
+            await repository.ListOpenAsync(
+                new Gma.Framework.Pagination.PageRequest(2, 1),
+                CancellationToken.None);
+        Assert.Equal(second.Id, Assert.Single(secondPage.Items).ProcessId);
+        Assert.False(secondPage.HasMore);
     }
 
     [Fact]
@@ -696,6 +781,32 @@ public sealed class WorkspacesModelTests
             sourceExpiredAtUtc,
             sourceExpiredAtUtc).IsSuccess);
         return (application, plan);
+    }
+
+    private static WorkspaceStaffAccessProcess CreateAccessProcess(
+        Guid tenantId,
+        Guid processId,
+        Guid staffMemberId,
+        long targetStaffVersion,
+        DateTimeOffset nowUtc,
+        int profileCount)
+    {
+        WorkspaceStaffAccessProfileTarget[] profiles = Enumerable.Range(0, profileCount)
+            .Select(_ => new WorkspaceStaffAccessProfileTarget(
+                Guid.NewGuid(),
+                $"tenant:{tenantId:D}"))
+            .ToArray();
+        return WorkspaceStaffAccessProcess.Create(
+            processId,
+            tenantId.ToString("D"),
+            staffMemberId,
+            processId.ToString("D"),
+            WorkspaceStaffAccessTargetState.Suspended,
+            targetStaffVersion,
+            DateOnly.FromDateTime(nowUtc.UtcDateTime),
+            "operator",
+            profiles,
+            nowUtc).Value;
     }
 
     private static WorkspaceStaffOnboarding CreateFailedOnboarding(

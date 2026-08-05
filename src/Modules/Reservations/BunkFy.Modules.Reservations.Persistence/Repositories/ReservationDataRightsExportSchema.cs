@@ -19,17 +19,20 @@ internal static class ReservationDataRightsExportSchema
     private static readonly Dictionary<string, string> ExportPoliciesByRightsPolicy =
         new(StringComparer.Ordinal)
         {
-            ["guest-reservation-data"] = "include-in-authorized-guest-export",
-            ["guest-reservation-link"] = "include-in-authorized-guest-export",
-            ["adapter-provenance"] = "include-subject-linked-provider-provenance",
+            ["guest-reservation-data"] =
+                "include-in-authorized-guest-or-tenant-export",
+            ["guest-reservation-link"] =
+                "include-in-authorized-guest-or-tenant-export",
+            ["adapter-provenance"] =
+                "include-subject-linked-provider-provenance-or-tenant-export",
             ["reservation-data-rights-correction-accountability"] =
-                "include-minimum-coordinate-in-authorized-case-ledger",
+                "include-minimum-coordinate-in-authorized-case-ledger-or-tenant-export",
             ["reservation-processing-restriction-accountability"] =
-                "include-minimum-restriction-state-in-authorized-case-ledger",
+                "include-minimum-restriction-state-in-authorized-case-ledger-or-tenant-export",
             ["reservation-data-hold-accountability"] =
-                "include-minimum-hold-state-in-authorized-case-ledger",
+                "include-minimum-hold-state-in-authorized-case-ledger-or-tenant-export",
             ["reservation-anonymisation-accountability"] =
-                "include-minimum-anonymisation-proof-in-authorized-case-ledger"
+                "include-minimum-anonymisation-proof-in-authorized-case-ledger-or-tenant-export"
         };
 
     private static readonly Type[] SourceTypes =
@@ -246,7 +249,13 @@ internal static class ReservationDataRightsExportSchema
             PersonalDataRightsPolicy rightsPolicy = catalog.RightsPolicies.Single(
                 policy => string.Equals(policy.Id, field.RightsPolicy, StringComparison.Ordinal));
             foreach (PersonalDataMemberBinding binding in field.Bindings.Where(
-                         binding => binding.Surface == PersonalDataSurface.DataRightsExport))
+                         binding =>
+                             binding.Surface ==
+                                 PersonalDataSurface.DataRightsExport &&
+                             string.Equals(
+                                 binding.RetentionPolicy,
+                                 ExportRetentionPolicy,
+                                 StringComparison.Ordinal)))
             {
                 string key = string.Join('|', binding.Type, binding.Member);
                 if (!expectedMembers.Contains(key) ||
@@ -260,7 +269,6 @@ internal static class ReservationDataRightsExportSchema
                         out string? expectedPolicy) ||
                     !string.Equals(rightsPolicy.Export, expectedPolicy, StringComparison.Ordinal) ||
                     !field.AllowedBoundaries.Contains(PersonalDataBoundary.CrossModule) ||
-                    !string.Equals(binding.RetentionPolicy, ExportRetentionPolicy, StringComparison.Ordinal) ||
                     !fieldIdsByMember.TryAdd(key, field.Id))
                 {
                     throw new InvalidDataException(

@@ -11,11 +11,97 @@ using BunkFy.Modules.Staff.Domain.Governance;
 using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Staff.Persistence.Models;
+using BunkFy.Modules.Staff.Persistence.TenantTermination;
 using Xunit;
 
 [Trait("Category", "Unit")]
 public sealed class StaffModelTests
 {
+    [Fact]
+    public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
+    {
+        using StaffDbContext dbContext = CreateDbContext();
+
+        IEntityType revisionEntity = dbContext.Model.FindEntityType(
+            typeof(StaffTenantRevision))!;
+        IEntityType designRevisionEntity = dbContext
+            .GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(StaffTenantRevision))!;
+
+        Assert.Equal(
+            [nameof(StaffTenantRevision.ScopeId)],
+            revisionEntity.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(
+            revisionEntity.FindProperty(
+                nameof(StaffTenantRevision.Revision))!
+                .IsConcurrencyToken);
+        Assert.NotEmpty(revisionEntity.GetDeclaredQueryFilters());
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_staff_tenant_revision_positive",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_staff_tenant_revision_lifecycle",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Tenant_destruction_progress_and_receipt_are_scope_unique_and_constrained()
+    {
+        using StaffDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(StaffTenantDestroyOperation))!;
+        IEntityType receipt = designModel.FindEntityType(
+            typeof(StaffTenantDestroyReceipt))!;
+
+        Assert.Equal(
+            [nameof(StaffTenantDestroyOperation.OperationId)],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(operation.FindProperty(
+            nameof(StaffTenantDestroyOperation.ConcurrencyVersion))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            operation.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffTenantDestroyOperation.ScopeId)
+                    ]));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_staff_tenant_destroy_operation_batch");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_staff_tenant_destroy_operation_progress");
+
+        Assert.Equal(
+            [nameof(StaffTenantDestroyReceipt.OperationId)],
+            receipt.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffTenantDestroyReceipt.ScopeId)
+                    ]));
+        Assert.Contains(
+            receipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_staff_tenant_destroy_receipt_progress");
+    }
+
     [Fact]
     public void Model_has_scoped_unique_correlations_concurrency_and_assignment_constraints()
     {

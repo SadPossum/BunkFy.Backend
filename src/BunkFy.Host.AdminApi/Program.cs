@@ -26,6 +26,8 @@ using BunkFy.Modules.Ingestion.AdminApi;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Retention.AdminApi;
 using BunkFy.Modules.Retention.Persistence;
+using BunkFy.Modules.DataRights.AdminApi;
+using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.Workspaces.AdminApi;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
@@ -34,6 +36,9 @@ using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
 using BunkFy.Parsers.ReservationMail;
 using BunkFy.Extensions.Operations.Notifications;
+using BunkFy.Extensions.DataRights.AccessControl;
+using BunkFy.Extensions.DataRights.Organizations;
+using BunkFy.Extensions.DataRights.TaskRuntime;
 using BunkFy.Extensions.Workspaces;
 using BunkFy.Host.ServiceDefaults;
 using BunkFy.Host.ServiceDefaults.Production;
@@ -65,6 +70,15 @@ AuthenticationAssuranceRequirement adminOperationAssurance =
 
 builder.Host.UseConfiguredSerilog();
 builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.AdminApi);
+builder.AddBunkFyAuthRetentionProductionAdmission(
+    BunkFyDeploymentSurface.AdminApi,
+    authComposed: true);
+builder.AddBunkFyOrganizationsMaintenanceProductionAdmission(
+    BunkFyDeploymentSurface.AdminApi,
+    organizationsComposed: true);
+builder.AddBunkFyDurableRuntimeProductionAdmission(
+    BunkFyDurableRuntimeHostRole.AdminApi,
+    taskRuntimeComposed: true);
 builder.AddBunkFyOperationsNotificationsProductionAdmission(
     OperationsNotificationsProductionHostRole.AdminApi);
 
@@ -88,6 +102,10 @@ builder.Services.AddImapReservationMailAdapterDescriptor();
 builder.Services.AddJsonFileDropAdapterDescriptor();
 builder.Services.AddReservationMailParserDescriptor();
 builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);
+builder.Services.AddBunkFyOperationsNotifications();
+builder.Services.AddBunkFyAccessControlDataRights();
+builder.Services.AddBunkFyOrganizationsDataRights();
+builder.Services.AddBunkFyTaskRuntimeDataRights();
 
 builder.AddAdminApiModule<AdministrationAdminApiModule>();
 builder.AddAdminApiModule<AccessControlAdminApiModule>();
@@ -102,6 +120,7 @@ builder.AddAdminApiModule<GuestsAdminApiModule>();
 builder.AddAdminApiModule<StaffAdminApiModule>();
 builder.AddAdminApiModule<IngestionAdminApiModule>();
 builder.AddAdminApiModule<RetentionAdminApiModule>();
+builder.AddAdminApiModule<DataRightsAdminApiModule>();
 builder.AddAdminApiModule<WorkspacesAdminApiModule>();
 
 builder.AddServiceDefaults();
@@ -119,6 +138,7 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<GuestsDbContext>("guests-da
 builder.Services.AddGmaEntityFrameworkReadinessCheck<StaffDbContext>("staff-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingestion-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<RetentionDbContext>("retention-database");
+builder.Services.AddGmaEntityFrameworkReadinessCheck<DataRightsDbContext>("data-rights-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<WorkspacesDbContext>("workspaces-database");
 builder.AddGmaOpenApi();
 builder.ValidateModuleComposition();

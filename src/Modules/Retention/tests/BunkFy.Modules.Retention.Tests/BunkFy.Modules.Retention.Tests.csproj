@@ -13,18 +13,23 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\BunkFy.Modules.Retention.Admin.Contracts\BunkFy.Modules.Retention.Admin.Contracts.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Retention.AdminApi\BunkFy.Modules.Retention.AdminApi.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Retention.Api\BunkFy.Modules.Retention.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Retention.Application\BunkFy.Modules.Retention.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Retention.Domain\BunkFy.Modules.Retention.Domain.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Retention.Persistence\BunkFy.Modules.Retention.Persistence.csproj" />
     <ProjectReference Include="..\..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Cqrs\Gma.Framework.Cqrs\Gma.Framework.Cqrs.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Api\Gma.Framework.Administration.Api.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Observability\Gma.Framework.Observability\Gma.Framework.Observability.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Results\Gma.Framework.Results\Gma.Framework.Results.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Runtime\Gma.Framework.Runtime\Gma.Framework.Runtime.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Scoping\Gma.Framework.Scoping\Gma.Framework.Scoping.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks\Gma.Framework.Tasks.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks.Cqrs\Gma.Framework.Tasks.Cqrs.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Tenancy\Gma.Framework.Tenancy\Gma.Framework.Tenancy.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\docs\personal-data-catalog.v1.json"

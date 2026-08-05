@@ -7,6 +7,7 @@ using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Models;
 using BunkFy.Modules.Guests.Persistence.Repositories;
+using BunkFy.Modules.Guests.Persistence.TenantTermination;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,91 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class GuestsModelTests
 {
+    [Fact]
+    public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+
+        IEntityType revisionEntity = dbContext.Model.FindEntityType(
+            typeof(GuestsTenantRevision))!;
+        IEntityType designRevisionEntity = dbContext
+            .GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(GuestsTenantRevision))!;
+
+        Assert.Equal(
+            [nameof(GuestsTenantRevision.ScopeId)],
+            revisionEntity.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(
+            revisionEntity.FindProperty(
+                nameof(GuestsTenantRevision.Revision))!
+                .IsConcurrencyToken);
+        Assert.NotEmpty(revisionEntity.GetDeclaredQueryFilters());
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_guests_tenant_revision_positive",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            designRevisionEntity.GetCheckConstraints(),
+            constraint => string.Equals(
+                constraint.Name,
+                "CK_guests_tenant_revision_lifecycle",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Tenant_destruction_progress_and_receipt_are_scope_unique_and_constrained()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(GuestsTenantDestroyOperation))!;
+        IEntityType receipt = designModel.FindEntityType(
+            typeof(GuestsTenantDestroyReceipt))!;
+
+        Assert.Equal(
+            [nameof(GuestsTenantDestroyOperation.OperationId)],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(operation.FindProperty(
+            nameof(GuestsTenantDestroyOperation.ConcurrencyVersion))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            operation.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(GuestsTenantDestroyOperation.ScopeId)
+                    ]));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guests_tenant_destroy_operation_batch");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guests_tenant_destroy_operation_progress");
+
+        Assert.Equal(
+            [nameof(GuestsTenantDestroyReceipt.OperationId)],
+            receipt.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.Contains(
+            receipt.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(GuestsTenantDestroyReceipt.ScopeId)
+                    ]));
+        Assert.Contains(
+            receipt.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guests_tenant_destroy_receipt_progress");
+    }
+
     [Fact]
     public void Model_has_scoped_non_unique_contact_indexes_and_lifecycle_constraints()
     {

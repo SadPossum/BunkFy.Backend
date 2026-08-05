@@ -6,4 +6,5 @@ internal sealed record OutboxSnapshot(
     string? LockedBy,
     DateTimeOffset? LockedUntilUtc,
     DateTimeOffset? NextAttemptAtUtc,
-    int Attempts);
+    int Attempts,
+    string? Error);

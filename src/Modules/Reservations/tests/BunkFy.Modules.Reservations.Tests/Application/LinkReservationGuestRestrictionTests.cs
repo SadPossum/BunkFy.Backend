@@ -31,7 +31,7 @@ public sealed class LinkReservationGuestRestrictionTests
             localLinkable: true,
             gate);
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             Command(reservation, guestId),
             CancellationToken.None);
 
@@ -54,7 +54,7 @@ public sealed class LinkReservationGuestRestrictionTests
             localLinkable: false,
             gate);
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             Command(reservation, Guid.NewGuid()),
             CancellationToken.None);
 
@@ -77,12 +77,12 @@ public sealed class LinkReservationGuestRestrictionTests
             localLinkable: true,
             gate);
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             Command(reservation, guestId),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Contains(result.Value.Guests, guest => guest.GuestId == guestId);
+        Assert.Contains(reservation.Guests, guest => guest.GuestId == guestId);
         Assert.Equal(1, gate.CallCount);
     }
 
@@ -106,7 +106,7 @@ public sealed class LinkReservationGuestRestrictionTests
             localLinkable: false,
             gate);
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             Command(reservation, guestId),
             CancellationToken.None);
 

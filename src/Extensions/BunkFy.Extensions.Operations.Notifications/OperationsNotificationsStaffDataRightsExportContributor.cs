@@ -133,6 +133,14 @@ internal sealed class
                 IsStaffPayload(record.Payload),
             (StaffModuleMetadata.Name, "staff-lifecycle-changed") =>
                 IsStaffPayload(record.Payload),
+            (DataRightsModuleMetadata.Name,
+                DataRightsResponseDeadlineNotificationHandler
+                    .DueSoonNotificationName) =>
+                IsDataRightsCasePayload(record.Payload),
+            (DataRightsModuleMetadata.Name,
+                DataRightsResponseDeadlineNotificationHandler
+                    .OverdueNotificationName) =>
+                IsDataRightsCasePayload(record.Payload),
             _ => false
         };
     }
@@ -145,6 +153,11 @@ internal sealed class
         HasExactProperties(payload, "PropertyId", "ReservationId") &&
         HasGuid(payload, "PropertyId") &&
         HasGuid(payload, "ReservationId");
+
+    private static bool IsDataRightsCasePayload(JsonElement payload) =>
+        HasExactProperties(payload, "CaseId", "PropertyId") &&
+        HasGuid(payload, "CaseId") &&
+        HasGuid(payload, "PropertyId");
 
     private static bool IsInventoryBlockReleasedPayload(
         JsonElement payload) =>

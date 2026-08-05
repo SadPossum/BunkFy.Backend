@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Retention.Application.Ports;
 
+using System.Runtime.CompilerServices;
 using BunkFy.Modules.Retention.Contracts;
 
 public interface IRetentionScopeRepository
@@ -19,6 +20,20 @@ public interface IRetentionScopeRepository
     Task<IReadOnlyList<RetentionScheduleTarget>> ListActiveTargetsAsync(
         RetentionTargetScopeKind targetKind,
         CancellationToken cancellationToken);
+
+    async IAsyncEnumerable<RetentionScheduleTarget> StreamActiveTargetsAsync(
+        RetentionTargetScopeKind targetKind,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        IReadOnlyList<RetentionScheduleTarget> targets =
+            await this.ListActiveTargetsAsync(targetKind, cancellationToken)
+                .ConfigureAwait(false);
+        foreach (RetentionScheduleTarget target in targets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return target;
+        }
+    }
 
     Task<IReadOnlyList<RetentionScheduleTarget>> ListCurrentActiveTargetsAsync(
         RetentionTargetScopeKind targetKind,

@@ -12,11 +12,16 @@ public interface ITenantTerminationContributor
 public sealed record TenantTerminationContributorDescriptor(
     string OwnerKey,
     int ContractVersion,
-    IReadOnlyCollection<TenantTerminationContributionPhase> SupportedPhases,
-    IReadOnlyCollection<string> DependsOnOwnerKeys,
+    IReadOnlyCollection<TenantTerminationContributorPhasePlan> PhasePlans,
     bool MandatoryForProduction,
     int CatalogVersion,
     string CatalogSha256);
+
+public sealed record TenantTerminationContributorPhasePlan(
+    TenantTerminationContributionPhase Phase,
+    IReadOnlyCollection<string> DependsOnOwnerKeys,
+    TenantTerminationExecutionBoundary ExecutionBoundary =
+        TenantTerminationExecutionBoundary.TenantScopedTask);
 
 public sealed record TenantTerminationContributionRequest(
     int ContractVersion,
@@ -74,4 +79,11 @@ public enum TenantTerminationContributionStatus
     Blocked = 2,
     RetryRequired = 3,
     Failed = 4
+}
+
+public enum TenantTerminationExecutionBoundary
+{
+    Unknown = 0,
+    TenantScopedTask = 1,
+    GlobalControlTask = 2
 }

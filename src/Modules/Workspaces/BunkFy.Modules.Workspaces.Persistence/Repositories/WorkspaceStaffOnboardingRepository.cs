@@ -136,7 +136,7 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
         PageRequest page,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffOnboarding[] rows = await (
+        WorkspaceStaffOnboarding[] fetched = await (
             from application in dbContext.StaffOnboardingApplications
                 .AsNoTracking()
             join projection in
@@ -165,12 +165,14 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
             .OrderBy(application => application.CreatedAtUtc)
             .ThenBy(application => application.Id)
             .Skip(page.SkipCount)
-            .Take(page.PageSize)
+            .Take(page.PageSize + 1)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        bool hasMore = fetched.Length > page.PageSize;
         return new WorkspaceStaffOnboardingListResponse(
-            rows.Select(application => application.ToDto()).ToArray(),
+            fetched.Take(page.PageSize).Select(application => application.ToDto()).ToArray(),
             page.Page,
-            page.PageSize);
+            page.PageSize,
+            hasMore);
     }
 
     public Task ReloadAsync(

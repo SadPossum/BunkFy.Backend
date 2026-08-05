@@ -14,6 +14,7 @@ using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Ingestion.Persistence.Repositories;
+using BunkFy.Modules.Ingestion.Persistence.TenantTermination;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Pagination;
 using Gma.Framework.Scoping;
@@ -60,6 +61,62 @@ public sealed class IngestionModelTests
             .FindProperty(nameof(AdapterIngressTenantControl.Version))!.IsConcurrencyToken);
         Assert.True(dbContext.Model.FindEntityType(typeof(AdapterIngressGlobalControl))!
             .FindProperty(nameof(AdapterIngressGlobalControl.Version))!.IsConcurrencyToken);
+        Assert.True(dbContext.Model.FindEntityType(typeof(IngestionTenantRevision))!
+            .FindProperty(nameof(IngestionTenantRevision.Revision))!.IsConcurrencyToken);
+        Assert.NotEmpty(dbContext.Model
+            .FindEntityType(typeof(IngestionTenantRevision))!
+            .GetDeclaredQueryFilters());
+        Assert.Equal(
+            [nameof(IngestionTenantRevision.ScopeId)],
+            dbContext.Model.FindEntityType(typeof(IngestionTenantRevision))!
+                .FindPrimaryKey()!
+                .Properties
+                .Select(property => property.Name)
+                .ToArray());
+    }
+
+    [Fact]
+    public void Tenant_destruction_state_is_scoped_constrained_and_concurrent()
+    {
+        using IngestionDbContext dbContext = CreateDbContext();
+        IEntityType revision = dbContext.Model.FindEntityType(
+            typeof(IngestionTenantRevision))!;
+        IEntityType operation = dbContext.Model.FindEntityType(
+            typeof(IngestionTenantDestroyOperation))!;
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(IngestionTenantDestroyReceipt))!;
+
+        Assert.NotNull(revision.FindProperty(
+            nameof(IngestionTenantRevision.LifecycleStatus)));
+        Assert.NotNull(revision.FindProperty(
+            nameof(IngestionTenantRevision.DestroyOperationId)));
+        Assert.True(operation.FindProperty(
+            nameof(IngestionTenantDestroyOperation.ConcurrencyVersion))!
+            .IsConcurrencyToken);
+        Assert.NotEmpty(operation.GetDeclaredQueryFilters());
+        Assert.NotEmpty(receipt.GetDeclaredQueryFilters());
+        Assert.Contains(operation.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(
+                    [nameof(IngestionTenantDestroyOperation.ScopeId)]));
+        Assert.Contains(receipt.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(
+                    [nameof(IngestionTenantDestroyReceipt.ScopeId)]));
+        Assert.Equal(
+            IngestionTenantDestroyOperation.InitialRemovalProofSha256.Length,
+            operation.FindProperty(
+                nameof(IngestionTenantDestroyOperation.RemovalProofSha256))!
+                .GetMaxLength());
+        Assert.Equal(
+            IngestionTenantDestroyOperation
+                .InitialRawPayloadProofSha256.Length,
+            operation.FindProperty(nameof(
+                    IngestionTenantDestroyOperation
+                        .RawPayloadRemovalProofSha256))!
+                .GetMaxLength());
     }
 
     [Fact]
@@ -344,10 +401,14 @@ public sealed class IngestionModelTests
     {
         await using IngestionDbContext dbContext = CreateDbContext();
         Guid propertyId = Guid.NewGuid();
+        DateTimeOffset now = new(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
         ChangeProposal proposal = ChangeProposal.Create(
             Guid.NewGuid(), "tenant-a", propertyId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-            Guid.NewGuid(), 2, "test", "{\"change\":true}", DateTimeOffset.UtcNow).Value;
-        dbContext.ChangeProposals.Add(proposal);
+            Guid.NewGuid(), 2, "test", "{\"change\":true}", now).Value;
+        ChangeProposal olderProposal = ChangeProposal.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), 1, "older", "{\"change\":false}", now.AddMinutes(-1)).Value;
+        dbContext.ChangeProposals.AddRange(proposal, olderProposal);
         await dbContext.SaveChangesAsync();
         ChangeProposalReader reader = new(dbContext);
 
@@ -355,7 +416,12 @@ public sealed class IngestionModelTests
         ChangeProposalListResponse list = await reader.ListAsync(
             propertyId,
             ChangeProposalStatus.Pending,
-            new PageRequest(1, 10),
+            new PageRequest(1, 1),
+            CancellationToken.None);
+        ChangeProposalListResponse lastPage = await reader.ListAsync(
+            propertyId,
+            ChangeProposalStatus.Pending,
+            new PageRequest(2, 1),
             CancellationToken.None);
 
         Assert.NotNull(found);
@@ -365,6 +431,9 @@ public sealed class IngestionModelTests
         Assert.NotNull(found.Diff);
         Assert.Single(list.Proposals);
         Assert.Equal("test", Assert.Single(list.Proposals).ReasonCode);
+        Assert.True(list.HasMore);
+        Assert.Single(lastPage.Proposals);
+        Assert.False(lastPage.HasMore);
         Assert.Null(await reader.GetAsync(Guid.NewGuid(), proposal.Id, CancellationToken.None));
     }
 
@@ -378,19 +447,59 @@ public sealed class IngestionModelTests
             BunkFy.Adapter.Abstractions.AdapterExecutionMode.Polling,
             IngestionConflictPolicy.SuggestionsOnly,
             "configuration://main", null, DateTimeOffset.UtcNow).Value;
-        dbContext.AdapterConnections.Add(connection);
+        AdapterConnection secondConnection = AdapterConnection.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, "mailbox.parser",
+            BunkFy.Adapter.Abstractions.AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://mailbox", null, DateTimeOffset.UtcNow).Value;
+        dbContext.AdapterConnections.AddRange(connection, secondConnection);
         await dbContext.SaveChangesAsync();
         IngestionOperationsReader reader = new(dbContext);
 
         AdapterConnectionDto? found = await reader.GetConnectionAsync(
             propertyId, connection.Id, CancellationToken.None);
         AdapterConnectionListResponse list = await reader.ListConnectionsAsync(
-            propertyId, AdapterConnectionStatus.Enabled, new PageRequest(1, 10), CancellationToken.None);
+            propertyId, AdapterConnectionStatus.Enabled, new PageRequest(1, 1), CancellationToken.None);
+        AdapterConnectionListResponse lastPage = await reader.ListConnectionsAsync(
+            propertyId, AdapterConnectionStatus.Enabled, new PageRequest(2, 1), CancellationToken.None);
 
         Assert.NotNull(found);
         Assert.Equal(AdapterConnectionStatus.Enabled, found.Status);
         Assert.Single(list.Connections);
+        Assert.True(list.HasMore);
+        Assert.Single(lastPage.Connections);
+        Assert.False(lastPage.HasMore);
         Assert.Null(await reader.GetConnectionAsync(Guid.NewGuid(), connection.Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Credential_reader_uses_bounded_lookahead()
+    {
+        await using IngestionDbContext dbContext = CreateDbContext();
+        DateTimeOffset now = new(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
+        Guid connectionId = Guid.NewGuid();
+        byte[] secretHash = new byte[AdapterIngressCredential.SecretHashLength];
+        AdapterIngressCredential first = AdapterIngressCredential.Create(
+            Guid.NewGuid(), "tenant-a", connectionId, "fake.http", 1, 1, "booking",
+            1, "primary", AdapterIngressCredential.Sha256HashAlgorithm, secretHash,
+            now.AddDays(30), "user:operator", now).Value;
+        AdapterIngressCredential second = AdapterIngressCredential.Create(
+            Guid.NewGuid(), "tenant-a", connectionId, "fake.http", 1, 1, "booking",
+            2, "rotation", AdapterIngressCredential.Sha256HashAlgorithm, secretHash,
+            now.AddDays(30), "user:operator", now.AddMinutes(-1)).Value;
+        dbContext.AdapterIngressCredentials.AddRange(first, second);
+        await dbContext.SaveChangesAsync();
+        AdapterIngressCredentialRepository repository = new(dbContext);
+
+        AdapterIngressCredentialListResponse firstPage = await repository.ListAsync(
+            connectionId, new PageRequest(1, 1), CancellationToken.None);
+        AdapterIngressCredentialListResponse lastPage = await repository.ListAsync(
+            connectionId, new PageRequest(2, 1), CancellationToken.None);
+
+        Assert.Single(firstPage.Credentials);
+        Assert.True(firstPage.HasMore);
+        Assert.Single(lastPage.Credentials);
+        Assert.False(lastPage.HasMore);
     }
 
     [Fact]
@@ -472,10 +581,15 @@ public sealed class IngestionModelTests
         }
 
         await using IngestionDbContext readContext = CreateDbContext(databaseName, "tenant-a");
+        AdapterPollingScheduleReader reader = new(readContext);
         IReadOnlyList<BunkFy.Modules.Ingestion.Application.Ports.AdapterPollingScheduleDefinition> schedules =
-            await new AdapterPollingScheduleReader(readContext).ListActiveAsync(CancellationToken.None);
+            await reader.ListActiveAsync(CancellationToken.None);
+        BunkFy.Modules.Ingestion.Application.Ports.AdapterPollingScheduleDefinition[] streamedSchedules =
+            await reader.StreamActiveAsync(CancellationToken.None)
+                .ToArrayAsync(CancellationToken.None);
 
         Assert.Equal(2, schedules.Count);
+        Assert.Equal(schedules, streamedSchedules);
         Assert.Contains(schedules, schedule => schedule.ScopeId == "tenant-a" && schedule.ConnectionId == tenantA.Id);
         Assert.Contains(schedules, schedule => schedule.ScopeId == "tenant-b" && schedule.ConnectionId == tenantB.Id);
         Assert.DoesNotContain(schedules, schedule => schedule.ConnectionId == paused.Id);

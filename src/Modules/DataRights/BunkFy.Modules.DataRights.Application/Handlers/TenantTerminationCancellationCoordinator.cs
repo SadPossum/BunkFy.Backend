@@ -108,7 +108,7 @@ internal sealed class TenantTerminationCancellationCoordinator(
                     StringComparison.Ordinal) &&
                 workItem.State == TenantTerminationOwnerWorkState.Completed &&
                 workItem.RemainingActiveCount == 0 &&
-                workItem.SelectedProofRevision is > 0 &&
+                workItem.SelectedProofRevision is >= 0 &&
                 workItem.ResultingProofRevision >=
                     workItem.SelectedProofRevision &&
                 workItem.ResultRecordedAtUtc.HasValue;

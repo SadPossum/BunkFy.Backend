@@ -130,6 +130,7 @@ public sealed class DataRightsPersistenceIntegrationTests
                 "tenant-a",
                 propertyId,
                 "Integration Hostel",
+                "Europe/London",
                 PropertyStatus.Active,
                 8);
             property.ApplyPolicy(

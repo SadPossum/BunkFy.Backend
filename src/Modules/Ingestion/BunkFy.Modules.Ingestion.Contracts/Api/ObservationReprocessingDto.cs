@@ -68,8 +68,22 @@ public sealed record ObservationReprocessingAttemptDetailsDto(
     ObservationReprocessingAttemptDto Attempt,
     IReadOnlyCollection<ObservationReprocessingOutputDto> Outputs);
 
+public sealed record ObservationReprocessingAttemptListItemDto(
+    Guid AttemptId,
+    string ParserType,
+    int ParserVersion,
+    ObservationReprocessingStatus Status,
+    int ParsedCount,
+    int AcceptedCount,
+    int DuplicateCount,
+    int RejectedCount,
+    string? LastErrorCode,
+    DateTimeOffset RequestedAtUtc,
+    DateTimeOffset? StartedAtUtc,
+    DateTimeOffset? CompletedAtUtc);
+
 public sealed record ObservationReprocessingAttemptListResponse(
-    IReadOnlyCollection<ObservationReprocessingAttemptDto> Attempts,
+    IReadOnlyCollection<ObservationReprocessingAttemptListItemDto> Attempts,
     int Page,
     int PageSize,
-    long TotalCount);
+    bool HasMore);

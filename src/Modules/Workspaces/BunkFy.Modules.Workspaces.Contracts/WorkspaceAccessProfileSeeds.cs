@@ -11,7 +11,7 @@ using Gma.Modules.AccessControl.Contracts;
 
 public static class WorkspaceAccessProfileSeeds
 {
-    public const int Version = 1;
+    public const int Version = 2;
     public const string ManagerKey = "manager";
     public const string FrontDeskKey = "front-desk";
     public const string HousekeepingKey = "housekeeping";
@@ -22,6 +22,9 @@ public static class WorkspaceAccessProfileSeeds
         "Manager",
         "Manage daily property operations, staff, guests, reservations, and standard integrations.",
         [
+            AccessControlProfilePermissionCodes.Read,
+            AccessControlProfilePermissionCodes.Manage,
+            AccessControlProfilePermissionCodes.Assign,
             PropertiesAdminPermissionCodes.Read,
             PropertiesAdminPermissionCodes.PropertiesManage,
             PropertiesAdminPermissionCodes.RoomsManage,

@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Inventory.Persistence;
 
 using BunkFy.Modules.DataRights.Contracts;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -55,6 +57,19 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectExportContributor,
                 InventoryDataRightsExportContributor>());
+        InventoryTenantTerminationExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationContributor,
+                InventoryTenantTerminationContributor>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationExportContributor,
+                InventoryTenantTerminationContributor>());
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(InventoryPersistenceAdmissionBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddScoped<IBedRetirementRepository, BedRetirementRepository>();
         builder.Services.TryAddScoped<IRoomRetirementRepository, RoomRetirementRepository>();
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>, InventoryTopologyProjectionRebuildWriter>();

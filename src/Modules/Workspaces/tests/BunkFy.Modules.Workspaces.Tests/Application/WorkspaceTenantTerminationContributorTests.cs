@@ -51,10 +51,55 @@ public sealed class WorkspaceTenantTerminationContributorTests
         Assert.Equal(
             [
                 TenantTerminationContributionPhase.Freeze,
+                TenantTerminationContributionPhase.Export,
+                TenantTerminationContributionPhase.Destroy,
                 TenantTerminationContributionPhase.Restore
             ],
-            contributor.Descriptor.SupportedPhases);
+            contributor.Descriptor.PhasePlans.Select(plan => plan.Phase));
+        Assert.Equal(
+            WorkspacesTenantTerminationMetadata.DestroyDependencyOwnerKeys,
+            contributor.Descriptor.PhasePlans.Single(plan =>
+                plan.Phase == TenantTerminationContributionPhase.Destroy)
+                .DependsOnOwnerKeys);
+        Assert.All(
+            contributor.Descriptor.PhasePlans.Where(plan =>
+                plan.Phase != TenantTerminationContributionPhase.Destroy),
+            plan => Assert.Empty(plan.DependsOnOwnerKeys));
+        Assert.Equal(
+            WorkspacesTenantTerminationMetadata.CatalogVersion,
+            contributor.Descriptor.CatalogVersion);
+        Assert.Equal(
+            WorkspacesTenantTerminationMetadata.CatalogSha256,
+            contributor.Descriptor.CatalogSha256);
         Assert.True(contributor.Descriptor.MandatoryForProduction);
+    }
+
+    [Fact]
+    public async Task Destroy_routes_to_the_persistence_owner()
+    {
+        StubDispatcher dispatcher = new();
+        StubDestructionOwner destruction = new();
+        WorkspaceTenantTerminationContributor contributor = new(
+            dispatcher,
+            new StubRepository(),
+            new TestScopeContext(),
+            new TestClock(),
+            destruction);
+        TenantTerminationContributionRequest request = NewRequest() with
+        {
+            OperationRevision = 2,
+            Phase = TenantTerminationContributionPhase.Destroy
+        };
+
+        TenantTerminationContributionResult result =
+            await contributor.ExecuteAsync(request, default);
+
+        Assert.Same(request, destruction.Request);
+        Assert.Equal(
+            TenantTerminationContributionStatus.RetryRequired,
+            result.Status);
+        Assert.Equal("workspace.termination.destroy-test", result.ResultCode);
+        Assert.Null(dispatcher.Command);
     }
 
     [Fact]
@@ -182,5 +227,30 @@ public sealed class WorkspaceTenantTerminationContributorTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class StubDestructionOwner
+        : IWorkspaceTenantDestructionOwner
+    {
+        public TenantTerminationContributionRequest? Request { get; private set; }
+
+        public Task<TenantTerminationContributionResult> ExecuteAsync(
+            TenantTerminationContributionRequest request,
+            CancellationToken cancellationToken)
+        {
+            this.Request = request;
+            return Task.FromResult(new TenantTerminationContributionResult(
+                TenantTerminationContributionStatus.RetryRequired,
+                "workspace.termination.destroy-test",
+                AffectedCount: 0,
+                RetainedMinimumCount: 0,
+                RemainingActiveCount: 1,
+                HoldReviewAtUtc: null,
+                SelectedProofRevision: null,
+                ResultingProofRevision: null,
+                WorkspacesTenantTerminationMetadata.CatalogVersion,
+                WorkspacesTenantTerminationMetadata.CatalogSha256,
+                Now));
+        }
     }
 }

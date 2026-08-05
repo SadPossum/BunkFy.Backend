@@ -19,4 +19,4 @@ public sealed record CreateReservationCommand(
     TimeOnly? ExpectedArrivalTime = null,
     TimeOnly? ExpectedDepartureTime = null,
     string? ActorId = null)
-    : ITransactionalCommand<ReservationDto>;
+    : ITransactionalCommand<ReservationMutationReceiptDto>;

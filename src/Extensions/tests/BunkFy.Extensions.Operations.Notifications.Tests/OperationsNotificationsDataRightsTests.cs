@@ -99,6 +99,25 @@ public sealed class OperationsNotificationsDataRightsTests
     }
 
     [Fact]
+    public void Tenant_history_reference_is_deterministic_and_scope_exact()
+    {
+        NotificationHistoryReference expected =
+            OperationsNotificationsDataRightsCoordinates.ForTenant(ScopeId);
+
+        Assert.Equal(
+            expected,
+            OperationsNotificationsDataRightsCoordinates.ForTenant(ScopeId));
+        Assert.NotEqual(
+            expected,
+            OperationsNotificationsDataRightsCoordinates.ForTenant(
+                Guid.NewGuid().ToString("D")));
+        Assert.Equal(
+            OperationsNotificationsDataRightsCoordinates
+                .TenantInboxHistoryReferenceNamespace,
+            expected.Namespace);
+    }
+
+    [Fact]
     public void Ingestion_source_link_reference_is_deterministic_and_scope_exact()
     {
         NotificationHistoryReference expected =
@@ -1379,5 +1398,15 @@ public sealed class OperationsNotificationsDataRightsTests
             NotificationHistoryReferenceCloseRequest request,
             CancellationToken cancellationToken) =>
             this.Close(request, cancellationToken);
+
+        public Task<NotificationHistoryReferenceCloseBatchResult>
+            CloseBatchAsync(
+                NotificationHistoryReferenceCloseBatchRequest request,
+                CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new NotificationHistoryReferenceCloseBatchResult(
+                    NotificationHistoryReferenceCloseBatchStatus.Invalid,
+                    null,
+                    null));
     }
 }

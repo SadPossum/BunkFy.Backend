@@ -15,14 +15,16 @@ internal sealed class UpdateRoomCommandHandler(
     IRoomRepository repository,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<UpdateRoomCommand, RoomDto>
+    : ICommandHandler<UpdateRoomCommand, RoomMutationReceiptDto>
 {
-    public async Task<Result<RoomDto>> HandleAsync(UpdateRoomCommand command, CancellationToken cancellationToken)
+    public async Task<Result<RoomMutationReceiptDto>> HandleAsync(
+        UpdateRoomCommand command,
+        CancellationToken cancellationToken)
     {
         Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
         if (room is null || room.PropertyId != command.PropertyId)
         {
-            return Result.Failure<RoomDto>(PropertiesDomainErrors.RoomNotFound);
+            return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.RoomNotFound);
         }
 
         Result result = room.Update(
@@ -34,14 +36,14 @@ internal sealed class UpdateRoomCommandHandler(
             clock.UtcNow);
         if (result.IsFailure)
         {
-            return Result.Failure<RoomDto>(result.Error);
+            return Result.Failure<RoomMutationReceiptDto>(result.Error);
         }
 
         if (await repository.RoomNameExistsAsync(room.PropertyId, room.Name.Value, room.Id, cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure<RoomDto>(PropertiesDomainErrors.RoomAlreadyExists);
+            return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.RoomAlreadyExists);
         }
 
-        return Result.Success(PropertiesMapper.ToDto(room));
+        return Result.Success(PropertiesMapper.ToReceipt(room));
     }
 }

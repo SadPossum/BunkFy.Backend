@@ -14,7 +14,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Api\BunkFy.Modules.Ingestion.Api.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.AdminApi\BunkFy.Modules.Ingestion.AdminApi.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Application\BunkFy.Modules.Ingestion.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Ingestion.Domain\BunkFy.Modules.Ingestion.Domain.csproj" />
@@ -30,6 +32,7 @@
     <ProjectReference Include="$(GmaFrameworkRoot)Runtime\Gma.Framework.Runtime\Gma.Framework.Runtime.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks\Gma.Framework.Tasks.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks.Cqrs\Gma.Framework.Tasks.Cqrs.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Api\Gma.Framework.Administration.Api.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\docs\personal-data-catalog.v1.json"

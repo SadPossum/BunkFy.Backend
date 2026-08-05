@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Contracts;
 
 public sealed record StaffDirectoryListResponse(
-    IReadOnlyList<StaffDirectoryMemberDto> Items,
+    IReadOnlyList<StaffDirectoryListItemDto> Items,
     int Page,
-    int PageSize);
+    int PageSize,
+    bool HasMore);

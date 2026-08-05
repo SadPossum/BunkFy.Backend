@@ -122,6 +122,7 @@ public sealed record AdapterHostOptions
         if (!Uri.TryCreate(listenUrl, UriKind.Absolute, out Uri? listenUri) ||
             listenUri.Scheme is not ("http" or "https") ||
             !string.IsNullOrEmpty(listenUri.UserInfo) ||
+            listenUri.AbsolutePath != "/" ||
             !string.IsNullOrEmpty(listenUri.Query) ||
             !string.IsNullOrEmpty(listenUri.Fragment))
         {

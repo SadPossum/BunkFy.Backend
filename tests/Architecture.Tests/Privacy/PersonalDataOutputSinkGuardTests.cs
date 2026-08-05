@@ -12,15 +12,18 @@ public sealed class PersonalDataOutputSinkGuardTests
 {
     private static readonly string[] ExpectedCatalogIds =
     [
+        "access-control.personal-data",
         "data-rights.personal-data",
         "guests.personal-data",
         "ingestion.personal-data",
         "inventory.personal-data",
         "operations-notifications.personal-data",
+        "organizations.personal-data",
         "properties.personal-data",
         "reservations.personal-data",
         "retention.personal-data",
         "staff.personal-data",
+        "task-runtime.personal-data",
         "workspaces.personal-data"
     ];
 
@@ -110,7 +113,7 @@ public sealed class PersonalDataOutputSinkGuardTests
         PersonalDataCatalogDocument notificationCatalogue = Assert.Single(
             catalogues,
             catalogue => catalogue.CatalogId == "operations-notifications.personal-data");
-        Assert.Equal(42, notificationCatalogue.Fields.Length);
+        Assert.Equal(80, notificationCatalogue.Fields.Length);
 
         PersonalDataFieldDefinition[] notificationFields = notificationCatalogue.Fields
             .Where(field =>
@@ -118,7 +121,7 @@ public sealed class PersonalDataOutputSinkGuardTests
                 field.Bindings.Any(binding =>
                     binding.Surface == PersonalDataSurface.Notification))
             .ToArray();
-        Assert.Equal(16, notificationFields.Length);
+        Assert.Equal(17, notificationFields.Length);
         Assert.All(notificationFields, field =>
         {
             Assert.Contains(PersonalDataSurface.Notification, field.AllowedSurfaces);
@@ -132,7 +135,7 @@ public sealed class PersonalDataOutputSinkGuardTests
                 field.Bindings.Any(binding =>
                     binding.Surface == PersonalDataSurface.DataRightsExport))
             .ToArray();
-        Assert.Equal(26, exportFields.Length);
+        Assert.Equal(63, exportFields.Length);
         Assert.All(exportFields, field =>
         {
             Assert.Contains(PersonalDataSurface.DataRightsExport, field.AllowedSurfaces);
@@ -145,10 +148,20 @@ public sealed class PersonalDataOutputSinkGuardTests
                 field.DataSubject ==
                     PersonalDataSubjectKind.Guest));
         Assert.Equal(
-            13,
+            25,
             exportFields.Count(field =>
                 field.DataSubject ==
                     PersonalDataSubjectKind.Staff));
+        Assert.Equal(
+            22,
+            exportFields.Count(field =>
+                field.DataSubject ==
+                    PersonalDataSubjectKind.AccountHolder));
+        Assert.Equal(
+            3,
+            exportFields.Count(field =>
+                field.DataSubject ==
+                    PersonalDataSubjectKind.SubjectScoped));
         Assert.Equal(
             notificationCatalogue.Fields.Length,
             notificationFields.Length + exportFields.Length);

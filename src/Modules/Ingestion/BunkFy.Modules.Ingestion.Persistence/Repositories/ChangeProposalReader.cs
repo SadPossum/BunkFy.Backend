@@ -32,28 +32,14 @@ internal sealed class ChangeProposalReader(IngestionDbContext dbContext) : IChan
         proposal.DecidedAtUtc,
         proposal.CompletedAtUtc);
 
-    private static readonly Expression<Func<ChangeProposal, ChangeProposalSummaryDto>> SummaryProjection =
+    private static readonly Expression<Func<ChangeProposal, ChangeProposalListItemDto>> ListProjection =
         proposal => new(
             proposal.Id,
-            proposal.PropertyId,
-            proposal.ConnectionId,
-            proposal.ReceiptId,
             proposal.ReservationId,
             proposal.BaseReservationDetailsRevision,
             proposal.ReasonCode,
-            proposal.SensitiveDataRedactedAtUtc.HasValue
-                ? SensitiveHistoryStatus.Redacted
-                : SensitiveHistoryStatus.Available,
-            proposal.SensitiveDataRetainUntilUtc,
-            proposal.SensitiveDataRedactedAtUtc,
             (ChangeProposalStatus)(int)proposal.State,
-            proposal.DecisionActor,
-            proposal.DecisionReason,
-            proposal.ProductOperationId,
-            proposal.Version,
-            proposal.CreatedAtUtc,
-            proposal.DecidedAtUtc,
-            proposal.CompletedAtUtc);
+            proposal.CreatedAtUtc);
 
     public Task<ChangeProposalDto?> GetAsync(
         Guid propertyId,
@@ -78,16 +64,17 @@ internal sealed class ChangeProposalReader(IngestionDbContext dbContext) : IChan
             query = query.Where(proposal => proposal.State == state);
         }
 
-        long totalCount = await query.LongCountAsync(cancellationToken).ConfigureAwait(false);
-        ChangeProposalSummaryDto[] proposals = await query
+        ChangeProposalListItemDto[] fetched = await query
             .OrderByDescending(proposal => proposal.CreatedAtUtc)
             .ThenBy(proposal => proposal.Id)
             .Skip(pageRequest.SkipCount)
-            .Take(pageRequest.PageSize)
-            .Select(SummaryProjection)
+            .Take(pageRequest.PageSize + 1)
+            .Select(ListProjection)
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
-        return new(proposals, pageRequest.Page, pageRequest.PageSize, totalCount);
+        bool hasMore = fetched.Length > pageRequest.PageSize;
+        ChangeProposalListItemDto[] proposals = hasMore ? fetched[..pageRequest.PageSize] : fetched;
+        return new(proposals, pageRequest.Page, pageRequest.PageSize, hasMore);
     }
 
     private static ChangeProposalState ToDomain(ChangeProposalStatus status) => status switch

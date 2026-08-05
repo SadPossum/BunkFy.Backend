@@ -8,6 +8,12 @@ public interface IReservationRepository
 {
     Task AddAsync(Reservation reservation, CancellationToken cancellationToken);
     Task<Reservation?> GetAsync(Guid propertyId, Guid reservationId, CancellationToken cancellationToken);
+    async Task<bool> ExistsAsync(
+        Guid propertyId,
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        await this.GetAsync(propertyId, reservationId, cancellationToken)
+            .ConfigureAwait(false) is not null;
     Task<Reservation?> GetForDataRightsAsync(
         Guid propertyId,
         Guid reservationId,

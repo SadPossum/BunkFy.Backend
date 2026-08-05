@@ -404,6 +404,112 @@ public sealed class CountryPolicyEngineTests
             decision.Reason);
     }
 
+    [Fact]
+    public void Legacy_policy_fails_closed_for_rights_response_deadlines()
+    {
+        CountryPolicyPackArtifact artifact = Parse();
+        CountryPolicyRegistry registry = ProductionRegistry(artifact);
+        CountryPolicyBinding binding = Assert.IsType<CountryPolicyEvidence>(
+            registry.EvaluateActivation(ValidActivation()).Evidence).ToBinding();
+
+        CountryPolicyRightsResponseDecision decision =
+            registry.EvaluateRightsResponse(
+                new(
+                    binding,
+                    "hostel",
+                    CountryPolicyRight.Export,
+                    "Europe/London",
+                    EvaluationTime));
+
+        Assert.False(decision.IsAllowed);
+        Assert.Null(decision.Evidence);
+        Assert.Equal(
+            CountryPolicyDecisionReason.RightsResponsePolicyNotPermitted,
+            decision.Reason);
+    }
+
+    [Fact]
+    public void Version_two_policy_calculates_a_calendar_month_and_freezes_rule_evidence()
+    {
+        CountryPolicyPackArtifact artifact = WithRightsResponseRules(Parse());
+        CountryPolicyRegistry registry = ProductionRegistry(artifact);
+        CountryPolicyBinding binding = Assert.IsType<CountryPolicyEvidence>(
+            registry.EvaluateActivation(ValidActivation()).Evidence).ToBinding();
+        DateTimeOffset receivedAtUtc =
+            new(2026, 1, 31, 10, 0, 0, TimeSpan.Zero);
+
+        CountryPolicyRightsResponseDecision decision =
+            registry.EvaluateRightsResponse(
+                new(
+                    binding,
+                    "hostel",
+                    CountryPolicyRight.Export,
+                    "Europe/London",
+                    receivedAtUtc));
+
+        Assert.True(decision.IsAllowed);
+        CountryPolicyRightsResponseEvidence evidence =
+            Assert.IsType<CountryPolicyRightsResponseEvidence>(
+                decision.Evidence);
+        Assert.Equal(CountryPolicyRight.Export, evidence.Right);
+        Assert.Equal("standard-export", evidence.RuleReference);
+        Assert.Equal(1, evidence.PeriodMonths);
+        Assert.Equal("Europe/London", evidence.TimeZoneId);
+        Assert.Equal(
+            new DateTimeOffset(2026, 2, 28, 10, 0, 0, TimeSpan.Zero),
+            evidence.DueAtUtc);
+    }
+
+    [Fact]
+    public void Calendar_deadline_moves_a_nonexistent_local_time_to_the_first_valid_instant()
+    {
+        bool calculated =
+            CountryPolicyCalendarDeadlineCalculator.TryCalculate(
+                new(2026, 3, 1, 1, 30, 0, TimeSpan.Zero),
+                "Europe/London",
+                new CountryPolicyCalendarPeriod { Days = 28 },
+                out DateTimeOffset dueAtUtc);
+
+        Assert.True(calculated);
+        Assert.Equal(
+            new DateTimeOffset(2026, 3, 29, 1, 0, 0, TimeSpan.Zero),
+            dueAtUtc);
+    }
+
+    [Fact]
+    public void Version_two_policy_requires_every_response_rule_and_valid_time_zones()
+    {
+        CountryPolicyPackDocument document = WithRightsResponseRules(Parse())
+            .Document;
+        CountryPolicyPackDocument invalid = document with
+        {
+            RightsRule = document.RightsRule with
+            {
+                ResponseRules =
+                [
+                    document.RightsRule.ResponseRules![0] with
+                    {
+                        AllowedTimeZoneIds = ["missing/time-zone"]
+                    }
+                ]
+            }
+        };
+
+        IReadOnlyList<string> errors =
+            CountryPolicyPackValidator.Validate(invalid);
+
+        Assert.Contains(
+            errors,
+            error => error.Contains(
+                "unavailable time zone",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            errors,
+            error => error.Contains(
+                "'Correction' rule",
+                StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData(OperationMismatch.UnknownPolicy, CountryPolicyDecisionReason.UnknownPolicy)]
     [InlineData(OperationMismatch.Country, CountryPolicyDecisionReason.CountryMismatch)]
@@ -451,6 +557,31 @@ public sealed class CountryPolicyEngineTests
 
     private static CountryPolicyPackArtifact Parse() =>
         CountryPolicyPackJson.Parse(Encoding.UTF8.GetBytes(ValidPackJson));
+
+    private static CountryPolicyPackArtifact WithRightsResponseRules(
+        CountryPolicyPackArtifact source)
+    {
+        CountryPolicyRightsResponseRule[] responseRules =
+            Enum.GetValues<CountryPolicyRight>()
+                .Where(right => right != CountryPolicyRight.Unknown)
+                .Select(right => new CountryPolicyRightsResponseRule
+                {
+                    Right = right,
+                    Period = new CountryPolicyCalendarPeriod { Months = 1 },
+                    AllowedTimeZoneIds = ["Europe/London"]
+                })
+                .ToArray();
+        return new(
+            source.Document with
+            {
+                SchemaVersion = 2,
+                RightsRule = source.Document.RightsRule with
+                {
+                    ResponseRules = responseRules
+                }
+            },
+            source.ContentSha256);
+    }
 
     private static CountryPolicyRegistry ProductionRegistry(CountryPolicyPackArtifact artifact) =>
         CountryPolicyRegistry.Create([artifact], [Allow(artifact)], CountryPolicyRuntimeMode.Production);

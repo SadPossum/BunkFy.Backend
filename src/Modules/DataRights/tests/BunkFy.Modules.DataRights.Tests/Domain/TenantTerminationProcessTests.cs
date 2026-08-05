@@ -13,6 +13,7 @@ public sealed class TenantTerminationProcessTests
     private const string Approver = "owner:approver";
     private const string Executor = "owner:executor";
     private static readonly string Digest = new('a', 64);
+    private static readonly string FragmentSetDigest = new('b', 64);
     private static readonly DateTimeOffset Now =
         new(2026, 7, 31, 8, 0, 0, TimeSpan.Zero);
 
@@ -23,15 +24,16 @@ public sealed class TenantTerminationProcessTests
 
         Assert.Equal(TenantTerminationProcessPhase.Freeze, process.Phase);
         Assert.Equal(TenantTerminationProcessStatus.Pending, process.Status);
+        Assert.Equal(4, process.OperationRevision);
 
         Assert.True(process.BeginPhase(
             TenantTerminationProcessPhase.Freeze,
             process.Version,
             Approver,
             Now.AddMinutes(1)).IsSuccess);
-        Assert.Equal(1, process.OperationRevision);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.Equal(5, process.OperationRevision);
+        Assert.True(CompleteFreeze(
+            process,
             process.OperationRevision,
             process.Version,
             Approver,
@@ -48,14 +50,33 @@ public sealed class TenantTerminationProcessTests
             process.OperationRevision,
             process.Version,
             Approver,
+            Now.AddMinutes(4)).IsFailure);
+        Guid artifactId = Guid.NewGuid();
+        Assert.True(process.ConfirmExport(
+            process.OperationRevision,
+            artifactId,
+            artifactVersion: 3,
+            Digest,
+            FragmentSetDigest,
+            process.Version,
+            Approver,
             Now.AddMinutes(4)).IsSuccess);
+        Assert.Equal(1, process.ExportConfirmationRevision);
+        Assert.Equal(process.OperationRevision, process.ExportConfirmedOperationRevision);
+        Assert.Equal(artifactId, process.ExportArtifactId);
+        Assert.True(process.CompletePhase(
+            TenantTerminationProcessPhase.Export,
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(5)).IsSuccess);
         Assert.Equal(TenantTerminationProcessPhase.Destroy, process.Phase);
 
         Result denied = process.BeginPhase(
             TenantTerminationProcessPhase.Destroy,
             process.Version,
             Approver,
-            Now.AddMinutes(5));
+            Now.AddMinutes(6));
         Assert.True(denied.IsFailure);
         Assert.Equal(
             DataRightsDomainErrors.TenantTerminationExecutorInvalid,
@@ -65,26 +86,44 @@ public sealed class TenantTerminationProcessTests
             TenantTerminationProcessPhase.Destroy,
             process.Version,
             Executor,
-            Now.AddMinutes(5)).IsSuccess);
+            Now.AddMinutes(6)).IsSuccess);
         Assert.True(process.CompletePhase(
             TenantTerminationProcessPhase.Destroy,
             process.OperationRevision,
             process.Version,
             Executor,
-            Now.AddMinutes(6)).IsSuccess);
+            Now.AddMinutes(7)).IsSuccess);
         Assert.Equal(TenantTerminationProcessPhase.Verify, process.Phase);
+        Assert.Equal(
+            process.OperationRevision,
+            process.DestroyCompletedOperationRevision);
+        Assert.Equal(Now.AddMinutes(7), process.DestroyedAtUtc);
 
         Assert.True(process.BeginPhase(
             TenantTerminationProcessPhase.Verify,
             process.Version,
             Executor,
-            Now.AddMinutes(7)).IsSuccess);
+            Now.AddMinutes(8)).IsSuccess);
         Assert.True(process.CompletePhase(
             TenantTerminationProcessPhase.Verify,
             process.OperationRevision,
             process.Version,
             Executor,
-            Now.AddMinutes(8)).IsSuccess);
+            Now.AddMinutes(9)).IsFailure);
+        Assert.True(process.ConfirmVerification(
+            process.OperationRevision,
+            Guid.NewGuid(),
+            terminalReceiptVersion: 1,
+            Digest,
+            process.Version,
+            Executor,
+            Now.AddMinutes(9)).IsSuccess);
+        Assert.True(process.CompletePhase(
+            TenantTerminationProcessPhase.Verify,
+            process.OperationRevision,
+            process.Version,
+            Executor,
+            Now.AddMinutes(10)).IsSuccess);
         Assert.Equal(TenantTerminationProcessPhase.Completed, process.Phase);
         Assert.Equal(TenantTerminationProcessStatus.Completed, process.Status);
     }
@@ -123,8 +162,8 @@ public sealed class TenantTerminationProcessTests
             process.Version,
             Approver,
             Now.AddMinutes(1)).IsSuccess);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(CompleteFreeze(
+            process,
             process.OperationRevision,
             process.Version,
             Approver,
@@ -161,10 +200,32 @@ public sealed class TenantTerminationProcessTests
             process.Version,
             Approver,
             Now.AddMinutes(3)).IsSuccess);
-        Assert.Equal(TenantTerminationProcessStatus.Pending, process.Status);
+        Assert.Equal(TenantTerminationProcessStatus.Running, process.Status);
         Assert.Null(process.OutcomeCode);
         Assert.Null(process.HoldReviewAtUtc);
         Assert.Equal(TenantTerminationProcessPhase.Freeze, process.Phase);
+    }
+
+    [Fact]
+    public void Blocked_phase_can_retain_an_unknown_review_date()
+    {
+        TenantTerminationProcess process = Prepare(exportRequested: false);
+        Assert.True(process.BeginPhase(
+            TenantTerminationProcessPhase.Freeze,
+            process.Version,
+            Approver,
+            Now.AddMinutes(1)).IsSuccess);
+
+        Assert.True(process.RecordBlocked(
+            TenantTerminationProcessPhase.Freeze,
+            process.OperationRevision,
+            "workspace.legal-hold",
+            holdReviewAtUtc: null,
+            process.Version,
+            Approver,
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.Equal(TenantTerminationProcessStatus.Blocked, process.Status);
+        Assert.Null(process.HoldReviewAtUtc);
     }
 
     [Fact]
@@ -190,15 +251,15 @@ public sealed class TenantTerminationProcessTests
         Assert.Equal(operationRevision, process.OperationRevision);
 
         DateTimeOffset completedAt = Now.AddMinutes(2);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(CompleteFreeze(
+            process,
             operationRevision,
             runningVersion,
             Approver,
             completedAt).IsSuccess);
         long completedVersion = process.Version;
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(CompleteFreeze(
+            process,
             operationRevision,
             runningVersion,
             Approver,
@@ -207,7 +268,7 @@ public sealed class TenantTerminationProcessTests
     }
 
     [Fact]
-    public void Stale_operation_result_cannot_complete_a_retried_phase()
+    public void Retry_resumes_the_same_operation_without_reopening_the_phase()
     {
         TenantTerminationProcess process = Prepare(exportRequested: false);
         Assert.True(process.BeginPhase(
@@ -215,10 +276,10 @@ public sealed class TenantTerminationProcessTests
             process.Version,
             Approver,
             Now.AddMinutes(1)).IsSuccess);
-        long staleOperationRevision = process.OperationRevision;
+        long operationRevision = process.OperationRevision;
         Assert.True(process.RecordFailed(
             TenantTerminationProcessPhase.Freeze,
-            staleOperationRevision,
+            operationRevision,
             "workspaces.retry-exhausted",
             process.Version,
             Approver,
@@ -227,24 +288,84 @@ public sealed class TenantTerminationProcessTests
             process.Version,
             Approver,
             Now.AddMinutes(3)).IsSuccess);
-        Assert.True(process.BeginPhase(
+        Result reopened = process.BeginPhase(
             TenantTerminationProcessPhase.Freeze,
             process.Version,
             Approver,
-            Now.AddMinutes(4)).IsSuccess);
+            Now.AddMinutes(4));
 
-        Result stale = process.CompletePhase(
+        Assert.True(reopened.IsFailure);
+        Assert.Equal(
+            DataRightsDomainErrors.TenantTerminationTransitionInvalid,
+            reopened.Error);
+        Assert.Equal(TenantTerminationProcessStatus.Running, process.Status);
+        Assert.Equal(operationRevision, process.OperationRevision);
+    }
+
+    [Fact]
+    public void Retried_export_clears_stale_confirmation_but_advances_its_revision()
+    {
+        TenantTerminationProcess process = Prepare(exportRequested: true);
+        _ = process.BeginPhase(
             TenantTerminationProcessPhase.Freeze,
-            staleOperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(1));
+        _ = CompleteFreeze(
+            process,
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(2));
+        _ = process.BeginPhase(
+            TenantTerminationProcessPhase.Export,
+            process.Version,
+            Approver,
+            Now.AddMinutes(3));
+        _ = process.ConfirmExport(
+            process.OperationRevision,
+            Guid.NewGuid(),
+            artifactVersion: 3,
+            Digest,
+            FragmentSetDigest,
+            process.Version,
+            Approver,
+            Now.AddMinutes(4));
+        _ = process.RecordFailed(
+            TenantTerminationProcessPhase.Export,
+            process.OperationRevision,
+            "export.confirmation-revoked",
             process.Version,
             Approver,
             Now.AddMinutes(5));
+        long operationRevision = process.OperationRevision;
+        _ = process.Requeue(
+            process.Version,
+            Approver,
+            Now.AddMinutes(6));
 
-        Assert.True(stale.IsFailure);
-        Assert.Equal(
-            DataRightsDomainErrors.TenantTerminationTransitionInvalid,
-            stale.Error);
+        Assert.Equal(1, process.ExportConfirmationRevision);
+        Assert.Equal(operationRevision, process.OperationRevision);
         Assert.Equal(TenantTerminationProcessStatus.Running, process.Status);
+        Assert.Null(process.ExportConfirmedOperationRevision);
+        Assert.Null(process.ExportArtifactId);
+        Assert.True(process.CompletePhase(
+            TenantTerminationProcessPhase.Export,
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(8)).IsFailure);
+
+        Assert.True(process.ConfirmExport(
+            process.OperationRevision,
+            Guid.NewGuid(),
+            artifactVersion: 3,
+            Digest,
+            FragmentSetDigest,
+            process.Version,
+            Approver,
+            Now.AddMinutes(8)).IsSuccess);
+        Assert.Equal(2, process.ExportConfirmationRevision);
     }
 
     [Fact]
@@ -256,8 +377,8 @@ public sealed class TenantTerminationProcessTests
             process.Version,
             Approver,
             Now.AddMinutes(1)).IsSuccess);
-        Assert.True(process.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(CompleteFreeze(
+            process,
             process.OperationRevision,
             process.Version,
             Approver,
@@ -307,8 +428,8 @@ public sealed class TenantTerminationProcessTests
             destroying.Version,
             Approver,
             Now.AddMinutes(1)).IsSuccess);
-        Assert.True(destroying.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(CompleteFreeze(
+            destroying,
             destroying.OperationRevision,
             destroying.Version,
             Approver,
@@ -355,6 +476,153 @@ public sealed class TenantTerminationProcessTests
 
         Assert.True(result.IsFailure);
     }
+
+    [Fact]
+    public void Freeze_completion_persists_a_canonical_immutable_checkpoint()
+    {
+        TenantTerminationProcess process = Prepare(exportRequested: true);
+        Assert.True(process.BeginPhase(
+            TenantTerminationProcessPhase.Freeze,
+            process.Version,
+            Approver,
+            Now.AddMinutes(1)).IsSuccess);
+        long runningVersion = process.Version;
+        long operationRevision = process.OperationRevision;
+        DateTimeOffset frozenAtUtc = Now.AddMinutes(2);
+        TenantTerminationFrozenOwnerDescriptor[] reversed =
+        [
+            new("workspaces", 1, 3, new string('c', 64)),
+            new("reservations", 1, 2, new string('b', 64))
+        ];
+
+        Assert.True(process.CompleteFreeze(
+            operationRevision,
+            workspaceFenceRevision: 7,
+            Digest,
+            reversed,
+            runningVersion,
+            Approver,
+            frozenAtUtc).IsSuccess);
+
+        Assert.Equal(operationRevision, process.FreezeOperationRevision);
+        Assert.Equal(7, process.WorkspaceFenceRevision);
+        Assert.Equal(Digest, process.FrozenRevisionSha256);
+        Assert.Equal(Approver, process.FrozenBy);
+        Assert.Equal(frozenAtUtc, process.FrozenAtUtc);
+        Assert.Equal(
+            ["reservations", "workspaces"],
+            process.FrozenExportOwners
+                .OrderBy(owner => owner.Ordinal)
+                .Select(owner => owner.OwnerKey)
+                .ToArray());
+        Assert.Equal([1, 2], process.FrozenExportOwners
+            .OrderBy(owner => owner.Ordinal)
+            .Select(owner => owner.Ordinal)
+            .ToArray());
+
+        long completedVersion = process.Version;
+        Assert.True(process.CompleteFreeze(
+            operationRevision,
+            workspaceFenceRevision: 7,
+            Digest,
+            reversed.Reverse().ToArray(),
+            runningVersion,
+            Approver,
+            frozenAtUtc).IsSuccess);
+        Assert.Equal(completedVersion, process.Version);
+    }
+
+    [Fact]
+    public void Freeze_completion_rejects_duplicate_owners_and_direct_transition()
+    {
+        TenantTerminationProcess process = Prepare(exportRequested: false);
+        Assert.True(process.BeginPhase(
+            TenantTerminationProcessPhase.Freeze,
+            process.Version,
+            Approver,
+            Now.AddMinutes(1)).IsSuccess);
+
+        Result direct = process.CompletePhase(
+            TenantTerminationProcessPhase.Freeze,
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(2));
+        Result duplicate = process.CompleteFreeze(
+            process.OperationRevision,
+            workspaceFenceRevision: 1,
+            Digest,
+            [
+                new("workspaces", 1, 1, Digest),
+                new("workspaces", 1, 1, Digest)
+            ],
+            process.Version,
+            Approver,
+            Now.AddMinutes(2));
+
+        Assert.True(direct.IsFailure);
+        Assert.Equal(
+            DataRightsDomainErrors.TenantTerminationTransitionInvalid,
+            direct.Error);
+        Assert.True(duplicate.IsFailure);
+        Assert.Equal(
+            DataRightsDomainErrors.TenantTerminationFreezeCheckpointInvalid,
+            duplicate.Error);
+        Assert.Equal(TenantTerminationProcessPhase.Freeze, process.Phase);
+    }
+
+    [Fact]
+    public void Export_confirmation_must_match_the_frozen_revision()
+    {
+        TenantTerminationProcess process = Prepare(exportRequested: true);
+        Assert.True(process.BeginPhase(
+            TenantTerminationProcessPhase.Freeze,
+            process.Version,
+            Approver,
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.True(CompleteFreeze(
+            process,
+            process.OperationRevision,
+            process.Version,
+            Approver,
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.True(process.BeginPhase(
+            TenantTerminationProcessPhase.Export,
+            process.Version,
+            Approver,
+            Now.AddMinutes(3)).IsSuccess);
+
+        Result mismatch = process.ConfirmExport(
+            process.OperationRevision,
+            Guid.NewGuid(),
+            artifactVersion: 1,
+            new string('c', 64),
+            FragmentSetDigest,
+            process.Version,
+            Approver,
+            Now.AddMinutes(4));
+
+        Assert.True(mismatch.IsFailure);
+        Assert.Equal(
+            DataRightsDomainErrors.TenantTerminationExportConfirmationInvalid,
+            mismatch.Error);
+        Assert.Null(process.ExportConfirmedOperationRevision);
+    }
+
+    private static Result CompleteFreeze(
+        TenantTerminationProcess process,
+        long operationRevision,
+        long expectedVersion,
+        string actorId,
+        DateTimeOffset frozenAtUtc) =>
+        process.CompleteFreeze(
+            operationRevision,
+            workspaceFenceRevision: 3,
+            Digest,
+            [new("workspaces", 1, 1, Digest)],
+            expectedVersion,
+            actorId,
+            frozenAtUtc);
 
     private static TenantTerminationProcess Prepare(bool exportRequested) =>
         TenantTerminationProcess.Prepare(

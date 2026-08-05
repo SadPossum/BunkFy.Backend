@@ -68,18 +68,49 @@ internal sealed class WorkspaceStaffAccessProcessRepository(WorkspacesDbContext 
         PageRequest page,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffAccessProcess[] rows = await dbContext.StaffAccessProcesses
+        var fetched = await dbContext.StaffAccessProcesses
             .AsNoTracking()
             .Where(process => process.State != WorkspaceStaffAccessProcessState.Completed)
             .OrderBy(process => process.CreatedAtUtc)
             .ThenBy(process => process.Id)
             .Skip(page.SkipCount)
-            .Take(page.PageSize)
+            .Take(page.PageSize + 1)
+            .Select(process => new
+            {
+                process.Id,
+                process.ScopeId,
+                process.StaffMemberId,
+                process.TargetState,
+                process.TargetStaffVersion,
+                process.EffectiveOn,
+                process.State,
+                ProfileCount = process.ProfileSnapshots.Count,
+                process.FailureCode,
+                process.Version,
+                process.CreatedAtUtc,
+                process.LastChangedAtUtc,
+                process.CompletedAtUtc
+            })
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        bool hasMore = fetched.Length > page.PageSize;
         return new WorkspaceStaffAccessProcessListResponse(
-            rows.Select(process => process.ToDto()).ToArray(),
+            fetched.Take(page.PageSize).Select(process => new WorkspaceStaffAccessProcessDto(
+                process.Id,
+                Guid.Parse(process.ScopeId),
+                process.StaffMemberId,
+                WorkspaceStaffAccessMappings.MapTargetStatus(process.TargetState),
+                process.TargetStaffVersion,
+                process.EffectiveOn,
+                WorkspaceStaffAccessMappings.MapStatus(process.State),
+                process.ProfileCount,
+                process.FailureCode,
+                process.Version,
+                process.CreatedAtUtc,
+                process.LastChangedAtUtc,
+                process.CompletedAtUtc)).ToArray(),
             page.Page,
-            page.PageSize);
+            page.PageSize,
+            hasMore);
     }
 
     public Task AddAsync(

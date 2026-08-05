@@ -71,7 +71,7 @@ internal sealed class DataRightsAnonymisationApprovalPolicy(
         if (property is not
             {
                 IsKnown: true,
-                IsActive: true,
+                Status: PropertyStatus.Active,
                 ProcessingStatus: PropertyProcessingStatus.Enabled,
                 GovernancePolicy: not null,
                 PolicySourceVersion: > 0

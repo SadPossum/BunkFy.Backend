@@ -8,20 +8,30 @@ using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
 using Microsoft.Extensions.Options;
 
-internal sealed class AesGcmDataRightsExportArtifactProtector(
+internal sealed class AesGcmDataRightsExportEnvelopeProtector(
     IOptions<DataRightsExportArtifactOptions> options)
-    : IDataRightsExportArtifactProtector
+    : IDataRightsExportEnvelopeProtector
 {
     internal const int FormatVersion = 1;
     internal const int HeaderLength = 36;
     internal const int TagLength = 16;
     private const int NonceLength = 12;
     private const int NoncePrefixLength = 8;
-    private const string BindingDomain =
+    private const string SubjectBindingDomain =
         "bunkfy.data-rights.export-artifact.binding.v1";
-    private const string EncryptionKeyDomain =
+    private const string SubjectEncryptionKeyDomain =
         "bunkfy.data-rights.export-artifact.encryption-key.v1";
-    private static readonly byte[] Magic = "BFDRX001"u8.ToArray();
+    private const string TenantFragmentBindingDomain =
+        "bunkfy.data-rights.tenant-termination-export-fragment.binding.v1";
+    private const string TenantFragmentEncryptionKeyDomain =
+        "bunkfy.data-rights.tenant-termination-export-fragment.encryption-key.v1";
+    private const string TenantArtifactBindingDomain =
+        "bunkfy.data-rights.tenant-termination-export-artifact.binding.v1";
+    private const string TenantArtifactEncryptionKeyDomain =
+        "bunkfy.data-rights.tenant-termination-export-artifact.encryption-key.v1";
+    private static readonly byte[] SubjectMagic = "BFDRX001"u8.ToArray();
+    private static readonly byte[] TenantFragmentMagic = "BFTXF001"u8.ToArray();
+    private static readonly byte[] TenantArtifactMagic = "BFTXA001"u8.ToArray();
     private readonly DataRightsExportArtifactOptions options = options.Value;
 
     public async Task<DataRightsExportProtectionResult> ProtectAsync(
@@ -40,15 +50,17 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
         }
 
         int keyVersion = this.options.ActiveKeyVersion;
+        ProtectionProfile profile = Profile(context);
         byte[] masterKey = this.GetKey(keyVersion);
-        byte[] encryptionKey = Derive(masterKey);
+        byte[] encryptionKey = Derive(masterKey, profile.EncryptionKeyDomain);
         byte[] noncePrefix = RandomNumberGenerator.GetBytes(NoncePrefixLength);
         byte[] header = CreateHeader(
             keyVersion,
             this.options.ChunkSizeBytes,
             plaintextLength,
-            noncePrefix);
-        byte[] binding = CreateBinding(context);
+            noncePrefix,
+            profile.Magic);
+        byte[] binding = CreateBinding(context, profile.BindingDomain);
         byte[] plaintextBuffer = new byte[this.options.ChunkSizeBytes];
         byte[] ciphertextBuffer = new byte[this.options.ChunkSizeBytes];
         byte[] tag = new byte[TagLength];
@@ -161,9 +173,10 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
         byte[] associatedData = [];
         try
         {
+            ProtectionProfile profile = Profile(context);
             await encrypted.ReadExactlyAsync(header, cancellationToken)
                 .ConfigureAwait(false);
-            Header parsed = ParseHeader(header);
+            Header parsed = ParseHeader(header, profile.Magic);
             if (parsed.PlaintextLength is <= 0 ||
                 parsed.PlaintextLength > this.options.MaximumPlaintextBytes ||
                 parsed.ChunkSize is < 16 * 1024 or > 1024 * 1024)
@@ -172,8 +185,10 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
             }
 
             masterKey = this.GetKey(parsed.KeyVersion);
-            encryptionKey = Derive(masterKey);
-            binding = CreateBinding(context);
+            encryptionKey = Derive(
+                masterKey,
+                profile.EncryptionKeyDomain);
+            binding = CreateBinding(context, profile.BindingDomain);
             ciphertextBuffer = new byte[parsed.ChunkSize];
             plaintextBuffer = new byte[parsed.ChunkSize];
             associatedData =
@@ -272,19 +287,20 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
         return key;
     }
 
-    private static byte[] Derive(byte[] masterKey) =>
+    private static byte[] Derive(byte[] masterKey, string keyDomain) =>
         HMACSHA256.HashData(
             masterKey,
-            Encoding.ASCII.GetBytes(EncryptionKeyDomain));
+            Encoding.ASCII.GetBytes(keyDomain));
 
     private static byte[] CreateHeader(
         int keyVersion,
         int chunkSize,
         long plaintextLength,
-        byte[] noncePrefix)
+        byte[] noncePrefix,
+        byte[] magic)
     {
         byte[] header = new byte[HeaderLength];
-        Magic.CopyTo(header, 0);
+        magic.CopyTo(header, 0);
         BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(8), FormatVersion);
         BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(12), keyVersion);
         BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(16), chunkSize);
@@ -293,10 +309,10 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
         return header;
     }
 
-    private static Header ParseHeader(byte[] header)
+    private static Header ParseHeader(byte[] header, byte[] magic)
     {
         if (header.Length != HeaderLength ||
-            !header.AsSpan(0, Magic.Length).SequenceEqual(Magic) ||
+            !header.AsSpan(0, magic.Length).SequenceEqual(magic) ||
             BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(8)) !=
                 FormatVersion)
         {
@@ -317,7 +333,8 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
     }
 
     private static byte[] CreateBinding(
-        DataRightsExportProtectionContext context)
+        DataRightsExportProtectionContext context,
+        string bindingDomain)
     {
         byte[] tenantBytes =
             Encoding.UTF8.GetBytes(context.TenantId.Trim().ToLowerInvariant());
@@ -325,16 +342,11 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
         try
         {
             StringBuilder canonical = new();
-            Append(canonical, BindingDomain);
+            Append(canonical, bindingDomain);
             Append(canonical, FormatVersion.ToString(CultureInfo.InvariantCulture));
-            Append(canonical, context.ArtifactId.ToString("N"));
+            Append(canonical, context.ObjectId.ToString("N"));
             Append(canonical, Convert.ToHexStringLower(tenantDigest));
-            Append(canonical, context.CaseId.ToString("N"));
-            Append(canonical, ((int)context.CaseType).ToString(
-                CultureInfo.InvariantCulture));
-            Append(canonical, context.PropertyId?.ToString("N") ?? "tenant");
-            Append(canonical, context.DecisionRevision.ToString(
-                CultureInfo.InvariantCulture));
+            AppendCoordinates(canonical, context);
             Append(canonical, context.ExpiresAtUtc.ToUniversalTime()
                 .ToString("O", CultureInfo.InvariantCulture));
             return SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString()));
@@ -349,6 +361,108 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
         DataRightsExportProtectionContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
+        bool valid = context switch
+        {
+            DataRightsSubjectExportProtectionContext subject =>
+                SubjectContextValid(subject),
+            TenantTerminationExportFragmentProtectionContext fragment =>
+                TenantFragmentContextValid(fragment),
+            TenantTerminationExportArtifactProtectionContext artifact =>
+                TenantArtifactContextValid(artifact),
+            _ => false
+        };
+        if (context.ObjectId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(context.TenantId) ||
+            context.ExpiresAtUtc == default ||
+            !valid)
+        {
+            throw Failure("generation-coordinate-invalid");
+        }
+    }
+
+    private static ProtectionProfile Profile(
+        DataRightsExportProtectionContext context) => context switch
+        {
+            DataRightsSubjectExportProtectionContext => new(
+                SubjectMagic,
+                SubjectBindingDomain,
+                SubjectEncryptionKeyDomain),
+            TenantTerminationExportFragmentProtectionContext => new(
+                TenantFragmentMagic,
+                TenantFragmentBindingDomain,
+                TenantFragmentEncryptionKeyDomain),
+            TenantTerminationExportArtifactProtectionContext => new(
+                TenantArtifactMagic,
+                TenantArtifactBindingDomain,
+                TenantArtifactEncryptionKeyDomain),
+            _ => throw Failure("generation-coordinate-invalid")
+        };
+
+    private static void AppendCoordinates(
+        StringBuilder canonical,
+        DataRightsExportProtectionContext context)
+    {
+        switch (context)
+        {
+            case DataRightsSubjectExportProtectionContext subject:
+                Append(canonical, subject.CaseId.ToString("N"));
+                Append(canonical, ((int)subject.CaseType).ToString(
+                    CultureInfo.InvariantCulture));
+                Append(
+                    canonical,
+                    subject.PropertyId?.ToString("N") ?? "tenant");
+                Append(canonical, subject.DecisionRevision.ToString(
+                    CultureInfo.InvariantCulture));
+                return;
+            case TenantTerminationExportFragmentProtectionContext fragment:
+                Append(canonical, fragment.ProcessId.ToString("N"));
+                Append(canonical, fragment.CaseId.ToString("N"));
+                Append(canonical, fragment.ApprovalRevision.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, fragment.FreezeOperationRevision.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, fragment.ExportOperationRevision.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, fragment.TerminationEpoch.ToString("N"));
+                Append(canonical, fragment.OwnerKey);
+                Append(canonical, fragment.OwnerContractVersion.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, fragment.CatalogVersion.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, fragment.CatalogSha256);
+                Append(canonical, fragment.FrozenRevisionSha256);
+                Append(canonical, fragment.PolicyEvidenceSha256);
+                Append(canonical, fragment.GenerationRunId.ToString("N"));
+                Append(canonical, fragment.GenerationAttempt.ToString(
+                    CultureInfo.InvariantCulture));
+                return;
+            case TenantTerminationExportArtifactProtectionContext artifact:
+                Append(canonical, artifact.ProcessId.ToString("N"));
+                Append(canonical, artifact.CaseId.ToString("N"));
+                Append(canonical, artifact.ApprovalRevision.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, artifact.FreezeOperationRevision.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, artifact.ExportOperationRevision.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, artifact.TerminationEpoch.ToString("N"));
+                Append(canonical, artifact.FrozenRevisionSha256);
+                Append(canonical, artifact.PolicyEvidenceSha256);
+                Append(canonical, artifact.ExpectedFragmentCount.ToString(
+                    CultureInfo.InvariantCulture));
+                Append(canonical, artifact.FragmentSetSha256);
+                Append(canonical, artifact.GenerationRunId.ToString("N"));
+                Append(canonical, artifact.GenerationAttempt.ToString(
+                    CultureInfo.InvariantCulture));
+                return;
+            default:
+                throw Failure("generation-coordinate-invalid");
+        }
+    }
+
+    private static bool SubjectContextValid(
+        DataRightsSubjectExportProtectionContext context)
+    {
         bool scopeValid = context.CaseType switch
         {
             DataRightsCaseType.GuestRights =>
@@ -357,16 +471,57 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
             DataRightsCaseType.StaffRights => context.PropertyId is null,
             _ => false
         };
-        if (context.ArtifactId == Guid.Empty ||
-            string.IsNullOrWhiteSpace(context.TenantId) ||
-            context.CaseId == Guid.Empty ||
-            context.DecisionRevision <= 0 ||
-            context.ExpiresAtUtc == default ||
-            !scopeValid)
-        {
-            throw Failure("generation-coordinate-invalid");
-        }
+        return context.CaseId != Guid.Empty &&
+            context.DecisionRevision > 0 &&
+            scopeValid;
     }
+
+    private static bool TenantFragmentContextValid(
+        TenantTerminationExportFragmentProtectionContext context) =>
+        context.ProcessId != Guid.Empty &&
+        context.CaseId != Guid.Empty &&
+        context.ApprovalRevision > 0 &&
+        context.FreezeOperationRevision > 0 &&
+        context.ExportOperationRevision > context.FreezeOperationRevision &&
+        context.TerminationEpoch != Guid.Empty &&
+        IsStableKey(context.OwnerKey) &&
+        context.OwnerContractVersion > 0 &&
+        context.CatalogVersion > 0 &&
+        IsSha256(context.CatalogSha256) &&
+        IsSha256(context.FrozenRevisionSha256) &&
+        IsSha256(context.PolicyEvidenceSha256) &&
+        context.GenerationRunId != Guid.Empty &&
+        context.GenerationAttempt > 0;
+
+    private static bool TenantArtifactContextValid(
+        TenantTerminationExportArtifactProtectionContext context) =>
+        context.ProcessId != Guid.Empty &&
+        context.CaseId != Guid.Empty &&
+        context.ApprovalRevision > 0 &&
+        context.FreezeOperationRevision > 0 &&
+        context.ExportOperationRevision > context.FreezeOperationRevision &&
+        context.TerminationEpoch != Guid.Empty &&
+        IsSha256(context.FrozenRevisionSha256) &&
+        IsSha256(context.PolicyEvidenceSha256) &&
+        context.ExpectedFragmentCount is > 0 and <= 100 &&
+        IsSha256(context.FragmentSetSha256) &&
+        context.GenerationRunId != Guid.Empty &&
+        context.GenerationAttempt > 0;
+
+    private static bool IsStableKey(string? value)
+    {
+        string normalized = value?.Trim() ?? string.Empty;
+        return normalized.Length is > 0 and <= 100 &&
+            normalized[0] is >= 'a' and <= 'z' &&
+            normalized.All(character =>
+                character is (>= 'a' and <= 'z') or
+                    (>= '0' and <= '9') or '.' or '-' or '_');
+    }
+
+    private static bool IsSha256(string? value) =>
+        value is { Length: 64 } &&
+        value.All(character =>
+            character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
 
     private static void ValidateStreams(
         Stream source,
@@ -411,5 +566,10 @@ internal sealed class AesGcmDataRightsExportArtifactProtector(
         int ChunkSize,
         long PlaintextLength,
         byte[] NoncePrefix);
+
+    private sealed record ProtectionProfile(
+        byte[] Magic,
+        string BindingDomain,
+        string EncryptionKeyDomain);
 
 }

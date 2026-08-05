@@ -20,6 +20,13 @@ public static class PropertiesMapper
             property.UpdatedAtUtc,
             property.RetiredAtUtc);
 
+    public static PropertyMutationReceiptDto ToReceipt(Property property) =>
+        new(
+            property.Id,
+            MapStatus(property.Status),
+            MapProcessingStatus(property.ProcessingState),
+            property.Version);
+
     public static RoomDto ToDto(Room room) =>
         new(
             room.Id,
@@ -33,18 +40,24 @@ public static class PropertiesMapper
             room.UpdatedAtUtc,
             room.RetiredAtUtc);
 
-    public static BedDto ToDto(Bed bed, long roomVersion) =>
+    public static RoomMutationReceiptDto ToReceipt(Room room) =>
         new(
-            bed.Id,
-            bed.RoomId,
+            room.PropertyId,
+            room.Id,
+            MapStatus(room.Status),
+            room.Version);
+
+    public static BedMutationReceiptDto ToReceipt(Bed bed, long roomVersion) =>
+        new(
             bed.PropertyId,
-            bed.Label.Value,
+            bed.RoomId,
+            bed.Id,
             MapStatus(bed.Status),
             bed.Version,
-            roomVersion,
-            bed.CreatedAtUtc,
-            bed.UpdatedAtUtc,
-            bed.RetiredAtUtc);
+            roomVersion);
+
+    public static BedBatchMutationReceiptDto ToBatchReceipt(Room room, int affectedBedCount) =>
+        new(room.PropertyId, room.Id, affectedBedCount, room.Version);
 
     public static PropertyStatus MapStatus(PropertyState status) =>
         status switch

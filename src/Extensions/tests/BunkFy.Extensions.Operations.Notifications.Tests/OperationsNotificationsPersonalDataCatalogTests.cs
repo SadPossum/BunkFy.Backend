@@ -19,7 +19,7 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
     [Fact]
     public void Catalogue_version_includes_ingestion_source_link_history()
     {
-        Assert.Equal(5, Catalogue.CatalogVersion);
+        Assert.Equal(8, Catalogue.CatalogVersion);
         PersonalDataFieldDefinition references = Assert.Single(
             Catalogue.Fields,
             field => field.Id ==
@@ -51,7 +51,7 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
             .OrderBy(type => type.FullName, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(7, payloadTypes.Length);
+        Assert.Equal(8, payloadTypes.Length);
         foreach (Type payloadType in payloadTypes)
         {
             Assert.True(payloadType.IsSealed, $"Payload '{payloadType.FullName}' must be sealed.");
@@ -86,7 +86,7 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
     }
 
     [Fact]
-    public void Notification_catalog_contains_no_direct_identity_contact_or_free_text_fields()
+    public void Notification_surface_contains_no_direct_identity_contact_preference_or_free_text_fields()
     {
         HashSet<PersonalDataClassification> prohibited =
         [
@@ -98,7 +98,13 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
             PersonalDataClassification.SearchInput
         ];
 
-        Assert.DoesNotContain(Catalogue.Fields, field => prohibited.Contains(field.Classification));
+        PersonalDataFieldDefinition[] notificationFields = Catalogue.Fields
+            .Where(field => field.AllowedSurfaces.Contains(
+                PersonalDataSurface.Notification))
+            .ToArray();
+        Assert.DoesNotContain(
+            notificationFields,
+            field => prohibited.Contains(field.Classification));
         PersonalDataFieldDefinition payload = Assert.Single(
             Catalogue.Fields,
             field => field.Id ==
@@ -152,6 +158,57 @@ public sealed class OperationsNotificationsPersonalDataCatalogTests
                 typeof(StaffNotificationHistoryDataRightsExport),
                 property.Name,
                 PersonalDataSurface.DataRightsExport);
+        }
+    }
+
+    [Fact]
+    public void Tenant_scope_export_schema_is_catalogue_complete()
+    {
+        OperationsNotificationsTenantTerminationExportSchema.EnsureValid();
+
+        Type[] exportTypes =
+        [
+            typeof(OperationsNotificationTenantExport),
+            typeof(OperationsNotificationPreferenceTenantExport),
+            typeof(OperationsNotificationDeliveryRouteTenantExport),
+            typeof(OperationsNotificationTagDefinitionTenantExport),
+            typeof(OperationsNotificationDeliveryTenantExport),
+            typeof(OperationsNotificationDeliveryAttemptTenantExport),
+            typeof(OperationsNotificationBroadcastTenantExport),
+            typeof(OperationsNotificationBroadcastReadTenantExport),
+            typeof(OperationsNotificationHistoryReferenceStateTenantExport),
+            typeof(OperationsNotificationHistoryCloseReceiptTenantExport),
+            typeof(
+                OperationsNotificationHistoryBatchCloseOperationTenantExport),
+            typeof(
+                OperationsNotificationHistoryBatchCloseReceiptTenantExport)
+        ];
+        PropertyInfo[] properties = exportTypes
+            .SelectMany(type => type.GetProperties(
+                BindingFlags.Instance |
+                BindingFlags.Public))
+            .ToArray();
+        Assert.Equal(49, properties.Length);
+        Assert.Equal(
+            37,
+            OperationsNotificationsTenantTerminationExportSchema
+                .Descriptor.FieldIds.Count);
+        Assert.Equal(
+            OperationsNotificationsTenantTerminationMetadata.ExportFieldIds
+                .Order(StringComparer.Ordinal),
+            OperationsNotificationsTenantTerminationExportSchema
+                .Descriptor.FieldIds);
+        foreach (Type exportType in exportTypes)
+        {
+            foreach (PropertyInfo property in exportType.GetProperties(
+                BindingFlags.Instance |
+                BindingFlags.Public))
+            {
+                AssertBinding(
+                    exportType,
+                    property.Name,
+                    PersonalDataSurface.DataRightsExport);
+            }
         }
     }
 

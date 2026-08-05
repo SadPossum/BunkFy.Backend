@@ -26,6 +26,7 @@ internal sealed class ListCountryPoliciesQueryHandler(CountryPolicyRegistry regi
                 policy.AccommodationTypes,
                 policy.PermittedDataRegions,
                 policy.PermittedTransferProfiles,
+                policy.SupportsRightsResponseDeadlines,
                 policy.RetentionPolicies.Select(retention =>
                     new CountryPolicyRetentionDescriptorDto(
                         retention.RetentionPolicyId,

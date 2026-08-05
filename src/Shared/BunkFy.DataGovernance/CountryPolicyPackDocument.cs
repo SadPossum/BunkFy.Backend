@@ -123,6 +123,32 @@ public sealed record CountryPolicyRightsRule
 
     [JsonRequired]
     public required string Erasure { get; init; }
+
+    public CountryPolicyRightsResponseRule[]? ResponseRules { get; init; }
+}
+
+public sealed record CountryPolicyRightsResponseRule
+{
+    [JsonRequired]
+    public CountryPolicyRight Right { get; init; }
+
+    [JsonRequired]
+    public required CountryPolicyCalendarPeriod Period { get; init; }
+
+    [JsonRequired]
+    public required string[] AllowedTimeZoneIds { get; init; }
+}
+
+public sealed record CountryPolicyCalendarPeriod
+{
+    [JsonRequired]
+    public int Years { get; init; }
+
+    [JsonRequired]
+    public int Months { get; init; }
+
+    [JsonRequired]
+    public int Days { get; init; }
 }
 
 public sealed record CountryPolicyRestrictionRule
@@ -206,6 +232,15 @@ public enum CountryPolicyRuntimeMode
 {
     Engineering = 0,
     Production = 1
+}
+
+public enum CountryPolicyRight
+{
+    Unknown = 0,
+    Export = 1,
+    Correction = 2,
+    Restriction = 3,
+    Erasure = 4
 }
 
 public enum CountryLaunchStatus

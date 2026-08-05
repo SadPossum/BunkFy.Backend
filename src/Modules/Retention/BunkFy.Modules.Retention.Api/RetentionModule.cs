@@ -10,6 +10,7 @@ using Gma.Framework.Api.Results;
 using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Pagination;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -35,15 +36,35 @@ public sealed class RetentionModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Retention")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("/schedules", async (
+            int? page,
+            int? pageSize,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(
-                new ListRetentionScheduleHealthQuery(),
+                new ListRetentionScheduleHealthQuery(
+                    page ?? PageRequest.DefaultPage,
+                    pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult())
-            .Produces<RetentionScheduleHealthListResponse>()
+            .Produces<RetentionScheduleHealthListResponse>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(RetentionPermissionCodes.Read);
+    }
+
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
     }
 }

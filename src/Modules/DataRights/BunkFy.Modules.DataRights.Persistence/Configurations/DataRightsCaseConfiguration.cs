@@ -16,7 +16,8 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             table.HasCheckConstraint("CK_data_rights_cases_kind", "\"Kind\" IN (1, 2, 3)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_operations",
-                "(\"Kind\" <> 3 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
+                "(\"Kind\" = 1 AND \"RequestedOperations\" BETWEEN 1 AND 31) OR " +
+                "(\"Kind\" = 2 AND \"RequestedOperations\" = 16) OR " +
                 "(\"Kind\" = 3 AND \"RequestedOperations\" IN (1, 2, 4, 16))");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_restriction_directive",
@@ -84,7 +85,8 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "\"ExecutionStartedAtUtc\" <= \"LastChangedAtUtc\")");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_approval_policy_evidence",
-                "(\"Decision\" = 1 AND \"RequestedOperations\" = 16 AND " +
+                "(\"Kind\" <> 2 AND \"Decision\" = 1 AND " +
+                "\"RequestedOperations\" = 16 AND " +
                 "\"ApprovalEvidenceSchemaVersion\" IN (1, 2) AND " +
                 "\"ApprovalEvidenceCaseKind\" = \"Kind\" AND " +
                 "\"ApprovalEvidenceOperatingCountryCode\" IS NOT NULL AND " +
@@ -140,7 +142,8 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "char_length(\"ApprovalEvidenceStateBindingsJson\") > 2 AND " +
                 "\"ApprovalEvidenceStateBindingsSha256\" IS NOT NULL AND " +
                 "char_length(\"ApprovalEvidenceStateBindingsSha256\") = 64))) OR " +
-                "((\"Decision\" <> 1 OR \"RequestedOperations\" <> 16) AND " +
+                "((\"Kind\" = 2 OR \"Decision\" <> 1 OR " +
+                "\"RequestedOperations\" <> 16) AND " +
                 "\"ApprovalEvidenceSchemaVersion\" IS NULL AND " +
                 "\"ApprovalEvidenceCaseKind\" IS NULL AND " +
                 "\"ApprovalEvidenceScopeKind\" IS NULL AND " +
@@ -163,6 +166,19 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "\"ApprovalEvidenceStateBindingsJson\" IS NULL AND " +
                 "\"ApprovalEvidenceStateBindingsSha256\" IS NULL AND " +
                 "\"ApprovalEvidenceRequiresDistinctExecutor\" IS NULL)");
+            table.HasCheckConstraint(
+                "CK_data_rights_cases_tenant_termination",
+                "(\"Kind\" = 2 AND " +
+                "\"TenantTerminationExportRequested\" IS NOT NULL AND " +
+                "((\"Decision\" = 1 AND " +
+                "\"TenantTerminationPolicyEvidenceSha256\" IS NOT NULL AND " +
+                "char_length(\"TenantTerminationPolicyEvidenceSha256\") = 64 AND " +
+                "\"TenantTerminationPolicyEvidenceSha256\" ~ '^[0-9a-f]{64}$') OR " +
+                "(\"Decision\" <> 1 AND " +
+                "\"TenantTerminationPolicyEvidenceSha256\" IS NULL))) OR " +
+                "(\"Kind\" <> 2 AND " +
+                "\"TenantTerminationExportRequested\" IS NULL AND " +
+                "\"TenantTerminationPolicyEvidenceSha256\" IS NULL)");
             table.HasCheckConstraint(
                 "CK_data_rights_cases_restriction_execution_proof",
                 "((\"RequestedOperations\" = 4 AND \"Status\" = 9) AND " +
@@ -213,6 +229,57 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 "\"LastChangedAtUtc\" >= \"CreatedAtUtc\" AND " +
                 "(\"DueAtUtc\" IS NULL OR \"DueAtUtc\" >= \"CreatedAtUtc\")");
             table.HasCheckConstraint(
+                "CK_data_rights_cases_response_deadline_evidence",
+                "(\"ResponseDeadlineSchemaVersion\" IS NULL AND " +
+                "\"ResponseDeadlinePropertyId\" IS NULL AND " +
+                "\"ResponseDeadlineTopologySourceVersion\" IS NULL AND " +
+                "\"ResponseDeadlinePolicySourceVersion\" IS NULL AND " +
+                "\"ResponseDeadlineOperatingCountryCode\" IS NULL AND " +
+                "\"ResponseDeadlinePolicyId\" IS NULL AND " +
+                "\"ResponseDeadlinePolicyVersion\" IS NULL AND " +
+                "\"ResponseDeadlineContentSha256\" IS NULL AND " +
+                "\"ResponseDeadlineControllingRight\" IS NULL AND " +
+                "\"ResponseDeadlineRuleReference\" IS NULL AND " +
+                "\"ResponseDeadlinePeriodYears\" IS NULL AND " +
+                "\"ResponseDeadlinePeriodMonths\" IS NULL AND " +
+                "\"ResponseDeadlinePeriodDays\" IS NULL AND " +
+                "\"ResponseDeadlineTimeZoneId\" IS NULL AND " +
+                "\"ResponseDeadlinePolicyEffectiveAtUtc\" IS NULL AND " +
+                "\"ResponseDeadlinePolicyExpiresAtUtc\" IS NULL AND " +
+                "\"ResponseDeadlineReceivedAtUtc\" IS NULL AND " +
+                "\"ResponseDeadlineEvaluatedAtUtc\" IS NULL AND " +
+                "\"ResponseDeadlineDueAtUtc\" IS NULL AND " +
+                "\"DueAtUtc\" IS NULL) OR " +
+                "(\"Kind\" = 1 AND \"RequesterRelationship\" IN (1, 2) AND " +
+                "\"ResponseDeadlineSchemaVersion\" = 1 AND " +
+                "\"ResponseDeadlinePropertyId\" = \"PropertyId\" AND " +
+                "\"ResponseDeadlineTopologySourceVersion\" > 0 AND " +
+                "\"ResponseDeadlinePolicySourceVersion\" > 0 AND " +
+                "char_length(\"ResponseDeadlineOperatingCountryCode\") = 2 AND " +
+                "length(trim(\"ResponseDeadlinePolicyId\")) > 0 AND " +
+                "\"ResponseDeadlinePolicyVersion\" > 0 AND " +
+                "char_length(\"ResponseDeadlineContentSha256\") = 64 AND " +
+                "\"ResponseDeadlineControllingRight\" BETWEEN 1 AND 4 AND " +
+                "length(trim(\"ResponseDeadlineRuleReference\")) > 0 AND " +
+                "\"ResponseDeadlinePeriodYears\" BETWEEN 0 AND 10 AND " +
+                "\"ResponseDeadlinePeriodMonths\" BETWEEN 0 AND 11 AND " +
+                "\"ResponseDeadlinePeriodDays\" BETWEEN 0 AND 366 AND " +
+                "(\"ResponseDeadlinePeriodYears\" + " +
+                    "\"ResponseDeadlinePeriodMonths\" + " +
+                    "\"ResponseDeadlinePeriodDays\") > 0 AND " +
+                "length(trim(\"ResponseDeadlineTimeZoneId\")) > 0 AND " +
+                "\"ResponseDeadlinePolicyEffectiveAtUtc\" < " +
+                    "\"ResponseDeadlinePolicyExpiresAtUtc\" AND " +
+                "\"ResponseDeadlineReceivedAtUtc\" = \"CreatedAtUtc\" AND " +
+                "\"ResponseDeadlineReceivedAtUtc\" >= " +
+                    "\"ResponseDeadlinePolicyEffectiveAtUtc\" AND " +
+                "\"ResponseDeadlineReceivedAtUtc\" < " +
+                    "\"ResponseDeadlinePolicyExpiresAtUtc\" AND " +
+                "\"ResponseDeadlineEvaluatedAtUtc\" >= " +
+                    "\"ResponseDeadlineReceivedAtUtc\" AND " +
+                "\"ResponseDeadlineDueAtUtc\" = \"DueAtUtc\" AND " +
+                "\"ResponseDeadlineDueAtUtc\" > \"CreatedAtUtc\")");
+            table.HasCheckConstraint(
                 "CK_data_rights_cases_created_by",
                 "length(trim(\"CreatedBy\")) > 0");
             table.HasCheckConstraint(
@@ -260,6 +327,10 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             .HasMaxLength(DataRightsCase.ActorIdMaxLength);
         builder.Property(dataRightsCase => dataRightsCase.ExecutionStartedBy)
             .HasMaxLength(DataRightsCase.ActorIdMaxLength);
+        builder.Property(dataRightsCase =>
+                dataRightsCase.TenantTerminationPolicyEvidenceSha256)
+            .HasMaxLength(TenantTerminationProcess.Sha256Length)
+            .IsFixedLength();
         builder.Property(dataRightsCase => dataRightsCase.Version)
             .IsConcurrencyToken()
             .IsRequired();
@@ -277,6 +348,19 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
             dataRightsCase.CreatedAtUtc,
             dataRightsCase.Id
         });
+        builder.HasIndex(dataRightsCase => new
+        {
+            dataRightsCase.ScopeId,
+            dataRightsCase.Kind,
+            dataRightsCase.RequesterRelationship,
+            dataRightsCase.DueAtUtc,
+            dataRightsCase.Id
+        });
+        builder.HasIndex(dataRightsCase => dataRightsCase.ScopeId)
+            .HasDatabaseName(
+                "UX_data_rights_cases_active_tenant_termination")
+            .HasFilter("\"Kind\" = 2 AND \"Status\" NOT IN (6, 9, 11)")
+            .IsUnique();
         builder.OwnsOne(dataRightsCase => dataRightsCase.ApprovalPolicyEvidence, evidence =>
         {
             evidence.Property(value => value.SchemaVersion)
@@ -342,6 +426,61 @@ internal sealed class DataRightsCaseConfiguration : IEntityTypeConfiguration<Dat
                 .HasColumnName("ApprovalEvidenceRequiresDistinctExecutor");
             evidence.Ignore(value => value.StateBindings);
         });
+        builder.OwnsOne(
+            dataRightsCase => dataRightsCase.ResponseDeadlinePolicyEvidence,
+            evidence =>
+            {
+                evidence.Property(value => value.SchemaVersion)
+                    .HasColumnName("ResponseDeadlineSchemaVersion");
+                evidence.Property(value => value.PropertyId)
+                    .HasColumnName("ResponseDeadlinePropertyId");
+                evidence.Property(value => value.PropertyTopologySourceVersion)
+                    .HasColumnName("ResponseDeadlineTopologySourceVersion");
+                evidence.Property(value => value.PropertyPolicySourceVersion)
+                    .HasColumnName("ResponseDeadlinePolicySourceVersion");
+                evidence.Property(value => value.OperatingCountryCode)
+                    .HasColumnName("ResponseDeadlineOperatingCountryCode")
+                    .HasMaxLength(
+                        DataRightsResponseDeadlinePolicyEvidence.CountryCodeLength);
+                evidence.Property(value => value.PolicyId)
+                    .HasColumnName("ResponseDeadlinePolicyId")
+                    .HasMaxLength(
+                        DataRightsResponseDeadlinePolicyEvidence.KeyMaxLength);
+                evidence.Property(value => value.PolicyVersion)
+                    .HasColumnName("ResponseDeadlinePolicyVersion");
+                evidence.Property(value => value.ContentSha256)
+                    .HasColumnName("ResponseDeadlineContentSha256")
+                    .HasMaxLength(
+                        DataRightsResponseDeadlinePolicyEvidence.ContentSha256Length)
+                    .IsFixedLength();
+                evidence.Property(value => value.ControllingRight)
+                    .HasColumnName("ResponseDeadlineControllingRight")
+                    .HasConversion<int>();
+                evidence.Property(value => value.RuleReference)
+                    .HasColumnName("ResponseDeadlineRuleReference")
+                    .HasMaxLength(
+                        DataRightsResponseDeadlinePolicyEvidence.KeyMaxLength);
+                evidence.Property(value => value.PeriodYears)
+                    .HasColumnName("ResponseDeadlinePeriodYears");
+                evidence.Property(value => value.PeriodMonths)
+                    .HasColumnName("ResponseDeadlinePeriodMonths");
+                evidence.Property(value => value.PeriodDays)
+                    .HasColumnName("ResponseDeadlinePeriodDays");
+                evidence.Property(value => value.TimeZoneId)
+                    .HasColumnName("ResponseDeadlineTimeZoneId")
+                    .HasMaxLength(
+                        DataRightsResponseDeadlinePolicyEvidence.TimeZoneIdMaxLength);
+                evidence.Property(value => value.PolicyEffectiveAtUtc)
+                    .HasColumnName("ResponseDeadlinePolicyEffectiveAtUtc");
+                evidence.Property(value => value.PolicyExpiresAtUtc)
+                    .HasColumnName("ResponseDeadlinePolicyExpiresAtUtc");
+                evidence.Property(value => value.ReceivedAtUtc)
+                    .HasColumnName("ResponseDeadlineReceivedAtUtc");
+                evidence.Property(value => value.EvaluatedAtUtc)
+                    .HasColumnName("ResponseDeadlineEvaluatedAtUtc");
+                evidence.Property(value => value.DueAtUtc)
+                    .HasColumnName("ResponseDeadlineDueAtUtc");
+            });
         builder.OwnsOne(dataRightsCase => dataRightsCase.RestrictionExecutionProof, proof =>
         {
             proof.Property(value => value.IdempotencyKey)

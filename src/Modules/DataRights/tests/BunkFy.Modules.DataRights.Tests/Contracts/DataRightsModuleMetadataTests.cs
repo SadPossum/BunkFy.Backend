@@ -18,7 +18,31 @@ public sealed class DataRightsModuleMetadataTests
         IReadOnlyCollection<ModulePermissionDescriptor> permissions =
             DataRightsModuleMetadata.Descriptor.GetPermissions();
 
-        Assert.Equal(12, permissions.Count);
+        Assert.Equal(
+            new[]
+            {
+                DataRightsAdminPermissionCodes.Read,
+                DataRightsAdminPermissionCodes.Create,
+                DataRightsAdminPermissionCodes.Discover,
+                DataRightsAdminPermissionCodes.Review,
+                DataRightsAdminPermissionCodes.Decide,
+                DataRightsAdminPermissionCodes.Execute,
+                DataRightsAdminPermissionCodes.Export,
+                DataRightsAdminPermissionCodes.DownloadExport,
+                DataRightsAdminPermissionCodes.Restrict,
+                DataRightsAdminPermissionCodes.Erase,
+                DataRightsAdminPermissionCodes.TerminateTenant,
+                DataRightsAdminPermissionCodes.TenantTerminationRead,
+                DataRightsAdminPermissionCodes.TenantTerminationRequest,
+                DataRightsAdminPermissionCodes.TenantTerminationApprove,
+                DataRightsAdminPermissionCodes.TenantTerminationExecute,
+                DataRightsAdminPermissionCodes.TenantTerminationRetry,
+                DataRightsAdminPermissionCodes.TenantTerminationCancel,
+                DataRightsAdminPermissionCodes.TenantTerminationRecover,
+                DataRightsAdminPermissionCodes.Manage
+            }.Order(StringComparer.Ordinal),
+            permissions.Select(permission => permission.Code)
+                .Order(StringComparer.Ordinal));
         Assert.All(permissions, permission =>
         {
             Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement);
@@ -27,7 +51,7 @@ public sealed class DataRightsModuleMetadataTests
         ModuleProfileDescriptor profile = Assert.Single(
             DataRightsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(DataRightsProfiles.DefaultName, profile.ProfileName);
-        Assert.Equal(14, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(15, DataRightsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
@@ -74,6 +98,15 @@ public sealed class DataRightsModuleMetadataTests
             DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
                 subscription.EventType ==
+                    TenantTerminationCoordinationRequestedIntegrationEvent.EventType &&
+                subscription.ProducerModule == DataRightsModuleMetadata.Name &&
+                subscription.HandlerName ==
+                    DataRightsModuleMetadata
+                        .TenantTerminationCoordinationHandlerName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
                     DataRightsCorrectionAppliedIntegrationEvent.EventType &&
                 subscription.ProducerModule ==
                     DataRightsModuleMetadata.GuestsProducerModuleName &&
@@ -107,7 +140,7 @@ public sealed class DataRightsModuleMetadataTests
                 subscription.HandlerName ==
                     DataRightsModuleMetadata
                         .WorkspacesCorrectionAppliedHandlerName);
-        Assert.Equal(5, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Equal(11, DataRightsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetTasks(),
             task => task.Name == ExecuteDataRightsAnonymisationPayload.TaskName);
@@ -124,11 +157,33 @@ public sealed class DataRightsModuleMetadataTests
             task =>
                 task.Name ==
                 DeleteExpiredDataRightsExportArtifactPayload.TaskName);
-        Assert.DoesNotContain(
+        Assert.Contains(
             DataRightsModuleMetadata.Descriptor.GetTasks(),
             task =>
                 task.Name ==
                 ExecuteTenantTerminationOwnerWorkPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                ExecuteTenantTerminationExportOwnerWorkPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                ExecuteGlobalTenantTerminationOwnerWorkPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                GenerateTenantTerminationExportArtifactPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task => task.Name == VerifyTenantTerminationPayload.TaskName);
+        Assert.Contains(
+            DataRightsModuleMetadata.Descriptor.GetTasks(),
+            task => task.Name ==
+                DispatchDataRightsResponseDeadlineAlertsPayload.TaskName);
     }
 
     [Fact]

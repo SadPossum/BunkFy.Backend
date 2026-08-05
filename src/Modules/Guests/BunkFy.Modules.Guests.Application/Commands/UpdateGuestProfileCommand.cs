@@ -15,4 +15,4 @@ public sealed record UpdateGuestProfileCommand(
     string? PreferredLanguageTag,
     string? Notes,
     long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<GuestProfileDto>;
+    string ActorId) : ITransactionalCommand<GuestMutationReceiptDto>;

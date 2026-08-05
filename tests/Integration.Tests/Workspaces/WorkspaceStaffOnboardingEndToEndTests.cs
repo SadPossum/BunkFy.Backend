@@ -15,6 +15,7 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Organizations.Contracts;
+using Gma.Modules.Organizations.Persistence;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -66,9 +67,9 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             await WaitForSeedProfilesAsync(client, workspaceId, owner.AccessToken, AsyncTimeout)
                 .ConfigureAwait(false);
 
-            PropertyDto propertyA = await CreatePropertyAsync(
+            PropertyMutationReceiptDto propertyA = await CreatePropertyAsync(
                 client, workspaceId, owner.AccessToken, "Harbor House", "HBR").ConfigureAwait(false);
-            PropertyDto propertyB = await CreatePropertyAsync(
+            PropertyMutationReceiptDto propertyB = await CreatePropertyAsync(
                 client, workspaceId, owner.AccessToken, "Garden House", "GRD").ConfigureAwait(false);
             await WaitForWorkspacePropertyProjectionAsync(
                 api, workspaceId, [propertyA.PropertyId, propertyB.PropertyId], AsyncTimeout)
@@ -86,6 +87,11 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
                 invitationId,
                 "invited@workspace-onboarding.test",
                 propertyA.PropertyId).ConfigureAwait(false);
+            AssertActiveAccessPlan(
+                invitation,
+                invitationId,
+                WorkspaceStaffOnboardingSourceKind.Invitation,
+                propertyA.PropertyId);
             string invitationToken = Assert.IsType<string>(invitation.Token);
 
             using (HttpResponseMessage competingAcceptance = await SendAsync(
@@ -122,6 +128,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
 
             Assert.Equal(invited.SubjectId.ToString("D"), acceptedInvitation.Membership.Membership.SubjectId);
             WorkspaceStaffOnboardingDto completedInvitation = await WaitForApplicationStatusAsync(
+                api,
                 client,
                 workspace.Organization.OrganizationId,
                 invitationId,
@@ -173,6 +180,11 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
                 owner.AccessToken,
                 enrollmentId,
                 propertyB.PropertyId).ConfigureAwait(false);
+            AssertActiveAccessPlan(
+                enrollment,
+                enrollmentId,
+                WorkspaceStaffOnboardingSourceKind.EnrollmentLink,
+                propertyB.PropertyId);
             string enrollmentToken = Assert.IsType<string>(enrollment.Token);
             VerifiedAccount applicant = await RegisterVerifiedAsync(
                 api, client, "qr-applicant@workspace-onboarding.test").ConfigureAwait(false);
@@ -218,6 +230,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             }
 
             await WaitForApplicationStatusAsync(
+                api,
                 client,
                 workspace.Organization.OrganizationId,
                 enrollmentId,
@@ -254,6 +267,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             recoveryWorker = CreateWorker(connectionString, natsConnectionString);
             await recoveryWorker.StartAsync().ConfigureAwait(false);
             WorkspaceStaffOnboardingDto completedEnrollment = await WaitForApplicationStatusAsync(
+                api,
                 client,
                 workspace.Organization.OrganizationId,
                 enrollmentId,
@@ -399,7 +413,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
         throw new TimeoutException("Workspace owner access and seed profiles were not prepared.");
     }
 
-    private static async Task<PropertyDto> CreatePropertyAsync(
+    private static async Task<PropertyMutationReceiptDto> CreatePropertyAsync(
         HttpClient client,
         string workspaceId,
         string accessToken,
@@ -413,7 +427,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             workspaceId,
             accessToken,
             new { name, code, timeZoneId = "UTC" }).ConfigureAwait(false);
-        return await ReadSuccessAsync<PropertyDto>(response).ConfigureAwait(false);
+        return await ReadSuccessAsync<PropertyMutationReceiptDto>(response).ConfigureAwait(false);
     }
 
     private static async Task WaitForWorkspacePropertyProjectionAsync(
@@ -523,7 +537,21 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
         return await ReadSuccessAsync<WorkspaceStaffOnboardingDto>(response).ConfigureAwait(false);
     }
 
+    private static void AssertActiveAccessPlan(
+        WorkspaceStaffJoinSourceIssuanceDto issuance,
+        Guid sourceId,
+        WorkspaceStaffOnboardingSourceKind sourceKind,
+        Guid propertyId)
+    {
+        Assert.Equal(sourceId, issuance.Plan.SourceId);
+        Assert.Equal(sourceKind, issuance.Plan.SourceKind);
+        Assert.Equal(WorkspaceAccessProfileSeeds.FrontDeskKey, issuance.Plan.ProfileKey);
+        Assert.Equal(WorkspaceStaffAccessPlanStatus.Active, issuance.Plan.Status);
+        Assert.Equal([propertyId], issuance.Plan.PropertyIds);
+    }
+
     private static async Task<WorkspaceStaffOnboardingDto> WaitForApplicationStatusAsync(
+        AuthTestApplication api,
         HttpClient client,
         Guid organizationId,
         Guid sourceId,
@@ -533,6 +561,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
         TimeSpan timeout)
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        WorkspaceStaffOnboardingDto? lastObserved = null;
         string path = $"/api/workspace-staff-enrollment/{organizationId:D}/applications/current" +
             $"?sourceKind={sourceKind}&sourceId={sourceId:D}";
         while (DateTimeOffset.UtcNow < deadline)
@@ -543,6 +572,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             {
                 WorkspaceStaffOnboardingDto application =
                     await ReadSuccessAsync<WorkspaceStaffOnboardingDto>(response).ConfigureAwait(false);
+                lastObserved = application;
                 if (application.Status == expected)
                 {
                     return application;
@@ -562,7 +592,80 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
         }
 
-        throw new TimeoutException($"Onboarding did not reach {expected} for source {sourceId:D}.");
+        string observed = lastObserved is null
+            ? "no application was visible"
+            : $"last state was {lastObserved.Status} at version {lastObserved.Version}" +
+              (string.IsNullOrWhiteSpace(lastObserved.FailureCode)
+                  ? string.Empty
+                  : $" with failure '{lastObserved.FailureCode}'");
+        string messaging = await DescribeMessagingStateAsync(api, organizationId)
+            .ConfigureAwait(false);
+        throw new TimeoutException(
+            $"Onboarding did not reach {expected} for source {sourceId:D}; " +
+            $"{observed}. {messaging}");
+    }
+
+    private static async Task<string> DescribeMessagingStateAsync(
+        AuthTestApplication api,
+        Guid organizationId)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        string scopeId = organizationId.ToString("D");
+        OrganizationsDbContext organizations = scope.ServiceProvider
+            .GetRequiredService<OrganizationsDbContext>();
+        WorkspacesDbContext workspaces = scope.ServiceProvider
+            .GetRequiredService<WorkspacesDbContext>();
+
+        var outbox = await organizations.OutboxMessages
+            .AsNoTracking()
+            .Where(message => message.ScopeId == scopeId)
+            .OrderByDescending(message => message.CreatedAtUtc)
+            .Take(12)
+            .Select(message => new
+            {
+                message.Id,
+                message.EventType,
+                message.ProcessedAtUtc,
+                message.Attempts,
+                message.Error
+            })
+            .ToArrayAsync()
+            .ConfigureAwait(false);
+        var inbox = await workspaces.InboxMessages
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(message => message.ScopeId == scopeId)
+            .OrderByDescending(message => message.CreatedAtUtc)
+            .Take(12)
+            .Select(message => new
+            {
+                message.Id,
+                message.Handler,
+                message.Status,
+                message.Attempts,
+                message.LastError
+            })
+            .ToArrayAsync()
+            .ConfigureAwait(false);
+
+        string outboxState = outbox.Length == 0
+            ? "none"
+            : string.Join(
+                "; ",
+                outbox.Select(message =>
+                    $"{message.EventType}/{message.Id:D}:" +
+                    $"processed={message.ProcessedAtUtc is not null}," +
+                    $"attempts={message.Attempts},error={message.Error ?? "none"}"));
+        string inboxState = inbox.Length == 0
+            ? "none"
+            : string.Join(
+                "; ",
+                inbox.Select(message =>
+                    $"{message.Handler}/{message.Id:D}:" +
+                    $"status={message.Status},attempts={message.Attempts}," +
+                    $"error={message.LastError ?? "none"}"));
+        return $"Organizations outbox: [{outboxState}]. " +
+            $"Workspaces inbox: [{inboxState}].";
     }
 
     private static async Task<StaffMemberDto> GetCurrentStaffAsync(

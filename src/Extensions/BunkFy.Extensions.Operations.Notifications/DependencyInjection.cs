@@ -104,6 +104,15 @@ public static class DependencyInjection
         services.TryAddScoped<OperationalNotificationProjector>();
         OperationsNotificationsDataRightsExportSchema.EnsureValid();
         OperationsNotificationsStaffDataRightsExportSchema.EnsureValid();
+        OperationsNotificationsTenantTerminationExportSchema.EnsureValid();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationContributor,
+                OperationsNotificationsTenantTerminationContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationExportContributor,
+                OperationsNotificationsTenantTerminationContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsRequiredCompanionContributor,
@@ -211,6 +220,11 @@ public static class DependencyInjection
         Add<StaffMemberLifecycleChangedIntegrationEvent, StaffMemberLifecycleChangedNotificationHandler>(
             services,
             StaffModuleMetadata.Name);
+        Add<
+            DataRightsResponseDeadlineAlertDueIntegrationEvent,
+            DataRightsResponseDeadlineNotificationHandler>(
+                services,
+                DataRightsModuleMetadata.Name);
 
         return services;
     }

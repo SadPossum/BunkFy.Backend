@@ -117,6 +117,13 @@ public sealed class DataRightsCaseRequest
                 DataRightsDomainErrors.TenantTerminationRequesterInvalid);
         }
 
+        if (kind == DataRightsCaseKind.TenantTermination &&
+            requestedOperations != DataRightsCaseOperation.Anonymisation)
+        {
+            return Result.Failure<DataRightsCaseRequest>(
+                DataRightsDomainErrors.OperationsInvalid);
+        }
+
         return Result.Success(new DataRightsCaseRequest(
             propertyId,
             kind,

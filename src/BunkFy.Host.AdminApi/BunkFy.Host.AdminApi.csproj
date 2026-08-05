@@ -33,6 +33,8 @@
     <ProjectReference Include="..\Modules\Ingestion\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations\BunkFy.Modules.Ingestion.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.AdminApi\BunkFy.Modules.Retention.AdminApi.csproj" />
     <ProjectReference Include="..\Modules\Retention\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations\BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.csproj" />
+    <ProjectReference Include="..\Modules\DataRights\BunkFy.Modules.DataRights.AdminApi\BunkFy.Modules.DataRights.AdminApi.csproj" />
+    <ProjectReference Include="..\Modules\DataRights\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations\BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.AdminApi\BunkFy.Modules.Workspaces.AdminApi.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations\BunkFy.Modules.Workspaces.Persistence.PostgreSqlMigrations.csproj" />
@@ -41,6 +43,9 @@
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.JsonFileDrop\BunkFy.Adapters.JsonFileDrop.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Parsers.ReservationMail\BunkFy.Parsers.ReservationMail.csproj" />
     <ProjectReference Include="..\Extensions\BunkFy.Extensions.Operations.Notifications\BunkFy.Extensions.Operations.Notifications.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.DataRights.AccessControl\BunkFy.Extensions.DataRights.AccessControl.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.DataRights.Organizations\BunkFy.Extensions.DataRights.Organizations.csproj" />
+    <ProjectReference Include="..\Extensions\BunkFy.Extensions.DataRights.TaskRuntime\BunkFy.Extensions.DataRights.TaskRuntime.csproj" />
     <ProjectReference Include="..\Extensions\BunkFy.Extensions.Workspaces\BunkFy.Extensions.Workspaces.csproj" />
     <ProjectReference Include="..\BunkFy.Host.ServiceDefaults\BunkFy.Host.ServiceDefaults.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Administration\Gma.Framework.Administration.Api\Gma.Framework.Administration.Api.csproj" />

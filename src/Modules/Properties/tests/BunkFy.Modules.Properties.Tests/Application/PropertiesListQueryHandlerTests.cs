@@ -78,7 +78,7 @@ public sealed class PropertiesListQueryHandlerTests
             CancellationToken cancellationToken)
         {
             this.ListRoomsCalled = true;
-            return Task.FromResult(new RoomListResponse([], pageRequest.Page, pageRequest.PageSize));
+            return Task.FromResult(new RoomListResponse([], pageRequest.Page, pageRequest.PageSize, false));
         }
 
         public Task<BedListResponse> ListBedsAsync(
@@ -88,7 +88,7 @@ public sealed class PropertiesListQueryHandlerTests
             CancellationToken cancellationToken)
         {
             this.ListBedsCalled = true;
-            return Task.FromResult(new BedListResponse([], pageRequest.Page, pageRequest.PageSize));
+            return Task.FromResult(new BedListResponse([], pageRequest.Page, pageRequest.PageSize, false));
         }
     }
 }

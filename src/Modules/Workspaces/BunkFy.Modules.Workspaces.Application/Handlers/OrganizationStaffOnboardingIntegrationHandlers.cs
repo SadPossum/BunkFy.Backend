@@ -31,12 +31,6 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
                 integrationEvent.InvitationId,
                 integrationEvent.AcceptedSubjectId,
                 cancellationToken).ConfigureAwait(false);
-            if (application is not null)
-            {
-                Result accepted = application.ObserveInvitationAccepted(clock.UtcNow);
-                EnsureObserved(accepted, "invitation acceptance");
-            }
-
             await ProcessWhenPresentAsync(application, processor, logger, cancellationToken)
                 .ConfigureAwait(false);
             return;
@@ -60,15 +54,6 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
         }
     }
 
-    private static void EnsureObserved(Result result, string observation)
-    {
-        if (result.IsFailure)
-        {
-            throw new InvalidOperationException(
-                $"Staff onboarding could not observe {observation}: '{result.Error.Code}'.");
-        }
-    }
-
     private static async Task ProcessWhenPresentAsync(
         WorkspaceStaffOnboarding? application,
         WorkspaceStaffOnboardingProcessor processor,
@@ -81,7 +66,9 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
             return;
         }
 
-        Result result = await processor.ProcessAsync(application, cancellationToken).ConfigureAwait(false);
+        Result result = await processor
+            .ProcessInvitationAcceptanceAsync(application, cancellationToken)
+            .ConfigureAwait(false);
         if (result.IsFailure)
         {
             logger.LogWarning(
@@ -147,13 +134,13 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
 
         if (integrationEvent.Change == OrganizationEnrollmentClaimChange.Accepted)
         {
-            Result accepted = application.ObserveClaimAccepted(
-                integrationEvent.ClaimId,
-                integrationEvent.ClaimVersion,
-                nowUtc);
-            EnsureObserved(accepted, "claim acceptance");
-
-            Result processed = await processor.ProcessAsync(application, cancellationToken).ConfigureAwait(false);
+            Result processed = await processor
+                .ProcessEnrollmentClaimAcceptanceAsync(
+                    application,
+                    integrationEvent.ClaimId,
+                    integrationEvent.ClaimVersion,
+                    cancellationToken)
+                .ConfigureAwait(false);
             if (processed.IsFailure)
             {
                 logger.LogWarning(

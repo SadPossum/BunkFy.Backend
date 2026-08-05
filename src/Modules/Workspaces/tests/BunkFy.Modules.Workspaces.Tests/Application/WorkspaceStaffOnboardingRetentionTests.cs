@@ -465,7 +465,8 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             Task.FromResult(new WorkspaceStaffOnboardingListResponse(
                 [],
                 page.Page,
-                page.PageSize));
+                page.PageSize,
+                HasMore: false));
 
         public Task ReloadAsync(
             WorkspaceStaffOnboarding application,

@@ -1,7 +1,5 @@
 namespace BunkFy.Modules.Workspaces.Application.Contributors;
 
-using System.Security.Cryptography;
-using System.Text;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Workspaces.Application.Commands;
 using BunkFy.Modules.Workspaces.Application.Mapping;
@@ -18,27 +16,26 @@ internal sealed class WorkspaceTenantTerminationContributor(
     IRequestDispatcher dispatcher,
     IWorkspaceTerminationFenceRepository fences,
     IScopeContext scopeContext,
-    ISystemClock clock)
+    ISystemClock clock,
+    IWorkspaceTenantDestructionOwner? destruction = null)
     : ITenantTerminationContributor
 {
-    private const int CatalogVersion = 1;
-    private static readonly string CatalogSha256 = Convert.ToHexStringLower(
-        SHA256.HashData(
-            Encoding.UTF8.GetBytes(
-                "workspaces|contract=1|phases=freeze,restore|" +
-                "dependencies=|mandatory=true|catalog=1")));
-
     public TenantTerminationContributorDescriptor Descriptor { get; } = new(
         WorkspacesDataRightsCoordinates.Owner,
         TenantTerminationContract.CurrentVersion,
         [
-            TenantTerminationContributionPhase.Freeze,
-            TenantTerminationContributionPhase.Restore
+            new(TenantTerminationContributionPhase.Freeze, []),
+            new(TenantTerminationContributionPhase.Export, []),
+            new(
+                TenantTerminationContributionPhase.Destroy,
+                WorkspacesTenantTerminationMetadata
+                    .DestroyDependencyOwnerKeys,
+                TenantTerminationExecutionBoundary.GlobalControlTask),
+            new(TenantTerminationContributionPhase.Restore, [])
         ],
-        [],
         MandatoryForProduction: true,
-        CatalogVersion,
-        CatalogSha256);
+        WorkspacesTenantTerminationMetadata.CatalogVersion,
+        WorkspacesTenantTerminationMetadata.CatalogSha256);
 
     public async Task<TenantTerminationContributionResult> ExecuteAsync(
         TenantTerminationContributionRequest request,
@@ -48,6 +45,16 @@ internal sealed class WorkspaceTenantTerminationContributor(
         if (!IsValid(request, scopeContext, nowUtc))
         {
             return Failed("workspace.termination.request-invalid", nowUtc);
+        }
+
+        if (request.Phase == TenantTerminationContributionPhase.Destroy)
+        {
+            return destruction is null
+                ? Failed(
+                    "workspace.termination.destroy-owner-unavailable",
+                    nowUtc)
+                : await destruction.ExecuteAsync(request, cancellationToken)
+                    .ConfigureAwait(false);
         }
 
         WorkspaceTerminationFenceReceipt? replay =
@@ -165,8 +172,8 @@ internal sealed class WorkspaceTenantTerminationContributor(
             HoldReviewAtUtc: null,
             receipt.SelectedFenceVersion,
             receipt.ResultingFenceVersion,
-            CatalogVersion,
-            CatalogSha256,
+            WorkspacesTenantTerminationMetadata.CatalogVersion,
+            WorkspacesTenantTerminationMetadata.CatalogSha256,
             receipt.CompletedAtUtc);
     }
 
@@ -187,6 +194,7 @@ internal sealed class WorkspaceTenantTerminationContributor(
             request.IdempotencyKey == Guid.Empty ||
             request.Phase is not (
                 TenantTerminationContributionPhase.Freeze or
+                TenantTerminationContributionPhase.Destroy or
                 TenantTerminationContributionPhase.Restore) ||
             request.DeadlineUtc <= nowUtc ||
             !IsSha256(request.PolicyEvidenceSha256) ||
@@ -238,8 +246,8 @@ internal sealed class WorkspaceTenantTerminationContributor(
             null,
             null,
             null,
-            CatalogVersion,
-            CatalogSha256,
+            WorkspacesTenantTerminationMetadata.CatalogVersion,
+            WorkspacesTenantTerminationMetadata.CatalogSha256,
             nowUtc);
 
     private static TenantTerminationContributionResult Failed(
@@ -254,8 +262,8 @@ internal sealed class WorkspaceTenantTerminationContributor(
             null,
             null,
             null,
-            CatalogVersion,
-            CatalogSha256,
+            WorkspacesTenantTerminationMetadata.CatalogVersion,
+            WorkspacesTenantTerminationMetadata.CatalogSha256,
             nowUtc);
 
     private static bool IsActor(string? actorId)

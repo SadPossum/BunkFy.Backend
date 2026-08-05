@@ -3,15 +3,34 @@ namespace BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
+using Gma.Framework.Results;
 using Gma.Modules.AccessControl.Contracts;
 
 internal sealed class WorkspaceAccessProvisioner(
     IAccessControlRoleProvisioner roles,
     IAccessProfileProvisioner profiles,
-    IScopedAccessProfileProvisioner scopedProfiles)
+    IScopedAccessProfileProvisioner scopedProfiles,
+    IEnumerable<IAccessProfileManager> profileManagers)
 {
     internal const string ProvisioningActorId = WorkspaceAccessActors.Provisioner;
     private const int AssignmentPageSize = 100;
+    private readonly IAccessControlRoleProvisioner roles = roles;
+    private readonly IAccessProfileProvisioner profiles = profiles;
+    private readonly IScopedAccessProfileProvisioner scopedProfiles = scopedProfiles;
+    private readonly IAccessProfileManager? profileManager = profileManagers.SingleOrDefault();
+
+    internal WorkspaceAccessProvisioner(
+        IAccessControlRoleProvisioner roles,
+        IAccessProfileProvisioner profiles,
+        IScopedAccessProfileProvisioner scopedProfiles,
+        IAccessProfileManager? profileManager)
+        : this(
+            roles,
+            profiles,
+            scopedProfiles,
+            profileManager is null ? [] : [profileManager])
+    {
+    }
 
     internal WorkspaceAccessProvisioner(
         IAccessControlRoleProvisioner roles,
@@ -22,7 +41,16 @@ internal sealed class WorkspaceAccessProvisioner(
             profiles as IScopedAccessProfileProvisioner ??
                 throw new ArgumentException(
                     "The profile provisioner must support scoped assignments.",
-                    nameof(profiles)))
+                    nameof(profiles)),
+            profiles as IAccessProfileManager)
+    {
+    }
+
+    internal WorkspaceAccessProvisioner(
+        IAccessControlRoleProvisioner roles,
+        IAccessProfileProvisioner profiles,
+        IScopedAccessProfileProvisioner scopedProfiles)
+        : this(roles, profiles, scopedProfiles, profiles as IAccessProfileManager)
     {
     }
 
@@ -37,7 +65,7 @@ internal sealed class WorkspaceAccessProvisioner(
 
         await this.EnsureProvisionerAsync(scope, cancellationToken).ConfigureAwait(false);
         await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
-        AccessProfileDto frontDesk = await profiles.EnsureProfileAsync(
+        AccessProfileDto frontDesk = await this.EnsureSeedProfileAsync(
                 scope,
                 WorkspaceAccessProfileSeeds.FrontDesk,
                 actor,
@@ -74,7 +102,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
         await this.EnsureProvisionerAsync(workspaceScope, cancellationToken).ConfigureAwait(false);
         await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
-        await roles.EnsureAssignmentAsync(
+        await this.roles.EnsureAssignmentAsync(
             subject,
             WorkspaceAccessRoles.MembershipMarker,
             workspaceScope,
@@ -86,7 +114,7 @@ internal sealed class WorkspaceAccessProvisioner(
             : distinctPropertyIds.Select(propertyId => new AccessProfileAssignmentTarget(
                 profileId,
                 WorkspaceAccessScopes.CreateProperty(workspaceId, propertyId))).ToArray();
-        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
+        await this.scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
             subject,
             workspaceScope,
             targets,
@@ -103,14 +131,14 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessSubject actor,
         CancellationToken cancellationToken)
     {
-        await roles.EnsureAssignmentAsync(
+        await this.roles.EnsureAssignmentAsync(
                 subject,
                 WorkspaceAccessRoles.MembershipMarker,
                 scope,
                 cancellationToken)
             .ConfigureAwait(false);
 
-        ScopedAccessProfileAssignmentSet current = await scopedProfiles.GetSubjectScopedAssignmentsAsync(
+        ScopedAccessProfileAssignmentSet current = await this.scopedProfiles.GetSubjectScopedAssignmentsAsync(
                 subject,
                 scope,
                 cancellationToken)
@@ -123,7 +151,7 @@ internal sealed class WorkspaceAccessProvisioner(
             .Distinct()
             .ToArray();
 
-        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
+        await this.scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
                 subject,
                 scope,
                 desiredTargets,
@@ -146,7 +174,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessProfileDto? frontDesk = null;
         foreach (AccessProfileDefinition seed in WorkspaceAccessProfileSeeds.All)
         {
-            AccessProfileDto ensured = await profiles.EnsureProfileAsync(
+            AccessProfileDto ensured = await this.EnsureSeedProfileAsync(
                     scope,
                     seed,
                     actor,
@@ -172,7 +200,7 @@ internal sealed class WorkspaceAccessProvisioner(
         int migratedMemberCount = 0;
         while (true)
         {
-            AccessControlPage<AccessControlRoleAssignment> page = await roles.ListAssignmentsAsync(
+            AccessControlPage<AccessControlRoleAssignment> page = await this.roles.ListAssignmentsAsync(
                     WorkspaceAccessRoles.LegacyMember,
                     scope,
                     page: 1,
@@ -218,10 +246,68 @@ internal sealed class WorkspaceAccessProvisioner(
         await this.EnsureProvisionerAsync(scope, cancellationToken).ConfigureAwait(false);
         foreach (AccessProfileDefinition seed in WorkspaceAccessProfileSeeds.All)
         {
-            await profiles.EnsureProfileAsync(scope, seed, actor, cancellationToken)
+            await this.EnsureSeedProfileAsync(scope, seed, actor, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
+
+    private async Task<AccessProfileDto> EnsureSeedProfileAsync(
+        AccessScope scope,
+        AccessProfileDefinition definition,
+        AccessSubject actor,
+        CancellationToken cancellationToken)
+    {
+        AccessProfileDto profile = await this.profiles.EnsureProfileAsync(
+                scope,
+                definition,
+                actor,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (profile.Status != AccessProfileStatus.Active)
+        {
+            throw new InvalidOperationException(
+                $"The workspace access profile seed '{definition.Key}' is not active.");
+        }
+
+        if (MatchesSeed(profile, definition) || this.profileManager is null)
+        {
+            return profile;
+        }
+
+        Result<AccessProfileDto> reconciled =
+            await this.profileManager.UpdateProfileAsync(
+                profile.Id,
+                scope,
+                new AccessProfileUpdate(
+                    definition.DisplayName,
+                    definition.Description,
+                    definition.Permissions,
+                    profile.Version),
+                actor,
+                cancellationToken).ConfigureAwait(false);
+        if (reconciled.IsFailure)
+        {
+            throw new InvalidOperationException(
+                $"The workspace access profile seed '{definition.Key}' could not be reconciled ({reconciled.Error.Code}).");
+        }
+
+        return reconciled.Value;
+    }
+
+    private static bool MatchesSeed(
+        AccessProfileDto profile,
+        AccessProfileDefinition definition) =>
+        string.Equals(
+            profile.DisplayName,
+            definition.DisplayName.Trim(),
+            StringComparison.Ordinal) &&
+        string.Equals(
+            profile.Description,
+            definition.Description?.Trim() ?? string.Empty,
+            StringComparison.Ordinal) &&
+        profile.Permissions.Order(StringComparer.Ordinal).SequenceEqual(
+            definition.Permissions.Order(StringComparer.Ordinal),
+            StringComparer.Ordinal);
 
     public async Task<IReadOnlyCollection<WorkspaceStaffAccessProfileTarget>> CaptureRestorableProfilesAsync(
         string workspaceId,
@@ -230,13 +316,13 @@ internal sealed class WorkspaceAccessProvisioner(
     {
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject subject = AccessSubject.User(subjectId);
-        bool hasLegacyAccess = await roles.HasAssignmentAsync(
+        bool hasLegacyAccess = await this.roles.HasAssignmentAsync(
                 subject,
                 WorkspaceAccessRoles.LegacyMember,
                 scope,
                 cancellationToken).ConfigureAwait(false);
 
-        ScopedAccessProfileAssignmentSet assignments = await scopedProfiles.GetSubjectScopedAssignmentsAsync(
+        ScopedAccessProfileAssignmentSet assignments = await this.scopedProfiles.GetSubjectScopedAssignmentsAsync(
             subject,
             scope,
             cancellationToken).ConfigureAwait(false);
@@ -247,7 +333,7 @@ internal sealed class WorkspaceAccessProvisioner(
             .ToList();
         if (hasLegacyAccess)
         {
-            AccessProfileDto? frontDesk = await profiles.FindProfileByKeyAsync(
+            AccessProfileDto? frontDesk = await this.profiles.FindProfileByKeyAsync(
                     scope,
                     WorkspaceAccessProfileSeeds.FrontDeskKey,
                     cancellationToken)
@@ -271,7 +357,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         AccessSubject subject = AccessSubject.User(subjectId);
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
-        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
+        await this.scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
             subject,
             scope,
             [],
@@ -294,7 +380,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessSubject actor = AccessSubject.System(ProvisioningActorId);
         await this.EnsureProvisionerAsync(scope, cancellationToken).ConfigureAwait(false);
         await this.EnsureMembershipMarkerAsync(cancellationToken).ConfigureAwait(false);
-        await roles.EnsureAssignmentAsync(
+        await this.roles.EnsureAssignmentAsync(
             subject,
             WorkspaceAccessRoles.MembershipMarker,
             scope,
@@ -304,7 +390,7 @@ internal sealed class WorkspaceAccessProvisioner(
                 target.ProfileId,
                 AccessScope.Parse(target.AssignmentScope)))
             .ToArray();
-        await scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
+        await this.scopedProfiles.ReconcileSubjectScopedAssignmentsAsync(
             subject,
             scope,
             targets,
@@ -320,10 +406,11 @@ internal sealed class WorkspaceAccessProvisioner(
     {
         AccessScope scope = WorkspaceAccessScopes.Create(workspaceId);
         int activeSeedProfileCount = 0;
+        int driftedSeedProfileCount = 0;
         int archivedSeedProfileCount = 0;
         foreach (AccessProfileDefinition seed in WorkspaceAccessProfileSeeds.All)
         {
-            AccessProfileDto? profile = await profiles.FindProfileByKeyAsync(
+            AccessProfileDto? profile = await this.profiles.FindProfileByKeyAsync(
                     scope,
                     seed.Key,
                     cancellationToken)
@@ -331,6 +418,10 @@ internal sealed class WorkspaceAccessProvisioner(
             if (profile?.Status == AccessProfileStatus.Active)
             {
                 activeSeedProfileCount++;
+                if (!MatchesSeed(profile, seed))
+                {
+                    driftedSeedProfileCount++;
+                }
             }
             else if (profile?.Status == AccessProfileStatus.Archived)
             {
@@ -353,13 +444,14 @@ internal sealed class WorkspaceAccessProvisioner(
             WorkspaceAccessProfileSeeds.Version,
             WorkspaceAccessProfileSeeds.All.Count,
             activeSeedProfileCount,
+            driftedSeedProfileCount,
             archivedSeedProfileCount,
             legacyMemberCount,
             markerMemberCount);
     }
 
     private Task EnsureMembershipMarkerAsync(CancellationToken cancellationToken) =>
-        roles.EnsureRoleAsync(
+        this.roles.EnsureRoleAsync(
             new AccessControlRoleDefinition(
                 WorkspaceAccessRoles.MembershipMarker,
                 WorkspaceAccessRoles.MembershipMarkerPermissions),
@@ -369,13 +461,13 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessScope scope,
         CancellationToken cancellationToken)
     {
-        await roles.EnsureRoleAsync(
+        await this.roles.EnsureRoleAsync(
                 new AccessControlRoleDefinition(
                     WorkspaceAccessRoles.Provisioner,
                     WorkspaceAccessRoles.ProvisionerPermissions),
                 cancellationToken)
             .ConfigureAwait(false);
-        await roles.EnsureAssignmentAsync(
+        await this.roles.EnsureAssignmentAsync(
                 AccessSubject.System(ProvisioningActorId),
                 WorkspaceAccessRoles.Provisioner,
                 scope,
@@ -401,7 +493,7 @@ internal sealed class WorkspaceAccessProvisioner(
         AccessScope scope,
         CancellationToken cancellationToken)
     {
-        AccessControlAssignmentRemovalOutcome outcome = await roles.RemoveAssignmentAsync(
+        AccessControlAssignmentRemovalOutcome outcome = await this.roles.RemoveAssignmentAsync(
             subject,
             roleName,
             scope,
@@ -422,7 +514,7 @@ internal sealed class WorkspaceAccessProvisioner(
         int pageNumber = 1;
         while (true)
         {
-            AccessControlPage<AccessControlRoleAssignment> page = await roles.ListAssignmentsAsync(
+            AccessControlPage<AccessControlRoleAssignment> page = await this.roles.ListAssignmentsAsync(
                     roleName,
                     scope,
                     pageNumber,

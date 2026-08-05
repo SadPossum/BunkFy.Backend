@@ -1,7 +1,7 @@
 namespace BunkFy.Modules.Ingestion.Application.Commands;
 
 using Gma.Framework.Cqrs;
-using BunkFy.Modules.Ingestion.Domain.Proposals;
+using BunkFy.Modules.Ingestion.Contracts;
 
 public sealed record AcceptChangeProposalCommand(
     Guid PropertyId,
@@ -9,7 +9,7 @@ public sealed record AcceptChangeProposalCommand(
     string Actor,
     long ExpectedProposalVersion,
     long ExpectedReservationDetailsRevision)
-    : ITransactionalCommand<ChangeProposalDecisionResult>;
+    : ITransactionalCommand<ChangeProposalMutationReceiptDto>;
 
 public sealed record RejectChangeProposalCommand(
     Guid PropertyId,
@@ -17,10 +17,4 @@ public sealed record RejectChangeProposalCommand(
     string Actor,
     string Reason,
     long ExpectedProposalVersion)
-    : ITransactionalCommand<ChangeProposalDecisionResult>;
-
-public sealed record ChangeProposalDecisionResult(
-    Guid ProposalId,
-    ChangeProposalState State,
-    long Version,
-    Guid? ProductOperationId);
+    : ITransactionalCommand<ChangeProposalMutationReceiptDto>;

@@ -23,8 +23,35 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
     ISystemClock clock,
     ILogger<WorkspaceStaffOnboardingProcessor> logger)
 {
-    public async Task<Result> ProcessAsync(
+    public Task<Result> ProcessAsync(
         WorkspaceStaffOnboarding application,
+        CancellationToken cancellationToken) =>
+        this.ProcessAsync(application, prepare: null, cancellationToken);
+
+    public Task<Result> ProcessInvitationAcceptanceAsync(
+        WorkspaceStaffOnboarding application,
+        CancellationToken cancellationToken) =>
+        this.ProcessAsync(
+            application,
+            candidate => candidate.ObserveInvitationAccepted(clock.UtcNow),
+            cancellationToken);
+
+    public Task<Result> ProcessEnrollmentClaimAcceptanceAsync(
+        WorkspaceStaffOnboarding application,
+        Guid claimId,
+        long claimVersion,
+        CancellationToken cancellationToken) =>
+        this.ProcessAsync(
+            application,
+            candidate => candidate.ObserveClaimAccepted(
+                claimId,
+                claimVersion,
+                clock.UtcNow),
+            cancellationToken);
+
+    private async Task<Result> ProcessAsync(
+        WorkspaceStaffOnboarding application,
+        Func<WorkspaceStaffOnboarding, Result>? prepare,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(application);
@@ -45,6 +72,15 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
         await applications.ReloadAsync(
             application,
             cancellationToken).ConfigureAwait(false);
+        if (prepare is not null)
+        {
+            Result prepared = prepare(application);
+            if (prepared.IsFailure)
+            {
+                return prepared;
+            }
+        }
+
         if (application.Status == WorkspaceStaffOnboardingState.Completed)
         {
             return Result.Success();

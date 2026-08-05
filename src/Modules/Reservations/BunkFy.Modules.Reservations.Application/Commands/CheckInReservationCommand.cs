@@ -8,4 +8,4 @@ public sealed record CheckInReservationCommand(
     Guid ReservationId,
     DateOnly BusinessDate,
     long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<ReservationDto>;
+    string ActorId) : ITransactionalCommand<ReservationMutationReceiptDto>;

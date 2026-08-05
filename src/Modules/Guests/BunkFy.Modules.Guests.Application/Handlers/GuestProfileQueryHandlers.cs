@@ -40,9 +40,9 @@ internal sealed class ListGuestProfilesQueryHandler(IGuestProfileRepository prof
 internal sealed class GetGuestStayHistoryQueryHandler(
     IGuestProfileRepository profiles,
     IGuestStayHistoryRepository stays)
-    : IQueryHandler<GetGuestStayHistoryQuery, IReadOnlyCollection<GuestStayHistoryItem>>
+    : IQueryHandler<GetGuestStayHistoryQuery, GuestStayHistoryListResponse>
 {
-    public async Task<Result<IReadOnlyCollection<GuestStayHistoryItem>>> HandleAsync(
+    public async Task<Result<GuestStayHistoryListResponse>> HandleAsync(
         GetGuestStayHistoryQuery query,
         CancellationToken cancellationToken)
     {
@@ -51,10 +51,11 @@ internal sealed class GetGuestStayHistoryQueryHandler(
             query.GuestId,
             cancellationToken).ConfigureAwait(false);
         return profile is null
-            ? Result.Failure<IReadOnlyCollection<GuestStayHistoryItem>>(GuestsApplicationErrors.GuestNotFound)
+            ? Result.Failure<GuestStayHistoryListResponse>(GuestsApplicationErrors.GuestNotFound)
             : Result.Success(await stays.ListAsync(
                 query.PropertyId,
                 query.GuestId,
+                PageRequest.Normalize(query.Page, query.PageSize),
                 cancellationToken).ConfigureAwait(false));
     }
 }

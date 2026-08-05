@@ -8,4 +8,4 @@ public sealed record ReleaseManualInventoryBlockCommand(
     Guid BlockId,
     long ExpectedVersion,
     string? ActorId = null)
-    : ITransactionalCommand<ManualInventoryBlockDto>;
+    : ITransactionalCommand<ManualInventoryBlockMutationReceiptDto>;

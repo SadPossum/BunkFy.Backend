@@ -65,6 +65,8 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Outbox:LockDurationMilliseconds", "1000");
         builder.UseSetting("Observability:Prometheus:Enabled", enablePrometheus.ToString());
         builder.UseSetting("Caching:Enabled", "false");
+        builder.UseSetting("Notifications:Delivery:Enabled", "false");
+        builder.UseSetting("Notifications:DurableStreams:MonitorEnabled", "false");
         builder.UseSetting("FileManagement:Minio:Endpoint", minioEndpoint);
         builder.UseSetting("FileManagement:Minio:AccessKey", minioAccessKey);
         builder.UseSetting("FileManagement:Minio:SecretKey", minioSecretKey);
@@ -117,6 +119,8 @@ internal sealed class AuthTestApplication(
                 ["Outbox:PollIntervalMilliseconds"] = "100",
                 ["Outbox:LockDurationMilliseconds"] = "1000",
                 ["Observability:Prometheus:Enabled"] = enablePrometheus.ToString(),
+                ["Notifications:Delivery:Enabled"] = "false",
+                ["Notifications:DurableStreams:MonitorEnabled"] = "false",
                 ["FileManagement:Minio:Endpoint"] = minioEndpoint,
                 ["FileManagement:Minio:AccessKey"] = minioAccessKey,
                 ["FileManagement:Minio:SecretKey"] = minioSecretKey,
@@ -212,6 +216,7 @@ internal sealed class AuthTestApplication(
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<PropertiesDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
+        await this.MigrateWorkspaceAdmissionDatabaseAsync().ConfigureAwait(false);
     }
 
     public async Task MigrateInventoryAuthorizationDatabaseAsync()
@@ -258,8 +263,6 @@ internal sealed class AuthTestApplication(
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<StaffDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
-            .Database.MigrateAsync().ConfigureAwait(false);
     }
 
     public async Task MigrateWorkspaceOnboardingDatabaseAsync()
@@ -272,10 +275,18 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateIngestionDatabaseAsync()
     {
+        await this.MigrateWorkspaceAdmissionDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    private async Task MigrateWorkspaceAdmissionDatabaseAsync()
+    {
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
     }
 
@@ -502,12 +513,32 @@ internal sealed class AuthTestApplication(
                 message.LockedBy,
                 message.LockedUntilUtc,
                 message.NextAttemptAtUtc,
-                message.Attempts))
+                message.Attempts,
+                message.Error))
             .SingleOrDefaultAsync()
             .ConfigureAwait(false);
 
         Xunit.Assert.NotNull(snapshot);
         return snapshot;
+    }
+
+    public async Task<OutboxSnapshot> GetOnlyOutboxSnapshotAsync()
+    {
+        using IServiceScope scope = this.Services.CreateScope();
+        AuthDbContext dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+
+        return await dbContext.OutboxMessages
+            .AsNoTracking()
+            .Select(message => new OutboxSnapshot(
+                message.Id,
+                message.ProcessedAtUtc,
+                message.LockedBy,
+                message.LockedUntilUtc,
+                message.NextAttemptAtUtc,
+                message.Attempts,
+                message.Error))
+            .SingleAsync()
+            .ConfigureAwait(false);
     }
 
     private sealed class DisabledTenantContext : IAuthScopeContext

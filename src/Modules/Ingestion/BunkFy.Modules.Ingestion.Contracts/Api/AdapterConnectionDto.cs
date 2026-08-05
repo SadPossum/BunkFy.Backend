@@ -33,8 +33,21 @@ public sealed record AdapterConnectionDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc);
 
+public sealed record AdapterConnectionListItemDto(
+    Guid ConnectionId,
+    string AdapterType,
+    AdapterExecutionMode ExecutionMode,
+    int? PollingIntervalSeconds,
+    AdapterConflictPolicy ConflictPolicy,
+    AdapterConnectionStatus Status);
+
 public sealed record AdapterConnectionListResponse(
-    IReadOnlyCollection<AdapterConnectionDto> Connections,
+    IReadOnlyCollection<AdapterConnectionListItemDto> Connections,
     int Page,
     int PageSize,
-    long TotalCount);
+    bool HasMore);
+
+public sealed record AdapterConnectionMutationReceiptDto(
+    Guid ConnectionId,
+    AdapterConnectionStatus Status,
+    long Version);

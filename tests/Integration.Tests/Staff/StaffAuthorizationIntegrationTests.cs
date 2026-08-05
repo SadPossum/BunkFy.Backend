@@ -64,9 +64,9 @@ public sealed class StaffAuthorizationIntegrationTests
             await api.SeedOrganizationMembershipAsync(TenantId, assignedUserId).ConfigureAwait(false);
 
             await ConfigureAccessAsync(admin, managerId).ConfigureAwait(false);
-            PropertyDto propertyA = await CreatePropertyAsync(client, managerTokens.AccessToken,
+            PropertyMutationReceiptDto propertyA = await CreatePropertyAsync(client, managerTokens.AccessToken,
                 "Staff House A", "STA").ConfigureAwait(false);
-            PropertyDto propertyB = await CreatePropertyAsync(client, managerTokens.AccessToken,
+            PropertyMutationReceiptDto propertyB = await CreatePropertyAsync(client, managerTokens.AccessToken,
                 "Staff House B", "STB").ConfigureAwait(false);
             await AssignPropertyRoleAsync(admin, managerId, propertyA.PropertyId).ConfigureAwait(false);
             await WaitForPropertyProjectionAsync(api, propertyA.PropertyId, TimeSpan.FromSeconds(20))
@@ -319,12 +319,12 @@ public sealed class StaffAuthorizationIntegrationTests
         "--role", "staff-property-manager", "--scope", $"tenant:{TenantId}/property:{propertyId:D}"))
         .ConfigureAwait(false);
 
-    private static async Task<PropertyDto> CreatePropertyAsync(HttpClient client, string token,
+    private static async Task<PropertyMutationReceiptDto> CreatePropertyAsync(HttpClient client, string token,
         string name, string code)
     {
         using HttpResponseMessage response = await SendAsync(client, HttpMethod.Post, "/api/properties",
             token, new { name, code, timeZoneId = "UTC" }).ConfigureAwait(false);
-        return await ReadSuccessAsync<PropertyDto>(response).ConfigureAwait(false);
+        return await ReadSuccessAsync<PropertyMutationReceiptDto>(response).ConfigureAwait(false);
     }
 
     private static async Task WaitForPropertyProjectionAsync(AuthTestApplication api, Guid propertyId,

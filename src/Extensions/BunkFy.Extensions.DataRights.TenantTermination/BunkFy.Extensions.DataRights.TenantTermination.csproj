@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\DataRights\BunkFy.Modules.DataRights.Application\BunkFy.Modules.DataRights.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\DataRights\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Guests\BunkFy.Modules.Guests.Contracts\BunkFy.Modules.Guests.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Ingestion\BunkFy.Modules.Ingestion.Contracts\BunkFy.Modules.Ingestion.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Inventory\BunkFy.Modules.Inventory.Contracts\BunkFy.Modules.Inventory.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Properties\BunkFy.Modules.Properties.Contracts\BunkFy.Modules.Properties.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Reservations\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Retention\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Staff\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
+    <ProjectReference Include="..\BunkFy.Extensions.DataRights.AccessControl\BunkFy.Extensions.DataRights.AccessControl.csproj" />
+    <ProjectReference Include="..\BunkFy.Extensions.DataRights.Organizations\BunkFy.Extensions.DataRights.Organizations.csproj" />
+    <ProjectReference Include="..\BunkFy.Extensions.DataRights.TaskRuntime\BunkFy.Extensions.DataRights.TaskRuntime.csproj" />
+    <ProjectReference Include="..\BunkFy.Extensions.Operations.Notifications\BunkFy.Extensions.Operations.Notifications.csproj" />
+  </ItemGroup>
+</Project>

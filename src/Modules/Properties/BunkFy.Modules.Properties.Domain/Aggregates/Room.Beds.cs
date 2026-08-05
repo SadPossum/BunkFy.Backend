@@ -15,57 +15,96 @@ public sealed partial class Room
         Guid eventId,
         DateTimeOffset nowUtc)
     {
+        Result<IReadOnlyCollection<Bed>> result = this.AddBeds(
+            [new BedAdditionDefinition(bedId, label, eventId)],
+            expectedVersion,
+            nowUtc);
+        return result.IsSuccess
+            ? Result.Success(result.Value.Single())
+            : Result.Failure<Bed>(result.Error);
+    }
+
+    public Result<IReadOnlyCollection<Bed>> AddBeds(
+        IReadOnlyCollection<BedAdditionDefinition> additions,
+        long expectedVersion,
+        DateTimeOffset nowUtc)
+    {
         Result statusResult = this.EnsureActive();
         if (statusResult.IsFailure)
         {
-            return Result.Failure<Bed>(statusResult.Error);
+            return Result.Failure<IReadOnlyCollection<Bed>>(statusResult.Error);
         }
 
         Result versionResult = this.EnsureExpectedVersion(expectedVersion);
         if (versionResult.IsFailure)
         {
-            return Result.Failure<Bed>(versionResult.Error);
+            return Result.Failure<IReadOnlyCollection<Bed>>(versionResult.Error);
         }
 
-        if (bedId == Guid.Empty)
+        if (additions is null || additions.Count == 0)
         {
-            return Result.Failure<Bed>(PropertiesDomainErrors.BedIdRequired);
+            return Result.Failure<IReadOnlyCollection<Bed>>(PropertiesDomainErrors.BedBatchRequired);
         }
 
-        if (eventId == Guid.Empty)
+        BedAdditionDefinition[] requested = [.. additions];
+        if (requested.Any(addition => addition.BedId == Guid.Empty || addition.EventId == Guid.Empty) ||
+            requested.Select(addition => addition.BedId).Distinct().Count() != requested.Length ||
+            requested.Select(addition => addition.EventId).Distinct().Count() != requested.Length ||
+            requested.Any(addition => this.beds.Any(bed => bed.Id == addition.BedId)))
         {
-            return Result.Failure<Bed>(PropertiesDomainErrors.DomainEventIdRequired);
+            return Result.Failure<IReadOnlyCollection<Bed>>(PropertiesDomainErrors.BedBatchInvalid);
         }
 
-        Result<BedLabel> labelResult = BedLabel.Create(label);
-        if (labelResult.IsFailure)
+        List<BedLabel> labels = new(requested.Length);
+        foreach (BedAdditionDefinition addition in requested)
         {
-            return Result.Failure<Bed>(labelResult.Error);
+            Result<BedLabel> labelResult = BedLabel.Create(addition.Label);
+            if (labelResult.IsFailure)
+            {
+                return Result.Failure<IReadOnlyCollection<Bed>>(labelResult.Error);
+            }
+
+            labels.Add(labelResult.Value);
         }
 
-        if (this.HasBedLabel(labelResult.Value, excludingBedId: null))
+        if (labels.Distinct().Count() != labels.Count ||
+            labels.Any(label => this.HasBedLabel(label, excludingBedId: null)))
         {
-            return Result.Failure<Bed>(PropertiesDomainErrors.BedAlreadyExists);
+            return Result.Failure<IReadOnlyCollection<Bed>>(PropertiesDomainErrors.BedAlreadyExists);
         }
 
-        Bed bed = Bed.Create(bedId, this.ScopeId, this.PropertyId, this.Id, labelResult.Value, nowUtc);
-        this.beds.Add(bed);
+        Bed[] created = requested
+            .Select((addition, index) => Bed.Create(
+                addition.BedId,
+                this.ScopeId,
+                this.PropertyId,
+                this.Id,
+                labels[index],
+                nowUtc))
+            .ToArray();
+
+        for (int index = 0; index < created.Length; index++)
+        {
+            Bed bed = created[index];
+            this.beds.Add(bed);
+            this.Version++;
+
+            this.RaiseDomainEvent(new BedAddedDomainEvent(
+                requested[index].EventId,
+                nowUtc,
+                this.PropertyId,
+                this.Id,
+                bed.Id,
+                this.ScopeId,
+                bed.Label.Value,
+                bed.Status,
+                this.Version,
+                bed.Version));
+        }
+
         this.UpdatedAtUtc = nowUtc;
-        this.Version++;
 
-        this.RaiseDomainEvent(new BedAddedDomainEvent(
-            eventId,
-            nowUtc,
-            this.PropertyId,
-            this.Id,
-            bed.Id,
-            this.ScopeId,
-            bed.Label.Value,
-            bed.Status,
-            this.Version,
-            bed.Version));
-
-        return Result.Success(bed);
+        return Result.Success<IReadOnlyCollection<Bed>>(created);
     }
 
     public Result<Bed> UpdateBed(

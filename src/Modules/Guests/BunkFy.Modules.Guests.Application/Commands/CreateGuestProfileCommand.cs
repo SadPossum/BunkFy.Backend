@@ -13,4 +13,4 @@ public sealed record CreateGuestProfileCommand(
     string? NationalityCountryCode,
     string? PreferredLanguageTag,
     string? Notes,
-    string ActorId) : ITransactionalCommand<GuestProfileDto>;
+    string ActorId) : ITransactionalCommand<GuestMutationReceiptDto>;

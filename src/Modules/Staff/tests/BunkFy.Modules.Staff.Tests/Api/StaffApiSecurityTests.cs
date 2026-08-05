@@ -55,7 +55,16 @@ public sealed class StaffApiSecurityTests
         AssertResponse<StaffDirectoryListResponse>(endpoints, HttpMethods.Get, "/api/staff/members");
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Get, member);
         AssertResponse<StaffMemberDto>(endpoints, HttpMethods.Get, $"{member}/profile");
-        AssertResponse<StaffMemberDto>(endpoints, HttpMethods.Put, member);
+        AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Post, "/api/staff/members");
+        AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Put, member);
+        AssertResponse<StaffDirectoryMemberDto>(
+            endpoints,
+            HttpMethods.Put,
+            $"{member}/auth-subject");
+        AssertResponse<StaffPropertyDirectoryListResponse>(
+            endpoints,
+            HttpMethods.Get,
+            "/api/staff/properties/{propertyId:guid}/members");
         const string correction = "/api/staff/data-rights-corrections";
         AssertPermissions(
             endpoints,

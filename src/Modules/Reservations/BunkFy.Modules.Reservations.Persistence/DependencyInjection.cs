@@ -100,10 +100,22 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectExportContributor,
                 ReservationDataRightsExportContributor>());
+        ReservationsTenantTerminationExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationContributor,
+                ReservationsTenantTerminationContributor>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationExportContributor,
+                ReservationsTenantTerminationContributor>());
 
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
             typeof(ICommandPipelineBehavior<,>),
             typeof(ReservationsPersistenceRetryBehavior<,>)));
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(ReservationsPersistenceAdmissionBehavior<,>)));
         builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, ReservationsUnitOfWork>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxWriter, ReservationsOutboxWriter>());

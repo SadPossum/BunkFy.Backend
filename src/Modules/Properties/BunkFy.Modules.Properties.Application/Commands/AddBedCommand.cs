@@ -7,4 +7,4 @@ public sealed record AddBedCommand(
     Guid PropertyId,
     Guid RoomId,
     long ExpectedRoomVersion,
-    string Label) : ITransactionalCommand<BedDto>;
+    string Label) : ITransactionalCommand<BedMutationReceiptDto>;

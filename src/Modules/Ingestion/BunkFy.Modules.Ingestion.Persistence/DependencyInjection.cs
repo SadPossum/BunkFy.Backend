@@ -101,9 +101,21 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectExportContributor,
                 IngestionDataRightsExportContributor>());
+        IngestionTenantTerminationExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationContributor,
+                IngestionTenantTerminationContributor>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationExportContributor,
+                IngestionTenantTerminationContributor>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
             typeof(ICommandPipelineBehavior<,>),
             typeof(IngestionPersistenceRetryBehavior<,>)));
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(IngestionPersistenceAdmissionBehavior<,>)));
         builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddScoped<IRawPayloadStore, IngestionRawPayloadStore>();
         builder.Services.TryAddSingleton<IIngestionRetentionPolicy>(

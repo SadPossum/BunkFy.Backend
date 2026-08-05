@@ -1,6 +1,9 @@
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
+using BunkFy.Extensions.DataRights.AccessControl;
+using BunkFy.Extensions.DataRights.Organizations;
+using BunkFy.Extensions.DataRights.TenantTermination;
 using BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Extensions.Workspaces;
 using BunkFy.Host.Api;
@@ -80,6 +83,15 @@ AuthenticationAssuranceRequirement destructiveOperationAssurance =
 
 builder.Host.UseConfiguredSerilog();
 builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.PublicApi);
+builder.AddBunkFyAuthRetentionProductionAdmission(
+    BunkFyDeploymentSurface.PublicApi,
+    authComposed: true);
+builder.AddBunkFyOrganizationsMaintenanceProductionAdmission(
+    BunkFyDeploymentSurface.PublicApi,
+    organizationsComposed: true);
+builder.AddBunkFyDurableRuntimeProductionAdmission(
+    BunkFyDurableRuntimeHostRole.PublicApi,
+    taskRuntimeComposed: false);
 builder.AddBunkFyOperationsNotificationsProductionAdmission(
     OperationsNotificationsProductionHostRole.PublicApi);
 
@@ -149,6 +161,9 @@ builder.Services.AddOrganizationsTenancyExtension();
 builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);
 builder.Services.AddBunkFyWorkspaceAdmission(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.Replace(ServiceDescriptor.Scoped<INotificationUserScopeAuthorizer, WorkspaceNotificationUserScopeAuthorizer>());
+builder.Services.AddBunkFyAccessControlDataRights();
+builder.Services.AddBunkFyOrganizationsDataRights();
+builder.Services.AddBunkFyTenantTerminationOperatorCatalog();
 builder.Services.AddBunkFyOperationsNotifications();
 builder.Services.AddBunkFyWorkspaceOwnerNotificationAudience();
 builder.Services.AddNotificationEmailAdapter(builder.Configuration);

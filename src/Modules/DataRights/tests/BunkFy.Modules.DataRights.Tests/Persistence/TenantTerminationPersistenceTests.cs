@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.DataRights.Tests.Persistence;
 
 using BunkFy.Modules.DataRights.Domain.Aggregates;
+using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
@@ -33,6 +34,10 @@ public sealed class TenantTerminationPersistenceTests
             designModel.FindEntityType(typeof(TenantTerminationProcess))!;
         IEntityType ownerWork =
             designModel.FindEntityType(typeof(TenantTerminationOwnerWorkItem))!;
+        IEntityType frozenOwner =
+            designModel.FindEntityType(typeof(TenantTerminationFrozenOwner))!;
+        IEntityType terminalReceipt = designModel.FindEntityType(
+            typeof(TenantTerminationTerminalReceipt))!;
 
         Assert.True(process.FindProperty(
             nameof(TenantTerminationProcess.Version))!.IsConcurrencyToken);
@@ -60,6 +65,16 @@ public sealed class TenantTerminationPersistenceTests
                 constraint.Name ==
                 "CK_data_rights_tenant_termination_process_completion");
         Assert.Contains(
+            process.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_tenant_termination_process_destroy_checkpoint");
+        Assert.Contains(
+            process.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_tenant_termination_process_verification_confirmation");
+        Assert.Contains(
             process.GetForeignKeys(),
             foreignKey =>
                 foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
@@ -67,6 +82,26 @@ public sealed class TenantTerminationPersistenceTests
                     .SequenceEqual([
                         nameof(TenantTerminationProcess.ScopeId),
                         nameof(TenantTerminationProcess.CaseId)
+                    ]));
+        Assert.Contains(
+            process.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(TenantTerminationProcess.ScopeId),
+                        nameof(TenantTerminationProcess.Id),
+                        nameof(TenantTerminationProcess.TerminalReceiptId),
+                        nameof(
+                            TenantTerminationProcess.TerminalReceiptVersion)
+                    ]) &&
+                foreignKey.PrincipalKey.Properties
+                    .Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(TenantTerminationTerminalReceipt.ScopeId),
+                        nameof(TenantTerminationTerminalReceipt.ProcessId),
+                        nameof(TenantTerminationTerminalReceipt.Id),
+                        nameof(TenantTerminationTerminalReceipt.Version)
                     ]));
 
         Assert.True(ownerWork.FindProperty(
@@ -103,6 +138,75 @@ public sealed class TenantTerminationPersistenceTests
                             TenantTerminationOwnerWorkItem
                                 .PolicyEvidenceSha256)
                     ]));
+
+        Assert.True(frozenOwner.IsOwned());
+        Assert.Equal(
+            "tenant_termination_frozen_export_owners",
+            frozenOwner.GetTableName());
+        Assert.Contains(
+            frozenOwner.GetIndexes(),
+            index =>
+                index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        "ProcessId",
+                        nameof(TenantTerminationFrozenOwner.OwnerKey)
+                    ]));
+        Assert.Contains(
+            frozenOwner.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_tenant_termination_frozen_owner_catalog");
+
+        Assert.True(terminalReceipt.FindProperty(
+            nameof(TenantTerminationTerminalReceipt.Version))!
+            .IsConcurrencyToken);
+        Assert.Contains(
+            terminalReceipt.GetIndexes(),
+            index =>
+                index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(TenantTerminationTerminalReceipt.ScopeId),
+                        nameof(
+                            TenantTerminationTerminalReceipt.ProcessId),
+                        nameof(
+                            TenantTerminationTerminalReceipt
+                                .VerificationOperationRevision)
+                    ]));
+        Assert.Contains(
+            terminalReceipt.GetKeys(),
+            key => key.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(TenantTerminationTerminalReceipt.ScopeId),
+                    nameof(TenantTerminationTerminalReceipt.ProcessId),
+                    nameof(TenantTerminationTerminalReceipt.Id),
+                    nameof(TenantTerminationTerminalReceipt.Version)
+                ]));
+        Assert.Contains(
+            terminalReceipt.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_tenant_termination_terminal_receipt_replay");
+        Assert.Contains(
+            terminalReceipt.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.DeleteBehavior == DeleteBehavior.Restrict &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(TenantTerminationTerminalReceipt.ScopeId),
+                        nameof(TenantTerminationTerminalReceipt.ProcessId),
+                        nameof(TenantTerminationTerminalReceipt.CaseId),
+                        nameof(
+                            TenantTerminationTerminalReceipt
+                                .ApprovalRevision),
+                        nameof(
+                            TenantTerminationTerminalReceipt
+                                .TerminationEpoch),
+                        nameof(
+                            TenantTerminationTerminalReceipt
+                                .PolicyEvidenceSha256)
+                    ]));
     }
 
     [Fact]
@@ -120,8 +224,7 @@ public sealed class TenantTerminationPersistenceTests
         {
             DataRightsCase dataRightsCase = CreateTenantTerminationCase(TenantA);
             TenantTerminationProcess process = PrepareProcess(
-                TenantA,
-                dataRightsCase.Id);
+                dataRightsCase);
             processId = process.Id;
             idempotencyKey = process.IdempotencyKey;
             TenantTerminationRepository repository = new(writer);
@@ -173,37 +276,115 @@ public sealed class TenantTerminationPersistenceTests
             CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Repository_round_trips_the_immutable_freeze_catalog()
+    {
+        string databaseName =
+            $"tenant-termination-freeze-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        Guid processId;
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            TenantA))
+        {
+            DataRightsCase dataRightsCase = CreateTenantTerminationCase(TenantA);
+            TenantTerminationProcess process = PrepareProcess(
+                dataRightsCase);
+            processId = process.Id;
+            Assert.True(process.BeginPhase(
+                TenantTerminationProcessPhase.Freeze,
+                process.Version,
+                "system:tenant-termination",
+                Now.AddMinutes(4)).IsSuccess);
+            Assert.True(process.CompleteFreeze(
+                process.OperationRevision,
+                workspaceFenceRevision: 3,
+                Digest,
+                [
+                    new("workspaces", 1, 2, new string('c', 64)),
+                    new("reservations", 1, 4, new string('b', 64))
+                ],
+                process.Version,
+                "system:tenant-termination",
+                Now.AddMinutes(5)).IsSuccess);
+
+            writer.Cases.Add(dataRightsCase);
+            writer.TenantTerminationProcesses.Add(process);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            TenantA);
+        TenantTerminationProcess restored =
+            (await new TenantTerminationRepository(reader).GetProcessAsync(
+                processId,
+                CancellationToken.None))!;
+
+        Assert.Equal(3, restored.WorkspaceFenceRevision);
+        Assert.Equal(Digest, restored.FrozenRevisionSha256);
+        Assert.Equal(
+            ["reservations", "workspaces"],
+            restored.FrozenExportOwners
+                .OrderBy(owner => owner.Ordinal)
+                .Select(owner => owner.OwnerKey)
+                .ToArray());
+        Assert.Equal([1, 2], restored.FrozenExportOwners
+            .OrderBy(owner => owner.Ordinal)
+            .Select(owner => owner.Ordinal)
+            .ToArray());
+    }
+
     private static DataRightsCase CreateTenantTerminationCase(string tenantId)
     {
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
             propertyId: null,
             DataRightsCaseKind.TenantTermination,
-            DataRightsCaseOperation.AccessExport,
+            DataRightsCaseOperation.Anonymisation,
             DataRightsRequesterRelation.TenantOwner).Value;
-        return DataRightsCase.Create(
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
             Guid.NewGuid(),
             tenantId,
             request,
             "owner:approver",
             Now).Value;
+        Assert.True(dataRightsCase.PrepareTenantTerminationReview(
+            exportRequested: false,
+            dataRightsCase.Version,
+            "owner:approver",
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.True(dataRightsCase.RecordTenantTerminationDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            Digest,
+            dataRightsCase.Version,
+            "owner:approver",
+            Now.AddMinutes(2)).IsSuccess);
+        Assert.True(dataRightsCase.BeginTenantTerminationExecution(
+            dataRightsCase.Version,
+            "system:tenant-termination",
+            Now.AddMinutes(3)).IsSuccess);
+        return dataRightsCase;
     }
 
     private static TenantTerminationProcess PrepareProcess(
-        string tenantId,
-        Guid caseId) =>
+        DataRightsCase dataRightsCase) =>
         TenantTerminationProcess.Prepare(
             Guid.NewGuid(),
-            tenantId,
+            dataRightsCase.ScopeId,
             Guid.NewGuid(),
-            caseId,
-            approvalRevision: 4,
+            dataRightsCase.Id,
+            dataRightsCase.DecisionRevision!.Value,
             Guid.NewGuid(),
             exportRequested: false,
             Digest,
             "owner:approver",
-            Now,
+            Now.AddMinutes(2),
             "system:tenant-termination",
-            Now).Value;
+            Now.AddMinutes(3)).Value;
 
     private static TenantTerminationOwnerWorkItem PrepareOwnerWork(
         TenantTerminationProcess process,

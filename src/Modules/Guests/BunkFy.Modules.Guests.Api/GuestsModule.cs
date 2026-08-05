@@ -43,6 +43,7 @@ public sealed class GuestsModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Guests")
             .RequireAuthorization();
+        group.AddEndpointFilter(SensitiveResponseFilter);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -63,7 +64,8 @@ public sealed class GuestsModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(
                 GuestsAdminPermissionCodes.Read,
-                GuestsPropertyAccessScopeResolver.ResolverName);
+                GuestsPropertyAccessScopeResolver.ResolverName)
+            .Produces<GuestListResponse>(StatusCodes.Status200OK);
 
         group.MapGet("/{guestId:guid}", async (
             Guid propertyId,
@@ -76,20 +78,28 @@ public sealed class GuestsModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(
                 GuestsAdminPermissionCodes.Read,
-                GuestsPropertyAccessScopeResolver.ResolverName);
+                GuestsPropertyAccessScopeResolver.ResolverName)
+            .Produces<GuestProfileDto>(StatusCodes.Status200OK);
 
         group.MapGet("/{guestId:guid}/stays", async (
             Guid propertyId,
             Guid guestId,
+            int? page,
+            int? pageSize,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.QueryAsync(
-                new GetGuestStayHistoryQuery(propertyId, guestId),
+                new GetGuestStayHistoryQuery(
+                    propertyId,
+                    guestId,
+                    page ?? PageRequest.DefaultPage,
+                    pageSize ?? PageRequest.DefaultPageSize),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
             .RequireTenant()
             .RequireResolvedScopePermission(
                 GuestsAdminPermissionCodes.Read,
-                GuestsPropertyAccessScopeResolver.ResolverName);
+                GuestsPropertyAccessScopeResolver.ResolverName)
+            .Produces<GuestStayHistoryListResponse>(StatusCodes.Status200OK);
 
         group.MapPost("", async (
             Guid propertyId,
@@ -116,6 +126,7 @@ public sealed class GuestsModule : IModule
                         actor),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<GuestMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 GuestsAdminPermissionCodes.Create,
@@ -351,6 +362,7 @@ public sealed class GuestsModule : IModule
                         actor),
                     cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<GuestMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 GuestsAdminPermissionCodes.Manage,
@@ -366,15 +378,16 @@ public sealed class GuestsModule : IModule
             CancellationToken cancellationToken) =>
         {
             string? actor = ResolveActor(context, subjectResolver);
-            Result<GuestProfileDto> result = !request.Confirmed
-                ? Result.Failure<GuestProfileDto>(new("Guests.ConfirmationRequired", "Confirmation is required."))
+            Result<GuestMutationReceiptDto> result = !request.Confirmed
+                ? Result.Failure<GuestMutationReceiptDto>(new("Guests.ConfirmationRequired", "Confirmation is required."))
                 : actor is null
-                    ? Result.Failure<GuestProfileDto>(new("Guests.AuthenticationRequired", "Authentication is required."))
+                    ? Result.Failure<GuestMutationReceiptDto>(new("Guests.AuthenticationRequired", "Authentication is required."))
                     : await dispatcher.SendAsync(
                         new ArchiveGuestProfileCommand(propertyId, guestId, request.ExpectedVersion, actor),
                         cancellationToken).ConfigureAwait(false);
             return actor is null ? Results.Unauthorized() : result.ToHttpResult(ErrorStatusCodes);
         })
+            .Produces<GuestMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 GuestsAdminPermissionCodes.Archive,
@@ -447,6 +460,21 @@ public sealed class GuestsModule : IModule
 
     public sealed record ArchiveGuestProfileRequest(long ExpectedVersion, bool Confirmed);
 
+    private static async ValueTask<object?> SensitiveResponseFilter(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        MarkSensitiveResponse(context.HttpContext);
+        return await next(context).ConfigureAwait(false);
+    }
+
+    private static void MarkSensitiveResponse(HttpContext context)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.Pragma = "no-cache";
+        context.Response.Headers.Expires = "0";
+    }
+
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
     {
         AccessSubject? subject = subjectResolver.ResolveSubject(context);
@@ -455,6 +483,8 @@ public sealed class GuestsModule : IModule
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(GuestsApplicationErrors.GuestNotFound.Code, StatusCodes.Status404NotFound),
+        new(GuestsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
+        new(GuestsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(GuestsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestArchived.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.GuestAlreadyArchived.Code, StatusCodes.Status409Conflict),

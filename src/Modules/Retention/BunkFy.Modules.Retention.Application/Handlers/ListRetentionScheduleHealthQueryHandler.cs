@@ -5,6 +5,7 @@ using BunkFy.Modules.Retention.Application.Queries;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Retention.Domain.Models;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 
@@ -21,10 +22,9 @@ internal sealed class ListRetentionScheduleHealthQueryHandler(
         ListRetentionScheduleHealthQuery query,
         CancellationToken cancellationToken)
     {
-        RetentionScheduleDescriptor[] descriptors = contributors
-            .Select(contributor => contributor.Schedule)
-            .OrderBy(descriptor => descriptor.ContributorKey, StringComparer.Ordinal)
-            .ToArray();
+        PageRequest page = PageRequest.Normalize(query.Page, query.PageSize);
+        RetentionScheduleDescriptor[] descriptors =
+            RetentionContributorCatalog.GetDescriptors(contributors);
         IReadOnlyList<RetentionScheduleStateSnapshot> snapshots =
             await states.ListAsync(cancellationToken).ConfigureAwait(false);
         Dictionary<ScheduleKey, RetentionScheduleStateSnapshot> byCoordinate =
@@ -34,7 +34,7 @@ internal sealed class ListRetentionScheduleHealthQueryHandler(
                     snapshot.DataClassKey,
                     snapshot.PropertyId,
                     snapshot.ExecutionPolicyVersion));
-
+        DateTimeOffset nowUtc = clock.UtcNow;
         List<RetentionScheduleHealthDto> health = [];
         foreach (IGrouping<RetentionTargetScopeKind, RetentionScheduleDescriptor> group in
                  descriptors.GroupBy(descriptor => descriptor.TargetScopeKind))
@@ -45,6 +45,7 @@ internal sealed class ListRetentionScheduleHealthQueryHandler(
                     cancellationToken).ConfigureAwait(false);
             foreach (RetentionScheduleDescriptor descriptor in group)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 foreach (RetentionScheduleTarget target in targets)
                 {
                     byCoordinate.TryGetValue(
@@ -54,19 +55,36 @@ internal sealed class ListRetentionScheduleHealthQueryHandler(
                             target.PropertyId,
                             descriptor.ExecutionPolicyVersion),
                         out RetentionScheduleStateSnapshot? snapshot);
-                    health.Add(ToDto(descriptor, target, snapshot, clock.UtcNow));
+                    health.Add(ToDto(descriptor, target, snapshot, nowUtc));
                 }
             }
         }
 
+        RetentionScheduleHealthDto[] ordered = health
+            .OrderByDescending(item => item.Overdue)
+            .ThenBy(item => item.NextDueAtUtc)
+            .ThenBy(item => item.OwnerKey, StringComparer.Ordinal)
+            .ThenBy(item => item.DataClassKey, StringComparer.Ordinal)
+            .ThenBy(item => item.PropertyId)
+            .ThenBy(item => item.ExecutionPolicyVersion)
+            .ToArray();
+        RetentionScheduleHealthSummaryDto summary = Summarize(ordered);
+        RetentionScheduleHealthDto[] window = ordered
+            .Skip(page.SkipCount)
+            .Take(page.PageSize + 1)
+            .ToArray();
+        bool hasMore = window.Length > page.PageSize;
+        if (hasMore)
+        {
+            window = window[..page.PageSize];
+        }
+
         return Result.Success(new RetentionScheduleHealthListResponse(
-            health
-                .OrderByDescending(item => item.Overdue)
-                .ThenBy(item => item.NextDueAtUtc)
-                .ThenBy(item => item.OwnerKey, StringComparer.Ordinal)
-                .ThenBy(item => item.DataClassKey, StringComparer.Ordinal)
-                .ThenBy(item => item.PropertyId)
-                .ToArray()));
+            window,
+            page.Page,
+            page.PageSize,
+            hasMore,
+            summary));
     }
 
     private static RetentionScheduleHealthDto ToDto(
@@ -85,6 +103,7 @@ internal sealed class ListRetentionScheduleHealthQueryHandler(
             snapshot is null
                 ? RetentionExecutionStatus.NeverRun
                 : Map(snapshot.State),
+            snapshot?.LastExecutionId,
             snapshot?.LastStartedAtUtc,
             snapshot?.LastCompletedAtUtc,
             nextDueAtUtc,
@@ -95,6 +114,33 @@ internal sealed class ListRetentionScheduleHealthQueryHandler(
             snapshot?.LastRemainingCount,
             snapshot?.OutcomeCode,
             snapshot?.HoldReviewDueAtUtc);
+    }
+
+    private static RetentionScheduleHealthSummaryDto Summarize(
+        RetentionScheduleHealthDto[] items)
+    {
+        int healthy = 0;
+        int running = 0;
+        int needsAttention = 0;
+        foreach (RetentionScheduleHealthDto item in items)
+        {
+            if (item.Overdue || item.Status is
+                RetentionExecutionStatus.Blocked or
+                RetentionExecutionStatus.Failed)
+            {
+                needsAttention++;
+            }
+            else if (item.Status == RetentionExecutionStatus.Running)
+            {
+                running++;
+            }
+            else if (item.Status == RetentionExecutionStatus.Completed)
+            {
+                healthy++;
+            }
+        }
+
+        return new(items.Length, healthy, running, needsAttention);
     }
 
     private static RetentionExecutionStatus Map(int state) =>

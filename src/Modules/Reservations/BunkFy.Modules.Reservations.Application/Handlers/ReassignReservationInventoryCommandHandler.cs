@@ -16,9 +16,9 @@ internal sealed class ReassignReservationInventoryCommandHandler(
     IInventoryProjectionRepository inventoryProjection,
     ISystemClock clock,
     IIdGenerator idGenerator)
-    : ICommandHandler<ReassignReservationInventoryCommand, ReservationDto>
+    : ICommandHandler<ReassignReservationInventoryCommand, ReservationMutationReceiptDto>
 {
-    public async Task<Result<ReservationDto>> HandleAsync(
+    public async Task<Result<ReservationMutationReceiptDto>> HandleAsync(
         ReassignReservationInventoryCommand command,
         CancellationToken cancellationToken)
     {
@@ -28,7 +28,7 @@ internal sealed class ReassignReservationInventoryCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
-            return Result.Failure<ReservationDto>(ReservationsApplicationErrors.ReservationNotFound);
+            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
         }
 
         InventoryUnitSelectionValidation selection = await inventoryProjection.ValidateSelectionAsync(
@@ -37,7 +37,7 @@ internal sealed class ReassignReservationInventoryCommandHandler(
             cancellationToken).ConfigureAwait(false);
         if (selection != InventoryUnitSelectionValidation.Valid)
         {
-            return Result.Failure<ReservationDto>(
+            return Result.Failure<ReservationMutationReceiptDto>(
                 selection == InventoryUnitSelectionValidation.UnitNotFound
                     ? ReservationsApplicationErrors.InventoryUnitNotFound
                     : ReservationsApplicationErrors.InventoryUnitPropertyMismatch);
@@ -66,8 +66,8 @@ internal sealed class ReassignReservationInventoryCommandHandler(
             reservation.ExpectedArrivalTime,
             reservation.ExpectedDepartureTime);
         return begun.IsFailure
-            ? Result.Failure<ReservationDto>(begun.Error)
-            : Result.Success(reservation.ToDto());
+            ? Result.Failure<ReservationMutationReceiptDto>(begun.Error)
+            : Result.Success(reservation.ToMutationReceipt());
     }
 
     private static string Fingerprint(ReassignReservationInventoryCommand command)

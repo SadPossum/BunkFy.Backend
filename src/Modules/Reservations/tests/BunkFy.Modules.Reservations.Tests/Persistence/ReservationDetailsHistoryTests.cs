@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Reservations.Tests;
 
 using Gma.Framework.Scoping;
+using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
@@ -44,10 +45,12 @@ public sealed class ReservationDetailsHistoryTests
         await dbContext.SaveChangesAsync();
         ReservationDetailsHistoryReader reader = new(dbContext);
 
-        ReservationDetailsHistoryItem item = Assert.Single(await reader.ListAsync(
+        ReservationDetailsHistoryListResponse response = await reader.ListAsync(
             propertyId,
             reservationId,
-            CancellationToken.None));
+            PageRequest.Normalize(page: 1, pageSize: 20),
+            CancellationToken.None);
+        ReservationDetailsHistoryItem item = Assert.Single(response.Items);
 
         Assert.Equal(ReservationDetailsChangeOriginKind.Adapter, item.Origin);
         Assert.Equal(connectionId, item.AdapterConnectionId);
@@ -57,6 +60,57 @@ public sealed class ReservationDetailsHistoryTests
         Assert.Equal(new TimeOnly(15, 30), item.After.ExpectedArrivalTime);
         Assert.Equal(new TimeOnly(10, 45), item.After.ExpectedDepartureTime);
         Assert.Equal(nameof(Reservation.PrimaryGuestName), Assert.Single(item.ChangedFields));
+        Assert.False(response.HasMore);
+    }
+
+    [Fact]
+    public async Task Reader_returns_newest_revisions_with_bounded_look_ahead()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        ReservationDetailsHistoryWriter writer = new(dbContext);
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        DateTimeOffset occurredAtUtc = new(2026, 7, 12, 12, 0, 0, TimeSpan.Zero);
+        for (int revision = 1; revision <= 3; revision++)
+        {
+            await writer.AppendAsync(
+                new ReservationDetailsChangedDomainEvent(
+                    Guid.NewGuid(),
+                    occurredAtUtc.AddMinutes(revision),
+                    "tenant-a",
+                    reservationId,
+                    propertyId,
+                    revision,
+                    revision + 1,
+                    ReservationDetailsChangeOrigin.Staff,
+                    "user:staff",
+                    null,
+                    null,
+                    Guid.NewGuid(),
+                    [nameof(Reservation.PrimaryGuestName)],
+                    Snapshot($"Guest {revision}"),
+                    Snapshot($"Guest {revision + 1}")),
+                CancellationToken.None);
+        }
+
+        await dbContext.SaveChangesAsync();
+        ReservationDetailsHistoryReader reader = new(dbContext);
+
+        ReservationDetailsHistoryListResponse firstPage = await reader.ListAsync(
+            propertyId,
+            reservationId,
+            PageRequest.Normalize(page: 1, pageSize: 2),
+            CancellationToken.None);
+        ReservationDetailsHistoryListResponse secondPage = await reader.ListAsync(
+            propertyId,
+            reservationId,
+            PageRequest.Normalize(page: 2, pageSize: 2),
+            CancellationToken.None);
+
+        Assert.Equal([4L, 3L], firstPage.Items.Select(item => item.ToRevision));
+        Assert.True(firstPage.HasMore);
+        Assert.Equal(2L, Assert.Single(secondPage.Items).ToRevision);
+        Assert.False(secondPage.HasMore);
     }
 
     private static ReservationDetailsSnapshot Snapshot(string guestName) => new(

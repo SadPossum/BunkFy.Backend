@@ -1,10 +1,13 @@
 namespace BunkFy.Extensions.Operations.Notifications.Tests;
 
 using System.Text.Json;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
+using Gma.Framework.AccessControl;
 using Gma.Framework.Messaging;
 using Gma.Framework.Notifications;
 using Gma.Framework.Tenancy;
@@ -13,6 +16,8 @@ using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Organizations.Application.Ports;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using ContractNotificationSeverity =
+    Gma.Modules.Notifications.Contracts.NotificationSeverity;
 
 [Trait("Category", "Unit")]
 public sealed class OperationalNotificationTests
@@ -34,7 +39,7 @@ public sealed class OperationalNotificationTests
             .Select(descriptor => descriptor.ImplementationInstance)
             .OfType<IntegrationEventSubscription>()
             .ToArray();
-        Assert.Equal(13, subscriptions.Length);
+        Assert.Equal(14, subscriptions.Length);
         Assert.All(subscriptions, subscription => Assert.True(subscription.IsTenantScoped()));
     }
 
@@ -110,7 +115,9 @@ public sealed class OperationalNotificationTests
                     OperationsNotificationsDataRightsCoordinates
                         .ForStaff(
                             ScopeId,
-                            StaffMemberIdFor(item.UserId))
+                            StaffMemberIdFor(item.UserId)),
+                    OperationsNotificationsDataRightsCoordinates
+                        .ForTenant(ScopeId)
                 ],
                 item.References);
         });
@@ -217,6 +224,79 @@ public sealed class OperationalNotificationTests
 
         UserNotificationRequestedIntegrationEventV3 notification = Assert.Single(notifications.Events);
         Assert.Equal("A reservation is expected at 15:30 on Jul 16.", notification.Body);
+    }
+
+    [Theory]
+    [InlineData(
+        DataRightsResponseDeadlineAlertKind.DueSoon,
+        DataRightsResponseDeadlineNotificationHandler.DueSoonNotificationName,
+        ContractNotificationSeverity.Warning)]
+    [InlineData(
+        DataRightsResponseDeadlineAlertKind.Overdue,
+        DataRightsResponseDeadlineNotificationHandler.OverdueNotificationName,
+        ContractNotificationSeverity.Error)]
+    public async Task Deadline_alert_is_mandatory_minimized_and_limited_to_data_rights_readers(
+        DataRightsResponseDeadlineAlertKind alertKind,
+        string expectedName,
+        ContractNotificationSeverity expectedSeverity)
+    {
+        Guid propertyId = Guid.NewGuid();
+        Guid caseId = Guid.NewGuid();
+        TestAuthorizationService authorization = new(["privacy-reader"]);
+        CapturingProjector notifications = new();
+        OperationalNotificationProjector projector = CreateProjector(
+            new TestAudienceReader(["privacy-reader", "front-desk"]),
+            new TestWorkspaceOwnerAudienceReader(["owner-a"]),
+            new TestOrganizationAccessCandidateFilter(),
+            notifications,
+            authorization: authorization);
+        DataRightsResponseDeadlineNotificationHandler handler = new(projector);
+        DataRightsResponseDeadlineAlertDueIntegrationEvent integrationEvent = new(
+            Guid.NewGuid(),
+            ScopeId,
+            Now,
+            caseId,
+            propertyId,
+            alertKind,
+            alertKind == DataRightsResponseDeadlineAlertKind.DueSoon
+                ? Now.AddHours(24)
+                : Now.AddHours(-1));
+
+        await handler.HandleAsync(integrationEvent, CancellationToken.None);
+
+        UserNotificationRequestedIntegrationEventV3 notification =
+            Assert.Single(notifications.Events);
+        Assert.Equal("privacy-reader", notification.UserId);
+        Assert.Equal(expectedName, notification.NotificationName);
+        Assert.Equal(expectedSeverity, notification.Severity);
+        Assert.Equal(
+            Gma.Modules.Notifications.Contracts.NotificationDeliveryPolicy
+                .Mandatory,
+            notification.DeliveryPolicy);
+        Assert.Equal(["CaseId", "PropertyId"], JsonProperties(notification.PayloadJson));
+        Assert.DoesNotContain(
+            "requester",
+            notification.PayloadJson,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "rights",
+            notification.PayloadJson,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            notification.Tags,
+            tag => tag.Key == "domain:data-rights");
+        AccessRequirement[] requirements = Assert.Single(
+            authorization.Requests);
+        Assert.Equal(3, requirements.Length);
+        Assert.All(requirements, requirement =>
+        {
+            Assert.Equal(
+                DataRightsAdminPermissionCodes.Read,
+                requirement.Permission.Value);
+            Assert.Equal(
+                WorkspaceAccessScopes.CreateProperty(ScopeId, propertyId),
+                requirement.Scope);
+        });
     }
 
     [Fact]
@@ -518,7 +598,9 @@ public sealed class OperationalNotificationTests
             [
                 OperationsNotificationsDataRightsCoordinates.ForStaff(
                     ScopeId,
-                    staffMemberId)
+                    staffMemberId),
+                OperationsNotificationsDataRightsCoordinates.ForTenant(
+                    ScopeId)
             ],
             projected.References);
     }
@@ -554,12 +636,14 @@ public sealed class OperationalNotificationTests
         IWorkspaceOwnerNotificationAudienceReader workspaceOwners,
         IOrganizationAccessCandidateFilter access,
         IUserNotificationRequestProjectorV3 notifications,
-        IStaffNotificationRecipientResolver? recipientResolver = null) =>
+        IStaffNotificationRecipientResolver? recipientResolver = null,
+        IAccessAuthorizationService? authorization = null) =>
         new(
             audience,
             recipientResolver ?? new TestRecipientResolver(),
             workspaceOwners,
             access,
+            authorization ?? new TestAuthorizationService(),
             notifications);
 
     private static Guid StaffMemberIdFor(string authSubjectId) =>
@@ -652,6 +736,36 @@ public sealed class OperationalNotificationTests
                 .ToArray();
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class TestAuthorizationService(
+        IReadOnlyCollection<string>? allowedSubjects = null)
+        : IAccessAuthorizationService
+    {
+        private readonly HashSet<string>? allowed =
+            allowedSubjects?.ToHashSet(StringComparer.Ordinal);
+
+        public List<AccessRequirement[]> Requests { get; } = [];
+
+        public Task<AccessDecision> AuthorizeAsync(
+            AccessRequirement requirement,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(this.Decide(requirement));
+
+        public Task<IReadOnlyList<AccessDecision>> AuthorizeManyAsync(
+            IReadOnlyList<AccessRequirement> requirements,
+            CancellationToken cancellationToken)
+        {
+            AccessRequirement[] request = requirements.ToArray();
+            this.Requests.Add(request);
+            return Task.FromResult<IReadOnlyList<AccessDecision>>(
+                request.Select(this.Decide).ToArray());
+        }
+
+        private AccessDecision Decide(AccessRequirement requirement) =>
+            this.allowed is null || this.allowed.Contains(requirement.Subject.Id)
+                ? AccessDecision.Allowed()
+                : AccessDecision.Denied("test.denied");
     }
 
     private sealed class TestIngestionSourceLinkResolver(

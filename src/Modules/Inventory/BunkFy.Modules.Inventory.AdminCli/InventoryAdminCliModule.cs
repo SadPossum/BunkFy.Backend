@@ -238,11 +238,11 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                             out DateOnly arrival,
                             out DateOnly departure))
                     {
-                        return Result.Failure<ManualInventoryBlockDto>(InventoryApplicationErrors.StayRangeInvalid);
+                        return Result.Failure<ManualInventoryBlockMutationReceiptDto>(InventoryApplicationErrors.StayRangeInvalid);
                     }
 
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
-                    Result<ManualInventoryBlockDto> result = await dispatcher.SendAsync(
+                    Result<ManualInventoryBlockMutationReceiptDto> result = await dispatcher.SendAsync(
                         new CreateManualInventoryBlockCommand(
                             parseResult.GetValue(propertyOption),
                             parseResult.GetValue(unitOption),
@@ -252,7 +252,9 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                         token).ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
-                        WriteBlocks([result.Value], parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
+                        AdminCliOutput.WriteObject(
+                            result.Value,
+                            parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                     }
 
                     return result;
@@ -286,7 +288,7 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                 async (provider, token) =>
                 {
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
-                    Result<ManualInventoryBlockDto> result = await dispatcher.SendAsync(
+                    Result<ManualInventoryBlockMutationReceiptDto> result = await dispatcher.SendAsync(
                         new ReleaseManualInventoryBlockCommand(
                             parseResult.GetValue(propertyOption),
                             parseResult.GetValue(blockOption),
@@ -294,7 +296,9 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                         token).ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
-                        WriteBlocks([result.Value], parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
+                        AdminCliOutput.WriteObject(
+                            result.Value,
+                            parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                     }
 
                     return result;
@@ -331,11 +335,11 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                 {
                     if (!TryParseSalesMode(parseResult.GetValue(salesModeOption), out InventorySalesMode salesMode))
                     {
-                        return Result.Failure<RoomInventoryDto>(InventoryApplicationErrors.SalesModeInvalid);
+                        return Result.Failure<RoomInventoryMutationReceiptDto>(InventoryApplicationErrors.SalesModeInvalid);
                     }
 
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
-                    Result<RoomInventoryDto> result = await dispatcher.SendAsync(
+                    Result<RoomInventoryMutationReceiptDto> result = await dispatcher.SendAsync(
                         new ConfigureRoomSalesModeCommand(
                             parseResult.GetValue(propertyOption),
                             parseResult.GetValue(roomOption),
@@ -345,8 +349,8 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
 
                     if (result.IsSuccess)
                     {
-                        WriteRooms(
-                            [result.Value],
+                        AdminCliOutput.WriteObject(
+                            result.Value,
                             parseResult.GetValue(globalOptions.OutputOption) ?? AdminCliOutput.Table);
                     }
 

@@ -37,11 +37,24 @@ public sealed class ReservationsPersonalDataCatalogTests
                 nameof(ListReservationsQuery.PageSize)
             ],
             StringComparer.Ordinal),
+        [typeof(GetReservationDetailsHistoryQuery)] = new(
+            [
+                nameof(GetReservationDetailsHistoryQuery.Page),
+                nameof(GetReservationDetailsHistoryQuery.PageSize)
+            ],
+            StringComparer.Ordinal),
         [typeof(ReservationListResponse)] = new(
             [
                 nameof(ReservationListResponse.Page),
                 nameof(ReservationListResponse.PageSize),
-                nameof(ReservationListResponse.TotalCount)
+                nameof(ReservationListResponse.HasMore)
+            ],
+            StringComparer.Ordinal),
+        [typeof(ReservationDetailsHistoryListResponse)] = new(
+            [
+                nameof(ReservationDetailsHistoryListResponse.Page),
+                nameof(ReservationDetailsHistoryListResponse.PageSize),
+                nameof(ReservationDetailsHistoryListResponse.HasMore)
             ],
             StringComparer.Ordinal),
         [typeof(ReservationArrivalReminderClaimResult)] = new(
@@ -314,6 +327,7 @@ public sealed class ReservationsPersonalDataCatalogTests
                      .Where(type => typeof(IIntegrationEvent).IsAssignableFrom(type) ||
                                     type.Name.EndsWith("Dto", StringComparison.Ordinal) ||
                                     type == typeof(ReservationDetailsHistoryItem) ||
+                                    type == typeof(ReservationDetailsHistoryListResponse) ||
                                     type == typeof(ReservationListResponse))
                      .Where(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Length > 0))
         {

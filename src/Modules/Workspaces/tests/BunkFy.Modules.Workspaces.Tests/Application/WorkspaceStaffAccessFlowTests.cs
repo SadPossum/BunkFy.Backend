@@ -1110,7 +1110,8 @@ public sealed class WorkspaceStaffAccessFlowTests
             new WorkspaceStaffAccessProcessListResponse(
                 [],
                 page.Page,
-                page.PageSize));
+                page.PageSize,
+                HasMore: false));
 
         public Task AddAsync(
             WorkspaceStaffAccessProcess process,

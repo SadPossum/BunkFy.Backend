@@ -113,7 +113,9 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
             .ThenBy(candidate => candidate.Coordinate.RecordId)
             .Take(DataRightsSubjectDiscoveryLimits.MaxCandidates)
             .ToArray();
-        return Result.Success(new DataRightsSubjectDiscoveryResponse(bounded));
+        return Result.Success(new DataRightsSubjectDiscoveryResponse(
+            bounded,
+            bounded.Length == DataRightsSubjectDiscoveryLimits.MaxCandidates));
     }
 
     private Result<IReadOnlyCollection<IDataRightsSubjectDiscoveryContributor>> ResolveContributors(

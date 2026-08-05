@@ -13,6 +13,7 @@ using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Application.Events.Infrastructure;
 using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.FileManagement.LocalStorage;
@@ -810,6 +811,8 @@ public sealed class IngestionDataRightsIntegrationTests
                     .ToArray());
         builder.Services.AddSingleton<IScopeContext>(new TestScopeContext(TenantId));
         builder.Services.AddSingleton<ISystemClock>(new TestClock());
+        builder.Services.AddSingleton<IWorkspaceTerminationFenceReader>(
+            NoTerminationFenceReader.Instance);
         if (approvalGate is not null)
         {
             builder.Services.AddSingleton<
@@ -988,7 +991,10 @@ public sealed class IngestionDataRightsIntegrationTests
                             IngestionMigrations.HistoryTable,
                             IngestionMigrations.Schema))
                 .Options;
-        return new(options, new TestScopeContext(tenantId));
+        return new(
+            options,
+            new TestScopeContext(tenantId),
+            NoTerminationFenceReader.Instance);
     }
 
     private sealed class CollectingSink : IDataRightsExportSink
@@ -1014,6 +1020,19 @@ public sealed class IngestionDataRightsIntegrationTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class NoTerminationFenceReader
+        : IWorkspaceTerminationFenceReader
+    {
+        public static NoTerminationFenceReader Instance { get; } = new();
+
+        public Task<WorkspaceTerminationFenceSnapshot?> GetCurrentAsync(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<WorkspaceTerminationFenceSnapshot?>(null);
+        }
     }
 
     private sealed class TestApprovalGate

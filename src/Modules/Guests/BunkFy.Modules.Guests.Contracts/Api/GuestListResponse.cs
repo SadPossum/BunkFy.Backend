@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Contracts;
 
 public sealed record GuestListResponse(
-    IReadOnlyCollection<GuestProfileDto> Guests,
+    IReadOnlyCollection<GuestListItemDto> Guests,
     int Page,
-    int PageSize);
+    int PageSize,
+    bool HasMore);

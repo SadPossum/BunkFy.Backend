@@ -42,6 +42,8 @@ internal sealed class DataRightsPropertyProjectionConfiguration
         builder.Property(property => property.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(property => property.Name)
             .HasMaxLength(PropertiesContractLimits.PropertyNameMaxLength);
+        builder.Property(property => property.TimeZoneId)
+            .HasMaxLength(PropertiesContractLimits.TimeZoneIdMaxLength);
         builder.Property(property => property.Status).HasConversion<int>().IsRequired();
         builder.Property(property => property.TopologySourceVersion)
             .IsConcurrencyToken()

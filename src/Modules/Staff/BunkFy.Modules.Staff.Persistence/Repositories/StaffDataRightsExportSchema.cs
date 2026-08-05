@@ -14,7 +14,10 @@ internal static class StaffDataRightsExportSchema
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Staff.Persistence.DataGovernance.personal-data-catalog.v1.json";
-    private const string ExportPolicy = "include-in-authorized-staff-export";
+    private const string TenantCapableExportPolicy =
+        "include-in-authorized-staff-or-tenant-export";
+    private const string SubjectExportPolicy =
+        "include-in-authorized-staff-export";
     private const string ExportRetentionPolicy = "staff-data-rights-export-fragment";
 
     private static readonly JsonSerializerOptions ValueSerializerOptions = CreateSerializerOptions();
@@ -207,7 +210,13 @@ internal static class StaffDataRightsExportSchema
             PersonalDataRightsPolicy rightsPolicy = catalog.RightsPolicies.Single(
                 policy => string.Equals(policy.Id, field.RightsPolicy, StringComparison.Ordinal));
             foreach (PersonalDataMemberBinding binding in field.Bindings.Where(
-                         binding => binding.Surface == PersonalDataSurface.DataRightsExport))
+                         binding =>
+                             binding.Surface ==
+                                 PersonalDataSurface.DataRightsExport &&
+                             string.Equals(
+                                 binding.RetentionPolicy,
+                                 ExportRetentionPolicy,
+                                 StringComparison.Ordinal)))
             {
                 string key = string.Join('|', binding.Type, binding.Member);
                 if (!expectedMembers.Contains(key) ||
@@ -216,7 +225,7 @@ internal static class StaffDataRightsExportSchema
                         field.AuthoritativeOwner,
                         StaffDataRightsDiscoveryContributor.Owner,
                         StringComparison.Ordinal) ||
-                    !string.Equals(rightsPolicy.Export, ExportPolicy, StringComparison.Ordinal) ||
+                    !IsAuthorizedExportPolicy(rightsPolicy.Export) ||
                     !field.AllowedBoundaries.Contains(PersonalDataBoundary.CrossModule) ||
                     !string.Equals(
                         binding.RetentionPolicy,
@@ -257,6 +266,16 @@ internal static class StaffDataRightsExportSchema
 
     private static string MemberKey(Type sourceType, string member) =>
         string.Join('|', sourceType.FullName, member);
+
+    private static bool IsAuthorizedExportPolicy(string exportPolicy) =>
+        string.Equals(
+            exportPolicy,
+            TenantCapableExportPolicy,
+            StringComparison.Ordinal) ||
+        string.Equals(
+            exportPolicy,
+            SubjectExportPolicy,
+            StringComparison.Ordinal);
 
     private static JsonSerializerOptions CreateSerializerOptions()
     {

@@ -17,6 +17,7 @@ using BunkFy.Modules.Workspaces.Domain.Events;
 using BunkFy.Modules.Workspaces.Domain.Termination;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.Modules.Workspaces.Persistence.Repositories;
+using BunkFy.Modules.Workspaces.Persistence.TenantTermination;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
 using Gma.Modules.Organizations.Contracts;
@@ -165,7 +166,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
         typeof(WorkspaceStaffAccessPlanProperty),
         typeof(WorkspaceStaffRetentionCorrelationReceipt),
         typeof(WorkspaceTerminationFence),
-        typeof(WorkspaceTerminationFenceReceipt)
+        typeof(WorkspaceTerminationFenceReceipt),
+        typeof(WorkspaceTenantDestroyOperation),
+        typeof(WorkspaceTenantDestroyReceipt)
     ];
 
     private static IEnumerable<(PersonalDataSurface Surface, Type Type)> BoundaryTypes()
@@ -334,7 +337,7 @@ public sealed class WorkspacesPersonalDataCatalogTests
         }.ToDictionary(assembly => assembly.GetName().Name!, StringComparer.Ordinal);
 
     private static HashSet<string> PaginationMembers() =>
-        new(["Page", "PageSize"], StringComparer.Ordinal);
+        new(["Page", "PageSize", "HasMore"], StringComparer.Ordinal);
 
     private static PersonalDataCatalogDocument LoadCatalogue() => PersonalDataCatalogJson.Parse(
         File.ReadAllBytes(Path.Combine(

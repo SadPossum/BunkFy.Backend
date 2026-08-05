@@ -31,3 +31,7 @@ internal sealed record PropertyNotificationPayload(
 
 internal sealed record StaffProfileNotificationPayload(
     Guid StaffMemberId) : IOperationalNotificationPayload;
+
+internal sealed record DataRightsDeadlineNotificationPayload(
+    Guid PropertyId,
+    Guid CaseId) : IOperationalNotificationPayload;

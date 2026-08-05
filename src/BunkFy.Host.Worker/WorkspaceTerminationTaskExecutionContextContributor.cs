@@ -20,7 +20,9 @@ internal sealed class WorkspaceTerminationTaskExecutionContextContributor(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (!context.Registration.IsTenantScoped())
+        bool tenantScoped = context.Registration.IsTenantScoped();
+        bool globalTermination = IsGlobalTerminationRegistration(context);
+        if (!tenantScoped && !globalTermination)
         {
             return TaskExecutionContextPreparationResult.Success();
         }
@@ -43,7 +45,10 @@ internal sealed class WorkspaceTerminationTaskExecutionContextContributor(
 
         if (fence is null)
         {
-            return TaskExecutionContextPreparationResult.Success();
+            return globalTermination
+                ? TaskExecutionContextPreparationResult.Failure(
+                    "The workspace termination fence is unavailable.")
+                : TaskExecutionContextPreparationResult.Success();
         }
 
         if (!IsValid(fence))
@@ -77,9 +82,18 @@ internal sealed class WorkspaceTerminationTaskExecutionContextContributor(
 
     private static bool IsExactTerminationTask(
         TaskExecutionContextPreparationContext context,
+        Guid processId) =>
+        IsExactScopedTerminationTask(context, processId) ||
+        IsExactGlobalTerminationTask(context, processId);
+
+    private static bool IsExactScopedTerminationTask(
+        TaskExecutionContextPreparationContext context,
         Guid processId)
     {
-        if (!string.Equals(
+        if (context.Registration.PayloadType !=
+                typeof(ExecuteTenantTerminationOwnerWorkPayload) ||
+            !context.Registration.IsTenantScoped() ||
+            !string.Equals(
                 context.Lease.ModuleName,
                 DataRightsModuleMetadata.Name,
                 StringComparison.Ordinal) ||
@@ -105,6 +119,64 @@ internal sealed class WorkspaceTerminationTaskExecutionContextContributor(
                 payload.WorkItemId != Guid.Empty &&
                 payload.OperationRevision > 0 &&
                 payload.Phase != TenantTerminationContributionPhase.Unknown &&
+                !string.IsNullOrWhiteSpace(payload.OwnerKey);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsGlobalTerminationRegistration(
+        TaskExecutionContextPreparationContext context) =>
+        context.Registration.PayloadType ==
+            typeof(ExecuteGlobalTenantTerminationOwnerWorkPayload) &&
+        !context.Registration.IsTenantScoped() &&
+        string.Equals(
+            context.Registration.ModuleName,
+            DataRightsModuleMetadata.Name,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            context.Registration.TaskName,
+            ExecuteGlobalTenantTerminationOwnerWorkPayload.TaskName,
+            StringComparison.Ordinal) &&
+        context.Registration.PayloadVersion ==
+            ExecuteGlobalTenantTerminationOwnerWorkPayload.PayloadVersion &&
+        string.Equals(
+            context.Lease.ModuleName,
+            context.Registration.ModuleName,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            context.Lease.TaskName,
+            context.Registration.TaskName,
+            StringComparison.Ordinal) &&
+        context.Lease.PayloadVersion == context.Registration.PayloadVersion;
+
+    private static bool IsExactGlobalTerminationTask(
+        TaskExecutionContextPreparationContext context,
+        Guid processId)
+    {
+        if (!IsGlobalTerminationRegistration(context) ||
+            context.Lease.ScopeId is not null ||
+            context.Lease.CorrelationId != processId)
+        {
+            return false;
+        }
+
+        try
+        {
+            ExecuteGlobalTenantTerminationOwnerWorkPayload? payload =
+                JsonSerializer.Deserialize<
+                    ExecuteGlobalTenantTerminationOwnerWorkPayload>(
+                        context.Lease.PayloadJson,
+                        JsonOptions);
+            return payload is not null &&
+                payload.ProcessId == processId &&
+                payload.WorkItemId != Guid.Empty &&
+                payload.OperationRevision > 0 &&
+                payload.Phase ==
+                    TenantTerminationContributionPhase.Destroy &&
+                !string.IsNullOrWhiteSpace(payload.TenantId) &&
                 !string.IsNullOrWhiteSpace(payload.OwnerKey);
         }
         catch (JsonException)

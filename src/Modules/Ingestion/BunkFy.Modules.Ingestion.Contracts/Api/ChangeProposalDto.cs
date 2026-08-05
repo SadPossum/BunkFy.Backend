@@ -40,28 +40,22 @@ public sealed record ChangeProposalDto(
     DateTimeOffset? DecidedAtUtc,
     DateTimeOffset? CompletedAtUtc);
 
-public sealed record ChangeProposalSummaryDto(
+public sealed record ChangeProposalListItemDto(
     Guid ProposalId,
-    Guid PropertyId,
-    Guid ConnectionId,
-    Guid ReceiptId,
     Guid ReservationId,
     long BaseReservationDetailsRevision,
     string ReasonCode,
-    SensitiveHistoryStatus SensitiveHistoryStatus,
-    DateTimeOffset? SensitiveDataRetainUntilUtc,
-    DateTimeOffset? SensitiveDataRedactedAtUtc,
     ChangeProposalStatus Status,
-    string? DecisionActor,
-    string? DecisionReason,
-    Guid? ProductOperationId,
-    long Version,
-    DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? DecidedAtUtc,
-    DateTimeOffset? CompletedAtUtc);
+    DateTimeOffset CreatedAtUtc);
 
 public sealed record ChangeProposalListResponse(
-    IReadOnlyCollection<ChangeProposalSummaryDto> Proposals,
+    IReadOnlyCollection<ChangeProposalListItemDto> Proposals,
     int Page,
     int PageSize,
-    long TotalCount);
+    bool HasMore);
+
+public sealed record ChangeProposalMutationReceiptDto(
+    Guid ProposalId,
+    ChangeProposalStatus Status,
+    long Version,
+    Guid? ProductOperationId);

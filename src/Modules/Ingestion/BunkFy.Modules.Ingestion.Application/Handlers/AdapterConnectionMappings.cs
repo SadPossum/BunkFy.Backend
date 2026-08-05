@@ -22,6 +22,11 @@ internal static class AdapterConnectionMappings
         connection.CreatedAtUtc,
         connection.UpdatedAtUtc);
 
+    public static AdapterConnectionMutationReceiptDto MapReceipt(AdapterConnection connection) => new(
+        connection.Id,
+        (AdapterConnectionStatus)(int)connection.State,
+        connection.Version);
+
     public static bool TryMap(AdapterConflictPolicy policy, out IngestionConflictPolicy mapped)
     {
         mapped = policy switch

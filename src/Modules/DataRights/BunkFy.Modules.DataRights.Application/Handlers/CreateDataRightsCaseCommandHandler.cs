@@ -15,6 +15,7 @@ using Gma.Framework.Scoping;
 
 internal sealed class CreateDataRightsCaseCommandHandler(
     IDataRightsCaseRepository cases,
+    IDataRightsResponseDeadlinePolicy responseDeadlinePolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<CreateDataRightsCaseCommand, DataRightsCaseDto>
@@ -39,12 +40,30 @@ internal sealed class CreateDataRightsCaseCommandHandler(
             return Result.Failure<DataRightsCaseDto>(request.Error);
         }
 
+        DateTimeOffset nowUtc = clock.UtcNow;
+        DataRightsResponseDeadlinePolicyEvidence? deadlineEvidence = null;
+        if (RequiresGuestResponseDeadline(request.Value))
+        {
+            Result<DataRightsResponseDeadlinePolicyEvidence> deadline =
+                await responseDeadlinePolicy.ResolveGuestAsync(
+                    request.Value.PropertyId!.Value,
+                    request.Value.RequestedOperations,
+                    nowUtc,
+                    nowUtc,
+                    cancellationToken).ConfigureAwait(false);
+            if (deadline.IsSuccess)
+            {
+                deadlineEvidence = deadline.Value;
+            }
+        }
+
         Result<DataRightsCase> created = DataRightsCase.Create(
             ids.NewId(),
             scopeContext.ScopeId,
             request.Value,
             command.ActorId,
-            clock.UtcNow);
+            nowUtc,
+            deadlineEvidence);
         if (created.IsFailure)
         {
             return Result.Failure<DataRightsCaseDto>(created.Error);
@@ -53,4 +72,10 @@ internal sealed class CreateDataRightsCaseCommandHandler(
         await cases.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
         return Result.Success(created.Value.ToDto());
     }
+
+    private static bool RequiresGuestResponseDeadline(DataRightsCaseRequest request) =>
+        request.Kind == DataRightsCaseKind.GuestRights &&
+        request.RequesterRelationship is
+            DataRightsRequesterRelation.DataSubject or
+            DataRightsRequesterRelation.AuthorizedRepresentative;
 }

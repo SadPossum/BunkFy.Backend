@@ -324,7 +324,11 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         public Task<WorkspaceStaffOnboardingListResponse> ListActionableAsync(
             PageRequest page,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new WorkspaceStaffOnboardingListResponse([], page.Page, page.PageSize));
+            Task.FromResult(new WorkspaceStaffOnboardingListResponse(
+                [],
+                page.Page,
+                page.PageSize,
+                HasMore: false));
 
         public Task ReloadAsync(
             WorkspaceStaffOnboarding application,

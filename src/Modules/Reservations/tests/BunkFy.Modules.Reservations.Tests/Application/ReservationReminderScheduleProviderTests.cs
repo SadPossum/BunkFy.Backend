@@ -14,8 +14,9 @@ public sealed class ReservationReminderScheduleProviderTests
     {
         ReservationReminderScheduleProvider provider = new(new FakeRepository(["tenant-b"]));
 
-        ScheduledTaskDefinition[] schedules = (await provider.GetSchedulesAsync(CancellationToken.None))
-            .ToArray();
+        ScheduledTaskDefinition[] schedules = await provider
+            .GetSchedulesAsync(CancellationToken.None)
+            .ToArrayAsync(CancellationToken.None);
 
         Assert.Equal(2, schedules.Length);
         Assert.All(schedules, schedule =>

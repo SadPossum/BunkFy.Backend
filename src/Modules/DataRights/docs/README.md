@@ -11,6 +11,13 @@ deterministically generated
 
 - tenant- and property-scoped, optimistic-concurrency case lifecycle;
 - explicit requester-verification and controller-routing gates before discovery;
+- calendar- and daylight-saving-safe response deadlines for externally
+  requested Guest Rights cases, resolved from the property time zone and exact
+  schema-v2 country-policy binding without rejecting intake when policy data is
+  temporarily unavailable;
+- immutable deadline evidence freezes the controlling right, calendar period,
+  policy digest and property topology/policy source revisions; routing retries
+  missing evidence and discovery fails closed until it is assigned;
 - PII-minimal case storage with authenticated staff actor attribution;
 - bounded, exact-coordinate discovery delegated to authoritative owner modules;
 - Guests-owned discovery with property-history visibility, masked contact hints,
@@ -56,15 +63,17 @@ deterministically generated
 - a neutral streaming contributor/sink contract; callers must discard partial
   fragments unless the owner returns success;
 - scoped permissions that are not granted to ordinary seeded roles;
-- public management API plus empty Admin API and Admin CLI composition shells;
-- a DataRights-owned Properties policy projection populated only through
-  versioned Properties events or the bounded projection-rebuild contract;
+- public controller API plus tenant-termination Admin API and Admin CLI
+  operator controls;
+- a DataRights-owned Properties topology and policy projection, including the
+  property time zone, populated only through versioned Properties events or
+  the bounded projection-rebuild contract;
 - PostgreSQL persistence, inbox/outbox infrastructure and focused architecture,
-  privacy, domain, persistence, migration and authorization tests.
-- a disabled tenant-termination coordinator foundation with one active process
-  per tenant, exact owner proof coordinates, bounded PII-free contributor
-  contracts, and a reserved but unregistered task identity; no endpoint or
-  destructive owner execution is exposed yet.
+  privacy, domain, persistence, migration and authorization tests;
+- an audited tenant-termination coordinator with one active process per tenant,
+  exact owner-proof coordinates, bounded PII-free contributors, Admin API/CLI
+  controls, protected start-intent recovery, and Worker-only destructive
+  production admission.
 
 The worker can rebuild the Properties policy projection for one tenant:
 
@@ -81,3 +90,33 @@ now reaches immutable owner and processing-ledger proof, with protected
 pre-readiness replay after database restore. Existing reservation facts remain
 owned by Reservations; only its local Guest-link eligibility projection is
 updated from the PII-free Guests event.
+
+## Operational Surfaces
+
+- The controller queue returns compact case summaries. Full selected-coordinate
+  and approval/deadline evidence remains available only through scoped detail
+  reads. The compact Guest Rights summary carries requester relationship and
+  due time so the UI can distinguish policy-pending, scheduled, due-soon and
+  overdue cases without an N+1 detail query.
+- A tenant-scoped recurring task scans eligible external Guest Rights cases in
+  bounded batches. It records one append-only receipt per case and alert kind
+  in the same transaction as the PII-minimal outbox event: due-soon within 48
+  hours, then overdue after the deadline. Delayed runs emit only the current
+  state, and terminal or policy-pending cases are excluded.
+- Data Rights publishes the deadline fact but does not choose notification
+  recipients. The Operations Notifications extension applies current Staff
+  membership and exact property-scoped `data-rights.read` authorization.
+- Queue reads use a no-tracking scalar projection, stable ordering, and one-row
+  lookahead to return truthful `HasMore` without an exact-count query.
+- Property- and tenant-scoped public route groups apply `no-store` and related
+  cache protections to every response, including case lifecycle responses.
+- Exact subject discovery remains bounded to 20 candidates and returns
+  `LimitReached` when that bound is filled, prompting the operator to refine a
+  strong identifier rather than broadening the search.
+- Schema-v2 country packs define structural year/month/day response periods and
+  allowlisted calculation time zones. Immutable v1 packs remain valid for
+  ordinary processing but cannot authorize Guest Rights deadlines.
+- Staff Rights deadlines remain intentionally unset until BunkFy has an
+  explicit employment-jurisdiction source. Property policy is never borrowed
+  for a tenant-scoped Staff case, and no BunkFy jurisdiction vocabulary belongs
+  in GMA.

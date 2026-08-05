@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 2,
+  "policyId": "development-hostel-example",
+  "policyVersion": 2,
+  "operatingCountryCode": "GB",
+  "approvalState": "example",
+  "effectiveAtUtc": "2020-01-01T00:00:00Z",
+  "expiresAtUtc": "2099-01-01T00:00:00Z",
+  "accommodationTypes": [ "hostel" ],
+  "guestCategories": [ "ordinary-guest" ],
+  "fieldRules": [
+    {
+      "fieldPolicyKey": "guest.primary-name",
+      "guestCategory": "ordinary-guest",
+      "requirement": "required",
+      "purposeCodes": [
+        "data-rights-correction",
+        "data-rights-anonymisation",
+        "data-rights-restriction",
+        "guest-profile-management",
+        "reservation-management",
+        "reservation-ingestion"
+      ]
+    }
+  ],
+  "purposeRules": [
+    {
+      "purposeCode": "property-activation",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "property-activation" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "data-rights-anonymisation",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "erasure" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "data-rights-correction",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "data-rights-restriction",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "guest-profile-management",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "guest-profile-retention",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "retention" ],
+      "allowedSourceProvenance": [ "retention-worker" ]
+    },
+    {
+      "purposeCode": "staff-employment-governance",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "staff-data-rights-anonymisation",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "erasure" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "staff-profile-retention",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "retention" ],
+      "allowedSourceProvenance": [ "retention-worker" ]
+    },
+    {
+      "purposeCode": "reservation-retention",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "retention" ],
+      "allowedSourceProvenance": [ "retention-worker" ]
+    },
+    {
+      "purposeCode": "reservation-management",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write" ],
+      "allowedSourceProvenance": [ "authorized-workspace-operator" ]
+    },
+    {
+      "purposeCode": "reservation-ingestion",
+      "legalRuleReferenceKeys": [ "development-only-example" ],
+      "allowedSurfaces": [ "api-write", "adapter-ingress", "import" ],
+      "allowedSourceProvenance": [
+        "authorized-workspace-operator",
+        "approved-adapter",
+        "approved-parser",
+        "approved-ingestion"
+      ]
+    }
+  ],
+  "retentionRules": [
+    {
+      "retentionPolicyId": "development-guest-operational",
+      "retentionPolicyVersion": 1,
+      "dataClass": "guest-operational",
+      "trigger": "stay-ended",
+      "period": "365.00:00:00"
+    },
+    {
+      "retentionPolicyId": "development-guest-operational",
+      "retentionPolicyVersion": 1,
+      "dataClass": "reservation-operational",
+      "trigger": "reservation-ended",
+      "period": "365.00:00:00"
+    },
+    {
+      "retentionPolicyId": "development-staff-employment",
+      "retentionPolicyVersion": 1,
+      "dataClass": "staff-employment",
+      "trigger": "employment-ended",
+      "period": "2555.00:00:00"
+    }
+  ],
+  "rightsRule": {
+    "registration": "development-example",
+    "export": "development-example",
+    "correction": "development-example",
+    "restriction": "development-example",
+    "erasure": "development-example",
+    "responseRules": [
+      {
+        "right": "export",
+        "period": { "years": 0, "months": 1, "days": 0 },
+        "allowedTimeZoneIds": [ "Europe/London" ]
+      },
+      {
+        "right": "correction",
+        "period": { "years": 0, "months": 1, "days": 0 },
+        "allowedTimeZoneIds": [ "Europe/London" ]
+      },
+      {
+        "right": "restriction",
+        "period": { "years": 0, "months": 1, "days": 0 },
+        "allowedTimeZoneIds": [ "Europe/London" ]
+      },
+      {
+        "right": "erasure",
+        "period": { "years": 0, "months": 1, "days": 0 },
+        "allowedTimeZoneIds": [ "Europe/London" ]
+      }
+    ]
+  },
+  "restrictions": {
+    "minors": "development-not-assessed",
+    "documents": "document-images-prohibited",
+    "specialCategoryData": "prohibited"
+  },
+  "permittedDataRegions": [ "development-local" ],
+  "permittedTransferProfiles": [ "development-no-transfer" ],
+  "requiredAcknowledgements": [
+    {
+      "acknowledgementId": "development-example-notice",
+      "acknowledgementVersion": 1
+    }
+  ],
+  "approval": {
+    "ownerReference": "development-only",
+    "reviewerReference": "development-only",
+    "reviewedAtUtc": "2020-01-01T00:00:00Z",
+    "sources": [
+      {
+        "referenceId": "development-example",
+        "uri": "https://example.test/bunkfy/development-country-policy"
+      }
+    ],
+    "detachedSignatureReference": "development-only-not-signed"
+  }
+}

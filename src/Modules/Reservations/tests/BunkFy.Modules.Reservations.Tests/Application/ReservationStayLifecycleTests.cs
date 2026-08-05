@@ -27,7 +27,7 @@ public sealed class ReservationStayLifecycleTests
             new TestClock(),
             new TestIdGenerator());
 
-        Result<ReservationDto> result = await handler.HandleAsync(
+        Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             new CheckInReservationCommand(
                 reservation.PropertyId,
                 reservation.Id,
@@ -38,9 +38,9 @@ public sealed class ReservationStayLifecycleTests
 
         Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Equal(ReservationStatus.CheckedIn, result.Value.Status);
-        Assert.Equal(new DateOnly(2026, 8, 1), result.Value.CheckedInBusinessDate);
-        Assert.Equal("user:operator-a", result.Value.CheckedInBy);
-        Assert.Equal(TestClock.Now, result.Value.CheckedInAtUtc);
+        Assert.Equal(new DateOnly(2026, 8, 1), reservation.CheckedInBusinessDate);
+        Assert.Equal("user:operator-a", reservation.CheckedInBy);
+        Assert.Equal(TestClock.Now, reservation.CheckedInAtUtc);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public sealed class ReservationStayLifecycleTests
             ReservationListOrder order,
             PageRequest pageRequest,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize, 0));
+            Task.FromResult(new ReservationListResponse([], pageRequest.Page, pageRequest.PageSize, false));
     }
 
     private sealed class RecordingOutbox : IOutboxWriter

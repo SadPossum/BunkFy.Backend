@@ -4,6 +4,7 @@ using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Entities;
 using BunkFy.Modules.Properties.Domain.Errors;
 using BunkFy.Modules.Properties.Domain.Events;
+using BunkFy.Modules.Properties.Domain.ValueObjects;
 using Gma.Framework.Results;
 using Xunit;
 
@@ -59,6 +60,70 @@ public sealed class RoomAggregateTests
         Assert.Equal(
             PropertiesDomainErrors.RoomRetired,
             room.AddBed(Guid.NewGuid(), "A", room.Version, Guid.NewGuid(), DateTimeOffset.UtcNow).Error);
+    }
+
+    [Fact]
+    public void Bed_batch_adds_every_bed_with_ordered_room_versions()
+    {
+        Room room = CreateRoom().Value;
+        room.ClearDomainEvents();
+
+        Result<IReadOnlyCollection<Bed>> result = room.AddBeds(
+            [
+                new BedAdditionDefinition(Guid.NewGuid(), " A ", Guid.NewGuid()),
+                new BedAdditionDefinition(Guid.NewGuid(), "B", Guid.NewGuid()),
+                new BedAdditionDefinition(Guid.NewGuid(), "C", Guid.NewGuid())
+            ],
+            room.Version,
+            DateTimeOffset.UtcNow);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["A", "B", "C"], result.Value.Select(bed => bed.Label.Value));
+        Assert.Equal(4, room.Version);
+        Assert.Equal([2L, 3L, 4L], room.DomainEvents
+            .Cast<BedAddedDomainEvent>()
+            .Select(domainEvent => domainEvent.RoomVersion));
+    }
+
+    [Fact]
+    public void Invalid_bed_batch_does_not_partially_mutate_the_room()
+    {
+        Room room = CreateRoom().Value;
+        room.ClearDomainEvents();
+
+        Result<IReadOnlyCollection<Bed>> result = room.AddBeds(
+            [
+                new BedAdditionDefinition(Guid.NewGuid(), "A", Guid.NewGuid()),
+                new BedAdditionDefinition(Guid.NewGuid(), " ", Guid.NewGuid())
+            ],
+            room.Version,
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(PropertiesDomainErrors.BedLabelRequired, result.Error);
+        Assert.Empty(room.Beds);
+        Assert.Empty(room.DomainEvents);
+        Assert.Equal(1, room.Version);
+        Assert.Null(room.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void Duplicate_bed_labels_reject_the_entire_batch()
+    {
+        Room room = CreateRoom().Value;
+        room.ClearDomainEvents();
+
+        Result<IReadOnlyCollection<Bed>> result = room.AddBeds(
+            [
+                new BedAdditionDefinition(Guid.NewGuid(), " A ", Guid.NewGuid()),
+                new BedAdditionDefinition(Guid.NewGuid(), "A", Guid.NewGuid())
+            ],
+            room.Version,
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(PropertiesDomainErrors.BedAlreadyExists, result.Error);
+        Assert.Empty(room.Beds);
+        Assert.Empty(room.DomainEvents);
+        Assert.Equal(1, room.Version);
     }
 
     [Fact]

@@ -90,7 +90,7 @@ public sealed class ReservationDispatchFlowTests
 
         context.Outbox.Events.Clear();
         AcceptChangeProposalCommand accept = new(context.Connection.PropertyId, proposal.Id, "staff:42", proposal.Version, 2);
-        Result<ChangeProposalDecisionResult> accepted = await context.AcceptHandler.HandleAsync(
+        Result<ChangeProposalMutationReceiptDto> accepted = await context.AcceptHandler.HandleAsync(
             accept,
             CancellationToken.None);
 
@@ -355,8 +355,8 @@ public sealed class ReservationDispatchFlowTests
             provider.GetRequiredService<ICommandHandler<DispatchNormalizedReservationObservationCommand, ReservationObservationDispatchResult>>(),
             provider.GetRequiredService<ReservationOperationOutcomeHandler>(),
             provider.GetRequiredService<ReservationCancelledForIngestionHandler>(),
-            provider.GetRequiredService<ICommandHandler<AcceptChangeProposalCommand, ChangeProposalDecisionResult>>(),
-            provider.GetRequiredService<ICommandHandler<RejectChangeProposalCommand, ChangeProposalDecisionResult>>());
+            provider.GetRequiredService<ICommandHandler<AcceptChangeProposalCommand, ChangeProposalMutationReceiptDto>>(),
+            provider.GetRequiredService<ICommandHandler<RejectChangeProposalCommand, ChangeProposalMutationReceiptDto>>());
     }
 
     private static ObservationReceipt CreateReceipt(
@@ -501,8 +501,8 @@ public sealed class ReservationDispatchFlowTests
         ICommandHandler<DispatchNormalizedReservationObservationCommand, ReservationObservationDispatchResult> Dispatcher,
         IIntegrationEventHandler<ExternalReservationOperationCompletedIntegrationEvent> OutcomeHandler,
         IIntegrationEventHandler<ReservationCancelledIntegrationEvent> CancellationHandler,
-        ICommandHandler<AcceptChangeProposalCommand, ChangeProposalDecisionResult> AcceptHandler,
-        ICommandHandler<RejectChangeProposalCommand, ChangeProposalDecisionResult> RejectHandler);
+        ICommandHandler<AcceptChangeProposalCommand, ChangeProposalMutationReceiptDto> AcceptHandler,
+        ICommandHandler<RejectChangeProposalCommand, ChangeProposalMutationReceiptDto> RejectHandler);
 
     private sealed record SeededProposal(
         ChangeProposal Proposal,

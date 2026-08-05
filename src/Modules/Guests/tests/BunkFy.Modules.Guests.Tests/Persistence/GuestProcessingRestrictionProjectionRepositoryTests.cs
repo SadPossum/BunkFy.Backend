@@ -169,7 +169,7 @@ public sealed class GuestProcessingRestrictionProjectionRepositoryTests
             null,
             new PageRequest(1, 20),
             CancellationToken.None);
-        GuestProfileDto onlyVisible = Assert.Single(visible.Guests);
+        GuestListItemDto onlyVisible = Assert.Single(visible.Guests);
         Assert.Equal(unrestricted.Id, onlyVisible.GuestId);
     }
 

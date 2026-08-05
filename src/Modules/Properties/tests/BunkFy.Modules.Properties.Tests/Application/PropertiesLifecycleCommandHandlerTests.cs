@@ -58,10 +58,10 @@ public sealed class PropertiesLifecycleCommandHandlerTests
         Property property = CreateProperty();
         FakeRoomRepository rooms = new();
         ServiceProvider provider = CreateProvider(property, rooms);
-        ICommandHandler<CreateRoomCommand, RoomDto> handler =
-            provider.GetRequiredService<ICommandHandler<CreateRoomCommand, RoomDto>>();
+        ICommandHandler<CreateRoomCommand, RoomMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<CreateRoomCommand, RoomMutationReceiptDto>>();
 
-        Result<RoomDto> result = await handler.HandleAsync(
+        Result<RoomMutationReceiptDto> result = await handler.HandleAsync(
             new CreateRoomCommand(property.Id, ExpectedPropertyVersion: 99, "101", null, null),
             CancellationToken.None);
 

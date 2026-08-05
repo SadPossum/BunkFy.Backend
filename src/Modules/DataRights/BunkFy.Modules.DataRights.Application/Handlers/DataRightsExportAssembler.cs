@@ -1,6 +1,5 @@
 namespace BunkFy.Modules.DataRights.Application.Handlers;
 
-using System.Text;
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Application.Ports;
@@ -48,7 +47,7 @@ internal sealed class DataRightsExportAssembler(
         writer.WriteString("expiresAtUtc", request.ExpiresAtUtc);
         writer.WriteStartArray("subjects");
 
-        int totalRecords = 0;
+        long totalRecords = 0;
         foreach (DataRightsSubjectCoordinate subject in subjects)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -62,11 +61,12 @@ internal sealed class DataRightsExportAssembler(
             WriteDescriptor(writer, descriptor);
             writer.WriteStartArray("records");
 
-            JsonExportSink sink = new(
+            DataRightsJsonExportSink sink = new(
                 writer,
                 descriptor,
                 () => totalRecords,
-                count => totalRecords = count);
+                count => totalRecords = count,
+                MaximumRecords);
             DataRightsSubjectExportResult result;
             try
             {
@@ -92,14 +92,14 @@ internal sealed class DataRightsExportAssembler(
 
             if (result is null ||
                 result.Status != DataRightsSubjectExportStatus.Succeeded ||
-                result.RecordCount != sink.SubjectRecordCount)
+                result.RecordCount != sink.RecordCount)
             {
                 throw new DataRightsExportGenerationException(
                     StatusCode(result?.Status));
             }
 
             writer.WriteEndArray();
-            writer.WriteNumber("recordCount", sink.SubjectRecordCount);
+            writer.WriteNumber("recordCount", sink.RecordCount);
             writer.WriteEndObject();
         }
 
@@ -111,7 +111,9 @@ internal sealed class DataRightsExportAssembler(
         writer.WriteEndObject();
         writer.Flush();
 
-        return new DataRightsExportAssemblyResult(subjects.Length, totalRecords);
+        return new DataRightsExportAssemblyResult(
+            subjects.Length,
+            checked((int)totalRecords));
     }
 
     private IReadOnlyDictionary<string, IDataRightsSubjectExportContributor>
@@ -195,35 +197,19 @@ internal sealed class DataRightsExportAssembler(
         IDataRightsSubjectExportContributor contributor,
         string ownerKey)
     {
-        DataRightsExportDescriptor descriptor = contributor.Descriptor;
         string normalizedOwner = ownerKey.Trim().ToLowerInvariant();
         if (!string.Equals(
                 contributor.OwnerKey.Trim(),
                 normalizedOwner,
-                StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(
-                descriptor.OwnerKey?.Trim(),
-                normalizedOwner,
-                StringComparison.OrdinalIgnoreCase) ||
-            string.IsNullOrWhiteSpace(descriptor.CatalogId) ||
-            descriptor.CatalogSchemaVersion <= 0 ||
-            descriptor.CatalogVersion <= 0 ||
-            string.IsNullOrWhiteSpace(descriptor.ExportSchemaId) ||
-            descriptor.ExportSchemaVersion <= 0 ||
-            descriptor.FieldIds is null ||
-            descriptor.FieldIds.Count is <= 0 or >
-                DataRightsExportLimits.MaxFieldsPerRecord ||
-            descriptor.FieldIds.Any(field =>
-                string.IsNullOrWhiteSpace(field) ||
-                field.Trim().Length > DataRightsExportLimits.FieldIdMaxLength) ||
-            descriptor.FieldIds.Distinct(StringComparer.Ordinal).Count() !=
-                descriptor.FieldIds.Count)
+                StringComparison.OrdinalIgnoreCase))
         {
             throw new DataRightsExportGenerationException(
                 "owner-descriptor-invalid");
         }
 
-        return descriptor;
+        return DataRightsExportSchemaValidator.Validate(
+            contributor.Descriptor,
+            normalizedOwner);
     }
 
     private static void WriteCoordinate(
@@ -270,77 +256,4 @@ internal sealed class DataRightsExportAssembler(
             _ => "owner-result-invalid"
         };
 
-    private sealed class JsonExportSink(
-        Utf8JsonWriter writer,
-        DataRightsExportDescriptor descriptor,
-        Func<int> totalCount,
-        Action<int> setTotalCount)
-        : IDataRightsExportSink
-    {
-        private readonly HashSet<string> allowedFields =
-            descriptor.FieldIds.ToHashSet(StringComparer.Ordinal);
-
-        public int SubjectRecordCount { get; private set; }
-
-        public ValueTask WriteAsync(
-            DataRightsExportRecord record,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            this.ValidateRecord(record);
-            int nextTotal = checked(totalCount() + 1);
-            if (nextTotal > MaximumRecords)
-            {
-                throw new DataRightsExportGenerationException(
-                    "record-limit-exceeded");
-            }
-
-            writer.WriteStartObject();
-            writer.WriteString("recordType", record.RecordType.Trim().ToLowerInvariant());
-            writer.WriteString("recordId", record.RecordId);
-            writer.WriteNumber("recordVersion", record.RecordVersion);
-            writer.WriteStartObject("fields");
-            foreach (DataRightsExportField field in record.Fields
-                .OrderBy(item => item.FieldId, StringComparer.Ordinal))
-            {
-                writer.WritePropertyName(field.FieldId);
-                field.Value.WriteTo(writer);
-            }
-
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-            this.SubjectRecordCount++;
-            setTotalCount(nextTotal);
-            return ValueTask.CompletedTask;
-        }
-
-        private void ValidateRecord(DataRightsExportRecord? record)
-        {
-            if (record is null ||
-                string.IsNullOrWhiteSpace(record.RecordType) ||
-                record.RecordType.Trim().Length >
-                    DataRightsExportLimits.RecordTypeMaxLength ||
-                record.RecordId == Guid.Empty ||
-                record.RecordVersion <= 0 ||
-                record.Fields is null ||
-                record.Fields.Count is <= 0 or >
-                    DataRightsExportLimits.MaxFieldsPerRecord ||
-                record.Fields.Any(field =>
-                    field is null ||
-                    string.IsNullOrWhiteSpace(field.FieldId) ||
-                    field.FieldId.Trim().Length >
-                        DataRightsExportLimits.FieldIdMaxLength ||
-                    !this.allowedFields.Contains(field.FieldId) ||
-                    field.Value.ValueKind == JsonValueKind.Undefined ||
-                    Encoding.UTF8.GetByteCount(field.Value.GetRawText()) >
-                        DataRightsExportLimits.MaxFieldValueBytes) ||
-                record.Fields.Select(field => field.FieldId)
-                    .Distinct(StringComparer.Ordinal).Count() !=
-                    record.Fields.Count)
-            {
-                throw new DataRightsExportGenerationException(
-                    "owner-record-invalid");
-            }
-        }
-    }
 }

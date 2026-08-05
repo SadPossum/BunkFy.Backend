@@ -9,16 +9,28 @@ public static class WorkspaceStaffAccessMappings
         process.Id,
         Guid.Parse(process.ScopeId),
         process.StaffMemberId,
-        process.TargetState switch
+        MapTargetStatus(process.TargetState),
+        process.TargetStaffVersion,
+        process.EffectiveOn,
+        MapStatus(process.State),
+        process.ProfileSnapshots.Count,
+        process.FailureCode,
+        process.Version,
+        process.CreatedAtUtc,
+        process.LastChangedAtUtc,
+        process.CompletedAtUtc);
+
+    public static WorkspaceStaffAccessTargetStatus MapTargetStatus(
+        WorkspaceStaffAccessTargetState status) => status switch
         {
             WorkspaceStaffAccessTargetState.Active => WorkspaceStaffAccessTargetStatus.Active,
             WorkspaceStaffAccessTargetState.Suspended => WorkspaceStaffAccessTargetStatus.Suspended,
             WorkspaceStaffAccessTargetState.Departed => WorkspaceStaffAccessTargetStatus.Departed,
             _ => WorkspaceStaffAccessTargetStatus.Unknown
-        },
-        process.TargetStaffVersion,
-        process.EffectiveOn,
-        process.State switch
+        };
+
+    public static WorkspaceStaffAccessProcessStatus MapStatus(
+        WorkspaceStaffAccessProcessState status) => status switch
         {
             WorkspaceStaffAccessProcessState.Prepared => WorkspaceStaffAccessProcessStatus.Prepared,
             WorkspaceStaffAccessProcessState.AwaitingStaffCommit =>
@@ -27,11 +39,5 @@ public static class WorkspaceStaffAccessMappings
                 WorkspaceStaffAccessProcessStatus.RestorationPending,
             WorkspaceStaffAccessProcessState.Completed => WorkspaceStaffAccessProcessStatus.Completed,
             _ => WorkspaceStaffAccessProcessStatus.Unknown
-        },
-        process.ProfileSnapshots.Count,
-        process.FailureCode,
-        process.Version,
-        process.CreatedAtUtc,
-        process.LastChangedAtUtc,
-        process.CompletedAtUtc);
+        };
 }

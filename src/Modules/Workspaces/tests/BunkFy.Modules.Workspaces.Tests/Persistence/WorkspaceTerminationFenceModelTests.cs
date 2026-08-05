@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.Workspaces.Domain.Termination;
 using BunkFy.Modules.Workspaces.Persistence;
+using BunkFy.Modules.Workspaces.Persistence.TenantTermination;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -55,6 +56,62 @@ public sealed class WorkspaceTerminationFenceModelTests
                         nameof(WorkspaceTerminationFenceReceipt.ScopeId),
                         nameof(WorkspaceTerminationFenceReceipt.FenceId)
                     ]));
+    }
+
+    [Fact]
+    public void Tenant_destruction_progress_and_receipt_are_scoped_and_bound_to_terminal_proof()
+    {
+        DbContextOptions<WorkspacesDbContext> options =
+            new DbContextOptionsBuilder<WorkspacesDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        using WorkspacesDbContext context =
+            new(options, new TestScopeContext());
+
+        IEntityType operation = context.Model.FindEntityType(
+            typeof(WorkspaceTenantDestroyOperation))!;
+        IEntityType receipt = context.Model.FindEntityType(
+            typeof(WorkspaceTenantDestroyReceipt))!;
+        IEntityType fence = context.Model.FindEntityType(
+            typeof(WorkspaceTerminationFence))!;
+        IEntityType fenceReceipt = context.Model.FindEntityType(
+            typeof(WorkspaceTerminationFenceReceipt))!;
+
+        Assert.NotEmpty(operation.GetDeclaredQueryFilters());
+        Assert.True(operation.FindProperty(
+            nameof(WorkspaceTenantDestroyOperation.ConcurrencyVersion))!
+            .IsConcurrencyToken);
+        Assert.Contains(operation.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Single().Name ==
+                nameof(WorkspaceTenantDestroyOperation.ScopeId));
+        Assert.Contains(operation.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType == fence &&
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(WorkspaceTenantDestroyOperation.ScopeId),
+                    nameof(WorkspaceTenantDestroyOperation.FenceId)
+                ]));
+
+        Assert.NotEmpty(receipt.GetDeclaredQueryFilters());
+        Assert.Contains(receipt.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Single().Name ==
+                nameof(WorkspaceTenantDestroyReceipt.ScopeId));
+        Assert.Contains(receipt.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType == fence &&
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(WorkspaceTenantDestroyReceipt.ScopeId),
+                    nameof(WorkspaceTenantDestroyReceipt.FenceId)
+                ]));
+        Assert.Contains(receipt.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType == fenceReceipt &&
+            foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(WorkspaceTenantDestroyReceipt.ScopeId),
+                    nameof(WorkspaceTenantDestroyReceipt.CloseFenceReceiptId)
+                ]));
     }
 
     private sealed class TestScopeContext : IScopeContext

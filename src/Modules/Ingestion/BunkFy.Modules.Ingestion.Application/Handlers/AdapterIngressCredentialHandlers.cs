@@ -99,9 +99,9 @@ internal sealed class RevokeAdapterIngressCredentialCommandHandler(
     IAdapterConnectionRepository connections,
     IAdapterIngressCredentialRepository credentials,
     ISystemClock clock)
-    : ICommandHandler<RevokeAdapterIngressCredentialCommand, AdapterIngressCredentialDto>
+    : ICommandHandler<RevokeAdapterIngressCredentialCommand, AdapterIngressCredentialMutationReceiptDto>
 {
-    public async Task<Result<AdapterIngressCredentialDto>> HandleAsync(
+    public async Task<Result<AdapterIngressCredentialMutationReceiptDto>> HandleAsync(
         RevokeAdapterIngressCredentialCommand command,
         CancellationToken cancellationToken)
     {
@@ -109,20 +109,22 @@ internal sealed class RevokeAdapterIngressCredentialCommandHandler(
             command.PropertyId, command.ConnectionId, cancellationToken).ConfigureAwait(false);
         if (connection is null)
         {
-            return Result.Failure<AdapterIngressCredentialDto>(IngestionApplicationErrors.ConnectionNotFound);
+            return Result.Failure<AdapterIngressCredentialMutationReceiptDto>(
+                IngestionApplicationErrors.ConnectionNotFound);
         }
 
         AdapterIngressCredential? credential = await credentials.GetAsync(
             connection.Id, command.CredentialId, cancellationToken).ConfigureAwait(false);
         if (credential is null)
         {
-            return Result.Failure<AdapterIngressCredentialDto>(IngestionApplicationErrors.IngressCredentialNotFound);
+            return Result.Failure<AdapterIngressCredentialMutationReceiptDto>(
+                IngestionApplicationErrors.IngressCredentialNotFound);
         }
 
         Result revoked = credential.Revoke(command.ExpectedVersion, command.RevokedBy, clock.UtcNow);
         return revoked.IsSuccess
-            ? Result.Success(AdapterIngressCredentialMappings.Map(credential))
-            : Result.Failure<AdapterIngressCredentialDto>(revoked.Error);
+            ? Result.Success(AdapterIngressCredentialMappings.MapReceipt(credential))
+            : Result.Failure<AdapterIngressCredentialMutationReceiptDto>(revoked.Error);
     }
 }
 

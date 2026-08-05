@@ -8,11 +8,16 @@ using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using Gma.Modules.AccessControl.Contracts;
 
 public static class WorkspaceAccessPermissionCatalogue
 {
     public static IReadOnlyList<WorkspaceAccessPermissionDto> All { get; } =
     [
+        Permission(AccessControlProfilePermissionCodes.Read, "Workspace access", "View roles", "View workspace roles, permission definitions, and member access assignments."),
+        Permission(AccessControlProfilePermissionCodes.Manage, "Workspace access", "Manage roles", "Create, update, and archive custom workspace roles.", sensitive: true, requires: [AccessControlProfilePermissionCodes.Read]),
+        Permission(AccessControlProfilePermissionCodes.Assign, "Workspace access", "Assign roles", "Assign operational roles to workspace members within the actor's own authority.", sensitive: true, requires: [AccessControlProfilePermissionCodes.Read]),
+
         Permission(PropertiesAdminPermissionCodes.Read, "Properties", "View properties", "View properties, rooms, and beds."),
         Permission(PropertiesAdminPermissionCodes.PropertiesManage, "Properties", "Manage properties", "Create and update properties.", requires: [PropertiesAdminPermissionCodes.Read]),
         Permission(PropertiesAdminPermissionCodes.RoomsManage, "Properties", "Manage rooms", "Create, update, and retire rooms.", requires: [PropertiesAdminPermissionCodes.Read]),
@@ -69,6 +74,13 @@ public static class WorkspaceAccessPermissionCatalogue
         Permission(DataRightsAdminPermissionCodes.Restrict, "Data rights", "Manage processing restrictions", "Apply or release approved processing restrictions.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide]),
         Permission(DataRightsAdminPermissionCodes.Erase, "Data rights", "Erase or anonymise data", "Execute approved irreversible erasure or anonymisation.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide, DataRightsAdminPermissionCodes.Execute]),
         Permission(DataRightsAdminPermissionCodes.TerminateTenant, "Data rights", "Terminate tenant data", "Execute approved tenant export, revocation, and deletion.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read, DataRightsAdminPermissionCodes.Decide, DataRightsAdminPermissionCodes.Execute]),
+        Permission(DataRightsAdminPermissionCodes.TenantTerminationRead, "Data rights", "View tenant termination", "View bounded case, process, and owner progress.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read]),
+        Permission(DataRightsAdminPermissionCodes.TenantTerminationRequest, "Data rights", "Request tenant termination", "Open a reviewed tenant-termination operator case.", sensitive: true, requires: [DataRightsAdminPermissionCodes.TenantTerminationRead]),
+        Permission(DataRightsAdminPermissionCodes.TenantTerminationApprove, "Data rights", "Approve tenant termination", "Bind approval, backup, restore-drill, operator, and owner-catalog evidence.", sensitive: true, requires: [DataRightsAdminPermissionCodes.TenantTerminationRead, DataRightsAdminPermissionCodes.TenantTerminationRequest]),
+        Permission(DataRightsAdminPermissionCodes.TenantTerminationExecute, "Data rights", "Execute tenant termination", "Start an approved tenant termination as a distinct executor.", sensitive: true, requires: [DataRightsAdminPermissionCodes.TenantTerminationRead, DataRightsAdminPermissionCodes.TenantTerminationApprove]),
+        Permission(DataRightsAdminPermissionCodes.TenantTerminationRetry, "Data rights", "Retry tenant termination", "Resume the exact blocked or failed owner work set.", sensitive: true, requires: [DataRightsAdminPermissionCodes.TenantTerminationRead, DataRightsAdminPermissionCodes.TenantTerminationExecute]),
+        Permission(DataRightsAdminPermissionCodes.TenantTerminationCancel, "Data rights", "Cancel tenant termination", "Request verified restoration while destruction remains reversible.", sensitive: true, requires: [DataRightsAdminPermissionCodes.TenantTerminationRead, DataRightsAdminPermissionCodes.TenantTerminationExecute]),
+        Permission(DataRightsAdminPermissionCodes.TenantTerminationRecover, "Data rights", "Recover tenant termination", "Reconstruct a protected start or re-signal durable coordination.", sensitive: true, requires: [DataRightsAdminPermissionCodes.TenantTerminationRead, DataRightsAdminPermissionCodes.TenantTerminationExecute]),
         Permission(DataRightsAdminPermissionCodes.Manage, "Data rights", "Manage case lifecycle", "Route, cancel, and recover data-rights cases.", sensitive: true, requires: [DataRightsAdminPermissionCodes.Read]),
 
         Permission(RetentionPermissionCodes.Read, "Retention", "View retention health", "View PII-minimized schedule, due, hold, and failure status."),

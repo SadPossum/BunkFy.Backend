@@ -44,6 +44,9 @@ public static class WorkspaceAccessRoles
 
     public static IReadOnlyList<string> DelegablePermissions { get; } =
     [
+        AccessControlProfilePermissionCodes.Read,
+        AccessControlProfilePermissionCodes.Manage,
+        AccessControlProfilePermissionCodes.Assign,
         PropertiesAdminPermissionCodes.Read,
         PropertiesAdminPermissionCodes.PropertiesManage,
         PropertiesAdminPermissionCodes.RoomsManage,
@@ -94,6 +97,13 @@ public static class WorkspaceAccessRoles
         DataRightsAdminPermissionCodes.Restrict,
         DataRightsAdminPermissionCodes.Erase,
         DataRightsAdminPermissionCodes.TerminateTenant,
+        DataRightsAdminPermissionCodes.TenantTerminationRead,
+        DataRightsAdminPermissionCodes.TenantTerminationRequest,
+        DataRightsAdminPermissionCodes.TenantTerminationApprove,
+        DataRightsAdminPermissionCodes.TenantTerminationExecute,
+        DataRightsAdminPermissionCodes.TenantTerminationRetry,
+        DataRightsAdminPermissionCodes.TenantTerminationCancel,
+        DataRightsAdminPermissionCodes.TenantTerminationRecover,
         DataRightsAdminPermissionCodes.Manage,
         RetentionPermissionCodes.Read,
         RetentionPermissionCodes.Manage,
@@ -104,6 +114,8 @@ public static class WorkspaceAccessRoles
         DelegablePermissions
             .Except(
             [
+                AccessControlProfilePermissionCodes.Manage,
+                AccessControlProfilePermissionCodes.Assign,
                 GuestsAdminPermissionCodes.Archive,
                 GuestsAdminPermissionCodes.DataHoldsManage,
                 StaffAdminPermissionCodes.SensitiveProfileRead,
@@ -125,6 +137,13 @@ public static class WorkspaceAccessRoles
                 DataRightsAdminPermissionCodes.Restrict,
                 DataRightsAdminPermissionCodes.Erase,
                 DataRightsAdminPermissionCodes.TerminateTenant,
+                DataRightsAdminPermissionCodes.TenantTerminationRead,
+                DataRightsAdminPermissionCodes.TenantTerminationRequest,
+                DataRightsAdminPermissionCodes.TenantTerminationApprove,
+                DataRightsAdminPermissionCodes.TenantTerminationExecute,
+                DataRightsAdminPermissionCodes.TenantTerminationRetry,
+                DataRightsAdminPermissionCodes.TenantTerminationCancel,
+                DataRightsAdminPermissionCodes.TenantTerminationRecover,
                 DataRightsAdminPermissionCodes.Manage,
                 RetentionPermissionCodes.Manage,
                 RetentionPermissionCodes.Retry

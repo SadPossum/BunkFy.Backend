@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 7,
+  "catalogVersion": 9,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -140,6 +140,18 @@
       "writers": [
         "system:workspace-termination"
       ]
+    },
+    {
+      "id": "workspaces-tenant-destruction-proof",
+      "scope": "tenant-termination-control-and-accountability-proof",
+      "readers": [
+        "permission:data-rights.tenant-termination",
+        "system:authorized-audit-consumer",
+        "system:tenant-termination-coordinator"
+      ],
+      "writers": [
+        "system:authorized-tenant-termination-owner"
+      ]
     }
   ],
   "retentionPolicies": [
@@ -247,40 +259,47 @@
       "startsAt": "workspace-termination-fence-created",
       "endsAt": "approved-tenant-termination-accountability-retention-completed",
       "legalHoldBehavior": "pause-approved-disposal"
+    },
+    {
+      "id": "workspace-tenant-destruction-proof",
+      "approvalState": "engineering-default",
+      "startsAt": "approved-workspaces-tenant-destruction-started",
+      "endsAt": "approved-minimum-termination-proof-retention-completed",
+      "legalHoldBehavior": "retain-minimum-required-termination-proof"
     }
   ],
   "rightsPolicies": [
     {
       "id": "account-correlation",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "correct-authoritative-auth-or-membership-source",
       "restriction": "retain-minimum-required-access-correlation",
       "erasure": "pseudonymize-after-approved-employment-retention"
     },
     {
       "id": "audit-attribution",
-      "export": "include-in-authorized-audit-export",
+      "export": "include-in-authorized-audit-or-tenant-export",
       "correction": "append-corrective-audit-action",
       "restriction": "retain-minimum-required-audit-attribution",
       "erasure": "pseudonymize-subject-to-minimum-audit-receipt"
     },
     {
       "id": "data-rights-correction-accountability",
-      "export": "include-in-authorized-audit-export",
+      "export": "include-in-authorized-audit-or-tenant-export",
       "correction": "append-corrective-proof-only",
       "restriction": "retain-minimum-owner-proof",
       "erasure": "retain-minimum-approved-accountability-proof"
     },
     {
       "id": "onboarding-editable",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "replace-before-provisioning-or-correct-in-staff",
       "restriction": "suppress-non-required-onboarding-use",
       "erasure": "redact-on-terminal-state-and-delete-after-approved-retention"
     },
     {
       "id": "staff-employment-history",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "append-corrective-employment-action",
       "restriction": "suppress-non-required-operational-use",
       "erasure": "anonymize-or-delete-after-approved-employment-retention"
@@ -294,7 +313,7 @@
     },
     {
       "id": "workspace-onboarding-processing-restriction-control",
-      "export": "include-in-authorized-staff-export",
+      "export": "include-in-authorized-staff-or-tenant-export",
       "correction": "change-only-through-approved-restriction-workflow",
       "restriction": "enforce-effective-processing-restriction",
       "erasure": "remove-with-approved-subject-disposition"
@@ -312,6 +331,13 @@
       "correction": "append-corrective-proof-only",
       "restriction": "retain-minimum-owner-proof",
       "erasure": "retain-minimum-approved-accountability-proof"
+    },
+    {
+      "id": "workspace-tenant-destruction-proof-control",
+      "export": "include-in-authorized-tenant-termination-audit",
+      "correction": "append-a-corrective-control-plane-record",
+      "restriction": "retain-only-the-minimum-owner-proof",
+      "erasure": "remove-after-approved-proof-retention"
     }
   ],
   "fields": [
@@ -9457,6 +9483,211 @@
           "member": "CompletedAtUtc",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.tenant-destruction.owner-proof",
+      "dataSubject": "subject-scoped",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "tenant-termination-safety",
+        "owner-proof-correlation",
+        "destruction-accountability"
+      ],
+      "sources": [
+        "approved-tenant-termination-case",
+        "workspaces-owner-destruction"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-tenant-destruction-proof",
+      "countryPolicyKey": "workspaces.tenant-destruction.owner-proof",
+      "retentionPolicy": "workspace-tenant-destruction-proof",
+      "rightsPolicy": "workspace-tenant-destruction-proof-control",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "processor"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "OperationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "RequestSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "FenceId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "SelectedFenceVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "ResultingFenceVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "BatchSize",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "Stage",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "RemovedRecordCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "CompletedBatchCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "ProofVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "RemovalProofSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "StartedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "UpdatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyOperation",
+          "member": "ConcurrencyVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "OperationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "RequestSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "FenceId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "CloseFenceReceiptId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "SelectedFenceVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "ResultingFenceVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "BatchSize",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "RemovedRecordCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "CompletedBatchCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "RemovalProofVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "RemovalProofSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "StartedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.TenantTermination.WorkspaceTenantDestroyReceipt",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
         }
       ]
     },

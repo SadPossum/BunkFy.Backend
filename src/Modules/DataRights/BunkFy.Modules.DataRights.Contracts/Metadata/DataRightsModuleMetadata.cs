@@ -28,6 +28,8 @@ public static class DataRightsModuleMetadata
         "anonymisation-work-item-terminal-v2";
     public const string ExportArtifactRequestedHandlerName =
         "export-artifact-requested";
+    public const string TenantTerminationCoordinationHandlerName =
+        "tenant-termination-coordination-requested";
     public const string GuestCorrectionAppliedHandlerName =
         "guest-correction-applied";
     public const string ReservationCorrectionAppliedHandlerName =
@@ -47,6 +49,7 @@ public static class DataRightsModuleMetadata
     public const string ExportWorkerGroup = "data-rights-workers";
     public const string TenantTerminationWorkerGroup =
         "tenant-termination-workers";
+    public const string DeadlineAlertWorkerGroup = "data-rights-workers";
 
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
@@ -63,6 +66,13 @@ public static class DataRightsModuleMetadata
             Permission(DataRightsAdminPermissionCodes.Restrict, "Apply or release processing restrictions."),
             Permission(DataRightsAdminPermissionCodes.Erase, "Execute erasure or anonymisation."),
             Permission(DataRightsAdminPermissionCodes.TerminateTenant, "Execute tenant termination."),
+            Permission(DataRightsAdminPermissionCodes.TenantTerminationRead, "Read tenant-termination operator status."),
+            Permission(DataRightsAdminPermissionCodes.TenantTerminationRequest, "Request tenant termination."),
+            Permission(DataRightsAdminPermissionCodes.TenantTerminationApprove, "Approve or deny tenant termination."),
+            Permission(DataRightsAdminPermissionCodes.TenantTerminationExecute, "Start approved tenant termination."),
+            Permission(DataRightsAdminPermissionCodes.TenantTerminationRetry, "Retry blocked or failed tenant termination."),
+            Permission(DataRightsAdminPermissionCodes.TenantTerminationCancel, "Cancel reversible tenant termination."),
+            Permission(DataRightsAdminPermissionCodes.TenantTerminationRecover, "Recover tenant-termination coordination."),
             Permission(DataRightsAdminPermissionCodes.Manage, "Manage data-rights case lifecycle.")
         ])
         .WithSubscription<PropertyCreatedIntegrationEvent>(
@@ -95,6 +105,10 @@ public static class DataRightsModuleMetadata
         .WithSubscription<DataRightsExportArtifactRequestedIntegrationEvent>(
             Name,
             ExportArtifactRequestedHandlerName)
+        .WithSubscription<
+            TenantTerminationCoordinationRequestedIntegrationEvent>(
+                Name,
+                TenantTerminationCoordinationHandlerName)
         .WithSubscription<DataRightsCorrectionAppliedIntegrationEvent>(
             GuestsProducerModuleName,
             GuestCorrectionAppliedHandlerName)
@@ -112,6 +126,12 @@ public static class DataRightsModuleMetadata
         .WithTask<ExecuteDataRightsAnonymisationPayloadV2>()
         .WithTask<GenerateDataRightsExportPayload>()
         .WithTask<DeleteExpiredDataRightsExportArtifactPayload>()
+        .WithTask<ExecuteTenantTerminationOwnerWorkPayload>()
+        .WithTask<ExecuteTenantTerminationExportOwnerWorkPayload>()
+        .WithTask<ExecuteGlobalTenantTerminationOwnerWorkPayload>()
+        .WithTask<GenerateTenantTerminationExportArtifactPayload>()
+        .WithTask<VerifyTenantTerminationPayload>()
+        .WithTask<DispatchDataRightsResponseDeadlineAlertsPayload>()
         .WithProfile(DataRightsProfiles.Default)
         .Build();
 

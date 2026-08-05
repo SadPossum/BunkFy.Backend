@@ -260,15 +260,17 @@ public sealed class TenantTerminationControlPlanePersistenceIntegrationTests
         DataRightsCase firstCase = CreateCase(TenantA);
         TenantTerminationProcess cancelled = PrepareProcess(
             TenantA,
-            firstCase.Id);
+            firstCase);
         Assert.True(cancelled.BeginPhase(
             TenantTerminationProcessPhase.Freeze,
             cancelled.Version,
             "owner:approver",
             Now.AddMinutes(1)).IsSuccess);
-        Assert.True(cancelled.CompletePhase(
-            TenantTerminationProcessPhase.Freeze,
+        Assert.True(cancelled.CompleteFreeze(
             cancelled.OperationRevision,
+            workspaceFenceRevision: 1,
+            Digest,
+            [new("workspaces", 1, 1, Digest)],
             cancelled.Version,
             "owner:approver",
             Now.AddMinutes(2)).IsSuccess);
@@ -286,6 +288,12 @@ public sealed class TenantTerminationControlPlanePersistenceIntegrationTests
             cancelled.Version,
             "owner:approver",
             Now.AddMinutes(5)).IsSuccess);
+        Assert.True(firstCase.CompleteTenantTerminationCancellation(
+            cancelled.ApprovalRevision,
+            cancelled.PolicyEvidenceSha256,
+            firstCase.Version,
+            "owner:approver",
+            Now.AddMinutes(6)).IsSuccess);
 
         await using (DataRightsDbContext first =
             CreateDataRightsDbContext(connectionString, TenantA))
@@ -298,7 +306,7 @@ public sealed class TenantTerminationControlPlanePersistenceIntegrationTests
         DataRightsCase secondCase = CreateCase(TenantA);
         TenantTerminationProcess active = PrepareProcess(
             TenantA,
-            secondCase.Id);
+            secondCase);
         await using (DataRightsDbContext second =
             CreateDataRightsDbContext(connectionString, TenantA))
         {
@@ -406,32 +414,49 @@ public sealed class TenantTerminationControlPlanePersistenceIntegrationTests
         DataRightsCaseRequest request = DataRightsCaseRequest.Create(
             propertyId: null,
             DataRightsCaseKind.TenantTermination,
-            DataRightsCaseOperation.AccessExport,
+            DataRightsCaseOperation.Anonymisation,
             DataRightsRequesterRelation.TenantOwner).Value;
-        return DataRightsCase.Create(
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
             Guid.NewGuid(),
             tenantId,
             request,
+            "owner:requester",
+            Now.AddMinutes(-3)).Value;
+        Assert.True(dataRightsCase.PrepareTenantTerminationReview(
+            exportRequested: false,
+            dataRightsCase.Version,
+            "owner:requester",
+            Now.AddMinutes(-3)).IsSuccess);
+        Assert.True(dataRightsCase.RecordTenantTerminationDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            Digest,
+            dataRightsCase.Version,
             "owner:approver",
-            Now).Value;
+            Now.AddMinutes(-2)).IsSuccess);
+        Assert.True(dataRightsCase.BeginTenantTerminationExecution(
+            dataRightsCase.Version,
+            "system:tenant-termination",
+            Now.AddMinutes(-1)).IsSuccess);
+        return dataRightsCase;
     }
 
     private static TenantTerminationProcess PrepareProcess(
         string tenantId,
-        Guid caseId) =>
+        DataRightsCase dataRightsCase) =>
         TenantTerminationProcess.Prepare(
             Guid.NewGuid(),
             tenantId,
             Guid.NewGuid(),
-            caseId,
-            approvalRevision: 4,
+            dataRightsCase.Id,
+            dataRightsCase.DecisionRevision!.Value,
             Guid.NewGuid(),
             exportRequested: false,
-            Digest,
-            "owner:approver",
-            Now,
+            dataRightsCase.TenantTerminationPolicyEvidenceSha256!,
+            dataRightsCase.DecidedBy!,
+            dataRightsCase.DecidedAtUtc!.Value,
             "system:tenant-termination",
-            Now).Value;
+            dataRightsCase.ExecutionStartedAtUtc!.Value).Value;
 
     private static ServiceProvider CreateWorkspacesProvider(
         string connectionString,

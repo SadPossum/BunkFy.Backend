@@ -17,6 +17,12 @@ public static class GuestsApplicationErrors
             .ToArray();
     public static readonly Error GuestNotFound = new("Guests.GuestNotFound", "The guest profile was not found.");
     public static readonly Error TenantRequired = new("Guests.TenantRequired", "A tenant context is required.");
+    public static readonly Error WorkspaceProcessingRestricted = new(
+        "Guests.WorkspaceProcessingRestricted",
+        "The workspace is not accepting guest changes.");
+    public static readonly Error WorkspaceProcessingAdmissionUnavailable = new(
+        "Guests.WorkspaceProcessingAdmissionUnavailable",
+        "Workspace mutation admission is temporarily unavailable.");
     public static readonly Error DataRightsApprovalRequired = new(
         "Guests.DataRightsApprovalRequired",
         "An exact approved data-rights operation is required.");

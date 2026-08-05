@@ -1,0 +1,155 @@
+namespace BunkFy.Modules.Properties.Tests.Api;
+
+using System.Reflection;
+using BunkFy.Modules.Properties.AdminApi;
+using BunkFy.Modules.Properties.Api;
+using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.AccessControl.AspNetCore;
+using Gma.Framework.Administration.Api;
+using Gma.Framework.Cqrs;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Metadata;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+[Trait("Category", "Unit")]
+public sealed class PropertiesApiSecurityTests
+{
+    [Fact]
+    public void Sensitive_response_policies_disable_storage()
+    {
+        MethodInfo apiPolicy = typeof(PropertiesModule).GetMethod(
+            "MarkSensitiveResponse",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        MethodInfo adminPolicy = typeof(PropertiesAdminApiModule).GetMethod(
+            "MarkSensitiveResponse",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        DefaultHttpContext apiContext = new();
+        DefaultHttpContext adminContext = new();
+
+        apiPolicy.Invoke(null, [apiContext]);
+        adminPolicy.Invoke(null, [adminContext]);
+
+        AssertNoStore(apiContext);
+        AssertNoStore(adminContext);
+    }
+
+    [Fact]
+    public async Task Operational_routes_publish_explicit_response_contracts()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new PropertiesModule().MapEndpoints(app);
+        new PropertiesAdminApiModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+
+        AssertTopologyResponses(endpoints, "/api/properties");
+        AssertTopologyResponses(endpoints, "/api/admin/properties");
+        AssertResponse<CountryPolicyListResponse>(
+            endpoints,
+            HttpMethods.Get,
+            "/api/properties/{propertyId:guid}/country-policies");
+        AssertResponse<PropertyProcessingStateDto>(
+            endpoints,
+            HttpMethods.Get,
+            "/api/properties/{propertyId:guid}/processing");
+        AssertResponse<PropertyMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Post,
+            "/api/properties/{propertyId:guid}/processing/activate");
+        AssertStatus(
+            endpoints,
+            HttpMethods.Post,
+            "/api/properties/{propertyId:guid}/processing/suspend",
+            StatusCodes.Status204NoContent);
+    }
+
+    private static void AssertTopologyResponses(IEnumerable<RouteEndpoint> endpoints, string routeBase)
+    {
+        AssertResponse<PropertyListResponse>(endpoints, HttpMethods.Get, routeBase);
+        AssertResponse<PropertyDto>(endpoints, HttpMethods.Get, $"{routeBase}/{{propertyId:guid}}");
+        AssertResponse<PropertyMutationReceiptDto>(endpoints, HttpMethods.Post, routeBase);
+        AssertResponse<PropertyMutationReceiptDto>(endpoints, HttpMethods.Put, $"{routeBase}/{{propertyId:guid}}");
+        AssertStatus(
+            endpoints,
+            HttpMethods.Post,
+            $"{routeBase}/{{propertyId:guid}}/retire",
+            StatusCodes.Status204NoContent);
+
+        string rooms = $"{routeBase}/{{propertyId:guid}}/rooms";
+        AssertResponse<RoomListResponse>(endpoints, HttpMethods.Get, rooms);
+        AssertResponse<RoomMutationReceiptDto>(endpoints, HttpMethods.Post, rooms);
+        AssertResponse<RoomDto>(endpoints, HttpMethods.Get, $"{rooms}/{{roomId:guid}}");
+        AssertResponse<RoomMutationReceiptDto>(endpoints, HttpMethods.Put, $"{rooms}/{{roomId:guid}}");
+        AssertStatus(
+            endpoints,
+            HttpMethods.Post,
+            $"{rooms}/{{roomId:guid}}/retire",
+            StatusCodes.Status204NoContent);
+
+        string beds = $"{rooms}/{{roomId:guid}}/beds";
+        AssertResponse<BedListResponse>(endpoints, HttpMethods.Get, beds);
+        AssertResponse<BedMutationReceiptDto>(endpoints, HttpMethods.Post, beds);
+        AssertResponse<BedBatchMutationReceiptDto>(endpoints, HttpMethods.Post, $"{beds}/batch");
+        AssertResponse<BedMutationReceiptDto>(endpoints, HttpMethods.Put, $"{beds}/{{bedId:guid}}");
+        AssertStatus(
+            endpoints,
+            HttpMethods.Post,
+            $"{beds}/{{bedId:guid}}/retire",
+            StatusCodes.Status204NoContent);
+    }
+
+    private static void AssertResponse<TResponse>(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route)
+    {
+        RouteEndpoint endpoint = FindEndpoint(endpoints, method, route);
+        IProducesResponseTypeMetadata response = Assert.Single(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+
+        Assert.Equal(typeof(TResponse), response.Type);
+    }
+
+    private static void AssertStatus(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route,
+        int statusCode)
+    {
+        RouteEndpoint endpoint = FindEndpoint(endpoints, method, route);
+        Assert.Contains(
+            endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == statusCode);
+    }
+
+    private static RouteEndpoint FindEndpoint(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route) =>
+        Assert.Single(endpoints, candidate =>
+            string.Equals(
+                candidate.RoutePattern.RawText?.Trim('/'),
+                route.Trim('/'),
+                StringComparison.Ordinal) &&
+            candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                method,
+                StringComparer.Ordinal) == true);
+
+    private static void AssertNoStore(HttpContext context)
+    {
+        Assert.Equal("no-store", context.Response.Headers.CacheControl);
+        Assert.Equal("no-cache", context.Response.Headers.Pragma);
+        Assert.Equal("0", context.Response.Headers.Expires);
+    }
+}

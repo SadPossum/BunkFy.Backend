@@ -10,12 +10,14 @@ public sealed class DataRightsPropertyProjection
         string scopeId,
         Guid id,
         string? name,
+        string? timeZoneId,
         PropertyStatus status,
         long version)
     {
         this.ScopeId = scopeId;
         this.Id = id;
         this.Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        this.TimeZoneId = string.IsNullOrWhiteSpace(timeZoneId) ? null : timeZoneId.Trim();
         this.Status = status;
         this.IsKnown = version > 0 && status != PropertyStatus.Unknown;
         this.TopologySourceVersion = version;
@@ -24,6 +26,7 @@ public sealed class DataRightsPropertyProjection
     public string ScopeId { get; private set; } = string.Empty;
     public Guid Id { get; private set; }
     public string? Name { get; private set; }
+    public string? TimeZoneId { get; private set; }
     public PropertyStatus Status { get; private set; }
     public bool IsKnown { get; private set; }
     public PropertyProcessingStatus ProcessingStatus { get; private set; } =
@@ -32,7 +35,11 @@ public sealed class DataRightsPropertyProjection
     public long TopologySourceVersion { get; private set; }
     public long PolicySourceVersion { get; private set; }
 
-    public void ApplyTopology(string? name, PropertyStatus status, long sourceVersion)
+    public void ApplyTopology(
+        string? name,
+        string? timeZoneId,
+        PropertyStatus status,
+        long sourceVersion)
     {
         if (sourceVersion <= this.TopologySourceVersion)
         {
@@ -42,6 +49,11 @@ public sealed class DataRightsPropertyProjection
         if (!string.IsNullOrWhiteSpace(name))
         {
             this.Name = name.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(timeZoneId))
+        {
+            this.TimeZoneId = timeZoneId.Trim();
         }
 
         this.Status = status;

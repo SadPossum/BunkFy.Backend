@@ -20,14 +20,15 @@ public sealed class PropertiesApplicationRegistrationTests
         services.AddPropertiesApplication();
         services.AddPropertiesApplication();
 
-        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreatePropertyCommand, PropertyDto>));
-        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdatePropertyCommand, PropertyDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreatePropertyCommand, PropertyMutationReceiptDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdatePropertyCommand, PropertyMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetirePropertyCommand, Unit>));
-        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreateRoomCommand, RoomDto>));
-        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateRoomCommand, RoomDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreateRoomCommand, RoomMutationReceiptDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateRoomCommand, RoomMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetireRoomCommand, Unit>));
-        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<AddBedCommand, BedDto>));
-        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateBedCommand, BedDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<AddBedCommand, BedMutationReceiptDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<AddBedsCommand, BedBatchMutationReceiptDto>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateBedCommand, BedMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetireBedCommand, Unit>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<GetPropertyQuery, PropertyDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListPropertiesQuery, PropertyListResponse>));

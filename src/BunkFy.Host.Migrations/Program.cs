@@ -1,22 +1,5 @@
-using BunkFy.Modules.DataRights.Persistence;
-using BunkFy.Modules.Guests.Persistence;
-using BunkFy.Modules.Ingestion.Persistence;
-using BunkFy.Modules.Inventory.Persistence;
-using BunkFy.Modules.Properties.Persistence;
-using BunkFy.Modules.Reservations.Persistence;
-using BunkFy.Modules.Retention.Persistence;
-using BunkFy.Modules.Staff.Persistence;
-using BunkFy.Modules.Workspaces.Persistence;
-using Gma.Modules.AccessControl.Persistence;
-using Gma.Modules.Administration.Persistence;
-using Gma.Modules.Auth.Persistence;
+using BunkFy.Host.Migrations;
 using Gma.Modules.Auth.Contracts;
-using Gma.Modules.Notifications.Persistence;
-using Gma.Modules.Organizations.Persistence;
-using Gma.Modules.TaskRuntime.Persistence;
-using Microsoft.EntityFrameworkCore;
-using Gma.Framework.Persistence.EntityFrameworkCore;
-using Gma.Framework.Scoping;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -34,52 +17,56 @@ if (!string.Equals(provider, "PostgreSql", StringComparison.OrdinalIgnoreCase))
     throw new InvalidOperationException("BunkFy.Host.Migrations supports the PostgreSQL deployment provider only.");
 }
 
-builder.Services.AddScoped<IScopeContext, DesignTimeScopeContext>();
-builder.AddAdministrationPersistence();
-builder.AddAccessControlPersistence();
-builder.AddAuthPersistence(AuthProfile.Global(authScopeId));
-builder.AddNotificationsPersistence();
-builder.AddOrganizationsPersistence();
-builder.AddTaskRuntimePersistence();
-builder.AddDataRightsPersistence();
-builder.AddPropertiesPersistence();
-builder.AddInventoryPersistence();
-builder.AddReservationsPersistence();
-builder.AddGuestsPersistence();
-builder.AddStaffPersistence();
-builder.AddWorkspacesPersistence();
-builder.AddIngestionPersistence();
-builder.AddRetentionPersistence();
+MigrationsHostOptions migrationsOptions =
+    MigrationsHostOptions.FromConfiguration(builder.Configuration);
+MigrationsProductionAdmissionOptions productionAdmission =
+    MigrationsProductionAdmissionOptions.FromConfiguration(builder.Configuration);
+bool isProduction = builder.Environment.IsProduction();
+MigrationsProductionAdmission.ValidateConfigurationOrThrow(
+    productionAdmission,
+    migrationsOptions,
+    isProduction);
+
+builder.AddBunkFyMigrationPersistence(authScopeId);
 
 using IHost host = builder.Build();
-await using AsyncServiceScope scope = host.Services.CreateAsyncScope();
-ILogger logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
-    .CreateLogger("BunkFy.Host.Migrations");
-
-(string Name, Type ContextType)[] migrations =
-[
-    ("administration", typeof(AdminDbContext)),
-    ("access-control", typeof(AccessControlDbContext)),
-    ("auth", typeof(AuthDbContext)),
-    ("notifications", typeof(NotificationsDbContext)),
-    ("organizations", typeof(OrganizationsDbContext)),
-    ("task-runtime", typeof(TaskRuntimeDbContext)),
-    ("data-rights", typeof(DataRightsDbContext)),
-    ("properties", typeof(PropertiesDbContext)),
-    ("inventory", typeof(InventoryDbContext)),
-    ("reservations", typeof(ReservationsDbContext)),
-    ("guests", typeof(GuestsDbContext)),
-    ("staff", typeof(StaffDbContext)),
-    ("workspaces", typeof(WorkspacesDbContext)),
-    ("ingestion", typeof(IngestionDbContext)),
-    ("retention", typeof(RetentionDbContext))
-];
-
-foreach ((string name, Type contextType) in migrations)
+IHostApplicationLifetime lifetime = host.Services
+    .GetRequiredService<IHostApplicationLifetime>();
+using CancellationTokenSource operationTimeout = new(
+    TimeSpan.FromSeconds(migrationsOptions.OperationTimeoutSeconds));
+using CancellationTokenSource operation = CancellationTokenSource
+    .CreateLinkedTokenSource(
+        operationTimeout.Token,
+        lifetime.ApplicationStopping);
+bool started = false;
+try
 {
-    logger.LogInformation("Applying {ModuleName} database migrations.", name);
-    DbContext context = (DbContext)scope.ServiceProvider.GetRequiredService(contextType);
-    await context.Database.MigrateAsync(CancellationToken.None).ConfigureAwait(false);
+    await host.StartAsync(operation.Token).ConfigureAwait(false);
+    started = true;
+    await using AsyncServiceScope scope = host.Services.CreateAsyncScope();
+    ILogger logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("BunkFy.Host.Migrations");
+    IReadOnlyList<BunkFyMigrationModule> migrations =
+        BunkFyMigrationCatalog.Resolve(scope.ServiceProvider);
+    BunkFyMigrationCoordinator coordinator = new(
+        logger,
+        migrationsOptions,
+        productionAdmission,
+        isProduction);
+    await coordinator.RunAsync(migrations, operation.Token).ConfigureAwait(false);
 }
-
-logger.LogInformation("All BunkFy PostgreSQL migrations are current.");
+catch (OperationCanceledException) when (
+    operationTimeout.IsCancellationRequested &&
+    !lifetime.ApplicationStopping.IsCancellationRequested)
+{
+    throw new TimeoutException(
+        $"BunkFy migration operation exceeded {migrationsOptions.OperationTimeoutSeconds} seconds.");
+}
+finally
+{
+    if (started)
+    {
+        using CancellationTokenSource stopTimeout = new(TimeSpan.FromSeconds(10));
+        await host.StopAsync(stopTimeout.Token).ConfigureAwait(false);
+    }
+}

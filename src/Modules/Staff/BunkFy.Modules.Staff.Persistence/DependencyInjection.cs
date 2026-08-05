@@ -5,6 +5,8 @@ using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Persistence.Repositories;
+using Gma.Framework.Cqrs;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
@@ -77,8 +79,21 @@ public static class DependencyInjection
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectExportContributor,
                 StaffDataRightsExportContributor>());
+        StaffTenantTerminationExportSchema.EnsureValid();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationContributor,
+                StaffTenantTerminationContributor>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITenantTerminationExportContributor,
+                StaffTenantTerminationContributor>());
         builder.Services.TryAddScoped<IProjectionRebuildWriter<PropertyTopologyProjectionExport>,
             StaffPropertiesProjectionRebuildWriter>();
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
+            typeof(StaffPersistenceAdmissionBehavior<,>)));
+        builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, StaffUnitOfWork>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxWriter, StaffOutboxWriter>());
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IOutboxStore, StaffOutboxStore>());

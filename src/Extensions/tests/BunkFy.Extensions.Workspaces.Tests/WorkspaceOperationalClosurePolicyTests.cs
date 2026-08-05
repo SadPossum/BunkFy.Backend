@@ -72,9 +72,58 @@ public sealed class WorkspaceOperationalClosurePolicyTests
                     AccessProfileMutationAdmissionOperation.CreateProfile,
                     WorkspaceScope,
                     AccessSubject.User("owner-a"),
-                    ProfileKey: "front-desk"));
+                    ProfileKey: "custom-night-manager"));
 
         Assert.Equal(expected, actual);
+        Assert.Equal([WorkspaceId.ToString("D")], admission.TenantIds);
+    }
+
+    [Theory]
+    [InlineData(AccessProfileMutationAdmissionOperation.CreateProfile)]
+    [InlineData(AccessProfileMutationAdmissionOperation.UpdateProfile)]
+    [InlineData(AccessProfileMutationAdmissionOperation.ArchiveProfile)]
+    public async Task Protected_seed_mutation_is_denied_before_operational_admission(
+        AccessProfileMutationAdmissionOperation operation)
+    {
+        StubWorkspaceOperationalAdmissionPolicy admission = new(
+            WorkspaceOperationalAdmissionOutcome.Allowed);
+        WorkspaceAccessProfileMutationAdmissionPolicy policy = new(admission);
+
+        AccessProfileMutationAdmissionDecision actual =
+            await policy.EvaluateAsync(
+                new AccessProfileMutationAdmissionContext(
+                    operation,
+                    WorkspaceScope,
+                    AccessSubject.User("owner-a"),
+                    ProfileKey: WorkspaceAccessProfileSeeds.ManagerKey));
+
+        Assert.Equal(AccessProfileMutationAdmissionDecision.Denied, actual);
+        Assert.Empty(admission.TenantIds);
+    }
+
+    [Fact]
+    public async Task Only_the_system_provisioner_can_reconcile_a_protected_seed()
+    {
+        StubWorkspaceOperationalAdmissionPolicy admission = new(
+            WorkspaceOperationalAdmissionOutcome.Allowed);
+        WorkspaceAccessProfileMutationAdmissionPolicy policy = new(admission);
+        AccessProfileMutationAdmissionContext systemContext = new(
+            AccessProfileMutationAdmissionOperation.UpdateProfile,
+            WorkspaceScope,
+            AccessSubject.System(WorkspaceAccessActors.Provisioner),
+            ProfileKey: WorkspaceAccessProfileSeeds.ManagerKey);
+        AccessProfileMutationAdmissionContext spoofedContext = systemContext with
+        {
+            Actor = AccessSubject.User(WorkspaceAccessActors.Provisioner)
+        };
+
+        AccessProfileMutationAdmissionDecision allowed =
+            await policy.EvaluateAsync(systemContext);
+        AccessProfileMutationAdmissionDecision denied =
+            await policy.EvaluateAsync(spoofedContext);
+
+        Assert.Equal(AccessProfileMutationAdmissionDecision.Allowed, allowed);
+        Assert.Equal(AccessProfileMutationAdmissionDecision.Denied, denied);
         Assert.Equal([WorkspaceId.ToString("D")], admission.TenantIds);
     }
 

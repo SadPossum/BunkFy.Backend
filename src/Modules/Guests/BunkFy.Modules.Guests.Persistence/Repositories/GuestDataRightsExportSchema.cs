@@ -14,7 +14,10 @@ internal static class GuestDataRightsExportSchema
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Guests.Persistence.DataGovernance.personal-data-catalog.v1.json";
-    private const string ExportPolicy = "include-in-authorized-guest-export";
+    private const string ProfileExportPolicy =
+        "include-in-authorized-guest-or-tenant-export";
+    private const string SubjectExportPolicy =
+        "include-in-authorized-guest-export";
     private const string ExportRetentionPolicy = "guest-data-rights-export-fragment";
 
     private static readonly JsonSerializerOptions ValueSerializerOptions = CreateSerializerOptions();
@@ -153,13 +156,21 @@ internal static class GuestDataRightsExportSchema
             PersonalDataRightsPolicy rightsPolicy = catalog.RightsPolicies.Single(
                 policy => string.Equals(policy.Id, field.RightsPolicy, StringComparison.Ordinal));
             foreach (PersonalDataMemberBinding binding in field.Bindings.Where(
-                         binding => binding.Surface == PersonalDataSurface.DataRightsExport))
+                         binding =>
+                             binding.Surface ==
+                                 PersonalDataSurface.DataRightsExport &&
+                             string.Equals(
+                                 binding.RetentionPolicy,
+                                 ExportRetentionPolicy,
+                                 StringComparison.Ordinal)))
             {
                 string key = string.Join('|', binding.Type, binding.Member);
                 if (!expectedMembers.Contains(key) ||
                     field.Id.Length > DataRightsExportLimits.FieldIdMaxLength ||
                     !string.Equals(field.AuthoritativeOwner, GuestDataRightsDiscoveryContributor.Owner, StringComparison.Ordinal) ||
-                    !string.Equals(rightsPolicy.Export, ExportPolicy, StringComparison.Ordinal) ||
+                    !IsAuthorizedExportPolicy(
+                        binding.Type,
+                        rightsPolicy.Export) ||
                     !field.AllowedBoundaries.Contains(PersonalDataBoundary.CrossModule) ||
                     !string.Equals(binding.RetentionPolicy, ExportRetentionPolicy, StringComparison.Ordinal) ||
                     !fieldIdsByMember.TryAdd(key, field.Id))
@@ -197,6 +208,31 @@ internal static class GuestDataRightsExportSchema
 
     private static string MemberKey(Type sourceType, string member) =>
         string.Join('|', sourceType.FullName, member);
+
+    private static bool IsAuthorizedExportPolicy(
+        string sourceType,
+        string exportPolicy)
+    {
+        if (string.Equals(
+                sourceType,
+                typeof(GuestProfileDataRightsExport).FullName,
+                StringComparison.Ordinal))
+        {
+            return string.Equals(
+                    exportPolicy,
+                    ProfileExportPolicy,
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    exportPolicy,
+                    SubjectExportPolicy,
+                    StringComparison.Ordinal);
+        }
+
+        return string.Equals(
+            exportPolicy,
+            SubjectExportPolicy,
+            StringComparison.Ordinal);
+    }
 
     private static JsonSerializerOptions CreateSerializerOptions()
     {

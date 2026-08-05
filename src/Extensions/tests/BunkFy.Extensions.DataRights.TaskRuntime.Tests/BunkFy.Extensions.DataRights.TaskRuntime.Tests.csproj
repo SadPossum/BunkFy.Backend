@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BunkFy.Extensions.DataRights.TaskRuntime\BunkFy.Extensions.DataRights.TaskRuntime.csproj" />
+    <ProjectReference Include="..\..\..\Shared\BunkFy.DataGovernance\BunkFy.DataGovernance.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Tasks\Gma.Framework.Tasks.Infrastructure\Gma.Framework.Tasks.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\BunkFy.Extensions.DataRights.TaskRuntime\docs\personal-data-catalog.v1.json"
+          Link="DataGovernance\personal-data-catalog.v1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\BunkFy.Extensions.DataRights.TaskRuntime\docs\personal-data-inventory.v1.md"
+          Link="DataGovernance\personal-data-inventory.v1.md"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

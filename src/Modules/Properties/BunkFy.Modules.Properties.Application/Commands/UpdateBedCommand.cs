@@ -8,4 +8,4 @@ public sealed record UpdateBedCommand(
     Guid RoomId,
     Guid BedId,
     long ExpectedRoomVersion,
-    string Label) : ITransactionalCommand<BedDto>;
+    string Label) : ITransactionalCommand<BedMutationReceiptDto>;

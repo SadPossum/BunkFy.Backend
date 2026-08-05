@@ -158,7 +158,7 @@ public sealed class ReservationDataRightsIntegrationTests
             reservation.ExpectedDepartureTime,
             "user:privacy-operator");
 
-        Result<ReservationDto> ordinaryManagement = await dispatcher.SendAsync(
+        Result<ReservationMutationReceiptDto> ordinaryManagement = await dispatcher.SendAsync(
             new UpdateReservationGuestDetailsCommand(
                 propertyId,
                 reservation.Id,

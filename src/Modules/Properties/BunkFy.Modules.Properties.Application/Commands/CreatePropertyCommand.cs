@@ -7,4 +7,4 @@ public sealed record CreatePropertyCommand(
     string Name,
     string Code,
     string TimeZoneId)
-    : ITransactionalCommand<PropertyDto>;
+    : ITransactionalCommand<PropertyMutationReceiptDto>;

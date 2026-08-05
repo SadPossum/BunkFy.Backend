@@ -12,6 +12,8 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\BunkFy.Modules.DataRights.AdminApi\BunkFy.Modules.DataRights.AdminApi.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.DataRights.AdminCli\BunkFy.Modules.DataRights.AdminCli.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.DataRights.Api\BunkFy.Modules.DataRights.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.DataRights.Application\BunkFy.Modules.DataRights.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.DataRights.Contracts\BunkFy.Modules.DataRights.Contracts.csproj" />
@@ -30,6 +32,9 @@
   <ItemGroup>
     <None Include="..\..\..\..\..\eng\country-policies\development\example-hostel-policy.v1.json"
           Link="CountryPolicies\example-hostel-policy.v1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\..\..\eng\country-policies\development\example-hostel-policy.v2.json"
+          Link="CountryPolicies\example-hostel-policy.v2.json"
           CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\docs\personal-data-catalog.v1.json"
           Link="DataGovernance\personal-data-catalog.v1.json"

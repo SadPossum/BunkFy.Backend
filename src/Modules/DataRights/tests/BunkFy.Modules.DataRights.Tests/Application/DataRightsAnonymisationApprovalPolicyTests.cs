@@ -53,19 +53,21 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
         static DataRightsPropertyPolicySnapshot CreateSnapshot(
             PropertyGovernancePolicyBinding governancePolicy) => new(
             true,
-            true,
+            PropertyStatus.Active,
+            "Europe/London",
             PropertyProcessingStatus.Enabled,
             governancePolicy,
+            7,
             7);
     }
 
     [Theory]
-    [InlineData(false, true, PropertyProcessingStatus.Enabled)]
-    [InlineData(true, false, PropertyProcessingStatus.Enabled)]
-    [InlineData(true, true, PropertyProcessingStatus.Suspended)]
+    [InlineData(false, PropertyStatus.Active, PropertyProcessingStatus.Enabled)]
+    [InlineData(true, PropertyStatus.Retired, PropertyProcessingStatus.Enabled)]
+    [InlineData(true, PropertyStatus.Active, PropertyProcessingStatus.Suspended)]
     public async Task Missing_inactive_or_suspended_property_fails_closed(
         bool isKnown,
-        bool isActive,
+        PropertyStatus status,
         PropertyProcessingStatus processingStatus)
     {
         (CountryPolicyRegistry registry, PropertyGovernancePolicyBinding binding) =
@@ -73,9 +75,11 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
         DataRightsAnonymisationApprovalPolicy policy = new(
             new StubPropertyRepository(new(
                 isKnown,
-                isActive,
+                status,
+                "Europe/London",
                 processingStatus,
                 binding,
+                7,
                 7)),
             [],
             registry,
@@ -101,9 +105,11 @@ public sealed class DataRightsAnonymisationApprovalPolicyTests
         DataRightsAnonymisationApprovalPolicy policy = new(
             new StubPropertyRepository(new(
                 true,
-                true,
+                PropertyStatus.Active,
+                "Europe/London",
                 PropertyProcessingStatus.Enabled,
                 binding,
+                7,
                 7)),
             [],
             CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),

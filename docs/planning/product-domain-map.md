@@ -129,14 +129,21 @@ Auth account lifecycle, organization membership lifecycle, AccessControl grants,
 
 ### Files
 
-Use GMA Files with MinIO by default. BunkFy modules should use files for:
+Use GMA Framework FileManagement with MinIO behind the product module that owns
+the object's purpose and lifecycle. The generic GMA Files HTTP front door is
+not composed until a reviewed private-object workflow has an exact catalogue,
+permissions, retention, legal-hold, portability, and tenant-cleanup design.
+
+Future BunkFy-owned file workflows may include:
 
 - property images;
 - guest documents;
 - invoices and receipts;
 - operational attachments.
 
-Create BunkFy-specific file metadata/lifecycle only when product rules require it.
+Their metadata and lifecycle belong to the product domain. Reusable storage,
+content-safety, and exact generic Files lifecycle primitives may move to GMA
+only when they remain product-neutral.
 
 ### Notifications
 
