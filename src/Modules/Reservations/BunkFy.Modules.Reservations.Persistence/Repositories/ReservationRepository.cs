@@ -16,11 +16,34 @@ internal sealed class ReservationRepository(
         Reservation reservation,
         CancellationToken cancellationToken)
     {
-        dbContext.Reservations.Add(reservation);
         dbContext.OperationLocks.Add(new(
             Guid.NewGuid(),
             reservation.ScopeId,
             reservation.Id));
+        await this.AddCoreAsync(reservation, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task AddUnderAcquiredOperationLockAsync(
+        Reservation reservation,
+        CancellationToken cancellationToken)
+    {
+        bool lockTracked = dbContext.OperationLocks.Local.Any(resourceLock =>
+            resourceLock.ReservationId == reservation.Id &&
+            string.Equals(resourceLock.ScopeId, reservation.ScopeId, StringComparison.Ordinal));
+        if (!lockTracked)
+        {
+            throw new InvalidOperationException(
+                "The reservation creation operation lock is not acquired.");
+        }
+
+        await this.AddCoreAsync(reservation, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task AddCoreAsync(
+        Reservation reservation,
+        CancellationToken cancellationToken)
+    {
+        dbContext.Reservations.Add(reservation);
         await restrictionProjections.EnsureAsync(
             reservation.ScopeId,
             reservation.PropertyId,

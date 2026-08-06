@@ -8,6 +8,11 @@ internal sealed class CreateReservationCommandValidator : ICommandValidator<Crea
 {
     public IEnumerable<string> Validate(CreateReservationCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.PropertyId == Guid.Empty)
         {
             yield return "PropertyId is required.";

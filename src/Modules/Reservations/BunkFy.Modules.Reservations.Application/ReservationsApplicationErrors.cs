@@ -17,6 +17,9 @@ public static class ReservationsApplicationErrors
             .ToArray();
     public static readonly Error ReservationNotFound = new("Reservations.ReservationNotFound", "The reservation was not found.");
     public static readonly Error ExternalSourceAlreadyExists = new("Reservations.ExternalSourceAlreadyExists", "A reservation already exists for this external source reference.");
+    public static readonly Error CreationOperationConflict = new(
+        "Reservations.CreationOperationConflict",
+        "The reservation operation id is already bound to a different request.");
     public static readonly Error TenantRequired = new("Reservations.TenantRequired", "A tenant context is required.");
     public static readonly Error WorkspaceProcessingRestricted = new(
         "Reservations.WorkspaceProcessingRestricted",
@@ -31,6 +34,7 @@ public static class ReservationsApplicationErrors
     public static Error StayRangeInvalid => ReservationsDomainErrors.StayRangeInvalid;
     public static Error ExpectedStayTimeInvalid => ReservationsDomainErrors.ExpectedStayTimeInvalid;
     public static Error RequestedUnitsInvalid => ReservationsDomainErrors.RequestedUnitsInvalid;
+    public static Error SourceInvalid => ReservationsDomainErrors.SourceInvalid;
     public static Error DetailsRevisionConflict => ReservationsDomainErrors.DetailsRevisionConflict;
     public static Error DetailsChangeProvenanceInvalid => ReservationsDomainErrors.DetailsChangeProvenanceInvalid;
     public static Error AllocationAmendmentInProgress => ReservationsDomainErrors.AllocationAmendmentInProgress;

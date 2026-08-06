@@ -7,6 +7,10 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 public interface IReservationRepository
 {
     Task AddAsync(Reservation reservation, CancellationToken cancellationToken);
+    Task AddUnderAcquiredOperationLockAsync(
+        Reservation reservation,
+        CancellationToken cancellationToken) =>
+        this.AddAsync(reservation, cancellationToken);
     Task<Reservation?> GetAsync(Guid propertyId, Guid reservationId, CancellationToken cancellationToken);
     async Task<bool> ExistsAsync(
         Guid propertyId,

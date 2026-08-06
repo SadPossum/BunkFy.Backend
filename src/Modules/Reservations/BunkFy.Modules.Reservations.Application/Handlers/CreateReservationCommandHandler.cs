@@ -14,6 +14,7 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 internal sealed class CreateReservationCommandHandler(
     IReservationRepository reservations,
+    ReservationMutationCoordinator mutationCoordinator,
     IInventoryProjectionRepository inventoryProjection,
     IReservationCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
@@ -43,6 +44,44 @@ internal sealed class CreateReservationCommandHandler(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
+        ReservationSource? source = command.SourceKind switch
+        {
+            ReservationSourceKind.Direct => ReservationSource.Direct,
+            ReservationSourceKind.External => ReservationSource.External,
+            _ => null
+        };
+        if (!source.HasValue)
+        {
+            return Result.Failure<ReservationMutationReceiptDto>(
+                ReservationsApplicationErrors.SourceInvalid);
+        }
+
+        ReservationCreationSnapshot creation = ReservationCreationSnapshot.Capture(
+            command.PropertyId,
+            command.Arrival,
+            command.Departure,
+            command.ExpectedArrivalTime,
+            command.ExpectedDepartureTime,
+            command.InventoryUnitIds,
+            command.PrimaryGuestName,
+            command.Email,
+            command.Phone,
+            command.GuestCount,
+            source.Value,
+            command.SourceSystem,
+            command.SourceReference,
+            command.Notes);
+        Reservation? existing = await mutationCoordinator.AcquireCreationAsync(
+            command.OperationId,
+            cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing.MatchesCreation(creation)
+                ? Result.Success(existing.ToMutationReceipt())
+                : Result.Failure<ReservationMutationReceiptDto>(
+                    ReservationsApplicationErrors.CreationOperationConflict);
+        }
+
         if (command.SourceKind == ReservationSourceKind.External &&
             !string.IsNullOrWhiteSpace(command.SourceSystem) &&
             !string.IsNullOrWhiteSpace(command.SourceReference) &&
@@ -68,7 +107,7 @@ internal sealed class CreateReservationCommandHandler(
         }
 
         Result<Reservation> created = Reservation.Create(
-            idGenerator.NewId(),
+            command.OperationId,
             scopeId,
             command.PropertyId,
             idGenerator.NewId(),
@@ -79,7 +118,7 @@ internal sealed class CreateReservationCommandHandler(
             command.Email,
             command.Phone,
             command.GuestCount,
-            command.SourceKind == ReservationSourceKind.Direct ? ReservationSource.Direct : ReservationSource.External,
+            source.Value,
             command.SourceSystem,
             command.SourceReference,
             command.Notes,
@@ -89,7 +128,7 @@ internal sealed class CreateReservationCommandHandler(
             initialDetailsActorId: command.ActorId,
             initialAdapterConnectionId: null,
             initialExternalOperationId: null,
-            idGenerator.NewId(),
+            command.OperationId,
             clock.UtcNow,
             command.ExpectedArrivalTime,
             command.ExpectedDepartureTime);
@@ -98,7 +137,9 @@ internal sealed class CreateReservationCommandHandler(
             return Result.Failure<ReservationMutationReceiptDto>(created.Error);
         }
 
-        await reservations.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
+        await reservations.AddUnderAcquiredOperationLockAsync(
+            created.Value,
+            cancellationToken).ConfigureAwait(false);
         return Result.Success(created.Value.ToMutationReceipt());
     }
 }

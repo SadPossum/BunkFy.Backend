@@ -125,6 +125,7 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new CreateReservationCommand(
+                        request.OperationId,
                         propertyId,
                         request.Arrival,
                         request.Departure,
@@ -278,6 +279,7 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
     }
 
     public sealed record CreateReservationRequest(
+        Guid OperationId,
         DateOnly Arrival,
         DateOnly Departure,
         TimeOnly? ExpectedArrivalTime,
@@ -312,9 +314,11 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
         new(ReservationsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitPropertyMismatch.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.ExpectedStayTimeInvalid.Code, StatusCodes.Status400BadRequest),
+        new(ReservationsApplicationErrors.SourceInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.DetailsRevisionConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.DetailsChangeProvenanceInvalid.Code, StatusCodes.Status400BadRequest),

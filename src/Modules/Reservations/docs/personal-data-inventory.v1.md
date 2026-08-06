@@ -1139,11 +1139,13 @@ Engineering metadata is not legal or country-launch approval.
 | reservation.record.created-at-utc | BunkFy.Modules.Reservations.Contracts | BunkFy.Modules.Reservations.Contracts.ReservationDto | CreatedAtUtc | api-response | transient-response |
 | reservation.record.created-at-utc | BunkFy.Modules.Reservations.Domain | BunkFy.Modules.Reservations.Domain.Aggregates.Reservation | CreatedAtUtc | persistence | reservation-record-lifecycle |
 | reservation.record.created-at-utc | BunkFy.Modules.Reservations.Persistence | BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport | CreatedAtUtc | data-rights-export | reservation-data-rights-export-fragment |
+| reservation.record.id | BunkFy.Modules.Reservations.Api | BunkFy.Modules.Reservations.Api.ReservationsModule+CreateReservationRequest | OperationId | api-input | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Api | BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest | ReservationId | api-input | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.ApplyReservationDataRightsCorrectionCommand | ReservationId | application-command | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.CancelReservationCommand | ReservationId | application-command | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.CheckInReservationCommand | ReservationId | application-command | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.CheckOutReservationCommand | ReservationId | application-command | transient-request |
+| reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.CreateReservationCommand | OperationId | application-command | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.LinkReservationGuestCommand | ReservationId | application-command | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.MarkReservationNoShowCommand | ReservationId | application-command | transient-request |
 | reservation.record.id | BunkFy.Modules.Reservations.Application | BunkFy.Modules.Reservations.Application.Commands.ReassignReservationInventoryCommand | ReservationId | application-command | transient-request |

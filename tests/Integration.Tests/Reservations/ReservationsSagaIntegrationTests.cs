@@ -847,6 +847,7 @@ public sealed class ReservationsSagaIntegrationTests
             accessToken,
             new
             {
+                operationId = Guid.NewGuid(),
                 arrival,
                 departure,
                 inventoryUnitIds = new[] { RoomId },

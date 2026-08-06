@@ -9,6 +9,31 @@ internal sealed class ReservationMutationCoordinator(
     IReservationOperationLock operationLock,
     IScopeContext scopeContext)
 {
+    public async Task<Reservation?> AcquireCreationAsync(
+        Guid operationId,
+        CancellationToken cancellationToken)
+    {
+        if (!this.TryGetTenantId(operationId, out string tenantId))
+        {
+            return null;
+        }
+
+        await operationLock.AcquireCoordinateAsync(
+            tenantId,
+            operationId,
+            cancellationToken).ConfigureAwait(false);
+        Reservation? existing = await reservations
+            .GetForRequiredContinuationByReservationIdAsync(
+                operationId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return existing is not null &&
+            existing.Id == operationId &&
+            string.Equals(existing.ScopeId, tenantId, StringComparison.Ordinal)
+                ? existing
+                : null;
+    }
+
     public Task<Reservation?> AcquireOperationalAsync(
         Guid propertyId,
         Guid reservationId,

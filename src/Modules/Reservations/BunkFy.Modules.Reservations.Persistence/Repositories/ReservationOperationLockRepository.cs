@@ -33,17 +33,21 @@ internal sealed class ReservationOperationLockRepository(
             }
 
             return await this.HandleMissingExistingLockAsync(
+                scopeId,
                 reservationId,
                 cancellationToken).ConfigureAwait(false);
         }
 
         ReservationOperationLock? existing = await dbContext.OperationLocks
             .SingleOrDefaultAsync(
-                resourceLock => resourceLock.ReservationId == reservationId,
+                resourceLock =>
+                    resourceLock.ScopeId == scopeId &&
+                    resourceLock.ReservationId == reservationId,
                 cancellationToken).ConfigureAwait(false);
         if (existing is null)
         {
             return await this.HandleMissingExistingLockAsync(
+                scopeId,
                 reservationId,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -63,7 +67,9 @@ internal sealed class ReservationOperationLockRepository(
 
         ReservationOperationLock? resourceLock = await dbContext.OperationLocks
             .SingleOrDefaultAsync(
-                item => item.ReservationId == reservationId,
+                item =>
+                    item.ScopeId == scopeId &&
+                    item.ReservationId == reservationId,
                 cancellationToken).ConfigureAwait(false);
         if (resourceLock is null)
         {
@@ -81,13 +87,16 @@ internal sealed class ReservationOperationLockRepository(
     }
 
     private async Task<bool> HandleMissingExistingLockAsync(
+        string scopeId,
         Guid reservationId,
         CancellationToken cancellationToken)
     {
         bool reservationExists = await dbContext.Reservations
             .AsNoTracking()
             .AnyAsync(
-                reservation => reservation.Id == reservationId,
+                reservation =>
+                    reservation.ScopeId == scopeId &&
+                    reservation.Id == reservationId,
                 cancellationToken).ConfigureAwait(false);
         if (!reservationExists)
         {

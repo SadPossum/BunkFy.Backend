@@ -144,6 +144,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
 
     private static Command CreateCreateCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<Guid> propertyOption = PropertyOption();
         Option<string> arrivalOption = RequiredString("--arrival");
         Option<string> departureOption = RequiredString("--departure");
@@ -159,6 +160,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
         Option<string?> notesOption = new("--notes");
         Command command = new("create", "Create a reservation and request Inventory allocation.")
         {
+            operationIdOption,
             propertyOption,
             arrivalOption,
             departureOption,
@@ -209,6 +211,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
                     Result<ReservationMutationReceiptDto> result = await dispatcher.SendAsync(
                         new CreateReservationCommand(
+                            parseResult.GetRequiredValue(operationIdOption),
                             parseResult.GetRequiredValue(propertyOption),
                             arrival,
                             departure,

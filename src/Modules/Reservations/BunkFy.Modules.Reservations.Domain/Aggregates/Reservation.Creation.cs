@@ -7,6 +7,28 @@ using BunkFy.Modules.Reservations.Domain.Events;
 
 public sealed partial class Reservation
 {
+    public bool MatchesCreation(ReservationCreationSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return this.PropertyId == snapshot.PropertyId &&
+            this.Arrival == snapshot.Arrival &&
+            this.Departure == snapshot.Departure &&
+            this.ExpectedArrivalTime == snapshot.ExpectedArrivalTime &&
+            this.ExpectedDepartureTime == snapshot.ExpectedDepartureTime &&
+            this.requestedUnits
+                .Select(unit => unit.InventoryUnitId)
+                .Order()
+                .SequenceEqual(snapshot.InventoryUnitIds) &&
+            string.Equals(this.PrimaryGuestName, snapshot.PrimaryGuestName, StringComparison.Ordinal) &&
+            string.Equals(this.Email, snapshot.Email, StringComparison.Ordinal) &&
+            string.Equals(this.Phone, snapshot.Phone, StringComparison.Ordinal) &&
+            this.GuestCount == snapshot.GuestCount &&
+            this.Source == snapshot.Source &&
+            string.Equals(this.SourceSystem, snapshot.SourceSystem, StringComparison.Ordinal) &&
+            string.Equals(this.SourceReference, snapshot.SourceReference, StringComparison.Ordinal) &&
+            string.Equals(this.Notes, snapshot.Notes, StringComparison.Ordinal);
+    }
+
     public static Result<Reservation> Create(
         Guid reservationId,
         string scopeId,

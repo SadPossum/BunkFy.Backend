@@ -12,6 +12,25 @@ using Xunit;
 public sealed class ReservationMutationCoordinatorTests
 {
     [Fact]
+    public async Task Creation_acquires_coordinate_before_authoritative_read()
+    {
+        Reservation reservation = CreateReservation();
+        List<string> calls = [];
+        SequencedReservationRepository reservations = new(reservation, calls);
+        ReservationMutationCoordinator coordinator =
+            ReservationMutationTestSupport.Create(
+                reservations,
+                new CallbackOperationLock(calls));
+
+        Reservation? result = await coordinator.AcquireCreationAsync(
+            reservation.Id,
+            CancellationToken.None);
+
+        Assert.Same(reservation, result);
+        Assert.Equal(["coordinate-lock", "creation-read"], calls);
+    }
+
+    [Fact]
     public async Task Operational_acquire_locks_before_authoritative_reload()
     {
         Reservation reservation = CreateReservation();
@@ -117,6 +136,21 @@ public sealed class ReservationMutationCoordinatorTests
         Assert.True(hasOperationLock);
     }
 
+    [Fact]
+    public void Management_creation_requires_mutation_coordinator()
+    {
+        bool hasCoordinator = typeof(CreateReservationCommandHandler)
+            .GetConstructors(
+                BindingFlags.Instance |
+                BindingFlags.Public |
+                BindingFlags.NonPublic)
+            .SelectMany(constructor => constructor.GetParameters())
+            .Any(parameter =>
+                parameter.ParameterType == typeof(ReservationMutationCoordinator));
+
+        Assert.True(hasCoordinator);
+    }
+
     private static Reservation CreateReservation() => Reservation.Create(
         Guid.NewGuid(),
         "tenant-a",
@@ -160,8 +194,12 @@ public sealed class ReservationMutationCoordinatorTests
         public Task AcquireCoordinateAsync(
             string tenantId,
             Guid reservationId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken)
+        {
+            calls.Add("coordinate-lock");
+            acquired?.Invoke();
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class SequencedReservationRepository(
@@ -217,9 +255,14 @@ public sealed class ReservationMutationCoordinatorTests
 
         public Task<Reservation?>
             GetForRequiredContinuationByReservationIdAsync(
-                Guid reservationId,
-                CancellationToken cancellationToken) =>
-            this.GetAsyncByReservationId(reservationId, cancellationToken);
+            Guid reservationId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("creation-read");
+            return this.GetAsyncByReservationId(
+                reservationId,
+                cancellationToken);
+        }
 
         public Task<Reservation?> GetByExternalSourceAsync(
             string sourceSystem,

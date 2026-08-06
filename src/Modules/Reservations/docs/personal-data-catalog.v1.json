@@ -11122,6 +11122,20 @@
       "bindings": [
         {
           "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+CreateReservationRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CreateReservationCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
           "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReservationDataRightsCorrectionRequest",
           "member": "ReservationId",
           "surface": "api-input",

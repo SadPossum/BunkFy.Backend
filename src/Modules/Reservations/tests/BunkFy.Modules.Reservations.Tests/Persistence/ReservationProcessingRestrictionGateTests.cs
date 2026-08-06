@@ -17,6 +17,35 @@ public sealed class ReservationProcessingRestrictionGateTests
         new(2026, 7, 25, 20, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Creation_under_acquired_coordinate_persists_one_lock_and_restriction_state()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        TestScopeContext scope = new();
+        ReservationProcessingRestrictionProjectionRepository projections =
+            new(dbContext, scope);
+        ReservationRepository repository = new(dbContext, projections);
+        ReservationOperationLockRepository operationLock = new(dbContext);
+        Reservation reservation = CreateReservation();
+        await operationLock.AcquireCoordinateAsync(
+            reservation.ScopeId,
+            reservation.Id,
+            CancellationToken.None);
+
+        await repository.AddUnderAcquiredOperationLockAsync(
+            reservation,
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+
+        ReservationOperationLock persistedLock =
+            Assert.Single(dbContext.OperationLocks);
+        Assert.Equal(reservation.Id, persistedLock.ReservationId);
+        Assert.NotNull(await projections.GetAsync(
+            reservation.PropertyId,
+            reservation.Id,
+            CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Ordinary_reads_deny_while_rights_and_continuation_reads_remain()
     {
         await using ReservationsDbContext dbContext = CreateDbContext();
