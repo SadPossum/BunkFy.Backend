@@ -114,12 +114,6 @@ internal sealed partial class IngestionTenantTerminationContributor
                     dbContext.RetentionExecutions,
                     execution => execution.Id,
                     cancellationToken),
-            IngestionTenantDestroyStage.SourceOperationLocks =>
-                this.RemoveGuidBatchAsync(
-                    operation,
-                    dbContext.SourceOperationLocks,
-                    resourceLock => resourceLock.Id,
-                    cancellationToken),
             IngestionTenantDestroyStage.AdapterConnections =>
                 this.RemoveGuidBatchAsync(
                     operation,
@@ -303,8 +297,6 @@ internal sealed partial class IngestionTenantTerminationContributor
         await dbContext.LegalHolds.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.RetentionExecutions.AnyAsync(cancellationToken)
-            .ConfigureAwait(false) ||
-        await dbContext.SourceOperationLocks.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.AdapterConnections.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||

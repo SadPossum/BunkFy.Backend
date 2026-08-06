@@ -132,6 +132,7 @@ Useful entry points:
 - [Ingestion PII Minimization Task](planning/ingestion-pii-minimization-task.md)
 - [Ingestion Operational Surface Hardening Task](planning/ingestion-operational-surface-hardening-task.md)
 - [Ingestion Execution Mutation Serialization Task](planning/ingestion-execution-mutation-serialization-task.md)
+- [Ingestion Source Graph Mutation Serialization Task](planning/ingestion-source-graph-mutation-serialization-task.md)
 - [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)
 - [Ingestion Legal Holds Task](planning/ingestion-legal-holds-task.md)
 - [Standalone Adapter Host Task](planning/standalone-adapter-host-task.md)

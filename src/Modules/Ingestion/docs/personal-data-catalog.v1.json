@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 11,
+  "catalogVersion": 12,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -2947,30 +2947,6 @@
           "assembly": "BunkFy.Modules.Ingestion.Domain",
           "type": "BunkFy.Modules.Ingestion.Domain.DataRights.IngestionAnonymisationRecordPlanEntry",
           "member": "CreatedAtUtc",
-          "surface": "persistence"
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock",
-          "member": "Id",
-          "surface": "persistence"
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock",
-          "member": "ScopeId",
-          "surface": "persistence"
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock",
-          "member": "SourceLinkId",
-          "surface": "persistence"
-        },
-        {
-          "assembly": "BunkFy.Modules.Ingestion.Persistence",
-          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionSourceOperationLock",
-          "member": "Revision",
           "surface": "persistence"
         }
       ]
@@ -6581,6 +6557,20 @@
         },
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.RawPayloadPurgeClaimCandidate",
+          "member": "ConnectionId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.SensitiveHistoryRedactionCandidate",
+          "member": "ConnectionId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Ports.RawPayloadWrite",
           "member": "ConnectionId",
           "surface": "file-ingress",
@@ -8427,7 +8417,8 @@
         "operational-audit"
       ],
       "sources": [
-        "ingestion-persistence"
+        "ingestion-persistence",
+        "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
@@ -8436,6 +8427,7 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "application-command",
         "data-rights-export",
         "persistence"
       ],
@@ -8445,6 +8437,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.SensitiveHistoryRedactionCandidate",
+          "member": "RecordId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
         {
           "assembly": "BunkFy.Modules.Ingestion.Domain",
           "type": "BunkFy.Modules.Ingestion.Domain.Connections.AdapterConnection",
@@ -8801,6 +8800,13 @@
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Commands.NormalizedReservationObservation",
+          "member": "Kind",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.SensitiveHistoryRedactionCandidate",
           "member": "Kind",
           "surface": "application-command",
           "retentionPolicy": null
@@ -12383,6 +12389,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.RawPayloadPurgeClaimCandidate",
+          "member": "ReceiptId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Queries.GetObservationRawPayloadQuery",
           "member": "ReceiptId",
           "surface": "application-query",
@@ -14323,7 +14336,8 @@
         "operational-audit"
       ],
       "sources": [
-        "ingestion-persistence"
+        "ingestion-persistence",
+        "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
@@ -14332,6 +14346,7 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
+        "application-command",
         "data-rights-export",
         "persistence"
       ],
@@ -14341,6 +14356,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.SensitiveHistoryRedactionCandidate",
+          "member": "RetainUntilUtc",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
         {
           "assembly": "BunkFy.Modules.Ingestion.Domain",
           "type": "BunkFy.Modules.Ingestion.Domain.Proposals.ChangeProposal",
@@ -14407,6 +14429,20 @@
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Commands.ReservationObservationDispatchResult",
+          "member": "SourceLinkId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.RawPayloadPurgeClaimCandidate",
+          "member": "SourceLinkId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Ports.SensitiveHistoryRedactionCandidate",
           "member": "SourceLinkId",
           "surface": "application-command",
           "retentionPolicy": null

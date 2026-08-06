@@ -13,7 +13,7 @@ using Gma.Framework.Scoping;
 
 internal sealed class CompleteIngestionAnonymisationRestoreCommandHandler(
     IIngestionAnonymisationRestoreRepository repository,
-    IIngestionSourceOperationLock operationLock,
+    IngestionSourceMutationCoordinator sourceMutations,
     IRawPayloadStore rawPayloads,
     IScopeContext scopeContext,
     ISystemClock clock)
@@ -37,10 +37,16 @@ internal sealed class CompleteIngestionAnonymisationRestoreCommandHandler(
             return InvalidRequest();
         }
 
-        await operationLock.AcquireAsync(
-            tenantId,
-            request.RecordId,
-            cancellationToken).ConfigureAwait(false);
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireSourceLinkAsync(
+                    request.RecordId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (lease is null)
+        {
+            return Conflict();
+        }
+
         IngestionAnonymisationTombstone? tombstone =
             await repository.GetTombstoneAsync(
                 request.RecordId,

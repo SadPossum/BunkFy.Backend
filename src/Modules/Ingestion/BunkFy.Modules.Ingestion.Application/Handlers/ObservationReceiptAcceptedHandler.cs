@@ -13,8 +13,8 @@ using BunkFy.Modules.Ingestion.Domain.Receipts;
 
 [IntegrationEventHandler(IngestionModuleMetadata.ReceiptAcceptedHandlerName)]
 internal sealed class ObservationReceiptAcceptedHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReceiptRepository receipts,
-    IAdapterConnectionRepository connections,
     ReservationObservationPayloadLoader payloadLoader,
     ICommandHandler<DispatchNormalizedReservationObservationCommand, ReservationObservationDispatchResult> dispatcher,
     ISystemClock clock)
@@ -24,14 +24,25 @@ internal sealed class ObservationReceiptAcceptedHandler(
         ObservationReceiptAcceptedIntegrationEvent accepted,
         CancellationToken cancellationToken)
     {
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReceiptAsync(
+                    accepted.ReceiptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (lease is null)
+        {
+            return;
+        }
+
         ObservationReceipt? receipt = await receipts.GetAsync(accepted.ReceiptId, cancellationToken).ConfigureAwait(false);
         if (receipt is null || receipt.State != ObservationReceiptState.Pending)
         {
             return;
         }
 
-        AdapterConnection? connection = await connections.GetAsync(accepted.ConnectionId, cancellationToken).ConfigureAwait(false);
-        if (connection is null || receipt.ConnectionId != connection.Id || receipt.PropertyId != accepted.PropertyId ||
+        AdapterConnection connection = lease.Connection;
+        if (connection.Id != accepted.ConnectionId ||
+            receipt.ConnectionId != connection.Id || receipt.PropertyId != accepted.PropertyId ||
             !string.Equals(receipt.SourceRecordType, ReservationObservationJsonNormalizer.RecordType, StringComparison.Ordinal))
         {
             _ = receipt.Reject("The observation record type or connection is not supported.", clock.UtcNow);

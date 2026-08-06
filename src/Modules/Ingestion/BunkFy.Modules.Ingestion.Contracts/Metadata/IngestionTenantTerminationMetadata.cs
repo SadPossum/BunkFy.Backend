@@ -8,7 +8,7 @@ public static class IngestionTenantTerminationMetadata
     public const string OwnerKey = IngestionModuleMetadata.Name;
     public const string DependencyOwnerKey = "staff";
     public const int CatalogVersion = 2;
-    public const int PersonalDataCatalogVersion = 11;
+    public const int PersonalDataCatalogVersion = 12;
     public const string ExportCatalogId = "ingestion.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =

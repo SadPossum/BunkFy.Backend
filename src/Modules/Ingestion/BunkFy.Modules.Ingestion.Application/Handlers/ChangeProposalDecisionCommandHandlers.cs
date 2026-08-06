@@ -13,6 +13,7 @@ using BunkFy.Modules.Ingestion.Domain.Receipts;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
 
 internal sealed class AcceptChangeProposalCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IChangeProposalRepository proposals,
     IObservationReceiptRepository receipts,
     IReservationSourceLinkRepository sourceLinks,
@@ -26,6 +27,17 @@ internal sealed class AcceptChangeProposalCommandHandler(
         AcceptChangeProposalCommand command,
         CancellationToken cancellationToken)
     {
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireProposalAsync(
+                    command.ProposalId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (lease is null)
+        {
+            return Result.Failure<ChangeProposalMutationReceiptDto>(
+                IngestionApplicationErrors.ProposalNotFound);
+        }
+
         ChangeProposal? proposal = await proposals.GetAsync(command.ProposalId, cancellationToken).ConfigureAwait(false);
         if (proposal is null || proposal.PropertyId != command.PropertyId)
         {
@@ -130,6 +142,7 @@ internal sealed class AcceptChangeProposalCommandHandler(
 }
 
 internal sealed class RejectChangeProposalCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IChangeProposalRepository proposals,
     IIngestionRetentionPolicy retentionPolicy,
     ISystemClock clock)
@@ -139,6 +152,17 @@ internal sealed class RejectChangeProposalCommandHandler(
         RejectChangeProposalCommand command,
         CancellationToken cancellationToken)
     {
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireProposalAsync(
+                    command.ProposalId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (lease is null)
+        {
+            return Result.Failure<ChangeProposalMutationReceiptDto>(
+                IngestionApplicationErrors.ProposalNotFound);
+        }
+
         ChangeProposal? proposal = await proposals.GetAsync(command.ProposalId, cancellationToken).ConfigureAwait(false);
         if (proposal is null || proposal.PropertyId != command.PropertyId)
         {

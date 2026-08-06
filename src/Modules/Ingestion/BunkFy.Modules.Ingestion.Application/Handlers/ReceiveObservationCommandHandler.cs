@@ -20,6 +20,7 @@ using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal sealed class ReceiveObservationCommandHandler(
     IngestionExecutionMutationCoordinator execution,
+    IngestionSourceMutationCoordinator sourceMutations,
     IAdapterDescriptorRegistry descriptors,
     IIngestionCountryPolicyAdmission countryPolicy,
     IObservationReceiptRepository receipts,
@@ -127,25 +128,7 @@ internal sealed class ReceiveObservationCommandHandler(
             return Result.Failure<AdapterObservationResult>(receiptPolicyEvidence.Error);
         }
 
-        if (hasCompleteLineage)
-        {
-            ObservationReprocessingAttempt? attempt = await reprocessingAttempts.GetAsync(
-                command.ReprocessingAttemptId!.Value,
-                cancellationToken).ConfigureAwait(false);
-            ObservationReceipt? source = await receipts.GetAsync(
-                command.SourceReceiptId!.Value,
-                cancellationToken).ConfigureAwait(false);
-            if (attempt is null || source is null || attempt.State != ObservationReprocessingState.Running ||
-                attempt.SourceReceiptId != source.Id || attempt.ConnectionId != connection.Id ||
-                source.ConnectionId != connection.Id || source.PropertyId != connection.PropertyId ||
-                !string.Equals(attempt.ParserType, command.ParserType?.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                attempt.ParserVersion != command.ParserVersion)
-            {
-                return Result.Failure<AdapterObservationResult>(
-                    IngestionApplicationErrors.ReprocessingAttemptStatusInvalid);
-            }
-        }
-        else if (command.RunId.HasValue)
+        if (!hasCompleteLineage && command.RunId.HasValue)
         {
             IngestionRun? run = await execution.AcquireRunReadAsync(
                 command.RunId.Value,
@@ -192,9 +175,56 @@ internal sealed class ReceiveObservationCommandHandler(
                 return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ObservationInvalid);
             }
         }
-        else if (command.RemoteLease is not null || command.RemoteCredentialId.HasValue)
+        else if (!hasCompleteLineage &&
+                 (command.RemoteLease is not null ||
+                  command.RemoteCredentialId.HasValue))
         {
             return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ObservationInvalid);
+        }
+
+        IngestionSourceMutationLease sourceLease =
+            await sourceMutations.AcquireIdentityAsync(
+                    connection,
+                    command.ExternalRecordId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        Result<Guid> barrier = await anonymisationBarrier
+            .CheckUnderLockAsync(
+                scopeContext.ScopeId,
+                connection.Id,
+                command.RecordType,
+                command.ExternalRecordId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (barrier.IsFailure)
+        {
+            return Result.Failure<AdapterObservationResult>(
+                barrier.Error);
+        }
+
+        if (barrier.Value != sourceLease.Coordinate.SourceLinkId)
+        {
+            throw new InvalidOperationException(
+                "The observation resolved to a different source graph after locking.");
+        }
+
+        if (hasCompleteLineage)
+        {
+            ObservationReprocessingAttempt? attempt = await reprocessingAttempts.GetAsync(
+                command.ReprocessingAttemptId!.Value,
+                cancellationToken).ConfigureAwait(false);
+            ObservationReceipt? source = await receipts.GetAsync(
+                command.SourceReceiptId!.Value,
+                cancellationToken).ConfigureAwait(false);
+            if (attempt is null || source is null || attempt.State != ObservationReprocessingState.Running ||
+                attempt.SourceReceiptId != source.Id || attempt.ConnectionId != connection.Id ||
+                source.ConnectionId != connection.Id || source.PropertyId != connection.PropertyId ||
+                !string.Equals(attempt.ParserType, command.ParserType?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                attempt.ParserVersion != command.ParserVersion)
+            {
+                return Result.Failure<AdapterObservationResult>(
+                    IngestionApplicationErrors.ReprocessingAttemptStatusInvalid);
+            }
         }
 
         string contentHash = command.ContentSha256?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -221,20 +251,6 @@ internal sealed class ReceiveObservationCommandHandler(
         catch (ArgumentException)
         {
             return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ObservationInvalid);
-        }
-
-        Result<Guid> barrier = await anonymisationBarrier
-            .AcquireAndCheckAsync(
-                scopeContext.ScopeId,
-                connection.Id,
-                observation.RecordType,
-                observation.ExternalRecordId,
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (barrier.IsFailure)
-        {
-            return Result.Failure<AdapterObservationResult>(
-                barrier.Error);
         }
 
         ObservationReceipt? operationDuplicate = await receipts.FindByOperationAsync(

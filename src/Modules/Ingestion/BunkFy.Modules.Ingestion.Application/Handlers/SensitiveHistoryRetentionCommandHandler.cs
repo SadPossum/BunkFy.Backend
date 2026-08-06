@@ -12,6 +12,7 @@ using BunkFy.Modules.Ingestion.Contracts;
 internal sealed class RedactExpiredSensitiveHistoryCommandHandler(
     ISensitiveHistoryRetentionRepository retention,
     IIngestionRetentionExecutionRepository executions,
+    IngestionSourceMutationCoordinator sourceMutations,
     IScopeContext scopeContext,
     ISystemClock clock)
     : ICommandHandler<RedactExpiredSensitiveHistoryCommand, SensitiveHistoryRedactionBatchResult>
@@ -31,10 +32,34 @@ internal sealed class RedactExpiredSensitiveHistoryCommandHandler(
                 IngestionApplicationErrors.RetentionTaskOptionsInvalid);
         }
 
-        SensitiveHistoryRedactionBatchResult result =
-            await retention.RedactBatchAsync(
-                clock.UtcNow,
+        DateTimeOffset nowUtc = clock.UtcNow;
+        IReadOnlyList<SensitiveHistoryRedactionCandidate> candidates =
+            await retention.FindRedactionCandidatesAsync(
+                nowUtc,
                 command.BatchSize,
+                cancellationToken).ConfigureAwait(false);
+        await sourceMutations.AcquireAllAsync(
+                candidates
+                    .Select(candidate => new IngestionSourceGraphCoordinate(
+                        candidate.RecordId,
+                        candidate.ConnectionId,
+                        candidate.SourceLinkId))
+                    .ToArray(),
+                cancellationToken)
+            .ConfigureAwait(false);
+        SensitiveHistoryRedactionBatchResult result =
+            await retention.RedactSelectedAsync(
+                candidates
+                    .Where(candidate =>
+                        candidate.Kind == SensitiveHistoryRecordKind.Proposal)
+                    .Select(candidate => candidate.RecordId)
+                    .ToArray(),
+                candidates
+                    .Where(candidate =>
+                        candidate.Kind == SensitiveHistoryRecordKind.Dispatch)
+                    .Select(candidate => candidate.RecordId)
+                    .ToArray(),
+                nowUtc,
                 cancellationToken).ConfigureAwait(false);
         if (command.RetentionExecutionId is { } executionId &&
             result.TotalCount > 0)

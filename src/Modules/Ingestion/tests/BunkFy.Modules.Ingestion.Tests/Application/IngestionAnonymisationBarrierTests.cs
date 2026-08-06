@@ -43,6 +43,37 @@ public sealed class IngestionAnonymisationBarrierTests
         Assert.True(repository.ObservedLock);
     }
 
+    [Fact]
+    public async Task Check_under_existing_lock_does_not_reacquire_it()
+    {
+        const string TenantId = "tenant-a";
+        const string ExternalId = "booking-43";
+        Guid connectionId = Guid.NewGuid();
+        RecordingOperationLock operationLock = new();
+        AllowingRepository repository = new();
+        IngestionAnonymisationBarrier barrier = new(
+            operationLock,
+            new FingerprintService(),
+            repository);
+
+        Result<Guid> result = await barrier.CheckUnderLockAsync(
+            TenantId,
+            connectionId,
+            "reservation.v1",
+            ExternalId,
+            CancellationToken.None);
+
+        Guid expectedSourceLinkId =
+            ReservationOperationIdentity.CreateSourceLinkId(
+                TenantId,
+                connectionId,
+                ExternalId);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expectedSourceLinkId, result.Value);
+        Assert.Equal(expectedSourceLinkId, repository.SourceLinkId);
+        Assert.False(operationLock.Acquired);
+    }
+
     private sealed class RecordingOperationLock
         : IIngestionSourceOperationLock
     {
@@ -110,6 +141,22 @@ public sealed class IngestionAnonymisationBarrierTests
                 operationLock.Acquired &&
                 operationLock.SourceLinkId == sourceLinkId;
             return Task.FromResult(true);
+        }
+    }
+
+    private sealed class AllowingRepository
+        : IIngestionAnonymisationBarrierRepository
+    {
+        public Guid SourceLinkId { get; private set; }
+
+        public Task<bool> IsBlockedAsync(
+            Guid sourceLinkId,
+            IReadOnlyCollection<
+                IngestionAnonymisationFingerprintValue> fingerprints,
+            CancellationToken cancellationToken)
+        {
+            this.SourceLinkId = sourceLinkId;
+            return Task.FromResult(false);
         }
     }
 }

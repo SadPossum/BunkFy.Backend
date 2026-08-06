@@ -794,7 +794,6 @@ public sealed class IngestionTenantTerminationContributorTests
         await context.AnonymisationReceipts.AnyAsync() ||
         await context.AnonymisationFingerprints.AnyAsync() ||
         await context.AnonymisationRecordPlan.AnyAsync() ||
-        await context.SourceOperationLocks.AnyAsync() ||
         await context.OutboxMessages.AnyAsync() ||
         await context.InboxMessages.AnyAsync();
 

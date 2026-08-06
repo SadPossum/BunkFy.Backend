@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using BunkFy.Adapter.Abstractions;
+using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Application.Handlers;
@@ -8,6 +9,7 @@ using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Errors;
+using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Ingestion.Persistence.Repositories;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -50,6 +52,113 @@ public sealed class IngestionExecutionLockIntegrationTests
         await ProveSharedReadsAndCoordinateIsolationAsync(
             connectionString,
             connection.Id).ConfigureAwait(false);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Source_graph_locks_serialize_same_source_and_reload_the_committed_winner()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_ingestion_source_lock_tests")
+                .Build();
+        await postgreSql.StartAsync().ConfigureAwait(false);
+        string connectionString = postgreSql.GetConnectionString();
+        AdapterConnection connection = CreateConnection();
+        ReservationSourceLink source = CreateSourceLink(
+            connection,
+            "booking-123");
+        ReservationSourceLink unrelatedSource = CreateSourceLink(
+            connection,
+            "booking-456");
+
+        await using (IngestionDbContext seed = CreateDbContext(connectionString))
+        {
+            await seed.Database.MigrateAsync().ConfigureAwait(false);
+            seed.AdapterConnections.Add(connection);
+            seed.ReservationSourceLinks.AddRange(source, unrelatedSource);
+            await seed.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        await using IngestionDbContext firstDb = CreateDbContext(connectionString);
+        await using IngestionDbContext waitingDb = CreateDbContext(connectionString);
+        await using IDbContextTransaction firstTransaction =
+            await firstDb.Database.BeginTransactionAsync().ConfigureAwait(false);
+        await using IDbContextTransaction waitingTransaction =
+            await waitingDb.Database.BeginTransactionAsync().ConfigureAwait(false);
+        IngestionSourceMutationCoordinator first =
+            CreateSourceMutationCoordinator(firstDb);
+        IngestionSourceMutationCoordinator waiting =
+            CreateSourceMutationCoordinator(waitingDb);
+
+        IngestionSourceMutationLease? firstLease = await first
+            .AcquireSourceLinkAsync(source.Id, CancellationToken.None)
+            .ConfigureAwait(false);
+        Assert.NotNull(firstLease);
+        ReservationSourceLink firstSource = await firstDb.ReservationSourceLinks
+            .SingleAsync(item => item.Id == source.Id)
+            .ConfigureAwait(false);
+        var observed = firstSource.Observe(
+            Guid.NewGuid(),
+            "2",
+            2,
+            Now,
+            new string('a', ReservationSourceLink.ContentHashLength),
+            Now.AddMinutes(1));
+        Assert.True(observed.IsSuccess, observed.Error.Code);
+        await firstDb.SaveChangesAsync().ConfigureAwait(false);
+
+        Task<IngestionSourceMutationLease?> waitingAcquisition = waiting
+            .AcquireSourceLinkAsync(source.Id, CancellationToken.None);
+        await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+        Assert.False(waitingAcquisition.IsCompleted);
+
+        await using (IngestionDbContext unrelatedDb =
+            CreateDbContext(connectionString))
+        await using (IDbContextTransaction unrelatedTransaction =
+            await unrelatedDb.Database.BeginTransactionAsync()
+                .ConfigureAwait(false))
+        {
+            IngestionSourceMutationLease? unrelatedLease =
+                await CreateSourceMutationCoordinator(unrelatedDb)
+                    .AcquireSourceLinkAsync(
+                        unrelatedSource.Id,
+                        CancellationToken.None)
+                    .WaitAsync(TimeSpan.FromSeconds(2))
+                    .ConfigureAwait(false);
+            Assert.NotNull(unrelatedLease);
+            await unrelatedTransaction.CommitAsync().ConfigureAwait(false);
+        }
+
+        await firstTransaction.CommitAsync().ConfigureAwait(false);
+        IngestionSourceMutationLease? waitingLease = await waitingAcquisition
+            .WaitAsync(TimeSpan.FromSeconds(10))
+            .ConfigureAwait(false);
+        Assert.NotNull(waitingLease);
+        ReservationSourceLink reloaded = await waitingDb.ReservationSourceLinks
+            .SingleAsync(item => item.Id == source.Id)
+            .ConfigureAwait(false);
+        Assert.Equal(2, reloaded.Version);
+        Assert.Equal("2", reloaded.LastObservedSourceRevision);
+        Assert.Equal(
+            new string('a', ReservationSourceLink.ContentHashLength),
+            reloaded.LastObservedContentHash);
+        await waitingTransaction.CommitAsync().ConfigureAwait(false);
+
+        await using IngestionDbContext verification =
+            CreateDbContext(connectionString);
+        int operationLockTableCount = await verification.Database
+            .SqlQueryRaw<int>(
+                """
+                SELECT COUNT(*)::int AS "Value"
+                FROM information_schema.tables
+                WHERE table_schema = 'ingestion'
+                  AND table_name = 'source_operation_locks'
+                """)
+            .SingleAsync()
+            .ConfigureAwait(false);
+        Assert.Equal(0, operationLockTableCount);
     }
 
     private static async Task ProveWaitingWriterReloadsAuthoritativeStateAsync(
@@ -172,6 +281,23 @@ public sealed class IngestionExecutionLockIntegrationTests
             new TestClock());
     }
 
+    private static IngestionSourceMutationCoordinator
+        CreateSourceMutationCoordinator(IngestionDbContext dbContext)
+    {
+        AdapterConnectionRepository connections = new(dbContext);
+        IngestionRunRepository runs = new(dbContext);
+        IngestionExecutionMutationCoordinator execution = new(
+            new IngestionExecutionLock(dbContext),
+            connections,
+            runs,
+            new TestScope());
+        return new(
+            new IngestionSourceGraphLocator(dbContext),
+            new IngestionSourceGraphLock(dbContext),
+            execution,
+            new TestScope());
+    }
+
     private static UpdateAdapterConnectionCommand CreateUpdate(
         AdapterConnection connection,
         string configurationReference,
@@ -194,6 +320,20 @@ public sealed class IngestionExecutionLockIntegrationTests
         IngestionConflictPolicy.SuggestionsOnly,
         "configuration://initial",
         null,
+        Now).Value;
+
+    private static ReservationSourceLink CreateSourceLink(
+        AdapterConnection connection,
+        string sourceReference) => ReservationSourceLink.Create(
+        ReservationOperationIdentity.CreateSourceLinkId(
+            TenantId,
+            connection.Id,
+            sourceReference),
+        TenantId,
+        connection.PropertyId,
+        connection.Id,
+        connection.AdapterType,
+        sourceReference,
         Now).Value;
 
     private static IngestionDbContext CreateDbContext(

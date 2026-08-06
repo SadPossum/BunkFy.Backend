@@ -63,8 +63,6 @@ public sealed class IngestionDbContext(
     public DbSet<IngestionAnonymisationRecordPlanEntry>
         AnonymisationRecordPlan =>
         this.Set<IngestionAnonymisationRecordPlanEntry>();
-    internal DbSet<IngestionSourceOperationLock> SourceOperationLocks =>
-        this.Set<IngestionSourceOperationLock>();
     internal DbSet<IngestionTenantRevision> TenantRevisions =>
         this.Set<IngestionTenantRevision>();
     internal DbSet<IngestionTenantDestroyOperation> TenantDestroyOperations =>
@@ -376,7 +374,6 @@ public sealed class IngestionDbContext(
                 AdapterIngressGlobalControl or
                 IngestionPropertyProjection or
                 IngestionProjectionRebuildCheckpoint or
-                IngestionSourceOperationLock or
                 IngestionTenantRevision or
                 IngestionTenantDestroyOperation or
                 IngestionTenantDestroyReceipt));

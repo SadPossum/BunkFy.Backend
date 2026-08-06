@@ -174,9 +174,6 @@ public sealed class IngestionExecutionMutationCoordinatorTests
     [InlineData(typeof(RenewRemoteAdapterLeaseCommandHandler))]
     [InlineData(typeof(CompleteRemoteAdapterRunCommandHandler))]
     [InlineData(typeof(ReceiveObservationCommandHandler))]
-    [InlineData(typeof(DispatchNormalizedReservationObservationCommandHandler))]
-    [InlineData(typeof(PrepareObservationReprocessingCommandHandler))]
-    [InlineData(typeof(StartObservationReprocessingCommandHandler))]
     public void Execution_sensitive_paths_require_the_coordinator(Type handlerType)
     {
         bool hasCoordinator = handlerType

@@ -12,6 +12,7 @@ using BunkFy.Modules.Ingestion.Domain.Retention;
 
 internal sealed class ClaimExpiredRawPayloadsCommandHandler(
     IRawPayloadRetentionRepository retention,
+    IngestionSourceMutationCoordinator sourceMutations,
     IScopeContext scopeContext,
     ISystemClock clock)
     : ICommandHandler<ClaimExpiredRawPayloadsCommand, IReadOnlyList<RawPayloadPurgeCandidate>>
@@ -35,11 +36,28 @@ internal sealed class ClaimExpiredRawPayloadsCommandHandler(
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
-        return Result.Success(await retention.ClaimBatchAsync(
+        IReadOnlyList<RawPayloadPurgeClaimCandidate> candidates =
+            await retention.FindClaimCandidatesAsync(
             command.ClaimId,
             nowUtc,
             nowUtc.AddMinutes(-command.StaleClaimMinutes),
             command.BatchSize,
+            cancellationToken).ConfigureAwait(false);
+        await sourceMutations.AcquireAllAsync(
+                candidates
+                    .Select(candidate => new IngestionSourceGraphCoordinate(
+                        candidate.ReceiptId,
+                        candidate.ConnectionId,
+                        candidate.SourceLinkId))
+                    .ToArray(),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return Result.Success(await retention.ClaimSelectedAsync(
+            candidates.Select(candidate => candidate.ReceiptId).ToArray(),
+            command.ClaimId,
+            nowUtc,
+            nowUtc.AddMinutes(-command.StaleClaimMinutes),
             cancellationToken).ConfigureAwait(false));
     }
 }
@@ -47,6 +65,7 @@ internal sealed class ClaimExpiredRawPayloadsCommandHandler(
 internal sealed class CompleteRawPayloadPurgeCommandHandler(
     IObservationReceiptRepository receipts,
     IIngestionRetentionExecutionRepository executions,
+    IngestionSourceMutationCoordinator sourceMutations,
     ISystemClock clock)
     : ICommandHandler<CompleteRawPayloadPurgeCommand, Unit>
 {
@@ -54,6 +73,16 @@ internal sealed class CompleteRawPayloadPurgeCommandHandler(
         CompleteRawPayloadPurgeCommand command,
         CancellationToken cancellationToken)
     {
+        IngestionSourceMutationLease? source =
+            await sourceMutations.AcquireReceiptAsync(
+                    command.ReceiptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (source is null)
+        {
+            return Result.Failure<Unit>(IngestionApplicationErrors.ReceiptNotFound);
+        }
+
         ObservationReceipt? receipt = await receipts.GetAsync(command.ReceiptId, cancellationToken)
             .ConfigureAwait(false);
         if (receipt is null)

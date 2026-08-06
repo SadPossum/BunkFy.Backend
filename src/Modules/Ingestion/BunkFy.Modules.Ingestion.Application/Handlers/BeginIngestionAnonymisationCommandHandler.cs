@@ -16,7 +16,7 @@ using Gma.Framework.Scoping;
 
 internal sealed class BeginIngestionAnonymisationCommandHandler(
     IIngestionAnonymisationRestoreRepository repository,
-    IIngestionSourceOperationLock operationLock,
+    IngestionSourceMutationCoordinator sourceMutations,
     IIngestionAnonymisationFingerprintService fingerprintService,
     IIngestionAnonymisationEligibilityEvaluator eligibility,
     IDataRightsOperationApprovalGate approvalGate,
@@ -42,6 +42,20 @@ internal sealed class BeginIngestionAnonymisationCommandHandler(
                 .IsValid(request, tenantId, nowUtc))
         {
             return InvalidRequest();
+        }
+
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireSourceLinkAsync(
+                    request.Coordinate.RecordId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (lease is null)
+        {
+            return Result.Failure<
+                IngestionAnonymisationExecutionStage>(
+                    IngestionApplicationErrors.AnonymisationBlocked(
+                        IngestionAnonymisationBlockerCode
+                            .SourceLinkNotFound));
         }
 
         IngestionAnonymisationRoutingPolicyEvidence routingPolicy =
@@ -90,11 +104,6 @@ internal sealed class BeginIngestionAnonymisationCommandHandler(
                     IngestionApplicationErrors
                         .AnonymisationApprovalRequired);
         }
-
-        await operationLock.AcquireAsync(
-            tenantId,
-            request.Coordinate.RecordId,
-            cancellationToken).ConfigureAwait(false);
 
         existing = await repository.GetTombstoneAsync(
             request.Coordinate.RecordId,

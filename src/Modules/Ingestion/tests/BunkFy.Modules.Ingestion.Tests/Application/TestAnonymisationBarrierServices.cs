@@ -4,25 +4,35 @@ using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.DataRights;
 using Gma.Framework.Results;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 internal static class TestAnonymisationBarrierServices
 {
     public static IServiceCollection AddAllowingAnonymisationBarrier(
-        this IServiceCollection services) =>
-        services.AddAnonymisationBarrier(blocked: false);
+        this IServiceCollection services,
+        IIngestionSourceOperationLock? operationLock = null) =>
+        services.AddAnonymisationBarrier(
+            blocked: false,
+            operationLock: operationLock);
 
     public static IServiceCollection AddBlockingAnonymisationBarrier(
-        this IServiceCollection services) =>
-        services.AddAnonymisationBarrier(blocked: true);
+        this IServiceCollection services,
+        IIngestionSourceOperationLock? operationLock = null) =>
+        services.AddAnonymisationBarrier(
+            blocked: true,
+            operationLock: operationLock);
 
     private static IServiceCollection AddAnonymisationBarrier(
         this IServiceCollection services,
-        bool blocked)
+        bool blocked,
+        IIngestionSourceOperationLock? operationLock)
     {
         services.AddNoOpExecutionLock();
-        services.AddSingleton<
-            IIngestionSourceOperationLock,
-            NoOpSourceOperationLock>();
+        services.AddSingleton<IIngestionSourceOperationLock>(
+            operationLock ?? new NoOpSourceOperationLock());
+        services.TryAddSingleton<
+            IIngestionSourceGraphLocator,
+            EmptySourceGraphLocator>();
         services.AddSingleton<
             IIngestionAnonymisationFingerprintService,
             DeterministicFingerprintService>();
@@ -39,6 +49,42 @@ internal static class TestAnonymisationBarrierServices
             Guid sourceLinkId,
             CancellationToken cancellationToken) =>
             Task.CompletedTask;
+    }
+
+    private sealed class EmptySourceGraphLocator
+        : IIngestionSourceGraphLocator
+    {
+        public Task<IngestionSourceGraphCoordinate?> FindReceiptAsync(
+            Guid receiptId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionSourceGraphCoordinate?>(null);
+
+        public Task<IngestionSourceGraphCoordinate?> FindProposalAsync(
+            Guid proposalId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionSourceGraphCoordinate?>(null);
+
+        public Task<IngestionSourceGraphCoordinate?> FindDispatchAsync(
+            Guid dispatchId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionSourceGraphCoordinate?>(null);
+
+        public Task<IngestionSourceGraphCoordinate?>
+            FindReprocessingAttemptAsync(
+            Guid attemptId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionSourceGraphCoordinate?>(null);
+
+        public Task<IngestionSourceGraphCoordinate?> FindSourceLinkAsync(
+            Guid sourceLinkId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionSourceGraphCoordinate?>(null);
+
+        public Task<IngestionSourceGraphCoordinate?>
+            FindAcceptedCancellationAsync(
+            Guid reservationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionSourceGraphCoordinate?>(null);
     }
 
     private sealed class DeterministicFingerprintService

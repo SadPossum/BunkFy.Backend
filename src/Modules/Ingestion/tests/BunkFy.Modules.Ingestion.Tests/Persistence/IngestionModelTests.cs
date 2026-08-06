@@ -173,8 +173,6 @@ public sealed class IngestionModelTests
             typeof(IngestionAnonymisationFingerprint))!;
         IEntityType plan = dbContext.Model.FindEntityType(
             typeof(IngestionAnonymisationRecordPlanEntry))!;
-        IEntityType operationLock = dbContext.Model.FindEntityType(
-            typeof(IngestionSourceOperationLock))!;
 
         Assert.True(tombstone
             .FindProperty(nameof(IngestionAnonymisationTombstone.Revision))!
@@ -221,13 +219,9 @@ public sealed class IngestionModelTests
             index.Properties.Select(property => property.Name)
                 .SequenceEqual(
                     ["ScopeId", "TombstoneId", "Kind", "RecordId"]));
-        Assert.True(operationLock
-            .FindProperty(nameof(IngestionSourceOperationLock.Revision))!
-            .IsConcurrencyToken);
-        Assert.Contains(operationLock.GetIndexes(), index =>
-            index.IsUnique &&
-            index.Properties.Select(property => property.Name)
-                .SequenceEqual(["ScopeId", "SourceLinkId"]));
+        Assert.DoesNotContain(
+            dbContext.Model.GetEntityTypes(),
+            entity => entity.ClrType.Name == "IngestionSourceOperationLock");
     }
 
     [Fact]
@@ -720,9 +714,13 @@ public sealed class IngestionModelTests
             terminal);
         await dbContext.SaveChangesAsync();
 
-        IReadOnlyList<BunkFy.Modules.Ingestion.Application.Ports.RawPayloadPurgeCandidate> claimed =
-            await new RawPayloadRetentionRepository(dbContext, properties).ClaimBatchAsync(
-                Guid.NewGuid(), now, now.AddMinutes(-15), 10, CancellationToken.None);
+        IReadOnlyList<RawPayloadPurgeCandidate> claimed =
+            await ClaimRawPayloadsAsync(
+                new RawPayloadRetentionRepository(dbContext, properties),
+                Guid.NewGuid(),
+                now,
+                now.AddMinutes(-15),
+                10);
 
         Assert.Equal(terminalReceipt.Id, Assert.Single(claimed).ReceiptId);
         Assert.Equal(RawPayloadRetentionState.Available, pendingReceipt.RawPayloadRetentionState);
@@ -752,15 +750,32 @@ public sealed class IngestionModelTests
         await using IngestionDbContext dbContext = CreateDbContext();
         DateTimeOffset now = new(2026, 7, 12, 12, 0, 0, TimeSpan.Zero);
         Guid propertyId = Guid.NewGuid();
-        Guid connectionId = Guid.NewGuid();
+        AdapterConnection connection = AdapterConnection.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, "fake.http",
+            BunkFy.Adapter.Abstractions.AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main", null, now.AddDays(-100)).Value;
+        Guid connectionId = connection.Id;
+        ObservationReceipt dueReceipt = CreateReceipt(
+            connection,
+            now.AddDays(-100),
+            now.AddDays(30));
+        ObservationReceipt activeReceipt = CreateReceipt(
+            connection,
+            now.AddDays(-100),
+            now.AddDays(30));
         ChangeProposal dueProposal = ChangeProposal.Create(
-            Guid.NewGuid(), "tenant-a", propertyId, connectionId, Guid.NewGuid(), Guid.NewGuid(),
-            Guid.NewGuid(), 1, "staff-conflict", "{\"guest\":\"Sensitive Proposal\"}", now.AddDays(-100)).Value;
+            Guid.NewGuid(), "tenant-a", propertyId, connectionId,
+            dueReceipt.Id, Guid.NewGuid(), dueReceipt.RawPayloadFileId,
+            1, "staff-conflict", "{\"guest\":\"Sensitive Proposal\"}",
+            now.AddDays(-100)).Value;
         Assert.True(dueProposal.Reject(
             "staff:42", "Outdated", dueProposal.Version, now.AddDays(-10), now.AddDays(-100).AddMinutes(1)).IsSuccess);
         ChangeProposal activeProposal = ChangeProposal.Create(
-            Guid.NewGuid(), "tenant-a", propertyId, connectionId, Guid.NewGuid(), Guid.NewGuid(),
-            Guid.NewGuid(), 1, "active", "{\"guest\":\"Still Needed\"}", now.AddDays(-100)).Value;
+            Guid.NewGuid(), "tenant-a", propertyId, connectionId,
+            activeReceipt.Id, Guid.NewGuid(), activeReceipt.RawPayloadFileId,
+            1, "active", "{\"guest\":\"Still Needed\"}",
+            now.AddDays(-100)).Value;
         ReservationDispatch dueDispatch = CreateDispatch(propertyId, connectionId, now.AddDays(-100));
         Assert.True(dueDispatch.Complete(
             ReservationDispatchState.Applied,
@@ -783,16 +798,23 @@ public sealed class IngestionModelTests
         await properties.ApplyTopologyAsync(new(
             "tenant-a", propertyId, "Retention property", "retention-property", true, 1),
             CancellationToken.None);
-        dbContext.AddRange(dueProposal, activeProposal, dueDispatch, futureDispatch);
+        dbContext.AddRange(
+            connection,
+            dueReceipt,
+            activeReceipt,
+            dueProposal,
+            activeProposal,
+            dueDispatch,
+            futureDispatch);
         await dbContext.SaveChangesAsync();
         SensitiveHistoryRetentionRepository repository = new(dbContext, properties);
 
-        SensitiveHistoryRedactionBatchResult first = await repository.RedactBatchAsync(
-            now, 1, CancellationToken.None);
+        SensitiveHistoryRedactionBatchResult first =
+            await RedactSensitiveHistoryAsync(repository, now, 1);
         await dbContext.SaveChangesAsync();
         dbContext.ChangeTracker.Clear();
-        SensitiveHistoryRedactionBatchResult second = await repository.RedactBatchAsync(
-            now, 10, CancellationToken.None);
+        SensitiveHistoryRedactionBatchResult second =
+            await RedactSensitiveHistoryAsync(repository, now, 10);
         await dbContext.SaveChangesAsync();
         dbContext.ChangeTracker.Clear();
 
@@ -849,10 +871,15 @@ public sealed class IngestionModelTests
         RawPayloadRetentionRepository rawRetention = new(dbContext, properties);
         SensitiveHistoryRetentionRepository historyRetention = new(dbContext, properties);
 
-        IReadOnlyList<RawPayloadPurgeCandidate> heldRaw = await rawRetention.ClaimBatchAsync(
-            Guid.NewGuid(), now, now.AddMinutes(-15), 10, CancellationToken.None);
-        SensitiveHistoryRedactionBatchResult heldHistory = await historyRetention.RedactBatchAsync(
-            now, 10, CancellationToken.None);
+        IReadOnlyList<RawPayloadPurgeCandidate> heldRaw =
+            await ClaimRawPayloadsAsync(
+                rawRetention,
+                Guid.NewGuid(),
+                now,
+                now.AddMinutes(-15),
+                10);
+        SensitiveHistoryRedactionBatchResult heldHistory =
+            await RedactSensitiveHistoryAsync(historyRetention, now, 10);
         AdapterConnectionHealthDto health = (await new IngestionOperationsReader(dbContext)
             .GetConnectionHealthAsync(propertyId, connection.Id, now, CancellationToken.None))!;
 
@@ -867,20 +894,192 @@ public sealed class IngestionModelTests
 
         Assert.True(firstHold.Release(1, "user:legal", "Matter A closed", now.AddDays(-2)).IsSuccess);
         await dbContext.SaveChangesAsync();
-        Assert.Empty(await rawRetention.ClaimBatchAsync(
-            Guid.NewGuid(), now, now.AddMinutes(-15), 10, CancellationToken.None));
+        Assert.Empty(await ClaimRawPayloadsAsync(
+            rawRetention,
+            Guid.NewGuid(),
+            now,
+            now.AddMinutes(-15),
+            10));
 
         Assert.True(secondHold.Release(1, "user:legal", "Matter B closed", now.AddDays(-1)).IsSuccess);
         await dbContext.SaveChangesAsync();
-        IReadOnlyList<RawPayloadPurgeCandidate> releasedRaw = await rawRetention.ClaimBatchAsync(
-            Guid.NewGuid(), now, now.AddMinutes(-15), 10, CancellationToken.None);
-        SensitiveHistoryRedactionBatchResult releasedHistory = await historyRetention.RedactBatchAsync(
-            now, 10, CancellationToken.None);
+        IReadOnlyList<RawPayloadPurgeCandidate> releasedRaw =
+            await ClaimRawPayloadsAsync(
+                rawRetention,
+                Guid.NewGuid(),
+                now,
+                now.AddMinutes(-15),
+                10);
+        SensitiveHistoryRedactionBatchResult releasedHistory =
+            await RedactSensitiveHistoryAsync(historyRetention, now, 10);
         await dbContext.SaveChangesAsync();
 
         Assert.Equal(receipt.Id, Assert.Single(releasedRaw).ReceiptId);
         Assert.Equal(new SensitiveHistoryRedactionBatchResult(1, 1), releasedHistory);
         Assert.Equal(2, (await dbContext.PropertyProjections.SingleAsync()).RetentionFenceVersion);
+    }
+
+    [Fact]
+    public async Task Retention_rechecks_candidates_after_discovery()
+    {
+        await using IngestionDbContext dbContext = CreateDbContext();
+        DateTimeOffset now =
+            new(2026, 7, 12, 12, 0, 0, TimeSpan.Zero);
+        Guid propertyId = Guid.NewGuid();
+        AdapterConnection connection = AdapterConnection.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, "fake.http",
+            BunkFy.Adapter.Abstractions.AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main", null, now.AddDays(-100)).Value;
+        ObservationReceipt receipt = CreateReceipt(
+            connection,
+            now.AddDays(-100),
+            now.AddDays(-10));
+        Assert.True(receipt.MarkProcessed(now.AddDays(-99)).IsSuccess);
+        ChangeProposal proposal = CreateProposal(
+            connection,
+            receipt,
+            now.AddDays(-99));
+        Assert.True(proposal.Reject(
+            "staff:42",
+            "Outdated",
+            proposal.Version,
+            now.AddDays(-10),
+            now.AddDays(-98)).IsSuccess);
+        ReservationDispatch dispatch = CreateDispatch(
+            propertyId,
+            connection.Id,
+            now.AddDays(-100));
+        Assert.True(dispatch.Complete(
+            ReservationDispatchState.Applied,
+            Guid.NewGuid(),
+            detailsRevision: 2,
+            reservationVersion: 3,
+            errorCode: null,
+            now.AddDays(-10),
+            now.AddDays(-99)).IsSuccess);
+        IngestionPropertyProjectionRepository properties = new(dbContext);
+        await properties.ApplyTopologyAsync(new(
+            "tenant-a",
+            propertyId,
+            "Retention property",
+            "retention-property",
+            true,
+            1), CancellationToken.None);
+        dbContext.AddRange(connection, receipt, proposal, dispatch);
+        await dbContext.SaveChangesAsync();
+        RawPayloadRetentionRepository raw = new(dbContext, properties);
+        SensitiveHistoryRetentionRepository history = new(
+            dbContext,
+            properties);
+        Guid claimId = Guid.NewGuid();
+
+        IReadOnlyList<RawPayloadPurgeClaimCandidate> rawCandidates =
+            await raw.FindClaimCandidatesAsync(
+                claimId,
+                now,
+                now.AddMinutes(-15),
+                10,
+                CancellationToken.None);
+        IReadOnlyList<SensitiveHistoryRedactionCandidate>
+            historyCandidates = await history.FindRedactionCandidatesAsync(
+                now,
+                10,
+                CancellationToken.None);
+        Assert.Single(rawCandidates);
+        Assert.Equal(2, historyCandidates.Count);
+
+        LegalHold hold = LegalHold.Place(
+            Guid.NewGuid(),
+            "tenant-a",
+            propertyId,
+            "New matter",
+            "user:legal",
+            now).Value;
+        dbContext.LegalHolds.Add(hold);
+        await dbContext.SaveChangesAsync();
+
+        IReadOnlyList<RawPayloadPurgeCandidate> claimed =
+            await raw.ClaimSelectedAsync(
+                rawCandidates.Select(candidate => candidate.ReceiptId)
+                    .ToArray(),
+                claimId,
+                now,
+                now.AddMinutes(-15),
+                CancellationToken.None);
+        SensitiveHistoryRedactionBatchResult redacted =
+            await history.RedactSelectedAsync(
+                historyCandidates
+                    .Where(candidate => candidate.Kind ==
+                        SensitiveHistoryRecordKind.Proposal)
+                    .Select(candidate => candidate.RecordId)
+                    .ToArray(),
+                historyCandidates
+                    .Where(candidate => candidate.Kind ==
+                        SensitiveHistoryRecordKind.Dispatch)
+                    .Select(candidate => candidate.RecordId)
+                    .ToArray(),
+                now,
+                CancellationToken.None);
+
+        Assert.Empty(claimed);
+        Assert.Equal(
+            new SensitiveHistoryRedactionBatchResult(0, 0),
+            redacted);
+        Assert.Equal(
+            RawPayloadRetentionState.Available,
+            receipt.RawPayloadRetentionState);
+        Assert.NotNull(proposal.Diff);
+        Assert.NotNull(dispatch.NormalizedSnapshot);
+    }
+
+    private static async Task<IReadOnlyList<RawPayloadPurgeCandidate>>
+        ClaimRawPayloadsAsync(
+        RawPayloadRetentionRepository repository,
+        Guid claimId,
+        DateTimeOffset nowUtc,
+        DateTimeOffset staleClaimBeforeUtc,
+        int batchSize)
+    {
+        IReadOnlyList<RawPayloadPurgeClaimCandidate> candidates =
+            await repository.FindClaimCandidatesAsync(
+                claimId,
+                nowUtc,
+                staleClaimBeforeUtc,
+                batchSize,
+                CancellationToken.None);
+        return await repository.ClaimSelectedAsync(
+            candidates.Select(candidate => candidate.ReceiptId).ToArray(),
+            claimId,
+            nowUtc,
+            staleClaimBeforeUtc,
+            CancellationToken.None);
+    }
+
+    private static async Task<SensitiveHistoryRedactionBatchResult>
+        RedactSensitiveHistoryAsync(
+        SensitiveHistoryRetentionRepository repository,
+        DateTimeOffset nowUtc,
+        int batchSize)
+    {
+        IReadOnlyList<SensitiveHistoryRedactionCandidate> candidates =
+            await repository.FindRedactionCandidatesAsync(
+                nowUtc,
+                batchSize,
+                CancellationToken.None);
+        return await repository.RedactSelectedAsync(
+            candidates
+                .Where(candidate =>
+                    candidate.Kind == SensitiveHistoryRecordKind.Proposal)
+                .Select(candidate => candidate.RecordId)
+                .ToArray(),
+            candidates
+                .Where(candidate =>
+                    candidate.Kind == SensitiveHistoryRecordKind.Dispatch)
+                .Select(candidate => candidate.RecordId)
+                .ToArray(),
+            nowUtc,
+            CancellationToken.None);
     }
 
     private static IngestionDbContext CreateDbContext()

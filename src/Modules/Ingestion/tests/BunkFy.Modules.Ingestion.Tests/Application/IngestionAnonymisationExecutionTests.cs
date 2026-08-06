@@ -66,7 +66,7 @@ public sealed class IngestionAnonymisationExecutionTests
         StubApprovalGate approvalGate = new(approval);
         BeginIngestionAnonymisationCommandHandler begin = new(
             repository,
-            new IngestionSourceOperationLockRepository(dbContext),
+            TestIngestionSource.Create(dbContext, scope),
             new HmacIngestionAnonymisationFingerprintService(
                 Options.Create(
                     IngestionAnonymisationRestoreTests
@@ -79,8 +79,7 @@ public sealed class IngestionAnonymisationExecutionTests
         CompleteIngestionAnonymisationCommandHandler complete =
             new(
                 repository,
-                new IngestionSourceOperationLockRepository(
-                    dbContext),
+                TestIngestionSource.Create(dbContext, scope),
                 rawPayloads,
                 scope,
                 clock);
@@ -192,8 +191,7 @@ public sealed class IngestionAnonymisationExecutionTests
         BeginIngestionAnonymisationRestoreCommandHandler
             beginRestore = new(
                 repository,
-                new IngestionSourceOperationLockRepository(
-                    dbContext),
+                TestIngestionSource.Create(dbContext, scope),
                 new HmacIngestionAnonymisationFingerprintService(
                     Options.Create(
                         IngestionAnonymisationRestoreTests
@@ -204,8 +202,7 @@ public sealed class IngestionAnonymisationExecutionTests
         CompleteIngestionAnonymisationRestoreCommandHandler
             completeRestore = new(
                 repository,
-                new IngestionSourceOperationLockRepository(
-                    dbContext),
+                TestIngestionSource.Create(dbContext, scope),
                 rawPayloads,
                 scope,
                 clock);
@@ -268,7 +265,7 @@ public sealed class IngestionAnonymisationExecutionTests
             new IngestionDataRightsEvidenceGraphLoader(dbContext));
         BeginIngestionAnonymisationCommandHandler begin = new(
             repository,
-            new IngestionSourceOperationLockRepository(dbContext),
+            TestIngestionSource.Create(dbContext, scope),
             new HmacIngestionAnonymisationFingerprintService(
                 Options.Create(
                     IngestionAnonymisationRestoreTests

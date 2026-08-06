@@ -16,8 +16,8 @@ using BunkFy.Modules.Ingestion.Domain.Reservations;
 using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal sealed class DispatchNormalizedReservationObservationCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReceiptRepository receipts,
-    IngestionExecutionMutationCoordinator execution,
     IReservationSourceLinkRepository sourceLinks,
     IReservationDispatchRepository dispatches,
     IChangeProposalRepository proposals,
@@ -31,6 +31,16 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
         DispatchNormalizedReservationObservationCommand command,
         CancellationToken cancellationToken)
     {
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReceiptAsync(
+                    command.ReceiptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (lease is null)
+        {
+            return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ReceiptNotFound);
+        }
+
         ObservationReceipt? receipt = await receipts.GetAsync(command.ReceiptId, cancellationToken).ConfigureAwait(false);
         if (receipt is null)
         {
@@ -42,16 +52,15 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
             return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ReceiptNotPending);
         }
 
-        AdapterConnection? connection = await execution.AcquireConnectionReadAsync(
-            receipt.ConnectionId,
-            cancellationToken).ConfigureAwait(false);
-        if (connection is null || connection.PropertyId != receipt.PropertyId)
+        AdapterConnection connection = lease.Connection;
+        if (connection.Id != receipt.ConnectionId ||
+            connection.PropertyId != receipt.PropertyId)
         {
             return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
         Result<Guid> barrier = await anonymisationBarrier
-            .AcquireAndCheckAsync(
+            .CheckUnderLockAsync(
                 receipt.ScopeId,
                 connection.Id,
                 receipt.SourceRecordType,
@@ -62,6 +71,12 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
         {
             return Result.Failure<ReservationObservationDispatchResult>(
                 barrier.Error);
+        }
+
+        if (barrier.Value != lease.Coordinate.SourceLinkId)
+        {
+            throw new InvalidOperationException(
+                "The observation resolved to a different source graph after locking.");
         }
 
         CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(

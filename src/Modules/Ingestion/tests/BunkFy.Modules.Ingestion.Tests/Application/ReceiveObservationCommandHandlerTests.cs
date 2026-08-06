@@ -151,6 +151,38 @@ public sealed class ReceiveObservationCommandHandlerTests
     }
 
     [Fact]
+    public async Task Run_fence_precedes_the_source_graph_lock()
+    {
+        List<string> calls = [];
+        TestContext context = CreateContext(
+            executionLock: new OrderedExecutionLock(calls),
+            sourceLock: new OrderedSourceLock(calls));
+        IngestionRun run = IngestionRun.Start(
+            Guid.NewGuid(),
+            "tenant-a",
+            context.Connection.Id,
+            context.Connection.PropertyId,
+            Guid.NewGuid(),
+            1,
+            null,
+            Now).Value;
+        context.Runs.Run = run;
+
+        Result<AdapterObservationResult> result = await context.Handler
+            .HandleAsync(
+                CreateCommand(context.Connection.Id) with
+                {
+                    RunId = run.Id
+                },
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(
+            ["connection-read-lock", "run-read-lock", "source-lock"],
+            calls);
+    }
+
+    [Fact]
     public async Task Payload_hash_is_verified_again_at_the_application_boundary()
     {
         TestContext context = CreateContext();
@@ -279,7 +311,8 @@ public sealed class ReceiveObservationCommandHandlerTests
         IngestionRun? run = null,
         bool propertyActive = true,
         bool anonymisationBlocked = false,
-        IIngestionExecutionLock? executionLock = null)
+        IIngestionExecutionLock? executionLock = null,
+        IIngestionSourceOperationLock? sourceLock = null)
     {
         AdapterConnection connection = AdapterConnection.Create(
             Guid.NewGuid(),
@@ -296,6 +329,7 @@ public sealed class ReceiveObservationCommandHandlerTests
         FakeRawPayloadStore rawPayloads = new();
         RecordingOutbox outbox = new();
         RecordingIngressGate ingressGate = new();
+        FakeRunRepository runs = new(run);
         ServiceCollection services = new();
         if (executionLock is not null)
         {
@@ -306,7 +340,7 @@ public sealed class ReceiveObservationCommandHandlerTests
         services.AddSingleton<IAdapterDescriptorRegistry>(new TestDescriptorRegistry());
         services.AddSingleton<IIngestionCountryPolicyAdmission>(
             new TestCountryPolicyAdmission(allowed: propertyActive));
-        services.AddSingleton<IIngestionRunRepository>(new FakeRunRepository(run));
+        services.AddSingleton<IIngestionRunRepository>(runs);
         services.AddSingleton<IObservationReceiptRepository>(receipts);
         services.AddSingleton<IObservationReprocessingAttemptRepository>(
             reprocessingAttempts);
@@ -319,11 +353,11 @@ public sealed class ReceiveObservationCommandHandlerTests
         services.AddSingleton<IAdapterIngressGate>(ingressGate);
         if (anonymisationBlocked)
         {
-            services.AddBlockingAnonymisationBarrier();
+            services.AddBlockingAnonymisationBarrier(sourceLock);
         }
         else
         {
-            services.AddAllowingAnonymisationBarrier();
+            services.AddAllowingAnonymisationBarrier(sourceLock);
         }
         services.AddIngestionApplication();
         ServiceProvider provider = services.BuildServiceProvider();
@@ -334,6 +368,7 @@ public sealed class ReceiveObservationCommandHandlerTests
             rawPayloads,
             outbox,
             ingressGate,
+            runs,
             provider.GetRequiredService<ICommandHandler<ReceiveObservationCommand, AdapterObservationResult>>());
     }
 
@@ -395,6 +430,7 @@ public sealed class ReceiveObservationCommandHandlerTests
         FakeRawPayloadStore RawPayloads,
         RecordingOutbox Outbox,
         RecordingIngressGate IngressGate,
+        FakeRunRepository Runs,
         ICommandHandler<ReceiveObservationCommand, AdapterObservationResult> Handler);
 
     private sealed class RecordingIngressGate : IAdapterIngressGate
@@ -433,38 +469,44 @@ public sealed class ReceiveObservationCommandHandlerTests
 
     private sealed class FakeRunRepository(IngestionRun? run) : IIngestionRunRepository
     {
+        public IngestionRun? Run { get; set; } = run;
+
         public Task<IngestionRun?> GetAsync(Guid runId, CancellationToken cancellationToken) =>
-            Task.FromResult(run?.Id == runId ? run : null);
+            Task.FromResult(this.Run?.Id == runId ? this.Run : null);
 
         public Task<IngestionRun?> FindByTaskExecutionAsync(
             Guid taskRunId,
             int taskAttempt,
             CancellationToken cancellationToken) =>
-            Task.FromResult(run?.TaskRunId == taskRunId && run.TaskAttempt == taskAttempt ? run : null);
+            Task.FromResult(this.Run?.TaskRunId == taskRunId &&
+                this.Run.TaskAttempt == taskAttempt ? this.Run : null);
 
         public Task<Guid?> FindByTaskExecutionIdAsync(
             Guid taskRunId,
             int taskAttempt,
             CancellationToken cancellationToken) =>
             Task.FromResult<Guid?>(
-                run?.TaskRunId == taskRunId && run.TaskAttempt == taskAttempt
-                    ? run.Id
+                this.Run?.TaskRunId == taskRunId &&
+                this.Run.TaskAttempt == taskAttempt
+                    ? this.Run.Id
                     : null);
 
         public Task<IngestionRun?> FindActiveByConnectionAsync(
             Guid connectionId,
             CancellationToken cancellationToken) => Task.FromResult(
-                run is not null && run.ConnectionId == connectionId && run.State == IngestionRunState.Running
-                    ? run
+                this.Run is not null &&
+                this.Run.ConnectionId == connectionId &&
+                this.Run.State == IngestionRunState.Running
+                    ? this.Run
                     : null);
 
         public Task<Guid?> FindActiveIdByConnectionAsync(
             Guid connectionId,
             CancellationToken cancellationToken) => Task.FromResult<Guid?>(
-                run is not null &&
-                run.ConnectionId == connectionId &&
-                run.State == IngestionRunState.Running
-                    ? run.Id
+                this.Run is not null &&
+                this.Run.ConnectionId == connectionId &&
+                this.Run.State == IngestionRunState.Running
+                    ? this.Run.Id
                     : null);
 
         public Task AddAsync(IngestionRun added, CancellationToken cancellationToken) =>
@@ -625,6 +667,60 @@ public sealed class ReceiveObservationCommandHandlerTests
 
         private static Task Unexpected() =>
             throw new InvalidOperationException("Execution lock must not be acquired.");
+    }
+
+    private sealed class OrderedExecutionLock(List<string> calls)
+        : IIngestionExecutionLock
+    {
+        public Task AcquireTaskExecutionAsync(
+            string tenantId,
+            Guid taskRunId,
+            int taskAttempt,
+            CancellationToken cancellationToken) => Unexpected();
+
+        public Task AcquireConnectionReadAsync(
+            string tenantId,
+            Guid connectionId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("connection-read-lock");
+            return Task.CompletedTask;
+        }
+
+        public Task AcquireConnectionWriteAsync(
+            string tenantId,
+            Guid connectionId,
+            CancellationToken cancellationToken) => Unexpected();
+
+        public Task AcquireRunReadAsync(
+            string tenantId,
+            Guid runId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("run-read-lock");
+            return Task.CompletedTask;
+        }
+
+        public Task AcquireRunWriteAsync(
+            string tenantId,
+            Guid runId,
+            CancellationToken cancellationToken) => Unexpected();
+
+        private static Task Unexpected() =>
+            throw new InvalidOperationException("Unexpected execution lock acquisition.");
+    }
+
+    private sealed class OrderedSourceLock(List<string> calls)
+        : IIngestionSourceOperationLock
+    {
+        public Task AcquireAsync(
+            string tenantId,
+            Guid sourceLinkId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("source-lock");
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class TestDescriptorRegistry : IAdapterDescriptorRegistry

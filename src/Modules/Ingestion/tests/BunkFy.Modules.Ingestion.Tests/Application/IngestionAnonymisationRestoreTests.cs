@@ -49,21 +49,22 @@ public sealed class IngestionAnonymisationRestoreTests
         IngestionAnonymisationRestoreRepository repository = new(
             dbContext,
             new IngestionDataRightsEvidenceGraphLoader(dbContext));
-        IngestionSourceOperationLockRepository operationLock = new(dbContext);
+        IngestionSourceMutationCoordinator sourceMutations =
+            TestIngestionSource.Create(dbContext, scope);
         HmacIngestionAnonymisationFingerprintService fingerprintService =
             new(Options.Create(FingerprintOptions()));
         DataRightsAnonymisationRestoreRequest request =
             CreateRequest(seeded);
         BeginIngestionAnonymisationRestoreCommandHandler begin = new(
             repository,
-            operationLock,
+            sourceMutations,
             fingerprintService,
             scope,
             clock,
             new TestIds());
         CompleteIngestionAnonymisationRestoreCommandHandler complete = new(
             repository,
-            operationLock,
+            sourceMutations,
             rawPayloads,
             scope,
             clock);
@@ -245,7 +246,7 @@ public sealed class IngestionAnonymisationRestoreTests
             new IngestionDataRightsEvidenceGraphLoader(dbContext));
         return new(
             repository,
-            new IngestionSourceOperationLockRepository(dbContext),
+            TestIngestionSource.Create(dbContext, scope),
             new HmacIngestionAnonymisationFingerprintService(
                 Options.Create(FingerprintOptions())),
             scope,

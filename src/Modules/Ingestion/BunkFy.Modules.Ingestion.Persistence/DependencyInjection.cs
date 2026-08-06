@@ -77,6 +77,9 @@ public static class DependencyInjection
             IngestionNotificationSourceLinkResolver>();
         builder.Services.TryAddScoped<IReservationDispatchRepository, ReservationDispatchRepository>();
         builder.Services.TryAddScoped<IChangeProposalRepository, ChangeProposalRepository>();
+        builder.Services.TryAddScoped<
+            IIngestionSourceGraphLocator,
+            IngestionSourceGraphLocator>();
         builder.Services.TryAddScoped<IChangeProposalReader, ChangeProposalReader>();
         builder.Services.TryAddScoped<IngestionDataRightsEvidenceGraphLoader>();
         builder.Services.TryAddScoped<
@@ -90,7 +93,7 @@ public static class DependencyInjection
             IngestionAnonymisationRestoreRepository>();
         builder.Services.TryAddScoped<
             IIngestionSourceOperationLock,
-            IngestionSourceOperationLockRepository>();
+            IngestionSourceGraphLock>();
         AddAnonymisationFingerprintServices(builder);
         AddAnonymisationRestoreReadiness(builder);
         builder.Services.TryAddEnumerable(

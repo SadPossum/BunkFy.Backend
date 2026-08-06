@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(IngestionModuleMetadata.Descriptor);
         services.TryAddScoped<IngestionExecutionMutationCoordinator>();
+        services.TryAddScoped<IngestionSourceMutationCoordinator>();
         services.TryAddScoped<IIngestionCountryPolicyAdmission, IngestionCountryPolicyAdmission>();
         services.TryAddScoped<
             IIngestionAnonymisationEligibilityEvaluator,

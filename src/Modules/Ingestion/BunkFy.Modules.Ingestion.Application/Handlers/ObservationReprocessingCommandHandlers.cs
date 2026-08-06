@@ -23,9 +23,9 @@ internal static class ObservationReprocessingReservationPolicy
 }
 
 internal sealed class PrepareObservationReprocessingCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReceiptRepository receipts,
     IObservationReprocessingAttemptRepository attempts,
-    IngestionExecutionMutationCoordinator execution,
     IObservationParserDescriptorRegistry parsers,
     IIngestionCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
@@ -62,7 +62,14 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
                 IngestionApplicationErrors.ReprocessingParserNotRegistered);
         }
 
-        ObservationReceipt? source = await receipts.GetAsync(command.SourceReceiptId, cancellationToken)
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReceiptAsync(
+                    command.SourceReceiptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ObservationReceipt? source = lease is null
+            ? null
+            : await receipts.GetAsync(command.SourceReceiptId, cancellationToken)
             .ConfigureAwait(false);
         if (source is null || source.PropertyId != command.PropertyId)
         {
@@ -75,17 +82,15 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
                 IngestionApplicationErrors.ReprocessingSourceNotRejected);
         }
 
-        AdapterConnection? connection = await execution.AcquireConnectionReadAsync(
-            source.ConnectionId,
-            cancellationToken)
-            .ConfigureAwait(false);
-        if (connection is null || connection.PropertyId != source.PropertyId)
+        AdapterConnection connection = lease!.Connection;
+        if (connection.Id != source.ConnectionId ||
+            connection.PropertyId != source.PropertyId)
         {
             return Result.Failure<ObservationReprocessingPreparation>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
         Result<Guid> barrier = await anonymisationBarrier
-            .AcquireAndCheckAsync(
+            .CheckUnderLockAsync(
                 source.ScopeId,
                 connection.Id,
                 source.SourceRecordType,
@@ -96,6 +101,12 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
         {
             return Result.Failure<ObservationReprocessingPreparation>(
                 barrier.Error);
+        }
+
+        if (barrier.Value != lease!.Coordinate.SourceLinkId)
+        {
+            throw new InvalidOperationException(
+                "The reprocessing source resolved to a different graph after locking.");
         }
 
         CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
@@ -176,6 +187,7 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
 }
 
 internal sealed class FailPreparedObservationReprocessingCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReprocessingAttemptRepository attempts,
     IObservationReceiptRepository receipts,
     ISystemClock clock)
@@ -185,7 +197,14 @@ internal sealed class FailPreparedObservationReprocessingCommandHandler(
         FailPreparedObservationReprocessingCommand command,
         CancellationToken cancellationToken)
     {
-        ObservationReprocessingAttempt? attempt = await attempts.GetAsync(command.AttemptId, cancellationToken)
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReprocessingAttemptAsync(
+                    command.AttemptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ObservationReprocessingAttempt? attempt = lease is null
+            ? null
+            : await attempts.GetAsync(command.AttemptId, cancellationToken)
             .ConfigureAwait(false);
         if (attempt is null)
         {
@@ -202,9 +221,9 @@ internal sealed class FailPreparedObservationReprocessingCommandHandler(
 }
 
 internal sealed class StartObservationReprocessingCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReprocessingAttemptRepository attempts,
     IObservationReceiptRepository receipts,
-    IngestionExecutionMutationCoordinator execution,
     IObservationParserDescriptorRegistry parsers,
     IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
@@ -215,7 +234,14 @@ internal sealed class StartObservationReprocessingCommandHandler(
         StartObservationReprocessingCommand command,
         CancellationToken cancellationToken)
     {
-        ObservationReprocessingAttempt? attempt = await attempts.GetAsync(command.AttemptId, cancellationToken)
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReprocessingAttemptAsync(
+                    command.AttemptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ObservationReprocessingAttempt? attempt = lease is null
+            ? null
+            : await attempts.GetAsync(command.AttemptId, cancellationToken)
             .ConfigureAwait(false);
         if (attempt is null)
         {
@@ -225,12 +251,10 @@ internal sealed class StartObservationReprocessingCommandHandler(
 
         ObservationReceipt? source = await receipts.GetAsync(attempt.SourceReceiptId, cancellationToken)
             .ConfigureAwait(false);
-        AdapterConnection? connection = source is null
-            ? null
-            : await execution.AcquireConnectionReadAsync(
-                source.ConnectionId,
-                cancellationToken).ConfigureAwait(false);
-        if (source is null || connection is null || source.PropertyId != attempt.PropertyId ||
+        AdapterConnection? connection = lease?.Connection;
+        if (source is null || connection is null ||
+            connection.Id != source.ConnectionId ||
+            source.PropertyId != attempt.PropertyId ||
             source.ConnectionId != attempt.ConnectionId)
         {
             return Result.Failure<ObservationReprocessingStart>(
@@ -238,7 +262,7 @@ internal sealed class StartObservationReprocessingCommandHandler(
         }
 
         Result<Guid> barrier = await anonymisationBarrier
-            .AcquireAndCheckAsync(
+            .CheckUnderLockAsync(
                 source.ScopeId,
                 connection.Id,
                 source.SourceRecordType,
@@ -249,6 +273,12 @@ internal sealed class StartObservationReprocessingCommandHandler(
         {
             return Result.Failure<ObservationReprocessingStart>(
                 barrier.Error);
+        }
+
+        if (barrier.Value != lease!.Coordinate.SourceLinkId)
+        {
+            throw new InvalidOperationException(
+                "The reprocessing source resolved to a different graph after locking.");
         }
 
         CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
@@ -306,6 +336,7 @@ internal sealed class StartObservationReprocessingCommandHandler(
 }
 
 internal sealed class ScheduleObservationReprocessingRetryCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReprocessingAttemptRepository attempts,
     IObservationReceiptRepository receipts,
     ISystemClock clock)
@@ -315,7 +346,14 @@ internal sealed class ScheduleObservationReprocessingRetryCommandHandler(
         ScheduleObservationReprocessingRetryCommand command,
         CancellationToken cancellationToken)
     {
-        ObservationReprocessingAttempt? attempt = await attempts.GetAsync(command.AttemptId, cancellationToken)
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReprocessingAttemptAsync(
+                    command.AttemptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ObservationReprocessingAttempt? attempt = lease is null
+            ? null
+            : await attempts.GetAsync(command.AttemptId, cancellationToken)
             .ConfigureAwait(false);
         ObservationReceipt? source = attempt is null ? null : await receipts.GetAsync(
             attempt.SourceReceiptId,
@@ -336,6 +374,7 @@ internal sealed class ScheduleObservationReprocessingRetryCommandHandler(
 }
 
 internal sealed class CompleteObservationReprocessingCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReprocessingAttemptRepository attempts,
     IObservationReceiptRepository receipts,
     ISystemClock clock)
@@ -345,7 +384,14 @@ internal sealed class CompleteObservationReprocessingCommandHandler(
         CompleteObservationReprocessingCommand command,
         CancellationToken cancellationToken)
     {
-        ObservationReprocessingAttempt? attempt = await attempts.GetAsync(command.AttemptId, cancellationToken)
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReprocessingAttemptAsync(
+                    command.AttemptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ObservationReprocessingAttempt? attempt = lease is null
+            ? null
+            : await attempts.GetAsync(command.AttemptId, cancellationToken)
             .ConfigureAwait(false);
         ObservationReceipt? source = attempt is null ? null : await receipts.GetAsync(
             attempt.SourceReceiptId,
@@ -370,6 +416,7 @@ internal sealed class CompleteObservationReprocessingCommandHandler(
 }
 
 internal sealed class CancelObservationReprocessingCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReprocessingAttemptRepository attempts,
     IObservationReceiptRepository receipts,
     ISystemClock clock)
@@ -379,7 +426,14 @@ internal sealed class CancelObservationReprocessingCommandHandler(
         CancelObservationReprocessingCommand command,
         CancellationToken cancellationToken)
     {
-        ObservationReprocessingAttempt? attempt = await attempts.GetAsync(command.AttemptId, cancellationToken)
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReprocessingAttemptAsync(
+                    command.AttemptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ObservationReprocessingAttempt? attempt = lease is null
+            ? null
+            : await attempts.GetAsync(command.AttemptId, cancellationToken)
             .ConfigureAwait(false);
         ObservationReceipt? source = attempt is null ? null : await receipts.GetAsync(
             attempt.SourceReceiptId,
@@ -397,6 +451,7 @@ internal sealed class CancelObservationReprocessingCommandHandler(
 }
 
 internal sealed class RecordObservationReprocessingOutputCommandHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IObservationReprocessingAttemptRepository attempts,
     IObservationReprocessingOutputRepository outputs,
     IScopeContext scopeContext,
@@ -412,7 +467,14 @@ internal sealed class RecordObservationReprocessingOutputCommandHandler(
             return Result.Failure<Unit>(IngestionApplicationErrors.ScopeRequired);
         }
 
-        ObservationReprocessingAttempt? attempt = await attempts.GetAsync(command.AttemptId, cancellationToken)
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireReprocessingAttemptAsync(
+                    command.AttemptId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ObservationReprocessingAttempt? attempt = lease is null
+            ? null
+            : await attempts.GetAsync(command.AttemptId, cancellationToken)
             .ConfigureAwait(false);
         if (attempt is null || attempt.State != ObservationReprocessingState.Running)
         {

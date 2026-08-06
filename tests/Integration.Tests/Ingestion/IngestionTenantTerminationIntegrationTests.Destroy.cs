@@ -436,8 +436,7 @@ public sealed partial class IngestionTenantTerminationIntegrationTests
                 (SELECT COUNT(*) FROM ingestion.anonymisation_tombstones WHERE "ScopeId" = @tenantId) +
                 (SELECT COUNT(*) FROM ingestion.anonymisation_receipts WHERE "ScopeId" = @tenantId) +
                 (SELECT COUNT(*) FROM ingestion.anonymisation_fingerprints WHERE "ScopeId" = @tenantId) +
-                (SELECT COUNT(*) FROM ingestion.anonymisation_record_plan WHERE "ScopeId" = @tenantId) +
-                (SELECT COUNT(*) FROM ingestion.source_operation_locks WHERE "ScopeId" = @tenantId)
+                (SELECT COUNT(*) FROM ingestion.anonymisation_record_plan WHERE "ScopeId" = @tenantId)
             )::bigint
             """,
             tenantId);

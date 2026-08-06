@@ -122,9 +122,15 @@ public sealed class ReservationDispatchFlowTests
     public async Task Rejection_is_idempotent_only_for_the_same_decision()
     {
         TestContext context = CreateContext();
+        ObservationReceipt receipt = CreateReceipt(
+            context.Connection,
+            "1",
+            1,
+            "Ada Guest");
+        context.Receipts.Items.Add(receipt);
         ChangeProposal proposal = ChangeProposal.Create(
-            Guid.NewGuid(), "tenant-a", context.Connection.PropertyId, context.Connection.Id, Guid.NewGuid(),
-            Guid.NewGuid(), Guid.NewGuid(), 1, "test", "{\"change\":true}", Now).Value;
+            Guid.NewGuid(), "tenant-a", context.Connection.PropertyId, context.Connection.Id, receipt.Id,
+            Guid.NewGuid(), receipt.RawPayloadFileId, 1, "test", "{\"change\":true}", Now).Value;
         context.Proposals.Items.Add(proposal);
         RejectChangeProposalCommand reject = new(context.Connection.PropertyId, proposal.Id, "staff:42", "Source is outdated", 1);
 
@@ -328,6 +334,12 @@ public sealed class ReservationDispatchFlowTests
         services.AddSingleton<IReservationSourceLinkRepository>(links);
         services.AddSingleton<IReservationDispatchRepository>(dispatches);
         services.AddSingleton<IChangeProposalRepository>(proposals);
+        services.AddSingleton<IIngestionSourceGraphLocator>(
+            new FakeSourceGraphLocator(
+                receipts,
+                links,
+                dispatches,
+                proposals));
         services.AddSingleton<IIngestionRetentionPolicy>(new TestRetentionPolicy());
         services.AddSingleton<IIngestionCountryPolicyAdmission>(new TestCountryPolicyAdmission(allowed: policyAllowed));
         services.AddSingleton<IRawPayloadStore>(rawPayloads);
@@ -402,7 +414,11 @@ public sealed class ReservationDispatchFlowTests
         Guid reservationId = Guid.NewGuid();
         Guid baseReceiptId = Guid.NewGuid();
         ReservationSourceLink link = ReservationSourceLink.Create(
-            Guid.NewGuid(), "tenant-a", context.Connection.PropertyId, context.Connection.Id,
+            ReservationOperationIdentity.CreateSourceLinkId(
+                "tenant-a",
+                context.Connection.Id,
+                "booking-42"),
+            "tenant-a", context.Connection.PropertyId, context.Connection.Id,
             $"fake.http:{context.Connection.Id:N}", "booking-42", Now).Value;
         _ = link.Observe(baseReceiptId, "1", 1, Now, new string('a', 64), Now);
         Guid createOperationId = Guid.NewGuid();
@@ -435,7 +451,11 @@ public sealed class ReservationDispatchFlowTests
     {
         Guid receiptId = Guid.NewGuid();
         ReservationSourceLink link = ReservationSourceLink.Create(
-            Guid.NewGuid(), "tenant-a", context.Connection.PropertyId, context.Connection.Id,
+            ReservationOperationIdentity.CreateSourceLinkId(
+                "tenant-a",
+                context.Connection.Id,
+                "booking-conservative"),
+            "tenant-a", context.Connection.PropertyId, context.Connection.Id,
             $"fake.http:{context.Connection.Id:N}", "booking-conservative", Now).Value;
         _ = link.Observe(receiptId, "1", 1, Now, new string('a', 64), Now);
         Guid operationId = Guid.NewGuid();
@@ -601,6 +621,95 @@ public sealed class ReservationDispatchFlowTests
             this.Items.Add(proposal);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeSourceGraphLocator(
+        FakeReceiptRepository receipts,
+        FakeSourceLinkRepository sourceLinks,
+        FakeDispatchRepository dispatches,
+        FakeProposalRepository proposals)
+        : IIngestionSourceGraphLocator
+    {
+        public Task<IngestionSourceGraphCoordinate?> FindReceiptAsync(
+            Guid receiptId,
+            CancellationToken cancellationToken) => Task.FromResult(
+            ToCoordinate(receipts.Items.SingleOrDefault(
+                receipt => receipt.Id == receiptId)));
+
+        public Task<IngestionSourceGraphCoordinate?> FindProposalAsync(
+            Guid proposalId,
+            CancellationToken cancellationToken)
+        {
+            ChangeProposal? proposal = proposals.Items.SingleOrDefault(
+                item => item.Id == proposalId);
+            ObservationReceipt? receipt = proposal is null
+                ? null
+                : receipts.Items.SingleOrDefault(
+                    item => item.Id == proposal.ReceiptId);
+            return Task.FromResult(ToCoordinate(receipt, proposalId));
+        }
+
+        public Task<IngestionSourceGraphCoordinate?> FindDispatchAsync(
+            Guid dispatchId,
+            CancellationToken cancellationToken)
+        {
+            ReservationDispatch? dispatch = dispatches.Items.SingleOrDefault(
+                item => item.Id == dispatchId);
+            return Task.FromResult(dispatch is null
+                ? null
+                : new IngestionSourceGraphCoordinate(
+                    dispatch.Id,
+                    dispatch.ConnectionId,
+                    dispatch.SourceLinkId));
+        }
+
+        public Task<IngestionSourceGraphCoordinate?> FindReprocessingAttemptAsync(
+            Guid attemptId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionSourceGraphCoordinate?>(null);
+
+        public Task<IngestionSourceGraphCoordinate?> FindSourceLinkAsync(
+            Guid sourceLinkId,
+            CancellationToken cancellationToken)
+        {
+            ReservationSourceLink? link = sourceLinks.Items.SingleOrDefault(
+                item => item.Id == sourceLinkId);
+            return Task.FromResult(link is null
+                ? null
+                : new IngestionSourceGraphCoordinate(
+                    link.Id,
+                    link.ConnectionId,
+                    link.Id));
+        }
+
+        public Task<IngestionSourceGraphCoordinate?>
+            FindAcceptedCancellationAsync(
+            Guid reservationId,
+            CancellationToken cancellationToken)
+        {
+            ReservationDispatch? dispatch = dispatches.Items.SingleOrDefault(
+                item => item.ReservationId == reservationId &&
+                    item.Kind == ReservationDispatchKind.Cancel &&
+                    item.State == ReservationDispatchState.Accepted);
+            return Task.FromResult(dispatch is null
+                ? null
+                : new IngestionSourceGraphCoordinate(
+                    dispatch.Id,
+                    dispatch.ConnectionId,
+                    dispatch.SourceLinkId));
+        }
+
+        private static IngestionSourceGraphCoordinate? ToCoordinate(
+            ObservationReceipt? receipt,
+            Guid? recordId = null) => receipt is null
+            ? null
+            : new(
+                recordId ?? receipt.Id,
+                receipt.ConnectionId,
+                ReservationOperationIdentity.CreateSourceLinkId(
+                    receipt.ScopeId,
+                    receipt.ConnectionId,
+                    receipt.ExternalId));
     }
 
     private sealed class FakeRawPayloadStore : IRawPayloadStore

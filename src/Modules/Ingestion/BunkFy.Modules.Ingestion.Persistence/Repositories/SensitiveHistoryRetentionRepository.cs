@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Ingestion.Persistence.Repositories;
 
+using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.Proposals;
 using BunkFy.Modules.Ingestion.Domain.Reservations;
@@ -11,59 +12,86 @@ internal sealed class SensitiveHistoryRetentionRepository(
     IRetentionFenceRepository retentionFence)
     : ISensitiveHistoryRetentionRepository
 {
-    public async Task<SensitiveHistoryRedactionBatchResult> RedactBatchAsync(
+    public async Task<IReadOnlyList<SensitiveHistoryRedactionCandidate>>
+        FindRedactionCandidatesAsync(
         DateTimeOffset nowUtc,
         int batchSize,
         CancellationToken cancellationToken)
     {
-        List<ChangeProposal> proposals = await dbContext.ChangeProposals
-            .Where(proposal =>
-                proposal.Diff != null &&
-                proposal.SensitiveDataRedactedAtUtc == null &&
-                proposal.SensitiveDataRetainUntilUtc <= nowUtc &&
-                !dbContext.LegalHolds.Any(legalHold =>
-                    legalHold.ScopeId == proposal.ScopeId &&
-                    legalHold.PropertyId == proposal.PropertyId &&
-                    legalHold.State == LegalHoldState.Active))
-            .OrderBy(proposal => proposal.SensitiveDataRetainUntilUtc)
-            .ThenBy(proposal => proposal.Id)
+        ProposalIdentity[] proposals = await (
+                from proposal in this.EligibleProposals(nowUtc).AsNoTracking()
+                join receipt in dbContext.ObservationReceipts.AsNoTracking()
+                    on proposal.ReceiptId equals receipt.Id
+                orderby proposal.SensitiveDataRetainUntilUtc, proposal.Id
+                select new ProposalIdentity(
+                    proposal.Id,
+                    receipt.ScopeId,
+                    receipt.ConnectionId,
+                    receipt.ExternalId,
+                    proposal.SensitiveDataRetainUntilUtc!.Value))
             .Take(batchSize)
-            .ToListAsync(cancellationToken)
+            .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
-        List<ReservationDispatch> dispatches = await dbContext.ReservationDispatches
-            .Where(dispatch =>
-                dispatch.NormalizedSnapshot != null &&
-                dispatch.SensitiveDataRedactedAtUtc == null &&
-                dispatch.SensitiveDataRetainUntilUtc <= nowUtc &&
-                !dbContext.LegalHolds.Any(legalHold =>
-                    legalHold.ScopeId == dispatch.ScopeId &&
-                    legalHold.PropertyId == dispatch.PropertyId &&
-                    legalHold.State == LegalHoldState.Active))
+        SensitiveHistoryRedactionCandidate[] dispatches =
+            await this.EligibleDispatches(nowUtc)
+            .AsNoTracking()
             .OrderBy(dispatch => dispatch.SensitiveDataRetainUntilUtc)
             .ThenBy(dispatch => dispatch.Id)
             .Take(batchSize)
-            .ToListAsync(cancellationToken)
+            .Select(dispatch => new SensitiveHistoryRedactionCandidate(
+                SensitiveHistoryRecordKind.Dispatch,
+                dispatch.Id,
+                dispatch.ConnectionId,
+                dispatch.SourceLinkId,
+                dispatch.SensitiveDataRetainUntilUtc!.Value))
+            .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        SensitiveHistoryCandidate[] selected = proposals
-            .Select(proposal => new SensitiveHistoryCandidate(
-                proposal.SensitiveDataRetainUntilUtc!.Value,
-                proposal.Id,
-                proposal,
-                Dispatch: null))
-            .Concat(dispatches.Select(dispatch => new SensitiveHistoryCandidate(
-                dispatch.SensitiveDataRetainUntilUtc!.Value,
-                dispatch.Id,
-                Proposal: null,
-                Dispatch: dispatch)))
+        return proposals
+            .Select(proposal => new SensitiveHistoryRedactionCandidate(
+                SensitiveHistoryRecordKind.Proposal,
+                proposal.ProposalId,
+                proposal.ConnectionId,
+                ReservationOperationIdentity.CreateSourceLinkId(
+                    proposal.ScopeId,
+                    proposal.ConnectionId,
+                    proposal.ExternalId),
+                proposal.RetainUntilUtc))
+            .Concat(dispatches)
             .OrderBy(candidate => candidate.RetainUntilUtc)
-            .ThenBy(candidate => candidate.Proposal is null ? 1 : 0)
-            .ThenBy(candidate => candidate.Id)
+            .ThenBy(candidate => candidate.Kind)
+            .ThenBy(candidate => candidate.RecordId)
             .Take(batchSize)
             .ToArray();
+    }
 
-        foreach (Guid propertyId in selected
-                     .Select(candidate => candidate.Proposal?.PropertyId ?? candidate.Dispatch!.PropertyId)
+    public async Task<SensitiveHistoryRedactionBatchResult>
+        RedactSelectedAsync(
+        IReadOnlyCollection<Guid> proposalIds,
+        IReadOnlyCollection<Guid> dispatchIds,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        Guid[] selectedProposalIds = proposalIds.Distinct().ToArray();
+        Guid[] selectedDispatchIds = dispatchIds.Distinct().ToArray();
+        List<ChangeProposal> proposals = selectedProposalIds.Length == 0
+            ? []
+            : await this.EligibleProposals(nowUtc)
+                .Where(proposal => selectedProposalIds.Contains(proposal.Id))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        List<ReservationDispatch> dispatches =
+            selectedDispatchIds.Length == 0
+                ? []
+                : await this.EligibleDispatches(nowUtc)
+                    .Where(dispatch =>
+                        selectedDispatchIds.Contains(dispatch.Id))
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+        foreach (Guid propertyId in proposals
+                     .Select(proposal => proposal.PropertyId)
+                     .Concat(dispatches.Select(dispatch => dispatch.PropertyId))
                      .Distinct())
         {
             if (!await retentionFence.TryAdvanceAsync(propertyId, cancellationToken)
@@ -75,34 +103,57 @@ internal sealed class SensitiveHistoryRetentionRepository(
 
         int proposalCount = 0;
         int dispatchCount = 0;
-        foreach (SensitiveHistoryCandidate candidate in selected)
+        foreach (ChangeProposal proposal in proposals)
         {
-            if (candidate.Proposal is not null)
+            if (proposal.RedactSensitiveData(nowUtc).IsFailure)
             {
-                if (candidate.Proposal.RedactSensitiveData(nowUtc).IsFailure)
-                {
-                    throw new InvalidOperationException("A selected proposal could not be redacted.");
-                }
-
-                proposalCount++;
+                throw new InvalidOperationException(
+                    "A selected proposal could not be redacted.");
             }
-            else
+
+            proposalCount++;
+        }
+
+        foreach (ReservationDispatch dispatch in dispatches)
+        {
+            if (dispatch.RedactSensitiveData(nowUtc).IsFailure)
             {
-                if (candidate.Dispatch!.RedactSensitiveData(nowUtc).IsFailure)
-                {
-                    throw new InvalidOperationException("A selected reservation dispatch could not be redacted.");
-                }
-
-                dispatchCount++;
+                throw new InvalidOperationException(
+                    "A selected reservation dispatch could not be redacted.");
             }
+
+            dispatchCount++;
         }
 
         return new SensitiveHistoryRedactionBatchResult(proposalCount, dispatchCount);
     }
 
-    private sealed record SensitiveHistoryCandidate(
-        DateTimeOffset RetainUntilUtc,
-        Guid Id,
-        ChangeProposal? Proposal,
-        ReservationDispatch? Dispatch);
+    private IQueryable<ChangeProposal> EligibleProposals(
+        DateTimeOffset nowUtc) =>
+        dbContext.ChangeProposals.Where(proposal =>
+            proposal.Diff != null &&
+            proposal.SensitiveDataRedactedAtUtc == null &&
+            proposal.SensitiveDataRetainUntilUtc <= nowUtc &&
+            !dbContext.LegalHolds.Any(legalHold =>
+                legalHold.ScopeId == proposal.ScopeId &&
+                legalHold.PropertyId == proposal.PropertyId &&
+                legalHold.State == LegalHoldState.Active));
+
+    private IQueryable<ReservationDispatch> EligibleDispatches(
+        DateTimeOffset nowUtc) =>
+        dbContext.ReservationDispatches.Where(dispatch =>
+            dispatch.NormalizedSnapshot != null &&
+            dispatch.SensitiveDataRedactedAtUtc == null &&
+            dispatch.SensitiveDataRetainUntilUtc <= nowUtc &&
+            !dbContext.LegalHolds.Any(legalHold =>
+                legalHold.ScopeId == dispatch.ScopeId &&
+                legalHold.PropertyId == dispatch.PropertyId &&
+                legalHold.State == LegalHoldState.Active));
+
+    private sealed record ProposalIdentity(
+        Guid ProposalId,
+        string ScopeId,
+        Guid ConnectionId,
+        string ExternalId,
+        DateTimeOffset RetainUntilUtc);
 }

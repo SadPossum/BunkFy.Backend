@@ -14,6 +14,7 @@ using global::BunkFy.Modules.Reservations.Contracts;
 
 [IntegrationEventHandler(IngestionModuleMetadata.ReservationOperationOutcomeHandlerName)]
 internal sealed class ReservationOperationOutcomeHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IReservationDispatchRepository dispatches,
     IReservationSourceLinkRepository sourceLinks,
     IObservationReceiptRepository receipts,
@@ -28,6 +29,16 @@ internal sealed class ReservationOperationOutcomeHandler(
         ExternalReservationOperationCompletedIntegrationEvent outcome,
         CancellationToken cancellationToken)
     {
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireDispatchAsync(
+                    outcome.OperationId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (lease is null)
+        {
+            return;
+        }
+
         ReservationDispatch? dispatch = await dispatches.GetAsync(outcome.OperationId, cancellationToken)
             .ConfigureAwait(false);
         if (dispatch is null || dispatch.State != ReservationDispatchState.Pending)
@@ -233,6 +244,7 @@ internal sealed class ReservationOperationOutcomeHandler(
 
 [IntegrationEventHandler(IngestionModuleMetadata.ReservationCancelledHandlerName)]
 internal sealed class ReservationCancelledForIngestionHandler(
+    IngestionSourceMutationCoordinator sourceMutations,
     IReservationDispatchRepository dispatches,
     IReservationSourceLinkRepository sourceLinks,
     IObservationReceiptRepository receipts,
@@ -245,9 +257,17 @@ internal sealed class ReservationCancelledForIngestionHandler(
 {
     public async Task HandleAsync(ReservationCancelledIntegrationEvent cancelled, CancellationToken cancellationToken)
     {
-        ReservationDispatch? dispatch = await dispatches.FindAcceptedCancellationAsync(
-            cancelled.ReservationId,
-            cancellationToken).ConfigureAwait(false);
+        IngestionSourceMutationLease? lease =
+            await sourceMutations.AcquireAcceptedCancellationAsync(
+                    cancelled.ReservationId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        ReservationDispatch? dispatch = lease is null
+            ? null
+            : await dispatches.GetAsync(
+                    lease.Coordinate.RecordId,
+                    cancellationToken)
+                .ConfigureAwait(false);
         if (dispatch is null || dispatch.State != ReservationDispatchState.Accepted)
         {
             return;
