@@ -19,6 +19,7 @@ internal static class TestAnonymisationBarrierServices
         this IServiceCollection services,
         bool blocked)
     {
+        services.AddNoOpExecutionLock();
         services.AddSingleton<
             IIngestionSourceOperationLock,
             NoOpSourceOperationLock>();

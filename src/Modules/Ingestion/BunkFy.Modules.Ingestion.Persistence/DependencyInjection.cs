@@ -36,6 +36,7 @@ public static class DependencyInjection
                 IngestionMigrations.HistoryTable));
 
         builder.Services.TryAddScoped<IAdapterConnectionRepository, AdapterConnectionRepository>();
+        builder.Services.TryAddScoped<IIngestionExecutionLock, IngestionExecutionLock>();
         builder.Services.TryAddScoped<AdapterIngressCredentialRepository>();
         builder.Services.TryAddScoped<IAdapterIngressCredentialRepository>(provider =>
             provider.GetRequiredService<AdapterIngressCredentialRepository>());

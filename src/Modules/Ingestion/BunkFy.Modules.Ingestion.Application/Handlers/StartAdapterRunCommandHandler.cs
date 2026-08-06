@@ -15,7 +15,7 @@ using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 
 internal sealed class StartAdapterRunCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IIngestionCountryPolicyAdmission countryPolicy,
     IIngestionRunRepository runs,
     IAdapterDescriptorRegistry descriptors,
@@ -34,6 +34,12 @@ internal sealed class StartAdapterRunCommandHandler(
             return Result.Failure<AdapterRunStart>(IngestionApplicationErrors.ScopeRequired);
         }
 
+        if (command.TaskRunId == Guid.Empty || command.TaskAttempt <= 0)
+        {
+            return Result.Failure<AdapterRunStart>(
+                BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.TaskExecutionInvalid);
+        }
+
         Result lifecycleAdmission =
             await IngestionTenantLifecycleAdmission.AuthorizeAsync(
                 lifecyclePolicies,
@@ -46,7 +52,13 @@ internal sealed class StartAdapterRunCommandHandler(
                 lifecycleAdmission.Error);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(command.ConnectionId, cancellationToken)
+        await execution.AcquireTaskExecutionAsync(
+            command.TaskRunId,
+            command.TaskAttempt,
+            cancellationToken).ConfigureAwait(false);
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken)
             .ConfigureAwait(false);
         if (connection is null)
         {
@@ -85,18 +97,31 @@ internal sealed class StartAdapterRunCommandHandler(
                 IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
-        IngestionRun? existing = await runs.FindByTaskExecutionAsync(
+        Guid? existingId = await runs.FindByTaskExecutionIdAsync(
             command.TaskRunId,
             command.TaskAttempt,
             cancellationToken).ConfigureAwait(false);
-        if (existing is not null)
+        if (existingId.HasValue)
         {
-            return existing.ConnectionId == connection.Id && existing.State == IngestionRunState.Running
+            IngestionRun? existing = await execution.AcquireRunReadAsync(
+                existingId.Value,
+                cancellationToken).ConfigureAwait(false);
+            return existing is not null &&
+                existing.ConnectionId == connection.Id &&
+                existing.State == IngestionRunState.Running
                 ? Result.Success(Map(existing, connection))
                 : Result.Failure<AdapterRunStart>(IngestionApplicationErrors.TaskContextMismatch);
         }
 
-        if (await runs.FindActiveByConnectionAsync(connection.Id, cancellationToken).ConfigureAwait(false) is not null)
+        Guid? activeId = await runs.FindActiveIdByConnectionAsync(
+            connection.Id,
+            cancellationToken).ConfigureAwait(false);
+        IngestionRun? active = activeId.HasValue
+            ? await execution.AcquireRunReadAsync(
+                activeId.Value,
+                cancellationToken).ConfigureAwait(false)
+            : null;
+        if (active is { State: IngestionRunState.Running })
         {
             return Result.Failure<AdapterRunStart>(IngestionApplicationErrors.ConnectionRunAlreadyActive);
         }

@@ -35,7 +35,7 @@ public sealed class StartAdapterRunCommandHandlerTests
             Now).Value;
         FakeRunRepository runs = new();
         StartAdapterRunCommandHandler handler = new(
-            new FakeConnectionRepository(connection),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
             new TestCountryPolicyAdmission(allowed: false),
             runs,
             new TestDescriptors(),
@@ -61,7 +61,8 @@ public sealed class StartAdapterRunCommandHandlerTests
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", null, Now).Value;
         FakeRunRepository runs = new();
         StartAdapterRunCommandHandler handler = new(
-            new FakeConnectionRepository(connection), new TestCountryPolicyAdmission(), runs,
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
+            new TestCountryPolicyAdmission(), runs,
             new TestDescriptors(), new TestScope(), new TestIds(), new TestClock());
 
         var result = await handler.HandleAsync(
@@ -82,7 +83,8 @@ public sealed class StartAdapterRunCommandHandlerTests
             Guid.NewGuid(), "tenant-a", connection.Id, connection.PropertyId,
             Guid.NewGuid(), 1, null, Now).Value);
         StartAdapterRunCommandHandler handler = new(
-            new FakeConnectionRepository(connection), new TestCountryPolicyAdmission(), runs,
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
+            new TestCountryPolicyAdmission(), runs,
             new TestDescriptors(), new TestScope(), new TestIds(), new TestClock());
 
         var result = await handler.HandleAsync(
@@ -108,7 +110,7 @@ public sealed class StartAdapterRunCommandHandlerTests
         FakeConnectionRepository connections = new(connection);
         FakeRunRepository runs = new();
         StartAdapterRunCommandHandler handler = new(
-            connections,
+            TestIngestionExecution.Create(connections, runs),
             new TestCountryPolicyAdmission(),
             runs,
             new TestDescriptors(),
@@ -175,10 +177,25 @@ public sealed class StartAdapterRunCommandHandlerTests
             CancellationToken cancellationToken) => Task.FromResult(this.Items.SingleOrDefault(
                 item => item.TaskRunId == taskRunId && item.TaskAttempt == taskAttempt));
 
+        public Task<Guid?> FindByTaskExecutionIdAsync(
+            Guid taskRunId,
+            int taskAttempt,
+            CancellationToken cancellationToken) => Task.FromResult<Guid?>(this.Items
+                .SingleOrDefault(item =>
+                    item.TaskRunId == taskRunId &&
+                    item.TaskAttempt == taskAttempt)?.Id);
+
         public Task<IngestionRun?> FindActiveByConnectionAsync(
             Guid connectionId,
             CancellationToken cancellationToken) => Task.FromResult(this.Items.SingleOrDefault(
                 item => item.ConnectionId == connectionId && item.State == IngestionRunState.Running));
+
+        public Task<Guid?> FindActiveIdByConnectionAsync(
+            Guid connectionId,
+            CancellationToken cancellationToken) => Task.FromResult<Guid?>(this.Items
+                .SingleOrDefault(item =>
+                    item.ConnectionId == connectionId &&
+                    item.State == IngestionRunState.Running)?.Id);
 
         public Task AddAsync(IngestionRun run, CancellationToken cancellationToken)
         {

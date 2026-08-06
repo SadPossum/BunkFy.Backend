@@ -15,7 +15,7 @@ using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 
 internal sealed class ClaimRemoteAdapterLeaseCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IIngestionCountryPolicyAdmission countryPolicy,
     IIngestionRunRepository runs,
     IAdapterDescriptorRegistry descriptors,
@@ -37,7 +37,9 @@ internal sealed class ClaimRemoteAdapterLeaseCommandHandler(
                 IngestionApplicationErrors.RemoteLeaseClaimInvalid);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(command.ConnectionId, cancellationToken)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken)
             .ConfigureAwait(false);
         if (connection is null)
         {
@@ -74,8 +76,19 @@ internal sealed class ClaimRemoteAdapterLeaseCommandHandler(
 
         DateTimeOffset nowUtc = clock.UtcNow;
         TimeSpan duration = TimeSpan.FromSeconds(command.Request.RequestedLeaseSeconds);
-        IngestionRun? activeRun = await runs.FindActiveByConnectionAsync(
+        Guid? activeRunId = await runs.FindActiveIdByConnectionAsync(
             connection.Id, cancellationToken).ConfigureAwait(false);
+        IngestionRun? activeRun = activeRunId.HasValue
+            ? await execution.AcquireRunWriteAsync(
+                activeRunId.Value,
+                cancellationToken).ConfigureAwait(false)
+            : null;
+        if (activeRunId.HasValue && activeRun is null)
+        {
+            return Result.Failure<AdapterRemoteLeaseClaimResponse>(
+                IngestionApplicationErrors.RemoteLeaseUnavailable);
+        }
+
         if (activeRun is not null)
         {
             if (activeRun.ExecutionKind == IngestionRunExecutionKind.RemoteLease &&
@@ -203,8 +216,7 @@ internal sealed class ClaimRemoteAdapterLeaseCommandHandler(
 }
 
 internal sealed class RenewRemoteAdapterLeaseCommandHandler(
-    IAdapterConnectionRepository connections,
-    IIngestionRunRepository runs,
+    IngestionExecutionMutationCoordinator execution,
     IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock)
     : ICommandHandler<RenewRemoteAdapterLeaseCommand, AdapterRemoteLeaseRenewResponse>
@@ -221,9 +233,13 @@ internal sealed class RenewRemoteAdapterLeaseCommandHandler(
                 IngestionApplicationErrors.RemoteLeaseClaimInvalid);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(command.ConnectionId, cancellationToken)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken)
             .ConfigureAwait(false);
-        IngestionRun? run = await runs.GetAsync(command.Request.Lease.RunId, cancellationToken)
+        IngestionRun? run = await execution.AcquireRunWriteAsync(
+            command.Request.Lease.RunId,
+            cancellationToken)
             .ConfigureAwait(false);
         if (connection is null || run is null || run.ConnectionId != connection.Id)
         {
@@ -280,8 +296,7 @@ internal sealed class RenewRemoteAdapterLeaseCommandHandler(
 }
 
 internal sealed class CompleteRemoteAdapterRunCommandHandler(
-    IAdapterConnectionRepository connections,
-    IIngestionRunRepository runs,
+    IngestionExecutionMutationCoordinator execution,
     ISystemClock clock)
     : ICommandHandler<CompleteRemoteAdapterRunCommand, AdapterRemoteRunCompletionResponse>
 {
@@ -295,9 +310,13 @@ internal sealed class CompleteRemoteAdapterRunCommandHandler(
                 IngestionApplicationErrors.RemoteLeaseClaimInvalid);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(command.ConnectionId, cancellationToken)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken)
             .ConfigureAwait(false);
-        IngestionRun? run = await runs.GetAsync(command.Request.Lease.RunId, cancellationToken)
+        IngestionRun? run = await execution.AcquireRunWriteAsync(
+            command.Request.Lease.RunId,
+            cancellationToken)
             .ConfigureAwait(false);
         if (connection is null || run is null || run.ConnectionId != connection.Id)
         {

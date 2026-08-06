@@ -28,7 +28,8 @@ public sealed class AdapterIngressCredentialTests
         AdapterIngressTokenService tokens = new();
         TestClock clock = new();
         var created = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection), credentials, tokens, new TestDescriptors(),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
+            credentials, tokens, new TestDescriptors(),
             new TestScope(), clock, new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "primary", Now.AddDays(30), "user:operator"),
@@ -84,7 +85,7 @@ public sealed class AdapterIngressCredentialTests
         TestClock clock = new();
         var created =
             await new CreateAdapterIngressCredentialCommandHandler(
-                new FakeConnectionRepository(connection),
+                TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
                 credentials,
                 tokens,
                 new TestDescriptors(),
@@ -127,7 +128,7 @@ public sealed class AdapterIngressCredentialTests
         AdapterIngressTokenService tokens = new();
         TestClock clock = new();
         var created = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
             credentials,
             tokens,
             new TestDescriptors(),
@@ -171,7 +172,8 @@ public sealed class AdapterIngressCredentialTests
         AdapterIngressTokenService tokens = new();
         TestClock clock = new();
         var created = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection), credentials, tokens, new TestDescriptors(),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
+            credentials, tokens, new TestDescriptors(),
             new TestScope(), clock, new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "remote", Now.AddDays(30), "user:operator"),
@@ -197,7 +199,8 @@ public sealed class AdapterIngressCredentialTests
         AdapterConnection connection = CreateConnection(Guid.NewGuid());
         FakeCredentialRepository credentials = new() { ActiveCount = 5 };
         var result = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection), credentials, new AdapterIngressTokenService(),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
+            credentials, new AdapterIngressTokenService(),
             new TestDescriptors(), new TestScope(), new TestClock(), new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "overflow", null, "user:operator"),
@@ -215,7 +218,8 @@ public sealed class AdapterIngressCredentialTests
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", null, Now).Value;
         FakeCredentialRepository credentials = new();
         var result = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection), credentials, new AdapterIngressTokenService(),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
+            credentials, new AdapterIngressTokenService(),
             new TestDescriptors(), new TestScope(), new TestClock(), new FixedIds()).HandleAsync(
             new CreateAdapterIngressCredentialCommand(
                 connection.PropertyId, connection.Id, "invalid", null, "user:operator"),
@@ -233,7 +237,7 @@ public sealed class AdapterIngressCredentialTests
         AdapterIngressTokenService tokens = new();
         TestClock clock = new();
         var created = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
             credentials,
             tokens,
             new TestDescriptors(),
@@ -275,7 +279,7 @@ public sealed class AdapterIngressCredentialTests
         AdapterIngressTokenService tokens = new();
         TestClock clock = new();
         var created = await new CreateAdapterIngressCredentialCommandHandler(
-            new FakeConnectionRepository(connection),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection)),
             credentials,
             tokens,
             new TestDescriptors(),

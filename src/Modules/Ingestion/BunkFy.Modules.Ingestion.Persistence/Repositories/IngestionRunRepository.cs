@@ -17,12 +17,35 @@ internal sealed class IngestionRunRepository(IngestionDbContext dbContext) : IIn
             run => run.TaskRunId == taskRunId && run.TaskAttempt == taskAttempt,
             cancellationToken);
 
+    public Task<Guid?> FindByTaskExecutionIdAsync(
+        Guid taskRunId,
+        int taskAttempt,
+        CancellationToken cancellationToken) =>
+        dbContext.Runs
+            .AsNoTracking()
+            .Where(run =>
+                run.TaskRunId == taskRunId &&
+                run.TaskAttempt == taskAttempt)
+            .Select(run => (Guid?)run.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+
     public Task<IngestionRun?> FindActiveByConnectionAsync(
         Guid connectionId,
         CancellationToken cancellationToken) =>
         dbContext.Runs.FirstOrDefaultAsync(
             run => run.ConnectionId == connectionId && run.State == IngestionRunState.Running,
             cancellationToken);
+
+    public Task<Guid?> FindActiveIdByConnectionAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken) =>
+        dbContext.Runs
+            .AsNoTracking()
+            .Where(run =>
+                run.ConnectionId == connectionId &&
+                run.State == IngestionRunState.Running)
+            .Select(run => (Guid?)run.Id)
+            .SingleOrDefaultAsync(cancellationToken);
 
     public Task AddAsync(IngestionRun run, CancellationToken cancellationToken)
     {

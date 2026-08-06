@@ -33,7 +33,7 @@ public sealed class RemoteAdapterLeaseHandlerTests
             Guid.Parse("b0000000-0000-0000-0000-000000000003"),
             Guid.Parse("b0000000-0000-0000-0000-000000000004"));
         ClaimRemoteAdapterLeaseCommandHandler handler = new(
-            new FakeConnectionRepository(connection),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
             new TestCountryPolicyAdmission(),
             runs,
             new DescriptorRegistry(),
@@ -77,7 +77,7 @@ public sealed class RemoteAdapterLeaseHandlerTests
         FakeRunRepository runs = new();
         MutableClock clock = new(Now);
         ClaimRemoteAdapterLeaseCommandHandler claimHandler = new(
-            new FakeConnectionRepository(connection),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
             new TestCountryPolicyAdmission(),
             runs,
             new DescriptorRegistry(),
@@ -94,9 +94,13 @@ public sealed class RemoteAdapterLeaseHandlerTests
             claim.Value.LeaseEpoch,
             WorkerId);
         RenewRemoteAdapterLeaseCommandHandler renewHandler = new(
-            new FakeConnectionRepository(connection), runs, new TestCountryPolicyAdmission(), clock);
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
+            new TestCountryPolicyAdmission(),
+            clock);
         RenewRemoteAdapterLeaseCommandHandler deniedRenewHandler = new(
-            new FakeConnectionRepository(connection), runs, new TestCountryPolicyAdmission(allowed: false), clock);
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
+            new TestCountryPolicyAdmission(allowed: false),
+            clock);
 
         var wrong = await renewHandler.HandleAsync(new(
             connection.Id,
@@ -108,7 +112,8 @@ public sealed class RemoteAdapterLeaseHandlerTests
         var renewed = await renewHandler.HandleAsync(new(
             connection.Id, CredentialId, new(proof, 60)), CancellationToken.None);
         CompleteRemoteAdapterRunCommandHandler completeHandler = new(
-            new FakeConnectionRepository(connection), runs, clock);
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
+            clock);
         AdapterRemoteRunCompletionRequest completion = new(
             proof,
             AdapterRunOutcome.Succeeded,
@@ -139,11 +144,12 @@ public sealed class RemoteAdapterLeaseHandlerTests
     public async Task Claim_rejects_descriptor_drift_before_allocating_ids()
     {
         AdapterConnection connection = CreateConnection();
+        FakeRunRepository runs = new();
         QueueIds ids = new(Guid.NewGuid(), Guid.NewGuid());
         var result = await new ClaimRemoteAdapterLeaseCommandHandler(
-            new FakeConnectionRepository(connection),
+            TestIngestionExecution.Create(new FakeConnectionRepository(connection), runs),
             new TestCountryPolicyAdmission(),
-            new FakeRunRepository(),
+            runs,
             new DescriptorRegistry(),
             new TestScope(),
             new MutableClock(Now),
@@ -186,10 +192,22 @@ public sealed class RemoteAdapterLeaseHandlerTests
             Task.FromResult(this.Items.SingleOrDefault(run =>
                 run.TaskRunId == taskRunId && run.TaskAttempt == taskAttempt));
 
+        public Task<Guid?> FindByTaskExecutionIdAsync(
+            Guid taskRunId, int taskAttempt, CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(this.Items.SingleOrDefault(run =>
+                run.TaskRunId == taskRunId &&
+                run.TaskAttempt == taskAttempt)?.Id);
+
         public Task<IngestionRun?> FindActiveByConnectionAsync(
             Guid connectionId, CancellationToken cancellationToken) =>
             Task.FromResult(this.Items.SingleOrDefault(run =>
                 run.ConnectionId == connectionId && run.State == IngestionRunState.Running));
+
+        public Task<Guid?> FindActiveIdByConnectionAsync(
+            Guid connectionId, CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(this.Items.SingleOrDefault(run =>
+                run.ConnectionId == connectionId &&
+                run.State == IngestionRunState.Running)?.Id);
 
         public Task AddAsync(IngestionRun run, CancellationToken cancellationToken)
         {

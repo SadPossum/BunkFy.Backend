@@ -165,6 +165,33 @@ public sealed class ReceiveObservationCommandHandlerTests
         Assert.Empty(context.RawPayloads.Writes);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Partial_remote_execution_proof_is_rejected_before_acquiring_a_lock(
+        bool includeLease)
+    {
+        TestContext context = CreateContext(executionLock: new ThrowingExecutionLock());
+        ReceiveObservationCommand command = CreateCommand(context.Connection.Id) with
+        {
+            RemoteLease = includeLease
+                ? new AdapterRemoteLeaseProof(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    1,
+                    Guid.NewGuid())
+                : null,
+            RemoteCredentialId = includeLease ? null : Guid.NewGuid()
+        };
+
+        Result<AdapterObservationResult> result = await context.Handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.Equal(IngestionApplicationErrors.ObservationInvalid, result.Error);
+        Assert.Empty(context.RawPayloads.Writes);
+    }
+
     [Fact]
     public async Task Retired_property_rejects_observation_before_writing_ingestion_state()
     {
@@ -251,7 +278,8 @@ public sealed class ReceiveObservationCommandHandlerTests
     private static TestContext CreateContext(
         IngestionRun? run = null,
         bool propertyActive = true,
-        bool anonymisationBlocked = false)
+        bool anonymisationBlocked = false,
+        IIngestionExecutionLock? executionLock = null)
     {
         AdapterConnection connection = AdapterConnection.Create(
             Guid.NewGuid(),
@@ -269,6 +297,11 @@ public sealed class ReceiveObservationCommandHandlerTests
         RecordingOutbox outbox = new();
         RecordingIngressGate ingressGate = new();
         ServiceCollection services = new();
+        if (executionLock is not null)
+        {
+            services.AddSingleton(executionLock);
+        }
+
         services.AddSingleton<IAdapterConnectionRepository>(new FakeConnectionRepository(connection));
         services.AddSingleton<IAdapterDescriptorRegistry>(new TestDescriptorRegistry());
         services.AddSingleton<IIngestionCountryPolicyAdmission>(
@@ -409,11 +442,29 @@ public sealed class ReceiveObservationCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(run?.TaskRunId == taskRunId && run.TaskAttempt == taskAttempt ? run : null);
 
+        public Task<Guid?> FindByTaskExecutionIdAsync(
+            Guid taskRunId,
+            int taskAttempt,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(
+                run?.TaskRunId == taskRunId && run.TaskAttempt == taskAttempt
+                    ? run.Id
+                    : null);
+
         public Task<IngestionRun?> FindActiveByConnectionAsync(
             Guid connectionId,
             CancellationToken cancellationToken) => Task.FromResult(
                 run is not null && run.ConnectionId == connectionId && run.State == IngestionRunState.Running
                     ? run
+                    : null);
+
+        public Task<Guid?> FindActiveIdByConnectionAsync(
+            Guid connectionId,
+            CancellationToken cancellationToken) => Task.FromResult<Guid?>(
+                run is not null &&
+                run.ConnectionId == connectionId &&
+                run.State == IngestionRunState.Running
+                    ? run.Id
                     : null);
 
         public Task AddAsync(IngestionRun added, CancellationToken cancellationToken) =>
@@ -542,6 +593,38 @@ public sealed class ReceiveObservationCommandHandlerTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class ThrowingExecutionLock : IIngestionExecutionLock
+    {
+        public Task AcquireTaskExecutionAsync(
+            string tenantId,
+            Guid taskRunId,
+            int taskAttempt,
+            CancellationToken cancellationToken) => Unexpected();
+
+        public Task AcquireConnectionReadAsync(
+            string tenantId,
+            Guid connectionId,
+            CancellationToken cancellationToken) => Unexpected();
+
+        public Task AcquireConnectionWriteAsync(
+            string tenantId,
+            Guid connectionId,
+            CancellationToken cancellationToken) => Unexpected();
+
+        public Task AcquireRunReadAsync(
+            string tenantId,
+            Guid runId,
+            CancellationToken cancellationToken) => Unexpected();
+
+        public Task AcquireRunWriteAsync(
+            string tenantId,
+            Guid runId,
+            CancellationToken cancellationToken) => Unexpected();
+
+        private static Task Unexpected() =>
+            throw new InvalidOperationException("Execution lock must not be acquired.");
     }
 
     private sealed class TestDescriptorRegistry : IAdapterDescriptorRegistry

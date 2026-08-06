@@ -16,7 +16,7 @@ using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Credentials;
 
 internal sealed class CreateAdapterIngressCredentialCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IAdapterIngressCredentialRepository credentials,
     IAdapterIngressTokenService tokens,
     IAdapterDescriptorRegistry descriptors,
@@ -34,9 +34,10 @@ internal sealed class CreateAdapterIngressCredentialCommandHandler(
             return Result.Failure<CreateAdapterIngressCredentialResponse>(IngestionApplicationErrors.ScopeRequired);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(
-            command.PropertyId, command.ConnectionId, cancellationToken).ConfigureAwait(false);
-        if (connection is null)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken).ConfigureAwait(false);
+        if (connection is null || connection.PropertyId != command.PropertyId)
         {
             return Result.Failure<CreateAdapterIngressCredentialResponse>(IngestionApplicationErrors.ConnectionNotFound);
         }
@@ -96,7 +97,7 @@ internal sealed class CreateAdapterIngressCredentialCommandHandler(
 }
 
 internal sealed class RevokeAdapterIngressCredentialCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IAdapterIngressCredentialRepository credentials,
     ISystemClock clock)
     : ICommandHandler<RevokeAdapterIngressCredentialCommand, AdapterIngressCredentialMutationReceiptDto>
@@ -105,9 +106,10 @@ internal sealed class RevokeAdapterIngressCredentialCommandHandler(
         RevokeAdapterIngressCredentialCommand command,
         CancellationToken cancellationToken)
     {
-        AdapterConnection? connection = await connections.GetAsync(
-            command.PropertyId, command.ConnectionId, cancellationToken).ConfigureAwait(false);
-        if (connection is null)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken).ConfigureAwait(false);
+        if (connection is null || connection.PropertyId != command.PropertyId)
         {
             return Result.Failure<AdapterIngressCredentialMutationReceiptDto>(
                 IngestionApplicationErrors.ConnectionNotFound);

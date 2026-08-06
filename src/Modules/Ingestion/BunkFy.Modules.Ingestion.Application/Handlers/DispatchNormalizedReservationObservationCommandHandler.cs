@@ -17,7 +17,7 @@ using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal sealed class DispatchNormalizedReservationObservationCommandHandler(
     IObservationReceiptRepository receipts,
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IReservationSourceLinkRepository sourceLinks,
     IReservationDispatchRepository dispatches,
     IChangeProposalRepository proposals,
@@ -42,7 +42,9 @@ internal sealed class DispatchNormalizedReservationObservationCommandHandler(
             return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ReceiptNotPending);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(receipt.ConnectionId, cancellationToken).ConfigureAwait(false);
+        AdapterConnection? connection = await execution.AcquireConnectionReadAsync(
+            receipt.ConnectionId,
+            cancellationToken).ConfigureAwait(false);
         if (connection is null || connection.PropertyId != receipt.PropertyId)
         {
             return Result.Failure<ReservationObservationDispatchResult>(IngestionApplicationErrors.ConnectionNotFound);

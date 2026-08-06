@@ -40,6 +40,7 @@ public static class DependencyInjection
                 IngestionSecuritySignalDefinitions>());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddGmaAccessControlPermissionPolicies(IngestionModuleMetadata.Descriptor);
+        services.TryAddScoped<IngestionExecutionMutationCoordinator>();
         services.TryAddScoped<IIngestionCountryPolicyAdmission, IngestionCountryPolicyAdmission>();
         services.TryAddScoped<
             IIngestionAnonymisationEligibilityEvaluator,

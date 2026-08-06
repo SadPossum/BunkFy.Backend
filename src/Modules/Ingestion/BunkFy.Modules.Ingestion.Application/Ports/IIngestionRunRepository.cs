@@ -9,6 +9,13 @@ public interface IIngestionRunRepository
         Guid taskRunId,
         int taskAttempt,
         CancellationToken cancellationToken);
+    Task<Guid?> FindByTaskExecutionIdAsync(
+        Guid taskRunId,
+        int taskAttempt,
+        CancellationToken cancellationToken);
     Task<IngestionRun?> FindActiveByConnectionAsync(Guid connectionId, CancellationToken cancellationToken);
+    Task<Guid?> FindActiveIdByConnectionAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken);
     Task AddAsync(IngestionRun run, CancellationToken cancellationToken);
 }

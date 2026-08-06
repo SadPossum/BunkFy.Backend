@@ -9,8 +9,7 @@ using BunkFy.Modules.Ingestion.Domain.Connections;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 
 internal sealed class AdvanceConnectionCheckpointCommandHandler(
-    IAdapterConnectionRepository connections,
-    IIngestionRunRepository runs,
+    IngestionExecutionMutationCoordinator execution,
     ISystemClock clock)
     : ICommandHandler<AdvanceConnectionCheckpointCommand, Unit>
 {
@@ -18,14 +17,18 @@ internal sealed class AdvanceConnectionCheckpointCommandHandler(
         AdvanceConnectionCheckpointCommand command,
         CancellationToken cancellationToken)
     {
-        AdapterConnection? connection = await connections.GetAsync(command.ConnectionId, cancellationToken)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken)
             .ConfigureAwait(false);
         if (connection is null)
         {
             return Result.Failure<Unit>(IngestionApplicationErrors.ConnectionNotFound);
         }
 
-        IngestionRun? run = await runs.GetAsync(command.RunId, cancellationToken).ConfigureAwait(false);
+        IngestionRun? run = await execution.AcquireRunReadAsync(
+            command.RunId,
+            cancellationToken).ConfigureAwait(false);
         if (run is null)
         {
             return Result.Failure<Unit>(IngestionApplicationErrors.RunNotFound);

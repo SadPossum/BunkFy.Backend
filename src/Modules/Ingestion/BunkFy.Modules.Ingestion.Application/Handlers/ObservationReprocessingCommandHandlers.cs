@@ -25,7 +25,7 @@ internal static class ObservationReprocessingReservationPolicy
 internal sealed class PrepareObservationReprocessingCommandHandler(
     IObservationReceiptRepository receipts,
     IObservationReprocessingAttemptRepository attempts,
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IObservationParserDescriptorRegistry parsers,
     IIngestionCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
@@ -75,7 +75,9 @@ internal sealed class PrepareObservationReprocessingCommandHandler(
                 IngestionApplicationErrors.ReprocessingSourceNotRejected);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(source.ConnectionId, cancellationToken)
+        AdapterConnection? connection = await execution.AcquireConnectionReadAsync(
+            source.ConnectionId,
+            cancellationToken)
             .ConfigureAwait(false);
         if (connection is null || connection.PropertyId != source.PropertyId)
         {
@@ -202,7 +204,7 @@ internal sealed class FailPreparedObservationReprocessingCommandHandler(
 internal sealed class StartObservationReprocessingCommandHandler(
     IObservationReprocessingAttemptRepository attempts,
     IObservationReceiptRepository receipts,
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IObservationParserDescriptorRegistry parsers,
     IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
@@ -225,7 +227,9 @@ internal sealed class StartObservationReprocessingCommandHandler(
             .ConfigureAwait(false);
         AdapterConnection? connection = source is null
             ? null
-            : await connections.GetAsync(source.ConnectionId, cancellationToken).ConfigureAwait(false);
+            : await execution.AcquireConnectionReadAsync(
+                source.ConnectionId,
+                cancellationToken).ConfigureAwait(false);
         if (source is null || connection is null || source.PropertyId != attempt.PropertyId ||
             source.ConnectionId != attempt.ConnectionId)
         {

@@ -19,10 +19,9 @@ using BunkFy.Modules.Ingestion.Domain.Reprocessing;
 using BunkFy.Modules.Ingestion.Application.DataRights;
 
 internal sealed class ReceiveObservationCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IAdapterDescriptorRegistry descriptors,
     IIngestionCountryPolicyAdmission countryPolicy,
-    IIngestionRunRepository runs,
     IObservationReceiptRepository receipts,
     IObservationReprocessingAttemptRepository reprocessingAttempts,
     IRawPayloadStore rawPayloads,
@@ -44,8 +43,21 @@ internal sealed class ReceiveObservationCommandHandler(
             return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ScopeRequired);
         }
 
-        AdapterConnection? connection = await connections.GetAsync(command.ConnectionId, cancellationToken)
-            .ConfigureAwait(false);
+        bool hasRemoteLease = command.RemoteLease is not null;
+        bool hasRemoteCredential = command.RemoteCredentialId.HasValue;
+        if (hasRemoteLease != hasRemoteCredential)
+        {
+            return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ObservationInvalid);
+        }
+
+        bool hasRemoteExecutionProof = hasRemoteLease;
+        AdapterConnection? connection = hasRemoteExecutionProof
+            ? await execution.AcquireConnectionWriteAsync(
+                command.ConnectionId,
+                cancellationToken).ConfigureAwait(false)
+            : await execution.AcquireConnectionReadAsync(
+                command.ConnectionId,
+                cancellationToken).ConfigureAwait(false);
         if (connection is null)
         {
             return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.ConnectionNotFound);
@@ -135,7 +147,9 @@ internal sealed class ReceiveObservationCommandHandler(
         }
         else if (command.RunId.HasValue)
         {
-            IngestionRun? run = await runs.GetAsync(command.RunId.Value, cancellationToken).ConfigureAwait(false);
+            IngestionRun? run = await execution.AcquireRunReadAsync(
+                command.RunId.Value,
+                cancellationToken).ConfigureAwait(false);
             if (run is null)
             {
                 return Result.Failure<AdapterObservationResult>(IngestionApplicationErrors.RunNotFound);

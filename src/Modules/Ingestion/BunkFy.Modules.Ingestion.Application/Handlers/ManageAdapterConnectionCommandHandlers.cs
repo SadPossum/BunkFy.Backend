@@ -90,7 +90,7 @@ internal sealed class CreateAdapterConnectionCommandHandler(
 }
 
 internal sealed class UpdateAdapterConnectionCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IAdapterDescriptorRegistry descriptors,
     ISystemClock clock)
     : ICommandHandler<UpdateAdapterConnectionCommand, AdapterConnectionMutationReceiptDto>
@@ -99,11 +99,10 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
         UpdateAdapterConnectionCommand command,
         CancellationToken cancellationToken)
     {
-        AdapterConnection? connection = await connections.GetAsync(
-            command.PropertyId,
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
             command.ConnectionId,
             cancellationToken).ConfigureAwait(false);
-        if (connection is null)
+        if (connection is null || connection.PropertyId != command.PropertyId)
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
@@ -155,8 +154,7 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
 }
 
 internal sealed class SetAdapterConnectionEnabledCommandHandler(
-    IAdapterConnectionRepository connections,
-    IIngestionRunRepository runs,
+    IngestionExecutionMutationCoordinator execution,
     IIngestionCountryPolicyAdmission countryPolicy,
     ISystemClock clock)
     : ICommandHandler<SetAdapterConnectionEnabledCommand, AdapterConnectionMutationReceiptDto>
@@ -165,11 +163,10 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
         SetAdapterConnectionEnabledCommand command,
         CancellationToken cancellationToken)
     {
-        AdapterConnection? connection = await connections.GetAsync(
-            command.PropertyId,
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
             command.ConnectionId,
             cancellationToken).ConfigureAwait(false);
-        if (connection is null)
+        if (connection is null || connection.PropertyId != command.PropertyId)
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
@@ -192,8 +189,10 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
         DateTimeOffset nowUtc = clock.UtcNow;
         if (!command.Enabled && connection.RemoteLeaseRunId is { } remoteRunId)
         {
-            BunkFy.Modules.Ingestion.Domain.Runs.IngestionRun? run = await runs.GetAsync(
-                remoteRunId, cancellationToken).ConfigureAwait(false);
+            BunkFy.Modules.Ingestion.Domain.Runs.IngestionRun? run =
+                await execution.AcquireRunWriteAsync(
+                    remoteRunId,
+                    cancellationToken).ConfigureAwait(false);
             if (run is { State: BunkFy.Modules.Ingestion.Domain.Runs.IngestionRunState.Running })
             {
                 Result cancelled = run.CancelRemoteLease(connection.Checkpoint, run.Version, nowUtc);
@@ -214,7 +213,7 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
 }
 
 internal sealed class ConfigureAdapterConnectionPollingScheduleCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     IAdapterDescriptorRegistry descriptors,
     ISystemClock clock)
     : ICommandHandler<ConfigureAdapterConnectionPollingScheduleCommand, AdapterConnectionMutationReceiptDto>
@@ -223,9 +222,10 @@ internal sealed class ConfigureAdapterConnectionPollingScheduleCommandHandler(
         ConfigureAdapterConnectionPollingScheduleCommand command,
         CancellationToken cancellationToken)
     {
-        AdapterConnection? connection = await connections.GetAsync(
-            command.PropertyId, command.ConnectionId, cancellationToken).ConfigureAwait(false);
-        if (connection is null)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken).ConfigureAwait(false);
+        if (connection is null || connection.PropertyId != command.PropertyId)
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
@@ -254,7 +254,7 @@ internal sealed class ConfigureAdapterConnectionPollingScheduleCommandHandler(
 }
 
 internal sealed class ClearAdapterConnectionPollingScheduleCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     ISystemClock clock)
     : ICommandHandler<ClearAdapterConnectionPollingScheduleCommand, AdapterConnectionMutationReceiptDto>
 {
@@ -262,9 +262,10 @@ internal sealed class ClearAdapterConnectionPollingScheduleCommandHandler(
         ClearAdapterConnectionPollingScheduleCommand command,
         CancellationToken cancellationToken)
     {
-        AdapterConnection? connection = await connections.GetAsync(
-            command.PropertyId, command.ConnectionId, cancellationToken).ConfigureAwait(false);
-        if (connection is null)
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
+            command.ConnectionId,
+            cancellationToken).ConfigureAwait(false);
+        if (connection is null || connection.PropertyId != command.PropertyId)
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }
@@ -277,7 +278,7 @@ internal sealed class ClearAdapterConnectionPollingScheduleCommandHandler(
 }
 
 internal sealed class ResetAdapterConnectionCheckpointCommandHandler(
-    IAdapterConnectionRepository connections,
+    IngestionExecutionMutationCoordinator execution,
     ISystemClock clock)
     : ICommandHandler<ResetAdapterConnectionCheckpointCommand, AdapterConnectionMutationReceiptDto>
 {
@@ -285,11 +286,10 @@ internal sealed class ResetAdapterConnectionCheckpointCommandHandler(
         ResetAdapterConnectionCheckpointCommand command,
         CancellationToken cancellationToken)
     {
-        AdapterConnection? connection = await connections.GetAsync(
-            command.PropertyId,
+        AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
             command.ConnectionId,
             cancellationToken).ConfigureAwait(false);
-        if (connection is null)
+        if (connection is null || connection.PropertyId != command.PropertyId)
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ConnectionNotFound);
         }

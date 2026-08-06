@@ -8,7 +8,7 @@ using BunkFy.Modules.Ingestion.Application.Ports;
 using BunkFy.Modules.Ingestion.Domain.Runs;
 
 internal sealed class CompleteAdapterRunCommandHandler(
-    IIngestionRunRepository runs,
+    IngestionExecutionMutationCoordinator execution,
     ISystemClock clock)
     : ICommandHandler<CompleteAdapterRunCommand, Unit>
 {
@@ -16,7 +16,9 @@ internal sealed class CompleteAdapterRunCommandHandler(
         CompleteAdapterRunCommand command,
         CancellationToken cancellationToken)
     {
-        IngestionRun? run = await runs.GetAsync(command.RunId, cancellationToken).ConfigureAwait(false);
+        IngestionRun? run = await execution.AcquireRunWriteAsync(
+            command.RunId,
+            cancellationToken).ConfigureAwait(false);
         if (run is null)
         {
             return Result.Failure<Unit>(IngestionApplicationErrors.RunNotFound);

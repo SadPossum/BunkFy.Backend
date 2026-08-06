@@ -89,21 +89,23 @@ public sealed class AdapterConnectionManagementTests
             Guid.NewGuid(), "tenant-a", propertyId, "fake.http", AdapterExecutionMode.Polling,
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", null, Now).Value;
         FakeConnectionRepository connections = new(connection);
+        IngestionExecutionMutationCoordinator execution =
+            TestIngestionExecution.Create(connections);
 
         var updated = await new UpdateAdapterConnectionCommandHandler(
-            connections, new TestDescriptors(), new TestClock()).HandleAsync(
+            execution, new TestDescriptors(), new TestClock()).HandleAsync(
             new(propertyId, connection.Id, AdapterExecutionMode.Continuous,
                 AdapterConflictPolicy.AutoApplyWhenAdapterBaselineUnchanged,
                 "configuration://secondary", SecretReferenceUpdateMode.Replace, "secret://secondary", 1),
             CancellationToken.None);
         var wrongProperty = await new SetAdapterConnectionEnabledCommandHandler(
-            connections, new EmptyRunRepository(), new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
+            execution, new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
             new(Guid.NewGuid(), connection.Id, Enabled: false, ExpectedVersion: 2), CancellationToken.None);
         var disabled = await new SetAdapterConnectionEnabledCommandHandler(
-            connections, new EmptyRunRepository(), new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
+            execution, new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
             new(propertyId, connection.Id, Enabled: false, ExpectedVersion: 2), CancellationToken.None);
         var deniedEnable = await new SetAdapterConnectionEnabledCommandHandler(
-            connections, new EmptyRunRepository(), new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
+            execution, new TestCountryPolicyAdmission(allowed: false), new TestClock()).HandleAsync(
             new(propertyId, connection.Id, Enabled: true, ExpectedVersion: 3), CancellationToken.None);
 
         Assert.True(updated.IsSuccess, updated.Error.Code);
@@ -127,7 +129,10 @@ public sealed class AdapterConnectionManagementTests
             Guid.NewGuid(), "tenant-a", propertyId, "fake.http", AdapterExecutionMode.Polling,
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", "secret://initial", Now).Value;
         FakeConnectionRepository connections = new(connection);
-        UpdateAdapterConnectionCommandHandler handler = new(connections, new TestDescriptors(), new TestClock());
+        UpdateAdapterConnectionCommandHandler handler = new(
+            TestIngestionExecution.Create(connections),
+            new TestDescriptors(),
+            new TestClock());
 
         var kept = await handler.HandleAsync(new(
             propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
@@ -180,13 +185,15 @@ public sealed class AdapterConnectionManagementTests
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", null, Now).Value;
         FakeConnectionRepository connections = new(connection);
         TestDescriptors descriptors = new();
+        IngestionExecutionMutationCoordinator execution =
+            TestIngestionExecution.Create(connections);
 
         var tooFrequent = await new ConfigureAdapterConnectionPollingScheduleCommandHandler(
-            connections, descriptors, new TestClock()).HandleAsync(
+            execution, descriptors, new TestClock()).HandleAsync(
             new(propertyId, connection.Id, IntervalSeconds: 60, MaxAttempts: 3, ExpectedVersion: 1),
             CancellationToken.None);
         var configured = await new ConfigureAdapterConnectionPollingScheduleCommandHandler(
-            connections, descriptors, new TestClock()).HandleAsync(
+            execution, descriptors, new TestClock()).HandleAsync(
             new(propertyId, connection.Id, IntervalSeconds: 180, MaxAttempts: 4, ExpectedVersion: 1),
             CancellationToken.None);
 
@@ -197,7 +204,7 @@ public sealed class AdapterConnectionManagementTests
         Assert.NotNull(connection.PollingScheduleConfiguredAtUtc);
 
         var cleared = await new ClearAdapterConnectionPollingScheduleCommandHandler(
-            connections, new TestClock()).HandleAsync(
+            execution, new TestClock()).HandleAsync(
             new(propertyId, connection.Id, configured.Value.Version), CancellationToken.None);
 
         Assert.True(cleared.IsSuccess, cleared.Error.Code);
@@ -250,9 +257,17 @@ public sealed class AdapterConnectionManagementTests
             Guid taskRunId, int taskAttempt, CancellationToken cancellationToken) =>
             Task.FromResult<IngestionRun?>(null);
 
+        public Task<Guid?> FindByTaskExecutionIdAsync(
+            Guid taskRunId, int taskAttempt, CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(null);
+
         public Task<IngestionRun?> FindActiveByConnectionAsync(
             Guid connectionId, CancellationToken cancellationToken) =>
             Task.FromResult<IngestionRun?>(null);
+
+        public Task<Guid?> FindActiveIdByConnectionAsync(
+            Guid connectionId, CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(null);
 
         public Task AddAsync(IngestionRun run, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
