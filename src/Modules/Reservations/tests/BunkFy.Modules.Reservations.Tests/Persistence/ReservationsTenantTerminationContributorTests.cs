@@ -94,6 +94,22 @@ public sealed class ReservationsTenantTerminationContributorTests
                     "reservations.staff-attribution")
                 .GetProperty("lastDetailsActorId")
                 .GetString() == "user:owner");
+        DataRightsExportRecord managementOperation = Assert.Single(
+            first.Records,
+            record => record.RecordType ==
+                ReservationsTenantTerminationMetadata
+                    .ManagementOperationRecordType);
+        Guid managementReservationId = Field(
+            managementOperation,
+            "reservations.reservation-id").GetGuid();
+        Guid managementOperationId = Field(
+            managementOperation,
+            "reservations.record-id").GetGuid();
+        Assert.Equal(
+            DataRightsExportRecordIds.CreateDeterministicChild(
+                managementReservationId,
+                managementOperationId.ToString("N")),
+            managementOperation.RecordId);
         Assert.Equal(
             ReservationsTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -471,6 +487,16 @@ public sealed class ReservationsTenantTerminationContributorTests
                 reservation.Version,
                 ErrorCode: null,
                 Now.AddMinutes(4))));
+        context.ManagementOperations.Add(new ReservationManagementOperation(
+            new ReservationManagementOperationRecord(
+                Guid.NewGuid(),
+                TenantId,
+                PropertyId,
+                reservation.Id,
+                ReservationManagementOperationKind.CheckIn,
+                reservation.Version,
+                reservation.Arrival,
+                Now.AddMinutes(5))));
         context.ArrivalReminders.Add(ReservationArrivalReminder.Create(
             Guid.NewGuid(),
             TenantId,
@@ -743,7 +769,8 @@ public sealed class ReservationsTenantTerminationContributorTests
         await context.RequestedInventoryUnits.AnyAsync() ||
         await context.ReservationDetailsHistory.AnyAsync() ||
         await context.ArrivalReminders.AnyAsync() ||
-        await context.ExternalOperations.AnyAsync();
+        await context.ExternalOperations.AnyAsync() ||
+        await context.ManagementOperations.AnyAsync();
 
     private static JsonElement Field(
         DataRightsExportRecord record,

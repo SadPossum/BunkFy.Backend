@@ -4,6 +4,7 @@ using Gma.Framework.Cqrs;
 using BunkFy.Modules.Reservations.Contracts;
 
 public sealed record CancelReservationCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ReservationId,
     long ExpectedVersion,

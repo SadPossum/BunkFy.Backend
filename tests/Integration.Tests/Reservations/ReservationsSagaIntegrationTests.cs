@@ -132,7 +132,11 @@ public sealed class ReservationsSagaIntegrationTests
                        HttpMethod.Post,
                        $"/api/reservations/properties/{PropertyId:D}/{first.ReservationId:D}/cancel",
                        tokens.AccessToken,
-                       new { expectedVersion = confirmed.Version }).ConfigureAwait(false))
+                       new
+                       {
+                           operationId = Guid.NewGuid(),
+                           expectedVersion = confirmed.Version
+                       }).ConfigureAwait(false))
             {
                 cancellationPending =
                     await ReadSuccessAsync<ReservationMutationReceiptDto>(cancel)
@@ -251,19 +255,30 @@ public sealed class ReservationsSagaIntegrationTests
                        HttpMethod.Post,
                        $"/api/reservations/properties/{OtherPropertyId:D}/{replacement.ReservationId:D}/check-in",
                        tokens.AccessToken,
-                       new { businessDate = new DateOnly(2026, 10, 1), expectedVersion = linked.Version })
+                       new
+                       {
+                           operationId = Guid.NewGuid(),
+                           businessDate = new DateOnly(2026, 10, 1),
+                           expectedVersion = linked.Version
+                       })
                        .ConfigureAwait(false))
             {
                 await AssertStatusAsync(HttpStatusCode.Forbidden, deniedCheckIn).ConfigureAwait(false);
             }
 
+            Guid checkInOperationId = Guid.NewGuid();
             ReservationMutationReceiptDto checkedInReceipt;
             using (HttpResponseMessage checkIn = await SendAsync(
                        client,
                        HttpMethod.Post,
                        $"/api/reservations/properties/{PropertyId:D}/{replacement.ReservationId:D}/check-in",
                        tokens.AccessToken,
-                       new { businessDate = new DateOnly(2026, 10, 1), expectedVersion = linked.Version })
+                       new
+                       {
+                           operationId = checkInOperationId,
+                           businessDate = new DateOnly(2026, 10, 1),
+                           expectedVersion = linked.Version
+                       })
                        .ConfigureAwait(false))
             {
                 checkedInReceipt =
@@ -282,24 +297,59 @@ public sealed class ReservationsSagaIntegrationTests
             Assert.Equal(new DateOnly(2026, 10, 1), checkedIn.CheckedInBusinessDate);
             Assert.StartsWith("user:", checkedIn.CheckedInBy, StringComparison.Ordinal);
 
+            using (HttpResponseMessage checkInReplay = await SendAsync(
+                       client,
+                       HttpMethod.Post,
+                       $"/api/reservations/properties/{PropertyId:D}/{replacement.ReservationId:D}/check-in",
+                       tokens.AccessToken,
+                       new
+                       {
+                           operationId = checkInOperationId,
+                           businessDate = new DateOnly(2026, 10, 1),
+                           expectedVersion = linked.Version
+                       }).ConfigureAwait(false))
+            {
+                ReservationMutationReceiptDto replayed =
+                    await ReadSuccessAsync<ReservationMutationReceiptDto>(checkInReplay)
+                        .ConfigureAwait(false);
+                Assert.Equal(ReservationStatus.CheckedIn, replayed.Status);
+                Assert.Equal(checkedIn.Version, replayed.Version);
+                Assert.Equal(checkedIn.DetailsRevision, replayed.DetailsRevision);
+            }
+            Assert.Equal(
+                1,
+                await CountManagementOperationsAsync(api, replacement.ReservationId)
+                    .ConfigureAwait(false));
+
             using (HttpResponseMessage staleCheckIn = await SendAsync(
                        client,
                        HttpMethod.Post,
                        $"/api/reservations/properties/{PropertyId:D}/{replacement.ReservationId:D}/check-in",
                        tokens.AccessToken,
-                       new { businessDate = new DateOnly(2026, 10, 1), expectedVersion = replacementConfirmed.Version })
+                       new
+                       {
+                           operationId = Guid.NewGuid(),
+                           businessDate = new DateOnly(2026, 10, 1),
+                           expectedVersion = replacementConfirmed.Version
+                       })
                        .ConfigureAwait(false))
             {
                 await AssertStatusAsync(HttpStatusCode.Conflict, staleCheckIn).ConfigureAwait(false);
             }
 
+            Guid checkOutOperationId = Guid.NewGuid();
             ReservationMutationReceiptDto checkoutPending;
             using (HttpResponseMessage checkOut = await SendAsync(
                        client,
                        HttpMethod.Post,
                        $"/api/reservations/properties/{PropertyId:D}/{replacement.ReservationId:D}/check-out",
                        tokens.AccessToken,
-                       new { businessDate = new DateOnly(2026, 10, 3), expectedVersion = checkedIn.Version })
+                       new
+                       {
+                           operationId = checkOutOperationId,
+                           businessDate = new DateOnly(2026, 10, 3),
+                           expectedVersion = checkedIn.Version
+                       })
                        .ConfigureAwait(false))
             {
                 checkoutPending =
@@ -316,6 +366,30 @@ public sealed class ReservationsSagaIntegrationTests
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
             Assert.Equal(new DateOnly(2026, 10, 3), checkedOut.CheckedOutBusinessDate);
             Assert.Equal(checkedIn.CheckedInBy, checkedOut.CheckedOutBy);
+
+            using (HttpResponseMessage checkOutReplay = await SendAsync(
+                       client,
+                       HttpMethod.Post,
+                       $"/api/reservations/properties/{PropertyId:D}/{replacement.ReservationId:D}/check-out",
+                       tokens.AccessToken,
+                       new
+                       {
+                           operationId = checkOutOperationId,
+                           businessDate = new DateOnly(2026, 10, 3),
+                           expectedVersion = checkedIn.Version
+                       }).ConfigureAwait(false))
+            {
+                ReservationMutationReceiptDto replayed =
+                    await ReadSuccessAsync<ReservationMutationReceiptDto>(checkOutReplay)
+                        .ConfigureAwait(false);
+                Assert.Equal(ReservationStatus.CheckedOut, replayed.Status);
+                Assert.Equal(checkedOut.Version, replayed.Version);
+                Assert.Equal(checkedOut.DetailsRevision, replayed.DetailsRevision);
+            }
+            Assert.Equal(
+                2,
+                await CountManagementOperationsAsync(api, replacement.ReservationId)
+                    .ConfigureAwait(false));
 
             GuestStayHistoryItem stay = await WaitForGuestStayAsync(
                 client,
@@ -365,7 +439,12 @@ public sealed class ReservationsSagaIntegrationTests
                        HttpMethod.Post,
                        $"/api/reservations/properties/{PropertyId:D}/{noShowCandidate.ReservationId:D}/no-show",
                        tokens.AccessToken,
-                       new { businessDate = new DateOnly(2026, 10, 1), expectedVersion = noShowConfirmed.Version })
+                       new
+                       {
+                           operationId = Guid.NewGuid(),
+                           businessDate = new DateOnly(2026, 10, 1),
+                           expectedVersion = noShowConfirmed.Version
+                       })
                        .ConfigureAwait(false))
             {
                 ReservationMutationReceiptDto pending =
@@ -435,6 +514,25 @@ public sealed class ReservationsSagaIntegrationTests
         CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
         builder.ValidateModuleComposition();
         return builder.Build();
+    }
+
+    private static async Task<int> CountManagementOperationsAsync(
+        AuthTestApplication api,
+        Guid reservationId)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        ReservationsDbContext reservations = scope.ServiceProvider
+            .GetRequiredService<ReservationsDbContext>();
+        return await reservations.Database.SqlQuery<int>($"""
+                SELECT COUNT(*)::int AS "Value"
+                FROM reservations.management_operations
+                WHERE "ScopeId" = {TenantId}
+                  AND "ReservationId" = {reservationId}
+                """)
+            .SingleAsync()
+            .ConfigureAwait(false);
     }
 
     private static async Task SeedInventoryAsync(AuthTestApplication api)

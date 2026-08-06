@@ -6,7 +6,9 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
+using Gma.Framework.Scoping;
 using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Reservations.Application;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Handlers;
 using BunkFy.Modules.Reservations.Application.Ports;
@@ -23,13 +25,14 @@ public sealed class ReservationStayLifecycleTests
     {
         Reservation reservation = CreateConfirmedReservation();
         FakeReservationRepository repository = new(reservation);
+        FakeReservationManagementOperationRepository operations = new();
         CheckInReservationCommandHandler handler = new(
-            ReservationMutationTestSupport.Create(repository),
-            new TestClock(),
+            CreateLifecycle(repository, operations),
             new TestIdGenerator());
 
         Result<ReservationMutationReceiptDto> result = await handler.HandleAsync(
             new CheckInReservationCommand(
+                Guid.NewGuid(),
                 reservation.PropertyId,
                 reservation.Id,
                 new DateOnly(2026, 8, 1),
@@ -42,6 +45,173 @@ public sealed class ReservationStayLifecycleTests
         Assert.Equal(new DateOnly(2026, 8, 1), reservation.CheckedInBusinessDate);
         Assert.Equal("user:operator-a", reservation.CheckedInBy);
         Assert.Equal(TestClock.Now, reservation.CheckedInAtUtc);
+    }
+
+    [Fact]
+    public async Task Exact_checkout_replay_returns_current_state_after_release_rejection()
+    {
+        Reservation reservation = CreateCheckedInReservation();
+        FakeReservationRepository repository = new(reservation);
+        FakeReservationManagementOperationRepository operations = new();
+        CountingIdGenerator ids = new();
+        CheckOutReservationCommandHandler handler = new(
+            CreateLifecycle(repository, operations),
+            ids);
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = reservation.Version;
+        CheckOutReservationCommand command = new(
+            operationId,
+            reservation.PropertyId,
+            reservation.Id,
+            reservation.Departure,
+            expectedVersion,
+            "user:operator-a");
+
+        Result<ReservationMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.Equal(ReservationStatus.CheckoutPending, first.Value.Status);
+        Assert.Equal(2, ids.Count);
+        Assert.Single(operations.Items);
+        Assert.True(reservation.RestoreAfterReleaseRejection(
+            reservation.ReleaseRequestId!.Value,
+            rejectionCode: 17,
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(1)).IsSuccess);
+
+        Result<ReservationMutationReceiptDto> replay = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(ReservationStatus.CheckedIn, replay.Value.Status);
+        Assert.Equal(reservation.Version, replay.Value.Version);
+        Assert.Equal(2, ids.Count);
+        Assert.Single(operations.Items);
+    }
+
+    [Fact]
+    public async Task Reusing_operation_id_for_changed_lifecycle_request_conflicts()
+    {
+        Reservation reservation = CreateConfirmedReservation();
+        FakeReservationManagementOperationRepository operations = new();
+        CountingIdGenerator ids = new();
+        ReservationManagementLifecycleCoordinator lifecycle = CreateLifecycle(
+            new FakeReservationRepository(reservation),
+            operations);
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = reservation.Version;
+        CheckInReservationCommandHandler checkIn = new(lifecycle, ids);
+        MarkReservationNoShowCommandHandler noShow = new(lifecycle, ids);
+
+        Result<ReservationMutationReceiptDto> first = await checkIn.HandleAsync(
+            new(
+                operationId,
+                reservation.PropertyId,
+                reservation.Id,
+                reservation.Arrival,
+                expectedVersion,
+                "user:operator-a"),
+            CancellationToken.None);
+        Result<ReservationMutationReceiptDto> conflict = await noShow.HandleAsync(
+            new(
+                operationId,
+                reservation.PropertyId,
+                reservation.Id,
+                reservation.Arrival,
+                expectedVersion,
+                "user:operator-a"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(conflict.IsFailure);
+        Assert.Equal(
+            ReservationsApplicationErrors.ManagementOperationConflict,
+            conflict.Error);
+        Assert.Equal(1, ids.Count);
+        Assert.Single(operations.Items);
+    }
+
+    [Fact]
+    public async Task Failed_lifecycle_request_does_not_bind_operation_id()
+    {
+        Reservation reservation = CreateConfirmedReservation();
+        FakeReservationManagementOperationRepository operations = new();
+        CountingIdGenerator ids = new();
+        ReservationManagementLifecycleCoordinator lifecycle = CreateLifecycle(
+            new FakeReservationRepository(reservation),
+            operations);
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = reservation.Version;
+        CheckOutReservationCommandHandler checkOut = new(lifecycle, ids);
+        CheckInReservationCommandHandler checkIn = new(lifecycle, ids);
+
+        Result<ReservationMutationReceiptDto> failed = await checkOut.HandleAsync(
+            new(
+                operationId,
+                reservation.PropertyId,
+                reservation.Id,
+                reservation.Departure,
+                expectedVersion,
+                "user:operator-a"),
+            CancellationToken.None);
+        Result<ReservationMutationReceiptDto> reused = await checkIn.HandleAsync(
+            new(
+                operationId,
+                reservation.PropertyId,
+                reservation.Id,
+                reservation.Arrival,
+                expectedVersion,
+                "user:operator-a"),
+            CancellationToken.None);
+
+        Assert.True(failed.IsFailure);
+        Assert.Equal(ReservationsApplicationErrors.InvalidTransition, failed.Error);
+        Assert.True(reused.IsSuccess, reused.Error.Code);
+        Assert.Equal(ReservationStatus.CheckedIn, reused.Value.Status);
+        Assert.Single(operations.Items);
+    }
+
+    [Fact]
+    public async Task Lifecycle_journal_is_read_only_after_reservation_lock_and_reload()
+    {
+        List<string> trace = [];
+        Reservation reservation = CreateConfirmedReservation();
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = reservation.Version;
+        FakeReservationManagementOperationRepository operations = new(trace);
+        operations.Items.Add(new(
+            operationId,
+            reservation.ScopeId,
+            reservation.PropertyId,
+            reservation.Id,
+            ReservationManagementOperationKind.CheckIn,
+            expectedVersion,
+            reservation.Arrival,
+            TestClock.Now));
+        ReservationManagementLifecycleCoordinator lifecycle = new(
+            ReservationMutationTestSupport.Create(
+                new FakeReservationRepository(reservation, trace),
+                new RecordingReservationOperationLock(trace),
+                new TestReservationScopeContext()),
+            operations,
+            new TestClock());
+
+        Result<ReservationMutationReceiptDto> replay = await lifecycle.ExecuteAsync(
+            operationId,
+            reservation.PropertyId,
+            reservation.Id,
+            ReservationManagementOperationKind.CheckIn,
+            expectedVersion,
+            reservation.Arrival,
+            "user:operator-a",
+            (_, _) => throw new InvalidOperationException("Replay must not apply."),
+            CancellationToken.None);
+
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(["lock", "reservation", "journal"], trace);
     }
 
     [Fact]
@@ -241,13 +411,44 @@ public sealed class ReservationStayLifecycleTests
         return reservation;
     }
 
-    private sealed class FakeReservationRepository(Reservation reservation) : IReservationRepository
+    private static Reservation CreateCheckedInReservation()
+    {
+        Reservation reservation = CreateConfirmedReservation();
+        Assert.True(reservation.CheckIn(
+            reservation.Version,
+            reservation.Arrival,
+            "user:operator-a",
+            Guid.NewGuid(),
+            TestClock.Now).IsSuccess);
+        return reservation;
+    }
+
+    private static ReservationManagementLifecycleCoordinator CreateLifecycle(
+        IReservationRepository reservations,
+        IReservationManagementOperationRepository operations) => new(
+        ReservationMutationTestSupport.Create(reservations),
+        operations,
+        new TestClock());
+
+    private sealed class FakeReservationRepository(
+        Reservation reservation,
+        List<string>? trace = null) : IReservationRepository
     {
         public Task AddAsync(Reservation value, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<Reservation?> GetAsync(Guid propertyId, Guid reservationId, CancellationToken cancellationToken) =>
-            Task.FromResult<Reservation?>(
-                reservation.PropertyId == propertyId && reservation.Id == reservationId ? reservation : null);
+            this.GetOperationalAsync(propertyId, reservationId);
+
+        private Task<Reservation?> GetOperationalAsync(
+            Guid propertyId,
+            Guid reservationId)
+        {
+            trace?.Add("reservation");
+            return Task.FromResult<Reservation?>(
+                reservation.PropertyId == propertyId && reservation.Id == reservationId
+                    ? reservation
+                    : null);
+        }
 
         public Task<Reservation?> GetForDataRightsAsync(
             Guid propertyId,
@@ -356,5 +557,65 @@ public sealed class ReservationStayLifecycleTests
     private sealed class TestIdGenerator : IIdGenerator
     {
         public Guid NewId() => Guid.NewGuid();
+    }
+
+    private sealed class CountingIdGenerator : IIdGenerator
+    {
+        public int Count { get; private set; }
+
+        public Guid NewId()
+        {
+            this.Count++;
+            return Guid.NewGuid();
+        }
+    }
+
+    private sealed class FakeReservationManagementOperationRepository(
+        List<string>? trace = null) : IReservationManagementOperationRepository
+    {
+        public List<ReservationManagementOperationRecord> Items { get; } = [];
+
+        public Task<ReservationManagementOperationRecord?> GetAsync(
+            Guid reservationId,
+            Guid operationId,
+            CancellationToken cancellationToken)
+        {
+            trace?.Add("journal");
+            return Task.FromResult(this.Items.SingleOrDefault(item =>
+                item.ReservationId == reservationId &&
+                item.OperationId == operationId));
+        }
+
+        public Task AddAsync(
+            ReservationManagementOperationRecord operation,
+            CancellationToken cancellationToken)
+        {
+            this.Items.Add(operation);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingReservationOperationLock(List<string> trace)
+        : IReservationOperationLock
+    {
+        public Task<bool> TryAcquireExistingAsync(
+            string tenantId,
+            Guid reservationId,
+            CancellationToken cancellationToken)
+        {
+            trace.Add("lock");
+            return Task.FromResult(true);
+        }
+
+        public Task AcquireCoordinateAsync(
+            string tenantId,
+            Guid reservationId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class TestReservationScopeContext : IScopeContext
+    {
+        public bool IsEnabled => true;
+        public string ScopeId => "tenant-a";
     }
 }

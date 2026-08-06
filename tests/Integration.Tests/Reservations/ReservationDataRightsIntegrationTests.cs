@@ -309,6 +309,7 @@ public sealed class ReservationDataRightsIntegrationTests
         Assert.Equal(applied.Value.ReceiptId, applyReplay.Value.ReceiptId);
 
         CancelReservationCommand ordinaryMutation = new(
+            Guid.NewGuid(),
             propertyId,
             reservation.Id,
             reservation.Version,

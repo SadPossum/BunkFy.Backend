@@ -200,6 +200,56 @@ public sealed class ReservationsModelTests
     }
 
     [Fact]
+    public void Management_operation_journal_is_scoped_constrained_and_reservation_owned()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(ReservationManagementOperation))!;
+        IEntityType reservation = designModel.FindEntityType(
+            typeof(Reservation))!;
+
+        Assert.Equal(
+            [
+                nameof(ReservationManagementOperation.ScopeId),
+                nameof(ReservationManagementOperation.ReservationId),
+                nameof(ReservationManagementOperation.Id)
+            ],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        IForeignKey owner = Assert.Single(
+            operation.GetForeignKeys(),
+            candidate => candidate.PrincipalEntityType == reservation);
+        Assert.Equal(
+            [
+                nameof(ReservationManagementOperation.ScopeId),
+                nameof(ReservationManagementOperation.ReservationId)
+            ],
+            owner.Properties.Select(property => property.Name));
+        Assert.Equal(DeleteBehavior.Cascade, owner.DeleteBehavior);
+        Assert.Contains(
+            operation.GetIndexes(),
+            index => index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(ReservationManagementOperation.ScopeId),
+                    nameof(ReservationManagementOperation.PropertyId),
+                    nameof(ReservationManagementOperation.CreatedAtUtc),
+                    nameof(ReservationManagementOperation.Id)
+                ]));
+        string[] constraints =
+        [
+            "CK_management_operations_business_date",
+            "CK_management_operations_expected_version",
+            "CK_management_operations_kind"
+        ];
+        Assert.All(
+            constraints,
+            constraint => Assert.Contains(
+                operation.GetCheckConstraints(),
+                candidate => candidate.Name == constraint));
+    }
+
+    [Fact]
     public void Model_has_scoped_immutable_anonymisation_owner_proof()
     {
         using ReservationsDbContext dbContext = CreateDbContext();

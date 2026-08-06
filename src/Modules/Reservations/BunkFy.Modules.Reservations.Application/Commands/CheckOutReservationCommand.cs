@@ -4,6 +4,7 @@ using Gma.Framework.Cqrs;
 using BunkFy.Modules.Reservations.Contracts;
 
 public sealed record CheckOutReservationCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ReservationId,
     DateOnly BusinessDate,

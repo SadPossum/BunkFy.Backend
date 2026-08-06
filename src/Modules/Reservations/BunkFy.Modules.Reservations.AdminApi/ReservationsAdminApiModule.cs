@@ -158,7 +158,11 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 AdminOperation.Create(ReservationsAdminOperationNames.Cancel, ReservationsAdminPermissions.Cancel),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
-                    new CancelReservationCommand(propertyId, reservationId, request.ExpectedVersion),
+                    new CancelReservationCommand(
+                        request.OperationId,
+                        propertyId,
+                        reservationId,
+                        request.ExpectedVersion),
                     token),
                 cancellationToken,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
@@ -230,8 +234,15 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 AdminOperation.Create(ReservationsAdminOperationNames.CheckIn, ReservationsAdminPermissions.CheckIn),
                 requireTenant: true,
                 token => request.Confirmed
-                    ? dispatcher.SendAsync(new CheckInReservationCommand(
-                        propertyId, reservationId, request.BusinessDate, request.ExpectedVersion, Actor(httpContext)), token)
+                    ? dispatcher.SendAsync(
+                        new CheckInReservationCommand(
+                            request.OperationId,
+                            propertyId,
+                            reservationId,
+                            request.BusinessDate,
+                            request.ExpectedVersion,
+                            Actor(httpContext)),
+                        token)
                     : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
@@ -250,8 +261,15 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 AdminOperation.Create(ReservationsAdminOperationNames.NoShow, ReservationsAdminPermissions.NoShow),
                 requireTenant: true,
                 token => request.Confirmed
-                    ? dispatcher.SendAsync(new MarkReservationNoShowCommand(
-                        propertyId, reservationId, request.BusinessDate, request.ExpectedVersion, Actor(httpContext)), token)
+                    ? dispatcher.SendAsync(
+                        new MarkReservationNoShowCommand(
+                            request.OperationId,
+                            propertyId,
+                            reservationId,
+                            request.BusinessDate,
+                            request.ExpectedVersion,
+                            Actor(httpContext)),
+                        token)
                     : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
@@ -270,8 +288,15 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                 AdminOperation.Create(ReservationsAdminOperationNames.CheckOut, ReservationsAdminPermissions.CheckOut),
                 requireTenant: true,
                 token => request.Confirmed
-                    ? dispatcher.SendAsync(new CheckOutReservationCommand(
-                        propertyId, reservationId, request.BusinessDate, request.ExpectedVersion, Actor(httpContext)), token)
+                    ? dispatcher.SendAsync(
+                        new CheckOutReservationCommand(
+                            request.OperationId,
+                            propertyId,
+                            reservationId,
+                            request.BusinessDate,
+                            request.ExpectedVersion,
+                            Actor(httpContext)),
+                        token)
                     : Task.FromResult(Gma.Framework.Results.Result.Failure<ReservationMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
@@ -294,9 +319,13 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
         string? SourceReference,
         string? Notes);
 
-    public sealed record CancelReservationRequest(long ExpectedVersion);
+    public sealed record CancelReservationRequest(Guid OperationId, long ExpectedVersion);
 
-    public sealed record StayLifecycleRequest(DateOnly BusinessDate, long ExpectedVersion, bool Confirmed);
+    public sealed record StayLifecycleRequest(
+        Guid OperationId,
+        DateOnly BusinessDate,
+        long ExpectedVersion,
+        bool Confirmed);
 
     public sealed record LinkReservationGuestRequest(
         Guid GuestId,
@@ -315,6 +344,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(ReservationsApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitPropertyMismatch.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.ExpectedStayTimeInvalid.Code, StatusCodes.Status400BadRequest),

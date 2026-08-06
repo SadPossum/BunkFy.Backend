@@ -22,6 +22,11 @@ internal sealed partial class ReservationsTenantTerminationContributor
             sink,
             count,
             cancellationToken).ConfigureAwait(false);
+        count = await this.ExportManagementOperationsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
         return await this.ExportArrivalRemindersAsync(
             tenantId,
             sink,
@@ -113,6 +118,48 @@ internal sealed partial class ReservationsTenantTerminationContributor
                 ReservationsTenantTerminationMetadata
                     .ExternalOperationRecordType,
                 operation.Id,
+                recordVersion: 1,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private async Task<long> ExportManagementOperationsAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (ReservationManagementOperation operation in
+            dbContext.ManagementOperations
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.ReservationId)
+                .ThenBy(item => item.Id)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            ReservationManagementOperationTenantExport record = new(
+                operation.ScopeId,
+                operation.PropertyId,
+                operation.ReservationId,
+                operation.Id,
+                new ReservationManagementOperationStateTenantExport(
+                    operation.Kind,
+                    operation.ExpectedVersion,
+                    operation.BusinessDate,
+                    operation.CreatedAtUtc));
+            await WriteAsync(
+                ReservationsTenantTerminationMetadata
+                    .ManagementOperationRecordType,
+                DataRightsExportRecordIds.CreateDeterministicChild(
+                    operation.ReservationId,
+                    operation.Id.ToString("N")),
                 recordVersion: 1,
                 record,
                 sink,

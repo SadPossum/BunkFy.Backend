@@ -14,6 +14,8 @@ internal sealed class ReservationDataRightsExportContributor(
     public const string GuestLinkRecordType = "reservation-guest-link";
     public const string DetailsHistoryRecordType = "reservation-details-history";
     public const string ExternalOperationRecordType = "reservation-external-operation";
+    public const string ManagementOperationRecordType =
+        "reservation-management-operation";
     public const string ArrivalReminderRecordType = "reservation-arrival-reminder";
     public const string DataRightsCorrectionReceiptRecordType =
         "reservation-data-rights-correction-receipt";
@@ -501,6 +503,37 @@ internal sealed class ReservationDataRightsExportContributor(
         {
             await sink.WriteAsync(
                 ReservationDataRightsExportSchema.CreateExternalOperationRecord(operation),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
+
+        IQueryable<ReservationManagementOperationDataRightsExport>
+            managementOperations = dbContext.ManagementOperations
+                .AsNoTracking()
+                .Where(operation =>
+                    operation.PropertyId == propertyId &&
+                    operation.ReservationId == reservation.Id)
+                .OrderBy(operation => operation.CreatedAtUtc)
+                .ThenBy(operation => operation.Id)
+                .Select(operation =>
+                    new ReservationManagementOperationDataRightsExport(
+                        operation.Id,
+                        operation.PropertyId,
+                        operation.ReservationId,
+                        operation.Kind,
+                        operation.ExpectedVersion,
+                        operation.BusinessDate,
+                        operation.CreatedAtUtc));
+        await foreach (
+            ReservationManagementOperationDataRightsExport operation in
+            managementOperations
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            await sink.WriteAsync(
+                ReservationDataRightsExportSchema
+                    .CreateManagementOperationRecord(operation),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
         }

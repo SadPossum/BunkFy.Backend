@@ -286,6 +286,7 @@ public sealed class ReservationsModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new CancelReservationCommand(
+                    request.OperationId,
                     propertyId,
                     reservationId,
                     request.ExpectedVersion,
@@ -311,6 +312,7 @@ public sealed class ReservationsModule : IModule
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new CheckInReservationCommand(
+                        request.OperationId,
                         propertyId,
                         reservationId,
                         request.BusinessDate,
@@ -338,6 +340,7 @@ public sealed class ReservationsModule : IModule
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new MarkReservationNoShowCommand(
+                        request.OperationId,
                         propertyId,
                         reservationId,
                         request.BusinessDate,
@@ -365,6 +368,7 @@ public sealed class ReservationsModule : IModule
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new CheckOutReservationCommand(
+                        request.OperationId,
                         propertyId,
                         reservationId,
                         request.BusinessDate,
@@ -395,7 +399,7 @@ public sealed class ReservationsModule : IModule
         string? SourceReference,
         string? Notes);
 
-    public sealed record CancelReservationRequest(long ExpectedVersion);
+    public sealed record CancelReservationRequest(Guid OperationId, long ExpectedVersion);
 
     public sealed record ReservationDataRightsCorrectionRequest(
         Guid ExecutionId,
@@ -412,7 +416,10 @@ public sealed class ReservationsModule : IModule
         TimeOnly? ExpectedArrivalTime,
         TimeOnly? ExpectedDepartureTime);
 
-    public sealed record StayLifecycleRequest(DateOnly BusinessDate, long ExpectedVersion);
+    public sealed record StayLifecycleRequest(
+        Guid OperationId,
+        DateOnly BusinessDate,
+        long ExpectedVersion);
 
     public sealed record LinkReservationGuestRequest(
         Guid GuestId,
@@ -441,6 +448,8 @@ public sealed class ReservationsModule : IModule
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(ReservationsApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitNotFound.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.InventoryUnitPropertyMismatch.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.ExpectedStayTimeInvalid.Code, StatusCodes.Status400BadRequest),

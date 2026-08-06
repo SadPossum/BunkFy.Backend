@@ -143,6 +143,7 @@ public static class DependencyInjection
         services.TryAddScoped<ExternalReservationOperationCoordinator>();
         services.TryAddScoped<ReservationInboxDomainEventDispatcher>();
         services.TryAddScoped<ReservationMutationCoordinator>();
+        services.TryAddScoped<ReservationManagementLifecycleCoordinator>();
 
         return services;
     }

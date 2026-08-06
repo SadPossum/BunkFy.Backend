@@ -20,6 +20,12 @@ public static class ReservationsApplicationErrors
     public static readonly Error CreationOperationConflict = new(
         "Reservations.CreationOperationConflict",
         "The reservation operation id is already bound to a different request.");
+    public static readonly Error ManagementOperationInvalid = new(
+        "Reservations.ManagementOperationInvalid",
+        "The reservation lifecycle operation is invalid.");
+    public static readonly Error ManagementOperationConflict = new(
+        "Reservations.ManagementOperationConflict",
+        "The reservation lifecycle operation id is already bound to a different request.");
     public static readonly Error TenantRequired = new("Reservations.TenantRequired", "A tenant context is required.");
     public static readonly Error WorkspaceProcessingRestricted = new(
         "Reservations.WorkspaceProcessingRestricted",

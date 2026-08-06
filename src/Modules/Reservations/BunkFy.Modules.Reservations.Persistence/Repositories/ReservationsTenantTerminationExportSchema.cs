@@ -24,6 +24,7 @@ internal static class ReservationsTenantTerminationExportSchema
         typeof(ReservationGuestLinkTenantExport),
         typeof(ReservationDetailsHistoryTenantExport),
         typeof(ReservationExternalOperationTenantExport),
+        typeof(ReservationManagementOperationTenantExport),
         typeof(ReservationArrivalReminderTenantExport),
         typeof(ReservationDataRightsCorrectionReceiptTenantExport),
         typeof(ReservationProcessingRestrictionTenantExport),
@@ -77,6 +78,11 @@ internal static class ReservationsTenantTerminationExportSchema
         Provider<ReservationExternalOperationTenantExport>(
             nameof(ReservationExternalOperationTenantExport
                 .ProviderProvenance)),
+        Binding<ReservationManagementOperationTenantExport>(
+            nameof(ReservationManagementOperationTenantExport
+                .ManagementOperation),
+            "reservations.management-operation",
+            "include-in-authorized-guest-or-tenant-export"),
         GuestData<ReservationArrivalReminderTenantExport>(
             nameof(ReservationArrivalReminderTenantExport.ReminderState),
             "reservations.reminder-state"),

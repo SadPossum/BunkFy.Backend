@@ -47,8 +47,14 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                 "Check in a confirmed reservation.",
                 ReservationsAdminOperationNames.CheckIn,
                 ReservationsAdminPermissions.CheckIn,
-                static (propertyId, reservationId, businessDate, expectedVersion, actorId) =>
-                    new CheckInReservationCommand(propertyId, reservationId, businessDate, expectedVersion, actorId)),
+                static (operationId, propertyId, reservationId, businessDate, expectedVersion, actorId) =>
+                    new CheckInReservationCommand(
+                        operationId,
+                        propertyId,
+                        reservationId,
+                        businessDate,
+                        expectedVersion,
+                        actorId)),
             CreateStayLifecycleCommand(
                 commands.Services,
                 globalOptions,
@@ -56,8 +62,14 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                 "Mark a confirmed reservation as a no-show and release its Inventory allocation.",
                 ReservationsAdminOperationNames.NoShow,
                 ReservationsAdminPermissions.NoShow,
-                static (propertyId, reservationId, businessDate, expectedVersion, actorId) =>
-                    new MarkReservationNoShowCommand(propertyId, reservationId, businessDate, expectedVersion, actorId)),
+                static (operationId, propertyId, reservationId, businessDate, expectedVersion, actorId) =>
+                    new MarkReservationNoShowCommand(
+                        operationId,
+                        propertyId,
+                        reservationId,
+                        businessDate,
+                        expectedVersion,
+                        actorId)),
             CreateStayLifecycleCommand(
                 commands.Services,
                 globalOptions,
@@ -65,8 +77,14 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
                 "Check out a checked-in reservation and release its Inventory allocation.",
                 ReservationsAdminOperationNames.CheckOut,
                 ReservationsAdminPermissions.CheckOut,
-                static (propertyId, reservationId, businessDate, expectedVersion, actorId) =>
-                    new CheckOutReservationCommand(propertyId, reservationId, businessDate, expectedVersion, actorId))
+                static (operationId, propertyId, reservationId, businessDate, expectedVersion, actorId) =>
+                    new CheckOutReservationCommand(
+                        operationId,
+                        propertyId,
+                        reservationId,
+                        businessDate,
+                        expectedVersion,
+                        actorId))
         };
         commands.AddCommand(this.Name, module);
     }
@@ -243,12 +261,14 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
 
     private static Command CreateCancelCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<Guid> propertyOption = PropertyOption();
         Option<Guid> reservationOption = ReservationOption();
         Option<long> versionOption = new("--expected-version") { Required = true };
         Option<bool> yesOption = new("--yes");
         Command command = new("cancel", "Cancel a reservation and release its Inventory allocation.")
         {
+            operationIdOption,
             propertyOption,
             reservationOption,
             versionOption,
@@ -263,6 +283,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             provider => parseResult.GetValue(yesOption)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new CancelReservationCommand(
+                        parseResult.GetRequiredValue(operationIdOption),
                         parseResult.GetRequiredValue(propertyOption),
                         parseResult.GetRequiredValue(reservationOption),
                         parseResult.GetRequiredValue(versionOption)),
@@ -279,8 +300,9 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
         string description,
         string operationName,
         AdminPermission permission,
-        Func<Guid, Guid, DateOnly, long, string, ICommand<ReservationMutationReceiptDto>> createCommand)
+        Func<Guid, Guid, Guid, DateOnly, long, string, ICommand<ReservationMutationReceiptDto>> createCommand)
     {
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<Guid> propertyOption = PropertyOption();
         Option<Guid> reservationOption = ReservationOption();
         Option<string> businessDateOption = RequiredString("--business-date");
@@ -288,6 +310,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
         Option<bool> yesOption = new("--yes");
         Command command = new(name, description)
         {
+            operationIdOption,
             propertyOption,
             reservationOption,
             businessDateOption,
@@ -315,6 +338,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
 
                 return provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     createCommand(
+                        parseResult.GetRequiredValue(operationIdOption),
                         parseResult.GetRequiredValue(propertyOption),
                         parseResult.GetRequiredValue(reservationOption),
                         businessDate,

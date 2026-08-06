@@ -216,6 +216,17 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationVersion: 1,
                 ErrorCode: null,
                 Now)));
+        Guid managementOperationId = Guid.NewGuid();
+        dbContext.ManagementOperations.Add(new ReservationManagementOperation(
+            new ReservationManagementOperationRecord(
+                managementOperationId,
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                ReservationManagementOperationKind.CheckIn,
+                reservation.Version,
+                reservation.Arrival,
+                Now.AddMinutes(5))));
 
         dbContext.ArrivalReminders.Add(ReservationArrivalReminder.Create(
             Guid.NewGuid(),
@@ -253,8 +264,8 @@ public sealed class ReservationDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(13, result.RecordCount);
-        Assert.Equal(13, sink.Records.Count);
+        Assert.Equal(14, result.RecordCount);
+        Assert.Equal(14, sink.Records.Count);
         Assert.Equal(
             [
                 ReservationDataRightsDiscoveryContributor.ReservationRecordType,
@@ -269,9 +280,24 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationDataRightsExportContributor.DataHoldRecordType,
                 ReservationDataRightsExportContributor.DataHoldReceiptRecordType,
                 ReservationDataRightsExportContributor.ExternalOperationRecordType,
+                ReservationDataRightsExportContributor.ManagementOperationRecordType,
                 ReservationDataRightsExportContributor.ArrivalReminderRecordType
             ],
             sink.Records.Select(record => record.RecordType));
+        DataRightsExportRecord managementOperation = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor
+                    .ManagementOperationRecordType);
+        Assert.Equal(managementOperationId, managementOperation.RecordId);
+        Assert.DoesNotContain(
+            managementOperation.Fields,
+            field => field.FieldId is
+                "reservation.audit.actor-id" or
+                "reservation.guest.primary-name" or
+                "reservation.guest.email" or
+                "reservation.guest.phone" or
+                "reservation.guest.notes");
         Assert.DoesNotContain(
             sink.Records.SelectMany(record => record.Fields),
             field => field.FieldId == "reservation.audit.actor-id");
@@ -470,9 +496,9 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(11, descriptor.CatalogVersion);
+        Assert.Equal(12, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
-        Assert.Equal(3, descriptor.ExportSchemaVersion);
+        Assert.Equal(4, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);
     }
 

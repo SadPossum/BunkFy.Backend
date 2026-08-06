@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.Models;
 using DomainDataHoldAction =
@@ -118,6 +119,15 @@ internal sealed record ReservationExternalOperationDataRightsExport(
     long? ReservationVersion,
     string? ErrorCode,
     DateTimeOffset CompletedAtUtc);
+
+internal sealed record ReservationManagementOperationDataRightsExport(
+    Guid OperationId,
+    Guid PropertyId,
+    Guid ReservationId,
+    ReservationManagementOperationKind Kind,
+    long ExpectedVersion,
+    DateOnly? BusinessDate,
+    DateTimeOffset CreatedAtUtc);
 
 internal sealed record ReservationArrivalReminderDataRightsExport(
     Guid ReminderId,

@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
+using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
@@ -233,6 +234,25 @@ internal sealed record ReservationExternalOperationStateTenantExport(
     long? ReservationVersion,
     string? ErrorCode,
     DateTimeOffset CompletedAtUtc);
+
+internal sealed record ReservationManagementOperationTenantExport(
+    [property: ReservationsTenantExportField("reservations.scope-id")]
+    string ScopeId,
+    [property: ReservationsTenantExportField("reservations.property-id")]
+    Guid PropertyId,
+    [property: ReservationsTenantExportField("reservations.reservation-id")]
+    Guid ReservationId,
+    [property: ReservationsTenantExportField("reservations.record-id")]
+    Guid OperationId,
+    [property: ReservationsTenantExportField(
+        "reservations.management-operation")]
+    ReservationManagementOperationStateTenantExport ManagementOperation);
+
+internal sealed record ReservationManagementOperationStateTenantExport(
+    ReservationManagementOperationKind Kind,
+    long ExpectedVersion,
+    DateOnly? BusinessDate,
+    DateTimeOffset CreatedAtUtc);
 
 internal sealed record ReservationArrivalReminderTenantExport(
     [property: ReservationsTenantExportField("reservations.scope-id")]

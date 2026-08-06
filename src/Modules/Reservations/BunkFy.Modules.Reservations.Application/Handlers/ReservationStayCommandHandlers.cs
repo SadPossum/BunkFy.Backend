@@ -3,15 +3,12 @@ namespace BunkFy.Modules.Reservations.Application.Handlers;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
-using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
-using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 internal sealed class CheckInReservationCommandHandler(
-    ReservationMutationCoordinator mutations,
-    ISystemClock clock,
+    ReservationManagementLifecycleCoordinator lifecycle,
     IIdGenerator ids)
     : ICommandHandler<CheckInReservationCommand, ReservationMutationReceiptDto>
 {
@@ -19,28 +16,26 @@ internal sealed class CheckInReservationCommandHandler(
         CheckInReservationCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await mutations.AcquireOperationalAsync(
-            command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
-        if (reservation is null)
-        {
-            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
-        }
-
-        Result changed = reservation.CheckIn(
+        return await lifecycle.ExecuteAsync(
+            command.OperationId,
+            command.PropertyId,
+            command.ReservationId,
+            ReservationManagementOperationKind.CheckIn,
             command.ExpectedVersion,
             command.BusinessDate,
             command.ActorId,
-            ids.NewId(),
-            clock.UtcNow);
-        return changed.IsSuccess
-            ? Result.Success(reservation.ToMutationReceipt())
-            : Result.Failure<ReservationMutationReceiptDto>(changed.Error);
+            (reservation, nowUtc) => reservation.CheckIn(
+                command.ExpectedVersion,
+                command.BusinessDate,
+                command.ActorId,
+                ids.NewId(),
+                nowUtc),
+            cancellationToken).ConfigureAwait(false);
     }
 }
 
 internal sealed class MarkReservationNoShowCommandHandler(
-    ReservationMutationCoordinator mutations,
-    ISystemClock clock,
+    ReservationManagementLifecycleCoordinator lifecycle,
     IIdGenerator ids)
     : ICommandHandler<MarkReservationNoShowCommand, ReservationMutationReceiptDto>
 {
@@ -48,29 +43,27 @@ internal sealed class MarkReservationNoShowCommandHandler(
         MarkReservationNoShowCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await mutations.AcquireOperationalAsync(
-            command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
-        if (reservation is null)
-        {
-            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
-        }
-
-        Result changed = reservation.RequestNoShow(
+        return await lifecycle.ExecuteAsync(
+            command.OperationId,
+            command.PropertyId,
+            command.ReservationId,
+            ReservationManagementOperationKind.NoShow,
             command.ExpectedVersion,
             command.BusinessDate,
             command.ActorId,
-            ids.NewId(),
-            ids.NewId(),
-            clock.UtcNow);
-        return changed.IsSuccess
-            ? Result.Success(reservation.ToMutationReceipt())
-            : Result.Failure<ReservationMutationReceiptDto>(changed.Error);
+            (reservation, nowUtc) => reservation.RequestNoShow(
+                command.ExpectedVersion,
+                command.BusinessDate,
+                command.ActorId,
+                ids.NewId(),
+                ids.NewId(),
+                nowUtc),
+            cancellationToken).ConfigureAwait(false);
     }
 }
 
 internal sealed class CheckOutReservationCommandHandler(
-    ReservationMutationCoordinator mutations,
-    ISystemClock clock,
+    ReservationManagementLifecycleCoordinator lifecycle,
     IIdGenerator ids)
     : ICommandHandler<CheckOutReservationCommand, ReservationMutationReceiptDto>
 {
@@ -78,22 +71,21 @@ internal sealed class CheckOutReservationCommandHandler(
         CheckOutReservationCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await mutations.AcquireOperationalAsync(
-            command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
-        if (reservation is null)
-        {
-            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
-        }
-
-        Result changed = reservation.RequestCheckout(
+        return await lifecycle.ExecuteAsync(
+            command.OperationId,
+            command.PropertyId,
+            command.ReservationId,
+            ReservationManagementOperationKind.CheckOut,
             command.ExpectedVersion,
             command.BusinessDate,
             command.ActorId,
-            ids.NewId(),
-            ids.NewId(),
-            clock.UtcNow);
-        return changed.IsSuccess
-            ? Result.Success(reservation.ToMutationReceipt())
-            : Result.Failure<ReservationMutationReceiptDto>(changed.Error);
+            (reservation, nowUtc) => reservation.RequestCheckout(
+                command.ExpectedVersion,
+                command.BusinessDate,
+                command.ActorId,
+                ids.NewId(),
+                ids.NewId(),
+                nowUtc),
+            cancellationToken).ConfigureAwait(false);
     }
 }

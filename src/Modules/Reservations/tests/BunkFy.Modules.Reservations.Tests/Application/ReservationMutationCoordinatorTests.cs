@@ -104,20 +104,25 @@ public sealed class ReservationMutationCoordinatorTests
     public void Existing_reservation_writers_require_mutation_coordinator(
         Type handlerType)
     {
-        bool hasCoordinator = handlerType
-            .GetConstructors(
-                BindingFlags.Instance |
-                BindingFlags.Public |
-                BindingFlags.NonPublic)
-            .SelectMany(constructor => constructor.GetParameters())
-            .Any(parameter =>
-                parameter.ParameterType ==
-                    typeof(ReservationMutationCoordinator));
+        bool hasCoordinator = HasConstructorDependency(
+            handlerType,
+            typeof(ReservationMutationCoordinator)) ||
+            HasConstructorDependency(
+                handlerType,
+                typeof(ReservationManagementLifecycleCoordinator));
 
         Assert.True(
             hasCoordinator,
             $"{handlerType.Name} must serialize through " +
             $"{nameof(ReservationMutationCoordinator)}.");
+    }
+
+    [Fact]
+    public void Management_lifecycle_coordinator_owns_the_mutation_boundary()
+    {
+        Assert.True(HasConstructorDependency(
+            typeof(ReservationManagementLifecycleCoordinator),
+            typeof(ReservationMutationCoordinator)));
     }
 
     [Fact]
@@ -150,6 +155,16 @@ public sealed class ReservationMutationCoordinatorTests
 
         Assert.True(hasCoordinator);
     }
+
+    private static bool HasConstructorDependency(
+        Type ownerType,
+        Type dependencyType) => ownerType
+        .GetConstructors(
+            BindingFlags.Instance |
+            BindingFlags.Public |
+            BindingFlags.NonPublic)
+        .SelectMany(constructor => constructor.GetParameters())
+        .Any(parameter => parameter.ParameterType == dependencyType);
 
     private static Reservation CreateReservation() => Reservation.Create(
         Guid.NewGuid(),

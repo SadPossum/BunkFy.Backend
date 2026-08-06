@@ -289,6 +289,7 @@ public sealed class ReservationsPersonalDataCatalogTests
                      typeof(ReservationArrivalReminderDispatch),
                      typeof(ReservationArrivalReminderClaimResult),
                      typeof(ReservationExternalOperationRecord),
+                     typeof(ReservationManagementOperationRecord),
                      typeof(ReservationGuestProfileProjectionWriteModel),
                      typeof(ReservationGuestProcessingRestrictionProjectionWriteModel)
                  })
@@ -378,6 +379,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationGuest),
         typeof(ReservationDetailsHistoryEntry),
         typeof(ReservationExternalOperation),
+        typeof(ReservationManagementOperation),
         typeof(ReservationGuestProfileProjection),
         typeof(ReservationGuestProcessingRestrictionProjection),
         typeof(ReservationArrivalReminder),

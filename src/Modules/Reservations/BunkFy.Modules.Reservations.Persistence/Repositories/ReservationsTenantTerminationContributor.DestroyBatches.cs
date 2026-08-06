@@ -87,6 +87,14 @@ internal sealed partial class ReservationsTenantTerminationContributor
                     dbContext.ExternalOperations,
                     externalOperation => externalOperation.Id,
                     cancellationToken),
+            ReservationsTenantDestroyStage.ManagementOperations =>
+                this.RemoveBatchAsync(
+                    operation,
+                    dbContext.ManagementOperations
+                        .OrderBy(item => item.ReservationId)
+                        .ThenBy(item => item.Id),
+                    item => $"{item.ReservationId:N}|{item.Id:N}",
+                    cancellationToken),
             ReservationsTenantDestroyStage.DetailsHistory =>
                 this.RemoveGuidBatchAsync(
                     operation,
@@ -286,6 +294,8 @@ internal sealed partial class ReservationsTenantTerminationContributor
         await dbContext.ArrivalReminders.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.ExternalOperations.AnyAsync(cancellationToken)
+            .ConfigureAwait(false) ||
+        await dbContext.ManagementOperations.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.ReservationDetailsHistory.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||

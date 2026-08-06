@@ -62,6 +62,8 @@ public sealed class ReservationsDbContext(
     public DbSet<ReservationPropertyProjection> PropertyProjections => this.Set<ReservationPropertyProjection>();
     public DbSet<ReservationArrivalReminder> ArrivalReminders => this.Set<ReservationArrivalReminder>();
     public DbSet<ReservationExternalOperation> ExternalOperations => this.Set<ReservationExternalOperation>();
+    internal DbSet<ReservationManagementOperation> ManagementOperations =>
+        this.Set<ReservationManagementOperation>();
     internal DbSet<ReservationOperationLock> OperationLocks =>
         this.Set<ReservationOperationLock>();
     public DbSet<ReservationInventoryUnitProjection> InventoryUnitProjections => this.Set<ReservationInventoryUnitProjection>();

@@ -1,10 +1,13 @@
 namespace BunkFy.Modules.Reservations.Tests.Api;
 
+using System.CommandLine;
 using System.Reflection;
 using BunkFy.Modules.Reservations.AdminApi;
+using BunkFy.Modules.Reservations.AdminCli;
 using BunkFy.Modules.Reservations.Api;
 using BunkFy.Modules.Reservations.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
+using Gma.Framework.Administration.Cli;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
 using Microsoft.AspNetCore.Builder;
@@ -17,6 +20,77 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class ReservationsApiSecurityTests
 {
+    [Theory]
+    [InlineData(typeof(ReservationsModule.CancelReservationRequest))]
+    [InlineData(typeof(ReservationsModule.StayLifecycleRequest))]
+    [InlineData(typeof(ReservationsAdminApiModule.CancelReservationRequest))]
+    [InlineData(typeof(ReservationsAdminApiModule.StayLifecycleRequest))]
+    public void Lifecycle_requests_require_caller_owned_operation_identity(Type requestType)
+    {
+        PropertyInfo operationId = requestType.GetProperty("OperationId")!;
+        ConstructorInfo constructor = Assert.Single(requestType.GetConstructors());
+        ParameterInfo parameter = Assert.Single(
+            constructor.GetParameters(),
+            candidate => string.Equals(
+                candidate.Name,
+                "operationId",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(Guid), operationId.PropertyType);
+        Assert.Equal(typeof(Guid), parameter.ParameterType);
+        Assert.False(parameter.HasDefaultValue);
+    }
+
+    [Fact]
+    public void Admin_cli_requires_operation_identity_for_lifecycle_commands()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        AdminCliGlobalOptions options = provider.GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new ReservationsAdminCliModule().MapCommands(registry);
+
+        const string propertyId = "71000000-0000-0000-0000-000000000001";
+        const string reservationId = "72000000-0000-0000-0000-000000000001";
+        const string operationId = "73000000-0000-0000-0000-000000000001";
+        string[][] commands =
+        [
+            [
+                "reservations", "cancel", "--property-id", propertyId,
+                "--reservation-id", reservationId, "--expected-version", "3",
+                "--yes"
+            ],
+            [
+                "reservations", "check-in", "--property-id", propertyId,
+                "--reservation-id", reservationId, "--business-date", "2026-10-01",
+                "--expected-version", "3", "--yes"
+            ],
+            [
+                "reservations", "no-show", "--property-id", propertyId,
+                "--reservation-id", reservationId, "--business-date", "2026-10-01",
+                "--expected-version", "3", "--yes"
+            ],
+            [
+                "reservations", "check-out", "--property-id", propertyId,
+                "--reservation-id", reservationId, "--business-date", "2026-10-03",
+                "--expected-version", "3", "--yes"
+            ]
+        ];
+
+        foreach (string[] command in commands)
+        {
+            Assert.NotEmpty(root.Parse(command).Errors);
+            Assert.Empty(root.Parse([.. command, "--operation-id", operationId]).Errors);
+        }
+    }
+
     [Fact]
     public void Personal_data_response_policies_disable_storage()
     {

@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\..\Retention\BunkFy.Modules.Retention.Contracts\BunkFy.Modules.Retention.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.Api\BunkFy.Modules.Reservations.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.AdminApi\BunkFy.Modules.Reservations.AdminApi.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Reservations.AdminCli\BunkFy.Modules.Reservations.AdminCli.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.Application\BunkFy.Modules.Reservations.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.Contracts\BunkFy.Modules.Reservations.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Reservations.Domain\BunkFy.Modules.Reservations.Domain.csproj" />

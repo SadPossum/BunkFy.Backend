@@ -7,14 +7,14 @@ public static class ReservationsTenantTerminationMetadata
 {
     public const string OwnerKey = ReservationsDataRightsCoordinates.Owner;
     public const string DependencyOwnerKey = "inventory";
-    public const int CatalogVersion = 2;
-    public const int PersonalDataCatalogVersion = 11;
+    public const int CatalogVersion = 3;
+    public const int PersonalDataCatalogVersion = 12;
     public const string ExportCatalogId =
         "reservations.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =
         "reservations.tenant-termination-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 2;
 
     public const string ReservationRecordType = "reservation";
     public const string RequestedInventoryUnitRecordType =
@@ -23,6 +23,8 @@ public static class ReservationsTenantTerminationMetadata
     public const string GuestLinkRecordType = "guest-link";
     public const string DetailsHistoryRecordType = "details-history";
     public const string ExternalOperationRecordType = "external-operation";
+    public const string ManagementOperationRecordType =
+        "management-operation";
     public const string ArrivalReminderRecordType = "arrival-reminder";
     public const string DataRightsCorrectionReceiptRecordType =
         "data-rights-correction-receipt";
@@ -52,6 +54,7 @@ public static class ReservationsTenantTerminationMetadata
             GuestLinkRecordType,
             DetailsHistoryRecordType,
             ExternalOperationRecordType,
+            ManagementOperationRecordType,
             ArrivalReminderRecordType,
             DataRightsCorrectionReceiptRecordType,
             ProcessingRestrictionRecordType,
@@ -80,6 +83,7 @@ public static class ReservationsTenantTerminationMetadata
             "reservations.staff-attribution",
             "reservations.guest-link",
             "reservations.details-history",
+            "reservations.management-operation",
             "reservations.reminder-state",
             "reservations.data-rights-proof",
             "reservations.processing-restriction",
