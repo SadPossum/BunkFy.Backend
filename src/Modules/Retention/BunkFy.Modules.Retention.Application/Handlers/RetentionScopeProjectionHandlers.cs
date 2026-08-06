@@ -8,13 +8,13 @@ using Gma.Modules.Organizations.Contracts;
 
 [IntegrationEventHandler(RetentionModuleMetadata.OrganizationChangedHandlerName)]
 internal sealed class RetentionOrganizationChangedHandler(
-    IRetentionScopeRepository scopes)
+    RetentionScopeMutationCoordinator mutations)
     : IIntegrationEventHandler<OrganizationChangedIntegrationEvent>
 {
     public Task HandleAsync(
         OrganizationChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
-        scopes.ApplyOrganizationAsync(
+        mutations.ApplyOrganizationAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.OrganizationId,
@@ -24,13 +24,14 @@ internal sealed class RetentionOrganizationChangedHandler(
 }
 
 [IntegrationEventHandler(RetentionModuleMetadata.PropertyCreatedHandlerName)]
-internal sealed class RetentionPropertyCreatedHandler(IRetentionScopeRepository scopes)
+internal sealed class RetentionPropertyCreatedHandler(
+    RetentionScopeMutationCoordinator mutations)
     : IIntegrationEventHandler<PropertyCreatedIntegrationEvent>
 {
     public Task HandleAsync(
         PropertyCreatedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
-        scopes.ApplyPropertyTopologyAsync(
+        mutations.ApplyPropertyTopologyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
@@ -40,13 +41,14 @@ internal sealed class RetentionPropertyCreatedHandler(IRetentionScopeRepository 
 }
 
 [IntegrationEventHandler(RetentionModuleMetadata.PropertyUpdatedHandlerName)]
-internal sealed class RetentionPropertyUpdatedHandler(IRetentionScopeRepository scopes)
+internal sealed class RetentionPropertyUpdatedHandler(
+    RetentionScopeMutationCoordinator mutations)
     : IIntegrationEventHandler<PropertyUpdatedIntegrationEvent>
 {
     public Task HandleAsync(
         PropertyUpdatedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
-        scopes.ApplyPropertyTopologyAsync(
+        mutations.ApplyPropertyTopologyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
@@ -56,13 +58,14 @@ internal sealed class RetentionPropertyUpdatedHandler(IRetentionScopeRepository 
 }
 
 [IntegrationEventHandler(RetentionModuleMetadata.PropertyRetiredHandlerName)]
-internal sealed class RetentionPropertyRetiredHandler(IRetentionScopeRepository scopes)
+internal sealed class RetentionPropertyRetiredHandler(
+    RetentionScopeMutationCoordinator mutations)
     : IIntegrationEventHandler<PropertyRetiredIntegrationEvent>
 {
     public Task HandleAsync(
         PropertyRetiredIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
-        scopes.ApplyPropertyTopologyAsync(
+        mutations.ApplyPropertyTopologyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
@@ -74,13 +77,13 @@ internal sealed class RetentionPropertyRetiredHandler(IRetentionScopeRepository 
 [IntegrationEventHandler(
     RetentionModuleMetadata.PropertyProcessingPolicyActivatedHandlerName)]
 internal sealed class RetentionPropertyProcessingPolicyActivatedHandler(
-    IRetentionScopeRepository scopes)
+    RetentionScopeMutationCoordinator mutations)
     : IIntegrationEventHandler<PropertyProcessingPolicyActivatedIntegrationEvent>
 {
     public Task HandleAsync(
         PropertyProcessingPolicyActivatedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
-        scopes.ApplyPropertyPolicyAsync(
+        mutations.ApplyPropertyPolicyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,
@@ -93,13 +96,13 @@ internal sealed class RetentionPropertyProcessingPolicyActivatedHandler(
 [IntegrationEventHandler(
     RetentionModuleMetadata.PropertyProcessingSuspendedHandlerName)]
 internal sealed class RetentionPropertyProcessingSuspendedHandler(
-    IRetentionScopeRepository scopes)
+    RetentionScopeMutationCoordinator mutations)
     : IIntegrationEventHandler<PropertyProcessingSuspendedIntegrationEvent>
 {
     public Task HandleAsync(
         PropertyProcessingSuspendedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken) =>
-        scopes.ApplyPropertyPolicyAsync(
+        mutations.ApplyPropertyPolicyAsync(
             new(
                 integrationEvent.ScopeId,
                 integrationEvent.PropertyId,

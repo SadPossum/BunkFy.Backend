@@ -2,7 +2,8 @@
 
 Status: retention scheduling and execution control plane implemented;
 tenant-termination export and destruction owner implemented; production
-termination activation remains deferred
+termination activation remains deferred; online mutations serialized by
+target, execution, and schedule coordinates
 
 Retention owns BunkFy's schedule state and execution history for invoking
 retention work in the modules that own the affected data. It does not own the
@@ -69,13 +70,26 @@ repeatable-read transaction, validates the exact frozen process and epoch before
 and after streaming, and returns only an unchanged revision as proof. Closing
 and closed scopes are excluded from schedule discovery and inbox admission.
 
+Online decisions also use Retention-owned transaction-key coordinates before
+loading mutable state. Scheduled starts acquire shared tenant/property target
+fences, then exclusive execution and schedule fences; completion acquires the
+execution fence before deriving and acquiring its schedule coordinate.
+Organization and property inbox consumers acquire the corresponding exclusive
+target fence before merging source versions. This prevents stale aggregate
+decisions and first-use projection races without adding lock rows or changing
+Task Runtime ownership. The tenant revision still serializes only the final
+short save/commit needed for coherent export evidence.
+
 Migration `AddRetentionTenantExportRevision` adds the local revision table.
 Migration `AddRetentionTenantDestructionLifecycle` adds lifecycle state,
 resumable destruction operation state, and the receipt ledger. PostgreSQL also
 enforces receipt immutability with an append-only trigger.
 
-All 34 Retention tests pass and EF reports no pending model changes. The exact
-PostgreSQL 16 destruction scenario passed on 2026-08-04 with migration,
+All 42 Retention tests pass and EF reports no pending model changes. The exact
+PostgreSQL 16 mutation scenario proves same-schedule and same-property writers
+wait, reload the committed winner, preserve independent projection streams,
+and leave unrelated coordinates available. The earlier destruction scenario
+passed on 2026-08-04 with migration,
 shared/exclusive lock drain, bounded 500-row removal, schedule suppression,
 deterministic replay and conflict, raw-SQL append-only enforcement, closed-scope
 rejection, and tenant isolation. The earlier export scenario remains unchanged.

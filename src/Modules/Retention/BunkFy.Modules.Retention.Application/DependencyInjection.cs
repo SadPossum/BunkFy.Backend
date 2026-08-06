@@ -27,6 +27,8 @@ public static class DependencyInjection
                 ISecuritySignalDefinitionSource,
                 RetentionSecuritySignalDefinitions>());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
+        services.TryAddScoped<RetentionExecutionMutationCoordinator>();
+        services.TryAddScoped<RetentionScopeMutationCoordinator>();
         services.AddIntegrationEventHandler<
             OrganizationChangedIntegrationEvent,
             RetentionOrganizationChangedHandler>(

@@ -32,6 +32,9 @@ public static class DependencyInjection
             IRetentionExecutionRepository,
             RetentionExecutionRepository>();
         builder.Services.TryAddScoped<
+            IRetentionMutationLock,
+            RetentionMutationLock>();
+        builder.Services.TryAddScoped<
             IRetentionScopeRepository,
             RetentionScopeRepository>();
         builder.Services.TryAddScoped<RetentionScheduleStateRepository>();

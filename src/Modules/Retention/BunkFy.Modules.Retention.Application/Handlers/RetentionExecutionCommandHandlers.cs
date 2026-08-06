@@ -10,8 +10,8 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 
 internal sealed class BeginRetentionExecutionCommandHandler(
+    RetentionExecutionMutationCoordinator mutations,
     IRetentionExecutionRepository executions,
-    IRetentionScopeRepository scopes,
     IRetentionScheduleStateRepository scheduleStates)
     : ICommandHandler<BeginRetentionExecutionCommand, RetentionExecutionStart>
 {
@@ -20,19 +20,23 @@ internal sealed class BeginRetentionExecutionCommandHandler(
         CancellationToken cancellationToken)
     {
         RetentionExecutionTargetKind targetKind = Map(command.TargetScopeKind);
-        if (targetKind == RetentionExecutionTargetKind.Unknown ||
-            !await scopes.IsActiveTargetAsync(
-                command.TargetScopeKind,
-                command.PropertyId,
-                cancellationToken).ConfigureAwait(false))
+        if (!IsValidTarget(targetKind, command.PropertyId))
         {
             return Result.Failure<RetentionExecutionStart>(
                 RetentionApplicationErrors.TargetUnavailable);
         }
 
-        RetentionExecution? current = await executions.GetAsync(
-            command.ExecutionId,
-            cancellationToken).ConfigureAwait(false);
+        RetentionExecutionStartLease lease = await mutations.AcquireStartAsync(
+                command,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (!lease.TargetAvailable)
+        {
+            return Result.Failure<RetentionExecutionStart>(
+                RetentionApplicationErrors.TargetUnavailable);
+        }
+
+        RetentionExecution? current = lease.Execution;
         if (current is null)
         {
             Result<RetentionExecution> started = RetentionExecution.Start(
@@ -120,10 +124,20 @@ internal sealed class BeginRetentionExecutionCommandHandler(
             RetentionTargetScopeKind.Property => RetentionExecutionTargetKind.Property,
             _ => RetentionExecutionTargetKind.Unknown
         };
+
+    private static bool IsValidTarget(
+        RetentionExecutionTargetKind targetKind,
+        Guid? propertyId) => targetKind switch
+        {
+            RetentionExecutionTargetKind.Tenant => propertyId is null,
+            RetentionExecutionTargetKind.Property =>
+                propertyId is not null && propertyId != Guid.Empty,
+            _ => false
+        };
 }
 
 internal sealed class CompleteRetentionExecutionCommandHandler(
-    IRetentionExecutionRepository executions,
+    RetentionExecutionMutationCoordinator mutations,
     IRetentionScheduleStateRepository scheduleStates)
     : ICommandHandler<CompleteRetentionExecutionCommand, Unit>
 {
@@ -131,9 +145,10 @@ internal sealed class CompleteRetentionExecutionCommandHandler(
         CompleteRetentionExecutionCommand command,
         CancellationToken cancellationToken)
     {
-        RetentionExecution? execution = await executions.GetAsync(
-            command.ExecutionId,
-            cancellationToken).ConfigureAwait(false);
+        RetentionExecution? execution = await mutations.AcquireCompletionAsync(
+                command.ExecutionId,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (execution is null)
         {
             return Result.Failure<Unit>(
