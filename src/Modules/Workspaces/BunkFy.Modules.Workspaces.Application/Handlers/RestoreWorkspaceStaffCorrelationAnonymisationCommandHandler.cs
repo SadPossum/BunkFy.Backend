@@ -14,6 +14,7 @@ internal sealed class
     RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler(
         IWorkspaceStaffCorrelationAnonymisationRepository
             correlations,
+        IWorkspaceCrossGraphMutationLock crossGraphLock,
         WorkspaceStaffAccessMutationCoordinator mutations,
         IWorkspaceStaffCorrelationOperationLock operationLock,
         IScopeContext scopeContext,
@@ -47,6 +48,8 @@ internal sealed class
                     .RestoreRequestInvalid);
         }
 
+        await crossGraphLock.AcquireAsync(cancellationToken)
+            .ConfigureAwait(false);
         if (!await mutations.TryAcquireExistingCoordinateAsync(
                 request.RecordId,
                 cancellationToken).ConfigureAwait(false))

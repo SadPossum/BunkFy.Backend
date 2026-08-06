@@ -10,21 +10,33 @@ internal static class WorkspaceStaffAccessMutationTestSupport
 {
     public static WorkspaceStaffAccessMutationCoordinator Create(
         IWorkspaceStaffAccessProcessRepository? processes = null,
-        bool processExists = true) => new(
-        new NoOpOperationLock(processExists),
+        bool processExists = true,
+        List<string>? calls = null) => new(
+        new NoOpOperationLock(processExists, calls),
         processes ?? ThrowingProcessRepository.Instance);
 
-    private sealed class NoOpOperationLock(bool processExists)
+    private sealed class NoOpOperationLock(
+        bool processExists,
+        List<string>? calls)
         : IWorkspaceStaffAccessOperationLock
     {
         public Task AcquireStaffAsync(
             Guid staffMemberId,
-            CancellationToken cancellationToken) => Task.CompletedTask;
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            calls?.Add("staff-coordinate");
+            return Task.CompletedTask;
+        }
 
         public Task<bool> TryAcquireProcessAsync(
             Guid processId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(processExists);
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            calls?.Add("staff-coordinate");
+            return Task.FromResult(processExists);
+        }
     }
 
     private sealed class ThrowingProcessRepository

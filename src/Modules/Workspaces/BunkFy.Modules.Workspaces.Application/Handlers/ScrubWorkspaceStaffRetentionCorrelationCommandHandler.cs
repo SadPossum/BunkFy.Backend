@@ -11,6 +11,7 @@ using Gma.Framework.Scoping;
 internal sealed class
     ScrubWorkspaceStaffRetentionCorrelationCommandHandler(
     IWorkspaceStaffRetentionCorrelationRepository repository,
+    IWorkspaceCrossGraphMutationLock crossGraphLock,
     WorkspaceStaffAccessMutationCoordinator mutations,
     IScopeContext scopeContext)
     : ICommandHandler<
@@ -47,6 +48,8 @@ internal sealed class
                 WorkspaceStaffRetentionErrors.RequestInvalid);
         }
 
+        await crossGraphLock.AcquireAsync(cancellationToken)
+            .ConfigureAwait(false);
         await mutations.AcquireStaffAsync(
                 command.StaffMemberId,
                 cancellationToken).ConfigureAwait(false);

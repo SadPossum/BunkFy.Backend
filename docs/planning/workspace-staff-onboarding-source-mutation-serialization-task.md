@@ -73,12 +73,15 @@ transaction-scoped source graph.
 4. Run focused tests while editing, then one broad non-Docker gate and one
    targeted Docker scenario at slice completion.
 
-## Deferred
+## Follow-up
 
 - Subject-wide Staff correlation anonymisation and restore span multiple source
-  graphs and remain governed by the separate staff-access correlation
-  hierarchy. Their cross-coordinate lock composition belongs to the following
-  Workspaces Data Rights capstone rather than this source-local slice.
+  graphs. Their lock composition is covered by the completed
+  [Workspaces cross-graph correlation mutation serialization](workspaces-cross-graph-correlation-mutation-serialization-task.md)
+  slice rather than this source-local hierarchy.
+
+## Deferred
+
 - Distributed adapter/service orchestration; transaction-key locks are a
   modular-monolith coordination mechanism.
 - Moving onboarding vocabulary or source policy into GMA.

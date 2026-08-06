@@ -23,11 +23,16 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
     [Fact]
     public async Task Valid_request_is_normalized_before_persistence()
     {
-        FakeRepository repository = new();
+        List<string> calls = [];
+        FakeRepository repository = new(calls);
+        RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
+            new(calls);
         ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
             new(
                 repository,
-                WorkspaceStaffAccessMutationTestSupport.Create(),
+                crossGraphLock,
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    calls: calls),
                 new TestScopeContext(TenantId));
         DateTimeOffset completedAt =
             new DateTimeOffset(
@@ -53,6 +58,10 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(1, crossGraphLock.AcquireCount);
+        Assert.Equal(
+            ["tenant-exclusive", "staff-coordinate", "repository"],
+            calls);
         Assert.NotNull(repository.Request);
         Assert.Equal(TenantId, repository.Request.TenantId);
         Assert.Equal("subject-a", repository.Request.SubjectId);
@@ -64,9 +73,12 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
     public async Task Cross_scope_request_fails_before_persistence()
     {
         FakeRepository repository = new();
+        RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
+            new();
         ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
             new(
                 repository,
+                crossGraphLock,
                 WorkspaceStaffAccessMutationTestSupport.Create(),
                 new TestScopeContext(
                     "50000000-0000-0000-0000-000000000001"));
@@ -87,6 +99,7 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
         Assert.Equal(
             WorkspaceStaffRetentionErrors.RequestInvalid,
             result.Error);
+        Assert.Equal(0, crossGraphLock.AcquireCount);
         Assert.Null(repository.Request);
     }
 
@@ -94,9 +107,12 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
     public async Task Malformed_request_fails_before_persistence()
     {
         FakeRepository repository = new();
+        RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
+            new();
         ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
             new(
                 repository,
+                crossGraphLock,
                 WorkspaceStaffAccessMutationTestSupport.Create(),
                 new TestScopeContext(TenantId));
 
@@ -119,10 +135,11 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
         Assert.Equal(
             WorkspaceStaffRetentionErrors.RequestInvalid,
             result.Error);
+        Assert.Equal(0, crossGraphLock.AcquireCount);
         Assert.Null(repository.Request);
     }
 
-    private sealed class FakeRepository
+    private sealed class FakeRepository(List<string>? calls = null)
         : IWorkspaceStaffRetentionCorrelationRepository
     {
         public WorkspaceStaffRetentionCorrelationScrubRequest? Request
@@ -143,6 +160,7 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
                 WorkspaceStaffRetentionCorrelationScrubRequest request,
                 CancellationToken cancellationToken)
         {
+            calls?.Add("repository");
             this.Request = request;
             return Task.FromResult(
                 WorkspaceStaffRetentionCorrelationReceipt.Create(

@@ -50,11 +50,16 @@ public sealed class
         DataRightsApprovalEvidence evidence =
             CreateApprovalEvidence(snapshot);
         RecordingApprovalGate approvalGate = new(evidence);
-        RecordingOperationLock operationLock = new();
+        List<string> calls = [];
+        RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
+            new(calls);
+        RecordingOperationLock operationLock = new(calls);
         ApplyWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
-                WorkspaceStaffAccessMutationTestSupport.Create(),
+                crossGraphLock,
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    calls: calls),
                 operationLock,
                 approvalGate,
                 new TestScopeContext(),
@@ -92,7 +97,11 @@ public sealed class
         Assert.Equal(1, applied.Value.AccessProcessRecordsScrubbed);
         Assert.Equal(1, applied.Value.AccessPlanRecordsScrubbed);
         Assert.Equal(1, approvalGate.CallCount);
+        Assert.Equal(1, crossGraphLock.AcquireCount);
         Assert.Equal(1, operationLock.AcquireCount);
+        Assert.Equal(
+            ["tenant-exclusive", "staff-coordinate", "correlation-row"],
+            calls);
         Assert.All(
             context.StaffAccessProcesses,
             process =>
@@ -138,6 +147,7 @@ public sealed class
         ApplyWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
+                new RecordingWorkspaceCrossGraphMutationLock(),
                 WorkspaceStaffAccessMutationTestSupport.Create(),
                 new RecordingOperationLock(),
                 new RecordingApprovalGate(evidence),
@@ -194,11 +204,14 @@ public sealed class
             ]
         };
         RecordingApprovalGate approvalGate = new(valid);
+        RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
+            new();
         RecordingOperationLock operationLock = new();
         ApplyWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 new WorkspaceStaffCorrelationAnonymisationRepository(
                     context),
+                crossGraphLock,
                 WorkspaceStaffAccessMutationTestSupport.Create(),
                 operationLock,
                 approvalGate,
@@ -224,6 +237,7 @@ public sealed class
                 .RequestInvalid,
             result.Error);
         Assert.Equal(0, approvalGate.CallCount);
+        Assert.Equal(0, crossGraphLock.AcquireCount);
         Assert.Equal(0, operationLock.AcquireCount);
     }
 
@@ -362,7 +376,8 @@ public sealed class
         }
     }
 
-    private sealed class RecordingOperationLock
+    private sealed class RecordingOperationLock(
+        List<string>? calls = null)
         : IWorkspaceStaffCorrelationOperationLock
     {
         public int AcquireCount { get; private set; }
@@ -372,6 +387,7 @@ public sealed class
             CancellationToken cancellationToken)
         {
             this.AcquireCount++;
+            calls?.Add("correlation-row");
             return Task.FromResult(true);
         }
     }

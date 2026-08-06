@@ -19,6 +19,7 @@ internal sealed class
     ApplyWorkspaceStaffCorrelationAnonymisationCommandHandler(
         IWorkspaceStaffCorrelationAnonymisationRepository
             correlations,
+        IWorkspaceCrossGraphMutationLock crossGraphLock,
         WorkspaceStaffAccessMutationCoordinator mutations,
         IWorkspaceStaffCorrelationOperationLock operationLock,
         IDataRightsOperationApprovalGate approvalGate,
@@ -103,6 +104,8 @@ internal sealed class
                     .ApprovalRequired);
         }
 
+        await crossGraphLock.AcquireAsync(cancellationToken)
+            .ConfigureAwait(false);
         if (!await mutations.TryAcquireExistingCoordinateAsync(
                 command.AnchorProcessId,
                 cancellationToken).ConfigureAwait(false))

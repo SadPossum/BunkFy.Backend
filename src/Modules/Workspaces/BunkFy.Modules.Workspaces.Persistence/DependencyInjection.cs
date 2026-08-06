@@ -69,6 +69,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IWorkspaceStaffCorrelationOperationLock,
             WorkspaceStaffCorrelationOperationLock>();
+        builder.Services.TryAddScoped<
+            IWorkspaceCrossGraphMutationLock,
+            WorkspaceCrossGraphMutationLock>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsSubjectDiscoveryContributor,

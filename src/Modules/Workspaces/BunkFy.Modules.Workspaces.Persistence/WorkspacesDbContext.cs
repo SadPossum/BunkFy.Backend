@@ -230,7 +230,20 @@ public sealed class WorkspacesDbContext(
         }
     }
 
-    internal async Task AcquireOperationalMutationAdmissionAsync(
+    internal Task AcquireOperationalMutationAdmissionAsync(
+        CancellationToken cancellationToken) =>
+        this.AcquireOperationalMutationAdmissionCoreAsync(
+            exclusive: false,
+            cancellationToken);
+
+    internal Task AcquireExclusiveOperationalMutationAdmissionAsync(
+        CancellationToken cancellationToken) =>
+        this.AcquireOperationalMutationAdmissionCoreAsync(
+            exclusive: true,
+            cancellationToken);
+
+    private async Task AcquireOperationalMutationAdmissionCoreAsync(
+        bool exclusive,
         CancellationToken cancellationToken)
     {
         if (!this.Database.IsRelational())
@@ -245,10 +258,21 @@ public sealed class WorkspacesDbContext(
             throw new WorkspaceOperationalMutationRejectedException();
         }
 
-        await WorkspaceTenantMutationLock.AcquireAdmissionAsync(
-            this,
-            this.scopeContext.ScopeId,
-            cancellationToken).ConfigureAwait(false);
+        if (exclusive)
+        {
+            await WorkspaceTenantMutationLock.AcquireExclusiveAsync(
+                    this,
+                    this.scopeContext.ScopeId,
+                    cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await WorkspaceTenantMutationLock.AcquireAdmissionAsync(
+                    this,
+                    this.scopeContext.ScopeId,
+                    cancellationToken).ConfigureAwait(false);
+        }
+
         bool frozen = await this.WorkspaceTerminationFences
             .AsNoTracking()
             .AnyAsync(

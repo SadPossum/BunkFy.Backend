@@ -31,11 +31,16 @@ public sealed class
         DataRightsAnonymisationRestoreRequestV3 request =
             CreateRequest();
         RecordingRepository repository = new();
-        RecordingOperationLock operationLock = new();
+        List<string> calls = [];
+        RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
+            new(calls);
+        RecordingOperationLock operationLock = new(calls: calls);
         RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
-                WorkspaceStaffAccessMutationTestSupport.Create(),
+                crossGraphLock,
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    calls: calls),
                 operationLock,
                 new TestScopeContext(),
                 new TestClock());
@@ -48,7 +53,11 @@ public sealed class
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(1, crossGraphLock.AcquireCount);
         Assert.Equal(1, operationLock.AcquireCount);
+        Assert.Equal(
+            ["tenant-exclusive", "staff-coordinate", "correlation-row"],
+            calls);
         WorkspaceStaffCorrelationAnonymisationRestoreRequest
             forwarded = Assert.IsType<
                 WorkspaceStaffCorrelationAnonymisationRestoreRequest>(
@@ -83,6 +92,7 @@ public sealed class
         RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
+                new RecordingWorkspaceCrossGraphMutationLock(),
                 WorkspaceStaffAccessMutationTestSupport.Create(),
                 new RecordingOperationLock(acquired: false),
                 new TestScopeContext(),
@@ -106,10 +116,13 @@ public sealed class
     public async Task Invalid_owner_coordinate_fails_before_lock()
     {
         RecordingOperationLock operationLock = new();
+        RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
+            new();
         RecordingRepository repository = new();
         RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
+                crossGraphLock,
                 WorkspaceStaffAccessMutationTestSupport.Create(),
                 operationLock,
                 new TestScopeContext(),
@@ -130,6 +143,7 @@ public sealed class
                 .RestoreRequestInvalid,
             result.Error);
         Assert.Equal(0, operationLock.AcquireCount);
+        Assert.Equal(0, crossGraphLock.AcquireCount);
         Assert.Null(repository.Request);
     }
 
@@ -254,7 +268,9 @@ public sealed class
             throw new NotSupportedException();
     }
 
-    private sealed class RecordingOperationLock(bool acquired = true)
+    private sealed class RecordingOperationLock(
+        bool acquired = true,
+        List<string>? calls = null)
         : IWorkspaceStaffCorrelationOperationLock
     {
         public int AcquireCount { get; private set; }
@@ -265,6 +281,7 @@ public sealed class
         {
             this.AcquireCount++;
             Assert.Equal(AnchorProcessId, anchorProcessId);
+            calls?.Add("correlation-row");
             return Task.FromResult(acquired);
         }
     }

@@ -50,6 +50,13 @@ sources and different applicants on a reusable enrollment link remain
 concurrent. Application-id flows discover only immutable source coordinates
 before locking and then reload authoritative state.
 
+Rare subject-wide retention scrub, Data Rights anonymisation, and database
+restore replay span both the onboarding-source and staff-access graphs. They
+therefore take the existing Workspaces tenant-mutation coordinate exclusively
+before narrower staff or row locks. Ordinary writers use that coordinate in
+shared mode, so the destructive transaction drains and pauses only its tenant;
+other tenants remain concurrent and no subject data enters a lock resource.
+
 Copied applicant identity and contact fields are transient onboarding data.
 Completion, rejection, supersession, invitation expiry, and claim expiry
 redact those fields from the Workspaces record; the Staff module becomes
