@@ -19,6 +19,7 @@ using Gma.Framework.Scoping;
 internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
     IGuestProfileRepository profiles,
     IGuestDataRightsCorrectionReceiptRepository receipts,
+    IGuestOperationLock operationLock,
     IDataRightsCorrectionExecutionGate executionGate,
     IGuestCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
@@ -97,6 +98,11 @@ internal sealed class ApplyGuestDataRightsCorrectionCommandHandler(
             return Result.Failure<GuestDataRightsCorrectionReceiptDto>(
                 GuestsApplicationErrors.DataRightsApprovalRequired);
         }
+
+        await operationLock.AcquireGuestAsync(
+            scopeContext.ScopeId,
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
 
         GuestProfile? profile = await profiles.GetForDataRightsAsync(
             command.PropertyId,

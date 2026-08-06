@@ -68,6 +68,7 @@ internal sealed class CreateGuestProfileCommandHandler(
 
 internal sealed class UpdateGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
+    IGuestOperationLock operationLock,
     IGuestCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<UpdateGuestProfileCommand, GuestMutationReceiptDto>
@@ -95,6 +96,17 @@ internal sealed class UpdateGuestProfileCommandHandler(
             return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
         }
 
+        await operationLock.AcquireGuestAsync(
+            profile.ScopeId,
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
+        profile = await profiles.GetVisibleAsync(
+            command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
+        if (profile is null)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
+        }
+
         Result updated = profile.Update(
             command.DisplayName,
             command.LegalName,
@@ -116,6 +128,7 @@ internal sealed class UpdateGuestProfileCommandHandler(
 
 internal sealed class ArchiveGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
+    IGuestOperationLock operationLock,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<ArchiveGuestProfileCommand, GuestMutationReceiptDto>
 {
@@ -124,6 +137,17 @@ internal sealed class ArchiveGuestProfileCommandHandler(
         CancellationToken cancellationToken)
     {
         GuestProfile? profile = await profiles.GetVisibleAsync(
+            command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
+        if (profile is null)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
+        }
+
+        await operationLock.AcquireGuestAsync(
+            profile.ScopeId,
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
+        profile = await profiles.GetVisibleAsync(
             command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
         if (profile is null)
         {

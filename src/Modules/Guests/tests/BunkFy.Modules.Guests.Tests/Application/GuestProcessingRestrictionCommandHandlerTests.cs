@@ -31,10 +31,12 @@ public sealed class GuestProcessingRestrictionCommandHandlerTests
         GuestProcessingRestrictionProjection projection = CreateProjection(profile);
         RecordingRestrictionRepository restrictions = new();
         RecordingApprovalGate approvalGate = new();
+        RecordingGuestOperationLock operationLock = new();
         ApplyGuestProcessingRestrictionCommandHandler handler = new(
             new RecordingGuestRepository(profile),
             new RecordingProjectionRepository(projection),
             restrictions,
+            operationLock,
             approvalGate,
             new AllowedCountryPolicyAdmission(),
             new TestScopeContext(),
@@ -65,6 +67,9 @@ public sealed class GuestProcessingRestrictionCommandHandlerTests
         Assert.Equal(1, projection.Revision);
         Assert.Single(restrictions.Rows);
         Assert.Single(restrictions.Receipts);
+        Assert.Equal(
+            (profile.ScopeId, profile.Id),
+            Assert.Single(operationLock.GuestAcquisitions));
     }
 
     [Fact]
@@ -77,6 +82,7 @@ public sealed class GuestProcessingRestrictionCommandHandlerTests
             new RecordingGuestRepository(profile),
             new RecordingProjectionRepository(projection),
             restrictions,
+            new NoopGuestOperationLock(),
             new RecordingApprovalGate(),
             new AllowedCountryPolicyAdmission(),
             new TestScopeContext(),
@@ -126,6 +132,7 @@ public sealed class GuestProcessingRestrictionCommandHandlerTests
             new RecordingGuestRepository(profile),
             new RecordingProjectionRepository(projection),
             restrictions,
+            new NoopGuestOperationLock(),
             approvalGate,
             new AllowedCountryPolicyAdmission(),
             new TestScopeContext(),
@@ -167,6 +174,7 @@ public sealed class GuestProcessingRestrictionCommandHandlerTests
             new RecordingGuestRepository(profile),
             new RecordingProjectionRepository(projection),
             restrictions,
+            new NoopGuestOperationLock(),
             new RecordingApprovalGate(isApproved: false),
             new AllowedCountryPolicyAdmission(),
             new TestScopeContext(),

@@ -1,6 +1,8 @@
 namespace BunkFy.Modules.Guests.Tests.Persistence;
 
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using Gma.Framework.Pagination;
@@ -30,6 +32,7 @@ public sealed class GuestStayHistoryRepositoryTests
         Guid oldestReservationId = Guid.NewGuid();
         Guid middleReservationId = Guid.NewGuid();
         Guid newestReservationId = Guid.NewGuid();
+        AddVisibleGuest(dbContext, scope.ScopeId, propertyId, guestId);
         dbContext.StayHistory.AddRange(
             Entry(scope.ScopeId, guestId, oldestReservationId, propertyId, new DateOnly(2026, 1, 1)),
             Entry(scope.ScopeId, guestId, middleReservationId, propertyId, new DateOnly(2026, 2, 1)),
@@ -58,6 +61,89 @@ public sealed class GuestStayHistoryRepositoryTests
         Assert.Equal(2, first.PageSize);
         Assert.Equal(oldestReservationId, Assert.Single(second.Stays).ReservationId);
         Assert.False(second.HasMore);
+    }
+
+    [Fact]
+    public async Task History_query_fails_closed_when_operational_visibility_is_revoked()
+    {
+        TestScopeContext scope = new();
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase($"guest-stay-visibility-{Guid.NewGuid():N}")
+                .Options;
+        await using GuestsDbContext dbContext = new(options, scope);
+        GuestProcessingRestrictionProjectionRepository restrictions = new(dbContext, scope);
+        GuestStayHistoryRepository repository = new(
+            dbContext,
+            restrictions,
+            new NoopGuestOperationLock());
+        Guid propertyId = Guid.NewGuid();
+        Guid guestId = Guid.NewGuid();
+        GuestProcessingRestrictionProjection projection = AddVisibleGuest(
+            dbContext,
+            scope.ScopeId,
+            propertyId,
+            guestId);
+        dbContext.StayHistory.Add(Entry(
+            scope.ScopeId,
+            guestId,
+            Guid.NewGuid(),
+            propertyId,
+            new DateOnly(2026, 3, 1)));
+        await dbContext.SaveChangesAsync();
+
+        Assert.Single((await repository.ListAsync(
+            propertyId,
+            guestId,
+            new PageRequest(1, 25),
+            CancellationToken.None)).Stays);
+
+        Assert.True(projection.Apply(
+            0,
+            GuestProcessingRestrictionContract.CurrentVersion,
+            new DateTimeOffset(2026, 3, 2, 12, 0, 0, TimeSpan.Zero)).IsSuccess);
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        Assert.Empty((await repository.ListAsync(
+            propertyId,
+            guestId,
+            new PageRequest(1, 25),
+            CancellationToken.None)).Stays);
+    }
+
+    private static GuestProcessingRestrictionProjection AddVisibleGuest(
+        GuestsDbContext dbContext,
+        string scopeId,
+        Guid propertyId,
+        Guid guestId)
+    {
+        DateTimeOffset createdAtUtc =
+            new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        dbContext.GuestProfiles.Add(GuestProfile.Create(
+            guestId,
+            scopeId,
+            propertyId,
+            "Guest",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "user:test",
+            Guid.NewGuid(),
+            createdAtUtc).Value);
+        GuestProcessingRestrictionProjection projection =
+            GuestProcessingRestrictionProjection.Create(
+                scopeId,
+                propertyId,
+                guestId,
+                GuestProcessingRestrictionContract.CurrentVersion,
+                createdAtUtc).Value;
+        dbContext.ProcessingRestrictionProjections.Add(projection);
+        return projection;
     }
 
     private static GuestStayHistoryEntry Entry(

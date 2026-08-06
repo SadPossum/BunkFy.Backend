@@ -32,12 +32,14 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
         Guid eventId = Guid.NewGuid();
         Guid receiptId = Guid.NewGuid();
         Guid completionEventId = Guid.NewGuid();
+        RecordingGuestOperationLock operationLock = new();
         ApplyGuestDataRightsCorrectionCommand command = CreateCommand(profile, "Corrected Guest");
         ApplyGuestDataRightsCorrectionCommandHandler handler = CreateHandler(
             profile,
             receipts,
             approval,
-            new QueueIdGenerator(eventId, receiptId, completionEventId));
+            new QueueIdGenerator(eventId, receiptId, completionEventId),
+            operationLock);
 
         Result<GuestDataRightsCorrectionReceiptDto> result =
             await handler.HandleAsync(command, CancellationToken.None);
@@ -61,6 +63,9 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
             GuestsDataRightsCoordinates.CorrectionFieldPolicyKey,
             approval.Request.FieldPolicyKey);
         Assert.Equal(command.ActorId, approval.Request.ExecutingActorId);
+        Assert.Equal(
+            (profile.ScopeId, profile.Id),
+            Assert.Single(operationLock.GuestAcquisitions));
         Assert.DoesNotContain(
             typeof(GuestDataRightsCorrectionReceipt).GetProperties(),
             property => property.Name is
@@ -200,9 +205,11 @@ public sealed class ApplyGuestDataRightsCorrectionCommandHandlerTests
         GuestProfile profile,
         RecordingReceiptRepository receipts,
         RecordingApprovalGate approval,
-        IIdGenerator ids) => new(
+        IIdGenerator ids,
+        IGuestOperationLock? operationLock = null) => new(
         new RecordingGuestRepository(profile),
         receipts,
+        operationLock ?? new NoopGuestOperationLock(),
         approval,
         new AllowedCountryPolicyAdmission(),
         new TestScopeContext(),

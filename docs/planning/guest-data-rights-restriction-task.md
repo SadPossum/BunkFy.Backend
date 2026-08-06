@@ -214,8 +214,27 @@ not silently deleted or rewritten by this Guests slice.
 - No request scans all Guests, restrictions or cases.
 - Projection events are constant-size and ordered by one monotonic revision per
   Guest/property.
-- Retry is limited to the restriction commands and one optimistic/unique-race
-  replay. Generic GMA command behavior is not changed.
+- Retry is limited to Guests mutations that use the owner-local operation lock
+  and one optimistic/unique-race replay. Generic GMA command behavior is not
+  changed.
+
+## Production Audit Follow-up
+
+The 2026-08-06 Guests audit closed two transaction-boundary gaps without
+changing the module contract or GMA:
+
+- stay-history rows now repeat the shared operational-visibility predicate in
+  the same SQL query that returns them, so a restriction or visibility change
+  between the handler precheck and the data read fails closed;
+- ordinary update/archive, approved correction, and restriction apply/release
+  now join the existing per-Guest operation lock already used by stay
+  projection, holds, anonymisation, restore, and retention. Ordinary writes
+  recheck visibility after acquiring the lock, and their bounded persistence
+  retry turns a competing lock revision into a fresh policy/version decision.
+
+The read adds one indexed `EXISTS` predicate. The extra visibility query is
+limited to profile writes, where correctness is more important than saving one
+indexed point lookup.
 
 ## Delivery Steps
 

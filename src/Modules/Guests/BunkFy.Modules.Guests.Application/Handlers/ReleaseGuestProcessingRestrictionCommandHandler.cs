@@ -21,6 +21,7 @@ internal sealed class ReleaseGuestProcessingRestrictionCommandHandler(
     IGuestProfileRepository profiles,
     IGuestProcessingRestrictionProjectionRepository projections,
     IGuestProcessingRestrictionRepository restrictions,
+    IGuestOperationLock operationLock,
     IDataRightsOperationApprovalGate approvalGate,
     IGuestCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
@@ -95,6 +96,11 @@ internal sealed class ReleaseGuestProcessingRestrictionCommandHandler(
             return Result.Failure<GuestProcessingRestrictionReceiptDto>(
                 GuestsApplicationErrors.DataRightsApprovalRequired);
         }
+
+        await operationLock.AcquireGuestAsync(
+            scopeContext.ScopeId,
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
 
         GuestProfile? profile = await profiles.GetForDataRightsAsync(
             command.PropertyId,

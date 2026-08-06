@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Guests.Application.Commands;
 
+using BunkFy.Modules.Guests.Application.Ports;
 using Gma.Framework.Cqrs;
 using BunkFy.Modules.Guests.Contracts;
 
@@ -15,4 +16,6 @@ public sealed record UpdateGuestProfileCommand(
     string? PreferredLanguageTag,
     string? Notes,
     long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<GuestMutationReceiptDto>;
+    string ActorId) :
+    ITransactionalCommand<GuestMutationReceiptDto>,
+    IGuestsPersistenceRetryableCommand;

@@ -25,7 +25,7 @@ internal sealed class GuestProfileRepository(
     public Task<GuestProfile?> GetVisibleAsync(
         Guid propertyId,
         Guid guestId,
-        CancellationToken cancellationToken) => this.VisibleAt(propertyId)
+        CancellationToken cancellationToken) => dbContext.VisibleGuestProfilesAt(propertyId)
         .FirstOrDefaultAsync(profile => profile.Id == guestId, cancellationToken);
 
     public Task<GuestProfile?> GetForDataRightsAsync(
@@ -44,7 +44,7 @@ internal sealed class GuestProfileRepository(
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
-        IQueryable<GuestProfile> query = this.VisibleAt(propertyId)
+        IQueryable<GuestProfile> query = dbContext.VisibleGuestProfilesAt(propertyId)
             .AsNoTracking();
         if (status.HasValue)
         {
@@ -96,16 +96,4 @@ internal sealed class GuestProfileRepository(
             rows.Length > pageRequest.PageSize);
     }
 
-    private IQueryable<GuestProfile> VisibleAt(Guid propertyId) =>
-        dbContext.GuestProfiles.Where(profile =>
-            profile.Status != GuestProfileState.Anonymised &&
-            (profile.OriginPropertyId == propertyId || dbContext.StayHistory.Any(stay =>
-                stay.GuestId == profile.Id &&
-                stay.PropertyId == propertyId &&
-                stay.IsCurrentParticipant)) &&
-            dbContext.ProcessingRestrictionProjections.Any(projection =>
-                projection.PropertyId == propertyId &&
-                projection.GuestId == profile.Id &&
-                projection.ContractVersion == GuestProcessingRestrictionContract.CurrentVersion &&
-                !projection.IsRestricted));
 }

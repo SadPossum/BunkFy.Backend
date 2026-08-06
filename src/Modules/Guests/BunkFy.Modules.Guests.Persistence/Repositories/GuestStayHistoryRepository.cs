@@ -72,7 +72,11 @@ internal sealed class GuestStayHistoryRepository(
         CancellationToken cancellationToken)
     {
         GuestStayHistoryItem[] rows = await dbContext.StayHistory.AsNoTracking()
-            .Where(stay => stay.PropertyId == propertyId && stay.GuestId == guestId)
+            .Where(stay =>
+                stay.PropertyId == propertyId &&
+                stay.GuestId == guestId &&
+                dbContext.VisibleGuestProfilesAt(propertyId).Any(profile =>
+                    profile.Id == guestId))
             .OrderByDescending(stay => stay.Arrival)
             .ThenBy(stay => stay.ReservationId)
             .Skip(pageRequest.SkipCount)
