@@ -11,6 +11,7 @@ internal sealed class InventoryAllocationRepository(InventoryDbContext dbContext
         Guid allocationRequestId,
         CancellationToken cancellationToken) =>
         dbContext.Allocations
+            .AsNoTracking()
             .Include(allocation => allocation.Units)
             .FirstOrDefaultAsync(allocation => allocation.AllocationRequestId == allocationRequestId, cancellationToken);
 
@@ -18,6 +19,7 @@ internal sealed class InventoryAllocationRepository(InventoryDbContext dbContext
         Guid reservationId,
         CancellationToken cancellationToken) =>
         dbContext.Allocations
+            .AsNoTracking()
             .Include(allocation => allocation.Units)
             .FirstOrDefaultAsync(allocation => allocation.ReservationId == reservationId, cancellationToken);
 

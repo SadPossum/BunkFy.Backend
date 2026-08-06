@@ -2,7 +2,12 @@ namespace BunkFy.Modules.Inventory.Application.Ports;
 
 public interface IInventoryAllocationOperationLock
 {
-    Task AcquireAsync(
+    Task<bool> TryAcquireExistingAsync(
+        string tenantId,
+        Guid allocationId,
+        CancellationToken cancellationToken);
+
+    Task AcquireCoordinateAsync(
         string tenantId,
         Guid allocationId,
         CancellationToken cancellationToken);

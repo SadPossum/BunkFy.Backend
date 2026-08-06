@@ -42,6 +42,7 @@ Useful entry points:
 - [Inventory Topology Change Safety Task](planning/inventory-topology-change-safety-task.md)
 - [Inventory Room Retirement And Throughput Hardening Task](planning/inventory-room-retirement-and-throughput-hardening-task.md)
 - [Inventory Operational Surface Hardening Task](planning/inventory-operational-surface-hardening-task.md)
+- [Inventory Allocation Mutation Serialization Task](planning/inventory-allocation-mutation-serialization-task.md)
 - [Properties Operational Surface Hardening Task](planning/properties-operational-surface-hardening-task.md)
 - [Inventory Personal-Data Catalogue Task](planning/inventory-personal-data-catalogue-task.md)
 - [Inventory Data-Rights Owner Capability Task](planning/inventory-data-rights-owner-capability-task.md)

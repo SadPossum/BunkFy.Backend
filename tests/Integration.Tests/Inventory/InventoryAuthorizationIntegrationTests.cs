@@ -168,6 +168,8 @@ public sealed class InventoryAuthorizationIntegrationTests
         }
 
         await ExerciseAllocationAuthorityAsync(api).ConfigureAwait(false);
+        await ExerciseAllocationMutationSerializationAsync(api)
+            .ConfigureAwait(false);
 
         ManualInventoryBlockMutationReceiptDto block;
         using (HttpResponseMessage createBlock = await SendAsync(
@@ -507,6 +509,11 @@ public sealed class InventoryAuthorizationIntegrationTests
         using IServiceScope modeScope = api.Services.CreateScope();
         allocationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
         modeScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+        InventoryDbContext allocationDb = allocationScope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        await using var allocationTransaction = await allocationDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
 
         IIntegrationEventHandler<InventoryAllocationRequestedIntegrationEvent> allocationHandler =
             ResolveInventoryHandler<InventoryAllocationRequestedIntegrationEvent>(allocationScope.ServiceProvider);
@@ -530,9 +537,8 @@ public sealed class InventoryAuthorizationIntegrationTests
             CancellationToken.None).ConfigureAwait(false);
         Assert.True(concurrentModeChange.IsSuccess);
 
-        await allocationScope.ServiceProvider.GetRequiredService<InventoryDbContext>()
-            .SaveChangesAsync()
-            .ConfigureAwait(false);
+        await allocationDb.SaveChangesAsync().ConfigureAwait(false);
+        await allocationTransaction.CommitAsync().ConfigureAwait(false);
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
             modeScope.ServiceProvider.GetRequiredService<InventoryDbContext>().SaveChangesAsync());
 
@@ -945,6 +951,16 @@ public sealed class InventoryAuthorizationIntegrationTests
         using IServiceScope raceScopeTwo = api.Services.CreateScope();
         raceScopeOne.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
         raceScopeTwo.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+        InventoryDbContext raceDbOne = raceScopeOne.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        InventoryDbContext raceDbTwo = raceScopeTwo.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        await using var raceTransactionOne = await raceDbOne.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        await using var raceTransactionTwo = await raceDbTwo.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
         IIntegrationEventHandler<InventoryAllocationRequestedIntegrationEvent> raceHandlerOne =
             ResolveInventoryHandler<InventoryAllocationRequestedIntegrationEvent>(raceScopeOne.ServiceProvider);
         IIntegrationEventHandler<InventoryAllocationRequestedIntegrationEvent> raceHandlerTwo =
@@ -961,11 +977,11 @@ public sealed class InventoryAuthorizationIntegrationTests
             new DateOnly(2026, 10, 3));
         await raceHandlerOne.HandleAsync(raceOne, CancellationToken.None).ConfigureAwait(false);
         await raceHandlerTwo.HandleAsync(raceTwo, CancellationToken.None).ConfigureAwait(false);
-        await raceScopeOne.ServiceProvider.GetRequiredService<InventoryDbContext>()
-            .SaveChangesAsync()
-            .ConfigureAwait(false);
+        await raceDbOne.SaveChangesAsync().ConfigureAwait(false);
+        await raceTransactionOne.CommitAsync().ConfigureAwait(false);
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
-            raceScopeTwo.ServiceProvider.GetRequiredService<InventoryDbContext>().SaveChangesAsync());
+            raceDbTwo.SaveChangesAsync());
+        await raceTransactionTwo.RollbackAsync().ConfigureAwait(false);
 
         await HandleAllocationRequestAsync(
             api,
@@ -988,6 +1004,151 @@ public sealed class InventoryAuthorizationIntegrationTests
                 .ConfigureAwait(false)).Status);
     }
 
+    private static async Task ExerciseAllocationMutationSerializationAsync(
+        AuthTestApplication api)
+    {
+        Guid reservationId = Guid.NewGuid();
+        Guid firstRequestId = Guid.NewGuid();
+        Guid secondRequestId = Guid.NewGuid();
+        using IServiceScope firstScope = api.Services.CreateScope();
+        using IServiceScope secondScope = api.Services.CreateScope();
+        firstScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantA);
+        secondScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantA);
+        InventoryDbContext firstDb = firstScope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        InventoryDbContext secondDb = secondScope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        await using var firstTransaction = await firstDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        await using var secondTransaction = await secondDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        IIntegrationEventHandler<InventoryAllocationRequestedIntegrationEvent>
+            firstHandler = ResolveInventoryHandler<
+                InventoryAllocationRequestedIntegrationEvent>(
+                    firstScope.ServiceProvider);
+        IIntegrationEventHandler<InventoryAllocationRequestedIntegrationEvent>
+            secondHandler = ResolveInventoryHandler<
+                InventoryAllocationRequestedIntegrationEvent>(
+                    secondScope.ServiceProvider);
+        InventoryAllocationRequestedIntegrationEvent firstRequest =
+            CreateAllocationRequest(
+                reservationId,
+                firstRequestId,
+                new DateOnly(2027, 1, 1),
+                new DateOnly(2027, 1, 3));
+        InventoryAllocationRequestedIntegrationEvent secondRequest =
+            CreateAllocationRequest(
+                reservationId,
+                secondRequestId,
+                new DateOnly(2027, 2, 1),
+                new DateOnly(2027, 2, 3));
+
+        await firstHandler.HandleAsync(
+            firstRequest,
+            CancellationToken.None).ConfigureAwait(false);
+        Task secondHandling = secondHandler.HandleAsync(
+            secondRequest,
+            CancellationToken.None);
+        await Task.Delay(TimeSpan.FromMilliseconds(250))
+            .ConfigureAwait(false);
+        Assert.False(secondHandling.IsCompleted);
+
+        await firstDb.SaveChangesAsync().ConfigureAwait(false);
+        await firstTransaction.CommitAsync().ConfigureAwait(false);
+        await secondHandling.WaitAsync(TimeSpan.FromSeconds(10))
+            .ConfigureAwait(false);
+        await secondDb.SaveChangesAsync().ConfigureAwait(false);
+        await secondTransaction.CommitAsync().ConfigureAwait(false);
+
+        Guid allocationId;
+        using (IServiceScope verificationScope = api.Services.CreateScope())
+        {
+            verificationScope.ServiceProvider
+                .GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantA);
+            InventoryDbContext verificationDb = verificationScope
+                .ServiceProvider.GetRequiredService<InventoryDbContext>();
+            InventoryAllocation allocation = Assert.Single(
+                await verificationDb.Allocations
+                    .AsNoTracking()
+                    .Where(item => item.ReservationId == reservationId)
+                    .ToArrayAsync()
+                    .ConfigureAwait(false));
+            Assert.Equal(firstRequestId, allocation.AllocationRequestId);
+            Assert.Empty(
+                await verificationDb.Allocations
+                    .AsNoTracking()
+                    .Where(item =>
+                        item.AllocationRequestId == secondRequestId)
+                    .ToArrayAsync()
+                    .ConfigureAwait(false));
+            allocationId = allocation.Id;
+        }
+
+        using IServiceScope firstLockScope = api.Services.CreateScope();
+        using IServiceScope secondLockScope = api.Services.CreateScope();
+        firstLockScope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantA);
+        secondLockScope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantA);
+        InventoryDbContext firstLockDb = firstLockScope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        InventoryDbContext secondLockDb = secondLockScope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        await using var firstLockTransaction = await firstLockDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        await using var secondLockTransaction = await secondLockDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        IInventoryAllocationOperationLock firstLock = firstLockScope
+            .ServiceProvider.GetRequiredService<
+                IInventoryAllocationOperationLock>();
+        IInventoryAllocationOperationLock secondLock = secondLockScope
+            .ServiceProvider.GetRequiredService<
+                IInventoryAllocationOperationLock>();
+
+        Assert.True(await firstLock.TryAcquireExistingAsync(
+            TenantA,
+            allocationId,
+            CancellationToken.None));
+        Task<bool> secondAcquisition = secondLock.TryAcquireExistingAsync(
+            TenantA,
+            allocationId,
+            CancellationToken.None);
+        await Task.Delay(TimeSpan.FromMilliseconds(250))
+            .ConfigureAwait(false);
+        Assert.False(secondAcquisition.IsCompleted);
+
+        await firstLockTransaction.CommitAsync().ConfigureAwait(false);
+        Assert.True(await secondAcquisition
+            .WaitAsync(TimeSpan.FromSeconds(10))
+            .ConfigureAwait(false));
+        await secondLockTransaction.CommitAsync().ConfigureAwait(false);
+
+        using IServiceScope revisionScope = api.Services.CreateScope();
+        revisionScope.ServiceProvider
+            .GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantA);
+        InventoryDbContext revisionDb = revisionScope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        long revision = await revisionDb.Database.SqlQuery<long>(
+                $"""
+                SELECT "Revision" AS "Value"
+                FROM inventory.allocation_operation_locks
+                WHERE "AllocationId" = {allocationId}
+                """)
+            .SingleAsync()
+            .ConfigureAwait(false);
+        Assert.Equal(3, revision);
+    }
+
     private static async Task HandleAllocationRequestAsync(
         AuthTestApplication api,
         Guid reservationId,
@@ -997,14 +1158,18 @@ public sealed class InventoryAuthorizationIntegrationTests
     {
         using IServiceScope scope = api.Services.CreateScope();
         scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+        InventoryDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        await using var transaction = await dbContext.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
         IIntegrationEventHandler<InventoryAllocationRequestedIntegrationEvent> handler =
             ResolveInventoryHandler<InventoryAllocationRequestedIntegrationEvent>(scope.ServiceProvider);
         await handler.HandleAsync(
             CreateAllocationRequest(reservationId, requestId, arrival, departure),
             CancellationToken.None).ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<InventoryDbContext>()
-            .SaveChangesAsync()
-            .ConfigureAwait(false);
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await transaction.CommitAsync().ConfigureAwait(false);
     }
 
     private static InventoryAllocationRequestedIntegrationEvent CreateAllocationRequest(

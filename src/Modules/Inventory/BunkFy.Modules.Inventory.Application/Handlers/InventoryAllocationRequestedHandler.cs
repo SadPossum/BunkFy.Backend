@@ -10,6 +10,8 @@ using BunkFy.Modules.Inventory.Domain.Aggregates;
 [IntegrationEventHandler(InventoryModuleMetadata.AllocationRequestedHandlerName)]
 internal sealed class InventoryAllocationRequestedHandler(
     IInventoryAllocationRepository allocations,
+    IInventoryAllocationRequestLock requestLock,
+    InventoryAllocationMutationCoordinator mutations,
     IInventoryAvailabilityRepository availability,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
@@ -20,24 +22,46 @@ internal sealed class InventoryAllocationRequestedHandler(
         InventoryAllocationRequestedIntegrationEvent request,
         CancellationToken cancellationToken)
     {
+        await requestLock.AcquireAsync(
+            request.ScopeId,
+            request.AllocationRequestId,
+            request.ReservationId,
+            cancellationToken).ConfigureAwait(false);
+
         InventoryAllocation? existing = await allocations
             .GetByRequestAsync(request.AllocationRequestId, cancellationToken)
             .ConfigureAwait(false);
         if (existing is not null)
         {
-            if (!existing.MatchesRequest(
+            InventoryAllocation? current = await mutations
+                .AcquireExistingAsync(
+                    existing.Id,
+                    token => allocations.GetAsync(existing.Id, token),
+                    cancellationToken).ConfigureAwait(false);
+            if (current is null)
+            {
+                throw new InvalidOperationException(
+                    "The existing inventory allocation could not be reloaded after locking.");
+            }
+
+            if (current.IsAnonymised)
+            {
+                return;
+            }
+
+            if (current.ReservationId != request.ReservationId ||
+                current.PropertyId != request.PropertyId ||
+                (current.Version == 1 && !current.MatchesRequest(
                     request.ReservationId,
                     request.PropertyId,
                     request.Arrival,
                     request.Departure,
-                    request.InventoryUnitIds))
+                    request.InventoryUnitIds)))
             {
                 await this.EnqueueRejectedAsync(request, InventoryAllocationRejectionReason.RequestMismatch, cancellationToken)
                     .ConfigureAwait(false);
-                return;
             }
 
-            await this.EnqueueExistingDecisionAsync(existing, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -85,7 +109,7 @@ internal sealed class InventoryAllocationRequestedHandler(
         }
 
         await allocations.AddAsync(decision, cancellationToken).ConfigureAwait(false);
-        await this.EnqueueExistingDecisionAsync(decision, cancellationToken).ConfigureAwait(false);
+        await this.EnqueueDecisionAsync(decision, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<InventoryAllocationRejection> EvaluateAsync(
@@ -129,7 +153,7 @@ internal sealed class InventoryAllocationRequestedHandler(
             : InventoryAllocationRejection.None;
     }
 
-    private Task EnqueueExistingDecisionAsync(
+    private Task EnqueueDecisionAsync(
         InventoryAllocation allocation,
         CancellationToken cancellationToken)
     {

@@ -40,6 +40,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IInventoryAllocationRepository, InventoryAllocationRepository>();
         builder.Services.TryAddScoped<IInventoryAllocationAmendmentDecisionRepository, InventoryAllocationAmendmentDecisionRepository>();
         builder.Services.TryAddScoped<
+            IInventoryAllocationRequestLock,
+            InventoryAllocationRequestLock>();
+        builder.Services.TryAddScoped<
             IInventoryAllocationOperationLock,
             InventoryAllocationOperationLockRepository>();
         builder.Services.TryAddScoped<

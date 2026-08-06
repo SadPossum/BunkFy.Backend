@@ -29,7 +29,9 @@ public sealed class
         RestoreInventoryAllocationAnonymisationCommandHandler handler =
             new(
                 repository,
-                operationLock,
+                new InventoryAllocationMutationCoordinator(
+                    operationLock,
+                    new TestScopeContext()),
                 new TestScopeContext(),
                 new TestClock());
         DataRightsAnonymisationRestoreRequest request =
@@ -66,7 +68,9 @@ public sealed class
         RestoreInventoryAllocationAnonymisationCommandHandler handler =
             new(
                 repository,
-                new RecordingOperationLock(),
+                new InventoryAllocationMutationCoordinator(
+                    new RecordingOperationLock(),
+                    new TestScopeContext()),
                 new TestScopeContext(),
                 new TestClock());
 
@@ -226,7 +230,13 @@ public sealed class
     {
         public List<Guid> AllocationIds { get; } = [];
 
-        public Task AcquireAsync(
+        public Task<bool> TryAcquireExistingAsync(
+            string tenantId,
+            Guid allocationId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AcquireCoordinateAsync(
             string tenantId,
             Guid allocationId,
             CancellationToken cancellationToken)

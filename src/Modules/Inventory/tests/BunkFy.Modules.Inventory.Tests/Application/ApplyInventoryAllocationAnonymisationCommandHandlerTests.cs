@@ -32,7 +32,9 @@ public sealed class
         ApplyInventoryAllocationAnonymisationCommandHandler handler =
             new(
                 repository,
-                operationLock,
+                new InventoryAllocationMutationCoordinator(
+                    operationLock,
+                    new TestScopeContext()),
                 approval,
                 new TestScopeContext(),
                 new TestClock(),
@@ -56,7 +58,7 @@ public sealed class
             command.Request.Coordinate.RecordVersion + 1,
             first.Value.ResultingAllocationVersion);
         Assert.Equal(2, first.Value.RemovedAmendmentDecisionCount);
-        Assert.Single(operationLock.AllocationIds);
+        Assert.Equal(2, operationLock.AllocationIds.Count);
         Assert.Equal(1, approval.CallCount);
         Assert.Equal(1, repository.AddCount);
         Assert.NotNull(repository.Tombstone);
@@ -163,7 +165,9 @@ public sealed class
         CreateHandler(RecordingRepository repository) =>
         new(
             repository,
-            new RecordingOperationLock(),
+            new InventoryAllocationMutationCoordinator(
+                new RecordingOperationLock(),
+                new TestScopeContext()),
             new RecordingApprovalGate(),
             new TestScopeContext(),
             new TestClock(),
@@ -295,15 +299,21 @@ public sealed class
     {
         public List<Guid> AllocationIds { get; } = [];
 
-        public Task AcquireAsync(
+        public Task<bool> TryAcquireExistingAsync(
             string tenantId,
             Guid allocationId,
             CancellationToken cancellationToken)
         {
             Assert.Equal("tenant-a", tenantId);
             this.AllocationIds.Add(allocationId);
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
+
+        public Task AcquireCoordinateAsync(
+            string tenantId,
+            Guid allocationId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RecordingApprovalGate

@@ -16,7 +16,7 @@ internal sealed class
     RestoreInventoryAllocationAnonymisationCommandHandler(
         IInventoryAllocationAnonymisationRestoreRepository
             restoreRepository,
-        IInventoryAllocationOperationLock operationLock,
+        InventoryAllocationMutationCoordinator mutations,
         IScopeContext scopeContext,
         ISystemClock clock)
     : ICommandHandler<
@@ -47,10 +47,15 @@ internal sealed class
                         .AnonymisationRestoreRequestInvalid);
         }
 
-        await operationLock.AcquireAsync(
-            tenantId,
-            request.RecordId,
-            cancellationToken).ConfigureAwait(false);
+        if (!await mutations.AcquireRestoreCoordinateAsync(
+                request.RecordId,
+                cancellationToken).ConfigureAwait(false))
+        {
+            return Result.Failure<
+                InventoryAllocationAnonymisationRestoreReceipt>(
+                    InventoryApplicationErrors
+                        .AnonymisationRestoreRequestInvalid);
+        }
 
         InventoryAllocationAnonymisationRestoreReceipt? existing =
             await restoreRepository.GetRestoreReceiptAsync(

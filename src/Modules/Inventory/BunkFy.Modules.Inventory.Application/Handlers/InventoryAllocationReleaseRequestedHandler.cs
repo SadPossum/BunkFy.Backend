@@ -14,7 +14,7 @@ internal sealed class InventoryAllocationReleaseRequestedHandler(
     IInventoryAllocationRepository allocations,
     IInventoryAvailabilityRepository availability,
     InventoryRetirementCoordinator retirements,
-    IInventoryAllocationOperationLock operationLock,
+    InventoryAllocationMutationCoordinator mutations,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -24,18 +24,22 @@ internal sealed class InventoryAllocationReleaseRequestedHandler(
         InventoryAllocationReleaseRequestedIntegrationEvent request,
         CancellationToken cancellationToken)
     {
-        await operationLock.AcquireAsync(
-            request.ScopeId,
-            request.AllocationId,
-            cancellationToken).ConfigureAwait(false);
-
-        InventoryAllocation? allocation = await allocations
-            .GetAsync(request.AllocationId, cancellationToken)
-            .ConfigureAwait(false);
+        InventoryAllocation? allocation = await mutations
+            .AcquireExistingAsync(
+                request.AllocationId,
+                token => allocations.GetAsync(
+                    request.AllocationId,
+                    token),
+                cancellationToken).ConfigureAwait(false);
         if (allocation is null)
         {
             await this.EnqueueRejectedAsync(request, InventoryAllocationReleaseRejectionReason.AllocationNotFound, cancellationToken)
                 .ConfigureAwait(false);
+            return;
+        }
+
+        if (allocation.IsAnonymised)
+        {
             return;
         }
 

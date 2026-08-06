@@ -18,7 +18,7 @@ using Gma.Framework.Scoping;
 internal sealed class
     ApplyInventoryAllocationAnonymisationCommandHandler(
         IInventoryAllocationAnonymisationRepository anonymisation,
-        IInventoryAllocationOperationLock operationLock,
+        InventoryAllocationMutationCoordinator mutations,
         IDataRightsOperationApprovalGate approvalGate,
         IScopeContext scopeContext,
         ISystemClock clock,
@@ -70,11 +70,20 @@ internal sealed class
                 cancellationToken).ConfigureAwait(false);
         if (existing is not null)
         {
+            InventoryAllocation? replayAllocation = await mutations
+                .AcquireExistingAsync(
+                    request.Coordinate.RecordId,
+                    token => anonymisation.GetAllocationAsync(
+                        request.RoutingPropertyId,
+                        request.Coordinate.RecordId,
+                        token),
+                    cancellationToken).ConfigureAwait(false);
             return await this.ReplayAsync(
                 existing,
                 request,
                 approvalEvidenceSha256,
                 actorId!,
+                replayAllocation,
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -105,10 +114,14 @@ internal sealed class
                         .DataRightsApprovalRequired);
         }
 
-        await operationLock.AcquireAsync(
-            tenantId,
-            request.Coordinate.RecordId,
-            cancellationToken).ConfigureAwait(false);
+        InventoryAllocation? allocation = await mutations
+            .AcquireExistingAsync(
+                request.Coordinate.RecordId,
+                token => anonymisation.GetAllocationAsync(
+                    request.RoutingPropertyId,
+                    request.Coordinate.RecordId,
+                    token),
+                cancellationToken).ConfigureAwait(false);
 
         existing =
             await anonymisation.FindReceiptByIdempotencyKeyAsync(
@@ -121,14 +134,10 @@ internal sealed class
                 request,
                 approvalEvidenceSha256,
                 actorId!,
+                allocation,
                 cancellationToken).ConfigureAwait(false);
         }
 
-        InventoryAllocation? allocation =
-            await anonymisation.GetAllocationAsync(
-                request.RoutingPropertyId,
-                request.Coordinate.RecordId,
-                cancellationToken).ConfigureAwait(false);
         if (allocation is null)
         {
             return Result.Failure<
@@ -219,6 +228,7 @@ internal sealed class
             DataRightsAnonymisationContributionRequest request,
             string approvalEvidenceSha256,
             string actorId,
+            InventoryAllocation? allocation,
             CancellationToken cancellationToken)
     {
         if (!receipt.MatchesExecution(
@@ -239,11 +249,6 @@ internal sealed class
                         .AnonymisationIdempotencyConflict);
         }
 
-        InventoryAllocation? allocation =
-            await anonymisation.GetAllocationAsync(
-                request.RoutingPropertyId,
-                request.Coordinate.RecordId,
-                cancellationToken).ConfigureAwait(false);
         if (allocation is null ||
             !allocation.MatchesAnonymisedState(
                 receipt.ResultingAllocationVersion,

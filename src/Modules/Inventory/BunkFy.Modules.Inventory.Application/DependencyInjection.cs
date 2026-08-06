@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<BedRetirementCoordinator>();
         services.AddScoped<RoomRetirementCoordinator>();
         services.AddScoped<InventoryRetirementCoordinator>();
+        services.AddScoped<InventoryAllocationMutationCoordinator>();
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationContributor,

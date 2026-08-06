@@ -15,7 +15,7 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
     IInventoryAvailabilityRepository availability,
     InventoryRetirementCoordinator retirements,
     IInventoryAllocationAmendmentDecisionRepository decisions,
-    IInventoryAllocationOperationLock operationLock,
+    InventoryAllocationMutationCoordinator mutations,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -26,6 +26,18 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
         CancellationToken cancellationToken)
     {
         string fingerprint = Fingerprint(request);
+        InventoryAllocation? allocation = await mutations
+            .AcquireExistingAsync(
+                request.AllocationId,
+                token => allocations.GetAsync(
+                    request.AllocationId,
+                    token),
+                cancellationToken).ConfigureAwait(false);
+        if (allocation?.IsAnonymised == true)
+        {
+            return;
+        }
+
         if (await this.TryReplayExistingAsync(
                 request,
                 fingerprint,
@@ -34,20 +46,6 @@ internal sealed class InventoryAllocationAmendmentRequestedHandler(
             return;
         }
 
-        await operationLock.AcquireAsync(
-            request.ScopeId,
-            request.AllocationId,
-            cancellationToken).ConfigureAwait(false);
-        if (await this.TryReplayExistingAsync(
-                request,
-                fingerprint,
-                cancellationToken).ConfigureAwait(false))
-        {
-            return;
-        }
-
-        InventoryAllocation? allocation = await allocations.GetAsync(request.AllocationId, cancellationToken)
-            .ConfigureAwait(false);
         InventoryAllocationRejectionReason? identityRejection = allocation switch
         {
             null => InventoryAllocationRejectionReason.AllocationNotFound,

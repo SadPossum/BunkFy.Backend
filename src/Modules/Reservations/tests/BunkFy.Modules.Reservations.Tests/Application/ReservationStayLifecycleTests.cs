@@ -142,6 +142,70 @@ public sealed class ReservationStayLifecycleTests
         Assert.Equal(2, projection.ReleaseCount);
     }
 
+    [Fact]
+    public async Task Stale_confirmation_cannot_reactivate_projection_after_rejection()
+    {
+        Reservation reservation = Reservation.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateOnly(2026, 8, 1),
+            new DateOnly(2026, 8, 3),
+            [Guid.NewGuid()],
+            "Ada Guest",
+            "ada@example.test",
+            null,
+            1,
+            ReservationSource.Direct,
+            sourceSystem: null,
+            sourceReference: null,
+            notes: null,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ReservationDetailsChangeOrigin.Staff,
+            initialDetailsActorId: null,
+            initialAdapterConnectionId: null,
+            initialExternalOperationId: null,
+            Guid.NewGuid(),
+            TestClock.Now).Value;
+        Assert.True(reservation.RejectAllocation(
+            reservation.AllocationRequestId,
+            ReservationAllocationRejection.AllocationConflict,
+            Guid.NewGuid(),
+            TestClock.Now).IsSuccess);
+        RecordingInventoryProjection projection = new();
+        InventoryAllocationConfirmedHandler handler = new(
+            ReservationMutationTestSupport.Create(
+                new FakeReservationRepository(reservation)),
+            projection,
+            new RecordingOutboxRegistry(new RecordingOutbox()),
+            new ReservationInboxDomainEventDispatcher(
+                new NoOpDomainEventDispatcher()),
+            new TestClock(),
+            new TestIdGenerator());
+
+        await handler.HandleAsync(
+            new InventoryAllocationConfirmedIntegrationEvent(
+                Guid.NewGuid(),
+                reservation.ScopeId,
+                TestClock.Now,
+                Guid.NewGuid(),
+                reservation.Id,
+                reservation.AllocationRequestId,
+                reservation.PropertyId,
+                reservation.Arrival,
+                reservation.Departure,
+                reservation.RequestedUnits
+                    .Select(unit => unit.InventoryUnitId)
+                    .ToArray(),
+                allocationVersion: 1),
+            CancellationToken.None);
+
+        Assert.Equal(ReservationState.AllocationRejected, reservation.Status);
+        Assert.Equal(0, projection.ApplyCount);
+    }
+
     private static Reservation CreateConfirmedReservation()
     {
         Reservation reservation = Reservation.Create(
@@ -234,6 +298,7 @@ public sealed class ReservationStayLifecycleTests
 
     private sealed class RecordingInventoryProjection : IInventoryProjectionRepository
     {
+        public int ApplyCount { get; private set; }
         public int ReleaseCount { get; private set; }
 
         public Task<InventoryUnitSelectionValidation> ValidateSelectionAsync(
@@ -257,7 +322,11 @@ public sealed class ReservationStayLifecycleTests
 
         public Task ApplyAllocationAsync(
             ReservationInventoryAllocationWriteModel allocation,
-            CancellationToken cancellationToken) => Task.CompletedTask;
+            CancellationToken cancellationToken)
+        {
+            this.ApplyCount++;
+            return Task.CompletedTask;
+        }
 
         public Task ReleaseAllocationAsync(
             string scopeId,

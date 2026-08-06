@@ -31,6 +31,18 @@ internal sealed class InventoryAllocationConfirmedHandler(
                 $"Reservation '{outcome.ReservationId}' was not found for Inventory allocation confirmation.");
         }
 
+        long version = reservation.Version;
+        var confirmed = reservation.ConfirmAllocation(
+                outcome.AllocationRequestId,
+                outcome.AllocationId,
+                outcome.AllocationVersion,
+                idGenerator.NewId(),
+                clock.UtcNow);
+        if (confirmed.IsFailure)
+        {
+            return;
+        }
+
         await projection.ApplyAllocationAsync(
             new(
                 outcome.ScopeId,
@@ -44,13 +56,7 @@ internal sealed class InventoryAllocationConfirmedHandler(
                 outcome.AllocationVersion),
             cancellationToken).ConfigureAwait(false);
 
-        long version = reservation.Version;
-        if (reservation.ConfirmAllocation(
-                outcome.AllocationRequestId,
-                outcome.AllocationId,
-                outcome.AllocationVersion,
-                idGenerator.NewId(),
-                clock.UtcNow).IsFailure || reservation.Version == version)
+        if (reservation.Version == version)
         {
             return;
         }

@@ -103,11 +103,11 @@ public sealed class
             new(dbContext);
         Guid allocationId = Guid.NewGuid();
 
-        await repository.AcquireAsync(
+        await repository.AcquireCoordinateAsync(
             ScopeId,
             allocationId,
             CancellationToken.None);
-        await repository.AcquireAsync(
+        await repository.AcquireCoordinateAsync(
             ScopeId,
             allocationId,
             CancellationToken.None);
@@ -119,6 +119,71 @@ public sealed class
                     .ToArrayAsync());
         Assert.Equal(allocationId, resourceLock.AllocationId);
         Assert.Equal(2, resourceLock.Revision);
+    }
+
+    [Fact]
+    public async Task Existing_allocation_uses_preprovisioned_monotonic_lock()
+    {
+        await using InventoryDbContext dbContext = CreateDbContext();
+        InventoryAllocation allocation = CreateRejected();
+        await new InventoryAllocationRepository(dbContext).AddAsync(
+            allocation,
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync();
+        InventoryAllocationOperationLockRepository repository =
+            new(dbContext);
+
+        Assert.True(await repository.TryAcquireExistingAsync(
+            ScopeId,
+            allocation.Id,
+            CancellationToken.None));
+        Assert.True(await repository.TryAcquireExistingAsync(
+            ScopeId,
+            allocation.Id,
+            CancellationToken.None));
+
+        InventoryAllocationOperationLock resourceLock = Assert.Single(
+            await dbContext.AllocationOperationLocks
+                .AsNoTracking()
+                .ToArrayAsync());
+        Assert.Equal(3, resourceLock.Revision);
+    }
+
+    [Fact]
+    public async Task Existing_allocation_without_lock_fails_closed()
+    {
+        await using InventoryDbContext dbContext = CreateDbContext();
+        InventoryAllocation allocation = CreateRejected();
+        dbContext.Allocations.Add(allocation);
+        await dbContext.SaveChangesAsync();
+        InventoryAllocationOperationLockRepository repository =
+            new(dbContext);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<
+            InvalidOperationException>(() => repository.TryAcquireExistingAsync(
+                ScopeId,
+                allocation.Id,
+                CancellationToken.None));
+
+        Assert.Equal(
+            "The inventory allocation operation lock is not provisioned.",
+            exception.Message);
+    }
+
+    [Fact]
+    public async Task Missing_allocation_does_not_create_an_operation_lock()
+    {
+        await using InventoryDbContext dbContext = CreateDbContext();
+        InventoryAllocationOperationLockRepository repository =
+            new(dbContext);
+
+        bool acquired = await repository.TryAcquireExistingAsync(
+            ScopeId,
+            Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.False(acquired);
+        Assert.Empty(await dbContext.AllocationOperationLocks.ToArrayAsync());
     }
 
     private static InventoryAllocation CreateRejected() =>
