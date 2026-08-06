@@ -120,6 +120,12 @@ internal static class BunkFyDeploymentOptionsValidation
                 "BunkFy:Deployment:Runtime must be Process or Container in Production.");
         }
 
+        if (!BunkFyProductionAdmissionReference.IsValid(options.ReleaseId))
+        {
+            failures.Add(
+                "BunkFy:Deployment:ReleaseId must be a 3-128 character non-secret release identifier in Production.");
+        }
+
         if (!IsCommitSha(options.SourceCommitSha))
         {
             failures.Add(
@@ -131,6 +137,20 @@ internal static class BunkFyDeploymentOptionsValidation
         {
             failures.Add(
                 "BunkFy:Deployment:ContainerImageDigest must be an immutable lowercase sha256 OCI digest for a Production container.");
+        }
+
+        if (!BunkFyProductionAdmissionReference.IsValid(
+                options.PromotionEvidenceReference))
+        {
+            failures.Add(
+                "BunkFy:Deployment:PromotionEvidenceReference must identify the approved immutable promotion record in Production.");
+        }
+
+        if (!BunkFyProductionAdmissionReference.IsValid(
+                options.RollbackEvidenceReference))
+        {
+            failures.Add(
+                "BunkFy:Deployment:RollbackEvidenceReference must identify the approved rollback or recovery proof in Production.");
         }
 
         if (surface != BunkFyDeploymentSurface.Worker &&

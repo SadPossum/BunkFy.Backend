@@ -72,6 +72,7 @@ using Gma.Modules.Organizations.Api;
 using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.Tenancy.Api;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string authScopeId = builder.Configuration["Auth:GlobalScopeId"] ?? AuthProfile.DefaultGlobalScopeId;
@@ -205,11 +206,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapDefaultEndpoints();
-app.MapGet("/api/smoke", () => Results.Ok(new
+app.MapGet("/api/smoke", (IOptions<BunkFyDeploymentOptions> deployment) => Results.Ok(new
 {
     Application = "BunkFy",
     Service = "BunkFy.Host.Api",
     Status = "ok",
+    ReleaseId = string.IsNullOrWhiteSpace(deployment.Value.ReleaseId)
+        ? "local-unversioned"
+        : deployment.Value.ReleaseId,
     TimestampUtc = DateTimeOffset.UtcNow
 }));
 app.MapModules();

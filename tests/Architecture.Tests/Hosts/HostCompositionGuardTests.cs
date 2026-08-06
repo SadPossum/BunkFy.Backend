@@ -552,7 +552,14 @@ public sealed class HostCompositionGuardTests
             Assert.Equal("Unspecified", deployment.GetProperty("ApiTopology").GetString());
             Assert.Equal("Unspecified", deployment.GetProperty("EdgeMode").GetString());
             Assert.Equal("Unspecified", deployment.GetProperty("Runtime").GetString());
+            Assert.Equal(JsonValueKind.Null, deployment.GetProperty("ReleaseId").ValueKind);
             Assert.Equal(JsonValueKind.Null, deployment.GetProperty("SourceCommitSha").ValueKind);
+            Assert.Equal(
+                JsonValueKind.Null,
+                deployment.GetProperty("PromotionEvidenceReference").ValueKind);
+            Assert.Equal(
+                JsonValueKind.Null,
+                deployment.GetProperty("RollbackEvidenceReference").ValueKind);
             Assert.Empty(
                 http.GetProperty("ForwardedHeaders")
                     .GetProperty("KnownNetworks")

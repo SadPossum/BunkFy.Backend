@@ -19,7 +19,14 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         Assert.Contains(failures, failure => failure.Contains("ApiTopology", StringComparison.Ordinal));
         Assert.Contains(failures, failure => failure.Contains("EdgeMode", StringComparison.Ordinal));
         Assert.Contains(failures, failure => failure.Contains("Runtime", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("ReleaseId", StringComparison.Ordinal));
         Assert.Contains(failures, failure => failure.Contains("SourceCommitSha", StringComparison.Ordinal));
+        Assert.Contains(
+            failures,
+            failure => failure.Contains("PromotionEvidenceReference", StringComparison.Ordinal));
+        Assert.Contains(
+            failures,
+            failure => failure.Contains("RollbackEvidenceReference", StringComparison.Ordinal));
         Assert.Contains(
             failures,
             failure => failure.Contains("DataProtectionKeyProtection", StringComparison.Ordinal));
@@ -100,18 +107,30 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
     public void Production_rejects_placeholder_release_identity()
     {
         BunkFyDeploymentOptions options = CreateValidOptions();
+        options.ReleaseId = "bad release id";
         options.SourceCommitSha = new string('0', 40);
         options.Runtime = BunkFyRuntimeKind.Container;
         options.ContainerImageDigest = $"sha256:{new string('0', 64)}";
+        options.PromotionEvidenceReference = "?";
+        options.RollbackEvidenceReference = null;
 
         string[] failures = Validate(options);
 
+        Assert.Contains(
+            failures,
+            failure => failure.Contains("ReleaseId", StringComparison.Ordinal));
         Assert.Contains(
             failures,
             failure => failure.Contains("SourceCommitSha", StringComparison.Ordinal));
         Assert.Contains(
             failures,
             failure => failure.Contains("ContainerImageDigest", StringComparison.Ordinal));
+        Assert.Contains(
+            failures,
+            failure => failure.Contains("PromotionEvidenceReference", StringComparison.Ordinal));
+        Assert.Contains(
+            failures,
+            failure => failure.Contains("RollbackEvidenceReference", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -137,7 +156,10 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         {
             Profile = BunkFyDeploymentProfile.SelfHosted,
             Runtime = BunkFyRuntimeKind.Process,
-            SourceCommitSha = new string('a', 40)
+            ReleaseId = "release-worker-001",
+            SourceCommitSha = new string('a', 40),
+            PromotionEvidenceReference = "promotion-worker-001",
+            RollbackEvidenceReference = "recovery-worker-001"
         };
 
         string[] failures = Validate(
@@ -206,6 +228,9 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         BunkFyDeploymentOptions options =
             host.Services.GetRequiredService<IOptions<BunkFyDeploymentOptions>>().Value;
         Assert.Equal(BunkFyDeploymentProfile.SelfHosted, options.Profile);
+        Assert.Equal("release-api-001", options.ReleaseId);
+        Assert.Equal("promotion-api-001", options.PromotionEvidenceReference);
+        Assert.Equal("recovery-api-001", options.RollbackEvidenceReference);
         Assert.Equal(BunkFyApiTopology.SingleReplica, options.ApiTopology);
     }
 
@@ -235,7 +260,10 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         ApiTopology = BunkFyApiTopology.SingleReplica,
         EdgeMode = BunkFyEdgeMode.DirectHttps,
         Runtime = BunkFyRuntimeKind.Process,
+        ReleaseId = "release-api-001",
         SourceCommitSha = new string('a', 40),
+        PromotionEvidenceReference = "promotion-api-001",
+        RollbackEvidenceReference = "recovery-api-001",
         DataProtectionKeyProtection = BunkFyKeyProtectionKind.EncryptedVolume,
         ObjectStorageCredentialProfile =
             BunkFyStorageCredentialProfile.DedicatedServiceAccount
@@ -275,7 +303,12 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         builder.Configuration["BunkFy:Deployment:ApiTopology"] = "SingleReplica";
         builder.Configuration["BunkFy:Deployment:EdgeMode"] = "DirectHttps";
         builder.Configuration["BunkFy:Deployment:Runtime"] = "Process";
+        builder.Configuration["BunkFy:Deployment:ReleaseId"] = "release-api-001";
         builder.Configuration["BunkFy:Deployment:SourceCommitSha"] = new string('a', 40);
+        builder.Configuration["BunkFy:Deployment:PromotionEvidenceReference"] =
+            "promotion-api-001";
+        builder.Configuration["BunkFy:Deployment:RollbackEvidenceReference"] =
+            "recovery-api-001";
         builder.Configuration["BunkFy:Deployment:DataProtectionKeyProtection"] =
             "EncryptedVolume";
         builder.Configuration["DataProtection:KeyRingPath"] = "data/data-protection";

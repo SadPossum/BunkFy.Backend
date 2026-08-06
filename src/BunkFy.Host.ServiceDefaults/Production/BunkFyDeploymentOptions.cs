@@ -8,8 +8,11 @@ public sealed class BunkFyDeploymentOptions
     public BunkFyApiTopology ApiTopology { get; set; }
     public BunkFyEdgeMode EdgeMode { get; set; }
     public BunkFyRuntimeKind Runtime { get; set; }
+    public string? ReleaseId { get; set; }
     public string? SourceCommitSha { get; set; }
     public string? ContainerImageDigest { get; set; }
+    public string? PromotionEvidenceReference { get; set; }
+    public string? RollbackEvidenceReference { get; set; }
     public BunkFyKeyProtectionKind DataProtectionKeyProtection { get; set; }
     public BunkFyStorageCredentialProfile ObjectStorageCredentialProfile { get; set; }
 }
