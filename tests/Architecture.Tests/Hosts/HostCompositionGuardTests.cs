@@ -560,6 +560,9 @@ public sealed class HostCompositionGuardTests
             Assert.Equal(
                 JsonValueKind.Null,
                 deployment.GetProperty("RollbackEvidenceReference").ValueKind);
+            Assert.Equal(
+                JsonValueKind.Null,
+                deployment.GetProperty("AdmissionEvidenceReference").ValueKind);
             Assert.Empty(
                 http.GetProperty("ForwardedHeaders")
                     .GetProperty("KnownNetworks")
@@ -567,6 +570,20 @@ public sealed class HostCompositionGuardTests
             Assert.Equal(
                 "InProcess",
                 http.GetProperty("RateLimiting").GetProperty("Mode").GetString());
+        }
+
+        using (JsonDocument workerDocument = JsonDocument.Parse(
+                   RepositoryPaths.Read(
+                       "src",
+                       "BunkFy.Host.Worker",
+                       "appsettings.json")))
+        {
+            JsonElement workerDeployment = workerDocument.RootElement
+                .GetProperty("BunkFy")
+                .GetProperty("Deployment");
+            Assert.Equal(
+                JsonValueKind.Null,
+                workerDeployment.GetProperty("AdmissionEvidenceReference").ValueKind);
         }
 
         string[] storageSettingsPaths =

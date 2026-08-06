@@ -70,8 +70,12 @@ Each Production API process supplies:
       "ApiTopology": "MultiReplica",
       "EdgeMode": "TrustedReverseProxy",
       "Runtime": "Container",
+      "ReleaseId": "release:replace-me",
       "SourceCommitSha": "0000000000000000000000000000000000000000",
       "ContainerImageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "PromotionEvidenceReference": "promotion:replace-me",
+      "RollbackEvidenceReference": "rollback:replace-me",
+      "AdmissionEvidenceReference": "admission:00000000000000000000000000000000",
       "DataProtectionKeyProtection": "Kms",
       "ObjectStorageCredentialProfile": "DedicatedServiceAccount"
     }
@@ -79,10 +83,15 @@ Each Production API process supplies:
 }
 ```
 
-The release pipeline replaces the deliberately invalid all-zero placeholders
-with the exact lowercase candidate values. Startup rejects the placeholders.
-Do not use a tag, branch, shortened commit, or mutable image reference as
-release identity.
+Before candidate startup, the release pipeline creates one unique
+`admission:<32 lowercase hex>` identity and replaces every placeholder with the
+exact candidate identity and evidence references. Public API, Admin API, and
+Worker processes for one admission attempt use that same value. The root
+Production admission assembler must close its final bundle under the
+preallocated identity; it does not generate a replacement after probing.
+Startup rejects a missing, malformed, or all-zero admission identity. Do not
+use a tag, branch, shortened commit, or mutable image reference as release
+identity.
 
 Allowed key-protection declarations are `EncryptedVolume`, `Certificate`,
 `Kms`, `Hsm`, and `PlatformManaged`. They state the private deployment's
@@ -144,9 +153,10 @@ repository.
 
 ## Worker And Durable Runtime
 
-Production Workers declare the same immutable release identity as API
-processes, without HTTP-only edge or API-topology settings. A Worker that
-composes Ingestion also satisfies the hosted object-storage rules above.
+Production Workers declare the same immutable release and admission-attempt
+identity as API processes, without HTTP-only edge or API-topology settings. A
+Worker that composes Ingestion also satisfies the hosted object-storage rules
+above.
 
 One explicitly single-replica Worker process profile owns message-journal and
 TaskRuntime cleanup. Every other long-running process keeps those cleanup
@@ -190,9 +200,13 @@ mutation. Configuration and recovery evidence are defined in
 ## Failure Behavior
 
 Production startup fails before a host serves requests or executes background
-work when deployment identity, runtime maintenance, topology, edge trust, key
-persistence, storage policy, or Admin API network declarations are missing or
-contradictory.
+work when deployment or admission-attempt identity, runtime maintenance,
+topology, edge trust, key persistence, storage policy, or Admin API network
+declarations are missing or contradictory. Each admitted API and Worker emits
+one structured startup record containing its bounded surface, deployment
+profile, runtime, and admission-attempt reference. The public smoke endpoint
+reports the release identity separately. This confirms the declaration, not
+that the later evidence bundle has passed private approval.
 
 In distributed HTTP mode, Redis/provider unavailability fails closed with a
 bounded `503` response. An exceeded budget returns `429`; neither response

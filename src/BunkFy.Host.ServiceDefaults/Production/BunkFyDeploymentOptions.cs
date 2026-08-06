@@ -13,6 +13,7 @@ public sealed class BunkFyDeploymentOptions
     public string? ContainerImageDigest { get; set; }
     public string? PromotionEvidenceReference { get; set; }
     public string? RollbackEvidenceReference { get; set; }
+    public string? AdmissionEvidenceReference { get; set; }
     public BunkFyKeyProtectionKind DataProtectionKeyProtection { get; set; }
     public BunkFyStorageCredentialProfile ObjectStorageCredentialProfile { get; set; }
 }

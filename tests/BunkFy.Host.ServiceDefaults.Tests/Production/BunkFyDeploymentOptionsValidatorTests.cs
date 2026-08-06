@@ -29,6 +29,9 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
             failure => failure.Contains("RollbackEvidenceReference", StringComparison.Ordinal));
         Assert.Contains(
             failures,
+            failure => failure.Contains("AdmissionEvidenceReference", StringComparison.Ordinal));
+        Assert.Contains(
+            failures,
             failure => failure.Contains("DataProtectionKeyProtection", StringComparison.Ordinal));
         Assert.Contains(
             failures,
@@ -113,6 +116,7 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         options.ContainerImageDigest = $"sha256:{new string('0', 64)}";
         options.PromotionEvidenceReference = "?";
         options.RollbackEvidenceReference = null;
+        options.AdmissionEvidenceReference = "admission:not-a-closed-bundle";
 
         string[] failures = Validate(options);
 
@@ -131,6 +135,33 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         Assert.Contains(
             failures,
             failure => failure.Contains("RollbackEvidenceReference", StringComparison.Ordinal));
+        Assert.Contains(
+            failures,
+            failure => failure.Contains("AdmissionEvidenceReference", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_empty_or_non_lowercase_admission_identity()
+    {
+        string[] invalidReferences =
+        [
+            $"admission:{new string('0', 32)}",
+            $"admission:{new string('A', 32)}"
+        ];
+
+        foreach (string reference in invalidReferences)
+        {
+            BunkFyDeploymentOptions options = CreateValidOptions();
+            options.AdmissionEvidenceReference = reference;
+
+            string[] failures = Validate(options);
+
+            Assert.Contains(
+                failures,
+                failure => failure.Contains(
+                    "AdmissionEvidenceReference",
+                    StringComparison.Ordinal));
+        }
     }
 
     [Fact]
@@ -159,7 +190,8 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
             ReleaseId = "release-worker-001",
             SourceCommitSha = new string('a', 40),
             PromotionEvidenceReference = "promotion-worker-001",
-            RollbackEvidenceReference = "recovery-worker-001"
+            RollbackEvidenceReference = "recovery-worker-001",
+            AdmissionEvidenceReference = $"admission:{new string('b', 32)}"
         };
 
         string[] failures = Validate(
@@ -231,7 +263,30 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         Assert.Equal("release-api-001", options.ReleaseId);
         Assert.Equal("promotion-api-001", options.PromotionEvidenceReference);
         Assert.Equal("recovery-api-001", options.RollbackEvidenceReference);
+        Assert.Equal(
+            $"admission:{new string('b', 32)}",
+            options.AdmissionEvidenceReference);
         Assert.Equal(BunkFyApiTopology.SingleReplica, options.ApiTopology);
+        Assert.Single(
+            host.Services.GetServices<IHostedService>()
+                .OfType<BunkFyProductionDeploymentReporter>());
+    }
+
+    [Fact]
+    public void Non_production_composition_does_not_register_the_admission_reporter()
+    {
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings
+            {
+                EnvironmentName = Environments.Development
+            });
+
+        builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.PublicApi);
+
+        using IHost host = builder.Build();
+        Assert.Empty(
+            host.Services.GetServices<IHostedService>()
+                .OfType<BunkFyProductionDeploymentReporter>());
     }
 
     private static string[] Validate(
@@ -264,6 +319,7 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
         SourceCommitSha = new string('a', 40),
         PromotionEvidenceReference = "promotion-api-001",
         RollbackEvidenceReference = "recovery-api-001",
+        AdmissionEvidenceReference = $"admission:{new string('b', 32)}",
         DataProtectionKeyProtection = BunkFyKeyProtectionKind.EncryptedVolume,
         ObjectStorageCredentialProfile =
             BunkFyStorageCredentialProfile.DedicatedServiceAccount
@@ -309,6 +365,8 @@ public sealed class BunkFyDeploymentOptionsValidatorTests
             "promotion-api-001";
         builder.Configuration["BunkFy:Deployment:RollbackEvidenceReference"] =
             "recovery-api-001";
+        builder.Configuration["BunkFy:Deployment:AdmissionEvidenceReference"] =
+            $"admission:{new string('b', 32)}";
         builder.Configuration["BunkFy:Deployment:DataProtectionKeyProtection"] =
             "EncryptedVolume";
         builder.Configuration["DataProtection:KeyRingPath"] = "data/data-protection";

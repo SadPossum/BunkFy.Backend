@@ -61,6 +61,13 @@ public static class BunkFyProductionDeploymentExtensions
             ServiceDescriptor.Singleton<
                 IValidateOptions<BunkFyDeploymentOptions>,
                 BunkFyDeploymentOptionsValidator>());
+        if (builder.Environment.IsProduction())
+        {
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<
+                    IHostedService,
+                    BunkFyProductionDeploymentReporter>());
+        }
 
         return builder;
     }

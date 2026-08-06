@@ -153,6 +153,12 @@ internal static class BunkFyDeploymentOptionsValidation
                 "BunkFy:Deployment:RollbackEvidenceReference must identify the approved rollback or recovery proof in Production.");
         }
 
+        if (!IsAdmissionEvidenceReference(options.AdmissionEvidenceReference))
+        {
+            failures.Add(
+                "BunkFy:Deployment:AdmissionEvidenceReference must be the preallocated admission:<32 lowercase hex> identity retained by the closed Production admission bundle.");
+        }
+
         if (surface != BunkFyDeploymentSurface.Worker &&
             options.DataProtectionKeyProtection is not (
                     BunkFyKeyProtectionKind.EncryptedVolume or
@@ -269,6 +275,20 @@ internal static class BunkFyDeploymentOptionsValidation
 
         ReadOnlySpan<char> digest = value.AsSpan(7);
         return IsLowerHex(digest) && !IsAllZeros(digest);
+    }
+
+    private static bool IsAdmissionEvidenceReference(string? value)
+    {
+        const string Prefix = "admission:";
+        if (value is null ||
+            value.Length != Prefix.Length + 32 ||
+            !value.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> admissionId = value.AsSpan(Prefix.Length);
+        return IsLowerHex(admissionId) && !IsAllZeros(admissionId);
     }
 
     private static bool IsLowerHex(ReadOnlySpan<char> value)
