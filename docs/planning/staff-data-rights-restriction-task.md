@@ -215,3 +215,19 @@ can apply or release one exact Staff-owned restriction, central Data Rights
 stores validated owner proof, ordinary Staff processing fails closed according
 to the matrix, Guest restriction behavior remains compatible, and the focused,
 single final local, Docker, and exact-candidate gates are green.
+
+## Production Audit Follow-up
+
+The August 2026 production audit made the per-member operation lock the shared
+serialization boundary for every mutation of an existing Staff aggregate.
+Ordinary profile, identity, assignment, resume, onboarding, and reconciliation
+paths reselect through the supported unrestricted projection after acquiring
+the lock. Suspend, depart, and unassign reselect through the explicit safety
+transition surface, so restriction still permits access-reducing changes while
+preventing them from invalidating an exact-version rights decision in flight.
+
+Profile and Auth-correlation commands with no external lifecycle side effects
+retry one database unique-key race and make a fresh domain decision. The retry
+uses GMA's provider-neutral EF exception classifier; lifecycle coordination is
+deliberately not replayed by this behavior. This follow-up changes no public
+contract, schema, or framework source.

@@ -13,6 +13,7 @@ using Gma.Framework.Scoping;
 
 internal sealed class ProvisionStaffOnboardingCommandHandler(
     IStaffMemberRepository members,
+    StaffMemberMutationCoordinator mutations,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<ProvisionStaffOnboardingCommand, StaffMemberDto>
@@ -29,6 +30,21 @@ internal sealed class ProvisionStaffOnboardingCommandHandler(
         StaffMember? member = await members.GetByAuthSubjectAsync(
             command.AuthSubjectId,
             cancellationToken).ConfigureAwait(false);
+        if (member is not null)
+        {
+            member = await mutations.AcquireOperationalAsync(member.Id, cancellationToken)
+                .ConfigureAwait(false);
+            if (member is null ||
+                !string.Equals(
+                    member.AuthSubjectId,
+                    command.AuthSubjectId.Trim(),
+                    StringComparison.Ordinal))
+            {
+                return Result.Failure<StaffMemberDto>(
+                    StaffApplicationErrors.StaffMemberNotFound);
+            }
+        }
+
         Result unique = await StaffMemberUniqueness.EnsureAsync(
             members,
             command.EmployeeNumber,

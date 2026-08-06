@@ -6,20 +6,22 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Mapping;
-using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
-internal sealed class UnassignStaffPropertyCommandHandler(IStaffMemberRepository members,
-    ISystemClock clock, IIdGenerator ids)
+internal sealed class UnassignStaffPropertyCommandHandler(
+    StaffMemberMutationCoordinator mutations,
+    ISystemClock clock,
+    IIdGenerator ids)
     : ICommandHandler<UnassignStaffPropertyCommand, StaffDirectoryMemberDto>
 {
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(UnassignStaffPropertyCommand command,
         CancellationToken cancellationToken)
     {
-        StaffMember? member = await members.GetForSafetyTransitionAsync(
-            command.StaffMemberId,
-            cancellationToken).ConfigureAwait(false);
+        StaffMember? member = await mutations.AcquireSafetyTransitionAsync(
+                command.StaffMemberId,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (member is null)
         {
             return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);

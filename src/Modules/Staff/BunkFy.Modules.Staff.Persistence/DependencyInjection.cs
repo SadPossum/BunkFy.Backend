@@ -92,6 +92,9 @@ public static class DependencyInjection
             StaffPropertiesProjectionRebuildWriter>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
             typeof(ICommandPipelineBehavior<,>),
+            typeof(StaffPersistenceRetryBehavior<,>)));
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped(
+            typeof(ICommandPipelineBehavior<,>),
             typeof(StaffPersistenceAdmissionBehavior<,>)));
         builder.Services.MoveCommandUnitOfWorkBehaviorToEnd();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<IUnitOfWork, StaffUnitOfWork>());

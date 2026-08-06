@@ -10,8 +10,11 @@ using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
-internal sealed class AssignStaffPropertyCommandHandler(IStaffMemberRepository members,
-    IStaffPropertyProjectionRepository properties, ISystemClock clock, IIdGenerator ids)
+internal sealed class AssignStaffPropertyCommandHandler(
+    IStaffPropertyProjectionRepository properties,
+    StaffMemberMutationCoordinator mutations,
+    ISystemClock clock,
+    IIdGenerator ids)
     : ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto>
 {
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(AssignStaffPropertyCommand command,
@@ -22,10 +25,18 @@ internal sealed class AssignStaffPropertyCommandHandler(IStaffMemberRepository m
             return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.PropertyUnavailable);
         }
 
-        StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
+        StaffMember? member = await mutations.AcquireOperationalAsync(
+                command.StaffMemberId,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (member is null)
         {
             return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+        }
+
+        if (!await properties.IsActiveAsync(command.PropertyId, cancellationToken).ConfigureAwait(false))
+        {
+            return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.PropertyUnavailable);
         }
 
         Result assigned = member.AssignProperty(ids.NewId(), command.PropertyId, command.PropertyJobTitle,

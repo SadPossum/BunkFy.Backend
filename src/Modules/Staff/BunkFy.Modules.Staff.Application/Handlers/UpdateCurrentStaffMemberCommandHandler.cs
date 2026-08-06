@@ -12,6 +12,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class UpdateCurrentStaffMemberCommandHandler(
     IStaffMemberRepository members,
+    StaffMemberMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<UpdateCurrentStaffMemberCommand, StaffMemberDto>
 {
@@ -23,6 +24,17 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
             .GetByAuthSubjectAsync(command.AuthSubjectId, cancellationToken)
             .ConfigureAwait(false);
         if (member is null)
+        {
+            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+        }
+
+        member = await mutations.AcquireOperationalAsync(member.Id, cancellationToken)
+            .ConfigureAwait(false);
+        if (member is null ||
+            !string.Equals(
+                member.AuthSubjectId,
+                command.AuthSubjectId.Trim(),
+                StringComparison.Ordinal))
         {
             return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
         }

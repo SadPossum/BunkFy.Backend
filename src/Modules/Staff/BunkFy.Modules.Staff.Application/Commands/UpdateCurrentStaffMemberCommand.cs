@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Application.Commands;
 
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Staff.Application.Ports;
 using Gma.Framework.Cqrs;
 
 public sealed record UpdateCurrentStaffMemberCommand(
@@ -13,4 +14,5 @@ public sealed record UpdateCurrentStaffMemberCommand(
     string? JobTitle,
     string? Department,
     long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<StaffMemberDto>;
+    string ActorId) : ITransactionalCommand<StaffMemberDto>,
+    IStaffPersistenceRetryableCommand;

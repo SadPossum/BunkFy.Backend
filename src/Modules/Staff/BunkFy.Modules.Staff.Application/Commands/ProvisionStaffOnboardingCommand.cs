@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Application.Commands;
 
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Staff.Application.Ports;
 using Gma.Framework.Cqrs;
 
 public sealed record ProvisionStaffOnboardingCommand(
@@ -13,4 +14,5 @@ public sealed record ProvisionStaffOnboardingCommand(
     string? JobTitle,
     string? Department,
     string ActorId,
-    string Reason) : ITransactionalCommand<StaffMemberDto>;
+    string Reason) : ITransactionalCommand<StaffMemberDto>,
+    IStaffPersistenceRetryableCommand;

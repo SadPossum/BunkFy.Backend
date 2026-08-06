@@ -6,21 +6,23 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Mapping;
-using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
-internal sealed class SuspendStaffMemberCommandHandler(IStaffMemberRepository members,
-    StaffLifecyclePolicyEvaluator policies, ISystemClock clock, IIdGenerator ids)
+internal sealed class SuspendStaffMemberCommandHandler(
+    StaffMemberMutationCoordinator mutations,
+    StaffLifecyclePolicyEvaluator policies,
+    ISystemClock clock,
+    IIdGenerator ids)
     : ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>
 {
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(
         SuspendStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
-        StaffMember? member = await members.GetForSafetyTransitionAsync(
-            command.StaffMemberId,
-            cancellationToken)
+        StaffMember? member = await mutations.AcquireSafetyTransitionAsync(
+                command.StaffMemberId,
+                cancellationToken)
             .ConfigureAwait(false);
         if (member is null)
         {

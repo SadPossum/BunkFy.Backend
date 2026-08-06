@@ -131,10 +131,13 @@ when ordinary Staff processing is restricted.
 ### Operation Serialization
 
 Staff provisions exactly one per-member operation lock when a Staff member is
-created and backfills one for each legacy member. Governance changes,
-hold transitions, correction, restriction, and later anonymisation acquire the
-same lock before selecting mutable state. This prevents a new hold or policy
-replacement from racing an approved destructive execution.
+created and backfills one for each legacy member. Every mutation of an existing
+Staff aggregate, plus governance changes, hold transitions, correction,
+restriction, and later anonymisation, acquires the same lock before selecting
+mutable state. Ordinary mutations reselect through the operational restriction
+gate; safety-reducing transitions use their explicit bypass. This prevents a
+new hold, policy replacement, restriction, or lifecycle transition from racing
+an approved exact-version execution.
 
 The lock is an application/persistence port, not a process-local mutex. It must
 participate in the same database transaction as the selected operation. Its

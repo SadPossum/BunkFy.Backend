@@ -10,13 +10,19 @@ using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
-internal sealed class SetStaffAuthSubjectCommandHandler(IStaffMemberRepository members,
-    ISystemClock clock, IIdGenerator ids) : ICommandHandler<SetStaffAuthSubjectCommand, StaffDirectoryMemberDto>
+internal sealed class SetStaffAuthSubjectCommandHandler(
+    IStaffMemberRepository members,
+    StaffMemberMutationCoordinator mutations,
+    ISystemClock clock,
+    IIdGenerator ids) : ICommandHandler<SetStaffAuthSubjectCommand, StaffDirectoryMemberDto>
 {
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(SetStaffAuthSubjectCommand command,
         CancellationToken cancellationToken)
     {
-        StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
+        StaffMember? member = await mutations.AcquireOperationalAsync(
+                command.StaffMemberId,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (member is null)
         {
             return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);

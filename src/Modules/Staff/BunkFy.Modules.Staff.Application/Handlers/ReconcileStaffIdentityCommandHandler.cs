@@ -11,6 +11,7 @@ using Gma.Framework.Scoping;
 
 internal sealed class ReconcileStaffIdentityCommandHandler(
     IStaffMemberRepository members,
+    StaffMemberMutationCoordinator mutations,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<ReconcileStaffIdentityCommand, Unit>
@@ -30,6 +31,15 @@ internal sealed class ReconcileStaffIdentityCommandHandler(
 
         if (member is null)
         {
+            if (await members.AuthSubjectExistsAsync(
+                    command.AuthSubjectId,
+                    exceptStaffMemberId: null,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return Result.Failure<Unit>(
+                    StaffApplicationErrors.StaffMemberNotFound);
+            }
+
             if (!command.IsActive)
             {
                 return Result.Success(Unit.Value);
@@ -56,6 +66,17 @@ internal sealed class ReconcileStaffIdentityCommandHandler(
 
             await members.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
             return Result.Success(Unit.Value);
+        }
+
+        member = await mutations.AcquireOperationalAsync(member.Id, cancellationToken)
+            .ConfigureAwait(false);
+        if (member is null ||
+            !string.Equals(
+                member.AuthSubjectId,
+                command.AuthSubjectId.Trim(),
+                StringComparison.Ordinal))
+        {
+            return Result.Failure<Unit>(StaffApplicationErrors.StaffMemberNotFound);
         }
 
         Result changed = command.IsActive

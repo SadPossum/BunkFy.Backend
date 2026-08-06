@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.TryAddScoped<
             IStaffPropertyAssignmentProvisioner,
             StaffPropertyAssignmentProvisioner>();
+        services.TryAddScoped<StaffMemberMutationCoordinator>();
         services.TryAddScoped<StaffLifecyclePolicyEvaluator>();
         services.TryAddScoped<StaffRetentionEligibilityEvaluator>();
         services.TryAddScoped<StaffRetentionPrerequisiteEvaluator>();

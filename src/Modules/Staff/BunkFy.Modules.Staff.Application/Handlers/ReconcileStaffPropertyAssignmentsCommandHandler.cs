@@ -11,8 +11,8 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class ReconcileStaffPropertyAssignmentsCommandHandler(
-    IStaffMemberRepository members,
     IStaffPropertyProjectionRepository properties,
+    StaffMemberMutationCoordinator mutations,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
@@ -38,12 +38,21 @@ internal sealed class ReconcileStaffPropertyAssignmentsCommandHandler(
                 StaffApplicationErrors.PropertyUnavailable);
         }
 
-        StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken)
+        StaffMember? member = await mutations.AcquireOperationalAsync(
+                command.StaffMemberId,
+                cancellationToken)
             .ConfigureAwait(false);
         if (member is null)
         {
             return Result.Failure<IReadOnlyCollection<Guid>>(
                 StaffApplicationErrors.StaffMemberNotFound);
+        }
+
+        if (!await properties.AreAllActiveAsync(desiredPropertyIds, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return Result.Failure<IReadOnlyCollection<Guid>>(
+                StaffApplicationErrors.PropertyUnavailable);
         }
 
         if (member.Status == StaffMemberState.Departed)

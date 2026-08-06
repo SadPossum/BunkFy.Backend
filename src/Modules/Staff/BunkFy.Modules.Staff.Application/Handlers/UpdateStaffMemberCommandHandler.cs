@@ -10,13 +10,19 @@ using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 
-internal sealed class UpdateStaffMemberCommandHandler(IStaffMemberRepository members,
-    ISystemClock clock, IIdGenerator ids) : ICommandHandler<UpdateStaffMemberCommand, StaffDirectoryMemberDto>
+internal sealed class UpdateStaffMemberCommandHandler(
+    IStaffMemberRepository members,
+    StaffMemberMutationCoordinator mutations,
+    ISystemClock clock,
+    IIdGenerator ids) : ICommandHandler<UpdateStaffMemberCommand, StaffDirectoryMemberDto>
 {
     public async Task<Result<StaffDirectoryMemberDto>> HandleAsync(UpdateStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
-        StaffMember? member = await members.GetAsync(command.StaffMemberId, cancellationToken).ConfigureAwait(false);
+        StaffMember? member = await mutations.AcquireOperationalAsync(
+                command.StaffMemberId,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (member is null)
         {
             return Result.Failure<StaffDirectoryMemberDto>(StaffApplicationErrors.StaffMemberNotFound);

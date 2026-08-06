@@ -9,6 +9,7 @@ using Gma.Framework.Scoping;
 using Microsoft.Extensions.DependencyInjection;
 using BunkFy.Modules.Staff.Application;
 using BunkFy.Modules.Staff.Application.Commands;
+using BunkFy.Modules.Staff.Application.Handlers;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
@@ -97,6 +98,102 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
+    public async Task Operational_mutation_rechecks_visibility_after_acquiring_the_member_lock()
+    {
+        StaffMember member = CreateMember();
+        FakeStaffMemberRepository members = new(member);
+        RecordingOperationLock operationLock = new(
+            () => members.OperationallyVisible = false);
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            operationLock: operationLock);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<UpdateStaffMemberCommand, StaffDirectoryMemberDto>>();
+        long selectedVersion = member.Version;
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            new UpdateStaffMemberCommand(
+                member.Id,
+                "Changed after restriction",
+                null,
+                "changed@example.test",
+                null,
+                "EMP-100",
+                "Manager",
+                "Operations",
+                selectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.StaffMemberNotFound, result.Error);
+        Assert.Equal(selectedVersion, member.Version);
+        Assert.Equal("Ada Operator", member.DisplayName);
+        Assert.Equal((member.ScopeId, member.Id), Assert.Single(operationLock.Acquisitions));
+        Assert.Equal(1, members.OperationalGetCount);
+    }
+
+    [Fact]
+    public async Task Safety_transition_reloads_through_the_restriction_bypass_after_locking()
+    {
+        StaffMember member = CreateMember("member-100");
+        FakeStaffMemberRepository members = new(member)
+        {
+            OperationallyVisible = false
+        };
+        RecordingOperationLock operationLock = new();
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: new RecordingLifecyclePolicy(
+                StaffLifecyclePolicyDecision.Allowed),
+            operationLock: operationLock);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>>();
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            new SuspendStaffMemberCommand(
+                member.Id,
+                "Privacy-safe access reduction",
+                member.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(StaffStatus.Suspended, result.Value.Status);
+        Assert.Equal((member.ScopeId, member.Id), Assert.Single(operationLock.Acquisitions));
+        Assert.Equal(1, members.SafetyGetCount);
+        Assert.Equal(0, members.OperationalGetCount);
+    }
+
+    [Theory]
+    [InlineData(typeof(UpdateStaffMemberCommandHandler))]
+    [InlineData(typeof(UpdateCurrentStaffMemberCommandHandler))]
+    [InlineData(typeof(SetStaffAuthSubjectCommandHandler))]
+    [InlineData(typeof(AssignStaffPropertyCommandHandler))]
+    [InlineData(typeof(ResumeStaffMemberCommandHandler))]
+    [InlineData(typeof(SuspendStaffMemberCommandHandler))]
+    [InlineData(typeof(UnassignStaffPropertyCommandHandler))]
+    [InlineData(typeof(DepartStaffMemberCommandHandler))]
+    [InlineData(typeof(ProvisionStaffOnboardingCommandHandler))]
+    [InlineData(typeof(ReconcileStaffIdentityCommandHandler))]
+    [InlineData(typeof(ReconcileStaffPropertyAssignmentsCommandHandler))]
+    public void Existing_member_mutations_use_the_shared_serialization_boundary(
+        Type handlerType)
+    {
+        System.Reflection.ConstructorInfo constructor = Assert.Single(
+            handlerType.GetConstructors(
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic));
+
+        Assert.Contains(
+            constructor.GetParameters(),
+            parameter => parameter.ParameterType ==
+                typeof(StaffMemberMutationCoordinator));
+    }
+
+    [Fact]
     public async Task Identity_reconciliation_creates_one_active_staff_profile_for_the_auth_subject()
     {
         FakeStaffMemberRepository members = new();
@@ -137,6 +234,34 @@ public sealed class StaffCommandHandlerTests
         Assert.True(resumed.IsSuccess, resumed.Error.Code);
         Assert.Equal(StaffMemberState.Active, member.Status);
         Assert.Equal(3, member.Version);
+    }
+
+    [Fact]
+    public async Task Identity_reconciliation_rejects_a_hidden_existing_staff_profile()
+    {
+        StaffMember member = CreateMember("member-100");
+        FakeStaffMemberRepository members = new(member)
+        {
+            OperationallyVisible = false
+        };
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository());
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ReconcileStaffIdentityCommand, Unit>>();
+
+        Result<Unit> result = await handler.HandleAsync(
+            new ReconcileStaffIdentityCommand(
+                "member-100",
+                "Ada Operator",
+                "ada@example.test",
+                IsActive: true,
+                "integration:organizations",
+                "Workspace membership changed."),
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.StaffMemberNotFound, result.Error);
+        Assert.Null(members.AddedMember);
     }
 
     [Fact]
@@ -355,7 +480,8 @@ public sealed class StaffCommandHandlerTests
         IStaffMemberRepository members,
         IStaffPropertyProjectionRepository properties,
         IScopeContext? scope = null,
-        IStaffLifecyclePolicy? lifecyclePolicy = null)
+        IStaffLifecyclePolicy? lifecyclePolicy = null,
+        IStaffOperationLock? operationLock = null)
     {
         ServiceCollection services = new();
         services.AddSingleton(members);
@@ -363,6 +489,7 @@ public sealed class StaffCommandHandlerTests
         services.AddSingleton(scope ?? new TestScopeContext(true, "tenant-a"));
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
+        services.AddSingleton(operationLock ?? new NoopStaffOperationLock());
         if (lifecyclePolicy is not null)
         {
             services.AddSingleton(lifecyclePolicy);
@@ -387,6 +514,9 @@ public sealed class StaffCommandHandlerTests
         public string? ExistingAuthSubjectId { get; init; }
         public StaffMember? AddedMember { get; private set; }
         public int AddCount { get; private set; }
+        public bool OperationallyVisible { get; set; } = true;
+        public int OperationalGetCount { get; private set; }
+        public int SafetyGetCount { get; private set; }
 
         public Task AddAsync(StaffMember value, CancellationToken cancellationToken)
         {
@@ -395,27 +525,42 @@ public sealed class StaffCommandHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken) =>
-            Task.FromResult(member?.Id == staffMemberId ? member : null);
+        public Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken)
+        {
+            this.OperationalGetCount++;
+            return Task.FromResult(
+                this.OperationallyVisible
+                    ? this.Candidates().FirstOrDefault(candidate => candidate.Id == staffMemberId)
+                    : null);
+        }
 
         public Task<StaffMember?> GetForDataRightsAsync(
             Guid staffMemberId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(member?.Id == staffMemberId ? member : null);
+            Task.FromResult(this.Candidates().FirstOrDefault(
+                candidate => candidate.Id == staffMemberId));
 
         public Task<StaffMember?> GetForSafetyTransitionAsync(
             Guid staffMemberId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(member?.Id == staffMemberId ? member : null);
+            CancellationToken cancellationToken)
+        {
+            this.SafetyGetCount++;
+            return Task.FromResult(this.Candidates().FirstOrDefault(
+                candidate => candidate.Id == staffMemberId));
+        }
 
         public Task<StaffMember?> GetByAuthSubjectAsync(string authSubjectId,
-            CancellationToken cancellationToken) => Task.FromResult(
-            new[] { member, this.AddedMember }
-                .OfType<StaffMember>()
-                .FirstOrDefault(candidate => string.Equals(
-                    candidate.AuthSubjectId,
-                    authSubjectId.Trim(),
-                    StringComparison.Ordinal)));
+            CancellationToken cancellationToken)
+        {
+            this.OperationalGetCount++;
+            return Task.FromResult(
+                this.OperationallyVisible
+                    ? this.Candidates().FirstOrDefault(candidate => string.Equals(
+                        candidate.AuthSubjectId,
+                        authSubjectId.Trim(),
+                        StringComparison.Ordinal))
+                    : null);
+        }
 
         public Task<StaffDirectoryMemberDto?> GetDirectoryAsync(Guid staffMemberId,
             CancellationToken cancellationToken) => Task.FromResult(
@@ -438,11 +583,26 @@ public sealed class StaffCommandHandlerTests
 
         public Task<bool> EmployeeNumberExistsAsync(string employeeNumber, Guid? exceptStaffMemberId,
             CancellationToken cancellationToken) => Task.FromResult(
-            string.Equals(employeeNumber, this.ExistingEmployeeNumber, StringComparison.Ordinal));
+            string.Equals(employeeNumber, this.ExistingEmployeeNumber, StringComparison.Ordinal) ||
+            this.Candidates().Any(candidate =>
+                candidate.Id != exceptStaffMemberId &&
+                string.Equals(
+                    candidate.EmployeeNumber,
+                    employeeNumber,
+                    StringComparison.OrdinalIgnoreCase)));
 
         public Task<bool> AuthSubjectExistsAsync(string authSubjectId, Guid? exceptStaffMemberId,
             CancellationToken cancellationToken) => Task.FromResult(
-            string.Equals(authSubjectId, this.ExistingAuthSubjectId, StringComparison.Ordinal));
+            string.Equals(authSubjectId, this.ExistingAuthSubjectId, StringComparison.Ordinal) ||
+            this.Candidates().Any(candidate =>
+                candidate.Id != exceptStaffMemberId &&
+                string.Equals(
+                    candidate.AuthSubjectId,
+                    authSubjectId,
+                    StringComparison.Ordinal)));
+
+        private IEnumerable<StaffMember> Candidates() =>
+            new[] { member, this.AddedMember }.OfType<StaffMember>().Distinct();
 
         private static StaffDirectoryMemberDto ToDirectory(StaffMember value, Guid? propertyId = null) => new(
             value.Id,
@@ -506,6 +666,27 @@ public sealed class StaffCommandHandlerTests
         {
             this.Context = context;
             return ValueTask.FromResult(decision);
+        }
+    }
+
+    private sealed class RecordingOperationLock(Action? onAcquire = null)
+        : IStaffOperationLock
+    {
+        public List<(string TenantId, Guid StaffMemberId)> Acquisitions { get; } = [];
+
+        public Task<long?> GetStaffMemberRevisionAsync(
+            string tenantId,
+            Guid staffMemberId,
+            CancellationToken cancellationToken) => Task.FromResult<long?>(1);
+
+        public Task<bool> TryAcquireStaffMemberAsync(
+            string tenantId,
+            Guid staffMemberId,
+            CancellationToken cancellationToken)
+        {
+            this.Acquisitions.Add((tenantId, staffMemberId));
+            onAcquire?.Invoke();
+            return Task.FromResult(true);
         }
     }
 }
