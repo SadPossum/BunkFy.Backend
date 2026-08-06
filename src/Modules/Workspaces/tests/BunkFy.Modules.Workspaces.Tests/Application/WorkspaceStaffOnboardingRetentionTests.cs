@@ -252,9 +252,10 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         WorkspaceStaffOnboardingProcessor processor = new(
             null!,
             null!,
-            applications,
             new FakeRestrictionProjectionRepository(application),
-            new FakeOperationLock(),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(
+                applications,
+                new FakeOperationLock()),
             plans,
             planPolicy,
             null!,
@@ -265,6 +266,9 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler handler = new(
             applications,
             plans,
+            WorkspaceStaffOnboardingMutationTestSupport.Create(
+                applications,
+                new FakeOperationLock()),
             new FakeClaimInspector(CreateClaim(
                 application,
                 OrganizationEnrollmentClaimStatus.Accepted)),
@@ -323,6 +327,9 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         new(
             applications,
             plans,
+            WorkspaceStaffOnboardingMutationTestSupport.Create(
+                applications,
+                new FakeOperationLock()),
             inspector,
             null!,
             Options.Create(new WorkspaceStaffOnboardingRetentionOptions()),
@@ -396,6 +403,20 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
     {
         private readonly List<WorkspaceStaffOnboarding> applications = [.. seed];
 
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken)
+        {
+            WorkspaceStaffOnboarding? application = this.applications
+                .SingleOrDefault(item => item.Id == applicationId);
+            return Task.FromResult(application is null
+                ? null
+                : new WorkspaceStaffOnboardingCoordinate(
+                    application.Id,
+                    application.SourceKind,
+                    application.SourceId));
+        }
+
         public Task<WorkspaceStaffOnboarding?> GetAsync(
             Guid applicationId,
             CancellationToken cancellationToken) =>
@@ -424,14 +445,17 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             WorkspaceStaffOnboardingSource sourceKind,
             Guid sourceId,
             string subjectId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(this.applications.SingleOrDefault(application =>
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(this.applications.SingleOrDefault(application =>
                 application.SourceKind == sourceKind &&
                 application.SourceId == sourceId &&
                 string.Equals(
                     application.SubjectId,
                     subjectId,
                     StringComparison.Ordinal)));
+        }
 
         public async Task<Guid?> FindIdBySourceAndSubjectAsync(
             WorkspaceStaffOnboardingSource sourceKind,
@@ -513,6 +537,19 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
     private sealed class FakeOperationLock
         : IWorkspaceStaffOnboardingOperationLock
     {
+        public Task AcquireSourceReadAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireSourceWriteAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireApplicantAsync(
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
             CancellationToken cancellationToken) =>

@@ -39,6 +39,17 @@ transaction-scoped GMA key rather than persisted module data, so unrelated
 staff remain concurrent and no migration, export, retention, or destruction
 surface is introduced.
 
+Staff-onboarding source graphs use the same GMA transaction-key primitive with
+Workspaces-owned coordinates. Plan and source-lifecycle work holds one source
+identifier exclusively; ordinary applicant processing shares that source and
+then locks its application row. First submission also takes a SHA-256-derived
+applicant coordinate so concurrent link or QR submissions cannot create two
+applications without exposing an Auth subject in the lock resource. Source
+expiry and supersession therefore wait for in-flight applicants, while other
+sources and different applicants on a reusable enrollment link remain
+concurrent. Application-id flows discover only immutable source coordinates
+before locking and then reload authoritative state.
+
 Copied applicant identity and contact fields are transient onboarding data.
 Completion, rejection, supersession, invitation expiry, and claim expiry
 redact those fields from the Workspaces record; the Staff module becomes
@@ -99,10 +110,10 @@ its applicant data. Operational reads, resubmission, admission, actionable
 lists, and provisioning fail closed through a versioned restriction
 projection, while expiry, rejection, retention, correction, and access-safety
 work remain available. Apply and release share the onboarding operation lock
-with provisioning, use append-only replay receipts, export bounded proof, and
-emit a durable final-release event so an interrupted provisioning attempt can
-resume. Destructive Data Rights execution remains deferred until its
-owner-local authority and required companion records are specified.
+hierarchy with provisioning, use append-only replay receipts, export bounded
+proof, and emit a durable final-release event so an interrupted provisioning
+attempt can resume. Destructive Data Rights execution remains deferred until
+its owner-local authority and required companion records are specified.
 
 The engineering defaults live under
 `Workspaces:StaffOnboardingRetention`: a two-hour source-expiry grace period,

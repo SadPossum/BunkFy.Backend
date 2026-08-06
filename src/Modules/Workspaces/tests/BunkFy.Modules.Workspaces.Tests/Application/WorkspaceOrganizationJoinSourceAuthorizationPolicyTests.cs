@@ -412,6 +412,11 @@ public sealed class WorkspaceOrganizationJoinSourceAuthorizationPolicyTests
 
         public int GetByClaimCallCount { get; private set; }
 
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<WorkspaceStaffOnboarding?> GetByClaimAsync(
             Guid claimId,
             CancellationToken cancellationToken)

@@ -149,6 +149,7 @@ public sealed class WorkspaceStaffAccessPlanPolicyTests
         StubPlans plans = new();
         PrepareWorkspaceStaffAccessPlanCommandHandler handler = new(
             plans,
+            WorkspaceStaffOnboardingMutationTestSupport.CreateForSourceOnly(),
             CreatePolicy(
                 profile,
                 new StubRoles(owner: true),
@@ -180,6 +181,7 @@ public sealed class WorkspaceStaffAccessPlanPolicyTests
         StubPlans plans = new(plan);
         ActivateWorkspaceStaffAccessPlanCommandHandler handler = new(
             plans,
+            WorkspaceStaffOnboardingMutationTestSupport.CreateForSourceOnly(),
             WorkspaceOperationalAdmissionTestSupport.Restricted(WorkspaceId),
             new TestClock());
 
@@ -202,6 +204,7 @@ public sealed class WorkspaceStaffAccessPlanPolicyTests
         StubPlans plans = new(plan);
         ActivateWorkspaceStaffAccessPlanCommandHandler handler = new(
             plans,
+            WorkspaceStaffOnboardingMutationTestSupport.CreateForSourceOnly(),
             WorkspaceOperationalAdmissionTestSupport.Restricted(WorkspaceId),
             new TestClock());
 

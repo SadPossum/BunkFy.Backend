@@ -190,8 +190,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.Equal(1, staff.CallCount);
         Assert.Collection(
             access.AssignmentCalls,
-            call => AssertProvisionerAssignment(call),
-            call => AssertProvisionerAssignment(call),
+            AssertProvisionerAssignment,
+            AssertProvisionerAssignment,
             call =>
             {
                 Assert.Equal(AccessSubject.User(WorkspaceStaffOnboardingTests.SubjectId), call.Subject);
@@ -440,6 +440,20 @@ public sealed class WorkspaceStaffOnboardingFlowTests
 
         public IReadOnlyList<WorkspaceStaffOnboarding> Applications => this.applications;
 
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken)
+        {
+            WorkspaceStaffOnboarding? application = this.applications
+                .SingleOrDefault(item => item.Id == applicationId);
+            return Task.FromResult(application is null
+                ? null
+                : new WorkspaceStaffOnboardingCoordinate(
+                    application.Id,
+                    application.SourceKind,
+                    application.SourceId));
+        }
+
         public Task<WorkspaceStaffOnboarding?> GetAsync(Guid applicationId, CancellationToken cancellationToken) =>
             Task.FromResult(this.applications.SingleOrDefault(item => item.Id == applicationId));
 
@@ -465,10 +479,14 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             WorkspaceStaffOnboardingSource sourceKind,
             Guid sourceId,
             string subjectId,
-            CancellationToken cancellationToken) => Task.FromResult(this.applications.SingleOrDefault(item =>
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(this.applications.SingleOrDefault(item =>
                 item.SourceKind == sourceKind &&
                 item.SourceId == sourceId &&
                 string.Equals(item.SubjectId, subjectId, StringComparison.Ordinal)));
+        }
 
         public async Task<Guid?> FindIdBySourceAndSubjectAsync(
             WorkspaceStaffOnboardingSource sourceKind,
@@ -574,6 +592,19 @@ public sealed class WorkspaceStaffOnboardingFlowTests
     private sealed class FakeOperationLock
         : IWorkspaceStaffOnboardingOperationLock
     {
+        public Task AcquireSourceReadAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireSourceWriteAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireApplicantAsync(
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
             CancellationToken cancellationToken) =>

@@ -11,6 +11,18 @@ using Microsoft.EntityFrameworkCore;
 internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbContext)
     : IWorkspaceStaffOnboardingRepository
 {
+    public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+        Guid applicationId,
+        CancellationToken cancellationToken) =>
+        dbContext.StaffOnboardingApplications
+            .AsNoTracking()
+            .Where(application => application.Id == applicationId)
+            .Select(application => new WorkspaceStaffOnboardingCoordinate(
+                application.Id,
+                application.SourceKind,
+                application.SourceId))
+            .SingleOrDefaultAsync(cancellationToken);
+
     public Task<WorkspaceStaffOnboarding?> GetAsync(
         Guid applicationId,
         CancellationToken cancellationToken) =>
@@ -76,21 +88,6 @@ internal sealed class WorkspaceStaffOnboardingRepository(WorkspacesDbContext dbC
                 !projection.IsRestricted
             select application
         ).SingleOrDefaultAsync(cancellationToken);
-    }
-
-    public Task<WorkspaceStaffOnboarding?>
-        GetBySourceAndSubjectForLifecycleAsync(
-        WorkspaceStaffOnboardingSource sourceKind,
-        Guid sourceId,
-        string subjectId,
-        CancellationToken cancellationToken)
-    {
-        string normalizedSubject = subjectId.Trim();
-        return dbContext.StaffOnboardingApplications.SingleOrDefaultAsync(
-            application => application.SourceKind == sourceKind &&
-                application.SourceId == sourceId &&
-                application.SubjectId == normalizedSubject,
-            cancellationToken);
     }
 
     public Task<Guid?> FindIdBySourceAndSubjectAsync(

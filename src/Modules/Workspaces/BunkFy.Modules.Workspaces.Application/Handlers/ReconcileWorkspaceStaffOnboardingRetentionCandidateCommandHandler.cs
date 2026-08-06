@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     IOrganizationEnrollmentClaimInspector claims,
     WorkspaceStaffOnboardingProcessor processor,
     IOptions<WorkspaceStaffOnboardingRetentionOptions> options,
@@ -24,9 +25,13 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
         ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand command,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffOnboarding? application = await applications.GetAsync(
-            command.ApplicationId,
-            cancellationToken).ConfigureAwait(false);
+        WorkspaceStaffOnboardingMutationLease lease =
+            await mutations.AcquireExistingAsync(
+                command.ApplicationId,
+                WorkspaceStaffOnboardingSourceLockMode.Write,
+                requireOperational: false,
+                cancellationToken).ConfigureAwait(false);
+        WorkspaceStaffOnboarding? application = lease.Application;
         if (application is null ||
             application.Version != command.ExpectedVersion ||
             application.SourceKind != WorkspaceStaffOnboardingSource.EnrollmentLink ||
@@ -198,7 +203,7 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
             return Failure(observed);
         }
 
-        Result processed = await processor.ProcessAsync(application, cancellationToken)
+        Result processed = await processor.ProcessAcquiredAsync(application, cancellationToken)
             .ConfigureAwait(false);
         await this.FinalizePlanAsync(application.SourceId, nowUtc, cancellationToken)
             .ConfigureAwait(false);
@@ -215,7 +220,7 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken) =>
         OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
-            .ExpirePlanWhenUnusedAsync(
+            .ExpirePlanWhenUnusedUnderSourceLockAsync(
                 applications,
                 plans,
                 enrollmentLinkId,

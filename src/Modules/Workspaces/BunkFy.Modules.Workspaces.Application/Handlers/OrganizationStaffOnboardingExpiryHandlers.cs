@@ -12,6 +12,7 @@ using Gma.Modules.Organizations.Contracts;
 internal sealed class OrganizationInvitationExpiredStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     ISystemClock clock)
     : IIntegrationEventHandler<OrganizationInvitationExpiredIntegrationEvent>
 {
@@ -20,6 +21,10 @@ internal sealed class OrganizationInvitationExpiredStaffOnboardingHandler(
         CancellationToken cancellationToken)
     {
         DateTimeOffset nowUtc = clock.UtcNow;
+        await mutations.AcquireSourceAsync(
+                integrationEvent.InvitationId,
+                WorkspaceStaffOnboardingSourceLockMode.Write,
+                cancellationToken).ConfigureAwait(false);
         IReadOnlyList<WorkspaceStaffOnboarding> active = await applications.ListActiveBySourceAsync(
             WorkspaceStaffOnboardingSource.Invitation,
             integrationEvent.InvitationId,
@@ -53,6 +58,7 @@ internal sealed class OrganizationInvitationExpiredStaffOnboardingHandler(
 internal sealed class OrganizationEnrollmentClaimExpiredStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     ISystemClock clock)
     : IIntegrationEventHandler<OrganizationEnrollmentClaimExpiredIntegrationEvent>
 {
@@ -60,6 +66,10 @@ internal sealed class OrganizationEnrollmentClaimExpiredStaffOnboardingHandler(
         OrganizationEnrollmentClaimExpiredIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
+        await mutations.AcquireSourceAsync(
+                integrationEvent.EnrollmentLinkId,
+                WorkspaceStaffOnboardingSourceLockMode.Write,
+                cancellationToken).ConfigureAwait(false);
         WorkspaceStaffOnboarding? application = await applications.GetByClaimAsync(
             integrationEvent.ClaimId,
             cancellationToken).ConfigureAwait(false);
@@ -67,6 +77,14 @@ internal sealed class OrganizationEnrollmentClaimExpiredStaffOnboardingHandler(
         {
             throw new InvalidOperationException(
                 "An expired organization enrollment claim had no BunkFy Staff onboarding application.");
+        }
+
+        if (!await mutations.AcquireTrackedUnderSourceAsync(
+                application,
+                cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(
+                "An expired organization enrollment claim lost its BunkFy Staff onboarding application.");
         }
 
         if (application.SourceKind != WorkspaceStaffOnboardingSource.EnrollmentLink ||
@@ -83,7 +101,7 @@ internal sealed class OrganizationEnrollmentClaimExpiredStaffOnboardingHandler(
             nowUtc);
         EnsureObserved(expired, "claim expiry");
 
-        await ExpirePlanWhenUnusedAsync(
+        await ExpirePlanWhenUnusedUnderSourceLockAsync(
             applications,
             plans,
             application.SourceId,
@@ -100,7 +118,7 @@ internal sealed class OrganizationEnrollmentClaimExpiredStaffOnboardingHandler(
         }
     }
 
-    internal static async Task ExpirePlanWhenUnusedAsync(
+    internal static async Task ExpirePlanWhenUnusedUnderSourceLockAsync(
         IWorkspaceStaffOnboardingRepository applications,
         IWorkspaceStaffAccessPlanRepository plans,
         Guid enrollmentLinkId,
@@ -132,6 +150,7 @@ internal sealed class OrganizationEnrollmentClaimExpiredStaffOnboardingHandler(
 internal sealed class OrganizationEnrollmentLinkExpiredStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     ISystemClock clock)
     : IIntegrationEventHandler<OrganizationEnrollmentLinkExpiredIntegrationEvent>
 {
@@ -140,6 +159,10 @@ internal sealed class OrganizationEnrollmentLinkExpiredStaffOnboardingHandler(
         CancellationToken cancellationToken)
     {
         DateTimeOffset nowUtc = clock.UtcNow;
+        await mutations.AcquireSourceAsync(
+                integrationEvent.EnrollmentLinkId,
+                WorkspaceStaffOnboardingSourceLockMode.Write,
+                cancellationToken).ConfigureAwait(false);
         WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
             integrationEvent.EnrollmentLinkId,
             cancellationToken).ConfigureAwait(false);
@@ -148,7 +171,8 @@ internal sealed class OrganizationEnrollmentLinkExpiredStaffOnboardingHandler(
                 Result.Success(),
             "enrollment access-plan source expiry");
 
-        await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler.ExpirePlanWhenUnusedAsync(
+        await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
+            .ExpirePlanWhenUnusedUnderSourceLockAsync(
             applications,
             plans,
             integrationEvent.EnrollmentLinkId,

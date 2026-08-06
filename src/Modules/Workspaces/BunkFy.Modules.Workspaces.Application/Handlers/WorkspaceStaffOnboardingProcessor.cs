@@ -12,10 +12,9 @@ using Microsoft.Extensions.Logging;
 internal sealed class WorkspaceStaffOnboardingProcessor(
     IStaffOnboardingProvisioner staff,
     IStaffPropertyAssignmentProvisioner staffProperties,
-    IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository
         restrictionProjections,
-    IWorkspaceStaffOnboardingOperationLock operationLock,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffAccessPlanPolicy planPolicy,
     WorkspaceAccessProvisioner access,
@@ -26,7 +25,20 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
     public Task<Result> ProcessAsync(
         WorkspaceStaffOnboarding application,
         CancellationToken cancellationToken) =>
-        this.ProcessAsync(application, prepare: null, cancellationToken);
+        this.ProcessAsync(
+            application,
+            prepare: null,
+            WorkspaceStaffOnboardingSourceLockMode.Read,
+            cancellationToken);
+
+    public Task<Result> ProcessForSourceFinalizationAsync(
+        WorkspaceStaffOnboarding application,
+        CancellationToken cancellationToken) =>
+        this.ProcessAsync(
+            application,
+            prepare: null,
+            WorkspaceStaffOnboardingSourceLockMode.Write,
+            cancellationToken);
 
     public Task<Result> ProcessInvitationAcceptanceAsync(
         WorkspaceStaffOnboarding application,
@@ -34,6 +46,7 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
         this.ProcessAsync(
             application,
             candidate => candidate.ObserveInvitationAccepted(clock.UtcNow),
+            WorkspaceStaffOnboardingSourceLockMode.Read,
             cancellationToken);
 
     public Task<Result> ProcessEnrollmentClaimAcceptanceAsync(
@@ -47,21 +60,45 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
                 claimId,
                 claimVersion,
                 clock.UtcNow),
+            WorkspaceStaffOnboardingSourceLockMode.Write,
             cancellationToken);
+
+    public Task<Result> ProcessAcquiredInvitationAcceptanceAsync(
+        WorkspaceStaffOnboarding application,
+        CancellationToken cancellationToken) =>
+        this.ProcessAcquiredAsync(
+            application,
+            candidate => candidate.ObserveInvitationAccepted(clock.UtcNow),
+            cancellationToken);
+
+    public Task<Result> ProcessAcquiredEnrollmentClaimAcceptanceAsync(
+        WorkspaceStaffOnboarding application,
+        Guid claimId,
+        long claimVersion,
+        CancellationToken cancellationToken) =>
+        this.ProcessAcquiredAsync(
+            application,
+            candidate => candidate.ObserveClaimAccepted(
+                claimId,
+                claimVersion,
+                clock.UtcNow),
+            cancellationToken);
+
+    public Task<Result> ProcessAcquiredAsync(
+        WorkspaceStaffOnboarding application,
+        CancellationToken cancellationToken) =>
+        this.ProcessAcquiredAsync(application, prepare: null, cancellationToken);
 
     private async Task<Result> ProcessAsync(
         WorkspaceStaffOnboarding application,
         Func<WorkspaceStaffOnboarding, Result>? prepare,
+        WorkspaceStaffOnboardingSourceLockMode sourceLockMode,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(application);
-        if (application.Status == WorkspaceStaffOnboardingState.Completed)
-        {
-            return Result.Success();
-        }
-
-        if (!await operationLock.TryAcquireAsync(
-                application.Id,
+        if (!await mutations.AcquireTrackedAsync(
+                application,
+                sourceLockMode,
                 cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure(
@@ -69,9 +106,18 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
                     .ApplicationNotFound);
         }
 
-        await applications.ReloadAsync(
-            application,
-            cancellationToken).ConfigureAwait(false);
+        return await this.ProcessAcquiredAsync(
+                application,
+                prepare,
+                cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<Result> ProcessAcquiredAsync(
+        WorkspaceStaffOnboarding application,
+        Func<WorkspaceStaffOnboarding, Result>? prepare,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(application);
         if (prepare is not null)
         {
             Result prepared = prepare(application);

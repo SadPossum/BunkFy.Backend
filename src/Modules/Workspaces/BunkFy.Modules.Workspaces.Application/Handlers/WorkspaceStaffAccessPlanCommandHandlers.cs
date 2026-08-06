@@ -13,6 +13,7 @@ using Gma.Modules.AccessControl.Contracts;
 
 internal sealed class PrepareWorkspaceStaffAccessPlanCommandHandler(
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     WorkspaceStaffAccessPlanPolicy policy,
     WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext,
@@ -30,6 +31,10 @@ internal sealed class PrepareWorkspaceStaffAccessPlanCommandHandler(
         }
 
         WorkspaceStaffOnboardingSource sourceKind = command.SourceKind.ToDomain();
+        await mutations.AcquireSourceAsync(
+                command.SourceId,
+                WorkspaceStaffOnboardingSourceLockMode.Write,
+                cancellationToken).ConfigureAwait(false);
         Result<AccessProfileDto> profile = await policy.ValidateAsync(
                 scopeContext.ScopeId,
                 sourceKind,
@@ -89,6 +94,7 @@ internal sealed class PrepareWorkspaceStaffAccessPlanCommandHandler(
 
 internal sealed class ActivateWorkspaceStaffAccessPlanCommandHandler(
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     ISystemClock clock)
     : ICommandHandler<ActivateWorkspaceStaffAccessPlanCommand, WorkspaceStaffAccessPlanDto>
@@ -97,6 +103,10 @@ internal sealed class ActivateWorkspaceStaffAccessPlanCommandHandler(
         ActivateWorkspaceStaffAccessPlanCommand command,
         CancellationToken cancellationToken)
     {
+        await mutations.AcquireSourceAsync(
+                command.SourceId,
+                WorkspaceStaffOnboardingSourceLockMode.Write,
+                cancellationToken).ConfigureAwait(false);
         WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
             command.SourceId,
             cancellationToken).ConfigureAwait(false);

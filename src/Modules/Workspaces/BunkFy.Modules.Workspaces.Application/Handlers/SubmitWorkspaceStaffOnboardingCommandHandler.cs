@@ -18,7 +18,7 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository
         restrictionProjections,
-    IWorkspaceStaffOnboardingOperationLock operationLock,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffJoinTokenAuthorityResolver authorityResolver,
     IAuthMemberContactReader contacts,
@@ -62,6 +62,20 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
         }
 
         WorkspaceStaffOnboardingSource sourceKind = command.SourceKind.ToDomain();
+        if (!Guid.TryParse(command.SubjectId, out Guid memberId))
+        {
+            return Result.Failure<WorkspaceStaffOnboardingDto>(
+                WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired);
+        }
+
+        WorkspaceStaffOnboardingMutationLease lease =
+            await mutations.AcquireApplicantAsync(
+                sourceKind,
+                authority.Value.SourceId,
+                command.SubjectId,
+                WorkspaceStaffOnboardingSourceLockMode.Read,
+                requireOperational: true,
+                cancellationToken).ConfigureAwait(false);
         WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
             authority.Value.SourceId,
             cancellationToken).ConfigureAwait(false);
@@ -72,39 +86,12 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
                 WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
         }
 
-        if (!Guid.TryParse(command.SubjectId, out Guid memberId))
+        WorkspaceStaffOnboarding? application = lease.Application;
+        if (lease.CoordinateExists && application is null)
         {
             return Result.Failure<WorkspaceStaffOnboardingDto>(
-                WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired);
-        }
-
-        Guid? existingApplicationId =
-            await applications.FindIdBySourceAndSubjectAsync(
-            sourceKind,
-            authority.Value.SourceId,
-            command.SubjectId,
-            cancellationToken).ConfigureAwait(false);
-        WorkspaceStaffOnboarding? application = null;
-        if (existingApplicationId.HasValue)
-        {
-            if (!await operationLock.TryAcquireAsync(
-                    existingApplicationId.Value,
-                    cancellationToken).ConfigureAwait(false))
-            {
-                return Result.Failure<WorkspaceStaffOnboardingDto>(
-                    WorkspaceStaffOnboardingApplicationErrors
-                        .ApplicationNotFound);
-            }
-
-            application = await applications.GetOperationalAsync(
-                existingApplicationId.Value,
-                cancellationToken).ConfigureAwait(false);
-            if (application is null)
-            {
-                return Result.Failure<WorkspaceStaffOnboardingDto>(
-                    WorkspaceStaffOnboardingApplicationErrors
-                        .ProcessingRestricted);
-            }
+                WorkspaceStaffOnboardingApplicationErrors
+                    .ProcessingRestricted);
         }
 
         string? verifiedEmail = await contacts.GetPreferredVerifiedEmailAsync(

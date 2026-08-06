@@ -24,6 +24,7 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         OrganizationInvitationExpiredStaffOnboardingHandler handler = new(
             applications,
             new FakeAccessPlanRepository(plan),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
 
         await handler.HandleAsync(
@@ -58,6 +59,7 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         OrganizationEnrollmentLinkExpiredStaffOnboardingHandler linkHandler = new(
             applications,
             plans,
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
         await linkHandler.HandleAsync(
             new OrganizationEnrollmentLinkExpiredIntegrationEvent(
@@ -73,6 +75,7 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         OrganizationEnrollmentClaimExpiredStaffOnboardingHandler handler = new(
             applications,
             plans,
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
         OrganizationEnrollmentClaimExpiredIntegrationEvent integrationEvent = new(
             Guid.NewGuid(),
@@ -107,9 +110,11 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         WorkspaceStaffAccessPlan plan = CreateActivePlan(
             WorkspaceStaffOnboardingSource.EnrollmentLink,
             application.SourceId);
+        FakeOnboardingRepository applications = new(application);
         OrganizationEnrollmentClaimExpiredStaffOnboardingHandler handler = new(
-            new FakeOnboardingRepository(application),
+            applications,
             new FakeAccessPlanRepository(plan),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
 
         await handler.HandleAsync(
@@ -132,9 +137,11 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
     [Fact]
     public async Task Claim_expiry_without_its_application_is_retried_by_the_inbox()
     {
+        FakeOnboardingRepository applications = new();
         OrganizationEnrollmentClaimExpiredStaffOnboardingHandler handler = new(
-            new FakeOnboardingRepository(),
+            applications,
             new FakeAccessPlanRepository(),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
@@ -158,9 +165,11 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         WorkspaceStaffAccessPlan plan = CreateActivePlan(
             WorkspaceStaffOnboardingSource.EnrollmentLink,
             application.SourceId);
+        FakeOnboardingRepository applications = new(application);
         OrganizationEnrollmentLinkExpiredStaffOnboardingHandler handler = new(
-            new FakeOnboardingRepository(application),
+            applications,
             new FakeAccessPlanRepository(plan),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
 
         await handler.HandleAsync(
@@ -186,9 +195,11 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         WorkspaceStaffAccessPlan plan = CreateActivePlan(
             WorkspaceStaffOnboardingSource.EnrollmentLink,
             application.SourceId);
+        FakeOnboardingRepository applications = new(application);
         OrganizationEnrollmentLinkExpiredStaffOnboardingHandler handler = new(
-            new FakeOnboardingRepository(application),
+            applications,
             new FakeAccessPlanRepository(plan),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
 
         await handler.HandleAsync(
@@ -218,9 +229,11 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
         WorkspaceStaffAccessPlan plan = CreateActivePlan(
             WorkspaceStaffOnboardingSource.EnrollmentLink,
             sourceId);
+        FakeOnboardingRepository applications = new();
         OrganizationEnrollmentLinkExpiredStaffOnboardingHandler handler = new(
-            new FakeOnboardingRepository(),
+            applications,
             new FakeAccessPlanRepository(plan),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
             new FakeClock());
 
         await handler.HandleAsync(
@@ -264,6 +277,20 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
     {
         private readonly List<WorkspaceStaffOnboarding> applications = [.. seed];
 
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken)
+        {
+            WorkspaceStaffOnboarding? application = this.applications
+                .SingleOrDefault(item => item.Id == applicationId);
+            return Task.FromResult(application is null
+                ? null
+                : new WorkspaceStaffOnboardingCoordinate(
+                    application.Id,
+                    application.SourceKind,
+                    application.SourceId));
+        }
+
         public Task<WorkspaceStaffOnboarding?> GetAsync(
             Guid applicationId,
             CancellationToken cancellationToken) =>
@@ -291,11 +318,14 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
             WorkspaceStaffOnboardingSource sourceKind,
             Guid sourceId,
             string subjectId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(this.applications.SingleOrDefault(item =>
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(this.applications.SingleOrDefault(item =>
                 item.SourceKind == sourceKind &&
                 item.SourceId == sourceId &&
                 string.Equals(item.SubjectId, subjectId, StringComparison.Ordinal)));
+        }
 
         public async Task<Guid?> FindIdBySourceAndSubjectAsync(
             WorkspaceStaffOnboardingSource sourceKind,

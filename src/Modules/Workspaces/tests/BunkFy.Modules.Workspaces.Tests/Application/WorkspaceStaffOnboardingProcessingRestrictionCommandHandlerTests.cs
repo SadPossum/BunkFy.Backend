@@ -34,10 +34,11 @@ public sealed class
         RecordingApprovalGate approval = new();
         ApplyWorkspaceStaffOnboardingProcessingRestrictionCommandHandler
             handler = new(
-                new ApplicationRepository(application),
                 new ProjectionRepository(projection),
                 restrictions,
-                new OperationLock(),
+                WorkspaceStaffOnboardingMutationTestSupport.Create(
+                    new ApplicationRepository(application),
+                    new OperationLock()),
                 approval,
                 new ScopeContext(),
                 new Clock(),
@@ -182,10 +183,11 @@ public sealed class
         RecordingApprovalGate approval = new();
         ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommandHandler
             handler = new(
-                new ApplicationRepository(application),
                 new ProjectionRepository(projection),
                 restrictions,
-                new OperationLock(),
+                WorkspaceStaffOnboardingMutationTestSupport.Create(
+                    new ApplicationRepository(application),
+                    new OperationLock()),
                 approval,
                 new ScopeContext(),
                 new Clock(),
@@ -228,10 +230,11 @@ public sealed class
         RecordingRestrictionRepository restrictions = new();
         ApplyWorkspaceStaffOnboardingProcessingRestrictionCommandHandler
             handler = new(
-                new ApplicationRepository(application),
                 new ProjectionRepository(projection),
                 restrictions,
-                new OperationLock(),
+                WorkspaceStaffOnboardingMutationTestSupport.Create(
+                    new ApplicationRepository(application),
+                    new OperationLock()),
                 new RecordingApprovalGate(isApproved: false),
                 new ScopeContext(),
                 new Clock(),
@@ -266,10 +269,11 @@ public sealed class
                 projection,
             RecordingRestrictionRepository restrictions) =>
         new(
-            new ApplicationRepository(application),
             new ProjectionRepository(projection),
             restrictions,
-            new OperationLock(),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(
+                new ApplicationRepository(application),
+                new OperationLock()),
             new RecordingApprovalGate(),
             new ScopeContext(),
             new Clock(),
@@ -320,6 +324,16 @@ public sealed class
         WorkspaceStaffOnboarding application)
         : IWorkspaceStaffOnboardingRepository
     {
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(application.Id == applicationId
+                ? new WorkspaceStaffOnboardingCoordinate(
+                    application.Id,
+                    application.SourceKind,
+                    application.SourceId)
+                : null);
+
         public Task<WorkspaceStaffOnboarding?> GetAsync(
             Guid applicationId,
             CancellationToken cancellationToken) =>
@@ -511,6 +525,19 @@ public sealed class
     private sealed class OperationLock
         : IWorkspaceStaffOnboardingOperationLock
     {
+        public Task AcquireSourceReadAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireSourceWriteAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireApplicantAsync(
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
             CancellationToken cancellationToken) =>

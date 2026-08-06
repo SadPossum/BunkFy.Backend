@@ -29,12 +29,14 @@ internal sealed class RetryWorkspaceStaffOnboardingCommandHandler(
                 WorkspaceStaffOnboardingApplicationErrors.ApplicationNotFound);
         }
 
-        Result processed = await processor.ProcessAsync(application, cancellationToken).ConfigureAwait(false);
+        Result processed = await processor.ProcessForSourceFinalizationAsync(
+            application,
+            cancellationToken).ConfigureAwait(false);
         if (processed.IsSuccess &&
             application.SourceKind == WorkspaceStaffOnboardingSource.EnrollmentLink)
         {
             await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
-                .ExpirePlanWhenUnusedAsync(
+                .ExpirePlanWhenUnusedUnderSourceLockAsync(
                     applications,
                     plans,
                     application.SourceId,

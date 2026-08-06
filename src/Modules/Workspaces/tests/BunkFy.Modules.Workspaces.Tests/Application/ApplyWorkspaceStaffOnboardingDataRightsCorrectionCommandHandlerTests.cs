@@ -274,17 +274,21 @@ public sealed class
             WorkspaceStaffOnboarding application,
             InMemoryReceiptRepository receipts,
             RecordingCorrectionLock correctionLock,
-            RecordingExecutionGate gate) =>
-        new(
-            new InMemoryApplicationRepository(application),
+            RecordingExecutionGate gate)
+    {
+        InMemoryApplicationRepository applications = new(application);
+        return new(
             receipts,
-            correctionLock,
+            WorkspaceStaffOnboardingMutationTestSupport.Create(
+                applications,
+                correctionLock),
             new WorkspaceStaffOnboardingDataRightsCorrectionAuthorizer(
                 gate,
                 new TestScopeContext()),
             new TestScopeContext(),
             new TestClock(),
             new SequenceIdGenerator());
+    }
 
     private static ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand
         Command(WorkspaceStaffOnboarding application) =>
@@ -388,6 +392,19 @@ public sealed class
     {
         public int AcquisitionCount { get; private set; }
 
+        public Task AcquireSourceReadAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireSourceWriteAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireApplicantAsync(
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
             CancellationToken cancellationToken)
@@ -401,6 +418,16 @@ public sealed class
         WorkspaceStaffOnboarding application)
         : IWorkspaceStaffOnboardingRepository
     {
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(application.Id == applicationId
+                ? new WorkspaceStaffOnboardingCoordinate(
+                    application.Id,
+                    application.SourceKind,
+                    application.SourceId)
+                : null);
+
         public Task<WorkspaceStaffOnboarding?> GetAsync(
             Guid applicationId,
             CancellationToken cancellationToken) =>

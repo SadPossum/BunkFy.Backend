@@ -16,11 +16,10 @@ using Gma.Framework.Scoping;
 
 internal sealed class
     ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommandHandler(
-        IWorkspaceStaffOnboardingRepository applications,
         IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository
             projections,
         IWorkspaceStaffOnboardingProcessingRestrictionRepository restrictions,
-        IWorkspaceStaffOnboardingOperationLock operationLock,
+        WorkspaceStaffOnboardingMutationCoordinator mutations,
         IDataRightsOperationApprovalGate approvalGate,
         IScopeContext scopeContext,
         ISystemClock clock,
@@ -92,14 +91,12 @@ internal sealed class
                     .RestrictionApprovalRequired);
         }
 
-        if (!await operationLock.TryAcquireAsync(
+        WorkspaceStaffOnboardingMutationLease lease =
+            await mutations.AcquireExistingAsync(
                 command.ApplicationId,
-                cancellationToken).ConfigureAwait(false))
-        {
-            return Failure(
-                WorkspaceStaffOnboardingApplicationErrors
-                    .ApplicationNotFound);
-        }
+                WorkspaceStaffOnboardingSourceLockMode.Read,
+                requireOperational: false,
+                cancellationToken).ConfigureAwait(false);
 
         existing = await restrictions.FindReceiptByIdempotencyKeyAsync(
             command.IdempotencyKey,
@@ -109,9 +106,7 @@ internal sealed class
             return Replay(existing, command, actorId);
         }
 
-        WorkspaceStaffOnboarding? application = await applications.GetAsync(
-            command.ApplicationId,
-            cancellationToken).ConfigureAwait(false);
+        WorkspaceStaffOnboarding? application = lease.Application;
         if (application is null)
         {
             return Failure(

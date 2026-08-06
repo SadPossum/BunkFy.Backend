@@ -1,6 +1,5 @@
 namespace BunkFy.Modules.Workspaces.Tests.Application;
 
-using BunkFy.Modules.Workspaces.Tests;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Commands;
@@ -9,6 +8,7 @@ using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
+using BunkFy.Modules.Workspaces.Tests;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -68,7 +68,7 @@ public sealed class
                 : WorkspaceStaffOnboardingApplicationErrors
                     .RestrictionProjectionUnavailable,
             result.Error);
-        Assert.Equal(["lock", "reload", "projection"], calls);
+        Assert.Equal(["source", "lock", "reload", "projection"], calls);
         Assert.Equal(0, staff.CallCount);
         Assert.Equal(0, staffProperties.CallCount);
         Assert.Equal(0, plans.GetCount);
@@ -100,7 +100,7 @@ public sealed class
             WorkspaceStaffOnboardingApplicationErrors
                 .RestrictionProjectionUnavailable,
             result.Error);
-        Assert.Equal(["lock", "reload", "projection"], calls);
+        Assert.Equal(["source", "lock", "reload", "projection"], calls);
         Assert.Equal(
             WorkspaceStaffOnboardingState.Provisioning,
             application.Status);
@@ -138,7 +138,9 @@ public sealed class
             WorkspaceStaffOnboardingApplicationErrors
                 .RestrictionProjectionUnavailable,
             result.Error);
-        Assert.Equal(["lock", "reload", "projection"], calls);
+        Assert.Equal(
+            ["source-write", "lock", "reload", "projection"],
+            calls);
         Assert.Equal(
             WorkspaceStaffOnboardingState.Provisioning,
             application.Status);
@@ -170,7 +172,7 @@ public sealed class
         Assert.Equal(
             WorkspaceOperationalAdmissionErrors.ProcessingRestricted,
             result.Error);
-        Assert.Equal(["lock", "reload"], calls);
+        Assert.Equal(["source", "lock", "reload"], calls);
         Assert.Equal(0, staff.CallCount);
         Assert.Equal(0, staffProperties.CallCount);
         Assert.Equal(0, plans.GetCount);
@@ -241,7 +243,9 @@ public sealed class
             CancellationToken.None);
 
         Assert.Equal(1, applications.GetCount);
-        Assert.Equal(["get", "lock", "reload", "projection"], calls);
+        Assert.Equal(
+            ["get", "source", "lock", "reload", "projection"],
+            calls);
         Assert.Equal(1, operationLock.CallCount);
         Assert.Equal(0, staff.CallCount);
         Assert.Equal(
@@ -314,7 +318,9 @@ public sealed class
         SubmitWorkspaceStaffOnboardingCommandHandler handler = new(
             applications,
             projections,
-            operationLock,
+            WorkspaceStaffOnboardingMutationTestSupport.Create(
+                applications,
+                operationLock),
             new RecordingPlanRepository(plan),
             new WorkspaceStaffJoinTokenAuthorityResolver(
                 new EnrollmentTokenInspector(OrganizationId, sourceId)),
@@ -365,9 +371,10 @@ public sealed class
         new(
             staff,
             staffProperties,
-            applications,
             projections,
-            operationLock,
+            WorkspaceStaffOnboardingMutationTestSupport.Create(
+                applications,
+                operationLock),
             plans,
             new WorkspaceStaffAccessPlanPolicy(
                 profiles: null!,
@@ -483,13 +490,26 @@ public sealed class
     {
         public int GetCount { get; private set; }
 
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid applicationId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("coordinate");
+            return Task.FromResult(application.Id == applicationId
+                ? new WorkspaceStaffOnboardingCoordinate(
+                    application.Id,
+                    application.SourceKind,
+                    application.SourceId)
+                : null);
+        }
+
         public Task<WorkspaceStaffOnboarding?> GetAsync(
             Guid applicationId,
             CancellationToken cancellationToken)
         {
             this.GetCount++;
             calls.Add("get");
-            return Task.FromResult<WorkspaceStaffOnboarding?>(
+            return Task.FromResult(
                 application.Id == applicationId ? application : null);
         }
 
@@ -558,6 +578,11 @@ public sealed class
     {
         public int OperationalGetCount { get; private set; }
         public int AddCount { get; private set; }
+
+        public Task<WorkspaceStaffOnboardingCoordinate?> FindCoordinateAsync(
+            Guid id,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public Task<WorkspaceStaffOnboarding?> GetAsync(
             Guid id,
@@ -656,6 +681,31 @@ public sealed class
         : IWorkspaceStaffOnboardingOperationLock
     {
         public int CallCount { get; private set; }
+
+        public Task AcquireSourceReadAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("source");
+            return Task.CompletedTask;
+        }
+
+        public Task AcquireSourceWriteAsync(
+            Guid sourceId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("source-write");
+            return Task.CompletedTask;
+        }
+
+        public Task AcquireApplicantAsync(
+            Guid sourceId,
+            string subjectId,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("applicant");
+            return Task.CompletedTask;
+        }
 
         public Task<bool> TryAcquireAsync(
             Guid applicationId,

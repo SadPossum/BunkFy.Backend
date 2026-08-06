@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 internal sealed class OrganizationInvitationStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     WorkspaceStaffOnboardingProcessor processor,
     ISystemClock clock,
     ILogger<OrganizationInvitationStaffOnboardingHandler> logger)
@@ -25,13 +26,19 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
         if (integrationEvent.Change == OrganizationInvitationChange.Accepted &&
             !string.IsNullOrWhiteSpace(integrationEvent.AcceptedSubjectId))
         {
-            WorkspaceStaffOnboarding? application = await applications
-                .GetBySourceAndSubjectForLifecycleAsync(
-                WorkspaceStaffOnboardingSource.Invitation,
-                integrationEvent.InvitationId,
-                integrationEvent.AcceptedSubjectId,
-                cancellationToken).ConfigureAwait(false);
-            await ProcessWhenPresentAsync(application, processor, logger, cancellationToken)
+            WorkspaceStaffOnboardingMutationLease lease =
+                await mutations.AcquireApplicantAsync(
+                    WorkspaceStaffOnboardingSource.Invitation,
+                    integrationEvent.InvitationId,
+                    integrationEvent.AcceptedSubjectId,
+                    WorkspaceStaffOnboardingSourceLockMode.Read,
+                    requireOperational: false,
+                    cancellationToken).ConfigureAwait(false);
+            await ProcessWhenPresentAsync(
+                    lease.Application,
+                    processor,
+                    logger,
+                    cancellationToken)
                 .ConfigureAwait(false);
             return;
         }
@@ -39,6 +46,10 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
         if (integrationEvent.Status is OrganizationInvitationStatus.Revoked or
             OrganizationInvitationStatus.Superseded)
         {
+            await mutations.AcquireSourceAsync(
+                    integrationEvent.InvitationId,
+                    WorkspaceStaffOnboardingSourceLockMode.Write,
+                    cancellationToken).ConfigureAwait(false);
             WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
                 integrationEvent.InvitationId,
                 cancellationToken).ConfigureAwait(false);
@@ -67,7 +78,9 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
         }
 
         Result result = await processor
-            .ProcessInvitationAcceptanceAsync(application, cancellationToken)
+            .ProcessAcquiredInvitationAcceptanceAsync(
+                application,
+                cancellationToken)
             .ConfigureAwait(false);
         if (result.IsFailure)
         {
@@ -82,6 +95,7 @@ internal sealed class OrganizationInvitationStaffOnboardingHandler(
 internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     WorkspaceStaffOnboardingProcessor processor,
     ISystemClock clock,
     ILogger<OrganizationEnrollmentClaimStaffOnboardingHandler> logger)
@@ -91,12 +105,19 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
         OrganizationEnrollmentClaimChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffOnboarding? application = await applications
-            .GetBySourceAndSubjectForLifecycleAsync(
-            WorkspaceStaffOnboardingSource.EnrollmentLink,
-            integrationEvent.EnrollmentLinkId,
-            integrationEvent.SubjectId,
-            cancellationToken).ConfigureAwait(false);
+        WorkspaceStaffOnboardingSourceLockMode sourceLockMode =
+            integrationEvent.Change == OrganizationEnrollmentClaimChange.Requested
+                ? WorkspaceStaffOnboardingSourceLockMode.Read
+                : WorkspaceStaffOnboardingSourceLockMode.Write;
+        WorkspaceStaffOnboardingMutationLease lease =
+            await mutations.AcquireApplicantAsync(
+                WorkspaceStaffOnboardingSource.EnrollmentLink,
+                integrationEvent.EnrollmentLinkId,
+                integrationEvent.SubjectId,
+                sourceLockMode,
+                requireOperational: false,
+                cancellationToken).ConfigureAwait(false);
+        WorkspaceStaffOnboarding? application = lease.Application;
         if (application is null)
         {
             logger.LogWarning("An organization enrollment claim had no BunkFy Staff onboarding application.");
@@ -122,7 +143,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
                 nowUtc);
             EnsureObserved(rejected, "claim rejection");
             await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
-                .ExpirePlanWhenUnusedAsync(
+                .ExpirePlanWhenUnusedUnderSourceLockAsync(
                     applications,
                     plans,
                     application.SourceId,
@@ -135,7 +156,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
         if (integrationEvent.Change == OrganizationEnrollmentClaimChange.Accepted)
         {
             Result processed = await processor
-                .ProcessEnrollmentClaimAcceptanceAsync(
+                .ProcessAcquiredEnrollmentClaimAcceptanceAsync(
                     application,
                     integrationEvent.ClaimId,
                     integrationEvent.ClaimVersion,
@@ -149,7 +170,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
             }
 
             await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler
-                .ExpirePlanWhenUnusedAsync(
+                .ExpirePlanWhenUnusedUnderSourceLockAsync(
                     applications,
                     plans,
                     application.SourceId,
@@ -173,6 +194,7 @@ internal sealed class OrganizationEnrollmentClaimStaffOnboardingHandler(
 internal sealed class OrganizationEnrollmentLinkStaffOnboardingHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
     ISystemClock clock)
     : IIntegrationEventHandler<OrganizationEnrollmentLinkChangedIntegrationEvent>
 {
@@ -185,6 +207,11 @@ internal sealed class OrganizationEnrollmentLinkStaffOnboardingHandler(
         {
             return;
         }
+
+        await mutations.AcquireSourceAsync(
+                integrationEvent.EnrollmentLinkId,
+                WorkspaceStaffOnboardingSourceLockMode.Write,
+                cancellationToken).ConfigureAwait(false);
 
         IReadOnlyList<WorkspaceStaffOnboarding> active = await applications.ListActiveBySourceAsync(
             WorkspaceStaffOnboardingSource.EnrollmentLink,
