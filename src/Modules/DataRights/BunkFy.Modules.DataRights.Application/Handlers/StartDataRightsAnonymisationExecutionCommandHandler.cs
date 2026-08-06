@@ -17,7 +17,7 @@ using Gma.Framework.Runtime.Time;
 using SelectedSubject = BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 
 internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsExecutionBatchRepository batches,
     IDataRightsExecutionWorkItemRepository workItems,
     IDataRightsOperationApprovalGate approvalGate,
@@ -30,7 +30,7 @@ internal sealed class StartDataRightsAnonymisationExecutionCommandHandler(
         StartDataRightsAnonymisationExecutionCommand command,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);

@@ -12,7 +12,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class ReconcileTenantTerminationPhaseCommandHandler(
     ITenantTerminationRepository repository,
-    ITenantTerminationCaseRepository cases,
+    TenantTerminationMutationCoordinator mutations,
     TenantTerminationPhaseEvaluator evaluator,
     IEnumerable<ITenantTerminationContributor> contributors,
     ITenantTerminationCoordinationSignal coordinationSignal,
@@ -25,9 +25,11 @@ internal sealed class ReconcileTenantTerminationPhaseCommandHandler(
         ReconcileTenantTerminationPhaseCommand command,
         CancellationToken cancellationToken)
     {
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationMutationState? state =
+            await mutations.AcquireProcessAndCaseAsync(
             command.ProcessId,
             cancellationToken).ConfigureAwait(false);
+        TenantTerminationProcess? process = state?.Process;
         if (process is null)
         {
             return Result.Failure<TenantTerminationPhaseReconciliation>(
@@ -102,9 +104,7 @@ internal sealed class ReconcileTenantTerminationPhaseCommandHandler(
 
         if (process.Status == TenantTerminationProcessStatus.Cancelled)
         {
-            DataRightsCase? dataRightsCase = await cases.GetAsync(
-                process.CaseId,
-                cancellationToken).ConfigureAwait(false);
+            DataRightsCase? dataRightsCase = state!.Case;
             if (dataRightsCase is null)
             {
                 return Invalid();

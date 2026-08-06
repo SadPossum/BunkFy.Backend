@@ -12,7 +12,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class TenantTerminationStartCoordinator(
-    ITenantTerminationCaseRepository cases,
+    TenantTerminationMutationCoordinator mutations,
     ITenantTerminationRepository processes,
     ITenantTerminationReplayStore replayStore,
     ITenantTerminationProductionCatalog productionCatalog,
@@ -27,19 +27,23 @@ internal sealed class TenantTerminationStartCoordinator(
         this.ExecuteAsync(
             command,
             requireProtectedIntent: false,
+            requiredProcessPresence: null,
             cancellationToken);
 
     public Task<Result<TenantTerminationStartDto>> RecoverAsync(
         StartTenantTerminationCommand command,
+        bool requireExistingProcess,
         CancellationToken cancellationToken) =>
         this.ExecuteAsync(
             command,
             requireProtectedIntent: true,
+            requiredProcessPresence: requireExistingProcess,
             cancellationToken);
 
     private async Task<Result<TenantTerminationStartDto>> ExecuteAsync(
         StartTenantTerminationCommand command,
         bool requireProtectedIntent,
+        bool? requiredProcessPresence,
         CancellationToken cancellationToken)
     {
         if (!scopeContext.IsEnabled ||
@@ -57,9 +61,12 @@ internal sealed class TenantTerminationStartCoordinator(
                 normalizedEvidence.Error);
         }
 
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.CaseId,
-            cancellationToken).ConfigureAwait(false);
+        TenantTerminationMutationState? state =
+            await mutations.AcquireAdmissionAsync(
+                command.ProcessId,
+                command.CaseId,
+                cancellationToken).ConfigureAwait(false);
+        DataRightsCase? dataRightsCase = state?.Case;
         if (dataRightsCase is null)
         {
             return Result.Failure<TenantTerminationStartDto>(
@@ -98,13 +105,18 @@ internal sealed class TenantTerminationStartCoordinator(
                     .TenantTerminationReplayIntentInvalid);
         }
 
-        TenantTerminationProcess? existingProcess =
-            await processes.GetProcessAsync(
-                command.ProcessId,
-                cancellationToken).ConfigureAwait(false);
+        TenantTerminationProcess? existingProcess = state!.Process;
         string actor = command.ActorId?.Trim() ?? string.Empty;
         if (existingProcess is not null)
         {
+            if (requiredProcessPresence is false ||
+                existingProcess.CaseId != command.CaseId)
+            {
+                return Result.Failure<TenantTerminationStartDto>(
+                    DataRightsApplicationErrors
+                        .TenantTerminationStartConflict);
+            }
+
             return MatchesExistingExecution(
                     dataRightsCase,
                     existingProcess,
@@ -117,6 +129,13 @@ internal sealed class TenantTerminationStartCoordinator(
                     : Result.Failure<TenantTerminationStartDto>(
                         DataRightsApplicationErrors
                             .TenantTerminationStartConflict);
+        }
+
+        if (requiredProcessPresence is true)
+        {
+            return Result.Failure<TenantTerminationStartDto>(
+                DataRightsApplicationErrors
+                    .TenantTerminationStartConflict);
         }
 
         Result startable = ValidateStartableCase(

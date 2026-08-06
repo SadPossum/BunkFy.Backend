@@ -16,7 +16,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsExecutionMutationCoordinator mutations,
     IDataRightsExecutionWorkItemRepository workItems,
     IDataRightsProcessingLedgerRepository ledgers,
     IDataRightsRecordPseudonymizer pseudonymizer,
@@ -31,9 +31,11 @@ internal sealed class FinalizeDataRightsAnonymisationLedgerCommandHandler(
         FinalizeDataRightsAnonymisationLedgerCommand command,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase =
+            await mutations.AcquireLedgerWorkItemAsync(
             command.Scope,
             command.CaseId,
+            command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionWorkItem? workItem = await workItems.GetAsync(
             command.Scope,

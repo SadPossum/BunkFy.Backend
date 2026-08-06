@@ -13,7 +13,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class DecideTenantTerminationCommandHandler(
-    ITenantTerminationCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     ITenantTerminationProductionCatalog productionCatalog,
     ITenantTerminationRequiredOwnerCatalog requiredOwners,
     IScopeContext scopeContext,
@@ -32,7 +32,8 @@ internal sealed class DecideTenantTerminationCommandHandler(
                 DataRightsApplicationErrors.TenantRequired);
         }
 
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase =
+            await mutations.AcquireTenantTerminationCaseAsync(
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (dataRightsCase is null)

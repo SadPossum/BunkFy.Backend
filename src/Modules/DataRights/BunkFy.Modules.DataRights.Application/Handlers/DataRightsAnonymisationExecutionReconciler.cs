@@ -8,7 +8,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class DataRightsAnonymisationExecutionReconciler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsExecutionBatchRepository batches,
     IDataRightsExecutionWorkItemRepository workItems,
     ISystemClock clock)
@@ -24,7 +24,7 @@ internal sealed class DataRightsAnonymisationExecutionReconciler(
         long executionRevision,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             scope,
             caseId,
             cancellationToken).ConfigureAwait(false);

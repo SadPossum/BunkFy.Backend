@@ -15,7 +15,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsExecutionMutationCoordinator mutations,
     IDataRightsExecutionWorkItemRepository workItems,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
@@ -26,9 +26,10 @@ internal sealed class RecordDataRightsAnonymisationOwnerResultCommandHandler(
         RecordDataRightsAnonymisationOwnerResultCommand command,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireWorkItemAsync(
             command.Scope,
             command.CaseId,
+            command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionWorkItem? workItem = await workItems.GetAsync(
             command.Scope,

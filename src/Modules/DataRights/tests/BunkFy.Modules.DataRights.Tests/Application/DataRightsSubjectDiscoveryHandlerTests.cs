@@ -320,7 +320,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
             _ => DataRightsSubjectSelectionValidation.Valid(
                 requested with { RecordId = Guid.NewGuid() }));
         SelectDataRightsSubjectCommandHandler handler = new(
-            new CaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new CaseRepository(dataRightsCase)),
             [contributor],
             new TestScopeContext(),
             new TestClock());
@@ -353,7 +354,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
             _ => DataRightsSubjectDiscoveryResult.Success([]),
             _ => null!);
         SelectDataRightsSubjectCommandHandler handler = new(
-            new CaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new CaseRepository(dataRightsCase)),
             [contributor],
             new TestScopeContext(),
             new TestClock());

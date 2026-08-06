@@ -12,7 +12,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RecordDataRightsDecisionCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsAnonymisationApprovalPolicy anonymisationPolicy,
     ISystemClock clock) : ICommandHandler<RecordDataRightsDecisionCommand, DataRightsCaseDto>
 {
@@ -20,7 +20,7 @@ internal sealed class RecordDataRightsDecisionCommandHandler(
         RecordDataRightsDecisionCommand command,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);

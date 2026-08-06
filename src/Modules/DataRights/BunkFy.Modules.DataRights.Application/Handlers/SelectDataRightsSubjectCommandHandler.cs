@@ -12,7 +12,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class SelectDataRightsSubjectCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IEnumerable<IDataRightsSubjectDiscoveryContributor> contributors,
     IScopeContext scopeContext,
     ISystemClock clock) : ICommandHandler<SelectDataRightsSubjectCommand, DataRightsCaseDto>
@@ -26,7 +26,7 @@ internal sealed class SelectDataRightsSubjectCommandHandler(
             return Result.Failure<DataRightsCaseDto>(DataRightsApplicationErrors.TenantRequired);
         }
 
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);

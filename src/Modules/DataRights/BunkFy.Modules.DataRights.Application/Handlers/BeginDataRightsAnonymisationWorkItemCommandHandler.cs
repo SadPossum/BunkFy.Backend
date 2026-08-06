@@ -16,7 +16,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsExecutionMutationCoordinator mutations,
     IDataRightsExecutionWorkItemRepository workItems,
     IDataRightsOperationApprovalGate approvalGate,
     IOutboxWriterRegistry outboxWriters,
@@ -35,9 +35,10 @@ internal sealed class BeginDataRightsAnonymisationWorkItemCommandHandler(
         BeginDataRightsAnonymisationWorkItemCommand command,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireWorkItemAsync(
             command.Scope,
             command.CaseId,
+            command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
         DataRightsExecutionWorkItem? workItem = await workItems.GetAsync(
             command.Scope,

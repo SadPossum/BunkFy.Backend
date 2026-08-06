@@ -63,6 +63,7 @@
     <File Path="docs/planning/auth-and-organizations-maintenance-production-admission-task.md" />
     <File Path="docs/planning/automatic-retention-control-plane-task.md" />
     <File Path="docs/planning/backend-release-candidate-publication-task.md" />
+    <File Path="docs/planning/data-rights-coordinator-mutation-serialization-task.md" />
     <File Path="docs/planning/data-rights-correction-execution-task.md" />
     <File Path="docs/planning/data-rights-guest-response-deadline-policy-task.md" />
     <File Path="docs/planning/data-rights-multi-owner-execution-task.md" />

@@ -8,7 +8,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class FailTenantTerminationExportFragmentGenerationCommandHandler(
-    ITenantTerminationRepository repository,
+    TenantTerminationMutationCoordinator mutations,
     ITenantTerminationExportFragmentRepository fragments,
     ISystemClock clock)
     : ICommandHandler<FailTenantTerminationExportFragmentGenerationCommand, Unit>
@@ -17,8 +17,9 @@ internal sealed class FailTenantTerminationExportFragmentGenerationCommandHandle
         FailTenantTerminationExportFragmentGenerationCommand command,
         CancellationToken cancellationToken)
     {
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationProcess? process = await mutations.AcquireOwnerWorkAsync(
             command.ProcessId,
+            command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
         TenantTerminationExportFragment? fragment =
             await fragments.GetAsync(

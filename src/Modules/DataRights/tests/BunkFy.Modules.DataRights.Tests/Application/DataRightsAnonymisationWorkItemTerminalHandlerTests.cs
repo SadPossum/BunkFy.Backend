@@ -25,7 +25,8 @@ public sealed class DataRightsAnonymisationWorkItemTerminalHandlerTests
         MutableClock clock = new(Now.AddMinutes(5));
         DataRightsAnonymisationWorkItemTerminalHandler handler = new(
             new DataRightsAnonymisationExecutionReconciler(
-                new StubCaseRepository(fixture.Case),
+                DataRightsMutationTestSupport.Case(
+                    new StubCaseRepository(fixture.Case)),
                 new StubBatchRepository(fixture.Batch),
                 new StubWorkItemRepository(fixture.WorkItems),
                 clock));

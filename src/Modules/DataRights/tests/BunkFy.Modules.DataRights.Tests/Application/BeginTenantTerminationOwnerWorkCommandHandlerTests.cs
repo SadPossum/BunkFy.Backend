@@ -314,7 +314,12 @@ public sealed class BeginTenantTerminationOwnerWorkCommandHandlerTests
             repository,
             replayStore,
             clock,
-            new(repository, planner, replayStore, clock));
+            new(
+                repository,
+                DataRightsMutationTestSupport.TenantTermination(repository),
+                planner,
+                replayStore,
+                clock));
     }
 
     private static BeginTenantTerminationOwnerWorkCommand Command(

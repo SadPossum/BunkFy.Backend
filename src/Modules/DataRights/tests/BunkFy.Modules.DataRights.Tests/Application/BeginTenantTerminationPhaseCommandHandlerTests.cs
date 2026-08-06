@@ -172,6 +172,7 @@ public sealed class BeginTenantTerminationPhaseCommandHandlerTests
         RecordingTenantTerminationCoordinationSignal? signal = null) =>
         new(
             repository,
+            DataRightsMutationTestSupport.TenantTermination(repository),
             new TenantTerminationPhasePlanner(contributors),
             signal ?? new RecordingTenantTerminationCoordinationSignal(),
             new TestClock(Now.AddMinutes(1)));

@@ -11,6 +11,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class BeginTenantTerminationExportArtifactGenerationCommandHandler(
     ITenantTerminationRepository repository,
+    TenantTerminationMutationCoordinator mutations,
     ITenantTerminationExportFragmentRepository fragments,
     ITenantTerminationExportArtifactRepository artifacts,
     ITenantTerminationCoordinationSignal coordinationSignal,
@@ -24,7 +25,7 @@ internal sealed class BeginTenantTerminationExportArtifactGenerationCommandHandl
             BeginTenantTerminationExportArtifactGenerationCommand command,
             CancellationToken cancellationToken)
     {
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationProcess? process = await mutations.AcquireProcessAsync(
             command.ProcessId,
             cancellationToken).ConfigureAwait(false);
         if (process is null ||

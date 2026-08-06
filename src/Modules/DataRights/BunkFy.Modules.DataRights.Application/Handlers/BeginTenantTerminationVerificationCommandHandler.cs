@@ -9,7 +9,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class BeginTenantTerminationVerificationCommandHandler(
-    ITenantTerminationRepository repository,
+    TenantTerminationMutationCoordinator mutations,
     ISystemClock clock)
     : ICommandHandler<
         BeginTenantTerminationVerificationCommand,
@@ -20,7 +20,7 @@ internal sealed class BeginTenantTerminationVerificationCommandHandler(
             BeginTenantTerminationVerificationCommand command,
             CancellationToken cancellationToken)
     {
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationProcess? process = await mutations.AcquireProcessAsync(
             command.ProcessId,
             cancellationToken).ConfigureAwait(false);
         if (process is null)

@@ -76,6 +76,7 @@ public sealed class TenantTerminationOperatorRecoveryTests
         RecordingSignal signal = new();
         RetryTenantTerminationCommandHandler handler = new(
             repository,
+            DataRightsMutationTestSupport.TenantTermination(repository),
             planner,
             signal,
             new FixedClock(Now.AddMinutes(4)));
@@ -103,7 +104,7 @@ public sealed class TenantTerminationOperatorRecoveryTests
         StubRepository repository = new(process, []);
         RecordingSignal signal = new();
         RequestTenantTerminationCancellationCommandHandler handler = new(
-            repository,
+            DataRightsMutationTestSupport.TenantTermination(repository),
             signal,
             new FixedClock(Now.AddMinutes(4)));
         RequestTenantTerminationCancellationCommand command = new(
@@ -151,7 +152,9 @@ public sealed class TenantTerminationOperatorRecoveryTests
         StubCaseRepository cases = new(dataRightsCase);
         ReconcileTenantTerminationPhaseCommandHandler handler = new(
             repository,
-            cases,
+            DataRightsMutationTestSupport.TenantTermination(
+                repository,
+                cases),
             new TenantTerminationPhaseEvaluator(planner),
             [contributor],
             new RecordingSignal(),
@@ -459,7 +462,9 @@ public sealed class TenantTerminationOperatorRecoveryTests
         FixedScopeContext scope = new();
         FixedClock clock = new(Now.AddMinutes(10));
         TenantTerminationStartCoordinator coordinator = new(
-            cases,
+            DataRightsMutationTestSupport.TenantTermination(
+                processes,
+                cases),
             processes,
             replayStore,
             new StubProductionCatalog(),
@@ -469,7 +474,6 @@ public sealed class TenantTerminationOperatorRecoveryTests
             clock);
         return new(
             coordinator,
-            cases,
             processes,
             signal,
             scheduler,

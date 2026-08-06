@@ -291,7 +291,8 @@ public sealed class DataRightsRequiredCompanionExpansionTests
         IReadOnlyCollection<IDataRightsRequiredCompanionContributor>
             companions) =>
         new(
-            new CaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new CaseRepository(dataRightsCase)),
             new DataRightsRequiredCompanionExpander(
                 companions,
                 owners,

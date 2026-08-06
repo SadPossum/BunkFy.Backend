@@ -11,7 +11,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class CompleteTenantTerminationVerificationCommandHandler(
     ITenantTerminationRepository repository,
-    ITenantTerminationCaseRepository cases,
+    TenantTerminationMutationCoordinator mutations,
     ITenantTerminationTerminalReceiptRepository receipts,
     TenantTerminationVerificationPlanner planner,
     ISystemClock clock)
@@ -29,9 +29,11 @@ internal sealed class CompleteTenantTerminationVerificationCommandHandler(
             return Invalid();
         }
 
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationMutationState? state =
+            await mutations.AcquireProcessAndCaseAsync(
             command.ProcessId,
             cancellationToken).ConfigureAwait(false);
+        TenantTerminationProcess? process = state?.Process;
         if (process is null)
         {
             return Result.Failure<TenantTerminationVerificationCompleted>(
@@ -49,9 +51,7 @@ internal sealed class CompleteTenantTerminationVerificationCommandHandler(
             return Invalid();
         }
 
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
-            process.CaseId,
-            cancellationToken).ConfigureAwait(false);
+        DataRightsCase? dataRightsCase = state!.Case;
         if (dataRightsCase is null ||
             dataRightsCase.Status != DataRightsCaseState.Executing ||
             dataRightsCase.DecisionRevision != process.ApprovalRevision ||

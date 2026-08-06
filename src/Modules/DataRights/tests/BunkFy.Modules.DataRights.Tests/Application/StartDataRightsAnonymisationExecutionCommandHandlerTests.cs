@@ -94,7 +94,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         Guid guestWorkItemId = Guid.NewGuid();
         Guid reservationWorkItemId = Guid.NewGuid();
         StartDataRightsAnonymisationExecutionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             batches,
             workItems,
             gate,
@@ -194,7 +195,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
 
         Guid taskRunId = Guid.NewGuid();
         BeginDataRightsAnonymisationWorkItemCommandHandler begin = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Execution(
+                new StubCaseRepository(dataRightsCase)),
             workItems,
             gate,
             new RecordingOutboxRegistry(outbox),
@@ -413,7 +415,8 @@ public sealed class StartDataRightsAnonymisationExecutionCommandHandlerTests
         Guid workItemId,
         RecordingOutbox? outbox = null) =>
         new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             new StubBatchRepository(),
             workItems,
             gate,

@@ -29,7 +29,8 @@ public sealed class DataRightsCorrectionExecutionTests
         StubCorrectionExecutionRepository executions = new();
         MutableClock clock = new(Now);
         StartDataRightsCorrectionExecutionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             executions,
             [new GuestCorrectionPolicy()],
             clock);
@@ -65,7 +66,8 @@ public sealed class DataRightsCorrectionExecutionTests
         StubCorrectionExecutionRepository executions = new();
         MutableClock clock = new(Now);
         StartDataRightsCorrectionExecutionCommandHandler starter = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             executions,
             [new StaffCorrectionPolicy()],
             clock);
@@ -126,7 +128,8 @@ public sealed class DataRightsCorrectionExecutionTests
             Guid.NewGuid(),
             ["staff.profile.display-name"]);
         DataRightsCorrectionCompletionCoordinator coordinator = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             executions,
             new MutableClock(Now.AddSeconds(30)));
         DataRightsTenantCorrectionAppliedIntegrationEvent futureApplied = new(
@@ -165,7 +168,8 @@ public sealed class DataRightsCorrectionExecutionTests
         DataRightsCase dataRightsCase = CreateApprovedCase();
         StubCorrectionExecutionRepository executions = new();
         StartDataRightsCorrectionExecutionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             executions,
             [new GuestCorrectionPolicy()],
             new MutableClock(Now));
@@ -200,7 +204,8 @@ public sealed class DataRightsCorrectionExecutionTests
         StubCorrectionExecutionRepository executions = new();
         MutableClock clock = new(Now);
         StartDataRightsCorrectionExecutionCommandHandler starter = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             executions,
             [new GuestCorrectionPolicy()],
             clock);
@@ -267,7 +272,8 @@ public sealed class DataRightsCorrectionExecutionTests
         MutableClock clock = new(Now.AddMinutes(2));
         Guid executionId = Guid.NewGuid();
         StartDataRightsCorrectionExecutionCommandHandler starter = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             executions,
             [new GuestCorrectionPolicy()],
             new MutableClock(Now));
@@ -299,7 +305,8 @@ public sealed class DataRightsCorrectionExecutionTests
             Guid.NewGuid(),
             ["guest.profile.display-name"]);
         DataRightsCorrectionCompletionCoordinator coordinator = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             executions,
             clock);
 

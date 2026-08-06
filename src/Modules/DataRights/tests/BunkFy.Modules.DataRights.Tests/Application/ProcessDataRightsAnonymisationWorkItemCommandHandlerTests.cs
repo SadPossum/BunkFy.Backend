@@ -34,7 +34,7 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
             DataRightsOperationApprovalResult.ApprovedWithEvidence(
                 fixture.Case.ToApprovalEvidence()!));
         BeginDataRightsAnonymisationWorkItemCommandHandler begin = new(
-            fixture.Cases,
+            DataRightsMutationTestSupport.Execution(fixture.Cases),
             fixture.WorkItems,
             gate,
             new RecordingOutboxRegistry(new RecordingOutbox()),
@@ -69,7 +69,7 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
             new string('c', 64),
             Now.AddSeconds(30));
         RecordDataRightsAnonymisationOwnerResultCommandHandler record = new(
-            fixture.Cases,
+            DataRightsMutationTestSupport.Execution(fixture.Cases),
             fixture.WorkItems,
             new RecordingOutboxRegistry(new RecordingOutbox()),
             clock,
@@ -113,7 +113,7 @@ public sealed class ProcessDataRightsAnonymisationWorkItemCommandHandlerTests
                 DataRightsOperationApprovalDenial.ApprovalRevisionMismatch));
         RecordingOutbox outbox = new();
         BeginDataRightsAnonymisationWorkItemCommandHandler begin = new(
-            fixture.Cases,
+            DataRightsMutationTestSupport.Execution(fixture.Cases),
             fixture.WorkItems,
             gate,
             new RecordingOutboxRegistry(outbox),

@@ -12,7 +12,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RecordControllerRoutingCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsResponseDeadlinePolicy responseDeadlinePolicy,
     ISystemClock clock) : ICommandHandler<RecordControllerRoutingCommand, DataRightsCaseDto>
 {
@@ -20,7 +20,7 @@ internal sealed class RecordControllerRoutingCommandHandler(
         RecordControllerRoutingCommand command,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);

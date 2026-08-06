@@ -12,7 +12,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class BeginDataRightsExportGenerationCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsExportArtifactRepository artifacts,
     IEnumerable<IDataRightsSubjectExportContributor> contributors,
     IDataRightsExportAuditSink audit,
@@ -32,6 +32,16 @@ internal sealed class BeginDataRightsExportGenerationCommandHandler(
                 DataRightsApplicationErrors.TenantRequired);
         }
 
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
+            command.Scope,
+            command.CaseId,
+            cancellationToken).ConfigureAwait(false);
+        if (dataRightsCase is null)
+        {
+            return Result.Failure<DataRightsExportGenerationStart>(
+                DataRightsApplicationErrors.CaseNotFound);
+        }
+
         DataRightsExportArtifact? artifact = await artifacts.GetAsync(
             command.Scope,
             command.ArtifactId,
@@ -40,16 +50,6 @@ internal sealed class BeginDataRightsExportGenerationCommandHandler(
         {
             return Result.Failure<DataRightsExportGenerationStart>(
                 DataRightsApplicationErrors.ExportArtifactNotFound);
-        }
-
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.Scope,
-            command.CaseId,
-            cancellationToken).ConfigureAwait(false);
-        if (dataRightsCase is null)
-        {
-            return Result.Failure<DataRightsExportGenerationStart>(
-                DataRightsApplicationErrors.CaseNotFound);
         }
 
         if (!DataRightsExportGenerationCase.Matches(

@@ -211,7 +211,8 @@ public sealed class RequestDataRightsExportCommandHandlerTests
         IReadOnlyCollection<IDataRightsSubjectExportContributor>? contributors =
             null) =>
         new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             artifacts,
             contributors ?? [new StaffExportContributor()],
             new TestPolicy(),

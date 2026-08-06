@@ -107,10 +107,10 @@ public sealed class FinalizeDataRightsAnonymisationLedgerCommandHandlerTests
         CreateHandler(
             ExecutionFixture fixture,
             RecordingLedgerRepository ledgers,
-            RecordingDeltaStore deltaStore,
-            RecordingOutbox? outbox = null) =>
+        RecordingDeltaStore deltaStore,
+        RecordingOutbox? outbox = null) =>
         new(
-            fixture.Cases,
+            DataRightsMutationTestSupport.Execution(fixture.Cases),
             fixture.WorkItems,
             ledgers,
             new StubPseudonymizer(),

@@ -27,7 +27,8 @@ public sealed class RecordControllerRoutingCommandHandlerTests
         DataRightsCase dataRightsCase = CreateCase();
         StubDeadlinePolicy policy = new();
         RecordControllerRoutingCommandHandler handler = new(
-            new StubRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubRepository(dataRightsCase)),
             policy,
             new TestClock());
 
@@ -53,7 +54,8 @@ public sealed class RecordControllerRoutingCommandHandlerTests
             CreateEvidence(propertyId, RoutedAt);
         StubDeadlinePolicy policy = new(Result.Success(evidence));
         RecordControllerRoutingCommandHandler handler = new(
-            new StubRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubRepository(dataRightsCase)),
             policy,
             new TestClock());
 
@@ -77,7 +79,8 @@ public sealed class RecordControllerRoutingCommandHandlerTests
         DataRightsCase dataRightsCase = CreateCase(propertyId, evidence);
         StubDeadlinePolicy policy = new();
         RecordControllerRoutingCommandHandler handler = new(
-            new StubRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubRepository(dataRightsCase)),
             policy,
             new TestClock());
 

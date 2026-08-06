@@ -13,7 +13,6 @@ using Gma.Framework.Scoping;
 
 internal sealed class RecoverTenantTerminationCommandHandler(
     TenantTerminationStartCoordinator startCoordinator,
-    ITenantTerminationCaseRepository cases,
     ITenantTerminationRepository processes,
     ITenantTerminationCoordinationSignal coordinationSignal,
     ITenantTerminationTaskScheduler taskScheduler,
@@ -33,48 +32,44 @@ internal sealed class RecoverTenantTerminationCommandHandler(
                 DataRightsApplicationErrors.TenantRequired);
         }
 
-        TenantTerminationProcess? process = await processes.GetProcessAsync(
-            command.ProcessId,
-            cancellationToken).ConfigureAwait(false);
         StartTenantTerminationCommand start = new(
             command.CaseId,
             command.ProcessId,
             command.ApprovalEvidence,
             command.ExpectedCaseVersion,
             command.ActorId);
-        if (process is null)
+        Result<TenantTerminationStartDto> exact =
+            await startCoordinator.RecoverAsync(
+                start,
+                command.ExpectedProcessVersion.HasValue,
+                cancellationToken).ConfigureAwait(false);
+        if (exact.IsFailure)
         {
-            return command.ExpectedProcessVersion.HasValue
-                ? Result.Failure<TenantTerminationStartDto>(
-                    DataRightsApplicationErrors
-                        .TenantTerminationStartConflict)
-                : await startCoordinator.RecoverAsync(
-                    start,
-                    cancellationToken).ConfigureAwait(false);
+            return exact;
         }
 
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.CaseId,
-            cancellationToken).ConfigureAwait(false);
-        if (dataRightsCase is null)
+        if (!command.ExpectedProcessVersion.HasValue)
         {
-            return Result.Failure<TenantTerminationStartDto>(
-                DataRightsApplicationErrors.TenantTerminationCaseNotFound);
+            return exact;
         }
 
-        if (dataRightsCase.Version != command.ExpectedCaseVersion ||
-            process.Version != command.ExpectedProcessVersion)
+        if (exact.Value.Case.Version != command.ExpectedCaseVersion ||
+            exact.Value.Process.Version != command.ExpectedProcessVersion)
         {
             return Result.Failure<TenantTerminationStartDto>(
                 DataRightsApplicationErrors.VersionConflict);
         }
 
-        Result<TenantTerminationStartDto> exact =
-            await startCoordinator.RecoverAsync(
-                start,
-                cancellationToken).ConfigureAwait(false);
-        if (exact.IsFailure ||
-            process.Status is
+        TenantTerminationProcess? process = await processes.GetProcessAsync(
+            command.ProcessId,
+            cancellationToken).ConfigureAwait(false);
+        if (process is null)
+        {
+            return Result.Failure<TenantTerminationStartDto>(
+                DataRightsApplicationErrors.TenantTerminationProcessNotFound);
+        }
+
+        if (process.Status is
                 TenantTerminationProcessStatus.Completed or
                 TenantTerminationProcessStatus.Cancelled)
         {

@@ -14,6 +14,7 @@ using Gma.Framework.Scoping;
 
 internal sealed class RequestTenantTerminationCommandHandler(
     ITenantTerminationCaseRepository cases,
+    IDataRightsOperationLock operationLock,
     IScopeContext scopeContext,
     ISystemClock clock)
     : ICommandHandler<RequestTenantTerminationCommand,
@@ -30,6 +31,8 @@ internal sealed class RequestTenantTerminationCommandHandler(
                 DataRightsApplicationErrors.TenantRequired);
         }
 
+        await operationLock.AcquireTenantControlAsync(cancellationToken)
+            .ConfigureAwait(false);
         string actor = command.ActorId?.Trim() ?? string.Empty;
         DataRightsCase? existing = await cases.GetAsync(
             command.RequestId,

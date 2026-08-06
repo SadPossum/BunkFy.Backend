@@ -9,6 +9,7 @@ using Gma.Framework.Results;
 
 internal sealed class PrepareTenantTerminationVerificationCommandHandler(
     ITenantTerminationRepository repository,
+    TenantTerminationMutationCoordinator mutations,
     ITenantTerminationTerminalReceiptRepository receipts,
     TenantTerminationVerificationPlanner planner)
     : ICommandHandler<
@@ -30,7 +31,8 @@ internal sealed class PrepareTenantTerminationVerificationCommandHandler(
             return Invalid();
         }
 
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationProcess? process =
+            await mutations.AcquireProcessReadAsync(
             command.ProcessId,
             cancellationToken).ConfigureAwait(false);
         if (process is null)

@@ -166,6 +166,7 @@ public sealed class RecordTenantTerminationOwnerResultCommandHandlerTests
         TenantTerminationOwnerWorkStart start = (await new
             BeginTenantTerminationOwnerWorkCommandHandler(
                 repository,
+                DataRightsMutationTestSupport.TenantTermination(repository),
                 planner,
                 new StubTenantTerminationReplayStore(),
                 clock).HandleAsync(
@@ -192,6 +193,7 @@ public sealed class RecordTenantTerminationOwnerResultCommandHandlerTests
             signal,
             new(
                 repository,
+                DataRightsMutationTestSupport.TenantTermination(repository),
                 replayStore,
                 planner,
                 signal));

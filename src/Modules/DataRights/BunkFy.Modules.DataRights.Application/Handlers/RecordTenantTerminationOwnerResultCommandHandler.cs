@@ -11,6 +11,7 @@ using Gma.Framework.Results;
 
 internal sealed class RecordTenantTerminationOwnerResultCommandHandler(
     ITenantTerminationRepository repository,
+    TenantTerminationMutationCoordinator mutations,
     ITenantTerminationReplayStore replayStore,
     TenantTerminationPhasePlanner planner,
     ITenantTerminationCoordinationSignal coordinationSignal)
@@ -22,8 +23,9 @@ internal sealed class RecordTenantTerminationOwnerResultCommandHandler(
         RecordTenantTerminationOwnerResultCommand command,
         CancellationToken cancellationToken)
     {
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationProcess? process = await mutations.AcquireOwnerWorkAsync(
             command.ProcessId,
+            command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
         if (process is null)
         {

@@ -305,7 +305,9 @@ public sealed class ReconcileTenantTerminationPhaseCommandHandlerTests
             signal,
             new ReconcileTenantTerminationPhaseCommandHandler(
                 repository,
-                new StubCaseRepository(),
+                DataRightsMutationTestSupport.TenantTermination(
+                    repository,
+                    new StubCaseRepository()),
                 new TenantTerminationPhaseEvaluator(planner),
                 contributors,
                 signal,

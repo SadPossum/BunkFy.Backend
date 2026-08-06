@@ -218,7 +218,7 @@ public sealed class TenantTerminationVerificationExecutionTests
         TenantTerminationVerificationPlanner verificationPlanner = new(
             contributors);
         BeginTenantTerminationVerificationCommandHandler begin = new(
-            repository,
+            DataRightsMutationTestSupport.TenantTermination(repository),
             new FixedClock(Now.AddMinutes(8)));
         Result<TenantTerminationVerificationPhaseStart> phaseStarted =
             await begin.HandleAsync(
@@ -236,11 +236,14 @@ public sealed class TenantTerminationVerificationExecutionTests
         StubReceiptRepository receipts = new();
         PrepareTenantTerminationVerificationCommandHandler prepare = new(
             repository,
+            DataRightsMutationTestSupport.TenantTermination(repository),
             receipts,
             verificationPlanner);
         CompleteTenantTerminationVerificationCommandHandler complete = new(
             repository,
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.TenantTermination(
+                repository,
+                new StubCaseRepository(dataRightsCase)),
             receipts,
             verificationPlanner,
             new FixedClock(Now.AddMinutes(9)));

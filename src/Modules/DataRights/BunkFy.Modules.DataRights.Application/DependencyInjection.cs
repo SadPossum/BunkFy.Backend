@@ -37,6 +37,8 @@ public static class DependencyInjection
             IDataRightsCorrectionExecutionGate,
             DataRightsCorrectionExecutionGate>();
         services.TryAddScoped<DataRightsCorrectionCompletionCoordinator>();
+        services.TryAddScoped<DataRightsCaseMutationCoordinator>();
+        services.TryAddScoped<DataRightsExecutionMutationCoordinator>();
         services.TryAddSingleton(_ => CountryPolicyRegistry.Create(
             [],
             [],
@@ -53,6 +55,7 @@ public static class DependencyInjection
             DataRightsRestoreCoordinator>();
         services.TryAddScoped<TenantTerminationCancellationCoordinator>();
         services.TryAddScoped<TenantTerminationStartCoordinator>();
+        services.TryAddScoped<TenantTerminationMutationCoordinator>();
         services.TryAddScoped<TenantTerminationPhasePlanner>();
         services.TryAddScoped<TenantTerminationPhaseEvaluator>();
         services.TryAddScoped<TenantTerminationVerificationPlanner>();

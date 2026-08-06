@@ -47,6 +47,7 @@ public sealed class TenantTerminationExportExecutionHandlersTests
         BeginTenantTerminationExportFragmentGenerationCommandHandler beginFragment =
             new(
                 repository,
+                DataRightsMutationTestSupport.TenantTermination(repository),
                 fragments,
                 new FixedArtifactPolicy(TimeSpan.FromHours(24)),
                 planner,
@@ -124,12 +125,13 @@ public sealed class TenantTerminationExportExecutionHandlersTests
         RecordingTenantTerminationCoordinationSignal signal = new();
         RecordTenantTerminationOwnerResultCommandHandler recorder = new(
             repository,
+            DataRightsMutationTestSupport.TenantTermination(repository),
             replayStore,
             planner,
             signal);
         CompleteTenantTerminationExportFragmentGenerationCommandHandler
             completeFragment = new(
-                repository,
+                DataRightsMutationTestSupport.TenantTermination(repository),
                 fragments,
                 replayStore,
                 new RecordResultDispatcher(recorder));
@@ -177,6 +179,7 @@ public sealed class TenantTerminationExportExecutionHandlersTests
         BeginTenantTerminationExportArtifactGenerationCommandHandler beginArtifact =
             new(
                 repository,
+                DataRightsMutationTestSupport.TenantTermination(repository),
                 fragments,
                 artifacts,
                 signal,
@@ -200,7 +203,7 @@ public sealed class TenantTerminationExportExecutionHandlersTests
         TenantTerminationExportArtifact artifact = artifactBegun.Value.Artifact;
         CompleteTenantTerminationExportArtifactGenerationCommandHandler
             completeArtifact = new(
-                repository,
+                DataRightsMutationTestSupport.TenantTermination(repository),
                 artifacts,
                 signal,
                 new FixedClock(Now.AddMinutes(9)));

@@ -12,6 +12,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class BeginTenantTerminationOwnerWorkCommandHandler(
     ITenantTerminationRepository repository,
+    TenantTerminationMutationCoordinator mutations,
     TenantTerminationPhasePlanner planner,
     ITenantTerminationReplayStore replayStore,
     ISystemClock clock)
@@ -26,8 +27,9 @@ internal sealed class BeginTenantTerminationOwnerWorkCommandHandler(
         BeginTenantTerminationOwnerWorkCommand command,
         CancellationToken cancellationToken)
     {
-        TenantTerminationProcess? process = await repository.GetProcessAsync(
+        TenantTerminationProcess? process = await mutations.AcquireOwnerWorkAsync(
             command.ProcessId,
+            command.WorkItemId,
             cancellationToken).ConfigureAwait(false);
         if (process is null)
         {

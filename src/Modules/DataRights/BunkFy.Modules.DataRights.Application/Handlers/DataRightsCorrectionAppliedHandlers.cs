@@ -63,7 +63,7 @@ internal sealed class WorkspacesDataRightsCorrectionAppliedHandler(
 }
 
 internal sealed class DataRightsCorrectionCompletionCoordinator(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsCorrectionExecutionRepository executions,
     ISystemClock clock)
 {
@@ -137,13 +137,13 @@ internal sealed class DataRightsCorrectionCompletionCoordinator(
         CorrectionCompletion completion,
         CancellationToken cancellationToken)
     {
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
+            scope,
+            completion.CaseId,
+            cancellationToken).ConfigureAwait(false);
         DataRightsCorrectionExecution? execution = await executions.GetAsync(
             completion.CaseId,
             completion.ExecutionId,
-            cancellationToken).ConfigureAwait(false);
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
-            scope,
-            completion.CaseId,
             cancellationToken).ConfigureAwait(false);
         if (execution is null ||
             dataRightsCase is null ||

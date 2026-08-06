@@ -14,7 +14,7 @@ using Gma.Framework.Runtime.Time;
 using DomainSubject = BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 
 internal sealed class StartDataRightsCorrectionExecutionCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsCorrectionExecutionRepository executions,
     IEnumerable<IDataRightsCorrectionPolicyContributor> contributors,
     ISystemClock clock)
@@ -34,7 +34,7 @@ internal sealed class StartDataRightsCorrectionExecutionCommandHandler(
                 DataRightsApplicationErrors.CorrectionExecutionDenied);
         }
 
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);

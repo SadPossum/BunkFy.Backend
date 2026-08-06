@@ -8,7 +8,7 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 
 internal sealed class CompleteDataRightsExportGenerationCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsExportArtifactRepository artifacts,
     IDataRightsExportAuditSink audit)
     : ICommandHandler<CompleteDataRightsExportGenerationCommand, Unit>
@@ -17,6 +17,16 @@ internal sealed class CompleteDataRightsExportGenerationCommandHandler(
         CompleteDataRightsExportGenerationCommand command,
         CancellationToken cancellationToken)
     {
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
+            command.Scope,
+            command.CaseId,
+            cancellationToken).ConfigureAwait(false);
+        if (dataRightsCase is null)
+        {
+            return Result.Failure<Unit>(
+                DataRightsApplicationErrors.CaseNotFound);
+        }
+
         DataRightsExportArtifact? artifact = await artifacts.GetAsync(
             command.Scope,
             command.ArtifactId,
@@ -32,16 +42,6 @@ internal sealed class CompleteDataRightsExportGenerationCommandHandler(
         {
             return Result.Failure<Unit>(
                 DataRightsApplicationErrors.ExportGenerationConflict);
-        }
-
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
-            command.Scope,
-            command.CaseId,
-            cancellationToken).ConfigureAwait(false);
-        if (dataRightsCase is null)
-        {
-            return Result.Failure<Unit>(
-                DataRightsApplicationErrors.CaseNotFound);
         }
 
         bool alreadyAvailable =

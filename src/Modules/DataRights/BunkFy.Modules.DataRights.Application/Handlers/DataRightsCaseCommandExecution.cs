@@ -2,7 +2,6 @@ namespace BunkFy.Modules.DataRights.Application.Handlers;
 
 using BunkFy.Modules.DataRights.Application.Mapping;
 using BunkFy.Modules.DataRights.Application.Models;
-using BunkFy.Modules.DataRights.Application.Ports;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using Gma.Framework.Results;
@@ -10,13 +9,13 @@ using Gma.Framework.Results;
 internal static class DataRightsCaseCommandExecution
 {
     public static async Task<Result<DataRightsCaseDto>> ApplyAsync(
-        IDataRightsCaseRepository cases,
+        DataRightsCaseMutationCoordinator mutations,
         DataRightsCaseScope scope,
         Guid caseId,
         Func<DataRightsCase, Result> mutation,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             scope,
             caseId,
             cancellationToken).ConfigureAwait(false);

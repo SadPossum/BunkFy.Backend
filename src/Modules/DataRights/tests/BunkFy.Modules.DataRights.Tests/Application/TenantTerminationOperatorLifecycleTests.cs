@@ -31,6 +31,7 @@ public sealed class TenantTerminationOperatorLifecycleTests
         StubCaseRepository repository = new();
         RequestTenantTerminationCommandHandler handler = new(
             repository,
+            DataRightsMutationTestSupport.OperationLock,
             new FixedScopeContext(),
             new FixedClock(RequestedAt));
         RequestTenantTerminationCommand command = new(
@@ -61,6 +62,7 @@ public sealed class TenantTerminationOperatorLifecycleTests
         StubCaseRepository repository = new(PrepareReviewCase());
         RequestTenantTerminationCommandHandler handler = new(
             repository,
+            DataRightsMutationTestSupport.OperationLock,
             new FixedScopeContext(),
             new FixedClock(RequestedAt.AddMinutes(1)));
 
@@ -256,7 +258,7 @@ public sealed class TenantTerminationOperatorLifecycleTests
         StubCaseRepository repository,
         string catalogSha256) =>
         new(
-            repository,
+            DataRightsMutationTestSupport.TenantCase(repository),
             new StubProductionCatalog(catalogSha256),
             new StubRequiredOwners(),
             new FixedScopeContext(),
@@ -270,7 +272,9 @@ public sealed class TenantTerminationOperatorLifecycleTests
         DateTimeOffset nowUtc) =>
         new(
             new TenantTerminationStartCoordinator(
-                cases,
+                DataRightsMutationTestSupport.TenantTermination(
+                    processes,
+                    cases),
                 processes,
                 replayStore,
                 new StubProductionCatalog(CatalogSha256),

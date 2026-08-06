@@ -11,7 +11,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RequireDataRightsReviewCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     DataRightsRequiredCompanionExpander companionExpander,
     ISystemClock clock) : ICommandHandler<RequireDataRightsReviewCommand, DataRightsCaseDto>
 {
@@ -19,7 +19,7 @@ internal sealed class RequireDataRightsReviewCommandHandler(
         RequireDataRightsReviewCommand command,
         CancellationToken cancellationToken)
     {
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);

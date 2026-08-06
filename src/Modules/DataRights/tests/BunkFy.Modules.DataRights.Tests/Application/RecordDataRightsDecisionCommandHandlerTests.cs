@@ -33,7 +33,8 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
             DataRightsCaseOperation.Anonymisation);
         DataRightsApprovalPolicyEvidence evidence = CreateEvidence(propertyId);
         RecordDataRightsDecisionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             new StubAnonymisationPolicy(Result.Success(evidence)),
             new TestClock());
 
@@ -61,7 +62,8 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
             propertyId,
             DataRightsCaseOperation.Anonymisation);
         RecordDataRightsDecisionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             new StubAnonymisationPolicy(
                 Result.Failure<DataRightsApprovalPolicyEvidence>(
                     DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied)),
@@ -94,7 +96,8 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
             DataRightsCaseOperation.Anonymisation | DataRightsCaseOperation.Correction);
         StubAnonymisationPolicy policy = new(Result.Success(CreateEvidence(propertyId)));
         RecordDataRightsDecisionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             policy,
             new TestClock());
 
@@ -125,7 +128,8 @@ public sealed class RecordDataRightsDecisionCommandHandlerTests
         StubAnonymisationPolicy policy =
             new(Result.Success(evidence));
         RecordDataRightsDecisionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             policy,
             new TestClock());
 

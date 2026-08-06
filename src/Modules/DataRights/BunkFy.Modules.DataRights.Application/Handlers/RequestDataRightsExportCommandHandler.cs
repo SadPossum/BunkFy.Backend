@@ -14,7 +14,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class RequestDataRightsExportCommandHandler(
-    IDataRightsCaseRepository cases,
+    DataRightsCaseMutationCoordinator mutations,
     IDataRightsExportArtifactRepository artifacts,
     IEnumerable<IDataRightsSubjectExportContributor> contributors,
     IDataRightsExportArtifactPolicy exportPolicy,
@@ -36,7 +36,7 @@ internal sealed class RequestDataRightsExportCommandHandler(
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
-        DataRightsCase? dataRightsCase = await cases.GetAsync(
+        DataRightsCase? dataRightsCase = await mutations.AcquireAsync(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);

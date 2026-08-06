@@ -29,7 +29,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         RecordingContributor contributor = new(CompletedOwnerResult(
             effectiveRestricted: true));
         ExecuteDataRightsRestrictionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             gate,
             [contributor],
             new TestClock());
@@ -63,7 +64,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         RecordingContributor contributor = new(CompletedOwnerResult(
             effectiveRestricted: false));
         ExecuteDataRightsRestrictionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             new RecordingApprovalGate(DataRightsOperationApprovalResult.Approved),
             [contributor],
             new TestClock());
@@ -91,7 +93,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         RecordingContributor contributor = new(CompletedOwnerResult(
             effectiveRestricted: true));
         ExecuteDataRightsRestrictionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             new RecordingApprovalGate(DataRightsOperationApprovalResult.Approved),
             [contributor],
             new TestClock());
@@ -123,7 +126,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         RecordingContributor contributor = new(CompletedOwnerResult(
             effectiveRestricted: true));
         ExecuteDataRightsRestrictionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             new RecordingApprovalGate(DataRightsOperationApprovalResult.Denied(
                 DataRightsOperationApprovalDenial.SubjectNotApproved)),
             [contributor],
@@ -156,7 +160,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
             CompletedOwnerResult(effectiveRestricted: true),
             "staff");
         ExecuteDataRightsRestrictionCommandHandler handler = new(
-            new StubCaseRepository(dataRightsCase),
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
             gate,
             [contributor],
             new TestClock());
