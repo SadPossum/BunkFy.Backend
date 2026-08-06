@@ -14,6 +14,7 @@ internal sealed class
     RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler(
         IWorkspaceStaffCorrelationAnonymisationRepository
             correlations,
+        WorkspaceStaffAccessMutationCoordinator mutations,
         IWorkspaceStaffCorrelationOperationLock operationLock,
         IScopeContext scopeContext,
         ISystemClock clock)
@@ -44,6 +45,15 @@ internal sealed class
             return Failure(
                 WorkspaceStaffCorrelationAnonymisationApplicationErrors
                     .RestoreRequestInvalid);
+        }
+
+        if (!await mutations.TryAcquireExistingCoordinateAsync(
+                request.RecordId,
+                cancellationToken).ConfigureAwait(false))
+        {
+            return Failure(
+                WorkspaceStaffCorrelationAnonymisationApplicationErrors
+                    .RestoreProofConflict);
         }
 
         bool locked = await operationLock.TryAcquireAsync(

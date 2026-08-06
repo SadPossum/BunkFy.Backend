@@ -30,6 +30,15 @@ directories remain owned by GMA Organizations; adding truthful continuation to
 those generic contracts requires a separate Organizations change and
 coordinated consumer alignment.
 
+Staff-access lifecycle mutations are serialized by tenant and staff member
+before Workspaces reads replay state or invokes Organizations and Access
+Control. Preparation, denial, restoration, retries, Staff lifecycle events,
+retention correlation, and reversible correlation work share that coordinate;
+waiters reload the committed process before deciding. The lock is a
+transaction-scoped GMA key rather than persisted module data, so unrelated
+staff remain concurrent and no migration, export, retention, or destruction
+surface is introduced.
+
 Copied applicant identity and contact fields are transient onboarding data.
 Completion, rejection, supersession, invitation expiry, and claim expiry
 redact those fields from the Workspaces record; the Staff module becomes

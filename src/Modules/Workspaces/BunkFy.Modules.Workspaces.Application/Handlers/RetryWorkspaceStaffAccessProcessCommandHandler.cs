@@ -9,7 +9,7 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 
 internal sealed class RetryWorkspaceStaffAccessProcessCommandHandler(
-    IWorkspaceStaffAccessProcessRepository processes,
+    WorkspaceStaffAccessMutationCoordinator mutations,
     WorkspaceStaffAccessDenier denier,
     WorkspaceStaffAccessRestorer restorer)
     : ICommandHandler<RetryWorkspaceStaffAccessProcessCommand, WorkspaceStaffAccessProcessDto>
@@ -18,7 +18,7 @@ internal sealed class RetryWorkspaceStaffAccessProcessCommandHandler(
         RetryWorkspaceStaffAccessProcessCommand command,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffAccessProcess? process = await processes.GetAsync(
+        WorkspaceStaffAccessProcess? process = await mutations.AcquireExistingAsync(
             command.ProcessId,
             cancellationToken).ConfigureAwait(false);
         if (process is null)

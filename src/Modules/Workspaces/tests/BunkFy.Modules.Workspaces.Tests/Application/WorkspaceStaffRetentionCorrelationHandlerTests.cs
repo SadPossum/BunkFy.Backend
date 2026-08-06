@@ -25,7 +25,10 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
     {
         FakeRepository repository = new();
         ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
-            new(repository, new TestScopeContext(TenantId));
+            new(
+                repository,
+                WorkspaceStaffAccessMutationTestSupport.Create(),
+                new TestScopeContext(TenantId));
         DateTimeOffset completedAt =
             new DateTimeOffset(
                 2026,
@@ -64,6 +67,7 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
         ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
             new(
                 repository,
+                WorkspaceStaffAccessMutationTestSupport.Create(),
                 new TestScopeContext(
                     "50000000-0000-0000-0000-000000000001"));
 
@@ -91,7 +95,10 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
     {
         FakeRepository repository = new();
         ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
-            new(repository, new TestScopeContext(TenantId));
+            new(
+                repository,
+                WorkspaceStaffAccessMutationTestSupport.Create(),
+                new TestScopeContext(TenantId));
 
         Result<WorkspaceStaffRetentionCorrelationReceipt> result =
             await handler.HandleAsync(

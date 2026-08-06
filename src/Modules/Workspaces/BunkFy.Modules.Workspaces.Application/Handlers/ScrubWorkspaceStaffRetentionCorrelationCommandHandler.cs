@@ -11,12 +11,13 @@ using Gma.Framework.Scoping;
 internal sealed class
     ScrubWorkspaceStaffRetentionCorrelationCommandHandler(
     IWorkspaceStaffRetentionCorrelationRepository repository,
+    WorkspaceStaffAccessMutationCoordinator mutations,
     IScopeContext scopeContext)
     : ICommandHandler<
         ScrubWorkspaceStaffRetentionCorrelationCommand,
         WorkspaceStaffRetentionCorrelationReceipt>
 {
-    public Task<Result<WorkspaceStaffRetentionCorrelationReceipt>>
+    public async Task<Result<WorkspaceStaffRetentionCorrelationReceipt>>
         HandleAsync(
             ScrubWorkspaceStaffRetentionCorrelationCommand command,
             CancellationToken cancellationToken)
@@ -41,13 +42,15 @@ internal sealed class
             subjectId?.Length >
                 WorkspaceStaffAccessProcess.SubjectIdMaxLength)
         {
-            return Task.FromResult(
-                Result.Failure<
-                    WorkspaceStaffRetentionCorrelationReceipt>(
-                    WorkspaceStaffRetentionErrors.RequestInvalid));
+            return Result.Failure<
+                WorkspaceStaffRetentionCorrelationReceipt>(
+                WorkspaceStaffRetentionErrors.RequestInvalid);
         }
 
-        return repository.ScrubAsync(
+        await mutations.AcquireStaffAsync(
+                command.StaffMemberId,
+                cancellationToken).ConfigureAwait(false);
+        return await repository.ScrubAsync(
             new WorkspaceStaffRetentionCorrelationScrubRequest(
                 command.ReceiptId,
                 command.ExecutionId,
@@ -57,7 +60,7 @@ internal sealed class
                 subjectId,
                 ToPersistencePrecision(
                     command.CompletedAtUtc.ToUniversalTime())),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static string? NormalizeSubject(string? subjectId)

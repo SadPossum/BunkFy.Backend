@@ -9,7 +9,7 @@ using Gma.Framework.Runtime.Time;
 
 [IntegrationEventHandler(HandlerName, RequiresExplicitProducerBinding = true)]
 internal sealed class StaffLifecycleWorkspaceAccessHandler(
-    IWorkspaceStaffAccessProcessRepository processes,
+    WorkspaceStaffAccessMutationCoordinator mutations,
     WorkspaceStaffAccessRestorer restorer,
     ISystemClock clock)
     : IIntegrationEventHandler<StaffMemberLifecycleChangedIntegrationEvent>
@@ -20,7 +20,7 @@ internal sealed class StaffLifecycleWorkspaceAccessHandler(
         StaffMemberLifecycleChangedIntegrationEvent integrationEvent,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffAccessProcess? process = await processes.GetByStaffVersionAsync(
+        WorkspaceStaffAccessProcess? process = await mutations.AcquireVersionAsync(
             integrationEvent.StaffMemberId,
             integrationEvent.StaffVersion,
             cancellationToken).ConfigureAwait(false);

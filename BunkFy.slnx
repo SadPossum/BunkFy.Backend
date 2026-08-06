@@ -169,6 +169,7 @@
     <File Path="docs/planning/workspace-onboarding-task.md" />
     <File Path="docs/planning/workspace-operational-admission-integration-task.md" />
     <File Path="docs/planning/workspace-staff-access-lifecycle-task.md" />
+    <File Path="docs/planning/workspace-staff-access-mutation-serialization-task.md" />
     <File Path="docs/planning/workspace-staff-onboarding-staging-retention-task.md" />
     <File Path="docs/planning/workspace-staff-retention-correlation-scrub-task.md" />
     <File Path="docs/planning/workspaces-data-rights-anonymisation-task.md" />

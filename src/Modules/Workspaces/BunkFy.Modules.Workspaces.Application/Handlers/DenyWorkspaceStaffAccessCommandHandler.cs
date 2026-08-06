@@ -7,7 +7,7 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 
 internal sealed class DenyWorkspaceStaffAccessCommandHandler(
-    IWorkspaceStaffAccessProcessRepository processes,
+    WorkspaceStaffAccessMutationCoordinator mutations,
     WorkspaceStaffAccessDenier denier)
     : ICommandHandler<DenyWorkspaceStaffAccessCommand, WorkspaceStaffAccessCoordinationOutcome>
 {
@@ -15,7 +15,7 @@ internal sealed class DenyWorkspaceStaffAccessCommandHandler(
         DenyWorkspaceStaffAccessCommand command,
         CancellationToken cancellationToken)
     {
-        WorkspaceStaffAccessProcess? process = await processes.GetAsync(
+        WorkspaceStaffAccessProcess? process = await mutations.AcquireExistingAsync(
             command.ProcessId,
             cancellationToken).ConfigureAwait(false);
         if (process is null)

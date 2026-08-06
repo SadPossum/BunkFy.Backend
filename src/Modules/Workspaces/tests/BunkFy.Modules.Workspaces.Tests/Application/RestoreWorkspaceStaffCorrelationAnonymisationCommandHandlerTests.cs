@@ -7,6 +7,7 @@ using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
+using BunkFy.Modules.Workspaces.Tests;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
@@ -34,6 +35,7 @@ public sealed class
         RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
+                WorkspaceStaffAccessMutationTestSupport.Create(),
                 operationLock,
                 new TestScopeContext(),
                 new TestClock());
@@ -81,6 +83,7 @@ public sealed class
         RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
+                WorkspaceStaffAccessMutationTestSupport.Create(),
                 new RecordingOperationLock(acquired: false),
                 new TestScopeContext(),
                 new TestClock());
@@ -107,6 +110,7 @@ public sealed class
         RestoreWorkspaceStaffCorrelationAnonymisationCommandHandler
             handler = new(
                 repository,
+                WorkspaceStaffAccessMutationTestSupport.Create(),
                 operationLock,
                 new TestScopeContext(),
                 new TestClock());

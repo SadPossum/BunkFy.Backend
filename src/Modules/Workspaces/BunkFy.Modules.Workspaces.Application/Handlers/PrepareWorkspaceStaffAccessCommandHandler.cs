@@ -10,6 +10,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
     IWorkspaceStaffAccessProcessRepository processes,
+    WorkspaceStaffAccessMutationCoordinator mutations,
     WorkspaceAccessProvisioner access,
     WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     ISystemClock clock)
@@ -21,11 +22,16 @@ internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
     {
         ArgumentNullException.ThrowIfNull(command.Context);
         StaffLifecyclePolicyContext context = command.Context;
-        if (string.IsNullOrWhiteSpace(context.AuthSubjectId))
+        if (context.StaffMemberId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(context.AuthSubjectId))
         {
             return Result.Failure<WorkspaceStaffAccessPreparation>(
                 WorkspaceStaffAccessApplicationErrors.ProcessConflict);
         }
+
+        await mutations.AcquireStaffAsync(
+                context.StaffMemberId,
+                cancellationToken).ConfigureAwait(false);
 
         WorkspaceStaffAccessTargetState targetState = ToTargetState(context.TargetStatus);
         WorkspaceStaffAccessProcess? replay = await processes.GetByStaffVersionAsync(

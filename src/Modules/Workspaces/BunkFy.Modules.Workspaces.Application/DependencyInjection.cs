@@ -75,6 +75,7 @@ public static class DependencyInjection
             IWorkspaceMemberAccessManager,
             WorkspaceMemberAccessManager>();
         services.TryAddScoped<WorkspaceAccessProvisioner>();
+        services.TryAddScoped<WorkspaceStaffAccessMutationCoordinator>();
         services.TryAddScoped<WorkspaceStaffAccessDenier>();
         services.TryAddScoped<WorkspaceStaffAccessRestorer>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<

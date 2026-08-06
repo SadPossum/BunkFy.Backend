@@ -41,6 +41,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         FakeProcessRepository repository = new();
         PrepareWorkspaceStaffAccessCommandHandler handler = new(
             repository,
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
             new WorkspaceAccessProvisioner(roles, profiles),
             WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock());
@@ -83,7 +84,9 @@ public sealed class WorkspaceStaffAccessFlowTests
             new WorkspaceAccessProvisioner(roles, profiles),
             new TestClock(),
             NullLogger<WorkspaceStaffAccessDenier>.Instance);
-        DenyWorkspaceStaffAccessCommandHandler handler = new(repository, denier);
+        DenyWorkspaceStaffAccessCommandHandler handler = new(
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
+            denier);
 
         Result<WorkspaceStaffAccessCoordinationOutcome> result = await handler.HandleAsync(
             new DenyWorkspaceStaffAccessCommand(process.Id),
@@ -118,8 +121,9 @@ public sealed class WorkspaceStaffAccessFlowTests
             new WorkspaceAccessProvisioner(roles, profiles),
             new TestClock(),
             NullLogger<WorkspaceStaffAccessDenier>.Instance);
+        FakeProcessRepository repository = new(process);
         DenyWorkspaceStaffAccessCommandHandler handler = new(
-            new FakeProcessRepository(process),
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
             denier);
 
         Result<WorkspaceStaffAccessCoordinationOutcome> result = await handler.HandleAsync(
@@ -146,6 +150,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         FakeProcessRepository repository = new(suspension);
         PrepareWorkspaceStaffAccessCommandHandler handler = new(
             repository,
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
             new WorkspaceAccessProvisioner(new FakeRoles([]), new FakeProfiles([])),
             WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock());
@@ -183,6 +188,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         };
         PrepareWorkspaceStaffAccessCommandHandler handler = new(
             repository,
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
             new WorkspaceAccessProvisioner(new FakeRoles([]), new FakeProfiles([])),
             WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock());
@@ -208,6 +214,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         FakeProcessRepository repository = new();
         PrepareWorkspaceStaffAccessCommandHandler handler = new(
             repository,
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
             new WorkspaceAccessProvisioner(new FakeRoles([]), new FakeProfiles([])),
             WorkspaceOperationalAdmissionTestSupport.Restricted(ScopeId),
             new TestClock());
@@ -252,7 +259,7 @@ public sealed class WorkspaceStaffAccessFlowTests
             new TestClock(),
             NullLogger<WorkspaceStaffAccessRestorer>.Instance);
         StaffLifecycleWorkspaceAccessHandler handler = new(
-            repository,
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
             restorer,
             new TestClock());
 
@@ -303,7 +310,10 @@ public sealed class WorkspaceStaffAccessFlowTests
             WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
             new TestClock(),
             NullLogger<WorkspaceStaffAccessRestorer>.Instance);
-        RetryWorkspaceStaffAccessProcessCommandHandler handler = new(repository, denier, restorer);
+        RetryWorkspaceStaffAccessProcessCommandHandler handler = new(
+            WorkspaceStaffAccessMutationTestSupport.Create(repository),
+            denier,
+            restorer);
 
         Result<WorkspaceStaffAccessProcessDto> result = await handler.HandleAsync(
             new RetryWorkspaceStaffAccessProcessCommand(process.Id),

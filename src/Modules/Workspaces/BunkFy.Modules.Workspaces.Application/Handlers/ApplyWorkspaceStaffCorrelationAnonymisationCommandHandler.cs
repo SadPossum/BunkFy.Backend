@@ -19,6 +19,7 @@ internal sealed class
     ApplyWorkspaceStaffCorrelationAnonymisationCommandHandler(
         IWorkspaceStaffCorrelationAnonymisationRepository
             correlations,
+        WorkspaceStaffAccessMutationCoordinator mutations,
         IWorkspaceStaffCorrelationOperationLock operationLock,
         IDataRightsOperationApprovalGate approvalGate,
         IScopeContext scopeContext,
@@ -100,6 +101,15 @@ internal sealed class
             return Failure(
                 WorkspaceStaffCorrelationAnonymisationApplicationErrors
                     .ApprovalRequired);
+        }
+
+        if (!await mutations.TryAcquireExistingCoordinateAsync(
+                command.AnchorProcessId,
+                cancellationToken).ConfigureAwait(false))
+        {
+            return Failure(
+                WorkspaceStaffCorrelationAnonymisationApplicationErrors
+                    .OperationLockUnavailable);
         }
 
         bool locked = await operationLock.TryAcquireAsync(

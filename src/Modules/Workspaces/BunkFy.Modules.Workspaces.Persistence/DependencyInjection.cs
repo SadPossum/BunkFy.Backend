@@ -55,6 +55,9 @@ public static class DependencyInjection
             IWorkspaceStaffAccessProcessRepository,
             WorkspaceStaffAccessProcessRepository>();
         builder.Services.TryAddScoped<
+            IWorkspaceStaffAccessOperationLock,
+            WorkspaceStaffAccessOperationLock>();
+        builder.Services.TryAddScoped<
             IWorkspaceStaffAccessPlanRepository,
             WorkspaceStaffAccessPlanRepository>();
         builder.Services.TryAddScoped<
