@@ -1,6 +1,6 @@
 # Workspace Invitation Access Plans Task
 
-Status: backend issuance, management UX, and delegated visibility implemented; deployment smoke pending
+Status: backend and deployed API proof complete; browser and delivery rehearsal pending
 Date: 2026-07-21
 
 ## Goal
@@ -45,6 +45,13 @@ Let an authorized workspace manager attach a server-owned Staff/property/access 
 - deployed owner/applicant browser smoke covers password and external registration plus link and QR entry.
 
 Local verification covers aggregate lifecycle and exact replay, owner and delegated-manager anti-escalation, low-privilege reusable-link restrictions, prepare/activate/issue ordering, one-time token replay, endpoint authorization metadata, Staff/property/access retry behavior, migration drift, a PostgreSQL upgrade from the prior Workspaces migration, and the delegated web capability matrix. The browser and broker/restart cases remain deployment gates.
+
+The root deployed invitation and QR enrollment verifiers now cover the public
+API boundary with separate identities, property isolation, approval/rejection,
+capacity, replay, and exact owner-visible access. Browser registration, enabled
+mail or external-provider delivery, redirect continuity, QR rendering, and
+deployment-controlled Worker restart remain the explicit root browser
+rehearsal gate.
 
 ## Not In This Slice
 

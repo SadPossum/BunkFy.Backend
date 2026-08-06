@@ -1,6 +1,6 @@
 # Workspace Onboarding Production Proof Task
 
-Status: local production proof complete; deployed smoke remains
+Status: local and deployed API proof complete; browser and delivery rehearsal remains
 Date: 2026-07-22
 
 ## Goal
@@ -52,3 +52,10 @@ The proof must not seed applicant memberships, grant test-only roles, inspect mo
 ## Deployment Gate
 
 The deterministic backend proof does not replace the final deployed multi-account browser smoke. Before launch, repeat registration, existing-account join, invitation, QR approval/rejection, redirect continuity, email delivery, restart, and retry scenarios against deployed origins and production-shaped services.
+
+The root repository now provides mutation-bearing deployed invitation and QR
+enrollment verifiers for the API-level, two-account, least-privilege, replay,
+approval, and rejection paths. The remaining browser, registration-adapter,
+delivery, redirect, and process-control evidence is defined by the root
+`docs/operations/deployed-workspace-browser-rehearsal.md` runbook and must be
+captured against the exact candidate deployment.
