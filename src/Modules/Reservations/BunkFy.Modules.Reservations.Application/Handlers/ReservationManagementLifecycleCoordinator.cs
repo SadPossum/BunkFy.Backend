@@ -44,7 +44,7 @@ internal sealed class ReservationManagementLifecycleCoordinator(
             .ConfigureAwait(false);
         if (existing is not null)
         {
-            return existing.Matches(kind, expectedVersion, businessDate)
+            return existing.MatchesLifecycle(kind, expectedVersion, businessDate)
                 ? Result.Success(reservation.ToMutationReceipt())
                 : Result.Failure<ReservationMutationReceiptDto>(
                     ReservationsApplicationErrors.ManagementOperationConflict);
@@ -65,6 +65,7 @@ internal sealed class ReservationManagementLifecycleCoordinator(
                 reservationId,
                 kind,
                 expectedVersion,
+                ExpectedDetailsRevision: null,
                 businessDate,
                 nowUtc),
             cancellationToken).ConfigureAwait(false);

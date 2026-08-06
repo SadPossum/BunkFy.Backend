@@ -125,7 +125,8 @@ internal sealed record ReservationManagementOperationDataRightsExport(
     Guid PropertyId,
     Guid ReservationId,
     ReservationManagementOperationKind Kind,
-    long ExpectedVersion,
+    long? ExpectedVersion,
+    long? ExpectedDetailsRevision,
     DateOnly? BusinessDate,
     DateTimeOffset CreatedAtUtc);
 

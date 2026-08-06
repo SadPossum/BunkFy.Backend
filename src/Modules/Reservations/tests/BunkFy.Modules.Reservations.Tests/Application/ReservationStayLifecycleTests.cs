@@ -189,6 +189,7 @@ public sealed class ReservationStayLifecycleTests
             reservation.Id,
             ReservationManagementOperationKind.CheckIn,
             expectedVersion,
+            ExpectedDetailsRevision: null,
             reservation.Arrival,
             TestClock.Now));
         ReservationManagementLifecycleCoordinator lifecycle = new(

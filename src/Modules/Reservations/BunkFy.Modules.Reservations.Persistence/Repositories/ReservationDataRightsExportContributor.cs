@@ -522,6 +522,7 @@ internal sealed class ReservationDataRightsExportContributor(
                         operation.ReservationId,
                         operation.Kind,
                         operation.ExpectedVersion,
+                        operation.ExpectedDetailsRevision,
                         operation.BusinessDate,
                         operation.CreatedAtUtc));
         await foreach (

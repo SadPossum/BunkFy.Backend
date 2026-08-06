@@ -162,6 +162,7 @@ public sealed class ReservationDataRightsIntegrationTests
 
         Result<ReservationMutationReceiptDto> ordinaryManagement = await dispatcher.SendAsync(
             new UpdateReservationGuestDetailsCommand(
+                Guid.NewGuid(),
                 propertyId,
                 reservation.Id,
                 "Ordinary Update",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 12,
+  "catalogVersion": 13,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -6745,6 +6745,13 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationDetailsOperationReplay",
+          "member": "Origin",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.ReservationDetailsHistoryItem",
           "member": "Origin",
@@ -6995,6 +7002,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationDetailsOperationReplay",
+          "member": "ExpectedDetailsRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationArrivalReminderDispatch",
           "member": "DetailsRevision",
           "surface": "application-command",
@@ -7187,6 +7201,7 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "api-response",
+        "application-command",
         "data-rights-export",
         "domain-event",
         "persistence"
@@ -7198,6 +7213,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationDetailsOperationReplay",
+          "member": "After",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.ReservationDetailsHistoryItem",
@@ -16063,6 +16085,58 @@
       ]
     },
     {
+      "id": "reservation.management-operation.expected-details-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "idempotent-lifecycle-processing",
+        "optimistic-concurrency"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationManagementOperationRecord",
+          "member": "ExpectedDetailsRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationManagementOperation",
+          "member": "ExpectedDetailsRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementOperationDataRightsExport",
+          "member": "ExpectedDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
       "id": "reservation.management-operation.expected-version",
       "dataSubject": "guest",
       "classification": "lifecycle",
@@ -16161,6 +16235,13 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+UpdateReservationGuestDetailsRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.CancelReservationCommand",
           "member": "OperationId",
@@ -16184,6 +16265,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.MarkReservationNoShowCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.UpdateReservationGuestDetailsCommand",
           "member": "OperationId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"

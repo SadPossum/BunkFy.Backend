@@ -225,6 +225,7 @@ public sealed class ReservationDataRightsExportContributorTests
                 reservation.Id,
                 ReservationManagementOperationKind.CheckIn,
                 reservation.Version,
+                ExpectedDetailsRevision: null,
                 reservation.Arrival,
                 Now.AddMinutes(5))));
 
@@ -290,6 +291,7 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationDataRightsExportContributor
                     .ManagementOperationRecordType);
         Assert.Equal(managementOperationId, managementOperation.RecordId);
+        Assert.Equal(2, managementOperation.RecordVersion);
         Assert.DoesNotContain(
             managementOperation.Fields,
             field => field.FieldId is
@@ -496,9 +498,9 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(12, descriptor.CatalogVersion);
+        Assert.Equal(13, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
-        Assert.Equal(4, descriptor.ExportSchemaVersion);
+        Assert.Equal(5, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);
     }
 

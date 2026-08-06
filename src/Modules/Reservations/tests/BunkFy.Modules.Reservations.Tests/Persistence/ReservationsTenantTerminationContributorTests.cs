@@ -110,6 +110,7 @@ public sealed class ReservationsTenantTerminationContributorTests
                 managementReservationId,
                 managementOperationId.ToString("N")),
             managementOperation.RecordId);
+        Assert.Equal(2, managementOperation.RecordVersion);
         Assert.Equal(
             ReservationsTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -495,6 +496,7 @@ public sealed class ReservationsTenantTerminationContributorTests
                 reservation.Id,
                 ReservationManagementOperationKind.CheckIn,
                 reservation.Version,
+                ExpectedDetailsRevision: null,
                 reservation.Arrival,
                 Now.AddMinutes(5))));
         context.ArrivalReminders.Add(ReservationArrivalReminder.Create(

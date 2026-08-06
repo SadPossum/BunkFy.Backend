@@ -199,6 +199,7 @@ public sealed class ReservationsModule : IModule
 
             return (await dispatcher.SendAsync(
                 new UpdateReservationGuestDetailsCommand(
+                    request.OperationId,
                     propertyId,
                     reservationId,
                     request.PrimaryGuestName,
@@ -428,6 +429,7 @@ public sealed class ReservationsModule : IModule
         long ExpectedVersion);
 
     public sealed record UpdateReservationGuestDetailsRequest(
+        Guid OperationId,
         string PrimaryGuestName,
         string? Email,
         string? Phone,

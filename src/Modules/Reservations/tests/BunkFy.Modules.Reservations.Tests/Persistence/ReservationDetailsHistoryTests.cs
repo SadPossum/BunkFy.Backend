@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Reservations.Tests;
 using Gma.Framework.Scoping;
 using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
+using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.Events;
@@ -22,6 +23,7 @@ public sealed class ReservationDetailsHistoryTests
         Guid propertyId = Guid.NewGuid();
         Guid connectionId = Guid.NewGuid();
         Guid operationId = Guid.NewGuid();
+        Guid correlationId = Guid.NewGuid();
         ReservationDetailsSnapshot before = Snapshot("Ada Guest");
         ReservationDetailsSnapshot after = Snapshot("Grace Guest");
         ReservationDetailsChangedDomainEvent change = new(
@@ -36,7 +38,7 @@ public sealed class ReservationDetailsHistoryTests
             "adapter-worker",
             connectionId,
             operationId,
-            Guid.NewGuid(),
+            correlationId,
             [nameof(Reservation.PrimaryGuestName)],
             before,
             after);
@@ -51,6 +53,11 @@ public sealed class ReservationDetailsHistoryTests
             PageRequest.Normalize(page: 1, pageSize: 20),
             CancellationToken.None);
         ReservationDetailsHistoryItem item = Assert.Single(response.Items);
+        ReservationDetailsOperationReplay? replay = await reader.FindOperationAsync(
+            propertyId,
+            reservationId,
+            correlationId,
+            CancellationToken.None);
 
         Assert.Equal(ReservationDetailsChangeOriginKind.Adapter, item.Origin);
         Assert.Equal(connectionId, item.AdapterConnectionId);
@@ -61,6 +68,15 @@ public sealed class ReservationDetailsHistoryTests
         Assert.Equal(new TimeOnly(10, 45), item.After.ExpectedDepartureTime);
         Assert.Equal(nameof(Reservation.PrimaryGuestName), Assert.Single(item.ChangedFields));
         Assert.False(response.HasMore);
+        Assert.NotNull(replay);
+        Assert.Equal(1, replay.ExpectedDetailsRevision);
+        Assert.Equal(ReservationDetailsChangeOriginKind.Adapter, replay.Origin);
+        Assert.Equal("Grace Guest", replay.After.PrimaryGuestName);
+        Assert.Null(await reader.FindOperationAsync(
+            propertyId,
+            reservationId,
+            Guid.NewGuid(),
+            CancellationToken.None));
     }
 
     [Fact]

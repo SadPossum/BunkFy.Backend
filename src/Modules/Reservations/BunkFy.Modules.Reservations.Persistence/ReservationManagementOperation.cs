@@ -14,6 +14,7 @@ internal sealed class ReservationManagementOperation
         this.ReservationId = record.ReservationId;
         this.Kind = record.Kind;
         this.ExpectedVersion = record.ExpectedVersion;
+        this.ExpectedDetailsRevision = record.ExpectedDetailsRevision;
         this.BusinessDate = record.BusinessDate;
         this.CreatedAtUtc = record.CreatedAtUtc;
     }
@@ -23,7 +24,8 @@ internal sealed class ReservationManagementOperation
     public Guid PropertyId { get; private set; }
     public Guid ReservationId { get; private set; }
     public ReservationManagementOperationKind Kind { get; private set; }
-    public long ExpectedVersion { get; private set; }
+    public long? ExpectedVersion { get; private set; }
+    public long? ExpectedDetailsRevision { get; private set; }
     public DateOnly? BusinessDate { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
@@ -34,6 +36,7 @@ internal sealed class ReservationManagementOperation
         this.ReservationId,
         this.Kind,
         this.ExpectedVersion,
+        this.ExpectedDetailsRevision,
         this.BusinessDate,
         this.CreatedAtUtc);
 }

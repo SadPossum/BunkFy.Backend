@@ -12,6 +12,28 @@ internal sealed class ReservationDetailsHistoryReader(ReservationsDbContext dbCo
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+    public async Task<ReservationDetailsOperationReplay?> FindOperationAsync(
+        Guid propertyId,
+        Guid reservationId,
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        ReservationDetailsHistoryEntry? entry = await dbContext.ReservationDetailsHistory
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.PropertyId == propertyId &&
+                    item.ReservationId == reservationId &&
+                    item.CorrelationId == correlationId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return entry is null
+            ? null
+            : new(
+                entry.FromRevision,
+                (ReservationDetailsChangeOriginKind)(int)entry.Origin,
+                Deserialize<ReservationDetailsSnapshotDto>(entry.AfterSnapshotJson));
+    }
+
     public async Task<ReservationDetailsHistoryListResponse> ListAsync(
         Guid propertyId,
         Guid reservationId,

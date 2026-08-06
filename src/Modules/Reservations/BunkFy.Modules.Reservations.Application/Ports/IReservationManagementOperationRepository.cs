@@ -18,17 +18,25 @@ public sealed record ReservationManagementOperationRecord(
     Guid PropertyId,
     Guid ReservationId,
     ReservationManagementOperationKind Kind,
-    long ExpectedVersion,
+    long? ExpectedVersion,
+    long? ExpectedDetailsRevision,
     DateOnly? BusinessDate,
     DateTimeOffset CreatedAtUtc)
 {
-    public bool Matches(
+    public bool MatchesLifecycle(
         ReservationManagementOperationKind kind,
         long expectedVersion,
         DateOnly? businessDate) =>
         this.Kind == kind &&
         this.ExpectedVersion == expectedVersion &&
+        this.ExpectedDetailsRevision is null &&
         this.BusinessDate == businessDate;
+
+    public bool MatchesGuestDetails(long expectedDetailsRevision) =>
+        this.Kind == ReservationManagementOperationKind.GuestDetails &&
+        this.ExpectedVersion is null &&
+        this.ExpectedDetailsRevision == expectedDetailsRevision &&
+        this.BusinessDate is null;
 }
 
 public enum ReservationManagementOperationKind
@@ -37,5 +45,6 @@ public enum ReservationManagementOperationKind
     Cancel = 1,
     CheckIn = 2,
     NoShow = 3,
-    CheckOut = 4
+    CheckOut = 4,
+    GuestDetails = 5
 }

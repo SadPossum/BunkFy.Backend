@@ -290,6 +290,7 @@ public sealed class ReservationsPersonalDataCatalogTests
                      typeof(ReservationArrivalReminderClaimResult),
                      typeof(ReservationExternalOperationRecord),
                      typeof(ReservationManagementOperationRecord),
+                     typeof(ReservationDetailsOperationReplay),
                      typeof(ReservationGuestProfileProjectionWriteModel),
                      typeof(ReservationGuestProcessingRestrictionProjectionWriteModel)
                  })

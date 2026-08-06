@@ -11,6 +11,7 @@ using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -29,6 +30,8 @@ public sealed class ReservationsMigrationIntegrationTests
         "20260725224526_AddReservationDataHoldsAndEligibility";
     private const string PreviousAnonymisationRestoreMigration =
         "20260726002653_AddReservationAnonymisationOwnerProof";
+    private const string PreviousManagementOperationsMigration =
+        "20260806224147_AddReservationManagementOperations";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -410,6 +413,79 @@ public sealed class ReservationsMigrationIntegrationTests
         Assert.Empty(await upgraded.AnonymisationRestoreReceipts
             .AsNoTracking()
             .ToArrayAsync());
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Guest_details_operation_migration_preserves_lifecycle_rows_and_enforces_revision_shape()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_guest_details_operation_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid lifecycleOperationId = Guid.NewGuid();
+        DateTimeOffset createdAtUtc =
+            new(2026, 8, 6, 22, 45, 0, TimeSpan.Zero);
+        await using (ReservationsDbContext previous =
+            CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(PreviousManagementOperationsMigration);
+            await SeedReservationAtPreviousSchemaAsync(
+                previous,
+                reservationId,
+                propertyId,
+                createdAtUtc);
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.management_operations (
+                    "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                    "ExpectedVersion", "BusinessDate", "CreatedAtUtc")
+                VALUES (
+                    {lifecycleOperationId}, {"tenant-a"}, {reservationId}, {propertyId}, {2},
+                    {7L}, {new DateOnly(2026, 8, 7)}, {createdAtUtc});
+                """);
+        }
+
+        await using ReservationsDbContext upgraded =
+            CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        int preservedLifecycleRows = await upgraded.Database.SqlQuery<int>($"""
+                SELECT COUNT(*)::int AS "Value"
+                FROM reservations.management_operations
+                WHERE "Id" = {lifecycleOperationId}
+                  AND "ExpectedVersion" = 7
+                  AND "ExpectedDetailsRevision" IS NULL
+                """)
+            .SingleAsync();
+        Assert.Equal(1, preservedLifecycleRows);
+
+        Guid detailsOperationId = Guid.NewGuid();
+        int inserted = await upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO reservations.management_operations (
+                "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                "ExpectedVersion", "ExpectedDetailsRevision", "BusinessDate", "CreatedAtUtc")
+            VALUES (
+                {detailsOperationId}, {"tenant-a"}, {reservationId}, {propertyId}, {5},
+                NULL, {3L}, NULL, {createdAtUtc.AddMinutes(1)});
+            """);
+        Assert.Equal(1, inserted);
+
+        PostgresException invalidShape = await Assert.ThrowsAsync<PostgresException>(() =>
+            upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.management_operations (
+                    "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                    "ExpectedVersion", "ExpectedDetailsRevision", "BusinessDate", "CreatedAtUtc")
+                VALUES (
+                    {Guid.NewGuid()}, {"tenant-a"}, {reservationId}, {propertyId}, {5},
+                    {7L}, NULL, NULL, {createdAtUtc.AddMinutes(2)});
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, invalidShape.SqlState);
     }
 
     private static Task<int> SeedReservationAtPreviousSchemaAsync(

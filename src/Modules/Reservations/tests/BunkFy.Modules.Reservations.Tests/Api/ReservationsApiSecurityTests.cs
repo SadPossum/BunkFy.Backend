@@ -23,9 +23,10 @@ public sealed class ReservationsApiSecurityTests
     [Theory]
     [InlineData(typeof(ReservationsModule.CancelReservationRequest))]
     [InlineData(typeof(ReservationsModule.StayLifecycleRequest))]
+    [InlineData(typeof(ReservationsModule.UpdateReservationGuestDetailsRequest))]
     [InlineData(typeof(ReservationsAdminApiModule.CancelReservationRequest))]
     [InlineData(typeof(ReservationsAdminApiModule.StayLifecycleRequest))]
-    public void Lifecycle_requests_require_caller_owned_operation_identity(Type requestType)
+    public void Management_requests_require_caller_owned_operation_identity(Type requestType)
     {
         PropertyInfo operationId = requestType.GetProperty("OperationId")!;
         ConstructorInfo constructor = Assert.Single(requestType.GetConstructors());

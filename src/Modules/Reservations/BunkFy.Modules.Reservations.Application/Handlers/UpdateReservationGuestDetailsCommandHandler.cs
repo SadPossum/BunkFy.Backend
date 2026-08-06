@@ -14,6 +14,8 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 internal sealed class UpdateReservationGuestDetailsCommandHandler(
     ReservationMutationCoordinator mutations,
     IReservationCountryPolicyAdmission countryPolicy,
+    IReservationManagementOperationRepository operations,
+    IReservationDetailsHistoryReader history,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<UpdateReservationGuestDetailsCommand, ReservationMutationReceiptDto>
@@ -34,6 +36,12 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<ReservationMutationReceiptDto>(
+                ReservationsApplicationErrors.ManagementOperationInvalid);
+        }
+
         Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId,
             command.ReservationId,
@@ -50,11 +58,39 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
             ReservationDetailsChangeOriginKind.System => ReservationDetailsChangeOrigin.System,
             _ => ReservationDetailsChangeOrigin.Unknown
         };
-        if (origin == ReservationDetailsChangeOrigin.Unknown)
+        string normalizedActorId = command.ActorId?.Trim() ?? string.Empty;
+        if (origin == ReservationDetailsChangeOrigin.Unknown ||
+            normalizedActorId.Length is 0 or > Reservation.ActorIdMaxLength)
         {
-            return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.DetailsChangeProvenanceInvalid);
+            return Result.Failure<ReservationMutationReceiptDto>(
+                ReservationsApplicationErrors.DetailsChangeProvenanceInvalid);
         }
 
+        ReservationManagementOperationRecord? existing = await operations
+            .GetAsync(command.ReservationId, command.OperationId, cancellationToken)
+            .ConfigureAwait(false);
+        if (existing is not null)
+        {
+            if (!existing.MatchesGuestDetails(command.ExpectedDetailsRevision))
+            {
+                return Result.Failure<ReservationMutationReceiptDto>(
+                    ReservationsApplicationErrors.ManagementOperationConflict);
+            }
+
+            ReservationDetailsOperationReplay? replay = await history
+                .FindOperationAsync(
+                    command.PropertyId,
+                    command.ReservationId,
+                    command.OperationId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return replay is not null && Matches(replay, command, origin)
+                ? Result.Success(reservation.ToMutationReceipt())
+                : Result.Failure<ReservationMutationReceiptDto>(
+                    ReservationsApplicationErrors.ManagementOperationConflict);
+        }
+
+        DateTimeOffset nowUtc = clock.UtcNow;
         Result<ReservationDetailsChangeOutcome> changed = reservation.UpdateGuestDetails(
             command.PrimaryGuestName,
             command.Email,
@@ -63,16 +99,60 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
             command.Notes,
             command.ExpectedDetailsRevision,
             origin,
-            command.ActorId,
+            normalizedActorId,
             adapterConnectionId: null,
             externalOperationId: null,
+            command.OperationId,
             idGenerator.NewId(),
-            idGenerator.NewId(),
-            clock.UtcNow,
+            nowUtc,
             command.ExpectedArrivalTime,
             command.ExpectedDepartureTime);
-        return changed.IsFailure
-            ? Result.Failure<ReservationMutationReceiptDto>(changed.Error)
-            : Result.Success(reservation.ToMutationReceipt());
+        if (changed.IsFailure)
+        {
+            return Result.Failure<ReservationMutationReceiptDto>(changed.Error);
+        }
+
+        if (changed.Value == ReservationDetailsChangeOutcome.Changed)
+        {
+            await operations.AddAsync(
+                new(
+                    command.OperationId,
+                    reservation.ScopeId,
+                    command.PropertyId,
+                    command.ReservationId,
+                    ReservationManagementOperationKind.GuestDetails,
+                    ExpectedVersion: null,
+                    command.ExpectedDetailsRevision,
+                    BusinessDate: null,
+                    nowUtc),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return Result.Success(reservation.ToMutationReceipt());
     }
+
+    private static bool Matches(
+        ReservationDetailsOperationReplay replay,
+        UpdateReservationGuestDetailsCommand command,
+        ReservationDetailsChangeOrigin origin)
+    {
+        ReservationDetailsSnapshotDto after = replay.After;
+        return replay.ExpectedDetailsRevision == command.ExpectedDetailsRevision &&
+            replay.Origin == (ReservationDetailsChangeOriginKind)(int)origin &&
+            string.Equals(
+                after.PrimaryGuestName,
+                NormalizeRequired(command.PrimaryGuestName),
+                StringComparison.Ordinal) &&
+            string.Equals(after.Email, NormalizeOptional(command.Email), StringComparison.Ordinal) &&
+            string.Equals(after.Phone, NormalizeOptional(command.Phone), StringComparison.Ordinal) &&
+            after.GuestCount == command.GuestCount &&
+            string.Equals(after.Notes, NormalizeOptional(command.Notes), StringComparison.Ordinal) &&
+            after.ExpectedArrivalTime == command.ExpectedArrivalTime &&
+            after.ExpectedDepartureTime == command.ExpectedDepartureTime;
+    }
+
+    private static string NormalizeRequired(string? value) => value?.Trim() ?? string.Empty;
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

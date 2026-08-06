@@ -418,6 +418,7 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
         Result<ReservationMutationReceiptDto> result = await dispatcher
             .SendAsync(
                 new UpdateReservationGuestDetailsCommand(
+                    Guid.NewGuid(),
                     PropertyId,
                     reservation.Id,
                     "Staff Corrected",

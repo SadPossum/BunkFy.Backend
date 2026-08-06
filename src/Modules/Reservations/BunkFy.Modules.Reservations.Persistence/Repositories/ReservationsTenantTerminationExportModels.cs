@@ -250,7 +250,8 @@ internal sealed record ReservationManagementOperationTenantExport(
 
 internal sealed record ReservationManagementOperationStateTenantExport(
     ReservationManagementOperationKind Kind,
-    long ExpectedVersion,
+    long? ExpectedVersion,
+    long? ExpectedDetailsRevision,
     DateOnly? BusinessDate,
     DateTimeOffset CreatedAtUtc);
 

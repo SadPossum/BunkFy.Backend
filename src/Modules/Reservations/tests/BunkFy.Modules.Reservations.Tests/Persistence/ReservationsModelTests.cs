@@ -236,10 +236,14 @@ public sealed class ReservationsModelTests
                     nameof(ReservationManagementOperation.CreatedAtUtc),
                     nameof(ReservationManagementOperation.Id)
                 ]));
+        Assert.True(operation.FindProperty(
+            nameof(ReservationManagementOperation.ExpectedVersion))!.IsNullable);
+        Assert.True(operation.FindProperty(
+            nameof(ReservationManagementOperation.ExpectedDetailsRevision))!.IsNullable);
         string[] constraints =
         [
             "CK_management_operations_business_date",
-            "CK_management_operations_expected_version",
+            "CK_management_operations_expected_revision",
             "CK_management_operations_kind"
         ];
         Assert.All(

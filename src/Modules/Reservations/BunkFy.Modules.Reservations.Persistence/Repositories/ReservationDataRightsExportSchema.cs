@@ -10,7 +10,7 @@ using BunkFy.Modules.DataRights.Contracts;
 internal static class ReservationDataRightsExportSchema
 {
     public const string ExportSchemaId = "reservations.subject-export";
-    public const int ExportSchemaVersion = 4;
+    public const int ExportSchemaVersion = 5;
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Reservations.Persistence.DataGovernance.personal-data-catalog.v1.json";
@@ -106,7 +106,7 @@ internal static class ReservationDataRightsExportSchema
             ReservationDataRightsExportContributor
                 .ManagementOperationRecordType,
             operation.OperationId,
-            recordVersion: 1,
+            recordVersion: 2,
             operation);
 
     public static DataRightsExportRecord CreateDataRightsCorrectionReceiptRecord(

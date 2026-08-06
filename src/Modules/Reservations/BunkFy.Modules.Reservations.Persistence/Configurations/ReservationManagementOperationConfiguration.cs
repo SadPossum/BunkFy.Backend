@@ -13,14 +13,17 @@ internal sealed class ReservationManagementOperationConfiguration
         {
             table.HasCheckConstraint(
                 "CK_management_operations_business_date",
-                "(\"Kind\" = 1 AND \"BusinessDate\" IS NULL) OR " +
+                "(\"Kind\" IN (1, 5) AND \"BusinessDate\" IS NULL) OR " +
                 "(\"Kind\" IN (2, 3, 4) AND \"BusinessDate\" IS NOT NULL)");
             table.HasCheckConstraint(
                 "CK_management_operations_kind",
-                "\"Kind\" IN (1, 2, 3, 4)");
+                "\"Kind\" IN (1, 2, 3, 4, 5)");
             table.HasCheckConstraint(
-                "CK_management_operations_expected_version",
-                "\"ExpectedVersion\" > 0");
+                "CK_management_operations_expected_revision",
+                "(\"Kind\" IN (1, 2, 3, 4) AND \"ExpectedVersion\" > 0 AND " +
+                "\"ExpectedDetailsRevision\" IS NULL) OR " +
+                "(\"Kind\" = 5 AND \"ExpectedVersion\" IS NULL AND " +
+                "\"ExpectedDetailsRevision\" > 0)");
         });
         builder.HasKey(operation => new
         {
