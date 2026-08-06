@@ -10,7 +10,7 @@ using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 internal sealed class CancelReservationCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<CancelReservationCommand, ReservationMutationReceiptDto>
@@ -19,9 +19,10 @@ internal sealed class CancelReservationCommandHandler(
         CancelReservationCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations
-            .GetAsync(command.PropertyId, command.ReservationId, cancellationToken)
-            .ConfigureAwait(false);
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
+            command.PropertyId,
+            command.ReservationId,
+            cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
             return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);

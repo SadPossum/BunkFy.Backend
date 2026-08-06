@@ -103,7 +103,8 @@ public sealed class ExternalReservationOperationHandlerTests
         FakeOperationRepository operations = new();
         RecordingOutbox outbox = new();
         ExternalReservationGuestDetailsChangeRequestedHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new FakeReservationRepository(reservation)),
             new TestReservationCountryPolicyAdmission(),
             CreateCoordinator(operations, outbox),
             CreateDomainEventDispatcher(),
@@ -162,7 +163,8 @@ public sealed class ExternalReservationOperationHandlerTests
         FakeOperationRepository operations = new();
         RecordingOutbox outbox = new();
         ExternalReservationCancellationRequestedHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new FakeReservationRepository(reservation)),
             CreateCoordinator(operations, outbox),
             CreateDomainEventDispatcher(),
             new TestClock(),
@@ -200,7 +202,8 @@ public sealed class ExternalReservationOperationHandlerTests
         FakeOperationRepository operations = new();
         RecordingOutbox outbox = new();
         ExternalReservationCancellationRequestedHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new FakeReservationRepository(reservation)),
             CreateCoordinator(operations, outbox),
             CreateDomainEventDispatcher(),
             new TestClock(),
@@ -244,7 +247,8 @@ public sealed class ExternalReservationOperationHandlerTests
         FakeOperationRepository operations = new();
         RecordingOutbox outbox = new();
         ExternalReservationAmendmentRequestedHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new FakeReservationRepository(reservation)),
             new ValidInventoryProjection(),
             new TestReservationCountryPolicyAdmission(),
             CreateCoordinator(operations, outbox),

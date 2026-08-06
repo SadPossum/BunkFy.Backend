@@ -12,7 +12,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class ReassignReservationInventoryCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IInventoryProjectionRepository inventoryProjection,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -22,7 +22,7 @@ internal sealed class ReassignReservationInventoryCommandHandler(
         ReassignReservationInventoryCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);

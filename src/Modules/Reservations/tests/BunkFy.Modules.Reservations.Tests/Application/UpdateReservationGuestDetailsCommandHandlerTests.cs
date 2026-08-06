@@ -18,8 +18,9 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
     public async Task Policy_denial_prevents_guest_detail_mutation()
     {
         Reservation reservation = CreateReservation();
+        FakeReservationRepository repository = new(reservation);
         UpdateReservationGuestDetailsCommandHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(repository),
             new TestReservationCountryPolicyAdmission(allowed: false),
             new TestClock(),
             new TestIdGenerator());
@@ -57,7 +58,7 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
         Assert.Equal(1, reservation.DetailsRevision);
         FakeReservationRepository repository = new(reservation);
         UpdateReservationGuestDetailsCommandHandler handler = new(
-            repository,
+            ReservationMutationTestSupport.Create(repository),
             new TestReservationCountryPolicyAdmission(),
             new TestClock(),
             new TestIdGenerator());
@@ -86,8 +87,9 @@ public sealed class UpdateReservationGuestDetailsCommandHandlerTests
     public async Task Management_command_cannot_impersonate_adapter_origin()
     {
         Reservation reservation = CreateReservation();
+        FakeReservationRepository repository = new(reservation);
         UpdateReservationGuestDetailsCommandHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(repository),
             new TestReservationCountryPolicyAdmission(),
             new TestClock(),
             new TestIdGenerator());

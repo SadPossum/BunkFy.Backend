@@ -22,8 +22,9 @@ public sealed class ReservationStayLifecycleTests
     public async Task Check_in_handler_preserves_business_date_and_actor_provenance()
     {
         Reservation reservation = CreateConfirmedReservation();
+        FakeReservationRepository repository = new(reservation);
         CheckInReservationCommandHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(repository),
             new TestClock(),
             new TestIdGenerator());
 
@@ -94,7 +95,8 @@ public sealed class ReservationStayLifecycleTests
         Reservation reservation = CreateConfirmedReservation();
         RecordingInventoryProjection projection = new();
         InventoryAllocationReleasedHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new FakeReservationRepository(reservation)),
             projection,
             new ReservationInboxDomainEventDispatcher(new NoOpDomainEventDispatcher()),
             new TestClock(),

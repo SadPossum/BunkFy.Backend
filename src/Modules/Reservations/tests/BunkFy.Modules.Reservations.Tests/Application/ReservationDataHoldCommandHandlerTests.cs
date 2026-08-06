@@ -28,9 +28,10 @@ public sealed class ReservationDataHoldCommandHandlerTests
         RecordingHoldRepository holds = new();
         RecordingOperationLock operationLock = new();
         PlaceReservationDataHoldCommandHandler handler = new(
-            new StubReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new StubReservationRepository(reservation),
+                operationLock),
             holds,
-            operationLock,
             new TestScopeContext(),
             new TestClock(),
             new TestIdGenerator());
@@ -61,9 +62,10 @@ public sealed class ReservationDataHoldCommandHandlerTests
         Reservation reservation = CreateReservation();
         RecordingHoldRepository holds = new();
         PlaceReservationDataHoldCommandHandler handler = new(
-            new StubReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new StubReservationRepository(reservation),
+                new RecordingOperationLock()),
             holds,
-            new RecordingOperationLock(),
             new TestScopeContext(),
             new TestClock(),
             new TestIdGenerator());
@@ -119,9 +121,10 @@ public sealed class ReservationDataHoldCommandHandlerTests
             Now.AddMinutes(-1)).Value;
         RecordingHoldRepository holds = new([hold]);
         ReleaseReservationDataHoldCommandHandler handler = new(
-            new StubReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new StubReservationRepository(reservation),
+                new RecordingOperationLock()),
             holds,
-            new RecordingOperationLock(),
             new TestScopeContext(),
             new TestClock(),
             new TestIdGenerator());
@@ -277,7 +280,17 @@ public sealed class ReservationDataHoldCommandHandlerTests
     {
         public List<Guid> ReservationIds { get; } = [];
 
-        public Task AcquireAsync(
+        public Task<bool> TryAcquireExistingAsync(
+            string tenantId,
+            Guid reservationId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal("tenant-a", tenantId);
+            this.ReservationIds.Add(reservationId);
+            return Task.FromResult(true);
+        }
+
+        public Task AcquireCoordinateAsync(
             string tenantId,
             Guid reservationId,
             CancellationToken cancellationToken)

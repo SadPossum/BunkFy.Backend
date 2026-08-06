@@ -319,7 +319,17 @@ public sealed class RestoreReservationAnonymisationCommandHandlerTests
     {
         public int CallCount { get; private set; }
 
-        public Task AcquireAsync(
+        public Task<bool> TryAcquireExistingAsync(
+            string tenantId,
+            Guid reservationId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal("tenant-a", tenantId);
+            this.CallCount++;
+            return Task.FromResult(true);
+        }
+
+        public Task AcquireCoordinateAsync(
             string tenantId,
             Guid reservationId,
             CancellationToken cancellationToken)

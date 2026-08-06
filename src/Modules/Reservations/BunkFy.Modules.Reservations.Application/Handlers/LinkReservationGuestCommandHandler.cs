@@ -14,7 +14,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class LinkReservationGuestCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IReservationGuestProfileProjectionRepository guests,
     IGuestProcessingRestrictionGate restrictionGate,
     IReservationCountryPolicyAdmission countryPolicy,
@@ -39,7 +39,7 @@ internal sealed class LinkReservationGuestCommandHandler(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);

@@ -43,7 +43,8 @@ public sealed class ReservationProcessingRestrictionCommandHandlerTests
             Guid.NewGuid(), Guid.NewGuid(),
             Guid.NewGuid(), Guid.NewGuid());
         ApplyReservationProcessingRestrictionCommandHandler apply = new(
-            new RecordingReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new RecordingReservationRepository(reservation)),
             new RecordingProjectionRepository(projection),
             restrictions,
             reminders,
@@ -85,7 +86,8 @@ public sealed class ReservationProcessingRestrictionCommandHandlerTests
                 purpose));
 
         ReleaseReservationProcessingRestrictionCommandHandler release = new(
-            new RecordingReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new RecordingReservationRepository(reservation)),
             new RecordingProjectionRepository(projection),
             restrictions,
             approval,
@@ -147,7 +149,8 @@ public sealed class ReservationProcessingRestrictionCommandHandlerTests
         ApplyReservationProcessingRestrictionCommand command =
             CreateApplyCommand(reservation, expectedProjectionRevision: 0);
         ApplyReservationProcessingRestrictionCommandHandler handler = new(
-            new RecordingReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new RecordingReservationRepository(reservation)),
             new RecordingProjectionRepository(projection),
             restrictions,
             reminders,
@@ -198,7 +201,8 @@ public sealed class ReservationProcessingRestrictionCommandHandlerTests
         RecordingRestrictionRepository restrictions = new();
         RecordingReminderRepository reminders = new();
         ApplyReservationProcessingRestrictionCommandHandler handler = new(
-            new RecordingReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(
+                new RecordingReservationRepository(reservation)),
             new RecordingProjectionRepository(projection),
             restrictions,
             reminders,

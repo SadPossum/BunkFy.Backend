@@ -142,6 +142,7 @@ public static class DependencyInjection
                 PropertiesModuleMetadata.Name);
         services.TryAddScoped<ExternalReservationOperationCoordinator>();
         services.TryAddScoped<ReservationInboxDomainEventDispatcher>();
+        services.TryAddScoped<ReservationMutationCoordinator>();
 
         return services;
     }

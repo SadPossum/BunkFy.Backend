@@ -10,7 +10,8 @@ using Microsoft.EntityFrameworkCore;
 
 internal sealed class ReservationArrivalReminderRepository(
     ReservationsDbContext dbContext,
-    IIdGenerator idGenerator)
+    IIdGenerator idGenerator,
+    IReservationOperationLock operationLock)
     : IReservationArrivalReminderRepository, IReservationPropertyPolicyRepository
 {
     public async Task ApplyPropertyAsync(
@@ -155,7 +156,9 @@ internal sealed class ReservationArrivalReminderRepository(
         int batchSize,
         CancellationToken cancellationToken)
     {
-        ReservationArrivalReminder[] candidates = await dbContext.ArrivalReminders
+        ReservationArrivalReminder[] scannedCandidates =
+            await dbContext.ArrivalReminders
+            .AsNoTracking()
             .Where(reminder =>
                 reminder.State == ReservationArrivalReminderState.Pending &&
                 reminder.DueAtUtc <= nowUtc)
@@ -163,17 +166,47 @@ internal sealed class ReservationArrivalReminderRepository(
             .ThenBy(reminder => reminder.Id)
             .Take(batchSize)
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
-        if (candidates.Length == 0)
+        if (scannedCandidates.Length == 0)
         {
             return new(0, []);
         }
 
-        Guid[] reservationIds = candidates.Select(reminder => reminder.ReservationId).Distinct().ToArray();
-        Guid[] propertyIds = candidates.Select(reminder => reminder.PropertyId).Distinct().ToArray();
+        Guid[] reservationIds = scannedCandidates
+            .Select(reminder => reminder.ReservationId)
+            .Distinct()
+            .OrderBy(reservationId => reservationId)
+            .ToArray();
+        Guid[] candidateIds = scannedCandidates
+            .Select(reminder => reminder.Id)
+            .ToArray();
+        Guid[] propertyIds = scannedCandidates
+            .Select(reminder => reminder.PropertyId)
+            .Distinct()
+            .ToArray();
+        List<Guid> acquiredReservationIds = new(reservationIds.Length);
+        foreach (Guid reservationId in reservationIds)
+        {
+            if (await operationLock.TryAcquireExistingAsync(
+                    dbContext.CurrentScopeId,
+                    reservationId,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                acquiredReservationIds.Add(reservationId);
+            }
+        }
+
+        HashSet<Guid> acquiredReservationIdSet =
+            acquiredReservationIds.ToHashSet();
+        ReservationArrivalReminder[] candidates =
+            await dbContext.ArrivalReminders
+                .Where(reminder => candidateIds.Contains(reminder.Id))
+                .OrderBy(reminder => reminder.DueAtUtc)
+                .ThenBy(reminder => reminder.Id)
+                .ToArrayAsync(cancellationToken).ConfigureAwait(false);
         Dictionary<Guid, ReservationReminderCandidate> reservations = await dbContext.Reservations
             .AsNoTracking()
             .Where(reservation =>
-                reservationIds.Contains(reservation.Id) &&
+                acquiredReservationIds.Contains(reservation.Id) &&
                 !reservation.IsAnonymised &&
                 dbContext.ProcessingRestrictionProjections.Any(projection =>
                     projection.PropertyId == reservation.PropertyId &&
@@ -193,11 +226,19 @@ internal sealed class ReservationArrivalReminderRepository(
             .AsNoTracking()
             .Where(property => propertyIds.Contains(property.Id))
             .ToDictionaryAsync(property => property.Id, cancellationToken).ConfigureAwait(false);
-        List<ReservationArrivalReminderDispatch> dispatches = new(candidates.Length);
+        List<ReservationArrivalReminderDispatch> dispatches =
+            new(candidates.Length);
 
         foreach (ReservationArrivalReminder candidate in candidates)
         {
-            if (!reservations.TryGetValue(candidate.ReservationId, out ReservationReminderCandidate? reservation) ||
+            if (candidate.State != ReservationArrivalReminderState.Pending ||
+                candidate.DueAtUtc > nowUtc)
+            {
+                continue;
+            }
+
+            if (!acquiredReservationIdSet.Contains(candidate.ReservationId) ||
+                !reservations.TryGetValue(candidate.ReservationId, out ReservationReminderCandidate? reservation) ||
                 reservation.Status != ReservationState.Confirmed ||
                 reservation.PropertyId != candidate.PropertyId ||
                 reservation.DetailsRevision != candidate.DetailsRevision ||
@@ -225,7 +266,7 @@ internal sealed class ReservationArrivalReminderRepository(
                 candidate.DetailsRevision));
         }
 
-        return new(candidates.Length, dispatches);
+        return new(scannedCandidates.Length, dispatches);
     }
 
     public async Task<IReadOnlyList<string>> ListScheduleScopeIdsAsync(

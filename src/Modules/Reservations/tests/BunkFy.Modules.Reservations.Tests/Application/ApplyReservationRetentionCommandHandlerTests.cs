@@ -138,15 +138,20 @@ public sealed class ApplyReservationRetentionCommandHandlerTests
                 reservationId: reservation.Id,
                 propertyId: reservation.PropertyId));
         RecordingOperationLock operationLock = new();
+        StubReservationRepository reservations = new(reservation);
+        TestScopeContext scopeContext = new(activeScopeId);
         ApplyReservationRetentionCommandHandler handler = new(
             executions,
             candidates,
-            new StubReservationRepository(reservation),
+            reservations,
             new StubAnonymisationRepository(),
-            operationLock,
+            ReservationMutationTestSupport.Create(
+                reservations,
+                operationLock,
+                scopeContext),
             new ReservationRetentionEligibilityEvaluator(
                 policy.Registry),
-            new TestScopeContext(activeScopeId),
+            scopeContext,
             new TestClock(),
             new QueueIdGenerator(
                 Guid.NewGuid(),
@@ -402,7 +407,17 @@ public sealed class ApplyReservationRetentionCommandHandlerTests
     {
         public int CallCount { get; private set; }
 
-        public Task AcquireAsync(
+        public Task<bool> TryAcquireExistingAsync(
+            string tenantId,
+            Guid reservationId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal("tenant-a", tenantId);
+            this.CallCount++;
+            return Task.FromResult(true);
+        }
+
+        public Task AcquireCoordinateAsync(
             string tenantId,
             Guid reservationId,
             CancellationToken cancellationToken)

@@ -18,7 +18,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class ApplyReservationProcessingRestrictionCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IReservationProcessingRestrictionProjectionRepository projections,
     IReservationProcessingRestrictionRepository restrictions,
     IReservationArrivalReminderRepository reminders,
@@ -96,7 +96,7 @@ internal sealed class ApplyReservationProcessingRestrictionCommandHandler(
                 ReservationsApplicationErrors.DataRightsApprovalRequired);
         }
 
-        Reservation? reservation = await reservations.GetForDataRightsAsync(
+        Reservation? reservation = await mutations.AcquireDataRightsAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);

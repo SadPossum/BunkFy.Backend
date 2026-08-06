@@ -10,7 +10,7 @@ using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 internal sealed class CheckInReservationCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator ids)
     : ICommandHandler<CheckInReservationCommand, ReservationMutationReceiptDto>
@@ -19,7 +19,7 @@ internal sealed class CheckInReservationCommandHandler(
         CheckInReservationCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
@@ -39,7 +39,7 @@ internal sealed class CheckInReservationCommandHandler(
 }
 
 internal sealed class MarkReservationNoShowCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator ids)
     : ICommandHandler<MarkReservationNoShowCommand, ReservationMutationReceiptDto>
@@ -48,7 +48,7 @@ internal sealed class MarkReservationNoShowCommandHandler(
         MarkReservationNoShowCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {
@@ -69,7 +69,7 @@ internal sealed class MarkReservationNoShowCommandHandler(
 }
 
 internal sealed class CheckOutReservationCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator ids)
     : ICommandHandler<CheckOutReservationCommand, ReservationMutationReceiptDto>
@@ -78,7 +78,7 @@ internal sealed class CheckOutReservationCommandHandler(
         CheckOutReservationCommand command,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId, command.ReservationId, cancellationToken).ConfigureAwait(false);
         if (reservation is null)
         {

@@ -17,6 +17,10 @@ internal sealed class ReservationRepository(
         CancellationToken cancellationToken)
     {
         dbContext.Reservations.Add(reservation);
+        dbContext.OperationLocks.Add(new(
+            Guid.NewGuid(),
+            reservation.ScopeId,
+            reservation.Id));
         await restrictionProjections.EnsureAsync(
             reservation.ScopeId,
             reservation.PropertyId,

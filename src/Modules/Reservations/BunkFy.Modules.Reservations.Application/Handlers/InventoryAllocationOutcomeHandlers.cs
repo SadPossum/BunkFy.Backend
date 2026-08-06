@@ -10,7 +10,7 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 [IntegrationEventHandler(ReservationsModuleMetadata.AllocationConfirmedHandlerName)]
 internal sealed class InventoryAllocationConfirmedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IInventoryProjectionRepository projection,
     IOutboxWriterRegistry outboxWriters,
     ReservationInboxDomainEventDispatcher domainEvents,
@@ -20,6 +20,17 @@ internal sealed class InventoryAllocationConfirmedHandler(
 {
     public async Task HandleAsync(InventoryAllocationConfirmedIntegrationEvent outcome, CancellationToken cancellationToken)
     {
+        Reservation? reservation = await mutations
+            .AcquireRequiredContinuationAsync(
+                outcome.PropertyId,
+                outcome.ReservationId,
+                cancellationToken).ConfigureAwait(false);
+        if (reservation is null)
+        {
+            throw new InvalidOperationException(
+                $"Reservation '{outcome.ReservationId}' was not found for Inventory allocation confirmation.");
+        }
+
         await projection.ApplyAllocationAsync(
             new(
                 outcome.ScopeId,
@@ -32,18 +43,6 @@ internal sealed class InventoryAllocationConfirmedHandler(
                 outcome.InventoryUnitIds,
                 outcome.AllocationVersion),
             cancellationToken).ConfigureAwait(false);
-
-        Reservation? reservation = await reservations
-            .GetForRequiredContinuationAsync(
-                outcome.PropertyId,
-                outcome.ReservationId,
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (reservation is null)
-        {
-            throw new InvalidOperationException(
-                $"Reservation '{outcome.ReservationId}' was not found for Inventory allocation confirmation.");
-        }
 
         long version = reservation.Version;
         if (reservation.ConfirmAllocation(
@@ -79,7 +78,7 @@ internal sealed class InventoryAllocationConfirmedHandler(
 
 [IntegrationEventHandler(ReservationsModuleMetadata.AllocationRejectedHandlerName)]
 internal sealed class InventoryAllocationRejectedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IOutboxWriterRegistry outboxWriters,
     ReservationInboxDomainEventDispatcher domainEvents,
     ISystemClock clock,
@@ -88,8 +87,8 @@ internal sealed class InventoryAllocationRejectedHandler(
 {
     public async Task HandleAsync(InventoryAllocationRejectedIntegrationEvent outcome, CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations
-            .GetForRequiredContinuationAsync(
+        Reservation? reservation = await mutations
+            .AcquireRequiredContinuationAsync(
                 outcome.PropertyId,
                 outcome.ReservationId,
                 cancellationToken)
@@ -133,7 +132,7 @@ internal sealed class InventoryAllocationRejectedHandler(
 
 [IntegrationEventHandler(ReservationsModuleMetadata.AllocationReleasedHandlerName)]
 internal sealed class InventoryAllocationReleasedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IInventoryProjectionRepository projection,
     ReservationInboxDomainEventDispatcher domainEvents,
     ISystemClock clock,
@@ -142,8 +141,8 @@ internal sealed class InventoryAllocationReleasedHandler(
 {
     public async Task HandleAsync(InventoryAllocationReleasedIntegrationEvent outcome, CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations
-            .GetForRequiredContinuationByReservationIdAsync(
+        Reservation? reservation = await mutations
+            .AcquireRequiredContinuationByReservationIdAsync(
                 outcome.ReservationId,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -178,7 +177,7 @@ internal sealed class InventoryAllocationReleasedHandler(
 
 [IntegrationEventHandler(ReservationsModuleMetadata.AllocationReleaseRejectedHandlerName)]
 internal sealed class InventoryAllocationReleaseRejectedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     ReservationInboxDomainEventDispatcher domainEvents,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -188,8 +187,8 @@ internal sealed class InventoryAllocationReleaseRejectedHandler(
         InventoryAllocationReleaseRejectedIntegrationEvent outcome,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations
-            .GetForRequiredContinuationByReservationIdAsync(
+        Reservation? reservation = await mutations
+            .AcquireRequiredContinuationByReservationIdAsync(
                 outcome.ReservationId,
                 cancellationToken)
             .ConfigureAwait(false);

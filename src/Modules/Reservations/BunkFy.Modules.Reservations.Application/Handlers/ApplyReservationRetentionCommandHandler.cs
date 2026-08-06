@@ -18,7 +18,7 @@ internal sealed class ApplyReservationRetentionCommandHandler(
     IReservationRetentionCandidateRepository candidates,
     IReservationRepository reservations,
     IReservationAnonymisationRepository anonymisation,
-    IReservationOperationLock operationLock,
+    ReservationMutationCoordinator mutations,
     ReservationRetentionEligibilityEvaluator eligibility,
     IScopeContext scopeContext,
     ISystemClock clock,
@@ -101,8 +101,7 @@ internal sealed class ApplyReservationRetentionCommandHandler(
                             .NoLongerEligible));
         }
 
-        await operationLock.AcquireAsync(
-            tenantId,
+        _ = await mutations.AcquireExistingAsync(
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);
 

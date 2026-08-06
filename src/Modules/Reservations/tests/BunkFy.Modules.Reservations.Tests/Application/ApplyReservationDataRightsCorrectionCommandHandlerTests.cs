@@ -209,7 +209,8 @@ public sealed class ApplyReservationDataRightsCorrectionCommandHandlerTests
         RecordingApprovalGate approval,
         RecordingCountryPolicy countryPolicy,
         IIdGenerator ids) => new(
-        new RecordingReservationRepository(reservation),
+        ReservationMutationTestSupport.Create(
+            new RecordingReservationRepository(reservation)),
         receipts,
         approval,
         countryPolicy,

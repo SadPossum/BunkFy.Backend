@@ -139,7 +139,7 @@ internal sealed class ExternalReservationCreateRequestedHandler(
 
 [IntegrationEventHandler(ReservationsModuleMetadata.ExternalGuestDetailsHandlerName)]
 internal sealed class ExternalReservationGuestDetailsChangeRequestedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IReservationCountryPolicyAdmission countryPolicy,
     ExternalReservationOperationCoordinator coordinator,
     ReservationInboxDomainEventDispatcher domainEvents,
@@ -182,7 +182,7 @@ internal sealed class ExternalReservationGuestDetailsChangeRequestedHandler(
             return;
         }
 
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             request.PropertyId,
             request.ReservationId,
             cancellationToken).ConfigureAwait(false);
@@ -256,7 +256,7 @@ internal sealed class ExternalReservationGuestDetailsChangeRequestedHandler(
 
 [IntegrationEventHandler(ReservationsModuleMetadata.ExternalAmendmentHandlerName)]
 internal sealed class ExternalReservationAmendmentRequestedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IInventoryProjectionRepository inventoryProjection,
     IReservationCountryPolicyAdmission countryPolicy,
     ExternalReservationOperationCoordinator coordinator,
@@ -300,7 +300,7 @@ internal sealed class ExternalReservationAmendmentRequestedHandler(
             return;
         }
 
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             request.PropertyId,
             request.ReservationId,
             cancellationToken).ConfigureAwait(false);
@@ -410,7 +410,7 @@ internal sealed class ExternalReservationAmendmentRequestedHandler(
 
 [IntegrationEventHandler(ReservationsModuleMetadata.ExternalCancellationHandlerName)]
 internal sealed class ExternalReservationCancellationRequestedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     ExternalReservationOperationCoordinator coordinator,
     ReservationInboxDomainEventDispatcher domainEvents,
     ISystemClock clock,
@@ -437,7 +437,7 @@ internal sealed class ExternalReservationCancellationRequestedHandler(
             return;
         }
 
-        Reservation? reservation = await reservations.GetForRequiredContinuationAsync(
+        Reservation? reservation = await mutations.AcquireRequiredContinuationAsync(
             request.PropertyId,
             request.ReservationId,
             cancellationToken).ConfigureAwait(false);

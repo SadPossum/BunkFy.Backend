@@ -30,10 +30,13 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
         RecordingOperationLock operationLock = new();
         RecordingEligibility eligibility = new();
         RecordingApprovalGate approval = new(CreateApprovalEvidence());
+        StubReservationRepository reservations = new(reservation);
         ApplyReservationAnonymisationCommandHandler handler = new(
-            new StubReservationRepository(reservation),
+            reservations,
             anonymisation,
-            operationLock,
+            ReservationMutationTestSupport.Create(
+                reservations,
+                operationLock),
             eligibility,
             approval,
             new TestScopeContext(),
@@ -55,7 +58,9 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
         Assert.Equal(2, first.Value.RedactedHistoryCount);
         Assert.Equal(1, first.Value.ReducedExternalOperationCount);
         Assert.Equal(1, first.Value.SuppressedReminderCount);
-        Assert.Single(operationLock.ReservationIds);
+        Assert.Equal(
+            [reservation.Id, reservation.Id],
+            operationLock.ReservationIds);
         Assert.Equal(1, approval.CallCount);
         Assert.Equal(1, eligibility.CallCount);
         Assert.Equal(1, anonymisation.AddCount);
@@ -71,10 +76,13 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
         RecordingAnonymisationRepository anonymisation = new();
         ApplyReservationAnonymisationCommand command =
             CreateCommand(reservation);
+        StubReservationRepository reservations = new(reservation);
         ApplyReservationAnonymisationCommandHandler handler = new(
-            new StubReservationRepository(reservation),
+            reservations,
             anonymisation,
-            new RecordingOperationLock(),
+            ReservationMutationTestSupport.Create(
+                reservations,
+                new RecordingOperationLock()),
             new RecordingEligibility(),
             new RecordingApprovalGate(CreateApprovalEvidence()),
             new TestScopeContext(),
@@ -93,10 +101,14 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
             changed.Error);
 
         Reservation blockedReservation = CreateTerminalReservation();
+        StubReservationRepository blockedReservations =
+            new(blockedReservation);
         ApplyReservationAnonymisationCommandHandler blockedHandler = new(
-            new StubReservationRepository(blockedReservation),
+            blockedReservations,
             new RecordingAnonymisationRepository(),
-            new RecordingOperationLock(),
+            ReservationMutationTestSupport.Create(
+                blockedReservations,
+                new RecordingOperationLock()),
             new RecordingEligibility(
                 ReservationAnonymisationBlockerCode.ActiveDataHold),
             new RecordingApprovalGate(CreateApprovalEvidence()),
@@ -302,7 +314,17 @@ public sealed class ApplyReservationAnonymisationCommandHandlerTests
     {
         public List<Guid> ReservationIds { get; } = [];
 
-        public Task AcquireAsync(
+        public Task<bool> TryAcquireExistingAsync(
+            string tenantId,
+            Guid reservationId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal("tenant-a", tenantId);
+            this.ReservationIds.Add(reservationId);
+            return Task.FromResult(true);
+        }
+
+        public Task AcquireCoordinateAsync(
             string tenantId,
             Guid reservationId,
             CancellationToken cancellationToken)

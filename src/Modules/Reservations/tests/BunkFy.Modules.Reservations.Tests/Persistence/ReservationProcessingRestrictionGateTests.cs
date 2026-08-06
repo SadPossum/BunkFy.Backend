@@ -28,6 +28,12 @@ public sealed class ReservationProcessingRestrictionGateTests
         await repository.AddAsync(reservation, CancellationToken.None);
         await dbContext.SaveChangesAsync();
 
+        ReservationOperationLock operationLock =
+            Assert.Single(dbContext.OperationLocks);
+        Assert.Equal(reservation.ScopeId, operationLock.ScopeId);
+        Assert.Equal(reservation.Id, operationLock.ReservationId);
+        Assert.Equal(1, operationLock.Revision);
+
         Assert.NotNull(await repository.GetAsync(
             reservation.PropertyId,
             reservation.Id,
@@ -93,6 +99,27 @@ public sealed class ReservationProcessingRestrictionGateTests
             reservation.PropertyId,
             reservation.Id,
             CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Existing_reservation_without_provisioned_operation_lock_fails_closed()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext();
+        Reservation reservation = CreateReservation();
+        dbContext.Reservations.Add(reservation);
+        await dbContext.SaveChangesAsync();
+        ReservationOperationLockRepository operationLock = new(dbContext);
+
+        InvalidOperationException exception =
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                operationLock.TryAcquireExistingAsync(
+                    reservation.ScopeId,
+                    reservation.Id,
+                    CancellationToken.None));
+
+        Assert.Equal(
+            "The reservation operation lock is not provisioned.",
+            exception.Message);
     }
 
     private static Reservation CreateReservation() => Reservation.Create(

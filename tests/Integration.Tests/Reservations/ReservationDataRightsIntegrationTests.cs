@@ -308,6 +308,19 @@ public sealed class ReservationDataRightsIntegrationTests
         Assert.True(applyReplay.IsSuccess, applyReplay.Error.Code);
         Assert.Equal(applied.Value.ReceiptId, applyReplay.Value.ReceiptId);
 
+        CancelReservationCommand ordinaryMutation = new(
+            propertyId,
+            reservation.Id,
+            reservation.Version,
+            "user:front-desk");
+        Result<ReservationMutationReceiptDto> blockedMutation =
+            await dispatcher.SendAsync(
+                ordinaryMutation,
+                CancellationToken.None).ConfigureAwait(false);
+        Assert.Equal(
+            ReservationsApplicationErrors.ReservationNotFound,
+            blockedMutation.Error);
+
         using (IServiceScope restrictedScope = api.Services.CreateScope())
         {
             restrictedScope.ServiceProvider
@@ -355,6 +368,15 @@ public sealed class ReservationDataRightsIntegrationTests
         Assert.True(releaseReplay.IsSuccess, releaseReplay.Error.Code);
         Assert.Equal(released.Value.ReceiptId, releaseReplay.Value.ReceiptId);
 
+        Result<ReservationMutationReceiptDto> cancelled =
+            await dispatcher.SendAsync(
+                ordinaryMutation,
+                CancellationToken.None).ConfigureAwait(false);
+        Assert.True(cancelled.IsSuccess, cancelled.Error.Code);
+        Assert.Equal(
+            ReservationStatus.CancellationPending,
+            cancelled.Value.Status);
+
         using IServiceScope verificationScope = api.Services.CreateScope();
         verificationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
             .SetTenant(TenantId);
@@ -395,6 +417,17 @@ public sealed class ReservationDataRightsIntegrationTests
                 .OrderBy(message => message.OccurredAtUtc)
                 .ToArrayAsync()
                 .ConfigureAwait(false);
+        long operationLockRevision = await reservations.Database
+            .SqlQueryRaw<long>("""
+                SELECT "Revision" AS "Value"
+                FROM reservations.reservation_operation_locks
+                WHERE "ScopeId" = {0}
+                  AND "ReservationId" = {1}
+                """,
+                TenantId,
+                reservation.Id)
+            .SingleAsync()
+            .ConfigureAwait(false);
 
         Assert.Equal(ReservationProcessingRestrictionStatus.Released, restriction.Status);
         Assert.Equal(releaseCase.Id, restriction.ReleaseCaseId);
@@ -412,6 +445,12 @@ public sealed class ReservationDataRightsIntegrationTests
             receipt => receipt.Action ==
                 ReservationProcessingRestrictionAction.Release);
         Assert.Equal(ReservationArrivalReminderState.Superseded, reminder.State);
+        Assert.Equal(ReservationState.CancellationPending, (
+            await reservations.Reservations
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == reservation.Id)
+                .ConfigureAwait(false)).Status);
+        Assert.Equal(4, operationLockRevision);
         Assert.Equal(2, restrictionEvents.Length);
         Assert.All(
             restrictionEvents,

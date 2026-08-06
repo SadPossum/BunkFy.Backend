@@ -119,7 +119,8 @@ public sealed class LinkReservationGuestRestrictionTests
         Reservation reservation,
         bool localLinkable,
         IGuestProcessingRestrictionGate gate) => new(
-        new FakeReservationRepository(reservation),
+        ReservationMutationTestSupport.Create(
+            new FakeReservationRepository(reservation)),
         new FakeGuestProjectionRepository(localLinkable),
         gate,
         new TestReservationCountryPolicyAdmission(),

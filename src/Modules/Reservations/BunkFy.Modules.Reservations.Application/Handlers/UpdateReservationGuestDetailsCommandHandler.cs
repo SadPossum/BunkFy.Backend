@@ -12,7 +12,7 @@ using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 internal sealed class UpdateReservationGuestDetailsCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IReservationCountryPolicyAdmission countryPolicy,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -34,7 +34,7 @@ internal sealed class UpdateReservationGuestDetailsCommandHandler(
                 ReservationsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
-        Reservation? reservation = await reservations.GetAsync(
+        Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);

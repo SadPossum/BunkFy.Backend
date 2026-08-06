@@ -18,7 +18,7 @@ using Gma.Framework.Scoping;
 internal sealed class ApplyReservationAnonymisationCommandHandler(
     IReservationRepository reservations,
     IReservationAnonymisationRepository anonymisation,
-    IReservationOperationLock operationLock,
+    ReservationMutationCoordinator mutations,
     IReservationAnonymisationEligibilityEvaluator eligibility,
     IDataRightsOperationApprovalGate approvalGate,
     IScopeContext scopeContext,
@@ -89,8 +89,7 @@ internal sealed class ApplyReservationAnonymisationCommandHandler(
                 ReservationsApplicationErrors.DataRightsApprovalRequired);
         }
 
-        await operationLock.AcquireAsync(
-            tenantId,
+        _ = await mutations.AcquireExistingAsync(
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);
 
@@ -213,7 +212,7 @@ internal sealed class ApplyReservationAnonymisationCommandHandler(
                 ReservationsApplicationErrors.AnonymisationIdempotencyConflict);
         }
 
-        Reservation? reservation = await reservations.GetForDataRightsAsync(
+        Reservation? reservation = await mutations.AcquireDataRightsAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);

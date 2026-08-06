@@ -48,7 +48,7 @@ internal sealed class RestoreReservationAnonymisationCommandHandler(
                         .AnonymisationRestoreRequestInvalid);
         }
 
-        await operationLock.AcquireAsync(
+        await operationLock.AcquireCoordinateAsync(
             tenantId,
             request.RecordId,
             cancellationToken).ConfigureAwait(false);

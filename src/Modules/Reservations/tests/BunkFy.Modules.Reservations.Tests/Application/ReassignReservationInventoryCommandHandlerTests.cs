@@ -22,8 +22,9 @@ public sealed class ReassignReservationInventoryCommandHandlerTests
         Guid targetUnitId = Guid.NewGuid();
         Reservation reservation = CreateConfirmedReservation(currentUnitId);
         reservation.ClearDomainEvents();
+        FakeReservationRepository repository = new(reservation);
         ReassignReservationInventoryCommandHandler handler = new(
-            new FakeReservationRepository(reservation),
+            ReservationMutationTestSupport.Create(repository),
             new FakeInventoryProjectionRepository(),
             new TestClock(),
             new TestIdGenerator());

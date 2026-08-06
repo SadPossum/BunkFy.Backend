@@ -11,7 +11,7 @@ using BunkFy.Modules.Reservations.Domain.Aggregates;
 
 [IntegrationEventHandler(ReservationsModuleMetadata.AllocationAmendmentConfirmedHandlerName)]
 internal sealed class InventoryAllocationAmendmentConfirmedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IInventoryProjectionRepository projection,
     ExternalReservationOperationCoordinator coordinator,
     ReservationInboxDomainEventDispatcher domainEvents,
@@ -23,7 +23,7 @@ internal sealed class InventoryAllocationAmendmentConfirmedHandler(
         InventoryAllocationAmendmentConfirmedIntegrationEvent outcome,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetForRequiredContinuationAsync(
+        Reservation? reservation = await mutations.AcquireRequiredContinuationAsync(
             outcome.PropertyId,
             outcome.ReservationId,
             cancellationToken).ConfigureAwait(false);
@@ -92,7 +92,7 @@ internal sealed class InventoryAllocationAmendmentConfirmedHandler(
 
 [IntegrationEventHandler(ReservationsModuleMetadata.AllocationAmendmentRejectedHandlerName)]
 internal sealed class InventoryAllocationAmendmentRejectedHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     ExternalReservationOperationCoordinator coordinator,
     ISystemClock clock)
     : IIntegrationEventHandler<InventoryAllocationAmendmentRejectedIntegrationEvent>
@@ -101,7 +101,7 @@ internal sealed class InventoryAllocationAmendmentRejectedHandler(
         InventoryAllocationAmendmentRejectedIntegrationEvent outcome,
         CancellationToken cancellationToken)
     {
-        Reservation? reservation = await reservations.GetForRequiredContinuationAsync(
+        Reservation? reservation = await mutations.AcquireRequiredContinuationAsync(
             outcome.PropertyId,
             outcome.ReservationId,
             cancellationToken).ConfigureAwait(false);

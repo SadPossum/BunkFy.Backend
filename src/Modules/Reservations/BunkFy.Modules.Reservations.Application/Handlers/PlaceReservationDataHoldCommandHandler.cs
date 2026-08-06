@@ -16,9 +16,8 @@ using DomainDataHoldAction =
     BunkFy.Modules.Reservations.Domain.Models.ReservationDataHoldAction;
 
 internal sealed class PlaceReservationDataHoldCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IReservationDataHoldRepository holds,
-    IReservationOperationLock operationLock,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator ids)
@@ -65,12 +64,7 @@ internal sealed class PlaceReservationDataHoldCommandHandler(
                 cancellationToken).ConfigureAwait(false);
         }
 
-        await operationLock.AcquireAsync(
-            tenantId,
-            command.ReservationId,
-            cancellationToken).ConfigureAwait(false);
-
-        Reservation? reservation = await reservations.GetForDataRightsAsync(
+        Reservation? reservation = await mutations.AcquireDataRightsAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);

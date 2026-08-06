@@ -222,7 +222,7 @@ public sealed class ReservationsMigrationIntegrationTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Data_hold_migration_preserves_reservations_and_starts_empty()
+    public async Task Data_hold_migration_preserves_reservations_and_current_upgrade_backfills_operation_lock()
     {
         await using PostgreSqlContainer postgreSql =
             new PostgreSqlBuilder("postgres:16-alpine")
@@ -267,7 +267,7 @@ public sealed class ReservationsMigrationIntegrationTests
                 "SELECT COUNT(*)::int AS \"Value\" " +
                 "FROM reservations.reservation_operation_locks")
             .SingleAsync();
-        Assert.Equal(0, operationLockCount);
+        Assert.Equal(1, operationLockCount);
     }
 
     [DockerFact]

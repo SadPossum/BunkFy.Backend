@@ -17,7 +17,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class ApplyReservationDataRightsCorrectionCommandHandler(
-    IReservationRepository reservations,
+    ReservationMutationCoordinator mutations,
     IReservationDataRightsCorrectionReceiptRepository receipts,
     IDataRightsCorrectionExecutionGate executionGate,
     IReservationCountryPolicyAdmission countryPolicy,
@@ -89,7 +89,7 @@ internal sealed class ApplyReservationDataRightsCorrectionCommandHandler(
                 ReservationsApplicationErrors.DataRightsApprovalRequired);
         }
 
-        Reservation? reservation = await reservations.GetForDataRightsAsync(
+        Reservation? reservation = await mutations.AcquireDataRightsAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);
@@ -160,7 +160,7 @@ internal sealed class ApplyReservationDataRightsCorrectionCommandHandler(
                 ReservationsApplicationErrors.CorrectionIdempotencyConflict);
         }
 
-        Reservation? reservation = await reservations.GetForDataRightsAsync(
+        Reservation? reservation = await mutations.AcquireDataRightsAsync(
             command.PropertyId,
             command.ReservationId,
             cancellationToken).ConfigureAwait(false);
