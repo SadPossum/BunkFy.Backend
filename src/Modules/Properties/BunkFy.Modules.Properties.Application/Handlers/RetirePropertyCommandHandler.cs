@@ -10,7 +10,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RetirePropertyCommandHandler(
-    IPropertyRepository propertyRepository,
+    PropertiesMutationCoordinator mutations,
     IRoomRepository roomRepository,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -18,7 +18,10 @@ internal sealed class RetirePropertyCommandHandler(
 {
     public async Task<Result<Unit>> HandleAsync(RetirePropertyCommand command, CancellationToken cancellationToken)
     {
-        Property? property = await propertyRepository.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
+        Property? property = await mutations
+            .AcquirePropertyAsync(
+                command.PropertyId,
+                cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
             return Result.Failure<Unit>(PropertiesDomainErrors.PropertyNotFound);

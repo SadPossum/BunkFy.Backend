@@ -26,7 +26,8 @@ public sealed class PropertyProcessingCommandHandlerTests
         RecordingRevisionWriter revisions = new();
         CountryPolicyPackArtifact artifact = CreateArtifact();
         ActivatePropertyProcessingCommandHandler handler = new(
-            new FakePropertyRepository(property),
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
             revisions,
             CreateRegistry(artifact),
             new TestClock(),
@@ -67,7 +68,8 @@ public sealed class PropertyProcessingCommandHandlerTests
         Property property = CreateProperty();
         RecordingRevisionWriter revisions = new();
         ActivatePropertyProcessingCommandHandler handler = new(
-            new FakePropertyRepository(property),
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
             revisions,
             CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),
             new TestClock(),
@@ -111,7 +113,8 @@ public sealed class PropertyProcessingCommandHandlerTests
         Property property = CreateProperty();
         RecordingRevisionWriter revisions = new();
         ActivatePropertyProcessingCommandHandler handler = new(
-            new FakePropertyRepository(property),
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
             revisions,
             CreateRegistry(CreateArtifact()),
             new TestClock(),
@@ -149,7 +152,8 @@ public sealed class PropertyProcessingCommandHandlerTests
         Property property = CreateProperty();
         RecordingRevisionWriter revisions = new();
         ActivatePropertyProcessingCommandHandler handler = new(
-            new FakePropertyRepository(property),
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
             revisions,
             CreateRegistry(CreateArtifact()),
             new TestClock(),
@@ -189,7 +193,8 @@ public sealed class PropertyProcessingCommandHandlerTests
         Property property = CreateProperty();
         RecordingRevisionWriter revisions = new();
         ActivatePropertyProcessingCommandHandler handler = new(
-            new FakePropertyRepository(property),
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
             revisions,
             CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),
             new TestClock(),
@@ -234,7 +239,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Assert.Equal(GetPropertyProcessingStateQueryHandler.UnconfiguredReasonCode, unconfigured.ReasonCode);
 
         Assert.True((await new ActivatePropertyProcessingCommandHandler(
-            repository,
+            PropertiesMutationTestSupport.Create(properties: repository),
             new RecordingRevisionWriter(),
             registry,
             new TestClock(),
@@ -303,7 +308,8 @@ public sealed class PropertyProcessingCommandHandlerTests
         CountryPolicyPackArtifact artifact = CreateArtifact();
         RecordingRevisionWriter revisions = new();
         ActivatePropertyProcessingCommandHandler activate = new(
-            new FakePropertyRepository(property),
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
             revisions,
             CreateRegistry(artifact),
             new TestClock(),
@@ -325,7 +331,8 @@ public sealed class PropertyProcessingCommandHandlerTests
             CancellationToken.None)).IsSuccess);
         revisions.Items.Clear();
         SuspendPropertyProcessingCommandHandler suspend = new(
-            new FakePropertyRepository(property),
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
             revisions,
             new TestClock(),
             new TestIdGenerator());

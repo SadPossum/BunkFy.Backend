@@ -336,6 +336,10 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
 
         context.Properties.Add(property);
         context.Rooms.Add(room);
+        context.PropertyOperationLocks.Add(
+            new PropertyOperationLock(property.Id, property.ScopeId));
+        context.RoomOperationLocks.Add(
+            new RoomOperationLock(room.Id, room.ScopeId));
         context.GovernanceRevisions.Add(revision);
     }
 

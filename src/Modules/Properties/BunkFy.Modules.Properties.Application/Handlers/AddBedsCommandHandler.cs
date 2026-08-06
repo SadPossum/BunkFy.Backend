@@ -14,7 +14,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class AddBedsCommandHandler(
-    IRoomRepository repository,
+    PropertiesMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<AddBedsCommand, BedBatchMutationReceiptDto>
@@ -33,7 +33,10 @@ internal sealed class AddBedsCommandHandler(
             return Result.Failure<BedBatchMutationReceiptDto>(PropertiesApplicationErrors.BedBatchTooLarge);
         }
 
-        Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
+        Room? room = await mutations
+            .AcquireRoomAsync(
+                command.RoomId,
+                cancellationToken).ConfigureAwait(false);
         if (room is null || room.PropertyId != command.PropertyId)
         {
             return Result.Failure<BedBatchMutationReceiptDto>(PropertiesDomainErrors.RoomNotFound);

@@ -13,8 +13,8 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class CreateRoomCommandHandler(
-    IPropertyRepository propertyRepository,
     IRoomRepository roomRepository,
+    PropertiesMutationCoordinator mutations,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -29,7 +29,10 @@ internal sealed class CreateRoomCommandHandler(
             return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.TenantRequired);
         }
 
-        Property? property = await propertyRepository.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
+        Property? property = await mutations
+            .AcquirePropertyAsync(
+                command.PropertyId,
+                cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
             return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);
@@ -52,6 +55,10 @@ internal sealed class CreateRoomCommandHandler(
         }
 
         Room room = roomResult.Value;
+        await mutations.AcquireRoomNameAsync(
+            room.PropertyId,
+            room.Name,
+            cancellationToken).ConfigureAwait(false);
         if (await roomRepository.RoomNameExistsAsync(room.PropertyId, room.Name.Value, null, cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.RoomAlreadyExists);

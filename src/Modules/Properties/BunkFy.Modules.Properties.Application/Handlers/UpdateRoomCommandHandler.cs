@@ -13,6 +13,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class UpdateRoomCommandHandler(
     IRoomRepository repository,
+    PropertiesMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<UpdateRoomCommand, RoomMutationReceiptDto>
@@ -21,7 +22,10 @@ internal sealed class UpdateRoomCommandHandler(
         UpdateRoomCommand command,
         CancellationToken cancellationToken)
     {
-        Room? room = await repository.GetAsync(command.RoomId, cancellationToken).ConfigureAwait(false);
+        Room? room = await mutations
+            .AcquireRoomAsync(
+                command.RoomId,
+                cancellationToken).ConfigureAwait(false);
         if (room is null || room.PropertyId != command.PropertyId)
         {
             return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.RoomNotFound);
@@ -39,6 +43,10 @@ internal sealed class UpdateRoomCommandHandler(
             return Result.Failure<RoomMutationReceiptDto>(result.Error);
         }
 
+        await mutations.AcquireRoomNameAsync(
+            room.PropertyId,
+            room.Name,
+            cancellationToken).ConfigureAwait(false);
         if (await repository.RoomNameExistsAsync(room.PropertyId, room.Name.Value, room.Id, cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure<RoomMutationReceiptDto>(PropertiesDomainErrors.RoomAlreadyExists);

@@ -60,6 +60,20 @@ internal sealed partial class PropertiesTenantTerminationContributor
                         property => property.ScopeId == tenantId),
                     property => property.Id,
                     cancellationToken),
+            PropertiesTenantDestroyStage.PropertyOperationLocks =>
+                this.RemoveGuidBatchAsync(
+                    operation,
+                    dbContext.PropertyOperationLocks.Where(
+                        resourceLock => resourceLock.ScopeId == tenantId),
+                    resourceLock => resourceLock.Id,
+                    cancellationToken),
+            PropertiesTenantDestroyStage.RoomOperationLocks =>
+                this.RemoveGuidBatchAsync(
+                    operation,
+                    dbContext.RoomOperationLocks.Where(
+                        resourceLock => resourceLock.ScopeId == tenantId),
+                    resourceLock => resourceLock.Id,
+                    cancellationToken),
             _ => throw new InvalidDataException(
                 "The Properties tenant destruction stage is invalid.")
         };
@@ -251,6 +265,14 @@ internal sealed partial class PropertiesTenantTerminationContributor
             .ConfigureAwait(false) ||
         await dbContext.Properties.AnyAsync(
             property => property.ScopeId == tenantId,
+            cancellationToken)
+            .ConfigureAwait(false) ||
+        await dbContext.PropertyOperationLocks.AnyAsync(
+            resourceLock => resourceLock.ScopeId == tenantId,
+            cancellationToken)
+            .ConfigureAwait(false) ||
+        await dbContext.RoomOperationLocks.AnyAsync(
+            resourceLock => resourceLock.ScopeId == tenantId,
             cancellationToken)
             .ConfigureAwait(false);
 

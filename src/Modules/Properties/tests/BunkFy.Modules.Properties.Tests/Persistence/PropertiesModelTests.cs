@@ -48,6 +48,24 @@ public sealed class PropertiesModelTests
     }
 
     [Fact]
+    public void Operation_locks_are_scope_unique_and_concurrency_guarded()
+    {
+        using PropertiesDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+
+        AssertOperationLock(
+            designModel.FindEntityType(typeof(PropertyOperationLock))!,
+            nameof(PropertyOperationLock.PropertyId),
+            "CK_property_operation_locks_coordinate",
+            "CK_property_operation_locks_revision");
+        AssertOperationLock(
+            designModel.FindEntityType(typeof(RoomOperationLock))!,
+            nameof(RoomOperationLock.RoomId),
+            "CK_room_operation_locks_coordinate",
+            "CK_room_operation_locks_revision");
+    }
+
+    [Fact]
     public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
     {
         using PropertiesDbContext dbContext = CreateDbContext();
@@ -139,6 +157,34 @@ public sealed class PropertiesModelTests
             .Options;
 
         return new PropertiesDbContext(options, new TestScopeContext());
+    }
+
+    private static void AssertOperationLock(
+        IEntityType entity,
+        string resourceProperty,
+        string coordinateConstraint,
+        string revisionConstraint)
+    {
+        Assert.Equal(
+            ["Id"],
+            entity.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.True(entity.FindProperty("Revision")!.IsConcurrencyToken);
+        Assert.Contains(
+            entity.GetKeys(),
+            key => key.Properties.Select(property => property.Name)
+                .SequenceEqual(["ScopeId", "Id"]));
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual(["ScopeId", resourceProperty]));
+        Assert.Contains(
+            entity.GetCheckConstraints(),
+            constraint => constraint.Name == coordinateConstraint);
+        Assert.Contains(
+            entity.GetCheckConstraints(),
+            constraint => constraint.Name == revisionConstraint);
     }
 
     private sealed class TestScopeContext : IScopeContext

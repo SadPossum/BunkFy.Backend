@@ -10,6 +10,7 @@ internal sealed class RoomRepository(PropertiesDbContext dbContext) : IRoomRepos
     public async Task AddAsync(Room room, CancellationToken cancellationToken)
     {
         await dbContext.Rooms.AddAsync(room, cancellationToken).ConfigureAwait(false);
+        dbContext.RoomOperationLocks.Add(new(room.Id, room.ScopeId));
     }
 
     public async Task<Room?> GetAsync(Guid roomId, CancellationToken cancellationToken) =>

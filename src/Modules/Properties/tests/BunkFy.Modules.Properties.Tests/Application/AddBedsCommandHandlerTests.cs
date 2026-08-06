@@ -63,6 +63,7 @@ public sealed class AddBedsCommandHandlerTests
         services.AddSingleton<IRoomRepository>(repository);
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
+        PropertiesMutationTestSupport.AddServiceDependencies(services);
         services.AddPropertiesApplication();
         return services.BuildServiceProvider()
             .GetRequiredService<ICommandHandler<AddBedsCommand, BedBatchMutationReceiptDto>>();

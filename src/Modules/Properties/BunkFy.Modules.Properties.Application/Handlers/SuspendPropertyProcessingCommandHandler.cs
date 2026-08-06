@@ -10,7 +10,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class SuspendPropertyProcessingCommandHandler(
-    IPropertyRepository properties,
+    PropertiesMutationCoordinator mutations,
     IPropertyGovernanceRevisionWriter revisions,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -20,7 +20,10 @@ internal sealed class SuspendPropertyProcessingCommandHandler(
         SuspendPropertyProcessingCommand command,
         CancellationToken cancellationToken)
     {
-        Property? property = await properties.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
+        Property? property = await mutations
+            .AcquirePropertyAsync(
+                command.PropertyId,
+                cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
             return Result.Failure<Unit>(PropertiesDomainErrors.PropertyNotFound);

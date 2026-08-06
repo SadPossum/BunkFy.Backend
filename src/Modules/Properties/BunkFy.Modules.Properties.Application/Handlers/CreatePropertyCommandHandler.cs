@@ -14,6 +14,7 @@ using Gma.Framework.Scoping;
 
 internal sealed class CreatePropertyCommandHandler(
     IPropertyRepository repository,
+    PropertiesMutationCoordinator mutations,
     IScopeContext scopeContext,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -43,6 +44,9 @@ internal sealed class CreatePropertyCommandHandler(
         }
 
         Property property = propertyResult.Value;
+        await mutations.AcquirePropertyCodeAsync(
+            property.Code,
+            cancellationToken).ConfigureAwait(false);
         if (await repository.CodeExistsAsync(property.Code.Value, excludingPropertyId: null, cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyCodeAlreadyExists);

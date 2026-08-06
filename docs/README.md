@@ -36,6 +36,7 @@ Useful entry points:
 - [Properties Follow-Up Notes](planning/properties-follow-up-notes.md)
 - [GMA Access Control and Properties Alignment](planning/gma-access-control-properties-alignment.md)
 - [Properties Topology Lifecycle Task](planning/properties-topology-lifecycle-task.md)
+- [Properties Mutation Serialization Task](planning/properties-mutation-serialization-task.md)
 - [Properties Personal-Data Catalogue Task](planning/properties-personal-data-catalogue-task.md)
 - [Properties Module](../src/Modules/Properties/docs/README.md)
 - [Inventory Module Task](planning/inventory-module-task.md)

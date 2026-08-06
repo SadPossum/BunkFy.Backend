@@ -225,7 +225,7 @@ public sealed partial class PropertiesPersistenceIntegrationTests
         Assert.Equal(
             "properties.termination.destroyed",
             completed.ResultCode);
-        Assert.Equal(507, completed.AffectedCount);
+        Assert.Equal(509, completed.AffectedCount);
         Assert.Equal(selectedRevision, completed.SelectedProofRevision);
         Assert.Equal(
             selectedRevision + 1,
@@ -259,7 +259,7 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             await ReadDestroyReceiptCountAsync(ownerContext, TenantA)
                 .ConfigureAwait(false));
         Assert.Equal(
-            507,
+            509,
             await ReadDestroyReceiptRemovedCountAsync(ownerContext, TenantA)
                 .ConfigureAwait(false));
         Assert.Equal(
@@ -306,7 +306,7 @@ public sealed partial class PropertiesPersistenceIntegrationTests
                 tenantBVerificationScope.ServiceProvider
                     .GetRequiredService<PropertiesDbContext>();
             Assert.Equal(
-                5,
+                7,
                 await ReadOwnerRecordCountAsync(tenantB, TenantB)
                     .ConfigureAwait(false));
             Assert.Equal(
@@ -385,6 +385,10 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             .GetRequiredService<PropertiesDbContext>();
         IPropertyGovernanceRevisionWriter revisionWriter = services
             .GetRequiredService<IPropertyGovernanceRevisionWriter>();
+        IPropertyRepository properties = services
+            .GetRequiredService<IPropertyRepository>();
+        IRoomRepository rooms = services
+            .GetRequiredService<IRoomRepository>();
         Property property = CreateProperty(
             "other-hostel",
             "Other Hostel",
@@ -440,8 +444,10 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             binding.RetentionPolicyVersion,
             binding.ContentSha256,
             Digest);
-        context.Properties.Add(property);
-        context.Rooms.Add(room);
+        await properties.AddAsync(property, CancellationToken.None)
+            .ConfigureAwait(false);
+        await rooms.AddAsync(room, CancellationToken.None)
+            .ConfigureAwait(false);
         await revisionWriter.AppendAsync(
             new PropertyGovernanceRevisionWriteModel(
                 Guid.Parse("b3000000-0000-0000-0000-000000000001"),
@@ -517,7 +523,9 @@ public sealed partial class PropertiesPersistenceIntegrationTests
                     WHERE property."ScopeId" = {tenantId}) +
                 (SELECT COUNT(*) FROM properties.beds WHERE "ScopeId" = {tenantId}) +
                 (SELECT COUNT(*) FROM properties.rooms WHERE "ScopeId" = {tenantId}) +
-                (SELECT COUNT(*) FROM properties.properties WHERE "ScopeId" = {tenantId})
+                (SELECT COUNT(*) FROM properties.properties WHERE "ScopeId" = {tenantId}) +
+                (SELECT COUNT(*) FROM properties.property_operation_locks WHERE "ScopeId" = {tenantId}) +
+                (SELECT COUNT(*) FROM properties.room_operation_locks WHERE "ScopeId" = {tenantId})
             ) AS "Value"
             """).SingleAsync();
 

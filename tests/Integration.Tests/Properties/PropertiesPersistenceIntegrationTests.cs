@@ -30,6 +30,8 @@ using DomainGovernanceAcknowledgement =
 public sealed partial class PropertiesPersistenceIntegrationTests
 {
     private const string InitialMigration = "20260709104355_InitialCreate";
+    private const string TenantDestructionMigration =
+        "20260804121920_AddPropertiesTenantDestructionLifecycle";
     private static readonly Guid PropertyId = Guid.Parse("10000000-0000-0000-0000-000000000001");
     private static readonly Guid RoomId = Guid.Parse("20000000-0000-0000-0000-000000000001");
     private static readonly Guid BedId = Guid.Parse("30000000-0000-0000-0000-000000000001");
@@ -76,11 +78,16 @@ public sealed partial class PropertiesPersistenceIntegrationTests
         {
             PropertiesDbContext tenantBContext = tenantBScope.ServiceProvider
                 .GetRequiredService<PropertiesDbContext>();
+            IPropertyRepository tenantBProperties = tenantBScope
+                .ServiceProvider
+                .GetRequiredService<IPropertyRepository>();
             otherTenantProperty = CreateProperty(
                 "other-hostel",
                 "Other Hostel",
                 TenantB);
-            tenantBContext.Properties.Add(otherTenantProperty);
+            await tenantBProperties.AddAsync(
+                otherTenantProperty,
+                CancellationToken.None);
             await tenantBContext.SaveChangesAsync();
         }
 
@@ -178,6 +185,8 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             IMigrator migrator = initial.GetService<IMigrator>();
             await migrator.MigrateAsync(InitialMigration);
             await SeedInitialSchemaAsync(initial);
+            await migrator.MigrateAsync(TenantDestructionMigration);
+            await SeedCompletedTenantDestructionProgressAsync(initial);
             await migrator.MigrateAsync();
         }
 
@@ -194,6 +203,29 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             Assert.Equal(1, room.Version);
             Assert.Equal(1, bed.Version);
             Assert.True(property.ProjectionOrdinal > 0);
+            Assert.Equal(
+                1,
+                await verification.Database.SqlQuery<long>($"""
+                    SELECT COUNT(*) AS "Value"
+                    FROM properties.property_operation_locks
+                    WHERE "PropertyId" = {PropertyId}
+                        AND "ScopeId" = {TenantA}
+                    """).SingleAsync());
+            Assert.Equal(
+                10,
+                await verification.Database.SqlQuery<int>($"""
+                    SELECT "Stage" AS "Value"
+                    FROM properties.tenant_destroy_operations
+                    WHERE "ScopeId" = {TenantA}
+                    """).SingleAsync());
+            Assert.Equal(
+                1,
+                await verification.Database.SqlQuery<long>($"""
+                    SELECT COUNT(*) AS "Value"
+                    FROM properties.room_operation_locks
+                    WHERE "RoomId" = {RoomId}
+                        AND "ScopeId" = {TenantA}
+                    """).SingleAsync());
 
             Property secondProperty = CreateProperty("aaa-property", "AAA Property");
             Property thirdProperty = CreateProperty("zzz-property", "ZZZ Property");
@@ -261,6 +293,10 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             .GetRequiredService<PropertiesDbContext>();
         IPropertyGovernanceRevisionWriter revisionWriter = services
             .GetRequiredService<IPropertyGovernanceRevisionWriter>();
+        IPropertyRepository properties = services
+            .GetRequiredService<IPropertyRepository>();
+        IRoomRepository rooms = services
+            .GetRequiredService<IRoomRepository>();
         Property property = CreateProperty("hostel-one", "Hostel One");
         PropertyGovernanceBinding binding =
             PropertyGovernanceBinding.Create(
@@ -319,8 +355,8 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             binding.RetentionPolicyVersion,
             binding.ContentSha256,
             Digest);
-        dbContext.Properties.Add(property);
-        dbContext.Rooms.Add(room);
+        await properties.AddAsync(property, CancellationToken.None);
+        await rooms.AddAsync(room, CancellationToken.None);
         await revisionWriter.AppendAsync(
             new PropertyGovernanceRevisionWriteModel(
                 Guid.Parse("40000000-0000-0000-0000-000000000001"),
@@ -491,6 +527,27 @@ public sealed partial class PropertiesPersistenceIntegrationTests
                 ("Id", "TenantId", "PropertyId", "RoomId", "Label", "Status", "CreatedAtUtc")
             VALUES
                 ({BedId}, {tenantId}, {PropertyId}, {RoomId}, {bedLabel}, {1}, {createdAtUtc});
+            """);
+    }
+
+    private static Task<int> SeedCompletedTenantDestructionProgressAsync(
+        PropertiesDbContext dbContext)
+    {
+        Guid operationId =
+            Guid.Parse("f0000000-0000-0000-0000-000000000001");
+        DateTimeOffset startedAtUtc =
+            new(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
+        return dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO properties.tenant_destroy_operations
+                ("OperationId", "ScopeId", "RequestSha256",
+                 "SelectedRevision", "ResultingRevision", "BatchSize",
+                 "Stage", "RemovedRecordCount", "CompletedBatchCount",
+                 "ProofVersion", "RemovalProofSha256", "StartedAtUtc",
+                 "UpdatedAtUtc", "ConcurrencyVersion")
+            VALUES
+                ({operationId}, {TenantA}, {Digest},
+                 {1L}, {2L}, {500}, {8}, {0L}, {0},
+                 {1}, {Digest}, {startedAtUtc}, {startedAtUtc}, {1});
             """);
     }
 

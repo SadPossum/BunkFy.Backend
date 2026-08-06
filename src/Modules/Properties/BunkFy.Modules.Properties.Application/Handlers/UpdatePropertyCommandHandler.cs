@@ -13,6 +13,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class UpdatePropertyCommandHandler(
     IPropertyRepository repository,
+    PropertiesMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<UpdatePropertyCommand, PropertyMutationReceiptDto>
@@ -21,7 +22,10 @@ internal sealed class UpdatePropertyCommandHandler(
         UpdatePropertyCommand command,
         CancellationToken cancellationToken)
     {
-        Property? property = await repository.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
+        Property? property = await mutations
+            .AcquirePropertyAsync(
+                command.PropertyId,
+                cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
             return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);
@@ -39,6 +43,9 @@ internal sealed class UpdatePropertyCommandHandler(
             return Result.Failure<PropertyMutationReceiptDto>(result.Error);
         }
 
+        await mutations.AcquirePropertyCodeAsync(
+            property.Code,
+            cancellationToken).ConfigureAwait(false);
         if (await repository.CodeExistsAsync(property.Code.Value, property.Id, cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyCodeAlreadyExists);

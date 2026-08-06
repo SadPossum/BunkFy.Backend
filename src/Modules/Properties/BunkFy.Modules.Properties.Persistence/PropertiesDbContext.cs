@@ -20,6 +20,10 @@ public sealed class PropertiesDbContext(
 
     public DbSet<Property> Properties => this.Set<Property>();
     public DbSet<Room> Rooms => this.Set<Room>();
+    internal DbSet<PropertyOperationLock> PropertyOperationLocks =>
+        this.Set<PropertyOperationLock>();
+    internal DbSet<RoomOperationLock> RoomOperationLocks =>
+        this.Set<RoomOperationLock>();
     public DbSet<PropertyGovernanceRevision> GovernanceRevisions =>
         this.Set<PropertyGovernanceRevision>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
@@ -228,6 +232,8 @@ public sealed class PropertiesDbContext(
             entry.Entity is not (
                 InboxMessage or
                 OutboxMessage or
+                PropertyOperationLock or
+                RoomOperationLock or
                 PropertiesTenantRevision or
                 PropertiesTenantDestroyOperation or
                 PropertiesTenantDestroyReceipt));

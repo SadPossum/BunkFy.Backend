@@ -78,6 +78,7 @@ public sealed class PropertiesLifecycleCommandHandlerTests
         services.AddSingleton<IScopeContext>(new TestScopeContext());
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
+        PropertiesMutationTestSupport.AddServiceDependencies(services);
         services.AddPropertiesApplication();
         return services.BuildServiceProvider();
     }

@@ -32,7 +32,8 @@ public sealed class RoomRetirementFinalizationRequestedHandlerTests
         room.ClearDomainEvents();
         RecordingOutbox outbox = new();
         RoomRetirementFinalizationRequestedHandler handler = new(
-            new FakeRoomRepository(room),
+            PropertiesMutationTestSupport.Create(
+                rooms: new FakeRoomRepository(room)),
             new RecordingOutboxRegistry(outbox),
             new TestClock(),
             new TestIdGenerator());

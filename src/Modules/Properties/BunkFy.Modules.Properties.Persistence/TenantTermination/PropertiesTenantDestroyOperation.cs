@@ -161,5 +161,7 @@ internal enum PropertiesTenantDestroyStage
     Beds = 5,
     Rooms = 6,
     Properties = 7,
-    Completed = 8
+    PropertyOperationLocks = 8,
+    RoomOperationLocks = 9,
+    Completed = 10
 }

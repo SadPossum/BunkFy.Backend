@@ -123,6 +123,7 @@
     <File Path="docs/planning/production-file-surface-lockdown-task.md" />
     <File Path="docs/planning/properties-follow-up-notes.md" />
     <File Path="docs/planning/properties-module-task.md" />
+    <File Path="docs/planning/properties-mutation-serialization-task.md" />
     <File Path="docs/planning/properties-operational-surface-hardening-task.md" />
     <File Path="docs/planning/properties-personal-data-catalogue-task.md" />
     <File Path="docs/planning/properties-tenant-termination-owner-task.md" />

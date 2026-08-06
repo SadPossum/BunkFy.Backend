@@ -10,6 +10,8 @@ internal sealed class PropertyRepository(PropertiesDbContext dbContext) : IPrope
     public async Task AddAsync(Property property, CancellationToken cancellationToken)
     {
         await dbContext.Properties.AddAsync(property, cancellationToken).ConfigureAwait(false);
+        dbContext.PropertyOperationLocks.Add(
+            new(property.Id, property.ScopeId));
     }
 
     public async Task<Property?> GetAsync(Guid propertyId, CancellationToken cancellationToken) =>

@@ -19,6 +19,7 @@ public static class DependencyInjection
             [],
             [],
             CountryPolicyRuntimeMode.Engineering));
+        services.AddScoped<PropertiesMutationCoordinator>();
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddIntegrationEventHandler<
             BedRetirementFinalizationRequestedIntegrationEvent,

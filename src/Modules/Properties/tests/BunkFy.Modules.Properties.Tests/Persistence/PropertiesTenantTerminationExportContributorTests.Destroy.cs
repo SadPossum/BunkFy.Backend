@@ -33,7 +33,7 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("properties.termination.destroyed", result.ResultCode);
-        Assert.Equal(5, result.AffectedCount);
+        Assert.Equal(7, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(2, result.ResultingProofRevision);
         Assert.Empty(await context.TenantDestroyOperations.ToListAsync());
@@ -217,5 +217,7 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             .AnyAsync() ||
         await context.Rooms.SelectMany(room => room.Beds).AnyAsync() ||
         await context.Rooms.AnyAsync() ||
-        await context.Properties.AnyAsync();
+        await context.Properties.AnyAsync() ||
+        await context.PropertyOperationLocks.AnyAsync() ||
+        await context.RoomOperationLocks.AnyAsync();
 }

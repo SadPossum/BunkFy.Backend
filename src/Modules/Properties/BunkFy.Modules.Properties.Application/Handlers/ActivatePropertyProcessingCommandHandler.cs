@@ -17,7 +17,7 @@ using Gma.Framework.Runtime.Time;
 using DomainAcknowledgement = BunkFy.Modules.Properties.Domain.ValueObjects.PropertyGovernanceAcknowledgement;
 
 internal sealed class ActivatePropertyProcessingCommandHandler(
-    IPropertyRepository properties,
+    PropertiesMutationCoordinator mutations,
     IPropertyGovernanceRevisionWriter revisions,
     CountryPolicyRegistry countryPolicies,
     ISystemClock clock,
@@ -39,7 +39,10 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
             return Result.Failure<PropertyMutationReceiptDto>(PropertiesApplicationErrors.ConfirmationRequired);
         }
 
-        Property? property = await properties.GetAsync(command.PropertyId, cancellationToken).ConfigureAwait(false);
+        Property? property = await mutations
+            .AcquirePropertyAsync(
+                command.PropertyId,
+                cancellationToken).ConfigureAwait(false);
         if (property is null)
         {
             return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);

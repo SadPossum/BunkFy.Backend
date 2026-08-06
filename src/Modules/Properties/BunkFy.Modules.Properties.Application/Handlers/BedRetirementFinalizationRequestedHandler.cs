@@ -12,7 +12,7 @@ using Gma.Framework.Runtime.Time;
 
 [IntegrationEventHandler(PropertiesModuleMetadata.BedRetirementFinalizationHandlerName)]
 internal sealed class BedRetirementFinalizationRequestedHandler(
-    IRoomRepository rooms,
+    PropertiesMutationCoordinator mutations,
     IOutboxWriterRegistry outboxWriters,
     ISystemClock clock,
     IIdGenerator idGenerator)
@@ -22,7 +22,10 @@ internal sealed class BedRetirementFinalizationRequestedHandler(
         BedRetirementFinalizationRequestedIntegrationEvent request,
         CancellationToken cancellationToken)
     {
-        Room? room = await rooms.GetAsync(request.RoomId, cancellationToken).ConfigureAwait(false);
+        Room? room = await mutations
+            .AcquireRoomAsync(
+                request.RoomId,
+                cancellationToken).ConfigureAwait(false);
         if (room is null || room.PropertyId != request.PropertyId)
         {
             await this.RejectAsync(
