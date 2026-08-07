@@ -32,6 +32,10 @@ public sealed class StaffApiSecurityTests
     [InlineData(typeof(StaffAdminApiModule.StaffLifecycleRequest))]
     [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest))]
     [InlineData(typeof(StaffAdminApiModule.StaffDepartureRequest))]
+    [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffAssignmentRequest))]
+    [InlineData(typeof(StaffAdminApiModule.StaffAssignmentRequest))]
+    [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffUnassignmentRequest))]
+    [InlineData(typeof(StaffAdminApiModule.StaffUnassignmentRequest))]
     public void Member_mutation_requests_require_caller_owned_operation_identity(
         Type requestType)
     {
@@ -192,6 +196,43 @@ public sealed class StaffApiSecurityTests
     }
 
     [Fact]
+    public void Admin_cli_requires_operation_identity_for_property_assignment_changes()
+    {
+        using ServiceProvider provider = CreateAdminCliServices();
+        RootCommand root = CreateAdminRoot(provider);
+        string[] common =
+        [
+            "--staff-member-id", "73000000-0000-0000-0000-000000000010",
+            "--property-id", "73000000-0000-0000-0000-000000000011",
+            "--expected-version", "4"
+        ];
+        string[] assign =
+        [
+            "staff", "assign-property", .. common,
+            "--effective-from", "2026-08-07"
+        ];
+        string[] unassign =
+        [
+            "staff", "unassign-property", .. common,
+            "--effective-to", "2026-08-07",
+            "--reason", "Transferred"
+        ];
+
+        Assert.NotEmpty(root.Parse(assign).Errors);
+        Assert.NotEmpty(root.Parse(unassign).Errors);
+        Assert.Empty(root.Parse([
+            .. assign,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000012"
+        ]).Errors);
+        Assert.Empty(root.Parse([
+            .. unassign,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000013"
+        ]).Errors);
+    }
+
+    [Fact]
     public async Task Directory_and_sensitive_profile_routes_have_distinct_permissions()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
@@ -251,6 +292,16 @@ public sealed class StaffApiSecurityTests
             endpoints,
             HttpMethods.Get,
             "/api/staff/properties/{propertyId:guid}/members");
+        const string propertyMember =
+            "/api/staff/properties/{propertyId:guid}/members/{staffMemberId:guid}";
+        AssertResponse<StaffMemberMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Put,
+            $"{propertyMember}/assignment");
+        AssertResponse<StaffMemberMutationReceiptDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{propertyMember}/unassign");
         const string correction = "/api/staff/data-rights-corrections";
         AssertPermissions(
             endpoints,

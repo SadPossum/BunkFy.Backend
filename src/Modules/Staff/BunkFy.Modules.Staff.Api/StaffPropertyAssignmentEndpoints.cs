@@ -41,21 +41,23 @@ internal static class StaffPropertyAssignmentEndpoints
         members.MapPut("/{staffMemberId:guid}/assignment", async (Guid propertyId, Guid staffMemberId,
             StaffAssignmentRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new AssignStaffPropertyCommand(staffMemberId, propertyId,
+            (await dispatcher.SendAsync(new AssignStaffPropertyCommand(request.OperationId,
+                staffMemberId, propertyId,
                 request.PropertyJobTitle, request.IsPrimary, request.EffectiveFrom,
                 request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireResolvedScopePermission(StaffAdminPermissionCodes.AssignProperties,
                 StaffPropertyAccessScopeResolver.ResolverName);
         members.MapPost("/{staffMemberId:guid}/unassign", async (Guid propertyId, Guid staffMemberId,
             StaffUnassignmentRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new UnassignStaffPropertyCommand(staffMemberId, propertyId,
+            (await dispatcher.SendAsync(new UnassignStaffPropertyCommand(request.OperationId,
+                staffMemberId, propertyId,
                 request.EffectiveTo, request.Reason, request.ExpectedVersion,
                 StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireResolvedScopePermission(StaffAdminPermissionCodes.AssignProperties,
                 StaffPropertyAccessScopeResolver.ResolverName);
     }

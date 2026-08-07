@@ -55,5 +55,7 @@ public enum StaffMemberMutationKind
     AuthSubjectChange = 2,
     Suspend = 3,
     Resume = 4,
-    Depart = 5
+    Depart = 5,
+    AssignProperty = 6,
+    UnassignProperty = 7
 }

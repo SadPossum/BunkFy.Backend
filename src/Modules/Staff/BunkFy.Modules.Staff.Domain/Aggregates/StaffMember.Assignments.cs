@@ -16,21 +16,6 @@ public sealed partial class StaffMember
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentDateInvalid);
         }
 
-        string? normalizedTitle = StaffProfile.NormalizeOptional(propertyJobTitle);
-        StaffPropertyAssignment? current = this.assignments.FirstOrDefault(item =>
-            item.PropertyId == propertyId && item.IsCurrent);
-        if (current is not null && current.PropertyJobTitle == normalizedTitle &&
-            current.IsPrimary == isPrimary && current.EffectiveFrom == effectiveFrom)
-        {
-            return Result.Success(current);
-        }
-
-        Result ready = this.EnsureActive(expectedVersion, eventId);
-        if (ready.IsFailure)
-        {
-            return Result.Failure<StaffPropertyAssignment>(ready.Error);
-        }
-
         if (assignmentId == Guid.Empty)
         {
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentIdRequired);
@@ -41,16 +26,7 @@ public sealed partial class StaffMember
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.PropertyIdRequired);
         }
 
-        if (current is not null)
-        {
-            return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentAlreadyExists);
-        }
-
-        if (isPrimary && this.assignments.Any(item => item.IsCurrent && item.IsPrimary))
-        {
-            return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.PrimaryAssignmentExists);
-        }
-
+        string? normalizedTitle = StaffProfile.NormalizeOptional(propertyJobTitle);
         if (normalizedTitle?.Length > StaffPropertyAssignment.JobTitleMaxLength)
         {
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.JobTitleInvalid);
@@ -60,6 +36,30 @@ public sealed partial class StaffMember
         if (actor.IsFailure)
         {
             return Result.Failure<StaffPropertyAssignment>(actor.Error);
+        }
+
+        Result ready = this.EnsureActive(expectedVersion, eventId);
+        if (ready.IsFailure)
+        {
+            return Result.Failure<StaffPropertyAssignment>(ready.Error);
+        }
+
+        StaffPropertyAssignment? current = this.assignments.FirstOrDefault(item =>
+            item.PropertyId == propertyId && item.IsCurrent);
+        if (current is not null && current.PropertyJobTitle == normalizedTitle &&
+            current.IsPrimary == isPrimary && current.EffectiveFrom == effectiveFrom)
+        {
+            return Result.Success(current);
+        }
+
+        if (current is not null)
+        {
+            return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentAlreadyExists);
+        }
+
+        if (isPrimary && this.assignments.Any(item => item.IsCurrent && item.IsPrimary))
+        {
+            return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.PrimaryAssignmentExists);
         }
 
         this.Advance(actor.Value, nowUtc);
@@ -83,17 +83,11 @@ public sealed partial class StaffMember
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentDateInvalid);
         }
 
-        StaffPropertyAssignment? current = this.assignments.FirstOrDefault(item =>
-            item.PropertyId == propertyId && item.IsCurrent);
-        if (current is null)
+        Result<StaffActorId> actor = StaffActorId.Create(actorId);
+        Result<StaffChangeReason> changeReason = StaffChangeReason.Create(reason);
+        if (actor.IsFailure || changeReason.IsFailure)
         {
-            StaffPropertyAssignment? historical = this.assignments
-                .Where(item => item.PropertyId == propertyId)
-                .OrderByDescending(item => item.AssignedAtVersion)
-                .FirstOrDefault();
-            return historical is null
-                ? Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentNotFound)
-                : Result.Success(historical);
+            return Result.Failure<StaffPropertyAssignment>(actor.IsFailure ? actor.Error : changeReason.Error);
         }
 
         Result ready = this.EnsureMutable(expectedVersion, eventId);
@@ -102,16 +96,17 @@ public sealed partial class StaffMember
             return Result.Failure<StaffPropertyAssignment>(ready.Error);
         }
 
+        StaffPropertyAssignment? current = this.assignments.FirstOrDefault(item =>
+            item.PropertyId == propertyId && item.IsCurrent);
+        if (current is null)
+        {
+            return Result.Failure<StaffPropertyAssignment>(
+                StaffDomainErrors.AssignmentNotFound);
+        }
+
         if (effectiveTo < current.EffectiveFrom)
         {
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentDateInvalid);
-        }
-
-        Result<StaffActorId> actor = StaffActorId.Create(actorId);
-        Result<StaffChangeReason> changeReason = StaffChangeReason.Create(reason);
-        if (actor.IsFailure || changeReason.IsFailure)
-        {
-            return Result.Failure<StaffPropertyAssignment>(actor.IsFailure ? actor.Error : changeReason.Error);
         }
 
         this.Advance(actor.Value, nowUtc);

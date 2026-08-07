@@ -26,7 +26,7 @@ internal sealed class StaffMemberMutationOperationConfiguration
                 "\"ResultStatus\" IN (1, 2, 3)");
             table.HasCheckConstraint(
                 "CK_staff_member_mutation_operations_kind",
-                "\"Kind\" IN (1, 2, 3, 4, 5)");
+                "\"Kind\" IN (1, 2, 3, 4, 5, 6, 7)");
         });
         builder.HasKey(operation => new
         {

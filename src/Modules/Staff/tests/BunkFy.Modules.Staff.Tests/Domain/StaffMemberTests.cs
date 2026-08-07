@@ -53,7 +53,7 @@ public sealed class StaffMemberTests
     }
 
     [Fact]
-    public void Assignments_are_versioned_idempotent_and_retain_history()
+    public void Assignments_check_versions_before_no_ops_and_retain_history()
     {
         StaffMember member = Create("Ada", "EMP-1", null);
         Guid propertyId = Guid.NewGuid();
@@ -64,8 +64,11 @@ public sealed class StaffMemberTests
         Assert.Single(member.Assignments);
         Assert.True(member.Assignments.Single().IsPrimary);
 
+        Assert.Equal("Staff.VersionConflict", member.AssignProperty(Guid.NewGuid(), propertyId,
+            "Night Manager", true, new DateOnly(2026, 7, 1), 1, "user:owner",
+            Guid.NewGuid(), Now).Error.Code);
         Assert.True(member.AssignProperty(Guid.NewGuid(), propertyId, "Night Manager", true,
-            new DateOnly(2026, 7, 1), 1, "user:owner", Guid.NewGuid(), Now).IsSuccess);
+            new DateOnly(2026, 7, 1), 2, "user:owner", Guid.NewGuid(), Now).IsSuccess);
         Assert.Equal(2, member.Version);
         Assert.Equal("Staff.PrimaryAssignmentExists", member.AssignProperty(Guid.NewGuid(), Guid.NewGuid(),
             null, true, new DateOnly(2026, 7, 1), 2, "user:owner", Guid.NewGuid(), Now).Error.Code);
@@ -76,8 +79,12 @@ public sealed class StaffMemberTests
         Assert.False(member.Assignments.Single().IsCurrent);
         Assert.Equal("Transferred", member.Assignments.Single().UnassignmentReason);
 
-        Assert.True(member.UnassignProperty(propertyId, new DateOnly(2026, 7, 10), 2,
-            "user:owner", "Transferred", Guid.NewGuid(), Now.AddMinutes(1)).IsSuccess);
+        Assert.Equal("Staff.VersionConflict", member.UnassignProperty(propertyId,
+            new DateOnly(2026, 7, 10), 2, "user:owner", "Transferred",
+            Guid.NewGuid(), Now.AddMinutes(1)).Error.Code);
+        Assert.Equal("Staff.AssignmentNotFound", member.UnassignProperty(propertyId,
+            new DateOnly(2026, 7, 10), 3, "user:owner", "Transferred",
+            Guid.NewGuid(), Now.AddMinutes(1)).Error.Code);
         Assert.Equal(3, member.Version);
     }
 

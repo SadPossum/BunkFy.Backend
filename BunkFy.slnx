@@ -163,6 +163,7 @@
     <File Path="docs/planning/staff-operational-surface-hardening-task.md" />
     <File Path="docs/planning/staff-profile-update-idempotency-task.md" />
     <File Path="docs/planning/staff-profiles-module-task.md" />
+    <File Path="docs/planning/staff-property-assignment-idempotency-task.md" />
     <File Path="docs/planning/staff-record-retention-task.md" />
     <File Path="docs/planning/staff-tenant-termination-owner-task.md" />
     <File Path="docs/planning/standalone-adapter-host-task.md" />

@@ -124,21 +124,23 @@ public sealed class StaffAdminApiModule : IAdminApiModule
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.AssignProperty,
                     StaffAdminPermissions.AssignProperties), true,
-                ct => dispatcher.SendAsync(new AssignStaffPropertyCommand(staffMemberId, propertyId,
+                ct => dispatcher.SendAsync(new AssignStaffPropertyCommand(request.OperationId,
+                    staffMemberId, propertyId,
                     request.PropertyJobTitle, request.IsPrimary, request.EffectiveFrom,
                     request.ExpectedVersion, Actor(context)), ct), token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/properties/{propertyId:guid}/unassign", async (
             Guid staffMemberId, Guid propertyId, StaffUnassignmentRequest request, HttpContext context,
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.UnassignProperty,
                     StaffAdminPermissions.AssignProperties), true,
-                ct => dispatcher.SendAsync(new UnassignStaffPropertyCommand(staffMemberId, propertyId,
+                ct => dispatcher.SendAsync(new UnassignStaffPropertyCommand(request.OperationId,
+                    staffMemberId, propertyId,
                     request.EffectiveTo, request.Reason, request.ExpectedVersion, Actor(context)), ct),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK);
     }
 
     public sealed record StaffProfileWriteRequest(Guid OperationId, string DisplayName, string? LegalName,
@@ -153,9 +155,10 @@ public sealed class StaffAdminApiModule : IAdminApiModule
         long ExpectedVersion);
     public sealed record StaffDepartureRequest(Guid OperationId, DateOnly EffectiveOn,
         string Reason, long ExpectedVersion, bool Confirmed);
-    public sealed record StaffAssignmentRequest(string? PropertyJobTitle, bool IsPrimary,
+    public sealed record StaffAssignmentRequest(Guid OperationId, string? PropertyJobTitle, bool IsPrimary,
         DateOnly EffectiveFrom, long ExpectedVersion);
-    public sealed record StaffUnassignmentRequest(DateOnly EffectiveTo, string Reason, long ExpectedVersion);
+    public sealed record StaffUnassignmentRequest(Guid OperationId, DateOnly EffectiveTo, string Reason,
+        long ExpectedVersion);
 
     private static string Actor(HttpContext context)
     {
@@ -175,6 +178,7 @@ public sealed class StaffAdminApiModule : IAdminApiModule
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(StaffApplicationErrors.StaffMemberNotFound.Code, StatusCodes.Status404NotFound),
+        new(StaffApplicationErrors.AssignmentNotFound.Code, StatusCodes.Status404NotFound),
         new(StaffApplicationErrors.PropertyUnavailable.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.EmployeeNumberConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.AuthSubjectConflict.Code, StatusCodes.Status409Conflict),
@@ -182,11 +186,15 @@ public sealed class StaffAdminApiModule : IAdminApiModule
         new(StaffApplicationErrors.ProfileUpdateOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.AuthSubjectOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.LifecycleOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.AssignmentOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.AssignmentAlreadyExists.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.PrimaryAssignmentExists.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffSuspended.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffDeparted.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.ProfileUpdateOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.AuthSubjectOperationInvalid.Code, StatusCodes.Status400BadRequest),
-        new(StaffApplicationErrors.LifecycleOperationInvalid.Code, StatusCodes.Status400BadRequest));
+        new(StaffApplicationErrors.LifecycleOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.AssignmentOperationInvalid.Code, StatusCodes.Status400BadRequest));
 }

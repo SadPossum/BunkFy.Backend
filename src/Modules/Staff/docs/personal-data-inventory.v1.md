@@ -1,4 +1,4 @@
-# staff Personal-Data Inventory v14
+# staff Personal-Data Inventory v15
 
 Generated from `staff.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -18,7 +18,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff-employment-governance | tenant-sensitive-employment-governance | permission:staff.employment-governance.manage<br>permission:staff.sensitive-profile.read<br>system:staff.employment-governance | permission:staff.employment-governance.manage<br>system:staff.employment-governance |
 | staff-event-metadata | tenant-internal-messaging | system:authorized-module-consumer | system:staff-outbox |
 | staff-internal | tenant-internal | system:staff-projection-runtime | system:staff-projection-runtime |
-| staff-member-mutation-operations | tenant-staff-authorized-replay-journal | permission:staff.sensitive-profile.read<br>subject:self<br>system:staff.data-rights-export<br>system:staff.tenant-export | permission:staff.manage<br>subject:self<br>system:staff.anonymisation<br>system:staff.retention<br>system:workspace-staff-onboarding |
+| staff-member-mutation-operations | tenant-staff-authorized-replay-journal | permission:staff.sensitive-profile.read<br>subject:self<br>system:staff.data-rights-export<br>system:staff.tenant-export | permission:staff.assign-properties<br>permission:staff.manage<br>permission:staff.manage-lifecycle<br>subject:self<br>system:staff.anonymisation<br>system:staff.retention<br>system:workspace-staff-onboarding |
 | staff-processing-restrictions | tenant-approved-data-rights-operation | permission:data-rights.execute<br>system:staff.authorized-audience-reader<br>system:staff.processing-restriction | permission:data-rights.execute<br>system:staff.processing-restriction |
 | staff-retention-execution | tenant-internal-retention-worker | system:retention.scheduler<br>system:staff.retention | system:retention.scheduler<br>system:staff.retention |
 | staff-retention-proof | tenant-internal-retention-owner-proof | system:staff.retention | system:staff.retention |
@@ -37,7 +37,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff-data-rights-export-fragment | engineering-default | authorized-staff-export-assembly | caller-completion-or-discard | not-applicable |
 | staff-employment-governance-current | engineering-default | staff-employment-governance-configured | approved-erasure-or-employment-retention-completed | pause-approved-erasure |
 | staff-employment-governance-receipt | engineering-default | staff-employment-governance-change-completed | approved-audit-retention-expired-or-tenant-termination | pause-approved-disposal |
-| staff-member-mutation-operation-journal | engineering-default | staff-profile-update-completed | approved-staff-anonymisation-or-employment-retention-or-tenant-termination | delete-with-owner-profile-disposition |
+| staff-member-mutation-operation-journal | engineering-default | staff-member-mutation-completed | approved-staff-anonymisation-or-employment-retention-or-tenant-termination | delete-with-owner-profile-disposition |
 | staff-operation-serialization | engineering-default | first-serialized-staff-operation | approved-erasure-or-employment-retention-completed | retain-while-staff-operation-is-active |
 | staff-processing-restriction-lifecycle | engineering-default | staff-profile-created | approved-erasure-or-tenant-termination | pause-approved-erasure |
 | staff-processing-restriction-receipt | engineering-default | approved-staff-restriction-transition-completed | approved-audit-retention-expired-or-tenant-termination | pause-approved-disposal |
@@ -458,6 +458,8 @@ Engineering metadata is not legal or country-launch approval.
 | staff.data-hold.hold-id | BunkFy.Modules.Staff.Persistence | BunkFy.Modules.Staff.Persistence.Repositories.StaffDataHoldDataRightsExport | HoldId | data-rights-export | staff-data-rights-export-fragment |
 | staff.data-hold.idempotency-key | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.PlaceStaffDataHoldRequest | IdempotencyKey | api-input | transient-request |
 | staff.data-hold.idempotency-key | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.ReleaseStaffDataHoldRequest | IdempotencyKey | api-input | transient-request |
+| staff.data-hold.idempotency-key | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffAssignmentRequest | OperationId | api-input | transient-request |
+| staff.data-hold.idempotency-key | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffUnassignmentRequest | OperationId | api-input | transient-request |
 | staff.data-hold.idempotency-key | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.PlaceStaffDataHoldCommand | IdempotencyKey | application-command | transient-request |
 | staff.data-hold.idempotency-key | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ReleaseStaffDataHoldCommand | IdempotencyKey | application-command | transient-request |
 | staff.data-hold.idempotency-key | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffDataHoldReceiptDto | IdempotencyKey | api-response | transient-response |
@@ -562,14 +564,18 @@ Engineering metadata is not legal or country-launch approval.
 | staff.data-rights.receipt-id | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt | Id | persistence | staff-data-rights-correction-receipt |
 | staff.data-rights.request-fingerprint | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt | RequestSha256 | persistence | staff-data-rights-correction-receipt |
 | staff.data-rights.tenant-scope-id | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt | ScopeId | persistence | staff-data-rights-correction-receipt |
+| staff.department | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest | OperationId | admin-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest | Department | admin-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest | Department | admin-input | transient-request |
+| staff.department | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffUnassignmentRequest | OperationId | admin-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest | Department | api-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | Department | api-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | Department | api-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | Department | application-command | transient-request |
+| staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand | OperationId | application-command | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | Department | application-command | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | Department | application-command | transient-request |
+| staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand | OperationId | application-command | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand | Department | application-command | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand | Department | application-command | transient-request |
 | staff.department | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffDirectoryListItemDto | Department | api-response | transient-response |

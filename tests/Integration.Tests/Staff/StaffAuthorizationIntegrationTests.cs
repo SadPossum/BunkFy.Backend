@@ -102,6 +102,7 @@ public sealed class StaffAuthorizationIntegrationTests
             using (HttpResponseMessage selfUpdate = await SendAsync(client, HttpMethod.Put,
                        "/api/staff/me", assignedTokens.AccessToken, new
                        {
+                           operationId = Guid.NewGuid(),
                            displayName = "Ada Front Desk",
                            legalName = member.LegalName,
                            workEmail = member.WorkEmail,
@@ -112,7 +113,15 @@ public sealed class StaffAuthorizationIntegrationTests
                            expectedVersion = member.Version
                        }).ConfigureAwait(false))
             {
-                member = await ReadSuccessAsync<StaffMemberDto>(selfUpdate).ConfigureAwait(false);
+                StaffMemberMutationReceiptDto receipt =
+                    await ReadSuccessAsync<StaffMemberMutationReceiptDto>(selfUpdate).ConfigureAwait(false);
+                Assert.Equal(member.Version + 1, receipt.Version);
+            }
+
+            using (HttpResponseMessage refreshed = await SendAsync(client, HttpMethod.Get,
+                       "/api/staff/me", assignedTokens.AccessToken).ConfigureAwait(false))
+            {
+                member = await ReadSuccessAsync<StaffMemberDto>(refreshed).ConfigureAwait(false);
                 Assert.Equal("Ada Front Desk", member.DisplayName);
                 Assert.Equal("Front Desk", member.JobTitle);
             }
@@ -127,18 +136,16 @@ public sealed class StaffAuthorizationIntegrationTests
                        $"/api/staff/properties/{propertyA.PropertyId:D}/members/{member.StaffMemberId:D}/assignment",
                        managerTokens.AccessToken, new
                        {
+                           operationId = Guid.NewGuid(),
                            propertyJobTitle = "Duty Manager",
                            isPrimary = true,
                            effectiveFrom = new DateOnly(2026, 7, 12),
                            expectedVersion = member.Version
                        }).ConfigureAwait(false))
             {
-                StaffDirectoryMemberDto visible =
-                    await ReadSuccessAsync<StaffDirectoryMemberDto>(assign).ConfigureAwait(false);
-                StaffDirectoryAssignmentDto assignment = Assert.Single(visible.Assignments);
-                Assert.True(assignment.IsPrimary);
-                Assert.Equal(propertyA.PropertyId, assignment.PropertyId);
-                member = member with { Version = visible.Version };
+                StaffMemberMutationReceiptDto receipt =
+                    await ReadSuccessAsync<StaffMemberMutationReceiptDto>(assign).ConfigureAwait(false);
+                member = member with { Version = receipt.Version };
             }
 
             using (HttpResponseMessage assignedUserDenied = await SendAsync(client, HttpMethod.Get,
@@ -155,6 +162,9 @@ public sealed class StaffAuthorizationIntegrationTests
                 StaffDirectoryMemberDto visible =
                     await ReadSuccessAsync<StaffDirectoryMemberDto>(propertyRead).ConfigureAwait(false);
                 Assert.Equal(member.StaffMemberId, visible.StaffMemberId);
+                StaffDirectoryAssignmentDto assignment = Assert.Single(visible.Assignments);
+                Assert.True(assignment.IsPrimary);
+                Assert.Equal(propertyA.PropertyId, assignment.PropertyId);
             }
 
             using (HttpResponseMessage otherPropertyDenied = await SendAsync(client, HttpMethod.Get,
@@ -173,12 +183,17 @@ public sealed class StaffAuthorizationIntegrationTests
 
             using (HttpResponseMessage suspend = await SendAsync(client, HttpMethod.Post,
                        $"/api/staff/members/{member.StaffMemberId:D}/suspend", managerTokens.AccessToken,
-                       new { reason = "Planned leave", expectedVersion = member.Version }).ConfigureAwait(false))
+                       new
+                       {
+                           operationId = Guid.NewGuid(),
+                           reason = "Planned leave",
+                           expectedVersion = member.Version
+                       }).ConfigureAwait(false))
             {
-                StaffDirectoryMemberDto visible =
-                    await ReadSuccessAsync<StaffDirectoryMemberDto>(suspend).ConfigureAwait(false);
-                Assert.Equal(StaffStatus.Suspended, visible.Status);
-                member = member with { Version = visible.Version };
+                StaffMemberMutationReceiptDto receipt =
+                    await ReadSuccessAsync<StaffMemberMutationReceiptDto>(suspend).ConfigureAwait(false);
+                Assert.Equal(StaffStatus.Suspended, receipt.Status);
+                member = member with { Version = receipt.Version };
             }
 
             await WaitForWorkspaceAccessCompletionAsync(
@@ -189,12 +204,17 @@ public sealed class StaffAuthorizationIntegrationTests
 
             using (HttpResponseMessage resume = await SendAsync(client, HttpMethod.Post,
                        $"/api/staff/members/{member.StaffMemberId:D}/resume", managerTokens.AccessToken,
-                       new { reason = "Returned", expectedVersion = member.Version }).ConfigureAwait(false))
+                       new
+                       {
+                           operationId = Guid.NewGuid(),
+                           reason = "Returned",
+                           expectedVersion = member.Version
+                       }).ConfigureAwait(false))
             {
-                StaffDirectoryMemberDto visible =
-                    await ReadSuccessAsync<StaffDirectoryMemberDto>(resume).ConfigureAwait(false);
-                Assert.Equal(StaffStatus.Active, visible.Status);
-                member = member with { Version = visible.Version };
+                StaffMemberMutationReceiptDto receipt =
+                    await ReadSuccessAsync<StaffMemberMutationReceiptDto>(resume).ConfigureAwait(false);
+                Assert.Equal(StaffStatus.Active, receipt.Status);
+                member = member with { Version = receipt.Version };
             }
 
             await WaitForWorkspaceAccessCompletionAsync(
@@ -215,15 +235,15 @@ public sealed class StaffAuthorizationIntegrationTests
                        $"/api/staff/properties/{propertyA.PropertyId:D}/members/{member.StaffMemberId:D}/unassign",
                        managerTokens.AccessToken, new
                        {
+                           operationId = Guid.NewGuid(),
                            effectiveTo = new DateOnly(2026, 7, 12),
                            reason = "Transferred",
                            expectedVersion = member.Version
                        }).ConfigureAwait(false))
             {
-                StaffDirectoryMemberDto visible =
-                    await ReadSuccessAsync<StaffDirectoryMemberDto>(unassign).ConfigureAwait(false);
-                Assert.Empty(visible.Assignments);
-                member = member with { Version = visible.Version };
+                StaffMemberMutationReceiptDto receipt =
+                    await ReadSuccessAsync<StaffMemberMutationReceiptDto>(unassign).ConfigureAwait(false);
+                member = member with { Version = receipt.Version };
             }
 
             using (HttpResponseMessage noLongerVisible = await SendAsync(client, HttpMethod.Get,

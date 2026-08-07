@@ -41,6 +41,12 @@ public static class StaffApplicationErrors
     public static readonly Error LifecycleOperationConflict = new(
         "Staff.LifecycleOperationConflict",
         "The Staff lifecycle operation was already used for a different change.");
+    public static readonly Error AssignmentOperationInvalid = new(
+        "Staff.AssignmentOperationInvalid",
+        "A valid Staff property-assignment operation id is required.");
+    public static readonly Error AssignmentOperationConflict = new(
+        "Staff.AssignmentOperationConflict",
+        "The Staff property-assignment operation was already used for a different change.");
     public static readonly Error PropertyUnavailable = new("Staff.PropertyUnavailable", "The property is unavailable for staff assignment.");
     public static readonly Error EmployeeNumberConflict = new("Staff.EmployeeNumberConflict", "The employee number is already in use.");
     public static readonly Error AuthSubjectConflict = new("Staff.AuthSubjectConflict", "The Auth subject is already linked to another staff member.");
@@ -161,6 +167,9 @@ public static class StaffApplicationErrors
     public static Error VersionConflict => StaffDomainErrors.VersionConflict;
     public static Error StaffSuspended => StaffDomainErrors.StaffSuspended;
     public static Error StaffDeparted => StaffDomainErrors.StaffDeparted;
+    public static Error AssignmentNotFound => StaffDomainErrors.AssignmentNotFound;
+    public static Error AssignmentAlreadyExists => StaffDomainErrors.AssignmentAlreadyExists;
+    public static Error PrimaryAssignmentExists => StaffDomainErrors.PrimaryAssignmentExists;
     public static Error CorrectionNoChanges => StaffDomainErrors.CorrectionNoChanges;
     public static Error RestrictionVersionConflict =>
         StaffDomainErrors.RestrictionVersionConflict;

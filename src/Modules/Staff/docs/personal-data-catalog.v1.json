@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 14,
+  "catalogVersion": 15,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -133,7 +133,9 @@
         "system:staff.tenant-export"
       ],
       "writers": [
+        "permission:staff.assign-properties",
         "permission:staff.manage",
+        "permission:staff.manage-lifecycle",
         "subject:self",
         "system:workspace-staff-onboarding",
         "system:staff.anonymisation",
@@ -287,7 +289,7 @@
     {
       "id": "staff-member-mutation-operation-journal",
       "approvalState": "engineering-default",
-      "startsAt": "staff-profile-update-completed",
+      "startsAt": "staff-member-mutation-completed",
       "endsAt": "approved-staff-anonymisation-or-employment-retention-or-tenant-termination",
       "legalHoldBehavior": "delete-with-owner-profile-disposition"
     },
@@ -3103,6 +3105,20 @@
       "bindings": [
         {
           "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffAssignmentRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffUnassignmentRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.PlaceStaffDataHoldRequest",
           "member": "IdempotencyKey",
           "surface": "api-input",
@@ -4440,6 +4456,20 @@
       "bindings": [
         {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest",
+          "member": "OperationId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffUnassignmentRequest",
+          "member": "OperationId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
           "member": "Department",
           "surface": "admin-input",
@@ -4471,6 +4501,20 @@
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
           "member": "Department",
           "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UnassignStaffPropertyCommand",
+          "member": "OperationId",
+          "surface": "application-command",
           "retentionPolicy": "transient-request"
         },
         {

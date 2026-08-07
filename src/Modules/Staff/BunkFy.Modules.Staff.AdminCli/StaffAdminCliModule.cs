@@ -146,6 +146,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
 
     private static Command CreateAssignmentCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> member = MemberOption();
         Option<Guid> property = PropertyOption();
         Option<string?> title = new("--property-job-title");
@@ -153,33 +154,36 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Option<string> effective = DateOption("--effective-from");
         Option<long> version = VersionOption();
         Command command = new("assign-property", "Assign a staff member to a property.")
-            { member, property, title, primary, effective, version };
-        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
+            { operationId, member, property, title, primary, effective, version };
+        command.SetAction((parse, token) => ExecuteMemberMutationAsync(services, global, parse,
             StaffAdminOperationNames.AssignProperty, StaffAdminPermissions.AssignProperties,
             (provider, ct) => TryDate(parse.GetRequiredValue(effective), out DateOnly date)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new AssignStaffPropertyCommand(
-                    parse.GetRequiredValue(member), parse.GetRequiredValue(property), parse.GetValue(title),
-                    parse.GetValue(primary), date, parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(InvalidDateError)), token));
+                    parse.GetRequiredValue(operationId), parse.GetRequiredValue(member),
+                    parse.GetRequiredValue(property), parse.GetValue(title), parse.GetValue(primary), date,
+                    parse.GetRequiredValue(version), Actor(parse, global)), ct)
+                : Task.FromResult(Result.Failure<StaffMemberMutationReceiptDto>(InvalidDateError)), token));
         return command;
     }
 
     private static Command CreateUnassignmentCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> member = MemberOption();
         Option<Guid> property = PropertyOption();
         Option<string> effective = DateOption("--effective-to");
         Option<string> reason = ReasonOption();
         Option<long> version = VersionOption();
         Command command = new("unassign-property", "End a staff property assignment.")
-            { member, property, effective, reason, version };
-        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
+            { operationId, member, property, effective, reason, version };
+        command.SetAction((parse, token) => ExecuteMemberMutationAsync(services, global, parse,
             StaffAdminOperationNames.UnassignProperty, StaffAdminPermissions.AssignProperties,
             (provider, ct) => TryDate(parse.GetRequiredValue(effective), out DateOnly date)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new UnassignStaffPropertyCommand(
-                    parse.GetRequiredValue(member), parse.GetRequiredValue(property), date,
-                    parse.GetRequiredValue(reason), parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(InvalidDateError)), token));
+                    parse.GetRequiredValue(operationId), parse.GetRequiredValue(member),
+                    parse.GetRequiredValue(property), date, parse.GetRequiredValue(reason),
+                    parse.GetRequiredValue(version), Actor(parse, global)), ct)
+                : Task.FromResult(Result.Failure<StaffMemberMutationReceiptDto>(InvalidDateError)), token));
         return command;
     }
 

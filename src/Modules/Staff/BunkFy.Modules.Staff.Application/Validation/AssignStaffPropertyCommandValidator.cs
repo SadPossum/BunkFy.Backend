@@ -8,6 +8,11 @@ internal sealed class AssignStaffPropertyCommandValidator : ICommandValidator<As
 {
     public IEnumerable<string> Validate(AssignStaffPropertyCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.StaffMemberId == Guid.Empty || command.PropertyId == Guid.Empty)
         {
             yield return "StaffMemberId and PropertyId are required.";

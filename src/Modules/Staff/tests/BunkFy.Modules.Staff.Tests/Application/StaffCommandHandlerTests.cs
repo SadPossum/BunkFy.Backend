@@ -13,6 +13,7 @@ using BunkFy.Modules.Staff.Application.Handlers;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
+using BunkFy.Modules.Staff.Domain.Errors;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -164,11 +165,11 @@ public sealed class StaffCommandHandlerTests
         StaffMember member = CreateMember();
         FakeStaffMemberRepository members = new(member);
         using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
-        ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto> handler = provider
-            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto>>();
+        ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto> handler = provider
+            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
-            new AssignStaffPropertyCommand(member.Id, Guid.NewGuid(), null, false,
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
+            new AssignStaffPropertyCommand(Guid.NewGuid(), member.Id, Guid.NewGuid(), null, false,
                 new DateOnly(2026, 7, 12), member.Version, "user:owner"),
             CancellationToken.None);
 
@@ -184,19 +185,310 @@ public sealed class StaffCommandHandlerTests
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
             new FakePropertyProjectionRepository(propertyId));
-        ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto> handler = provider
-            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffDirectoryMemberDto>>();
+        ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto> handler = provider
+            .GetRequiredService<ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
-            new AssignStaffPropertyCommand(member.Id, propertyId, "Duty Manager", true,
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
+            new AssignStaffPropertyCommand(Guid.NewGuid(), member.Id, propertyId, "Duty Manager", true,
                 new DateOnly(2026, 7, 12), member.Version, " user:owner "),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Equal(2, result.Value.Version);
-        Assert.Single(result.Value.Assignments);
         Assert.Equal(TestClock.Now, Assert.Single(member.Assignments).AssignedAtUtc);
         Assert.Equal("user:owner", Assert.Single(member.Assignments).AssignedBy);
+    }
+
+    [Fact]
+    public async Task Assignment_replays_the_exact_operation_without_advancing_history()
+    {
+        StaffMember member = CreateMember();
+        Guid propertyId = Guid.NewGuid();
+        Guid operationId = Guid.NewGuid();
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(propertyId),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+        AssignStaffPropertyCommand command = new(
+            operationId,
+            member.Id,
+            propertyId,
+            " Duty Manager ",
+            true,
+            new DateOnly(2026, 7, 12),
+            member.Version,
+            "user:owner");
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        int eventCount = member.DomainEvents.Count;
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(2, member.Version);
+        Assert.Single(member.Assignments);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        Assert.Equal(
+            StaffMemberMutationKind.AssignProperty,
+            Assert.Single(operations.Records).Kind);
+    }
+
+    [Fact]
+    public async Task Assignment_records_a_receipt_for_an_exact_current_state_no_op()
+    {
+        StaffMember member = CreateMember();
+        Guid propertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            "Duty Manager",
+            true,
+            new DateOnly(2026, 7, 1),
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            TestClock.Now).IsSuccess);
+        long selectedVersion = member.Version;
+        int eventCount = member.DomainEvents.Count;
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(propertyId),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
+            new AssignStaffPropertyCommand(
+                Guid.NewGuid(),
+                member.Id,
+                propertyId,
+                " Duty Manager ",
+                true,
+                new DateOnly(2026, 7, 1),
+                selectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(selectedVersion, result.Value.Version);
+        Assert.Equal(selectedVersion, member.Version);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        StaffMemberMutationOperationRecord operation = Assert.Single(operations.Records);
+        Assert.Equal(selectedVersion, operation.ExpectedVersion);
+        Assert.Equal(selectedVersion, operation.ResultVersion);
+        Assert.Equal(StaffMemberMutationKind.AssignProperty, operation.Kind);
+    }
+
+    [Fact]
+    public async Task Assignment_replay_does_not_bypass_current_property_visibility()
+    {
+        StaffMember member = CreateMember();
+        Guid propertyId = Guid.NewGuid();
+        RecordingMemberMutationOperations operations = new();
+        AssignStaffPropertyCommand command = new(
+            Guid.NewGuid(),
+            member.Id,
+            propertyId,
+            null,
+            false,
+            new DateOnly(2026, 7, 12),
+            member.Version,
+            "user:owner");
+
+        using (ServiceProvider available = CreateProvider(
+                   new FakeStaffMemberRepository(member),
+                   new FakePropertyProjectionRepository(propertyId),
+                   memberMutationOperations: operations))
+        {
+            var handler = available.GetRequiredService<
+                ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+            Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+                command,
+                CancellationToken.None);
+            Assert.True(first.IsSuccess, first.Error.Code);
+        }
+
+        using ServiceProvider unavailable = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var replay = unavailable.GetRequiredService<
+            ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+        Result<StaffMemberMutationReceiptDto> rejected = await replay.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.PropertyUnavailable, rejected.Error);
+        Assert.Single(operations.Records);
+    }
+
+    [Fact]
+    public async Task Assignment_rejects_changed_or_cross_kind_operation_reuse()
+    {
+        StaffMember member = CreateMember();
+        Guid propertyId = Guid.NewGuid();
+        Guid operationId = Guid.NewGuid();
+        long selectedVersion = member.Version;
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(propertyId),
+            memberMutationOperations: operations);
+        var assign = provider.GetRequiredService<
+            ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+        var unassign = provider.GetRequiredService<
+            ICommandHandler<UnassignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+
+        Result<StaffMemberMutationReceiptDto> first = await assign.HandleAsync(
+            new AssignStaffPropertyCommand(
+                operationId,
+                member.Id,
+                propertyId,
+                "Duty Manager",
+                false,
+                new DateOnly(2026, 7, 12),
+                selectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> changed = await assign.HandleAsync(
+            new AssignStaffPropertyCommand(
+                operationId,
+                member.Id,
+                propertyId,
+                "Front Desk",
+                false,
+                new DateOnly(2026, 7, 12),
+                selectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> crossKind = await unassign.HandleAsync(
+            new UnassignStaffPropertyCommand(
+                operationId,
+                member.Id,
+                propertyId,
+                new DateOnly(2026, 7, 12),
+                "Transferred",
+                selectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.Equal(StaffApplicationErrors.AssignmentOperationConflict, changed.Error);
+        Assert.Equal(StaffApplicationErrors.AssignmentOperationConflict, crossKind.Error);
+        Assert.Single(operations.Records);
+        Assert.Equal(2, member.Version);
+    }
+
+    [Fact]
+    public async Task Failed_assignment_attempt_does_not_bind_the_operation_id()
+    {
+        StaffMember member = CreateMember();
+        Guid propertyId = Guid.NewGuid();
+        Guid operationId = Guid.NewGuid();
+        RecordingMemberMutationOperations operations = new();
+        AssignStaffPropertyCommand command = new(
+            operationId,
+            member.Id,
+            propertyId,
+            null,
+            false,
+            new DateOnly(2026, 7, 12),
+            member.Version,
+            "user:owner");
+
+        using (ServiceProvider unavailable = CreateProvider(
+                   new FakeStaffMemberRepository(member),
+                   new FakePropertyProjectionRepository(),
+                   memberMutationOperations: operations))
+        {
+            var handler = unavailable.GetRequiredService<
+                ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+            Result<StaffMemberMutationReceiptDto> rejected = await handler.HandleAsync(
+                command,
+                CancellationToken.None);
+            Assert.Equal(StaffApplicationErrors.PropertyUnavailable, rejected.Error);
+        }
+
+        using ServiceProvider available = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(propertyId),
+            memberMutationOperations: operations);
+        var retry = available.GetRequiredService<
+            ICommandHandler<AssignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+        Result<StaffMemberMutationReceiptDto> accepted = await retry.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(accepted.IsSuccess, accepted.Error.Code);
+        Assert.Single(operations.Records);
+    }
+
+    [Fact]
+    public async Task Unassignment_replays_only_the_matching_completed_operation()
+    {
+        StaffMember member = CreateMember();
+        Guid propertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            null,
+            false,
+            new DateOnly(2026, 7, 1),
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            TestClock.Now).IsSuccess);
+        Guid operationId = Guid.NewGuid();
+        long selectedVersion = member.Version;
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(propertyId),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<UnassignStaffPropertyCommand, StaffMemberMutationReceiptDto>>();
+        UnassignStaffPropertyCommand command = new(
+            operationId,
+            member.Id,
+            propertyId,
+            new DateOnly(2026, 7, 12),
+            " Transferred ",
+            selectedVersion,
+            "user:owner");
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        int eventCount = member.DomainEvents.Count;
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> distinct = await handler.HandleAsync(
+            command with
+            {
+                OperationId = Guid.NewGuid(),
+                ExpectedVersion = member.Version
+            },
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(StaffDomainErrors.AssignmentNotFound, distinct.Error);
+        Assert.Equal(3, member.Version);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        Assert.Equal(
+            StaffMemberMutationKind.UnassignProperty,
+            Assert.Single(operations.Records).Kind);
     }
 
     [Fact]

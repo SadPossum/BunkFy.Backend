@@ -11,6 +11,7 @@ internal static class StaffApiEndpointSupport
     public static readonly ApiErrorStatusCodeMap ErrorStatusCodes =
         CreateErrorStatusCodes(
         new(StaffApplicationErrors.StaffMemberNotFound.Code, StatusCodes.Status404NotFound),
+        new(StaffApplicationErrors.AssignmentNotFound.Code, StatusCodes.Status404NotFound),
         new(StaffApplicationErrors.EmploymentGovernanceNotConfigured.Code, StatusCodes.Status404NotFound),
         new(StaffApplicationErrors.DataHoldNotFound.Code, StatusCodes.Status404NotFound),
         new(StaffApplicationErrors.PropertyUnavailable.Code, StatusCodes.Status409Conflict),
@@ -20,6 +21,9 @@ internal static class StaffApiEndpointSupport
         new(StaffApplicationErrors.ProfileUpdateOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.AuthSubjectOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.LifecycleOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.AssignmentOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.AssignmentAlreadyExists.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.PrimaryAssignmentExists.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffSuspended.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffDeparted.Code, StatusCodes.Status409Conflict),
@@ -39,6 +43,7 @@ internal static class StaffApiEndpointSupport
         new(StaffApplicationErrors.ProfileUpdateOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.AuthSubjectOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.LifecycleOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.AssignmentOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.CorrectionRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.EmploymentGovernanceRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.DataHoldRequestInvalid.Code, StatusCodes.Status400BadRequest),

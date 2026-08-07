@@ -6,6 +6,7 @@ using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Application.Events.Infrastructure;
 using Gma.Framework.Cqrs;
@@ -191,12 +192,79 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             staffMemberId,
             authReceipt.Version).ConfigureAwait(false);
 
+        Guid propertyId = Guid.NewGuid();
+        await SeedActivePropertyAsync(services, propertyId).ConfigureAwait(false);
+        Guid assignOperationId = Guid.NewGuid();
+        AssignStaffPropertyCommand assign = new(
+            assignOperationId,
+            staffMemberId,
+            propertyId,
+            " Duty Manager ",
+            true,
+            new DateOnly(2026, 8, 7),
+            authReceipt.Version,
+            "user:operator");
+        Result<StaffMemberMutationReceiptDto>[] concurrentAssignments =
+            await Task.WhenAll(
+                SendAsync(services, assign),
+                SendAsync(services, assign with
+                {
+                    PropertyJobTitle = "Duty Manager",
+                    ActorId = "user:retrying-operator"
+                })).ConfigureAwait(false);
+        Assert.All(
+            concurrentAssignments,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(
+            concurrentAssignments[0].Value,
+            concurrentAssignments[1].Value);
+        StaffMemberMutationReceiptDto assignReceipt =
+            concurrentAssignments[0].Value;
+        Assert.Equal(authReceipt.Version + 1, assignReceipt.Version);
+
+        Guid failedPropertyId = Guid.NewGuid();
+        await SeedActivePropertyAsync(services, failedPropertyId)
+            .ConfigureAwait(false);
+        await AssertFailedAssignmentOutboxWriteRollsBackAsync(
+            services,
+            postgreSql.GetConnectionString(),
+            staffMemberId,
+            failedPropertyId,
+            assignReceipt.Version).ConfigureAwait(false);
+
+        Guid unassignOperationId = Guid.NewGuid();
+        UnassignStaffPropertyCommand unassign = new(
+            unassignOperationId,
+            staffMemberId,
+            propertyId,
+            new DateOnly(2026, 8, 7),
+            " Transferred ",
+            assignReceipt.Version,
+            "user:operator");
+        Result<StaffMemberMutationReceiptDto>[] concurrentUnassignments =
+            await Task.WhenAll(
+                SendAsync(services, unassign),
+                SendAsync(services, unassign with
+                {
+                    Reason = "Transferred",
+                    ActorId = "user:retrying-operator"
+                })).ConfigureAwait(false);
+        Assert.All(
+            concurrentUnassignments,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(
+            concurrentUnassignments[0].Value,
+            concurrentUnassignments[1].Value);
+        StaffMemberMutationReceiptDto unassignReceipt =
+            concurrentUnassignments[0].Value;
+        Assert.Equal(assignReceipt.Version + 1, unassignReceipt.Version);
+
         Guid suspendOperationId = Guid.NewGuid();
         SuspendStaffMemberCommand suspend = new(
             suspendOperationId,
             staffMemberId,
             " Approved leave ",
-            authReceipt.Version,
+            unassignReceipt.Version,
             "user:operator");
         Result<StaffMemberMutationReceiptDto>[] concurrentSuspensions =
             await Task.WhenAll(
@@ -278,6 +346,11 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             receipt,
             authOperationId,
             authReceipt,
+            propertyId,
+            assignOperationId,
+            assignReceipt,
+            unassignOperationId,
+            unassignReceipt,
             suspendOperationId,
             suspendReceipt,
             resumeOperationId,
@@ -305,6 +378,14 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                 CancellationToken.None).ConfigureAwait(false));
             Assert.Null(await operations.GetAsync(
                 staffMemberId,
+                assignOperationId,
+                CancellationToken.None).ConfigureAwait(false));
+            Assert.Null(await operations.GetAsync(
+                staffMemberId,
+                unassignOperationId,
+                CancellationToken.None).ConfigureAwait(false));
+            Assert.Null(await operations.GetAsync(
+                staffMemberId,
                 suspendOperationId,
                 CancellationToken.None).ConfigureAwait(false));
             Assert.Null(await operations.GetAsync(
@@ -328,6 +409,8 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             legacyOperationId,
             operationId,
             authOperationId,
+            assignOperationId,
+            unassignOperationId,
             suspendOperationId,
             resumeOperationId,
             departOperationId).ConfigureAwait(false);
@@ -340,6 +423,11 @@ public sealed class StaffMemberMutationOperationIntegrationTests
         StaffMemberMutationReceiptDto receipt,
         Guid authOperationId,
         StaffMemberMutationReceiptDto authReceipt,
+        Guid propertyId,
+        Guid assignOperationId,
+        StaffMemberMutationReceiptDto assignReceipt,
+        Guid unassignOperationId,
+        StaffMemberMutationReceiptDto unassignReceipt,
         Guid suspendOperationId,
         StaffMemberMutationReceiptDto suspendReceipt,
         Guid resumeOperationId,
@@ -352,6 +440,7 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             .GetRequiredService<StaffDbContext>();
         StaffMember member = await dbContext.StaffMembers
             .AsNoTracking()
+            .Include(candidate => candidate.Assignments)
             .SingleAsync(candidate => candidate.Id == staffMemberId)
             .ConfigureAwait(false);
         StaffMemberMutationOperationRecord operation = Assert.IsType<
@@ -379,6 +468,24 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                 .GetAsync(
                     staffMemberId,
                     suspendOperationId,
+                    CancellationToken.None)
+                .ConfigureAwait(false));
+        StaffMemberMutationOperationRecord assignOperation = Assert.IsType<
+            StaffMemberMutationOperationRecord>(
+            await scope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>()
+                .GetAsync(
+                    staffMemberId,
+                    assignOperationId,
+                    CancellationToken.None)
+                .ConfigureAwait(false));
+        StaffMemberMutationOperationRecord unassignOperation = Assert.IsType<
+            StaffMemberMutationOperationRecord>(
+            await scope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>()
+                .GetAsync(
+                    staffMemberId,
+                    unassignOperationId,
                     CancellationToken.None)
                 .ConfigureAwait(false));
         StaffMemberMutationOperationRecord resumeOperation = Assert.IsType<
@@ -412,6 +519,17 @@ public sealed class StaffMemberMutationOperationIntegrationTests
         Assert.Equal(
             StaffMemberMutationKind.AuthSubjectChange,
             authOperation.Kind);
+        Assert.Equal(assignReceipt, assignOperation.ToReceipt());
+        Assert.Equal(
+            StaffMemberMutationKind.AssignProperty,
+            assignOperation.Kind);
+        Assert.Equal(unassignReceipt, unassignOperation.ToReceipt());
+        Assert.Equal(
+            StaffMemberMutationKind.UnassignProperty,
+            unassignOperation.Kind);
+        var assignment = Assert.Single(member.Assignments);
+        Assert.Equal(propertyId, assignment.PropertyId);
+        Assert.False(assignment.IsCurrent);
         Assert.Equal(suspendReceipt, suspendOperation.ToReceipt());
         Assert.Equal(StaffMemberMutationKind.Suspend, suspendOperation.Kind);
         Assert.Equal(resumeReceipt, resumeOperation.ToReceipt());
@@ -423,6 +541,12 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             message => message.EventType.Contains(
                 nameof(StaffMemberUpdatedIntegrationEvent),
                 StringComparison.Ordinal));
+        int assignmentEventCount = await dbContext.OutboxMessages.CountAsync(
+            message => EF.Functions.Like(
+                message.EventType,
+                $"%{nameof(StaffPropertyAssignmentChangedIntegrationEvent)}%"))
+            .ConfigureAwait(false);
+        Assert.Equal(2, assignmentEventCount);
         Assert.Single(
             dbContext.OutboxMessages,
             message => message.EventType.Contains(
@@ -612,6 +736,83 @@ public sealed class StaffMemberMutationOperationIntegrationTests
         Assert.Null(operation);
     }
 
+    private static async Task AssertFailedAssignmentOutboxWriteRollsBackAsync(
+        ServiceProvider services,
+        string connectionString,
+        Guid staffMemberId,
+        Guid propertyId,
+        long expectedVersion)
+    {
+        const string functionName =
+            "staff.fail_assignment_outbox_insert";
+        await ExecuteSqlAsync(
+            connectionString,
+            $$"""
+            CREATE FUNCTION {{functionName}}()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $function$
+            BEGIN
+                RAISE EXCEPTION 'Assignment outbox failure';
+            END;
+            $function$;
+
+            CREATE TRIGGER "TR_staff_assignment_outbox_failure"
+            BEFORE INSERT ON "staff"."outbox_messages"
+            FOR EACH ROW
+            EXECUTE FUNCTION {{functionName}}();
+            """).ConfigureAwait(false);
+
+        Guid failedOperationId = Guid.NewGuid();
+        try
+        {
+            await Assert.ThrowsAsync<DbUpdateException>(() => SendAsync(
+                services,
+                new AssignStaffPropertyCommand(
+                    failedOperationId,
+                    staffMemberId,
+                    propertyId,
+                    "Must roll back",
+                    false,
+                    new DateOnly(2026, 8, 7),
+                    expectedVersion,
+                    "user:operator")));
+        }
+        finally
+        {
+            await ExecuteSqlAsync(
+                connectionString,
+                $$"""
+                DROP TRIGGER IF EXISTS
+                    "TR_staff_assignment_outbox_failure"
+                    ON "staff"."outbox_messages";
+                DROP FUNCTION IF EXISTS {{functionName}}();
+                """).ConfigureAwait(false);
+        }
+
+        using IServiceScope scope = services.CreateScope();
+        StaffMember persisted = await scope.ServiceProvider
+            .GetRequiredService<StaffDbContext>()
+            .StaffMembers.AsNoTracking()
+            .Include(candidate => candidate.Assignments)
+            .SingleAsync(candidate => candidate.Id == staffMemberId)
+            .ConfigureAwait(false);
+        StaffMemberMutationOperationRecord? operation =
+            await scope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>()
+                .GetAsync(
+                    staffMemberId,
+                    failedOperationId,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+        Assert.Equal(expectedVersion, persisted.Version);
+        Assert.DoesNotContain(
+            persisted.Assignments,
+            assignment => assignment.PropertyId == propertyId);
+        Assert.Null(operation);
+    }
+
     private static async Task AssertFailedLifecycleOutboxWriteRollsBackAsync(
         ServiceProvider services,
         string connectionString,
@@ -702,6 +903,22 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                 operationId,
                 CancellationToken.None).ConfigureAwait(false));
         }
+    }
+
+    private static async Task SeedActivePropertyAsync(
+        ServiceProvider services,
+        Guid propertyId)
+    {
+        using IServiceScope scope = services.CreateScope();
+        StaffDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<StaffDbContext>();
+        dbContext.PropertyProjections.Add(new StaffPropertyProjection(
+            TenantId,
+            propertyId,
+            "Staff House",
+            PropertyStatus.Active,
+            version: 1));
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
     }
 
     private static async Task<Result<TResponse>> SendAsync<TResponse>(
