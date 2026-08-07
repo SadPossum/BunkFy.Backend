@@ -19,6 +19,7 @@ internal static class GuestsTenantTerminationExportSchema
     private static readonly Type[] SourceTypes =
     [
         typeof(GuestProfileTenantExport),
+        typeof(GuestManagementOperationTenantExport),
         typeof(GuestDataRightsCorrectionReceiptTenantExport),
         typeof(GuestProcessingRestrictionTenantExport),
         typeof(GuestProcessingRestrictionReceiptTenantExport),
@@ -38,6 +39,10 @@ internal static class GuestsTenantTerminationExportSchema
             "guests.profile-state",
             "include-in-authorized-guest-or-tenant-export"),
         Staff<GuestProfileTenantExport>(),
+        Binding<GuestManagementOperationTenantExport>(
+            nameof(GuestManagementOperationTenantExport.ManagementOperation),
+            "guests.management-operation",
+            "include-in-authorized-guest-or-tenant-export"),
         Binding<GuestDataRightsCorrectionReceiptTenantExport>(
             nameof(GuestDataRightsCorrectionReceiptTenantExport
                 .DataRightsProof),

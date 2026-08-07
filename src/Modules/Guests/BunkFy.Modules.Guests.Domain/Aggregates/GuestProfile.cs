@@ -207,21 +207,29 @@ public sealed partial class GuestProfile : ScopedAggregateRoot<Guid>
             return Result.Failure<GuestProfileUpdateOutcome>(values.Error);
         }
 
-        GuestProfileField[] changedFields = this.GetChangedFields(values.Value);
+        return this.ApplyUpdate(values.Value, eventId, nowUtc);
+    }
+
+    private Result<GuestProfileUpdateOutcome> ApplyUpdate(
+        GuestProfileChange values,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        GuestProfileField[] changedFields = this.GetChangedFields(values);
         long previousVersion = this.Version;
-        this.DisplayName = values.Value.DisplayName;
-        this.DisplayNameSearch = NormalizeRequiredSearch(values.Value.DisplayName);
-        this.LegalName = values.Value.LegalName;
-        this.LegalNameSearch = NormalizeSearch(values.Value.LegalName);
-        this.Email = values.Value.Email;
-        this.EmailSearch = NormalizeSearch(values.Value.Email);
-        this.Phone = values.Value.Phone;
-        this.PhoneSearch = NormalizeSearch(values.Value.Phone);
-        this.DateOfBirth = values.Value.DateOfBirth;
-        this.NationalityCountryCode = values.Value.NationalityCountryCode;
-        this.PreferredLanguageTag = values.Value.PreferredLanguageTag;
-        this.Notes = values.Value.Notes;
-        this.LastChangedBy = values.Value.ActorId;
+        this.DisplayName = values.DisplayName;
+        this.DisplayNameSearch = NormalizeRequiredSearch(values.DisplayName);
+        this.LegalName = values.LegalName;
+        this.LegalNameSearch = NormalizeSearch(values.LegalName);
+        this.Email = values.Email;
+        this.EmailSearch = NormalizeSearch(values.Email);
+        this.Phone = values.Phone;
+        this.PhoneSearch = NormalizeSearch(values.Phone);
+        this.DateOfBirth = values.DateOfBirth;
+        this.NationalityCountryCode = values.NationalityCountryCode;
+        this.PreferredLanguageTag = values.PreferredLanguageTag;
+        this.Notes = values.Notes;
+        this.LastChangedBy = values.ActorId;
         this.LastChangedAtUtc = nowUtc;
         this.Version++;
         this.RaiseDomainEvent(new GuestProfileUpdatedDomainEvent(

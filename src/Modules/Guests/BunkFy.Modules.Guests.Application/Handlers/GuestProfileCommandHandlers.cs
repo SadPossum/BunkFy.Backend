@@ -12,6 +12,7 @@ using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.ValueObjects;
 
 internal sealed class CreateGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
@@ -42,7 +43,7 @@ internal sealed class CreateGuestProfileCommandHandler(
                 GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
-        DateTimeOffset nowUtc = clock.UtcNow;
+        DateTimeOffset nowUtc = GuestMutationTime.Normalize(clock.UtcNow);
         Result<GuestProfileCreationSnapshot> creation = GuestProfileCreationSnapshot.Capture(
             command.PropertyId,
             command.DisplayName,
@@ -101,9 +102,9 @@ internal sealed class CreateGuestProfileCommandHandler(
 }
 
 internal sealed class UpdateGuestProfileCommandHandler(
-    IGuestProfileRepository profiles,
-    IGuestOperationLock operationLock,
+    GuestMutationCoordinator mutations,
     IGuestCountryPolicyAdmission countryPolicy,
+    IGuestManagementOperationRepository operations,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<UpdateGuestProfileCommand, GuestMutationReceiptDto>
 {
@@ -123,25 +124,14 @@ internal sealed class UpdateGuestProfileCommandHandler(
                 GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
-        GuestProfile? profile = await profiles.GetVisibleAsync(
-            command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
-        if (profile is null)
+        if (command.OperationId == Guid.Empty)
         {
-            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
+            return Result.Failure<GuestMutationReceiptDto>(
+                GuestsApplicationErrors.ManagementOperationInvalid);
         }
 
-        await operationLock.AcquireGuestAsync(
-            profile.ScopeId,
-            command.GuestId,
-            cancellationToken).ConfigureAwait(false);
-        profile = await profiles.GetVisibleAsync(
-            command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
-        if (profile is null)
-        {
-            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
-        }
-
-        Result updated = profile.Update(
+        DateTimeOffset nowUtc = GuestMutationTime.Normalize(clock.UtcNow);
+        Result<GuestProfileChange> values = GuestProfileChange.Create(
             command.DisplayName,
             command.LegalName,
             command.Email,
@@ -150,19 +140,81 @@ internal sealed class UpdateGuestProfileCommandHandler(
             command.NationalityCountryCode,
             command.PreferredLanguageTag,
             command.Notes,
-            command.ExpectedVersion,
             command.ActorId,
+            nowUtc);
+        if (values.IsFailure)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(values.Error);
+        }
+
+        string fingerprint = GuestManagementOperationFingerprint.Update(
+            command.PropertyId,
+            command.GuestId,
+            command.ExpectedVersion,
+            values.Value);
+        GuestProfile? profile = await mutations.AcquireVisibleAsync(
+            command.PropertyId,
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
+        if (profile is null)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
+        }
+
+        GuestManagementOperationRecord? existing = await operations.GetAsync(
+            command.GuestId,
+            command.OperationId,
+            cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing.MatchesUpdate(
+                command.PropertyId,
+                command.ExpectedVersion,
+                fingerprint)
+                ? Result.Success(existing.ToMutationReceipt())
+                : Result.Failure<GuestMutationReceiptDto>(
+                    GuestsApplicationErrors.ManagementOperationConflict);
+        }
+
+        Result updated = profile.UpdateWithOutcome(
+            values.Value.DisplayName,
+            values.Value.LegalName,
+            values.Value.Email,
+            values.Value.Phone,
+            values.Value.DateOfBirth,
+            values.Value.NationalityCountryCode,
+            values.Value.PreferredLanguageTag,
+            values.Value.Notes,
+            command.ExpectedVersion,
+            values.Value.ActorId,
             ids.NewId(),
-            clock.UtcNow);
-        return updated.IsSuccess
-            ? Result.Success(profile.ToMutationReceipt())
-            : Result.Failure<GuestMutationReceiptDto>(updated.Error);
+            nowUtc);
+        if (updated.IsFailure)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(updated.Error);
+        }
+
+        GuestMutationReceiptDto receipt = profile.ToMutationReceipt();
+        await operations.AddAsync(
+            new(
+                command.OperationId,
+                profile.ScopeId,
+                command.PropertyId,
+                command.GuestId,
+                GuestManagementOperationKind.Update,
+                command.ExpectedVersion,
+                fingerprint,
+                receipt.Status,
+                receipt.Version,
+                receipt.LastChangedAtUtc),
+            cancellationToken).ConfigureAwait(false);
+        return Result.Success(receipt);
     }
 }
 
 internal sealed class ArchiveGuestProfileCommandHandler(
-    IGuestProfileRepository profiles,
-    IGuestOperationLock operationLock,
+    GuestMutationCoordinator mutations,
+    IGuestManagementOperationRepository operations,
     ISystemClock clock,
     IIdGenerator ids) : ICommandHandler<ArchiveGuestProfileCommand, GuestMutationReceiptDto>
 {
@@ -170,31 +222,65 @@ internal sealed class ArchiveGuestProfileCommandHandler(
         ArchiveGuestProfileCommand command,
         CancellationToken cancellationToken)
     {
-        GuestProfile? profile = await profiles.GetVisibleAsync(
-            command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
-        if (profile is null)
+        if (command.OperationId == Guid.Empty)
         {
-            return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
+            return Result.Failure<GuestMutationReceiptDto>(
+                GuestsApplicationErrors.ManagementOperationInvalid);
         }
 
-        await operationLock.AcquireGuestAsync(
-            profile.ScopeId,
+        string normalizedActor = command.ActorId?.Trim() ?? string.Empty;
+        if (normalizedActor.Length is 0 or > GuestsContractLimits.ActorIdMaxLength)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(
+                GuestsApplicationErrors.ActorInvalid);
+        }
+
+        GuestProfile? profile = await mutations.AcquireVisibleAsync(
+            command.PropertyId,
             command.GuestId,
             cancellationToken).ConfigureAwait(false);
-        profile = await profiles.GetVisibleAsync(
-            command.PropertyId, command.GuestId, cancellationToken).ConfigureAwait(false);
         if (profile is null)
         {
             return Result.Failure<GuestMutationReceiptDto>(GuestsApplicationErrors.GuestNotFound);
         }
 
+        GuestManagementOperationRecord? existing = await operations.GetAsync(
+            command.GuestId,
+            command.OperationId,
+            cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing.MatchesArchive(command.PropertyId, command.ExpectedVersion)
+                ? Result.Success(existing.ToMutationReceipt())
+                : Result.Failure<GuestMutationReceiptDto>(
+                    GuestsApplicationErrors.ManagementOperationConflict);
+        }
+
+        DateTimeOffset nowUtc = GuestMutationTime.Normalize(clock.UtcNow);
         Result archived = profile.Archive(
             command.ExpectedVersion,
-            command.ActorId,
+            normalizedActor,
             ids.NewId(),
-            clock.UtcNow);
-        return archived.IsSuccess
-            ? Result.Success(profile.ToMutationReceipt())
-            : Result.Failure<GuestMutationReceiptDto>(archived.Error);
+            nowUtc);
+        if (archived.IsFailure)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(archived.Error);
+        }
+
+        GuestMutationReceiptDto receipt = profile.ToMutationReceipt();
+        await operations.AddAsync(
+            new(
+                command.OperationId,
+                profile.ScopeId,
+                command.PropertyId,
+                command.GuestId,
+                GuestManagementOperationKind.Archive,
+                command.ExpectedVersion,
+                RequestFingerprint: null,
+                receipt.Status,
+                receipt.Version,
+                receipt.LastChangedAtUtc),
+            cancellationToken).ConfigureAwait(false);
+        return Result.Success(receipt);
     }
 }

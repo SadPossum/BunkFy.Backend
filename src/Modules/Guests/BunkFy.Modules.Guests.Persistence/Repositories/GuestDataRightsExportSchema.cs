@@ -18,6 +18,8 @@ internal static class GuestDataRightsExportSchema
         "include-in-authorized-guest-or-tenant-export";
     private const string SubjectExportPolicy =
         "include-in-authorized-guest-export";
+    private const string ManagementOperationExportPolicy =
+        "include-in-authorized-guest-or-tenant-export";
     private const string ExportRetentionPolicy = "guest-data-rights-export-fragment";
 
     private static readonly JsonSerializerOptions ValueSerializerOptions = CreateSerializerOptions();
@@ -71,6 +73,28 @@ internal static class GuestDataRightsExportSchema
                 (nameof(stay.CheckedOutBusinessDate), stay.CheckedOutBusinessDate),
                 (nameof(stay.IsCurrentParticipant), stay.IsCurrentParticipant),
                 (nameof(stay.ReservationVersion), stay.ReservationVersion)
+            ]);
+
+    public static DataRightsExportRecord CreateManagementOperationRecord(
+        GuestManagementOperationDataRightsExport operation) =>
+        CreateRecord(
+            GuestDataRightsExportContributor.ManagementOperationRecordType,
+            DataRightsExportRecordIds.CreateDeterministicChild(
+                operation.GuestId,
+                operation.OperationId.ToString("N")),
+            operation.ResultVersion,
+            typeof(GuestManagementOperationDataRightsExport),
+            [
+                (nameof(operation.OperationId), operation.OperationId),
+                (nameof(operation.ScopeId), operation.ScopeId),
+                (nameof(operation.PropertyId), operation.PropertyId),
+                (nameof(operation.GuestId), operation.GuestId),
+                (nameof(operation.Kind), operation.Kind),
+                (nameof(operation.ExpectedVersion), operation.ExpectedVersion),
+                (nameof(operation.RequestFingerprint), operation.RequestFingerprint),
+                (nameof(operation.ResultStatus), operation.ResultStatus),
+                (nameof(operation.ResultVersion), operation.ResultVersion),
+                (nameof(operation.CompletedAtUtc), operation.CompletedAtUtc)
             ]);
 
     private static DataRightsExportRecord CreateRecord(
@@ -143,7 +167,8 @@ internal static class GuestDataRightsExportSchema
         Type[] sourceTypes =
         [
             typeof(GuestProfileDataRightsExport),
-            typeof(GuestStayDataRightsExport)
+            typeof(GuestStayDataRightsExport),
+            typeof(GuestManagementOperationDataRightsExport)
         ];
         HashSet<string> expectedMembers = sourceTypes
             .SelectMany(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
@@ -226,6 +251,17 @@ internal static class GuestDataRightsExportSchema
                     exportPolicy,
                     SubjectExportPolicy,
                     StringComparison.Ordinal);
+        }
+
+        if (string.Equals(
+                sourceType,
+                typeof(GuestManagementOperationDataRightsExport).FullName,
+                StringComparison.Ordinal))
+        {
+            return string.Equals(
+                exportPolicy,
+                ManagementOperationExportPolicy,
+                StringComparison.Ordinal);
         }
 
         return string.Equals(

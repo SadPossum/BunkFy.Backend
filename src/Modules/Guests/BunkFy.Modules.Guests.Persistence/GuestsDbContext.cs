@@ -22,6 +22,8 @@ public sealed class GuestsDbContext(
     private readonly IScopeContext scopeContext = scopeContext;
 
     public DbSet<GuestProfile> GuestProfiles => this.Set<GuestProfile>();
+    internal DbSet<GuestManagementOperation> ManagementOperations =>
+        this.Set<GuestManagementOperation>();
     public DbSet<GuestDataRightsCorrectionReceipt> DataRightsCorrectionReceipts =>
         this.Set<GuestDataRightsCorrectionReceipt>();
     public DbSet<GuestProcessingRestriction> ProcessingRestrictions =>

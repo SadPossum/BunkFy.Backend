@@ -19,6 +19,12 @@ public static class GuestsApplicationErrors
     public static readonly Error CreationOperationConflict = new(
         "Guests.CreationOperationConflict",
         "The Guest creation operation id was already used for a different request.");
+    public static readonly Error ManagementOperationInvalid = new(
+        "Guests.ManagementOperationInvalid",
+        "A non-empty Guest management operation id is required.");
+    public static readonly Error ManagementOperationConflict = new(
+        "Guests.ManagementOperationConflict",
+        "The Guest management operation id was already used for a different request.");
     public static readonly Error TenantRequired = new("Guests.TenantRequired", "A tenant context is required.");
     public static readonly Error WorkspaceProcessingRestricted = new(
         "Guests.WorkspaceProcessingRestricted",
@@ -63,6 +69,7 @@ public static class GuestsApplicationErrors
         "Guests.RestrictionApprovalAlreadyUsed",
         "The approved processing-restriction decision was already used.");
     public static Error VersionConflict => GuestsDomainErrors.VersionConflict;
+    public static Error ActorInvalid => GuestsDomainErrors.ActorInvalid;
     public static Error GuestArchived => GuestsDomainErrors.GuestArchived;
     public static Error GuestAlreadyArchived => GuestsDomainErrors.GuestAlreadyArchived;
     public static Error RestrictionVersionConflict =>

@@ -186,10 +186,16 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
 
     private static Command CreateUpdateCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> property = PropertyOption();
         Option<Guid> guest = GuestOption();
         ProfileOptions options = new();
-        Command command = new("update", "Update a guest record.") { property, guest };
+        Command command = new("update", "Update a guest record.")
+        {
+            operationId,
+            property,
+            guest
+        };
         options.AddTo(command, includeVersion: true);
         command.SetAction((parse, cancellationToken) => ExecuteMutationAsync(
             services,
@@ -200,6 +206,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
             (provider, token) => TryValues(parse, options, out GuestProfileValues values)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new UpdateGuestProfileCommand(
+                        parse.GetRequiredValue(operationId),
                         parse.GetRequiredValue(property),
                         parse.GetRequiredValue(guest),
                         values.DisplayName,
@@ -220,11 +227,19 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
 
     private static Command CreateArchiveCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> property = PropertyOption();
         Option<Guid> guest = GuestOption();
         Option<long> version = new("--expected-version") { Required = true };
         Option<bool> yes = new("--yes");
-        Command command = new("archive", "Archive a guest record.") { property, guest, version, yes };
+        Command command = new("archive", "Archive a guest record.")
+        {
+            operationId,
+            property,
+            guest,
+            version,
+            yes
+        };
         command.SetAction((parse, cancellationToken) => ExecuteMutationAsync(
             services,
             global,
@@ -234,6 +249,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
             (provider, token) => parse.GetValue(yes)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new ArchiveGuestProfileCommand(
+                        parse.GetRequiredValue(operationId),
                         parse.GetRequiredValue(property),
                         parse.GetRequiredValue(guest),
                         parse.GetRequiredValue(version),

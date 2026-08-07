@@ -3,6 +3,8 @@ namespace BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Domain.Retention;
+using BunkFy.Modules.Guests.Application.Ports;
+using GuestContractStatus = BunkFy.Modules.Guests.Contracts.GuestStatus;
 
 [AttributeUsage(AttributeTargets.Property)]
 internal sealed class GuestsTenantExportFieldAttribute(string fieldId)
@@ -43,6 +45,26 @@ internal sealed record GuestProfileStateTenantExport(
 internal sealed record GuestProfileStaffTenantExport(
     string CreatedBy,
     string LastChangedBy);
+
+internal sealed record GuestManagementOperationTenantExport(
+    [property: GuestsTenantExportField("guests.scope-id")]
+    string ScopeId,
+    [property: GuestsTenantExportField("guests.property-id")]
+    Guid PropertyId,
+    [property: GuestsTenantExportField("guests.guest-id")]
+    Guid GuestId,
+    [property: GuestsTenantExportField("guests.record-id")]
+    Guid OperationId,
+    [property: GuestsTenantExportField("guests.management-operation")]
+    GuestManagementOperationStateTenantExport ManagementOperation);
+
+internal sealed record GuestManagementOperationStateTenantExport(
+    GuestManagementOperationKind Kind,
+    long ExpectedVersion,
+    string? RequestFingerprint,
+    GuestContractStatus ResultStatus,
+    long ResultVersion,
+    DateTimeOffset CompletedAtUtc);
 
 internal sealed record GuestDataRightsCorrectionReceiptTenantExport(
     [property: GuestsTenantExportField("guests.scope-id")]

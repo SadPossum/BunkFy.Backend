@@ -19,6 +19,7 @@ using Gma.Framework.Scoping;
 internal sealed class ApplyGuestAnonymisationCommandHandler(
     IGuestProfileRepository profiles,
     IGuestAnonymisationRepository anonymisation,
+    IGuestManagementOperationRepository managementOperations,
     IGuestAnonymisationExecutionBoundary executionBoundary,
     IGuestAnonymisationEligibilityEvaluator eligibility,
     IDataRightsOperationApprovalGate approvalGate,
@@ -167,6 +168,9 @@ internal sealed class ApplyGuestAnonymisationCommandHandler(
             return Result.Failure<GuestAnonymisationReceiptDto>(tombstone.Error);
         }
 
+        await managementOperations.DeleteForGuestAsync(
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
         await anonymisation.AddAsync(
             receipt.Value,
             tombstone.Value,

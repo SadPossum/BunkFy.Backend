@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
@@ -441,6 +442,34 @@ public sealed class GuestsTenantTerminationIntegrationTests
             PropertyId,
             "Maya Chen");
         context.GuestProfiles.Add(profile);
+        long managementExpectedVersion = profile.Version;
+        DateTimeOffset managementCompletedAtUtc =
+            ExportNowUtc.AddMinutes(-9);
+        Assert.True(profile.Update(
+            "Maya Chen Updated",
+            "Maya Chen Legal",
+            "guest@example.test",
+            "+44 20 1234 5678",
+            new DateOnly(1990, 2, 3),
+            "GB",
+            "en-GB",
+            "Prefers a lower bunk.",
+            managementExpectedVersion,
+            "user:owner",
+            Guid.NewGuid(),
+            managementCompletedAtUtc).IsSuccess);
+        context.ManagementOperations.Add(new GuestManagementOperation(
+            new GuestManagementOperationRecord(
+                Guid.NewGuid(),
+                tenantId,
+                PropertyId,
+                profile.Id,
+                GuestManagementOperationKind.Update,
+                managementExpectedVersion,
+                Digest,
+                GuestStatus.Active,
+                profile.Version,
+                managementCompletedAtUtc)));
         GuestDataRightsCorrectionReceipt correction =
             GuestDataRightsCorrectionReceipt.Create(
                 Guid.NewGuid(),

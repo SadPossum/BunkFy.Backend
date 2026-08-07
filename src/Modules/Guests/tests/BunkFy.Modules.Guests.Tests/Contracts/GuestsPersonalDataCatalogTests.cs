@@ -7,6 +7,7 @@ using BunkFy.Modules.Guests.AdminApi;
 using BunkFy.Modules.Guests.Api;
 using BunkFy.Modules.Guests.Application.Commands;
 using BunkFy.Modules.Guests.Application.Policies;
+using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Application.Queries;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
@@ -46,6 +47,7 @@ public sealed class GuestsPersonalDataCatalogTests
         foreach (Type entityType in new[]
                  {
                      typeof(GuestProfile),
+                     typeof(GuestManagementOperation),
                      typeof(GuestStayHistoryEntry),
                      typeof(GuestDataRightsCorrectionReceipt),
                      typeof(GuestProcessingRestrictionProjection),
@@ -89,6 +91,9 @@ public sealed class GuestsPersonalDataCatalogTests
             PersonalDataSurface.IntegrationCommand);
         AssertType(typeof(UpdateGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ArchiveGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(GuestManagementOperationRecord),
+            PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ApplyGuestDataRightsCorrectionCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(
             typeof(ApplyGuestProcessingRestrictionCommand),
@@ -224,6 +229,9 @@ public sealed class GuestsPersonalDataCatalogTests
             PersonalDataSurface.DomainEvent);
         AssertType(typeof(GuestProfileDataRightsExport), PersonalDataSurface.DataRightsExport);
         AssertType(typeof(GuestStayDataRightsExport), PersonalDataSurface.DataRightsExport);
+        AssertType(
+            typeof(GuestManagementOperationDataRightsExport),
+            PersonalDataSurface.DataRightsExport);
 
         foreach (Type eventType in IntegrationEventTypes())
         {

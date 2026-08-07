@@ -32,6 +32,7 @@ public sealed class ApplyGuestAnonymisationCommandHandlerTests
         RecordingBoundary boundary = new();
         RecordingEligibility eligibility = new();
         RecordingApprovalGate approval = new(CreateApprovalEvidence());
+        RecordingManagementOperationRepository managementOperations = new();
         Guid eventId = Guid.NewGuid();
         Guid receiptId = Guid.NewGuid();
         ApplyGuestAnonymisationCommand command = CreateCommand(profile);
@@ -41,7 +42,8 @@ public sealed class ApplyGuestAnonymisationCommandHandlerTests
             boundary,
             eligibility,
             approval,
-            new QueueIdGenerator(eventId, receiptId));
+            new QueueIdGenerator(eventId, receiptId),
+            managementOperations);
 
         Result<GuestAnonymisationReceiptDto> result =
             await handler.HandleAsync(command, CancellationToken.None);
@@ -61,6 +63,7 @@ public sealed class ApplyGuestAnonymisationCommandHandlerTests
         Assert.Equal(1, boundary.CallCount);
         Assert.Equal(1, eligibility.CallCount);
         Assert.Equal(1, approval.CallCount);
+        Assert.Equal([profile.Id], managementOperations.DeletedGuestIds);
         Assert.DoesNotContain(
             typeof(GuestAnonymisationReceipt).GetProperties(),
             property => property.Name is
@@ -192,15 +195,40 @@ public sealed class ApplyGuestAnonymisationCommandHandlerTests
         RecordingBoundary boundary,
         RecordingEligibility eligibility,
         RecordingApprovalGate approval,
-        IIdGenerator ids) => new(
+        IIdGenerator ids,
+        IGuestManagementOperationRepository? managementOperations = null) => new(
         new StubGuestRepository(profile),
         repository,
+        managementOperations ?? new RecordingManagementOperationRepository(),
         boundary,
         eligibility,
         approval,
         new TestScopeContext(),
         new TestClock(),
         ids);
+
+    private sealed class RecordingManagementOperationRepository
+        : IGuestManagementOperationRepository
+    {
+        public List<Guid> DeletedGuestIds { get; } = [];
+
+        public Task<GuestManagementOperationRecord?> GetAsync(
+            Guid guestId,
+            Guid operationId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task AddAsync(
+            GuestManagementOperationRecord operation,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task DeleteForGuestAsync(
+            Guid guestId,
+            CancellationToken cancellationToken)
+        {
+            this.DeletedGuestIds.Add(guestId);
+            return Task.CompletedTask;
+        }
+    }
 
     private static ApplyGuestAnonymisationCommand CreateCommand(GuestProfile profile) => new(
         Guid.NewGuid(),

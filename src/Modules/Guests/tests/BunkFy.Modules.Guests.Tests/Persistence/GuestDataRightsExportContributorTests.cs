@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Tests.Persistence;
 
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Persistence;
@@ -30,6 +31,56 @@ public sealed class GuestDataRightsExportContributorTests
             "Maya Q. Chen",
             "maya.chen@example.test",
             "+44 20 1234 5678");
+        long expectedVersion = profile.Version;
+        Assert.True(profile.Update(
+            profile.DisplayName,
+            profile.LegalName,
+            profile.Email,
+            profile.Phone,
+            profile.DateOfBirth,
+            profile.NationalityCountryCode,
+            profile.PreferredLanguageTag,
+            profile.Notes,
+            expectedVersion,
+            "user:operator",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        GuestManagementOperationRecord managementOperation = new(
+            Guid.NewGuid(),
+            profile.ScopeId,
+            targetPropertyId,
+            profile.Id,
+            GuestManagementOperationKind.Update,
+            expectedVersion,
+            new string('a', 64),
+            GuestStatus.Active,
+            profile.Version,
+            profile.LastChangedAtUtc);
+        long unrelatedExpectedVersion = profile.Version;
+        Assert.True(profile.Update(
+            profile.DisplayName,
+            profile.LegalName,
+            profile.Email,
+            profile.Phone,
+            profile.DateOfBirth,
+            profile.NationalityCountryCode,
+            profile.PreferredLanguageTag,
+            "Updated from another property.",
+            unrelatedExpectedVersion,
+            "user:operator",
+            Guid.NewGuid(),
+            Now.AddMinutes(2)).IsSuccess);
+        GuestManagementOperationRecord unrelatedManagementOperation = new(
+            Guid.NewGuid(),
+            profile.ScopeId,
+            unrelatedPropertyId,
+            profile.Id,
+            GuestManagementOperationKind.Update,
+            unrelatedExpectedVersion,
+            new string('b', 64),
+            GuestStatus.Active,
+            profile.Version,
+            profile.LastChangedAtUtc);
         dbContext.PropertyProjections.Add(new GuestPropertyProjection(
             "tenant-a",
             targetPropertyId,
@@ -37,6 +88,9 @@ public sealed class GuestDataRightsExportContributorTests
             PropertyStatus.Active,
             1));
         dbContext.GuestProfiles.Add(profile);
+        dbContext.ManagementOperations.AddRange(
+            new GuestManagementOperation(managementOperation),
+            new GuestManagementOperation(unrelatedManagementOperation));
         GuestStayHistoryEntry targetStay = CreateStay(profile.Id, targetPropertyId);
         GuestStayHistoryEntry unrelatedStay = CreateStay(profile.Id, unrelatedPropertyId);
         dbContext.StayHistory.AddRange(targetStay, unrelatedStay);
@@ -51,13 +105,13 @@ public sealed class GuestDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(2, result.RecordCount);
+        Assert.Equal(3, result.RecordCount);
         Assert.Equal("guests.personal-data", contributor.Descriptor.CatalogId);
         Assert.Equal(1, contributor.Descriptor.CatalogSchemaVersion);
-        Assert.Equal(14, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(15, contributor.Descriptor.CatalogVersion);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaId, contributor.Descriptor.ExportSchemaId);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaVersion, contributor.Descriptor.ExportSchemaVersion);
-        Assert.Equal(26, contributor.Descriptor.FieldIds.Count);
+        Assert.Equal(36, contributor.Descriptor.FieldIds.Count);
         Assert.DoesNotContain("guest.profile.audit-actor-id", contributor.Descriptor.FieldIds);
         Assert.DoesNotContain("guest.profile.projection-ordinal", contributor.Descriptor.FieldIds);
         Assert.DoesNotContain("guest.profile.tenant-scope-id", contributor.Descriptor.FieldIds);
@@ -82,6 +136,27 @@ public sealed class GuestDataRightsExportContributorTests
         Assert.DoesNotContain(
             sink.Records,
             record => record.RecordId == unrelatedStay.ReservationId);
+
+        DataRightsExportRecord managementRecord = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                GuestDataRightsExportContributor.ManagementOperationRecordType);
+        Assert.Equal(
+            DataRightsExportRecordIds.CreateDeterministicChild(
+                profile.Id,
+                managementOperation.OperationId.ToString("N")),
+            managementRecord.RecordId);
+        Assert.Equal(
+            managementOperation.RequestFingerprint,
+            Field(
+                managementRecord,
+                "guest.management-operation.request-fingerprint").GetString());
+        Assert.DoesNotContain(
+            sink.Records,
+            record => record.RecordType ==
+                GuestDataRightsExportContributor.ManagementOperationRecordType &&
+                Field(record, "guest.management-operation.id").GetGuid() ==
+                    unrelatedManagementOperation.OperationId);
     }
 
     [Fact]

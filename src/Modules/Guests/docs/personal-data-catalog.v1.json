@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "guests.personal-data",
-  "catalogVersion": 14,
+  "catalogVersion": 15,
   "module": "guests",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -10,6 +10,12 @@
       "scope": "tenant-property-authorized",
       "readers": ["permission:guests.read", "system:reservations.guest-profile-projection"],
       "writers": ["permission:guests.archive", "permission:guests.create", "permission:guests.manage", "system:guests.profile-lifecycle"]
+    },
+    {
+      "id": "guest-management-operations",
+      "scope": "tenant-guest-authorized-replay-journal",
+      "readers": ["permission:guests.read", "system:guests.data-rights-export", "system:guests.tenant-export"],
+      "writers": ["permission:guests.archive", "permission:guests.manage", "system:guests.anonymisation", "system:guests.retention"]
     },
     {
       "id": "guest-request-context",
@@ -84,6 +90,13 @@
       "startsAt": "guest-profile-created",
       "endsAt": "approved-erasure-or-tenant-termination",
       "legalHoldBehavior": "pause-approved-erasure"
+    },
+    {
+      "id": "guest-management-operation-journal",
+      "approvalState": "engineering-default",
+      "startsAt": "guest-management-operation-completed",
+      "endsAt": "approved-guest-anonymisation-or-tenant-termination",
+      "legalHoldBehavior": "delete-with-owner-profile-disposition"
     },
     {
       "id": "guest-stay-history-lifecycle",
@@ -226,6 +239,13 @@
       "correction": "immutable-system-coordinate",
       "restriction": "retain-for-exact-idempotent-replay",
       "erasure": "clear-with-approved-guest-anonymisation"
+    },
+    {
+      "id": "guest-management-operation-replay",
+      "export": "include-in-authorized-guest-or-tenant-export",
+      "correction": "immutable-replay-coordinate",
+      "restriction": "retain-for-exact-idempotent-replay",
+      "erasure": "delete-with-approved-guest-anonymisation"
     },
     {
       "id": "guest-operational-history",
@@ -3256,6 +3276,256 @@
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "SelectedRecordVersion", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "CurrentRecordVersion", "surface": "domain-event", "retentionPolicy": "transient-domain-event" },
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Events.GuestDataRightsCorrectionAppliedDomainEvent", "member": "ChangedFields", "surface": "domain-event", "retentionPolicy": "transient-domain-event" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["exact-retry", "mutation-correlation"],
+      "sources": ["authorized-management-client"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["api-input", "application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["customer-api", "cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Api", "type": "BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileUpdateRequest", "member": "OperationId", "surface": "api-input", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Api", "type": "BunkFy.Modules.Guests.Api.GuestsModule+ArchiveGuestProfileRequest", "member": "OperationId", "surface": "api-input", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.AdminApi", "type": "BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileUpdateRequest", "member": "OperationId", "surface": "api-input", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.AdminApi", "type": "BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+ArchiveGuestProfileRequest", "member": "OperationId", "surface": "api-input", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand", "member": "OperationId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ArchiveGuestProfileCommand", "member": "OperationId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "OperationId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "Id", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "OperationId", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationTenantExport", "member": "OperationId", "surface": "data-rights-export", "retentionPolicy": "guests-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.tenant-scope-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["tenant-isolation", "exact-retry"],
+      "sources": ["tenant-context"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "ScopeId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "ScopeId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "ScopeId", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationTenantExport", "member": "ScopeId", "surface": "data-rights-export", "retentionPolicy": "guests-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.property-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["property-authorization", "exact-retry"],
+      "sources": ["authorized-management-request"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "PropertyId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "PropertyId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "PropertyId", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationTenantExport", "member": "PropertyId", "surface": "data-rights-export", "retentionPolicy": "guests-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.guest-id",
+      "dataSubject": "guest",
+      "classification": "direct-identifier",
+      "sensitivity": "standard",
+      "purposes": ["guest-linkage", "exact-retry"],
+      "sources": ["guest-profile"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "GuestId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "GuestId", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "GuestId", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationTenantExport", "member": "GuestId", "surface": "data-rights-export", "retentionPolicy": "guests-tenant-termination-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.kind",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["replay-discrimination", "mutation-audit"],
+      "sources": ["guest-management-workflow"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "Kind", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "Kind", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "Kind", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.expected-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["optimistic-concurrency", "exact-retry"],
+      "sources": ["authorized-management-request"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "ExpectedVersion", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "ExpectedVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "ExpectedVersion", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.request-fingerprint",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["exact-retry", "request-equivalence"],
+      "sources": ["normalized-guest-profile-request", "system-generated-sha256"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "RequestFingerprint", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "RequestFingerprint", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "RequestFingerprint", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.result-status",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["original-receipt-replay", "mutation-audit"],
+      "sources": ["guest-profile-mutation"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "ResultStatus", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "ResultStatus", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "ResultStatus", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.result-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["original-receipt-replay", "mutation-audit"],
+      "sources": ["guest-profile-mutation"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "ResultVersion", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "ResultVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "ResultVersion", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "guest.management-operation.completed-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["original-receipt-replay", "mutation-audit"],
+      "sources": ["system-clock"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Ports.GuestManagementOperationRecord", "member": "CompletedAtUtc", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.GuestManagementOperation", "member": "CompletedAtUtc", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationDataRightsExport", "member": "CompletedAtUtc", "surface": "data-rights-export", "retentionPolicy": "guest-data-rights-export-fragment" }
+      ]
+    },
+    {
+      "id": "guests.management-operation",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["tenant-portability", "exact-retry", "mutation-audit"],
+      "sources": ["guests-management-operation-journal"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-management-operations",
+      "countryPolicyKey": "guest.management-operation",
+      "retentionPolicy": "guest-management-operation-journal",
+      "rightsPolicy": "guest-management-operation-replay",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestManagementOperationTenantExport", "member": "ManagementOperation", "surface": "data-rights-export", "retentionPolicy": "guests-tenant-termination-export-fragment" }
       ]
     },
     {

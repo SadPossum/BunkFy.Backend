@@ -82,6 +82,7 @@
     <File Path="docs/planning/guest-record-retention-task.md" />
     <File Path="docs/planning/guest-records-module-task.md" />
     <File Path="docs/planning/guests-management-create-idempotency-task.md" />
+    <File Path="docs/planning/guests-management-update-archive-idempotency-task.md" />
     <File Path="docs/planning/guests-operational-surface-hardening-task.md" />
     <File Path="docs/planning/guests-read-surface-hardening-task.md" />
     <File Path="docs/planning/guests-tenant-termination-owner-task.md" />

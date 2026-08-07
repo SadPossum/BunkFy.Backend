@@ -19,6 +19,57 @@ using Xunit;
 public sealed class GuestsModelTests
 {
     [Fact]
+    public void Management_operations_are_guest_scoped_constrained_and_cascade_owned()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+        IEntityType operation = dbContext.Model.FindEntityType(
+            typeof(GuestManagementOperation))!;
+        IEntityType designOperation = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(GuestManagementOperation))!;
+
+        Assert.Equal(
+            [
+                nameof(GuestManagementOperation.ScopeId),
+                nameof(GuestManagementOperation.GuestId),
+                nameof(GuestManagementOperation.Id)
+            ],
+            operation.FindPrimaryKey()!.Properties.Select(property => property.Name));
+        Assert.Equal(
+            64,
+            operation.FindProperty(
+                nameof(GuestManagementOperation.RequestFingerprint))!.GetMaxLength());
+        Assert.NotEmpty(operation.GetDeclaredQueryFilters());
+        Assert.Contains(operation.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestManagementOperation.ScopeId),
+                nameof(GuestManagementOperation.PropertyId),
+                nameof(GuestManagementOperation.CompletedAtUtc),
+                nameof(GuestManagementOperation.Id)
+            ]));
+        IForeignKey ownership = Assert.Single(operation.GetForeignKeys());
+        Assert.Equal(DeleteBehavior.Cascade, ownership.DeleteBehavior);
+        Assert.Equal(
+            [
+                nameof(GuestManagementOperation.ScopeId),
+                nameof(GuestManagementOperation.GuestId)
+            ],
+            ownership.Properties.Select(property => property.Name));
+        Assert.Contains(
+            designOperation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guest_management_operations_kind");
+        Assert.Contains(
+            designOperation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guest_management_operations_versions");
+        Assert.Contains(
+            designOperation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_guest_management_operations_result");
+    }
+
+    [Fact]
     public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
     {
         using GuestsDbContext dbContext = CreateDbContext();

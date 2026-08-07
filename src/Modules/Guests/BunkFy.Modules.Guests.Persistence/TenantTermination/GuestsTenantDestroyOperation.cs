@@ -140,13 +140,23 @@ internal sealed class GuestsTenantDestroyOperation : IScopedEntity
         GuestsTenantDestroyStage stage)
     {
         if (stage is < GuestsTenantDestroyStage.OutboxMessages or
-            >= GuestsTenantDestroyStage.Completed)
+            > GuestsTenantDestroyStage.ManagementOperations or
+            GuestsTenantDestroyStage.Completed)
         {
             throw new InvalidOperationException(
                 "The Guests tenant destruction stage is invalid.");
         }
 
-        return (GuestsTenantDestroyStage)((int)stage + 1);
+        return stage switch
+        {
+            GuestsTenantDestroyStage.StayHistory =>
+                GuestsTenantDestroyStage.ManagementOperations,
+            GuestsTenantDestroyStage.ManagementOperations =>
+                GuestsTenantDestroyStage.GuestProfiles,
+            GuestsTenantDestroyStage.OperationLocks =>
+                GuestsTenantDestroyStage.Completed,
+            _ => (GuestsTenantDestroyStage)((int)stage + 1)
+        };
     }
 }
 
@@ -172,5 +182,6 @@ internal enum GuestsTenantDestroyStage
     ProjectionRebuildCheckpoints = 17,
     RetentionSweepCheckpoints = 18,
     OperationLocks = 19,
-    Completed = 20
+    Completed = 20,
+    ManagementOperations = 21
 }

@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Persistence.Repositories;
 
 using BunkFy.Modules.Guests.Contracts;
+using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 
 internal sealed record GuestProfileDataRightsExport(
@@ -32,3 +33,15 @@ internal sealed record GuestStayDataRightsExport(
     DateOnly? CheckedOutBusinessDate,
     bool IsCurrentParticipant,
     long ReservationVersion);
+
+internal sealed record GuestManagementOperationDataRightsExport(
+    Guid OperationId,
+    string ScopeId,
+    Guid PropertyId,
+    Guid GuestId,
+    GuestManagementOperationKind Kind,
+    long ExpectedVersion,
+    string? RequestFingerprint,
+    GuestStatus ResultStatus,
+    long ResultVersion,
+    DateTimeOffset CompletedAtUtc);

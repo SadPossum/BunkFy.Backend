@@ -5,6 +5,7 @@ using Gma.Framework.Cqrs;
 using BunkFy.Modules.Guests.Contracts;
 
 public sealed record UpdateGuestProfileCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid GuestId,
     string DisplayName,

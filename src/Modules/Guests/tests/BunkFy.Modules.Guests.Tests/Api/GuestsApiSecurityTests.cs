@@ -1,11 +1,14 @@
 namespace BunkFy.Modules.Guests.Tests.Api;
 
+using System.CommandLine;
 using System.Reflection;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.AdminApi;
+using BunkFy.Modules.Guests.AdminCli;
 using BunkFy.Modules.Guests.Api;
 using BunkFy.Modules.Guests.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
+using Gma.Framework.Administration.Cli;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
 using Microsoft.AspNetCore.Builder;
@@ -18,6 +21,72 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class GuestsApiSecurityTests
 {
+    [Theory]
+    [InlineData(typeof(GuestsModule.GuestProfileUpdateRequest))]
+    [InlineData(typeof(GuestsModule.ArchiveGuestProfileRequest))]
+    [InlineData(typeof(GuestsAdminApiModule.GuestProfileUpdateRequest))]
+    [InlineData(typeof(GuestsAdminApiModule.ArchiveGuestProfileRequest))]
+    public void Management_requests_require_caller_owned_operation_identity(
+        Type requestType)
+    {
+        PropertyInfo operationId = requestType.GetProperty("OperationId")!;
+        ConstructorInfo constructor = Assert.Single(requestType.GetConstructors());
+        ParameterInfo parameter = Assert.Single(
+            constructor.GetParameters(),
+            candidate => string.Equals(
+                candidate.Name,
+                "operationId",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(Guid), operationId.PropertyType);
+        Assert.Equal(typeof(Guid), parameter.ParameterType);
+        Assert.False(parameter.HasDefaultValue);
+    }
+
+    [Fact]
+    public void Admin_cli_requires_operation_identity_for_update_and_archive()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        AdminCliGlobalOptions options = provider
+            .GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new GuestsAdminCliModule().MapCommands(registry);
+
+        const string propertyId = "71000000-0000-0000-0000-000000000001";
+        const string guestId = "72000000-0000-0000-0000-000000000001";
+        const string operationId = "73000000-0000-0000-0000-000000000001";
+        string[][] commands =
+        [
+            [
+                "guests", "update", "--property-id", propertyId,
+                "--guest-id", guestId, "--display-name", "Maya Chen",
+                "--expected-version", "3"
+            ],
+            [
+                "guests", "archive", "--property-id", propertyId,
+                "--guest-id", guestId, "--expected-version", "3", "--yes"
+            ]
+        ];
+
+        foreach (string[] command in commands)
+        {
+            Assert.NotEmpty(root.Parse(command).Errors);
+            Assert.Empty(root.Parse([
+                .. command,
+                "--operation-id",
+                operationId
+            ]).Errors);
+        }
+    }
+
     [Fact]
     public void Mutation_receipt_contains_only_bounded_lifecycle_coordinates()
     {

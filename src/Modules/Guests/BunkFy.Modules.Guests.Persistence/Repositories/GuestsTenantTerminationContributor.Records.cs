@@ -18,6 +18,11 @@ internal sealed partial class GuestsTenantTerminationContributor
             sink,
             count,
             cancellationToken).ConfigureAwait(false);
+        count = await this.ExportManagementOperationsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
         count = await this.ExportGovernanceRecordsAsync(
             tenantId,
             sink,
@@ -71,6 +76,49 @@ internal sealed partial class GuestsTenantTerminationContributor
                 GuestsTenantTerminationMetadata.GuestProfileRecordType,
                 profile.Id,
                 profile.Version,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private async Task<long> ExportManagementOperationsAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (GuestManagementOperation operation in
+            dbContext.ManagementOperations
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.GuestId)
+                .ThenBy(item => item.Id)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            GuestManagementOperationTenantExport record = new(
+                operation.ScopeId,
+                operation.PropertyId,
+                operation.GuestId,
+                operation.Id,
+                new GuestManagementOperationStateTenantExport(
+                    operation.Kind,
+                    operation.ExpectedVersion,
+                    operation.RequestFingerprint,
+                    operation.ResultStatus,
+                    operation.ResultVersion,
+                    operation.CompletedAtUtc));
+            await WriteAsync(
+                GuestsTenantTerminationMetadata.ManagementOperationRecordType,
+                DataRightsExportRecordIds.CreateDeterministicChild(
+                    operation.GuestId,
+                    operation.Id.ToString("N")),
+                operation.ResultVersion,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

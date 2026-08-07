@@ -96,24 +96,40 @@ internal sealed class CreateGuestProfileCommandValidator : ICommandValidator<Cre
 
 internal sealed class UpdateGuestProfileCommandValidator : ICommandValidator<UpdateGuestProfileCommand>
 {
-    public IEnumerable<string> Validate(UpdateGuestProfileCommand command) => GuestProfileValidation.Write(
-        command.PropertyId,
-        command.GuestId,
-        command.DisplayName,
-        command.LegalName,
-        command.Email,
-        command.Phone,
-        command.NationalityCountryCode,
-        command.PreferredLanguageTag,
-        command.Notes,
-        command.ExpectedVersion,
-        command.ActorId);
+    public IEnumerable<string> Validate(UpdateGuestProfileCommand command)
+    {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
+        foreach (string failure in GuestProfileValidation.Write(
+                     command.PropertyId,
+                     command.GuestId,
+                     command.DisplayName,
+                     command.LegalName,
+                     command.Email,
+                     command.Phone,
+                     command.NationalityCountryCode,
+                     command.PreferredLanguageTag,
+                     command.Notes,
+                     command.ExpectedVersion,
+                     command.ActorId))
+        {
+            yield return failure;
+        }
+    }
 }
 
 internal sealed class ArchiveGuestProfileCommandValidator : ICommandValidator<ArchiveGuestProfileCommand>
 {
     public IEnumerable<string> Validate(ArchiveGuestProfileCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.PropertyId == Guid.Empty || command.GuestId == Guid.Empty)
         {
             yield return "PropertyId and GuestId are required.";

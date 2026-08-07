@@ -55,6 +55,7 @@ Useful entry points:
 - [Staff Record Retention Task](planning/staff-record-retention-task.md)
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Guests Management Create Idempotency Task](planning/guests-management-create-idempotency-task.md)
+- [Guests Management Update And Archive Idempotency Task](planning/guests-management-update-archive-idempotency-task.md)
 - [Guests Read Surface Hardening Task](planning/guests-read-surface-hardening-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Staff Operational Surface Hardening Task](planning/staff-operational-surface-hardening-task.md)

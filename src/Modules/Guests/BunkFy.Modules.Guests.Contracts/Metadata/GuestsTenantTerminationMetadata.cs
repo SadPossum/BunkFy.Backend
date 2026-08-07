@@ -7,15 +7,17 @@ public static class GuestsTenantTerminationMetadata
 {
     public const string OwnerKey = GuestsDataRightsCoordinates.Owner;
     public const string DependencyOwnerKey = "reservations";
-    public const int CatalogVersion = 3;
-    public const int PersonalDataCatalogVersion = 14;
+    public const int CatalogVersion = 4;
+    public const int PersonalDataCatalogVersion = 15;
     public const string ExportCatalogId = "guests.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =
         "guests.tenant-termination-export";
-    public const int ExportSchemaVersion = 2;
+    public const int ExportSchemaVersion = 3;
 
     public const string GuestProfileRecordType = "guest-profile";
+    public const string ManagementOperationRecordType =
+        "guest-management-operation";
     public const string DataRightsCorrectionReceiptRecordType =
         "data-rights-correction-receipt";
     public const string ProcessingRestrictionRecordType =
@@ -39,6 +41,7 @@ public static class GuestsTenantTerminationMetadata
         Array.AsReadOnly(
         [
             GuestProfileRecordType,
+            ManagementOperationRecordType,
             DataRightsCorrectionReceiptRecordType,
             ProcessingRestrictionRecordType,
             ProcessingRestrictionReceiptRecordType,
@@ -59,6 +62,7 @@ public static class GuestsTenantTerminationMetadata
             "guests.guest-id",
             "guests.record-id",
             "guests.profile-state",
+            "guests.management-operation",
             "guests.staff-attribution",
             "guests.data-rights-proof",
             "guests.processing-restriction",

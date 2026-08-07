@@ -48,6 +48,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         Assert.Equal(1, fixture.Repository.AddProofCount);
         Assert.Equal(1, fixture.Candidates.LoadCount);
         Assert.Equal(1, fixture.Boundary.CallCount);
+        Assert.Equal([fixture.Profile.Id], fixture.ManagementOperations.DeletedGuestIds);
         Assert.NotNull(fixture.Repository.Receipt);
         Assert.NotNull(fixture.Repository.Tombstone);
         Assert.True(fixture.Repository.Tombstone.MatchesRetention(
@@ -150,9 +151,11 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
                 guestId: profile.Id,
                 propertyId: profile.OriginPropertyId));
         RecordingBoundary boundary = new();
+        RecordingManagementOperationRepository managementOperations = new();
         ApplyGuestRetentionCommandHandler handler = new(
             repository,
             candidates,
+            managementOperations,
             boundary,
             new GuestRetentionEligibilityEvaluator(policy.Registry),
             new TestScopeContext(activeScopeId),
@@ -164,6 +167,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             handler,
             repository,
             candidates,
+            managementOperations,
             boundary,
             execution,
             profile);
@@ -173,9 +177,33 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         ApplyGuestRetentionCommandHandler Handler,
         RecordingExecutionRepository Repository,
         RecordingCandidateRepository Candidates,
+        RecordingManagementOperationRepository ManagementOperations,
         RecordingBoundary Boundary,
         GuestRetentionExecution Execution,
         GuestProfile Profile);
+
+    private sealed class RecordingManagementOperationRepository
+        : IGuestManagementOperationRepository
+    {
+        public List<Guid> DeletedGuestIds { get; } = [];
+
+        public Task<GuestManagementOperationRecord?> GetAsync(
+            Guid guestId,
+            Guid operationId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task AddAsync(
+            GuestManagementOperationRecord operation,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task DeleteForGuestAsync(
+            Guid guestId,
+            CancellationToken cancellationToken)
+        {
+            this.DeletedGuestIds.Add(guestId);
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class RecordingExecutionRepository(
         GuestRetentionExecution execution,

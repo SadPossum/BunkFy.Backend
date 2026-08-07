@@ -5,6 +5,7 @@ using Gma.Framework.Cqrs;
 using BunkFy.Modules.Guests.Contracts;
 
 public sealed record ArchiveGuestProfileCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid GuestId,
     long ExpectedVersion,

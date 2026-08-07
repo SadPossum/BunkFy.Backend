@@ -17,6 +17,9 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - retry-safe Guest creation across the public API, Admin API, Admin CLI, and
   web workflows, using the caller operation id as the Guest id and the existing
   tenant-scoped mutation coordinate without a retained request journal;
+- retry-safe profile update and archive across every management front door,
+  backed by a Guests-owned `(tenant, Guest, operation)` journal, canonical
+  request fingerprints, original receipts, and one profile/outbox transaction;
 - an optional owner-issued creation confirmation id with tenant-scoped
   uniqueness, exact replay matching, persistence, portability, and additive
   propagation on the PII-minimal Guest-created event;
@@ -88,11 +91,11 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
   deliberately excluded from the DataRights subject export and protected
   replay ledger;
 - a mandatory tenant-termination owner whose `Export` and `Destroy` phases
-  depend on Reservations. Export streams 11 deterministic authoritative
+  depend on Reservations. Export streams 12 deterministic authoritative
   record types: profiles,
-  correction proof, processing restrictions and receipts, data holds and
-  receipts, anonymisation receipts, tombstones and restore proof, plus
-  retention execution and anonymisation proof;
+  management-operation replay proof, correction proof, processing restrictions
+  and receipts, data holds and receipts, anonymisation receipts, tombstones and
+  restore proof, plus retention execution and anonymisation proof;
 - a tenant-local monotonic revision and shared tenant-mutation transaction key
   that serialize relational writes with repeatable-read export selection. The
   exporter validates the exact frozen Workspaces process, epoch and fence both

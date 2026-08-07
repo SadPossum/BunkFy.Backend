@@ -10,6 +10,8 @@ internal sealed class GuestDataRightsExportContributor(
     IScopeContext scopeContext) : IDataRightsSubjectExportContributor
 {
     public const string StayRecordType = "guest-stay";
+    public const string ManagementOperationRecordType =
+        "guest-management-operation";
 
     public string OwnerKey => GuestDataRightsDiscoveryContributor.Owner;
 
@@ -86,6 +88,37 @@ internal sealed class GuestDataRightsExportContributor(
             GuestDataRightsExportSchema.CreateProfileRecord(profile),
             cancellationToken).ConfigureAwait(false);
         int recordCount = 1;
+
+        IQueryable<GuestManagementOperationDataRightsExport> managementOperations =
+            dbContext.ManagementOperations
+                .AsNoTracking()
+                .Where(operation =>
+                    operation.GuestId == coordinate.RecordId &&
+                    operation.PropertyId == propertyId)
+                .OrderBy(operation => operation.CompletedAtUtc)
+                .ThenBy(operation => operation.Id)
+                .Select(operation => new GuestManagementOperationDataRightsExport(
+                    operation.Id,
+                    operation.ScopeId,
+                    operation.PropertyId,
+                    operation.GuestId,
+                    operation.Kind,
+                    operation.ExpectedVersion,
+                    operation.RequestFingerprint,
+                    operation.ResultStatus,
+                    operation.ResultVersion,
+                    operation.CompletedAtUtc));
+        await foreach (GuestManagementOperationDataRightsExport operation in
+                           managementOperations
+                               .AsAsyncEnumerable()
+                               .WithCancellation(cancellationToken)
+                               .ConfigureAwait(false))
+        {
+            await sink.WriteAsync(
+                GuestDataRightsExportSchema.CreateManagementOperationRecord(operation),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
 
         IQueryable<GuestStayDataRightsExport> stays = dbContext.StayHistory
             .AsNoTracking()

@@ -136,6 +136,7 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                 AdminOperation.Create(GuestsAdminOperationNames.Update, GuestsAdminPermissions.Manage),
                 requireTenant: true,
                 token => dispatcher.SendAsync(new UpdateGuestProfileCommand(
+                    request.OperationId,
                     propertyId,
                     guestId,
                     request.DisplayName,
@@ -165,7 +166,11 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => request.Confirmed
                     ? dispatcher.SendAsync(new ArchiveGuestProfileCommand(
-                        propertyId, guestId, request.ExpectedVersion, Actor(context)), token)
+                        request.OperationId,
+                        propertyId,
+                        guestId,
+                        request.ExpectedVersion,
+                        Actor(context)), token)
                     : Task.FromResult(Result.Failure<GuestMutationReceiptDto>(AdminErrors.ConfirmationRequired)),
                 cancellationToken,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
@@ -184,6 +189,7 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
         string? Notes);
 
     public sealed record GuestProfileUpdateRequest(
+        Guid OperationId,
         string DisplayName,
         string? LegalName,
         string? Email,
@@ -194,7 +200,10 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
         string? Notes,
         long ExpectedVersion);
 
-    public sealed record ArchiveGuestProfileRequest(long ExpectedVersion, bool Confirmed);
+    public sealed record ArchiveGuestProfileRequest(
+        Guid OperationId,
+        long ExpectedVersion,
+        bool Confirmed);
 
     private static async ValueTask<object?> SensitiveResponseFilter(
         EndpointFilterInvocationContext context,
@@ -223,6 +232,8 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(GuestsApplicationErrors.GuestNotFound.Code, StatusCodes.Status404NotFound),
         new(GuestsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(GuestsApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(GuestsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(GuestsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),

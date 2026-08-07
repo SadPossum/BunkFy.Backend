@@ -349,6 +349,7 @@ public sealed class GuestsModule : IModule
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new UpdateGuestProfileCommand(
+                        request.OperationId,
                         propertyId,
                         guestId,
                         request.DisplayName,
@@ -384,7 +385,12 @@ public sealed class GuestsModule : IModule
                 : actor is null
                     ? Result.Failure<GuestMutationReceiptDto>(new("Guests.AuthenticationRequired", "Authentication is required."))
                     : await dispatcher.SendAsync(
-                        new ArchiveGuestProfileCommand(propertyId, guestId, request.ExpectedVersion, actor),
+                        new ArchiveGuestProfileCommand(
+                            request.OperationId,
+                            propertyId,
+                            guestId,
+                            request.ExpectedVersion,
+                            actor),
                         cancellationToken).ConfigureAwait(false);
             return actor is null ? Results.Unauthorized() : result.ToHttpResult(ErrorStatusCodes);
         })
@@ -407,6 +413,7 @@ public sealed class GuestsModule : IModule
         string? Notes);
 
     public sealed record GuestProfileUpdateRequest(
+        Guid OperationId,
         string DisplayName,
         string? LegalName,
         string? Email,
@@ -460,7 +467,10 @@ public sealed class GuestsModule : IModule
         long ExpectedHoldVersion,
         bool Confirmed);
 
-    public sealed record ArchiveGuestProfileRequest(long ExpectedVersion, bool Confirmed);
+    public sealed record ArchiveGuestProfileRequest(
+        Guid OperationId,
+        long ExpectedVersion,
+        bool Confirmed);
 
     private static async ValueTask<object?> SensitiveResponseFilter(
         EndpointFilterInvocationContext context,
@@ -486,6 +496,8 @@ public sealed class GuestsModule : IModule
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(GuestsApplicationErrors.GuestNotFound.Code, StatusCodes.Status404NotFound),
         new(GuestsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(GuestsApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(GuestsApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(GuestsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(GuestsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),

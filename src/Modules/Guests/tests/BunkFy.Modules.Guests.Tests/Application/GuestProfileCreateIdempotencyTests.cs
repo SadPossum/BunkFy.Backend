@@ -49,6 +49,28 @@ public sealed class GuestProfileCreateIdempotencyTests
     }
 
     [Fact]
+    public async Task New_creation_receipt_uses_persistence_timestamp_precision()
+    {
+        RecordingGuestRepository profiles = new();
+        DateTimeOffset subMicrosecond = Now.AddTicks(7)
+            .ToOffset(TimeSpan.FromHours(2));
+        Result<GuestMutationReceiptDto> result = await CreateHandler(
+            profiles,
+            new RecordingGuestOperationLock(),
+            new TestIdGenerator(),
+            clock: new TestClock(subMicrosecond)).HandleAsync(
+                CreateCommand(Guid.NewGuid(), Guid.NewGuid()),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        const long ticksPerMicrosecond = TimeSpan.TicksPerMillisecond / 1000;
+        Assert.Equal(
+            0,
+            result.Value.LastChangedAtUtc.Ticks % ticksPerMicrosecond);
+        Assert.Equal(TimeSpan.Zero, result.Value.LastChangedAtUtc.Offset);
+    }
+
+    [Fact]
     public async Task Normalized_retry_returns_the_current_receipt_without_recreating_the_guest()
     {
         Guid operationId = Guid.NewGuid();
@@ -173,7 +195,8 @@ public sealed class GuestProfileCreateIdempotencyTests
         RecordingGuestRepository profiles,
         IGuestOperationLock operationLock,
         IIdGenerator idGenerator,
-        IGuestCountryPolicyAdmission? countryPolicy = null)
+        IGuestCountryPolicyAdmission? countryPolicy = null,
+        ISystemClock? clock = null)
     {
         TestScopeContext scopeContext = new();
         return new(
@@ -181,7 +204,7 @@ public sealed class GuestProfileCreateIdempotencyTests
             new GuestMutationCoordinator(profiles, operationLock, scopeContext),
             countryPolicy ?? new AllowedCountryPolicyAdmission(),
             scopeContext,
-            new TestClock(),
+            clock ?? new TestClock(),
             idGenerator);
     }
 
@@ -310,9 +333,9 @@ public sealed class GuestProfileCreateIdempotencyTests
         public string ScopeId => TenantId;
     }
 
-    private sealed class TestClock : ISystemClock
+    private sealed class TestClock(DateTimeOffset? nowUtc = null) : ISystemClock
     {
-        public DateTimeOffset UtcNow => Now;
+        public DateTimeOffset UtcNow => nowUtc ?? Now;
     }
 
     private sealed class TestIdGenerator : IIdGenerator

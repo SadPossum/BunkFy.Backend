@@ -42,4 +42,40 @@ internal sealed class GuestMutationCoordinator(
 
         return existing;
     }
+
+    public async Task<GuestProfile?> AcquireVisibleAsync(
+        Guid propertyId,
+        Guid guestId,
+        CancellationToken cancellationToken)
+    {
+        GuestProfile? profile = await profiles.GetVisibleAsync(
+            propertyId,
+            guestId,
+            cancellationToken).ConfigureAwait(false);
+        if (profile is null)
+        {
+            return null;
+        }
+
+        await operationLock.AcquireGuestAsync(
+            profile.ScopeId,
+            guestId,
+            cancellationToken).ConfigureAwait(false);
+        profile = await profiles.GetVisibleAsync(
+            propertyId,
+            guestId,
+            cancellationToken).ConfigureAwait(false);
+        if (profile is null)
+        {
+            return null;
+        }
+
+        if (profile.Id != guestId)
+        {
+            throw new InvalidOperationException(
+                "The Guest mutation lookup returned a profile outside its requested property scope.");
+        }
+
+        return profile;
+    }
 }

@@ -23,7 +23,7 @@ internal sealed class GuestsTenantDestroyOperationConfiguration
             table.HasCheckConstraint(
                 "CK_guests_tenant_destroy_operation_progress",
                 $"\"Stage\" BETWEEN 1 AND " +
-                $"{(int)GuestsTenantDestroyStage.Completed} AND " +
+                $"{(int)GuestsTenantDestroyStage.ManagementOperations} AND " +
                 "\"RemovedRecordCount\" >= 0 AND " +
                 "\"CompletedBatchCount\" >= 0 AND " +
                 "\"ProofVersion\" = 1 AND \"ConcurrencyVersion\" >= 1");

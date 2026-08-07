@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Tests.Persistence;
 
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
 using BunkFy.Modules.Guests.Domain.DataRights;
@@ -39,6 +40,8 @@ public sealed class GuestsTenantTerminationContributorTests
         Guid.Parse("50000000-0000-0000-0000-000000000002");
     private static readonly Guid CreationConfirmationId =
         Guid.Parse("60000000-0000-0000-0000-000000000001");
+    private static readonly Guid ManagementOperationId =
+        Guid.Parse("60000000-0000-0000-0000-000000000002");
     private static readonly DateTimeOffset Now =
         GuestsTenantTerminationTestData.Now;
     private static readonly DateTimeOffset FrozenAtUtc =
@@ -103,6 +106,34 @@ public sealed class GuestsTenantTerminationContributorTests
                     .GetProperty("creationConfirmationId");
                 return confirmation.ValueKind == JsonValueKind.String &&
                     confirmation.GetGuid() == CreationConfirmationId;
+            });
+        DataRightsExportRecord[] managementOperations = first.Records
+            .Where(record => record.RecordType ==
+                GuestsTenantTerminationMetadata.ManagementOperationRecordType)
+            .ToArray();
+        Assert.Equal(2, managementOperations.Length);
+        Assert.Equal(
+            managementOperations.Length,
+            managementOperations.Select(record => record.RecordId).Distinct().Count());
+        Assert.All(
+            managementOperations,
+            managementOperation =>
+            {
+                Guid guestId = Field(
+                    managementOperation,
+                    "guests.guest-id").GetGuid();
+                Assert.Equal(
+                    DataRightsExportRecordIds.CreateDeterministicChild(
+                        guestId,
+                        ManagementOperationId.ToString("N")),
+                    managementOperation.RecordId);
+                Assert.Equal(
+                    Digest,
+                    Field(
+                        managementOperation,
+                        "guests.management-operation")
+                        .GetProperty("requestFingerprint")
+                        .GetString());
             });
         Assert.Equal(
             GuestsTenantTerminationMetadata.ExportSchemaId,
@@ -412,6 +443,32 @@ public sealed class GuestsTenantTerminationContributorTests
         Assert.Equal(1, operation.CompletedBatchCount);
     }
 
+    [Fact]
+    public void Destroy_progress_preserves_the_terminal_stage_and_visits_management_operations()
+    {
+        Assert.Equal(20, (int)GuestsTenantDestroyStage.Completed);
+        Assert.Equal(21, (int)GuestsTenantDestroyStage.ManagementOperations);
+        GuestsTenantDestroyOperation operation = Assert.IsType<
+            GuestsTenantDestroyOperation>(
+            GuestsTenantDestroyOperation.TryCreate(
+                Guid.NewGuid(),
+                TenantId,
+                Digest,
+                selectedRevision: 4,
+                batchSize: 10,
+                Now));
+
+        while (operation.Stage != GuestsTenantDestroyStage.StayHistory)
+        {
+            Assert.True(operation.AdvanceEmptyStage(Now.AddMinutes(1)));
+        }
+
+        Assert.True(operation.AdvanceEmptyStage(Now.AddMinutes(1)));
+        Assert.Equal(GuestsTenantDestroyStage.ManagementOperations, operation.Stage);
+        Assert.True(operation.AdvanceEmptyStage(Now.AddMinutes(1)));
+        Assert.Equal(GuestsTenantDestroyStage.GuestProfiles, operation.Stage);
+    }
+
     [Theory]
     [InlineData("correction")]
     [InlineData("restriction")]
@@ -481,7 +538,64 @@ public sealed class GuestsTenantTerminationContributorTests
             GuestsTenantTerminationTestData.CreateProfile(
                 PropertyId,
                 creationConfirmationId: CreationConfirmationId);
+        long managementExpectedVersion = profile.Version;
+        Assert.True(profile.Update(
+            profile.DisplayName,
+            profile.LegalName,
+            profile.Email,
+            profile.Phone,
+            profile.DateOfBirth,
+            profile.NationalityCountryCode,
+            profile.PreferredLanguageTag,
+            profile.Notes,
+            managementExpectedVersion,
+            "user:owner",
+            Guid.NewGuid(),
+            Now).IsSuccess);
         context.GuestProfiles.Add(profile);
+        context.ManagementOperations.Add(new GuestManagementOperation(
+            new GuestManagementOperationRecord(
+                ManagementOperationId,
+                TenantId,
+                PropertyId,
+                profile.Id,
+                GuestManagementOperationKind.Update,
+                managementExpectedVersion,
+                Digest,
+                BunkFy.Modules.Guests.Contracts.GuestStatus.Active,
+                profile.Version,
+                Now)));
+        GuestProfile secondProfile =
+            GuestsTenantTerminationTestData.CreateProfile(
+                PropertyId,
+                "Second Management Guest");
+        long secondExpectedVersion = secondProfile.Version;
+        Assert.True(secondProfile.Update(
+            secondProfile.DisplayName,
+            secondProfile.LegalName,
+            secondProfile.Email,
+            secondProfile.Phone,
+            secondProfile.DateOfBirth,
+            secondProfile.NationalityCountryCode,
+            secondProfile.PreferredLanguageTag,
+            secondProfile.Notes,
+            secondExpectedVersion,
+            "user:owner",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        context.GuestProfiles.Add(secondProfile);
+        context.ManagementOperations.Add(new GuestManagementOperation(
+            new GuestManagementOperationRecord(
+                ManagementOperationId,
+                TenantId,
+                PropertyId,
+                secondProfile.Id,
+                GuestManagementOperationKind.Update,
+                secondExpectedVersion,
+                Digest,
+                BunkFy.Modules.Guests.Contracts.GuestStatus.Active,
+                secondProfile.Version,
+                Now)));
         context.DataRightsCorrectionReceipts.Add(
             GuestDataRightsCorrectionReceipt.Create(
                 Guid.NewGuid(),
@@ -707,6 +821,7 @@ public sealed class GuestsTenantTerminationContributorTests
     private static async Task<bool> HasOwnerRecordsAsync(
         GuestsDbContext context) =>
         await context.GuestProfiles.AnyAsync() ||
+        await context.ManagementOperations.AnyAsync() ||
         await context.DataRightsCorrectionReceipts.AnyAsync() ||
         await context.ProcessingRestrictions.AnyAsync() ||
         await context.ProcessingRestrictionReceipts.AnyAsync() ||

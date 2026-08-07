@@ -11,6 +11,7 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
+using Gma.Framework.Scoping;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -26,6 +27,7 @@ public sealed class GuestProfileMutationSerializationTests
         RevocableGuestRepository profiles = new(profile);
         RecordingGuestOperationLock operationLock = new(profiles.RevokeVisibility);
         UpdateGuestProfileCommand command = new(
+            Guid.NewGuid(),
             profile.OriginPropertyId,
             profile.Id,
             "Changed",
@@ -39,9 +41,9 @@ public sealed class GuestProfileMutationSerializationTests
             profile.Version,
             "user:operator");
         UpdateGuestProfileCommandHandler handler = new(
-            profiles,
-            operationLock,
+            new GuestMutationCoordinator(profiles, operationLock, new TestScopeContext()),
             new AllowedCountryPolicyAdmission(),
+            new EmptyManagementOperationRepository(),
             new TestClock(),
             new TestIdGenerator());
 
@@ -66,13 +68,14 @@ public sealed class GuestProfileMutationSerializationTests
         RevocableGuestRepository profiles = new(profile);
         RecordingGuestOperationLock operationLock = new(profiles.RevokeVisibility);
         ArchiveGuestProfileCommand command = new(
+            Guid.NewGuid(),
             profile.OriginPropertyId,
             profile.Id,
             profile.Version,
             "user:operator");
         ArchiveGuestProfileCommandHandler handler = new(
-            profiles,
-            operationLock,
+            new GuestMutationCoordinator(profiles, operationLock, new TestScopeContext()),
+            new EmptyManagementOperationRepository(),
             new TestClock(),
             new TestIdGenerator());
 
@@ -88,6 +91,49 @@ public sealed class GuestProfileMutationSerializationTests
             (profile.ScopeId, profile.Id),
             Assert.Single(operationLock.GuestAcquisitions));
         Assert.IsType<IGuestsPersistenceRetryableCommand>(command, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task Update_accepts_visibility_through_a_non_origin_property()
+    {
+        GuestProfile profile = CreateProfile();
+        Guid stayPropertyId = Guid.NewGuid();
+        RevocableGuestRepository profiles = new(profile, stayPropertyId);
+        RecordingGuestOperationLock operationLock = new();
+        UpdateGuestProfileCommand command = new(
+            Guid.NewGuid(),
+            stayPropertyId,
+            profile.Id,
+            "Changed",
+            profile.LegalName,
+            profile.Email,
+            profile.Phone,
+            profile.DateOfBirth,
+            profile.NationalityCountryCode,
+            profile.PreferredLanguageTag,
+            profile.Notes,
+            profile.Version,
+            "user:operator");
+        UpdateGuestProfileCommandHandler handler = new(
+            new GuestMutationCoordinator(
+                profiles,
+                operationLock,
+                new TestScopeContext()),
+            new AllowedCountryPolicyAdmission(),
+            new EmptyManagementOperationRepository(),
+            new TestClock(),
+            new TestIdGenerator());
+
+        Result<GuestMutationReceiptDto> result = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal("Changed", profile.DisplayName);
+        Assert.Equal(stayPropertyId, profiles.VisiblePropertyId);
+        Assert.Equal(
+            (profile.ScopeId, profile.Id),
+            Assert.Single(operationLock.GuestAcquisitions));
     }
 
     private static GuestProfile CreateProfile() => GuestProfile.Create(
@@ -106,12 +152,16 @@ public sealed class GuestProfileMutationSerializationTests
         Guid.NewGuid(),
         Now.AddDays(-1)).Value;
 
-    private sealed class RevocableGuestRepository(GuestProfile profile)
+    private sealed class RevocableGuestRepository(
+        GuestProfile profile,
+        Guid? visiblePropertyId = null)
         : IGuestProfileRepository
     {
         private bool visible = true;
 
         public int VisibleReads { get; private set; }
+        public Guid VisiblePropertyId { get; } =
+            visiblePropertyId ?? profile.OriginPropertyId;
 
         public void RevokeVisibility() => this.visible = false;
 
@@ -132,7 +182,7 @@ public sealed class GuestProfileMutationSerializationTests
             this.VisibleReads++;
             return Task.FromResult(
                 this.visible &&
-                profile.OriginPropertyId == propertyId &&
+                this.VisiblePropertyId == propertyId &&
                 profile.Id == guestId
                     ? profile
                     : null);
@@ -181,6 +231,30 @@ public sealed class GuestProfileMutationSerializationTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class TestScopeContext : IScopeContext
+    {
+        public bool IsEnabled => true;
+        public string ScopeId => "tenant-a";
+    }
+
+    private sealed class EmptyManagementOperationRepository
+        : IGuestManagementOperationRepository
+    {
+        public Task<GuestManagementOperationRecord?> GetAsync(
+            Guid guestId,
+            Guid operationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<GuestManagementOperationRecord?>(null);
+
+        public Task AddAsync(
+            GuestManagementOperationRecord operation,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task DeleteForGuestAsync(
+            Guid guestId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class TestIdGenerator : IIdGenerator

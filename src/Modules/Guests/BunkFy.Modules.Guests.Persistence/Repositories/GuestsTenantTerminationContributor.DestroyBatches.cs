@@ -99,6 +99,14 @@ internal sealed partial class GuestsTenantTerminationContributor
                         .ThenBy(stay => stay.ReservationId),
                     stay => $"{stay.GuestId:N}|{stay.ReservationId:N}",
                     cancellationToken),
+            GuestsTenantDestroyStage.ManagementOperations =>
+                this.RemoveBatchAsync(
+                    operation,
+                    dbContext.ManagementOperations
+                        .OrderBy(item => item.GuestId)
+                        .ThenBy(item => item.Id),
+                    item => $"{item.GuestId:N}|{item.Id:N}",
+                    cancellationToken),
             GuestsTenantDestroyStage.GuestProfiles =>
                 this.RemoveGuidBatchAsync(
                     operation,
@@ -219,6 +227,8 @@ internal sealed partial class GuestsTenantTerminationContributor
         await dbContext.RetentionExecutions.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.StayHistory.AnyAsync(cancellationToken)
+            .ConfigureAwait(false) ||
+        await dbContext.ManagementOperations.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.GuestProfiles.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||

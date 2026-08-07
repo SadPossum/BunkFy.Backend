@@ -17,6 +17,7 @@ using Gma.Framework.Scoping;
 internal sealed class ApplyGuestRetentionCommandHandler(
     IGuestRetentionExecutionRepository executions,
     IGuestRetentionCandidateRepository candidates,
+    IGuestManagementOperationRepository managementOperations,
     IGuestAnonymisationExecutionBoundary executionBoundary,
     GuestRetentionEligibilityEvaluator eligibility,
     IScopeContext scopeContext,
@@ -194,6 +195,9 @@ internal sealed class ApplyGuestRetentionCommandHandler(
                 affected.Error);
         }
 
+        await managementOperations.DeleteForGuestAsync(
+            command.GuestId,
+            cancellationToken).ConfigureAwait(false);
         await executions.AddAnonymisationProofAsync(
             receipt.Value,
             tombstone.Value,

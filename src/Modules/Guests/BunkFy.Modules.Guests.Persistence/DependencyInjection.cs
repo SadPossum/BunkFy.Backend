@@ -31,6 +31,9 @@ public static class DependencyInjection
                 GuestsMigrations.Schema,
                 GuestsMigrations.HistoryTable));
         builder.Services.TryAddScoped<IGuestProfileRepository, GuestProfileRepository>();
+        builder.Services.TryAddScoped<
+            IGuestManagementOperationRepository,
+            GuestManagementOperationRepository>();
         builder.Services.TryAddScoped<IGuestDataHoldRepository, GuestDataHoldRepository>();
         builder.Services.TryAddScoped<
             IGuestAnonymisationEligibilityRepository,
