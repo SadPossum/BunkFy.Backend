@@ -568,6 +568,19 @@ public sealed class ReservationTests
         Assert.Equal(secondGuest, Assert.Single(reservation.Guests, guest => guest.IsCurrent).GuestId);
         Assert.False(reservation.Guests.Single(guest => guest.GuestId == firstGuest).IsCurrent);
         Assert.Equal(3, reservation.Version);
+
+        reservation.ClearDomainEvents();
+        Result<bool> replacementRetry = reservation.LinkGuest(
+            secondGuest,
+            ReservationGuestRole.Primary,
+            replaceExistingRole: true,
+            expectedVersion: 2,
+            "staff:supervisor",
+            Guid.NewGuid(),
+            Now.AddMinutes(2));
+        Assert.False(replacementRetry.Value);
+        Assert.Equal(3, reservation.Version);
+        Assert.Empty(reservation.DomainEvents);
     }
 
     private static Result<Reservation> CreateReservation(
