@@ -75,7 +75,7 @@ public sealed class PropertiesModelTests
         IEntityType property = designModel.FindEntityType(typeof(Property))!;
 
         Assert.Equal(
-            ["ScopeId", "PropertyId", "Id"],
+            ["ScopeId", "ResourceKind", "ResourceId", "Id"],
             operation.FindPrimaryKey()!.Properties.Select(
                 item => item.Name));
         Assert.NotEmpty(operation.GetDeclaredQueryFilters());
@@ -98,7 +98,19 @@ public sealed class PropertiesModelTests
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
                 "CK_properties_property_mutation_operations_kind" &&
-                constraint.Sql == "\"Kind\" IN (1, 2, 3, 4)");
+                constraint.Sql == "\"Kind\" IN (1, 2, 3, 4, 5, 6)");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_property_mutation_operations_resource");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_property_mutation_operations_status");
+        Assert.True(operation.FindProperty("ResultStatus")!.IsNullable);
+        Assert.True(operation.FindProperty("ResultRoomId")!.IsNullable);
+        Assert.False(
+            operation.FindProperty("ResultResourceVersion")!.IsNullable);
     }
 
     [Fact]

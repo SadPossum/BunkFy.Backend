@@ -8,7 +8,8 @@ internal sealed class PropertyMutationOperationRepository(
     : IPropertyMutationOperationRepository
 {
     public async Task<PropertyMutationOperationRecord?> GetAsync(
-        Guid propertyId,
+        PropertyMutationResourceKind resourceKind,
+        Guid resourceId,
         Guid operationId,
         CancellationToken cancellationToken)
     {
@@ -16,7 +17,8 @@ internal sealed class PropertyMutationOperationRepository(
             .PropertyMutationOperations
             .AsNoTracking()
             .SingleOrDefaultAsync(
-                item => item.PropertyId == propertyId &&
+                item => item.ResourceKind == resourceKind &&
+                    item.ResourceId == resourceId &&
                     item.Id == operationId,
                 cancellationToken).ConfigureAwait(false);
         return operation?.ToRecord();

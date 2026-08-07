@@ -23,6 +23,32 @@ public sealed class RoomAggregateTests
     }
 
     [Fact]
+    public void Normalized_unchanged_details_do_not_advance_the_room()
+    {
+        Room room = CreateRoom(buildingLabel: "Main", floorLabel: "2").Value;
+        room.ClearDomainEvents();
+        RoomDefinition definition = RoomDefinition.Create(
+            room.ScopeId,
+            " 101 ",
+            " Main ",
+            " 2 ").Value;
+
+        Result<RoomDetailsUpdateOutcome> evaluation =
+            room.EvaluateDetailsUpdate(definition, room.Version);
+        Result<RoomDetailsUpdateOutcome> update = room.UpdateDetails(
+            definition,
+            room.Version,
+            Guid.Empty,
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(RoomDetailsUpdateOutcome.Unchanged, evaluation.Value);
+        Assert.Equal(RoomDetailsUpdateOutcome.Unchanged, update.Value);
+        Assert.Equal(1, room.Version);
+        Assert.Null(room.UpdatedAtUtc);
+        Assert.Empty(room.DomainEvents);
+    }
+
+    [Fact]
     public void Add_update_and_retire_bed_enforces_room_and_bed_lifecycle()
     {
         Room room = CreateRoom().Value;

@@ -59,7 +59,8 @@ internal sealed class SuspendPropertyProcessingCommandHandler(
                 PropertiesDomainErrors.PropertyNotFound);
         }
 
-        PropertyMutationReplayDecision replay = await journal.InspectAsync(
+        PropertyMutationReplayDecision<PropertyMutationReceiptDto> replay =
+            await journal.InspectPropertyAsync(
             property,
             command.OperationId,
             PropertyMutationKind.ProcessingSuspension,
@@ -100,7 +101,7 @@ internal sealed class SuspendPropertyProcessingCommandHandler(
                 nowUtc),
             cancellationToken).ConfigureAwait(false);
 
-        PropertyMutationReceiptDto receipt = await journal.RecordAsync(
+        PropertyMutationReceiptDto receipt = await journal.RecordPropertyAsync(
             property,
             command.OperationId,
             PropertyMutationKind.ProcessingSuspension,

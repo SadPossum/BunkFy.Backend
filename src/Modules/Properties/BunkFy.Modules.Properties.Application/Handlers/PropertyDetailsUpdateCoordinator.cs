@@ -29,7 +29,8 @@ internal sealed class PropertyDetailsUpdateCoordinator(
             property.Id,
             expectedVersion,
             details);
-        PropertyMutationReplayDecision replay = await journal.InspectAsync(
+        PropertyMutationReplayDecision<PropertyMutationReceiptDto> replay =
+            await journal.InspectPropertyAsync(
             property,
             operationId,
             PropertyMutationKind.DetailsUpdate,
@@ -81,7 +82,7 @@ internal sealed class PropertyDetailsUpdateCoordinator(
             }
         }
 
-        PropertyMutationReceiptDto receipt = await journal.RecordAsync(
+        PropertyMutationReceiptDto receipt = await journal.RecordPropertyAsync(
             property,
             operationId,
             PropertyMutationKind.DetailsUpdate,

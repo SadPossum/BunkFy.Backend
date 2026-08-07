@@ -64,13 +64,18 @@ internal sealed record PropertiesPropertyMutationOperationTenantExport(
     PropertiesPropertyMutationOperationStateTenantExport State);
 
 internal sealed record PropertiesPropertyMutationOperationStateTenantExport(
+    PropertyMutationResourceKind ResourceKind,
+    Guid ResourceId,
     PropertyMutationKind Kind,
     long ExpectedVersion,
     string RequestFingerprint,
-    BunkFy.Modules.Properties.Contracts.PropertyStatus ResultStatus,
-    BunkFy.Modules.Properties.Contracts.PropertyProcessingStatus
+    BunkFy.Modules.Properties.Contracts.PropertyStatus? ResultStatus,
+    BunkFy.Modules.Properties.Contracts.PropertyProcessingStatus?
         ResultProcessingStatus,
+    Guid? ResultRoomId,
+    BunkFy.Modules.Properties.Contracts.RoomStatus? ResultRoomStatus,
     long ResultVersion,
+    long ResultResourceVersion,
     DateTimeOffset CompletedAtUtc);
 
 internal sealed record PropertiesGovernanceAcknowledgementTenantExport(

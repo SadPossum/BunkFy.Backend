@@ -7,6 +7,11 @@ internal sealed class UpdateRoomCommandValidator : ICommandValidator<UpdateRoomC
 {
     public IEnumerable<string> Validate(UpdateRoomCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.PropertyId == Guid.Empty)
         {
             yield return "Property id is required.";

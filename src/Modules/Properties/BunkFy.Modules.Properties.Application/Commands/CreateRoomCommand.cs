@@ -4,6 +4,7 @@ using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Cqrs;
 
 public sealed record CreateRoomCommand(
+    Guid OperationId,
     Guid PropertyId,
     long ExpectedPropertyVersion,
     string Name,

@@ -140,11 +140,15 @@ public sealed class PropertiesMutationCoordinatorTests
         UpdateRoomCommandHandler handler = new(
             rooms,
             coordinator,
+            new PropertyMutationOperationJournal(
+                new RecordingPropertyMutationOperationRepository()),
+            new TestScopeContext(),
             new TestClock(),
             new TestIdGenerator());
 
         Result<RoomMutationReceiptDto> result = await handler.HandleAsync(
             new UpdateRoomCommand(
+                Guid.NewGuid(),
                 room.PropertyId,
                 room.Id,
                 submittedVersion,

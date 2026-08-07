@@ -151,20 +151,22 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
 
     public Result RegisterRoom(long expectedVersion)
     {
-        Result statusResult = this.EnsureActive();
-        if (statusResult.IsFailure)
+        Result evaluation = this.EvaluateRoomRegistration(expectedVersion);
+        if (evaluation.IsFailure)
         {
-            return statusResult;
-        }
-
-        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
-        if (versionResult.IsFailure)
-        {
-            return versionResult;
+            return evaluation;
         }
 
         this.Version++;
         return Result.Success();
+    }
+
+    public Result EvaluateRoomRegistration(long expectedVersion)
+    {
+        Result statusResult = this.EnsureActive();
+        return statusResult.IsSuccess
+            ? this.EnsureExpectedVersion(expectedVersion)
+            : statusResult;
     }
 
     public Result EvaluateRetirement(long expectedVersion)

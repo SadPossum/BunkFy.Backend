@@ -57,7 +57,8 @@ internal sealed class RetirePropertyCommandHandler(
                 PropertiesDomainErrors.PropertyNotFound);
         }
 
-        PropertyMutationReplayDecision replay = await journal.InspectAsync(
+        PropertyMutationReplayDecision<PropertyMutationReceiptDto> replay =
+            await journal.InspectPropertyAsync(
             property,
             command.OperationId,
             PropertyMutationKind.Retirement,
@@ -96,7 +97,7 @@ internal sealed class RetirePropertyCommandHandler(
             return Result.Failure<PropertyMutationReceiptDto>(result.Error);
         }
 
-        PropertyMutationReceiptDto receipt = await journal.RecordAsync(
+        PropertyMutationReceiptDto receipt = await journal.RecordPropertyAsync(
             property,
             command.OperationId,
             PropertyMutationKind.Retirement,

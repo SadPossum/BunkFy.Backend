@@ -85,7 +85,8 @@ internal static class PropertiesMutationTestSupport
         : IPropertyMutationOperationRepository
     {
         public Task<PropertyMutationOperationRecord?> GetAsync(
-            Guid propertyId,
+            PropertyMutationResourceKind resourceKind,
+            Guid resourceId,
             Guid operationId,
             CancellationToken cancellationToken) =>
             Task.FromResult<PropertyMutationOperationRecord?>(null);

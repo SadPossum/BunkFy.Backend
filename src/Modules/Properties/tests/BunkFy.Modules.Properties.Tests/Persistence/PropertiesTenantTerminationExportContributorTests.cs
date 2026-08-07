@@ -34,6 +34,8 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
         Guid.Parse("50000000-0000-0000-0000-000000000001");
     private static readonly Guid PropertyMutationOperationId =
         Guid.Parse("51000000-0000-0000-0000-000000000001");
+    private static readonly Guid RoomMutationOperationId =
+        Guid.Parse("52000000-0000-0000-0000-000000000001");
     private static readonly Guid RoomId =
         Guid.Parse("60000000-0000-0000-0000-000000000001");
     private static readonly Guid BedId =
@@ -103,12 +105,14 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("properties.termination.exported", result.ResultCode);
-        Assert.Equal(6, result.AffectedCount);
+        Assert.Equal(7, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(1, result.ResultingProofRevision);
         Assert.Equal(
             [
                 PropertiesTenantTerminationMetadata.PropertyRecordType,
+                PropertiesTenantTerminationMetadata
+                    .PropertyMutationOperationRecordType,
                 PropertiesTenantTerminationMetadata
                     .PropertyMutationOperationRecordType,
                 PropertiesTenantTerminationMetadata
@@ -132,6 +136,18 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
                     "properties.property-mutation-operation")
                 .GetProperty("kind")
                 .GetString());
+        JsonElement roomOperation = Field(
+            first.Records[2],
+            "properties.property-mutation-operation");
+        Assert.Equal(
+            "room",
+            roomOperation.GetProperty("resourceKind").GetString());
+        Assert.Equal(
+            RoomId,
+            roomOperation.GetProperty("resourceId").GetGuid());
+        Assert.Equal(
+            "room-update",
+            roomOperation.GetProperty("kind").GetString());
         Assert.Equal(
             PropertiesTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -291,7 +307,8 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
         await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
         PropertyMutationOperation operation =
-            await context.PropertyMutationOperations.SingleAsync();
+            await context.PropertyMutationOperations.SingleAsync(
+                item => item.Id == PropertyMutationOperationId);
         context.Entry(operation).State = attemptedState;
 
         InvalidOperationException failure = await Assert.ThrowsAsync<
@@ -370,17 +387,38 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
 
         context.Properties.Add(property);
         context.PropertyMutationOperations.Add(
-            new PropertyMutationOperation(new(
+            new PropertyMutationOperation(
+                PropertyMutationOperationRecord.ForProperty(
                 PropertyMutationOperationId,
                 TenantId,
                 PropertyId,
                 PropertyMutationKind.ProcessingActivation,
-                ExpectedVersion: 1,
+                expectedVersion: 1,
                 Digest,
-                PropertyStatus.Active,
-                PropertyProcessingStatus.Enabled,
-                ResultVersion: 2,
+                new PropertyMutationReceiptDto(
+                    PropertyId,
+                    PropertyStatus.Active,
+                    PropertyProcessingStatus.Enabled,
+                    Version: 2),
                 FrozenAtUtc.AddDays(-3))));
+        context.PropertyMutationOperations.Add(
+            new PropertyMutationOperation(
+                PropertyMutationOperationRecord.ForRoom(
+                    RoomMutationOperationId,
+                    TenantId,
+                    PropertyId,
+                    PropertyMutationResourceKind.Room,
+                    RoomId,
+                    PropertyMutationKind.RoomUpdate,
+                    expectedVersion: 1,
+                    Digest,
+                    new RoomMutationReceiptDto(
+                        PropertyId,
+                        RoomId,
+                        RoomStatus.Active,
+                        Version: 2),
+                    resultResourceVersion: 2,
+                    FrozenAtUtc.AddDays(-3))));
         context.Rooms.Add(room);
         context.PropertyOperationLocks.Add(
             new PropertyOperationLock(property.Id, property.ScopeId));

@@ -6,22 +6,28 @@ internal sealed class RecordingPropertyMutationOperationRepository(
     params PropertyMutationOperationRecord[] existing)
     : IPropertyMutationOperationRepository
 {
-    private readonly Dictionary<(Guid PropertyId, Guid OperationId), PropertyMutationOperationRecord>
+    private readonly Dictionary<
+        (PropertyMutationResourceKind ResourceKind, Guid ResourceId, Guid OperationId),
+        PropertyMutationOperationRecord>
         operations = existing.ToDictionary(
-            operation => (operation.PropertyId, operation.OperationId));
+            operation => (
+                operation.ResourceKind,
+                operation.ResourceId,
+                operation.OperationId));
 
     public List<PropertyMutationOperationRecord> Added { get; } = [];
 
     public int ReadCount { get; private set; }
 
     public Task<PropertyMutationOperationRecord?> GetAsync(
-        Guid propertyId,
+        PropertyMutationResourceKind resourceKind,
+        Guid resourceId,
         Guid operationId,
         CancellationToken cancellationToken)
     {
         this.ReadCount++;
         this.operations.TryGetValue(
-            (propertyId, operationId),
+            (resourceKind, resourceId, operationId),
             out PropertyMutationOperationRecord? operation);
         return Task.FromResult(operation);
     }
@@ -31,7 +37,10 @@ internal sealed class RecordingPropertyMutationOperationRepository(
         CancellationToken cancellationToken)
     {
         this.operations.Add(
-            (operation.PropertyId, operation.OperationId),
+            (
+                operation.ResourceKind,
+                operation.ResourceId,
+                operation.OperationId),
             operation);
         this.Added.Add(operation);
         return Task.CompletedTask;

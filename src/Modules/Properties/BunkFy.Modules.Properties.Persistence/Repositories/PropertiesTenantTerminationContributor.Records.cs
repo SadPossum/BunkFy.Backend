@@ -129,6 +129,8 @@ internal sealed partial class PropertiesTenantTerminationContributor
                 .AsNoTracking()
                 .Where(item => item.ScopeId == tenantId)
                 .OrderBy(item => item.PropertyId)
+                .ThenBy(item => item.ResourceKind)
+                .ThenBy(item => item.ResourceId)
                 .ThenBy(item => item.Id)
                 .AsAsyncEnumerable()
                 .WithCancellation(cancellationToken)
@@ -139,19 +141,25 @@ internal sealed partial class PropertiesTenantTerminationContributor
                 operation.PropertyId,
                 operation.Id,
                 new PropertiesPropertyMutationOperationStateTenantExport(
+                    operation.ResourceKind,
+                    operation.ResourceId,
                     operation.Kind,
                     operation.ExpectedVersion,
                     operation.RequestFingerprint,
                     operation.ResultStatus,
                     operation.ResultProcessingStatus,
+                    operation.ResultRoomId,
+                    operation.ResultRoomStatus,
                     operation.ResultVersion,
+                    operation.ResultResourceVersion,
                     operation.CompletedAtUtc));
             await WriteAsync(
                 PropertiesTenantTerminationMetadata
                     .PropertyMutationOperationRecordType,
                 DataRightsExportRecordIds.CreateDeterministicChild(
                     operation.PropertyId,
-                    operation.Id.ToString("N")),
+                    $"{(int)operation.ResourceKind}:" +
+                    $"{operation.ResourceId:N}:{operation.Id:N}"),
                 operation.ResultVersion,
                 record,
                 sink,

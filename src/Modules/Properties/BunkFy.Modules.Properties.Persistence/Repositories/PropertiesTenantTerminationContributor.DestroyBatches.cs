@@ -58,8 +58,12 @@ internal sealed partial class PropertiesTenantTerminationContributor
                     operation,
                     dbContext.PropertyMutationOperations
                         .OrderBy(item => item.PropertyId)
+                        .ThenBy(item => item.ResourceKind)
+                        .ThenBy(item => item.ResourceId)
                         .ThenBy(item => item.Id),
-                    item => $"{item.PropertyId:N}|{item.Id:N}",
+                    item => $"{item.PropertyId:N}|" +
+                        $"{(int)item.ResourceKind}|{item.ResourceId:N}|" +
+                        $"{item.Id:N}",
                     cancellationToken),
             PropertiesTenantDestroyStage.Properties =>
                 this.RemoveGuidBatchAsync(

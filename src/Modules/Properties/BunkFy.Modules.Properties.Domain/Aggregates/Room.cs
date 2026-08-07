@@ -96,32 +96,95 @@ public sealed partial class Room : ScopedAggregateRoot<Guid>
         Guid eventId,
         DateTimeOffset nowUtc)
     {
-        Result statusResult = this.EnsureActive();
-        if (statusResult.IsFailure)
-        {
-            return statusResult;
-        }
-
-        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
-        if (versionResult.IsFailure)
-        {
-            return versionResult;
-        }
-
-        if (eventId == Guid.Empty)
-        {
-            return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
-        }
-
-        Result<RoomDefinition> values = RoomDefinition.Create(this.ScopeId, name, buildingLabel, floorLabel);
+        Result<RoomDefinition> values = RoomDefinition.Create(
+            this.ScopeId,
+            name,
+            buildingLabel,
+            floorLabel);
         if (values.IsFailure)
         {
             return Result.Failure(values.Error);
         }
 
-        this.Name = values.Value.Name;
-        this.BuildingLabel = values.Value.BuildingLabel;
-        this.FloorLabel = values.Value.FloorLabel;
+        Result<RoomDetailsUpdateOutcome> outcome = this.UpdateDetails(
+            values.Value,
+            expectedVersion,
+            eventId,
+            nowUtc);
+        return outcome.IsSuccess
+            ? Result.Success()
+            : Result.Failure(outcome.Error);
+    }
+
+    public Result<RoomDetailsUpdateOutcome> UpdateDetails(
+        RoomDefinition definition,
+        long expectedVersion,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        Result<RoomDetailsUpdateOutcome> evaluation =
+            this.EvaluateDetailsUpdate(definition, expectedVersion);
+        if (evaluation.IsFailure ||
+            evaluation.Value == RoomDetailsUpdateOutcome.Unchanged)
+        {
+            return evaluation;
+        }
+
+        return this.ApplyDetails(definition, eventId, nowUtc);
+    }
+
+    public Result<RoomDetailsUpdateOutcome> EvaluateDetailsUpdate(
+        RoomDefinition definition,
+        long expectedVersion)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        Result statusResult = this.EnsureActive();
+        if (statusResult.IsFailure)
+        {
+            return Result.Failure<RoomDetailsUpdateOutcome>(
+                statusResult.Error);
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return Result.Failure<RoomDetailsUpdateOutcome>(
+                versionResult.Error);
+        }
+
+        if (!string.Equals(
+                this.ScopeId,
+                definition.ScopeId,
+                StringComparison.Ordinal))
+        {
+            return Result.Failure<RoomDetailsUpdateOutcome>(
+                PropertiesDomainErrors.TenantInvalid);
+        }
+
+        return Result.Success(this.MatchesDefinition(definition)
+            ? RoomDetailsUpdateOutcome.Unchanged
+            : RoomDetailsUpdateOutcome.Changed);
+    }
+
+    private Result<RoomDetailsUpdateOutcome> ApplyDetails(
+        RoomDefinition definition,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        if (this.MatchesDefinition(definition))
+        {
+            return Result.Success(RoomDetailsUpdateOutcome.Unchanged);
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure<RoomDetailsUpdateOutcome>(
+                PropertiesDomainErrors.DomainEventIdRequired);
+        }
+
+        this.Name = definition.Name;
+        this.BuildingLabel = definition.BuildingLabel;
+        this.FloorLabel = definition.FloorLabel;
         this.UpdatedAtUtc = nowUtc;
         this.Version++;
 
@@ -137,7 +200,7 @@ public sealed partial class Room : ScopedAggregateRoot<Guid>
             this.Status,
             this.Version));
 
-        return Result.Success();
+        return Result.Success(RoomDetailsUpdateOutcome.Changed);
     }
 
     public Result Retire(
@@ -214,6 +277,11 @@ public sealed partial class Room : ScopedAggregateRoot<Guid>
         this.beds.Any(bed =>
             (excludingBedId is null || bed.Id != excludingBedId.Value) &&
             bed.Label == label);
+
+    private bool MatchesDefinition(RoomDefinition definition) =>
+        this.Name == definition.Name &&
+        this.BuildingLabel == definition.BuildingLabel &&
+        this.FloorLabel == definition.FloorLabel;
 
     private Result EnsureActive() =>
         this.Status switch

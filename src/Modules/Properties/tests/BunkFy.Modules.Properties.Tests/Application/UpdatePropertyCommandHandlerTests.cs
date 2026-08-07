@@ -300,7 +300,7 @@ public sealed class UpdatePropertyCommandHandlerTests
         Guid operationId,
         long expectedVersion,
         PropertyDetails details,
-        long resultVersion) => new(
+        long resultVersion) => PropertyMutationOperationRecord.ForProperty(
             operationId,
             TestScopeContext.TenantId,
             propertyId,
@@ -310,9 +310,11 @@ public sealed class UpdatePropertyCommandHandlerTests
                 propertyId,
                 expectedVersion,
                 details),
-            PropertyStatus.Active,
-            PropertyProcessingStatus.Unconfigured,
-            resultVersion,
+            new PropertyMutationReceiptDto(
+                propertyId,
+                PropertyStatus.Active,
+                PropertyProcessingStatus.Unconfigured,
+                resultVersion),
             Now);
 
     private static readonly Guid PropertyId =
@@ -374,7 +376,8 @@ public sealed class UpdatePropertyCommandHandlerTests
         public int Reads { get; private set; }
 
         public Task<PropertyMutationOperationRecord?> GetAsync(
-            Guid propertyId,
+            PropertyMutationResourceKind resourceKind,
+            Guid resourceId,
             Guid operationId,
             CancellationToken cancellationToken)
         {
@@ -382,7 +385,8 @@ public sealed class UpdatePropertyCommandHandlerTests
             this.Reads++;
             return Task.FromResult(
                 this.current is { } operation &&
-                operation.PropertyId == propertyId &&
+                operation.ResourceKind == resourceKind &&
+                operation.ResourceId == resourceId &&
                 operation.OperationId == operationId
                     ? operation
                     : null);

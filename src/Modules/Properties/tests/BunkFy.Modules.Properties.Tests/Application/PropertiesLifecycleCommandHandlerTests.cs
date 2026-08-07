@@ -178,7 +178,13 @@ public sealed class PropertiesLifecycleCommandHandlerTests
             provider.GetRequiredService<ICommandHandler<CreateRoomCommand, RoomMutationReceiptDto>>();
 
         Result<RoomMutationReceiptDto> result = await handler.HandleAsync(
-            new CreateRoomCommand(property.Id, ExpectedPropertyVersion: 99, "101", null, null),
+            new CreateRoomCommand(
+                Guid.NewGuid(),
+                property.Id,
+                ExpectedPropertyVersion: 99,
+                "101",
+                null,
+                null),
             CancellationToken.None);
 
         Assert.Equal(PropertiesDomainErrors.VersionConflict, result.Error);

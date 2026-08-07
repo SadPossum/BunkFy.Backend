@@ -18,6 +18,24 @@ using Xunit;
 public sealed class PropertiesApiSecurityTests
 {
     [Fact]
+    public void Room_write_contracts_require_operation_ids()
+    {
+        Type[] requestTypes =
+        [
+            typeof(PropertiesModule.RoomCreateRequest),
+            typeof(PropertiesModule.RoomUpdateRequest),
+            typeof(PropertiesAdminApiModule.RoomCreateRequest),
+            typeof(PropertiesAdminApiModule.RoomUpdateRequest)
+        ];
+
+        Assert.All(
+            requestTypes,
+            requestType => Assert.Equal(
+                typeof(Guid),
+                requestType.GetProperty("OperationId")?.PropertyType));
+    }
+
+    [Fact]
     public void Sensitive_response_policies_disable_storage()
     {
         MethodInfo apiPolicy = typeof(PropertiesModule).GetMethod(

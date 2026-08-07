@@ -361,6 +361,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
     private static Command CreateCreateRoomCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<long> expectedPropertyVersionOption = CreateRequiredVersionOption("--expected-property-version");
         Option<string> nameOption = new("--name") { Required = true };
         Option<string> buildingOption = new("--building");
@@ -368,6 +369,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         Command command = new("create", "Create a room.")
         {
             propertyIdOption,
+            operationIdOption,
             expectedPropertyVersionOption,
             nameOption,
             buildingOption,
@@ -382,6 +384,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminPermissions.RoomsManage,
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new CreateRoomCommand(
+                        parseResult.GetRequiredValue(operationIdOption),
                         parseResult.GetRequiredValue(propertyIdOption),
                         parseResult.GetRequiredValue(expectedPropertyVersionOption),
                         parseResult.GetRequiredValue(nameOption),
@@ -396,6 +399,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
     {
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<long> expectedVersionOption = CreateRequiredVersionOption("--expected-version");
         Option<string> nameOption = new("--name") { Required = true };
         Option<string> buildingOption = new("--building");
@@ -404,6 +408,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         {
             propertyIdOption,
             roomIdOption,
+            operationIdOption,
             expectedVersionOption,
             nameOption,
             buildingOption,
@@ -418,6 +423,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminPermissions.RoomsManage,
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new UpdateRoomCommand(
+                        parseResult.GetRequiredValue(operationIdOption),
                         parseResult.GetRequiredValue(propertyIdOption),
                         parseResult.GetRequiredValue(roomIdOption),
                         parseResult.GetRequiredValue(expectedVersionOption),

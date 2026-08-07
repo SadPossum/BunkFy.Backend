@@ -249,6 +249,7 @@ public sealed class PropertiesModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new CreateRoomCommand(
+                    request.OperationId,
                     propertyId,
                     request.ExpectedPropertyVersion,
                     request.Name,
@@ -278,6 +279,7 @@ public sealed class PropertiesModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new UpdateRoomCommand(
+                    request.OperationId,
                     propertyId,
                     roomId,
                     request.ExpectedVersion,
@@ -415,11 +417,13 @@ public sealed class PropertiesModule : IModule
         bool Confirmed,
         long ExpectedVersion);
     public sealed record RoomCreateRequest(
+        Guid OperationId,
         string Name,
         long ExpectedPropertyVersion,
         string? BuildingLabel = null,
         string? FloorLabel = null);
     public sealed record RoomUpdateRequest(
+        Guid OperationId,
         string Name,
         long ExpectedVersion,
         string? BuildingLabel = null,
