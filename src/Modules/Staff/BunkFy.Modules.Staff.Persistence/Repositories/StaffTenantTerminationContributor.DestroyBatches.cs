@@ -152,6 +152,14 @@ internal sealed partial class StaffTenantTerminationContributor
                     dbContext.RetentionSweepCheckpoints,
                     checkpoint => checkpoint.Id,
                     cancellationToken),
+            StaffTenantDestroyStage.ProfileUpdateOperations =>
+                this.RemoveBatchAsync(
+                    operation,
+                    dbContext.ProfileUpdateOperations
+                        .OrderBy(item => item.StaffMemberId)
+                        .ThenBy(item => item.Id),
+                    item => $"{item.StaffMemberId:N}|{item.Id:N}",
+                    cancellationToken),
             _ => throw new InvalidDataException(
                 "The Staff tenant destruction stage is invalid.")
         };
@@ -245,6 +253,8 @@ internal sealed partial class StaffTenantTerminationContributor
         await dbContext.ProjectionRebuildCheckpoints
             .AnyAsync(cancellationToken).ConfigureAwait(false) ||
         await dbContext.RetentionSweepCheckpoints.AnyAsync(cancellationToken)
+            .ConfigureAwait(false) ||
+        await dbContext.ProfileUpdateOperations.AnyAsync(cancellationToken)
             .ConfigureAwait(false);
 
     private static void EnsureBatchRecorded(

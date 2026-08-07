@@ -140,13 +140,21 @@ internal sealed class StaffTenantDestroyOperation : IScopedEntity
         StaffTenantDestroyStage stage)
     {
         if (stage is < StaffTenantDestroyStage.OutboxMessages or
-            >= StaffTenantDestroyStage.Completed)
+            > StaffTenantDestroyStage.ProfileUpdateOperations or
+            StaffTenantDestroyStage.Completed)
         {
             throw new InvalidOperationException(
                 "The Staff tenant destruction stage is invalid.");
         }
 
-        return (StaffTenantDestroyStage)((int)stage + 1);
+        return stage switch
+        {
+            StaffTenantDestroyStage.RetentionSweepCheckpoints =>
+                StaffTenantDestroyStage.ProfileUpdateOperations,
+            StaffTenantDestroyStage.ProfileUpdateOperations =>
+                StaffTenantDestroyStage.Completed,
+            _ => (StaffTenantDestroyStage)((int)stage + 1)
+        };
     }
 }
 
@@ -174,5 +182,6 @@ internal enum StaffTenantDestroyStage
     PropertyProjections = 19,
     ProjectionRebuildCheckpoints = 20,
     RetentionSweepCheckpoints = 21,
-    Completed = 22
+    Completed = 22,
+    ProfileUpdateOperations = 23
 }

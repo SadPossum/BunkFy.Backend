@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 12,
+  "catalogVersion": 13,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -121,6 +121,23 @@
       "writers": [
         "permission:data-rights.execute",
         "system:staff.processing-restriction"
+      ]
+    },
+    {
+      "id": "staff-profile-update-operations",
+      "scope": "tenant-staff-authorized-replay-journal",
+      "readers": [
+        "permission:staff.sensitive-profile.read",
+        "subject:self",
+        "system:staff.data-rights-export",
+        "system:staff.tenant-export"
+      ],
+      "writers": [
+        "permission:staff.manage",
+        "subject:self",
+        "system:workspace-staff-onboarding",
+        "system:staff.anonymisation",
+        "system:staff.retention"
       ]
     },
     {
@@ -268,6 +285,13 @@
       "legalHoldBehavior": "pause-approved-erasure"
     },
     {
+      "id": "staff-profile-update-operation-journal",
+      "approvalState": "engineering-default",
+      "startsAt": "staff-profile-update-completed",
+      "endsAt": "approved-staff-anonymisation-or-employment-retention-or-tenant-termination",
+      "legalHoldBehavior": "delete-with-owner-profile-disposition"
+    },
+    {
       "id": "staff-retention-anonymisation-proof",
       "approvalState": "engineering-default",
       "startsAt": "staff-retention-anonymisation-completed",
@@ -366,6 +390,13 @@
       "correction": "replace-through-staff-profile-workflow",
       "restriction": "suppress-non-required-operational-use",
       "erasure": "irreversibly-anonymize-or-delete"
+    },
+    {
+      "id": "staff-profile-update-operation-replay",
+      "export": "include-in-authorized-staff-or-tenant-export",
+      "correction": "immutable-replay-coordinate",
+      "restriction": "retain-for-exact-idempotent-replay",
+      "erasure": "delete-with-approved-staff-anonymisation"
     },
     {
       "id": "staff-retention-control",
@@ -9272,6 +9303,20 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "Version",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "Version",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
           "member": "ExpectedVersion",
@@ -11489,6 +11534,20 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "StaffMemberId",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "StaffMemberId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
           "member": "OperationId",
@@ -11781,6 +11840,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
@@ -12690,6 +12763,393 @@
           "assembly": "BunkFy.Modules.Staff.Persistence",
           "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffRetentionAnonymisationReceiptTenantExport",
           "member": "RetentionProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["exact-retry", "mutation-correlation"],
+      "sources": ["authorized-staff-management-client"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["admin-input", "api-input", "application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["customer-api", "cross-module", "intra-module", "support"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
+          "member": "OperationId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationTenantExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.tenant-scope-id",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["tenant-isolation", "exact-retry"],
+      "sources": ["tenant-context"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "ScopeId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "ScopeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.staff-member-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": ["staff-record-linkage", "exact-retry"],
+      "sources": ["staff-profile"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "StaffMemberId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.expected-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["optimistic-concurrency", "exact-retry"],
+      "sources": ["authorized-staff-management-request"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "ExpectedVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "ExpectedVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.request-fingerprint",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["exact-retry", "request-equivalence"],
+      "sources": ["normalized-staff-profile-request", "system-generated-sha256"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "RequestFingerprint",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "RequestFingerprint",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "RequestFingerprint",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.result-status",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["original-receipt-replay", "mutation-audit"],
+      "sources": ["staff-profile-mutation"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "ResultStatus",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "ResultStatus",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "ResultStatus",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.result-version",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["original-receipt-replay", "mutation-audit"],
+      "sources": ["staff-profile-mutation"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["cross-module", "intra-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "ResultVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "ResultVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "ResultVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation.completed-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": ["original-receipt-replay", "mutation-audit"],
+      "sources": ["system-clock"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["admin-output", "api-response", "application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["customer-api", "cross-module", "intra-module", "support"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffProfileMutationReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Ports.StaffProfileUpdateOperationRecord",
+          "member": "CompletedAtUtc",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.StaffProfileUpdateOperation",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "staff-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "staff.profile-update-operation",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": ["tenant-portability", "exact-retry", "mutation-audit"],
+      "sources": ["staff-profile-update-operation-journal"],
+      "authoritativeOwner": "staff",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "staff-profile-update-operations",
+      "countryPolicyKey": "staff.profile-update-operation",
+      "retentionPolicy": "staff-profile-update-operation-journal",
+      "rightsPolicy": "staff-profile-update-operation-replay",
+      "allowedSurfaces": ["data-rights-export"],
+      "allowedBoundaries": ["cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Persistence",
+          "type": "BunkFy.Modules.Staff.Persistence.Repositories.StaffProfileUpdateOperationTenantExport",
+          "member": "ProfileUpdateOperation",
           "surface": "data-rights-export",
           "retentionPolicy": "staff-tenant-termination-export-fragment"
         }

@@ -121,7 +121,8 @@ public sealed class StaffPersonalDataCatalogTests
                      typeof(StaffRetentionExecution),
                      typeof(StaffRetentionSweepCheckpoint),
                      typeof(StaffRetentionAnonymisationReceipt),
-                     typeof(StaffOperationLock)
+                     typeof(StaffOperationLock),
+                     typeof(StaffProfileUpdateOperation)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
@@ -176,6 +177,9 @@ public sealed class StaffPersonalDataCatalogTests
             PersonalDataSurface.DataRightsExport);
         AssertType(
             typeof(StaffDataHoldDataRightsExport),
+            PersonalDataSurface.DataRightsExport);
+        AssertType(
+            typeof(StaffProfileUpdateOperationDataRightsExport),
             PersonalDataSurface.DataRightsExport);
     }
 

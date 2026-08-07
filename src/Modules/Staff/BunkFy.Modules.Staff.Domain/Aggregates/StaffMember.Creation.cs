@@ -7,6 +7,16 @@ public sealed partial class StaffMember
     public bool MatchesCreation(StaffProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        return this.MatchesProfile(profile) &&
+            string.Equals(
+                this.AuthSubjectId,
+                profile.AuthSubjectId,
+                StringComparison.Ordinal);
+    }
+
+    public bool MatchesProfile(StaffProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
         return string.Equals(
                 this.DisplayName,
                 profile.DisplayName,
@@ -34,10 +44,6 @@ public sealed partial class StaffMember
             string.Equals(
                 this.Department,
                 profile.Department,
-                StringComparison.Ordinal) &&
-            string.Equals(
-                this.AuthSubjectId,
-                profile.AuthSubjectId,
                 StringComparison.Ordinal);
     }
 }

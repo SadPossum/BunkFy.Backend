@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Staff.Tests.Persistence;
 
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
@@ -86,6 +87,15 @@ public sealed class StaffTenantTerminationContributorTests
             record => Field(record, "staff.profile-state")
                 .GetProperty("authSubjectId")
                 .GetString() == "account-maya");
+        Assert.Contains(
+            first.Records,
+            record =>
+                record.RecordType ==
+                    StaffTenantTerminationMetadata
+                        .ProfileUpdateOperationRecordType &&
+                Field(record, "staff.profile-update-operation")
+                    .GetProperty("requestFingerprint")
+                    .GetString() == Digest);
         Assert.Equal(
             StaffTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -471,6 +481,17 @@ public sealed class StaffTenantTerminationContributorTests
             Guid.NewGuid(),
             Now.AddMinutes(2)).IsSuccess);
         context.StaffMembers.Add(member);
+        context.ProfileUpdateOperations.Add(
+            new StaffProfileUpdateOperation(
+                new StaffProfileUpdateOperationRecord(
+                    Guid.NewGuid(),
+                    member.ScopeId,
+                    member.Id,
+                    member.Version,
+                    Digest,
+                    StaffStatus.Active,
+                    member.Version,
+                    Now.AddMinutes(3))));
 
         context.DataRightsCorrectionReceipts.Add(
             StaffDataRightsCorrectionReceipt.Create(
@@ -762,6 +783,7 @@ public sealed class StaffTenantTerminationContributorTests
     private static async Task<bool> HasOwnerRecordsAsync(
         StaffDbContext context) =>
         await context.StaffMembers.AnyAsync() ||
+        await context.ProfileUpdateOperations.AnyAsync() ||
         await context.DataRightsCorrectionReceipts.AnyAsync() ||
         await context.ProcessingRestrictions.AnyAsync() ||
         await context.ProcessingRestrictionProjections.AnyAsync() ||

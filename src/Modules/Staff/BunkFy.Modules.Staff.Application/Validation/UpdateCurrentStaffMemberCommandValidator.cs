@@ -8,6 +8,11 @@ internal sealed class UpdateCurrentStaffMemberCommandValidator : ICommandValidat
 {
     public IEnumerable<string> Validate(UpdateCurrentStaffMemberCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         string subjectId = command.AuthSubjectId?.Trim() ?? string.Empty;
         if (subjectId.Length is 0 or > StaffContractLimits.AuthSubjectIdMaxLength)
         {

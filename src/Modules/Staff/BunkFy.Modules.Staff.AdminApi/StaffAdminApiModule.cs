@@ -69,11 +69,11 @@ public sealed class StaffAdminApiModule : IAdminApiModule
         {
             return await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Update, StaffAdminPermissions.Manage), true,
-                ct => dispatcher.SendAsync(new UpdateStaffMemberCommand(staffMemberId,
-                    request.DisplayName, request.LegalName, request.WorkEmail, request.WorkPhone,
+                ct => dispatcher.SendAsync(new UpdateStaffMemberCommand(request.OperationId,
+                    staffMemberId, request.DisplayName, request.LegalName, request.WorkEmail, request.WorkPhone,
                     request.EmployeeNumber, request.JobTitle, request.Department, request.ExpectedVersion,
                     Actor(context)), ct), token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
-        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
+        }).Produces<StaffProfileMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPut("/{staffMemberId:guid}/auth-subject", async (Guid staffMemberId,
             StaffAuthSubjectRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) =>
@@ -135,7 +135,7 @@ public sealed class StaffAdminApiModule : IAdminApiModule
     public sealed record StaffProfileWriteRequest(Guid OperationId, string DisplayName, string? LegalName,
         string? WorkEmail, string? WorkPhone, string? EmployeeNumber, string? JobTitle,
         string? Department, string? AuthSubjectId);
-    public sealed record StaffProfileUpdateRequest(string DisplayName, string? LegalName,
+    public sealed record StaffProfileUpdateRequest(Guid OperationId, string DisplayName, string? LegalName,
         string? WorkEmail, string? WorkPhone, string? EmployeeNumber, string? JobTitle,
         string? Department, long ExpectedVersion);
     public sealed record StaffAuthSubjectRequest(string? AuthSubjectId, long ExpectedVersion, bool Confirmed);
@@ -168,8 +168,10 @@ public sealed class StaffAdminApiModule : IAdminApiModule
         new(StaffApplicationErrors.EmployeeNumberConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.AuthSubjectConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.ProfileUpdateOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffSuspended.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffDeparted.Code, StatusCodes.Status409Conflict),
-        new(StaffApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest));
+        new(StaffApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.ProfileUpdateOperationInvalid.Code, StatusCodes.Status400BadRequest));
 }

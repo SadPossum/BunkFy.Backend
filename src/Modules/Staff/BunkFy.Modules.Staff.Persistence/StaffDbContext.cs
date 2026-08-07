@@ -24,6 +24,8 @@ public sealed class StaffDbContext(
     private readonly IScopeContext scopeContext = scopeContext;
 
     public DbSet<StaffMember> StaffMembers => this.Set<StaffMember>();
+    internal DbSet<StaffProfileUpdateOperation> ProfileUpdateOperations =>
+        this.Set<StaffProfileUpdateOperation>();
     public DbSet<StaffDataRightsCorrectionReceipt> DataRightsCorrectionReceipts =>
         this.Set<StaffDataRightsCorrectionReceipt>();
     public DbSet<StaffProcessingRestriction> ProcessingRestrictions =>
@@ -141,6 +143,9 @@ public sealed class StaffDbContext(
             .Entries<StaffTenantDestroyReceipt>()
             .Any(entry =>
                 entry.State is EntityState.Modified or EntityState.Deleted);
+        bool profileUpdateOperationMutationRequested = this.ChangeTracker
+            .Entries<StaffProfileUpdateOperation>()
+            .Any(entry => entry.State == EntityState.Modified);
         if (correctionMutationRequested ||
             restrictionMutationRequested ||
             governanceMutationRequested ||
@@ -149,7 +154,8 @@ public sealed class StaffDbContext(
             anonymisationRestoreReceiptMutationRequested ||
             retentionReceiptMutationRequested ||
             tombstoneDeletionRequested ||
-            tenantDestroyReceiptMutationRequested)
+            tenantDestroyReceiptMutationRequested ||
+            profileUpdateOperationMutationRequested)
         {
             throw new InvalidOperationException(
                 "Staff immutable receipts are append-only.");

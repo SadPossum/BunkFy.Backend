@@ -10,7 +10,7 @@ using BunkFy.Modules.DataRights.Contracts;
 internal static class StaffDataRightsExportSchema
 {
     public const string ExportSchemaId = "staff.subject-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 2;
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Staff.Persistence.DataGovernance.personal-data-catalog.v1.json";
@@ -121,6 +121,26 @@ internal static class StaffDataRightsExportSchema
                 (nameof(hold.Version), hold.Version)
             ]);
 
+    public static DataRightsExportRecord CreateProfileUpdateOperationRecord(
+        StaffProfileUpdateOperationDataRightsExport operation) =>
+        CreateRecord(
+            StaffDataRightsExportContributor.ProfileUpdateOperationRecordType,
+            DataRightsExportRecordIds.CreateDeterministicChild(
+                operation.StaffMemberId,
+                operation.OperationId.ToString("N")),
+            operation.ResultVersion,
+            typeof(StaffProfileUpdateOperationDataRightsExport),
+            [
+                (nameof(operation.OperationId), operation.OperationId),
+                (nameof(operation.ScopeId), operation.ScopeId),
+                (nameof(operation.StaffMemberId), operation.StaffMemberId),
+                (nameof(operation.ExpectedVersion), operation.ExpectedVersion),
+                (nameof(operation.RequestFingerprint), operation.RequestFingerprint),
+                (nameof(operation.ResultStatus), operation.ResultStatus),
+                (nameof(operation.ResultVersion), operation.ResultVersion),
+                (nameof(operation.CompletedAtUtc), operation.CompletedAtUtc)
+            ]);
+
     private static DataRightsExportRecord CreateRecord(
         string recordType,
         Guid recordId,
@@ -193,7 +213,8 @@ internal static class StaffDataRightsExportSchema
             typeof(StaffProfileDataRightsExport),
             typeof(StaffAssignmentDataRightsExport),
             typeof(StaffEmploymentGovernanceDataRightsExport),
-            typeof(StaffDataHoldDataRightsExport)
+            typeof(StaffDataHoldDataRightsExport),
+            typeof(StaffProfileUpdateOperationDataRightsExport)
         ];
         HashSet<string> expectedMembers = sourceTypes
             .SelectMany(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public)

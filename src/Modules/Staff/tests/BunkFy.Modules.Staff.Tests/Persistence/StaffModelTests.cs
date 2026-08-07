@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Tests;
 
 using Gma.Framework.Scoping;
+using BunkFy.Modules.Staff.Application.Ports;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -100,6 +101,86 @@ public sealed class StaffModelTests
             receipt.GetCheckConstraints(),
             constraint => constraint.Name ==
                 "CK_staff_tenant_destroy_receipt_progress");
+    }
+
+    [Fact]
+    public void Profile_update_operations_are_scoped_immutable_member_receipts()
+    {
+        using StaffDbContext dbContext = CreateDbContext();
+        IEntityType operation = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(StaffProfileUpdateOperation))!;
+
+        Assert.Equal(
+            [
+                nameof(StaffProfileUpdateOperation.ScopeId),
+                nameof(StaffProfileUpdateOperation.StaffMemberId),
+                nameof(StaffProfileUpdateOperation.Id)
+            ],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.Contains(
+            operation.GetForeignKeys(),
+            foreignKey =>
+                foreignKey.DeleteBehavior == DeleteBehavior.Cascade &&
+                foreignKey.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffProfileUpdateOperation.ScopeId),
+                        nameof(StaffProfileUpdateOperation.StaffMemberId)
+                    ]));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_staff_profile_update_operations_versions");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_staff_profile_update_operations_fingerprint");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_staff_profile_update_operations_status");
+    }
+
+    [Fact]
+    public async Task Profile_update_operation_updates_are_rejected_by_the_context_guard()
+    {
+        await using StaffDbContext dbContext = CreateDbContext();
+        StaffMember member = StaffMember.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            "Ada Operator",
+            legalName: null,
+            "ada@example.test",
+            workPhone: null,
+            "EMP-100",
+            "Manager",
+            "Operations",
+            authSubjectId: null,
+            "user:owner",
+            Guid.NewGuid(),
+            new DateTimeOffset(2026, 8, 7, 12, 0, 0, TimeSpan.Zero)).Value;
+        StaffProfileUpdateOperation operation = new(
+            new StaffProfileUpdateOperationRecord(
+                Guid.NewGuid(),
+                member.ScopeId,
+                member.Id,
+                member.Version,
+                new string('a', 64),
+                BunkFy.Modules.Staff.Contracts.StaffStatus.Active,
+                member.Version,
+                new DateTimeOffset(2026, 8, 7, 12, 1, 0, TimeSpan.Zero)));
+        dbContext.StaffMembers.Add(member);
+        dbContext.ProfileUpdateOperations.Add(operation);
+        await dbContext.SaveChangesAsync();
+        dbContext.Entry(operation)
+            .Property(item => item.ExpectedVersion)
+            .CurrentValue++;
+
+        InvalidOperationException failure = await Assert.ThrowsAsync<
+            InvalidOperationException>(() => dbContext.SaveChangesAsync());
+
+        Assert.Contains("append-only", failure.Message);
     }
 
     [Fact]

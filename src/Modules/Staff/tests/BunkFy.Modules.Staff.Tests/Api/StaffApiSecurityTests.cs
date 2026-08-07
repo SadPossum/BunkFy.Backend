@@ -26,7 +26,9 @@ public sealed class StaffApiSecurityTests
     [Theory]
     [InlineData(typeof(StaffProfileWriteRequest))]
     [InlineData(typeof(StaffAdminApiModule.StaffProfileWriteRequest))]
-    public void Create_requests_require_caller_owned_operation_identity(
+    [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest))]
+    [InlineData(typeof(StaffAdminApiModule.StaffProfileUpdateRequest))]
+    public void Profile_mutation_requests_require_caller_owned_operation_identity(
         Type requestType)
     {
         PropertyInfo operationId = requestType.GetProperty("OperationId")!;
@@ -74,6 +76,38 @@ public sealed class StaffApiSecurityTests
     }
 
     [Fact]
+    public void Admin_cli_requires_operation_identity_for_update()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        AdminCliGlobalOptions options = provider
+            .GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new StaffAdminCliModule().MapCommands(registry);
+        string[] command =
+        [
+            "staff", "update",
+            "--staff-member-id", "73000000-0000-0000-0000-000000000002",
+            "--display-name", "Maya Chen",
+            "--expected-version", "4"
+        ];
+
+        Assert.NotEmpty(root.Parse(command).Errors);
+        Assert.Empty(root.Parse([
+            .. command,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000003"
+        ]).Errors);
+    }
+
+    [Fact]
     public async Task Directory_and_sensitive_profile_routes_have_distinct_permissions()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
@@ -111,7 +145,7 @@ public sealed class StaffApiSecurityTests
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Get, member);
         AssertResponse<StaffMemberDto>(endpoints, HttpMethods.Get, $"{member}/profile");
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Post, "/api/staff/members");
-        AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Put, member);
+        AssertResponse<StaffProfileMutationReceiptDto>(endpoints, HttpMethods.Put, member);
         AssertResponse<StaffDirectoryMemberDto>(
             endpoints,
             HttpMethods.Put,

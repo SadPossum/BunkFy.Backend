@@ -24,6 +24,11 @@ internal sealed partial class StaffTenantTerminationContributor
             sink,
             count,
             cancellationToken).ConfigureAwait(false);
+        count = await this.ExportProfileUpdateOperationsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
         count = await this.ExportGovernanceRecordsAsync(
             tenantId,
             sink,

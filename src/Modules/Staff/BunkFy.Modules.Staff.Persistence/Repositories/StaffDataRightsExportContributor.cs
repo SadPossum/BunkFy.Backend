@@ -14,10 +14,13 @@ internal sealed class StaffDataRightsExportContributor(
     public const int MaximumAssignmentRecords = 1_000;
     public const int MaximumHoldRecords =
         StaffDataHold.MaximumRecordsPerStaffMember;
+    public const int MaximumProfileUpdateOperationRecords = 10_000;
     public const string AssignmentRecordType = "staff-property-assignment";
     public const string EmploymentGovernanceRecordType =
         "staff-employment-governance";
     public const string DataHoldRecordType = "staff-data-hold";
+    public const string ProfileUpdateOperationRecordType =
+        "staff-profile-update-operation";
 
     public string OwnerKey => StaffDataRightsDiscoveryContributor.Owner;
 
@@ -178,10 +181,46 @@ internal sealed class StaffDataRightsExportContributor(
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
 
+        StaffProfileUpdateOperationDataRightsExport[] profileUpdateOperations =
+            await dbContext.ProfileUpdateOperations
+                .AsNoTracking()
+                .Where(operation =>
+                    operation.StaffMemberId == coordinate.RecordId)
+                .OrderBy(operation => operation.CompletedAtUtc)
+                .ThenBy(operation => operation.Id)
+                .Take(MaximumProfileUpdateOperationRecords + 1)
+                .Select(operation =>
+                    new StaffProfileUpdateOperationDataRightsExport(
+                        operation.Id,
+                        operation.ScopeId,
+                        operation.StaffMemberId,
+                        operation.ExpectedVersion,
+                        operation.RequestFingerprint,
+                        operation.ResultStatus,
+                        operation.ResultVersion,
+                        operation.CompletedAtUtc))
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (profileUpdateOperations.Length >
+            MaximumProfileUpdateOperationRecords)
+        {
+            return DataRightsSubjectExportResult.ScopeUnavailable();
+        }
+
         await sink.WriteAsync(
             StaffDataRightsExportSchema.CreateProfileRecord(snapshot.Profile),
             cancellationToken).ConfigureAwait(false);
         int recordCount = 1;
+
+        foreach (StaffProfileUpdateOperationDataRightsExport operation in
+                 profileUpdateOperations)
+        {
+            await sink.WriteAsync(
+                StaffDataRightsExportSchema
+                    .CreateProfileUpdateOperationRecord(operation),
+                cancellationToken).ConfigureAwait(false);
+            recordCount = checked(recordCount + 1);
+        }
 
         foreach (StaffAssignmentDataRightsExport assignment in snapshot.Assignments)
         {

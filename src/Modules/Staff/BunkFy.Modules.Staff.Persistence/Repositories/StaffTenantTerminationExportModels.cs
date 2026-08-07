@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Staff.Persistence.Repositories;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Domain.Retention;
+using StaffContractStatus = BunkFy.Modules.Staff.Contracts.StaffStatus;
 
 [AttributeUsage(AttributeTargets.Property)]
 internal sealed class StaffTenantExportFieldAttribute(string fieldId)
@@ -42,6 +43,23 @@ internal sealed record StaffProfileStateTenantExport(
 internal sealed record StaffChangeAttributionTenantExport(
     string CreatedBy,
     string LastChangedBy);
+
+internal sealed record StaffProfileUpdateOperationTenantExport(
+    [property: StaffTenantExportField("staff.scope-id")]
+    string ScopeId,
+    [property: StaffTenantExportField("staff.staff-member-id")]
+    Guid StaffMemberId,
+    [property: StaffTenantExportField("staff.record-id")]
+    Guid OperationId,
+    [property: StaffTenantExportField("staff.profile-update-operation")]
+    StaffProfileUpdateOperationStateTenantExport ProfileUpdateOperation);
+
+internal sealed record StaffProfileUpdateOperationStateTenantExport(
+    long ExpectedVersion,
+    string RequestFingerprint,
+    StaffContractStatus ResultStatus,
+    long ResultVersion,
+    DateTimeOffset CompletedAtUtc);
 
 internal sealed record StaffPropertyAssignmentTenantExport(
     [property: StaffTenantExportField("staff.scope-id")]

@@ -1,69 +1,83 @@
 namespace BunkFy.Modules.Staff.Application.Handlers;
 
 using BunkFy.Modules.Staff.Application.Commands;
-using BunkFy.Modules.Staff.Application.Mapping;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
-using Gma.Framework.Runtime.Identity;
-using Gma.Framework.Runtime.Time;
 
 internal sealed class UpdateCurrentStaffMemberCommandHandler(
     IStaffMemberRepository members,
     StaffMemberMutationCoordinator mutations,
-    ISystemClock clock,
-    IIdGenerator ids) : ICommandHandler<UpdateCurrentStaffMemberCommand, StaffMemberDto>
+    StaffProfileUpdateCoordinator updates)
+    : ICommandHandler<
+        UpdateCurrentStaffMemberCommand,
+        StaffProfileMutationReceiptDto>
 {
-    public async Task<Result<StaffMemberDto>> HandleAsync(
+    public async Task<Result<StaffProfileMutationReceiptDto>> HandleAsync(
         UpdateCurrentStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<StaffProfileMutationReceiptDto>(
+                StaffApplicationErrors.ProfileUpdateOperationInvalid);
+        }
+
+        Result<StaffProfileUpdateValues> values =
+            StaffProfileUpdateValues.Create(
+                command.DisplayName,
+                command.LegalName,
+                command.WorkEmail,
+                command.WorkPhone,
+                command.EmployeeNumber,
+                command.JobTitle,
+                command.Department,
+                command.ActorId);
+        if (values.IsFailure)
+        {
+            return Result.Failure<StaffProfileMutationReceiptDto>(
+                values.Error);
+        }
+
+        string authSubjectId = command.AuthSubjectId?.Trim() ?? string.Empty;
+        if (authSubjectId.Length is 0 or
+            > StaffContractLimits.AuthSubjectIdMaxLength)
+        {
+            return Result.Failure<StaffProfileMutationReceiptDto>(
+                StaffApplicationErrors.StaffMemberNotFound);
+        }
+
         StaffMember? member = await members
-            .GetByAuthSubjectAsync(command.AuthSubjectId, cancellationToken)
+            .GetByAuthSubjectAsync(authSubjectId, cancellationToken)
             .ConfigureAwait(false);
         if (member is null)
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+            return Result.Failure<StaffProfileMutationReceiptDto>(
+                StaffApplicationErrors.StaffMemberNotFound);
         }
 
-        member = await mutations.AcquireOperationalAsync(member.Id, cancellationToken)
+        member = await mutations.AcquireOperationalAsync(
+                member.Id,
+                cancellationToken)
             .ConfigureAwait(false);
         if (member is null ||
             !string.Equals(
                 member.AuthSubjectId,
-                command.AuthSubjectId.Trim(),
+                authSubjectId,
                 StringComparison.Ordinal))
         {
-            return Result.Failure<StaffMemberDto>(StaffApplicationErrors.StaffMemberNotFound);
+            return Result.Failure<StaffProfileMutationReceiptDto>(
+                StaffApplicationErrors.StaffMemberNotFound);
         }
 
-        Result uniqueness = await StaffMemberUniqueness.EnsureAsync(
-            members,
-            command.EmployeeNumber,
-            member.AuthSubjectId,
-            member.Id,
-            cancellationToken).ConfigureAwait(false);
-        if (uniqueness.IsFailure)
-        {
-            return Result.Failure<StaffMemberDto>(uniqueness.Error);
-        }
-
-        Result updated = member.UpdateProfile(
-            command.DisplayName,
-            command.LegalName,
-            command.WorkEmail,
-            command.WorkPhone,
-            command.EmployeeNumber,
-            command.JobTitle,
-            command.Department,
-            command.ExpectedVersion,
-            command.ActorId,
-            ids.NewId(),
-            clock.UtcNow);
-        return updated.IsSuccess
-            ? Result.Success(member.ToDto())
-            : Result.Failure<StaffMemberDto>(updated.Error);
+        return await updates.ExecuteAsync(
+                member,
+                command.OperationId,
+                command.ExpectedVersion,
+                values.Value,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 }

@@ -75,11 +75,64 @@ public sealed partial class StaffMember
             return Result.Failure(actor.Error);
         }
 
-        this.ApplyProfile(profile.Value);
-        this.Advance(actor.Value, nowUtc);
+        Result<StaffProfileUpdateOutcome> updated =
+            this.ApplyProfileUpdate(
+                profile.Value,
+                actor.Value,
+                eventId,
+                nowUtc);
+        return updated.IsSuccess
+            ? Result.Success()
+            : Result.Failure(updated.Error);
+    }
+
+    public Result<StaffProfileUpdateOutcome> UpdateProfileWithOutcome(
+        StaffProfile profile,
+        long expectedVersion,
+        StaffActorId actor,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(actor);
+        Result ready = this.EnsureMutable(expectedVersion, eventId);
+        return ready.IsSuccess
+            ? this.ApplyProfileUpdate(profile, actor, eventId, nowUtc)
+            : Result.Failure<StaffProfileUpdateOutcome>(ready.Error);
+    }
+
+    private Result<StaffProfileUpdateOutcome> ApplyProfileUpdate(
+        StaffProfile profile,
+        StaffActorId actor,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        if (!string.Equals(
+                this.AuthSubjectId,
+                profile.AuthSubjectId,
+                StringComparison.Ordinal))
+        {
+            return Result.Failure<StaffProfileUpdateOutcome>(
+                StaffDomainErrors.AuthSubjectInvalid);
+        }
+
+        long previousVersion = this.Version;
+        if (this.MatchesProfile(profile))
+        {
+            return Result.Success(new StaffProfileUpdateOutcome(
+                previousVersion,
+                previousVersion,
+                Changed: false));
+        }
+
+        this.ApplyProfile(profile);
+        this.Advance(actor, nowUtc);
         this.RaiseDomainEvent(new StaffMemberUpdatedDomainEvent(eventId, nowUtc, this.ScopeId,
             this.Id, this.Status, this.Version));
-        return Result.Success();
+        return Result.Success(new StaffProfileUpdateOutcome(
+            previousVersion,
+            this.Version,
+            Changed: true));
     }
 
     public Result<StaffDataRightsCorrectionOutcome> ApplyDataRightsCorrection(

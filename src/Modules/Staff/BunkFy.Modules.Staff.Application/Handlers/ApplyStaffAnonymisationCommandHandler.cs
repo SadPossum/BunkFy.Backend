@@ -24,6 +24,7 @@ internal sealed class ApplyStaffAnonymisationCommandHandler(
     IStaffDataHoldRepository holds,
     IStaffOperationLock operationLock,
     IStaffAnonymisationRepository anonymisation,
+    IStaffProfileUpdateOperationRepository profileUpdateOperations,
     IDataRightsOperationApprovalGate approvalGate,
     IScopeContext scopeContext,
     ISystemClock clock,
@@ -216,6 +217,9 @@ internal sealed class ApplyStaffAnonymisationCommandHandler(
                 tombstone.Error);
         }
 
+        await profileUpdateOperations.DeleteForStaffMemberAsync(
+            command.StaffMemberId,
+            cancellationToken).ConfigureAwait(false);
         await anonymisation.AddAsync(
             receipt.Value,
             tombstone.Value,

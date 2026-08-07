@@ -58,12 +58,13 @@ internal static class StaffMemberEndpoints
             StaffProfileUpdateRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            return (await dispatcher.SendAsync(new UpdateStaffMemberCommand(staffMemberId, request.DisplayName,
-                request.LegalName, request.WorkEmail, request.WorkPhone, request.EmployeeNumber,
-                request.JobTitle, request.Department, request.ExpectedVersion,
+            return (await dispatcher.SendAsync(new UpdateStaffMemberCommand(request.OperationId,
+                staffMemberId, request.DisplayName, request.LegalName, request.WorkEmail,
+                request.WorkPhone, request.EmployeeNumber, request.JobTitle, request.Department,
+                request.ExpectedVersion,
                 StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
+        }).Produces<StaffProfileMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);

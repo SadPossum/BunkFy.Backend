@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Staff.Tests.Persistence;
 
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
@@ -21,7 +22,7 @@ public sealed class StaffDataRightsExportContributorTests
         new(2026, 7, 27, 11, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Export_is_catalogue_versioned_and_contains_profile_governance_assignments_and_holds()
+    public async Task Export_is_catalogue_versioned_and_contains_profile_governance_assignments_holds_and_update_operations()
     {
         await using StaffDbContext dbContext = CreateDbContext("tenant-a");
         StaffMember member = CreateMember("tenant-a");
@@ -66,6 +67,18 @@ public sealed class StaffDataRightsExportContributorTests
             "user:decision-maker",
             Now.AddMinutes(6)).IsSuccess);
         dbContext.StaffMembers.Add(member);
+        Guid operationId = Guid.NewGuid();
+        dbContext.ProfileUpdateOperations.Add(
+            new StaffProfileUpdateOperation(
+                new StaffProfileUpdateOperationRecord(
+                    operationId,
+                    member.ScopeId,
+                    member.Id,
+                    member.Version,
+                    new string('b', 64),
+                    StaffStatus.Active,
+                    member.Version,
+                    Now.AddMinutes(7))));
         dbContext.EmploymentGovernance.Add(governance);
         dbContext.DataHolds.AddRange(activeHold, releasedHold);
         await dbContext.SaveChangesAsync();
@@ -79,9 +92,9 @@ public sealed class StaffDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(5, result.RecordCount);
+        Assert.Equal(6, result.RecordCount);
         Assert.Equal("staff.personal-data", contributor.Descriptor.CatalogId);
-        Assert.Equal(12, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(13, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             StaffDataRightsExportSchema.ExportSchemaId,
             contributor.Descriptor.ExportSchemaId);
@@ -151,6 +164,26 @@ public sealed class StaffDataRightsExportContributorTests
                 field =>
                     field.FieldId ==
                     "staff.data-hold.actor-id"));
+
+        DataRightsExportRecord updateOperationRecord = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                StaffDataRightsExportContributor
+                    .ProfileUpdateOperationRecordType);
+        Assert.Equal(
+            operationId,
+            Field(
+                updateOperationRecord,
+                "staff.profile-update-operation.id").GetGuid());
+        Assert.Equal(
+            new string('b', 64),
+            Field(
+                updateOperationRecord,
+                "staff.profile-update-operation.request-fingerprint")
+                .GetString());
+        Assert.Equal(
+            member.Version,
+            updateOperationRecord.RecordVersion);
     }
 
     [Fact]

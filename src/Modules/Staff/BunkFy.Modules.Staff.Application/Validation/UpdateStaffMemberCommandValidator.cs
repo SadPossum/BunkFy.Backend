@@ -7,6 +7,11 @@ internal sealed class UpdateStaffMemberCommandValidator : ICommandValidator<Upda
 {
     public IEnumerable<string> Validate(UpdateStaffMemberCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.StaffMemberId == Guid.Empty)
         {
             yield return "StaffMemberId is required.";

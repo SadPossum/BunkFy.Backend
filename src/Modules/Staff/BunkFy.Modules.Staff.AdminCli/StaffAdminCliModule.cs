@@ -102,14 +102,16 @@ public sealed class StaffAdminCliModule : IAdminCliModule
 
     private static Command CreateUpdateCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> member = MemberOption();
         ProfileOptions options = new();
-        Command command = new("update", "Update a staff profile.") { member };
+        Command command = new("update", "Update a staff profile.") { operationId, member };
         options.AddTo(command, true);
-        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteProfileMutationAsync(services, global, parse,
             StaffAdminOperationNames.Update, StaffAdminPermissions.Manage,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                new UpdateStaffMemberCommand(parse.GetRequiredValue(member),
+                new UpdateStaffMemberCommand(parse.GetRequiredValue(operationId),
+                    parse.GetRequiredValue(member),
                     parse.GetRequiredValue(options.DisplayName), parse.GetValue(options.LegalName),
                     parse.GetValue(options.Email), parse.GetValue(options.Phone),
                     parse.GetValue(options.EmployeeNumber), parse.GetValue(options.JobTitle),
@@ -246,6 +248,21 @@ public sealed class StaffAdminCliModule : IAdminCliModule
             return result;
         }, token).ConfigureAwait(false);
 
+    private static async Task<int> ExecuteProfileMutationAsync(IServiceProvider services,
+        AdminCliGlobalOptions global, ParseResult parse, string operation, AdminPermission permission,
+        Func<IServiceProvider, CancellationToken, Task<Result<StaffProfileMutationReceiptDto>>> action,
+        CancellationToken token) => await ExecuteAsync(services, global, parse, operation, permission,
+        async (provider, ct) =>
+        {
+            Result<StaffProfileMutationReceiptDto> result = await action(provider, ct).ConfigureAwait(false);
+            if (result.IsSuccess)
+            {
+                Write([result.Value], Output(parse, global));
+            }
+
+            return result;
+        }, token).ConfigureAwait(false);
+
     private static Task<int> ExecuteAsync<T>(IServiceProvider services, AdminCliGlobalOptions global,
         ParseResult parse, string operation, AdminPermission permission,
         Func<IServiceProvider, CancellationToken, Task<Result<T>>> action, CancellationToken token) =>
@@ -287,6 +304,15 @@ public sealed class StaffAdminCliModule : IAdminCliModule
             ("Status", profile => profile.Status.ToString()),
             ("Assignments", profile => profile.Assignments.Count.ToString(CultureInfo.InvariantCulture)),
             ("Version", profile => profile.Version.ToString(CultureInfo.InvariantCulture))
+        ]);
+
+    private static void Write(IReadOnlyCollection<StaffProfileMutationReceiptDto> receipts, string output) =>
+        AdminCliOutput.WriteRows(receipts, output,
+        [
+            ("StaffMemberId", receipt => receipt.StaffMemberId.ToString()),
+            ("Status", receipt => receipt.Status.ToString()),
+            ("Version", receipt => receipt.Version.ToString(CultureInfo.InvariantCulture)),
+            ("CompletedAtUtc", receipt => receipt.CompletedAtUtc.ToString("O", CultureInfo.InvariantCulture))
         ]);
 
     private static bool TryDate(string value, out DateOnly date) => DateOnly.TryParseExact(value,

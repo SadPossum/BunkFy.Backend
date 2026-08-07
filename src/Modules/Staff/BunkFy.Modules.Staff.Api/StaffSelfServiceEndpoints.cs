@@ -57,6 +57,7 @@ internal static class StaffSelfServiceEndpoints
 
             return (await dispatcher.SendAsync(
                 new UpdateCurrentStaffMemberCommand(
+                    request.OperationId,
                     subject.Id,
                     request.DisplayName,
                     request.LegalName,
@@ -68,7 +69,7 @@ internal static class StaffSelfServiceEndpoints
                     request.ExpectedVersion,
                     $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}"),
                 token).ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffMemberDto>(StatusCodes.Status200OK).RequireTenant();
+        }).Produces<StaffProfileMutationReceiptDto>(StatusCodes.Status200OK).RequireTenant();
     }
 
     private static AccessSubject? ResolveUser(HttpContext context, IAccessHttpSubjectResolver resolver)
