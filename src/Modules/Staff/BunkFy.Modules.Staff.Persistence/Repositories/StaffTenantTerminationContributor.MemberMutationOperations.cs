@@ -6,14 +6,14 @@ using Microsoft.EntityFrameworkCore;
 
 internal sealed partial class StaffTenantTerminationContributor
 {
-    private async Task<long> ExportProfileUpdateOperationsAsync(
+    private async Task<long> ExportMemberMutationOperationsAsync(
         string tenantId,
         IDataRightsExportSink sink,
         long count,
         CancellationToken cancellationToken)
     {
-        await foreach (StaffProfileUpdateOperation operation in
-            dbContext.ProfileUpdateOperations
+        await foreach (StaffMemberMutationOperation operation in
+            dbContext.MemberMutationOperations
                 .AsNoTracking()
                 .Where(item => item.ScopeId == tenantId)
                 .OrderBy(item => item.StaffMemberId)
@@ -22,11 +22,12 @@ internal sealed partial class StaffTenantTerminationContributor
                 .WithCancellation(cancellationToken)
                 .ConfigureAwait(false))
         {
-            StaffProfileUpdateOperationTenantExport record = new(
+            StaffMemberMutationOperationTenantExport record = new(
                 operation.ScopeId,
                 operation.StaffMemberId,
                 operation.Id,
-                new StaffProfileUpdateOperationStateTenantExport(
+                new StaffMemberMutationOperationStateTenantExport(
+                    operation.Kind,
                     operation.ExpectedVersion,
                     operation.RequestFingerprint,
                     operation.ResultStatus,
@@ -35,7 +36,7 @@ internal sealed partial class StaffTenantTerminationContributor
             await sink.WriteAsync(
                 StaffTenantTerminationExportSchema.CreateRecord(
                     StaffTenantTerminationMetadata
-                        .ProfileUpdateOperationRecordType,
+                        .MemberMutationOperationRecordType,
                     DataRightsExportRecordIds.CreateDeterministicChild(
                         operation.StaffMemberId,
                         operation.Id.ToString("N")),

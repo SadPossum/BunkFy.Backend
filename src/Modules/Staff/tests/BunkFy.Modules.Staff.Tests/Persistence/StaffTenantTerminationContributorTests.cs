@@ -92,8 +92,8 @@ public sealed class StaffTenantTerminationContributorTests
             record =>
                 record.RecordType ==
                     StaffTenantTerminationMetadata
-                        .ProfileUpdateOperationRecordType &&
-                Field(record, "staff.profile-update-operation")
+                        .MemberMutationOperationRecordType &&
+                Field(record, "staff.member-mutation-operation")
                     .GetProperty("requestFingerprint")
                     .GetString() == Digest);
         Assert.Equal(
@@ -481,12 +481,13 @@ public sealed class StaffTenantTerminationContributorTests
             Guid.NewGuid(),
             Now.AddMinutes(2)).IsSuccess);
         context.StaffMembers.Add(member);
-        context.ProfileUpdateOperations.Add(
-            new StaffProfileUpdateOperation(
-                new StaffProfileUpdateOperationRecord(
+        context.MemberMutationOperations.Add(
+            new StaffMemberMutationOperation(
+                new StaffMemberMutationOperationRecord(
                     Guid.NewGuid(),
                     member.ScopeId,
                     member.Id,
+                    StaffMemberMutationKind.ProfileUpdate,
                     member.Version,
                     Digest,
                     StaffStatus.Active,
@@ -783,7 +784,7 @@ public sealed class StaffTenantTerminationContributorTests
     private static async Task<bool> HasOwnerRecordsAsync(
         StaffDbContext context) =>
         await context.StaffMembers.AnyAsync() ||
-        await context.ProfileUpdateOperations.AnyAsync() ||
+        await context.MemberMutationOperations.AnyAsync() ||
         await context.DataRightsCorrectionReceipts.AnyAsync() ||
         await context.ProcessingRestrictions.AnyAsync() ||
         await context.ProcessingRestrictionProjections.AnyAsync() ||

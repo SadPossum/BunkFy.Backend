@@ -29,6 +29,12 @@ public static class StaffApplicationErrors
     public static readonly Error ProfileUpdateOperationConflict = new(
         "Staff.ProfileUpdateOperationConflict",
         "The Staff profile-update operation was already used for different data.");
+    public static readonly Error AuthSubjectOperationInvalid = new(
+        "Staff.AuthSubjectOperationInvalid",
+        "A valid Staff account-link operation id is required.");
+    public static readonly Error AuthSubjectOperationConflict = new(
+        "Staff.AuthSubjectOperationConflict",
+        "The Staff account-link operation was already used for different data.");
     public static readonly Error PropertyUnavailable = new("Staff.PropertyUnavailable", "The property is unavailable for staff assignment.");
     public static readonly Error EmployeeNumberConflict = new("Staff.EmployeeNumberConflict", "The employee number is already in use.");
     public static readonly Error AuthSubjectConflict = new("Staff.AuthSubjectConflict", "The Auth subject is already linked to another staff member.");

@@ -110,10 +110,10 @@ tenant admission.
 
 ## Deferred Follow-Up
 
-- Make profile updates and the current-user profile update retry safe with an
-  immutable operation receipt that preserves expected-version semantics.
-- Give authentication-subject, employment lifecycle, and property-assignment
-  commands durable operation identities and replay receipts in later Staff
-  slices.
+- Profile updates and authentication-subject changes are completed in
+  `staff-profile-update-idempotency-task.md` and
+  `staff-auth-subject-idempotency-task.md`.
+- Give employment lifecycle and property-assignment commands durable operation
+  identities and replay receipts in later Staff slices.
 - Do not generalize Staff-specific equivalence, visibility, or operation
   receipts into GMA.

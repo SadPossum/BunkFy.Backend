@@ -14,13 +14,13 @@ internal sealed class StaffDataRightsExportContributor(
     public const int MaximumAssignmentRecords = 1_000;
     public const int MaximumHoldRecords =
         StaffDataHold.MaximumRecordsPerStaffMember;
-    public const int MaximumProfileUpdateOperationRecords = 10_000;
+    public const int MaximumMemberMutationOperationRecords = 10_000;
     public const string AssignmentRecordType = "staff-property-assignment";
     public const string EmploymentGovernanceRecordType =
         "staff-employment-governance";
     public const string DataHoldRecordType = "staff-data-hold";
-    public const string ProfileUpdateOperationRecordType =
-        "staff-profile-update-operation";
+    public const string MemberMutationOperationRecordType =
+        "staff-member-mutation-operation";
 
     public string OwnerKey => StaffDataRightsDiscoveryContributor.Owner;
 
@@ -181,19 +181,20 @@ internal sealed class StaffDataRightsExportContributor(
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
 
-        StaffProfileUpdateOperationDataRightsExport[] profileUpdateOperations =
-            await dbContext.ProfileUpdateOperations
+        StaffMemberMutationOperationDataRightsExport[] memberMutationOperations =
+            await dbContext.MemberMutationOperations
                 .AsNoTracking()
                 .Where(operation =>
                     operation.StaffMemberId == coordinate.RecordId)
                 .OrderBy(operation => operation.CompletedAtUtc)
                 .ThenBy(operation => operation.Id)
-                .Take(MaximumProfileUpdateOperationRecords + 1)
+                .Take(MaximumMemberMutationOperationRecords + 1)
                 .Select(operation =>
-                    new StaffProfileUpdateOperationDataRightsExport(
+                    new StaffMemberMutationOperationDataRightsExport(
                         operation.Id,
                         operation.ScopeId,
                         operation.StaffMemberId,
+                        operation.Kind,
                         operation.ExpectedVersion,
                         operation.RequestFingerprint,
                         operation.ResultStatus,
@@ -201,8 +202,8 @@ internal sealed class StaffDataRightsExportContributor(
                         operation.CompletedAtUtc))
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
-        if (profileUpdateOperations.Length >
-            MaximumProfileUpdateOperationRecords)
+        if (memberMutationOperations.Length >
+            MaximumMemberMutationOperationRecords)
         {
             return DataRightsSubjectExportResult.ScopeUnavailable();
         }
@@ -212,12 +213,12 @@ internal sealed class StaffDataRightsExportContributor(
             cancellationToken).ConfigureAwait(false);
         int recordCount = 1;
 
-        foreach (StaffProfileUpdateOperationDataRightsExport operation in
-                 profileUpdateOperations)
+        foreach (StaffMemberMutationOperationDataRightsExport operation in
+                 memberMutationOperations)
         {
             await sink.WriteAsync(
                 StaffDataRightsExportSchema
-                    .CreateProfileUpdateOperationRecord(operation),
+                    .CreateMemberMutationOperationRecord(operation),
                 cancellationToken).ConfigureAwait(false);
             recordCount = checked(recordCount + 1);
         }

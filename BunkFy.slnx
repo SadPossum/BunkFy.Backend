@@ -153,6 +153,7 @@
     <File Path="docs/planning/retention-tenant-termination-owner-task.md" />
     <File Path="docs/planning/secure-staff-enrollment-task.md" />
     <File Path="docs/planning/security-signals-and-incident-correlation-task.md" />
+    <File Path="docs/planning/staff-auth-subject-idempotency-task.md" />
     <File Path="docs/planning/staff-data-rights-anonymisation-task.md" />
     <File Path="docs/planning/staff-data-rights-correction-task.md" />
     <File Path="docs/planning/staff-data-rights-owner-capability-task.md" />

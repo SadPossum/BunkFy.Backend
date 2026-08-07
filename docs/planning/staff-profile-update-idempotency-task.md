@@ -55,9 +55,10 @@ fails closed.
 - Add `OperationId` to both profile-update commands and the shared public and
   administrative request contracts. Require `--operation-id` for Admin CLI
   update.
-- Return a small `StaffProfileMutationReceiptDto` containing Staff member id,
-  status, resulting version, and completion time. Do not duplicate profile PII
-  in an immutable receipt merely to recreate a historical response body.
+- Return a small mutation receipt containing Staff member id, status, resulting
+  version, and completion time. Its current shared name is
+  `StaffMemberMutationReceiptDto`; do not duplicate profile PII in an immutable
+  receipt merely to recreate a historical response body.
 - Manager and account UIs retain an operation id while the same normalized form
   and expected version are retried, clear it after success/cancel, and refetch
   the current representation after receiving the mutation receipt.
@@ -70,7 +71,8 @@ fails closed.
 - Add a Staff-owned append-only profile-update operation record with operation
   id, tenant and Staff coordinates, expected/result versions, result status,
   canonical SHA-256 request fingerprint, and microsecond-normalized completion
-  time.
+  time. The auth-subject slice later generalized its current storage name to the
+  Staff member-mutation journal without changing these semantics.
 - Use a tenant/Staff/operation composite key, a Staff foreign key, provider-
   agnostic domain/application contracts, and a project PostgreSQL migration.
 - Treat the request fingerprint as pseudonymous personal data. Catalogue it,
@@ -98,8 +100,9 @@ fails closed.
 
 ## Deferred Follow-Up
 
-- Add durable operation identities for Auth-subject changes, employment
-  lifecycle transitions, and property assignments in later Staff slices.
+- Auth-subject changes were completed in
+  `staff-auth-subject-idempotency-task.md`. Employment lifecycle transitions and
+  property assignments remain later Staff slices.
 - Reconsider a generic GMA operation-journal abstraction only after another
   module proves identical storage, replay, privacy, and lifecycle semantics.
 

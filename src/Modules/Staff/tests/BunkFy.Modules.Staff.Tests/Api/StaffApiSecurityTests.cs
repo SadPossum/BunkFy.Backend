@@ -108,6 +108,39 @@ public sealed class StaffApiSecurityTests
     }
 
     [Fact]
+    public void Admin_cli_requires_operation_identity_for_account_link_changes()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        AdminCliGlobalOptions options = provider
+            .GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new StaffAdminCliModule().MapCommands(registry);
+        string[] command =
+        [
+            "staff", "set-auth-subject",
+            "--staff-member-id", "73000000-0000-0000-0000-000000000004",
+            "--auth-subject-id", "account-maya",
+            "--expected-version", "4",
+            "--yes"
+        ];
+
+        Assert.NotEmpty(root.Parse(command).Errors);
+        Assert.Empty(root.Parse([
+            .. command,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000005"
+        ]).Errors);
+    }
+
+    [Fact]
     public async Task Directory_and_sensitive_profile_routes_have_distinct_permissions()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
@@ -145,8 +178,8 @@ public sealed class StaffApiSecurityTests
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Get, member);
         AssertResponse<StaffMemberDto>(endpoints, HttpMethods.Get, $"{member}/profile");
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Post, "/api/staff/members");
-        AssertResponse<StaffProfileMutationReceiptDto>(endpoints, HttpMethods.Put, member);
-        AssertResponse<StaffDirectoryMemberDto>(
+        AssertResponse<StaffMemberMutationReceiptDto>(endpoints, HttpMethods.Put, member);
+        AssertResponse<StaffMemberMutationReceiptDto>(
             endpoints,
             HttpMethods.Put,
             $"{member}/auth-subject");

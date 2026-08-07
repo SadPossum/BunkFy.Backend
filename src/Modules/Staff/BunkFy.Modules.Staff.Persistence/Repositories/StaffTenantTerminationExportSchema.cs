@@ -19,7 +19,7 @@ internal static class StaffTenantTerminationExportSchema
     private static readonly Type[] SourceTypes =
     [
         typeof(StaffMemberTenantExport),
-        typeof(StaffProfileUpdateOperationTenantExport),
+        typeof(StaffMemberMutationOperationTenantExport),
         typeof(StaffPropertyAssignmentTenantExport),
         typeof(StaffDataRightsCorrectionReceiptTenantExport),
         typeof(StaffProcessingRestrictionTenantExport),
@@ -42,10 +42,10 @@ internal static class StaffTenantTerminationExportSchema
             "staff.profile-state",
             "include-in-authorized-staff-or-tenant-export"),
         Attribution<StaffMemberTenantExport>(),
-        Binding<StaffProfileUpdateOperationTenantExport>(
-            nameof(StaffProfileUpdateOperationTenantExport
-                .ProfileUpdateOperation),
-            "staff.profile-update-operation",
+        Binding<StaffMemberMutationOperationTenantExport>(
+            nameof(StaffMemberMutationOperationTenantExport
+                .MemberMutationOperation),
+            "staff.member-mutation-operation",
             "include-in-authorized-staff-or-tenant-export"),
         Binding<StaffPropertyAssignmentTenantExport>(
             nameof(StaffPropertyAssignmentTenantExport.AssignmentState),

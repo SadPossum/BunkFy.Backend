@@ -201,30 +201,49 @@ public sealed partial class StaffMember
     public Result SetAuthSubject(string? authSubjectId, long expectedVersion, string actorId,
         Guid eventId, DateTimeOffset nowUtc)
     {
-        if (!StaffProfile.TryNormalizeAuthSubject(authSubjectId, out string? normalized))
+        Result<StaffAuthSubject> subject = StaffAuthSubject.Create(
+            authSubjectId);
+        if (subject.IsFailure)
         {
-            return Result.Failure(StaffDomainErrors.AuthSubjectInvalid);
+            return Result.Failure(subject.Error);
         }
 
-        if (string.Equals(this.AuthSubjectId, normalized, StringComparison.Ordinal))
-        {
-            return Result.Success();
-        }
+        Result<StaffActorId> actor = StaffActorId.Create(actorId);
+        return actor.IsSuccess
+            ? this.SetAuthSubject(
+                subject.Value,
+                expectedVersion,
+                actor.Value,
+                eventId,
+                nowUtc)
+            : Result.Failure(actor.Error);
+    }
 
+    public Result SetAuthSubject(
+        StaffAuthSubject authSubject,
+        long expectedVersion,
+        StaffActorId actor,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(authSubject);
+        ArgumentNullException.ThrowIfNull(actor);
         Result ready = this.EnsureMutable(expectedVersion, eventId);
         if (ready.IsFailure)
         {
             return ready;
         }
 
-        Result<StaffActorId> actor = StaffActorId.Create(actorId);
-        if (actor.IsFailure)
+        if (string.Equals(
+                this.AuthSubjectId,
+                authSubject.Value,
+                StringComparison.Ordinal))
         {
-            return Result.Failure(actor.Error);
+            return Result.Success();
         }
 
-        this.AuthSubjectId = normalized;
-        this.Advance(actor.Value, nowUtc);
+        this.AuthSubjectId = authSubject.Value;
+        this.Advance(actor, nowUtc);
         this.RaiseDomainEvent(new StaffAuthSubjectChangedDomainEvent(eventId, nowUtc, this.ScopeId,
             this.Id, this.AuthSubjectId, this.Version));
         return Result.Success();

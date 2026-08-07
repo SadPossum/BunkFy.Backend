@@ -13,7 +13,7 @@ public sealed record StaffProfile
     public const int EmployeeNumberMaxLength = 64;
     public const int JobTitleMaxLength = 128;
     public const int DepartmentMaxLength = 128;
-    public const int AuthSubjectIdMaxLength = 256;
+    public const int AuthSubjectIdMaxLength = StaffAuthSubject.MaxLength;
 
     private StaffProfile(string displayName, string? legalName, string? workEmail, string? workPhone,
         string? employeeNumber, string? jobTitle, string? department, string? authSubjectId)
@@ -62,7 +62,8 @@ public sealed record StaffProfile
         string? employee = NormalizeOptional(employeeNumber);
         string? title = NormalizeOptional(jobTitle);
         string? departmentValue = NormalizeOptional(department);
-        bool subjectValid = TryNormalizeAuthSubject(authSubjectId, out string? subject);
+        Result<StaffAuthSubject> subject = StaffAuthSubject.Create(
+            authSubjectId);
 
         if (legal?.Length > LegalNameMaxLength)
         {
@@ -94,19 +95,13 @@ public sealed record StaffProfile
             return Result.Failure<StaffProfile>(StaffDomainErrors.DepartmentInvalid);
         }
 
-        if (!subjectValid)
+        if (subject.IsFailure)
         {
-            return Result.Failure<StaffProfile>(StaffDomainErrors.AuthSubjectInvalid);
+            return Result.Failure<StaffProfile>(subject.Error);
         }
 
         return Result.Success(new StaffProfile(name, legal, email, phone, employee, title,
-            departmentValue, subject));
-    }
-
-    internal static bool TryNormalizeAuthSubject(string? value, out string? normalized)
-    {
-        normalized = NormalizeOptional(value);
-        return normalized is null || normalized.Length <= AuthSubjectIdMaxLength;
+            departmentValue, subject.Value.Value));
     }
 
     internal static string? NormalizeOptional(string? value)

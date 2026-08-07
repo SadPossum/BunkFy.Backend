@@ -7,5 +7,5 @@ using BunkFy.Modules.Staff.Contracts;
 public sealed record UpdateStaffMemberCommand(Guid OperationId, Guid StaffMemberId,
     string DisplayName, string? LegalName,
     string? WorkEmail, string? WorkPhone, string? EmployeeNumber, string? JobTitle, string? Department,
-    long ExpectedVersion, string ActorId) : ITransactionalCommand<StaffProfileMutationReceiptDto>,
+    long ExpectedVersion, string ActorId) : ITransactionalCommand<StaffMemberMutationReceiptDto>,
     IStaffPersistenceRetryableCommand;

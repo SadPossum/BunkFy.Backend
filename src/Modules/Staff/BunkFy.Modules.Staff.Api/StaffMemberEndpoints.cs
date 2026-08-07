@@ -64,7 +64,7 @@ internal static class StaffMemberEndpoints
                 request.ExpectedVersion,
                 StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffProfileMutationReceiptDto>(StatusCodes.Status200OK)
+        }).Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);
@@ -72,10 +72,14 @@ internal static class StaffMemberEndpoints
             StaffAuthSubjectRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            return (await dispatcher.SendAsync(new SetStaffAuthSubjectCommand(staffMemberId, request.AuthSubjectId,
-                request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
+            return (await dispatcher.SendAsync(new SetStaffAuthSubjectCommand(
+                request.OperationId,
+                staffMemberId,
+                request.AuthSubjectId,
+                request.ExpectedVersion,
+                StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
+        }).Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);

@@ -4,13 +4,11 @@ using BunkFy.Modules.Staff.Application.Mapping;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
-using BunkFy.Modules.Staff.Domain.Models;
-using BunkFy.Modules.Staff.Domain.ValueObjects;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
-internal sealed class StaffProfileUpdateCoordinator(
+internal sealed class StaffAuthSubjectChangeCoordinator(
     IStaffMemberRepository members,
     IStaffMemberMutationOperationRepository operations,
     ISystemClock clock,
@@ -20,15 +18,15 @@ internal sealed class StaffProfileUpdateCoordinator(
         StaffMember member,
         Guid operationId,
         long expectedVersion,
-        StaffProfileUpdateValues values,
+        StaffAuthSubjectChangeValues values,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(member);
         ArgumentNullException.ThrowIfNull(values);
-        string fingerprint = StaffProfileUpdateFingerprint.Compute(
+        string fingerprint = StaffAuthSubjectChangeFingerprint.Compute(
             member.Id,
             expectedVersion,
-            values.Profile);
+            values.AuthSubject);
         StaffMemberMutationOperationRecord? existing =
             await operations.GetAsync(
                 member.Id,
@@ -37,19 +35,19 @@ internal sealed class StaffProfileUpdateCoordinator(
         if (existing is not null)
         {
             return existing.Matches(
-                StaffMemberMutationKind.ProfileUpdate,
+                StaffMemberMutationKind.AuthSubjectChange,
                 member.Id,
                 expectedVersion,
                 fingerprint)
                 ? Result.Success(existing.ToReceipt())
                 : Result.Failure<StaffMemberMutationReceiptDto>(
-                    StaffApplicationErrors.ProfileUpdateOperationConflict);
+                    StaffApplicationErrors.AuthSubjectOperationConflict);
         }
 
         Result uniqueness = await StaffMemberUniqueness.EnsureAsync(
             members,
-            values.Profile.EmployeeNumber,
-            member.AuthSubjectId,
+            member.EmployeeNumber,
+            values.AuthSubject.Value,
             member.Id,
             cancellationToken).ConfigureAwait(false);
         if (uniqueness.IsFailure)
@@ -58,39 +56,30 @@ internal sealed class StaffProfileUpdateCoordinator(
                 uniqueness.Error);
         }
 
-        Result<StaffProfile> profile = values.ForAuthSubject(
-            member.AuthSubjectId);
-        if (profile.IsFailure)
-        {
-            return Result.Failure<StaffMemberMutationReceiptDto>(
-                profile.Error);
-        }
-
         DateTimeOffset nowUtc = StaffMutationTime.Normalize(clock.UtcNow);
-        Result<StaffProfileUpdateOutcome> updated =
-            member.UpdateProfileWithOutcome(
-                profile.Value,
-                expectedVersion,
-                values.Actor,
-                ids.NewId(),
-                nowUtc);
-        if (updated.IsFailure)
+        Result changed = member.SetAuthSubject(
+            values.AuthSubject,
+            expectedVersion,
+            values.Actor,
+            ids.NewId(),
+            nowUtc);
+        if (changed.IsFailure)
         {
             return Result.Failure<StaffMemberMutationReceiptDto>(
-                updated.Error);
+                changed.Error);
         }
 
         StaffMemberMutationReceiptDto receipt = new(
             member.Id,
             StaffMappings.MapStatus(member.Status),
-            updated.Value.CurrentVersion,
+            member.Version,
             nowUtc);
         await operations.AddAsync(
             new(
                 operationId,
                 member.ScopeId,
                 member.Id,
-                StaffMemberMutationKind.ProfileUpdate,
+                StaffMemberMutationKind.AuthSubjectChange,
                 expectedVersion,
                 fingerprint,
                 receipt.Status,

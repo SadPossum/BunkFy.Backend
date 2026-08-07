@@ -69,7 +69,7 @@ internal static class StaffSelfServiceEndpoints
                     request.ExpectedVersion,
                     $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}"),
                 token).ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
-        }).Produces<StaffProfileMutationReceiptDto>(StatusCodes.Status200OK).RequireTenant();
+        }).Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK).RequireTenant();
     }
 
     private static AccessSubject? ResolveUser(HttpContext context, IAccessHttpSubjectResolver resolver)

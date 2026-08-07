@@ -7,17 +7,17 @@ public static class StaffTenantTerminationMetadata
 {
     public const string OwnerKey = StaffModuleMetadata.Name;
     public const string DependencyOwnerKey = "guests";
-    public const int CatalogVersion = 3;
-    public const int PersonalDataCatalogVersion = 13;
+    public const int CatalogVersion = 4;
+    public const int PersonalDataCatalogVersion = 14;
     public const string ExportCatalogId = "staff.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId = "staff.tenant-termination-export";
-    public const int ExportSchemaVersion = 2;
+    public const int ExportSchemaVersion = 3;
 
     public const string StaffMemberRecordType = "staff-member";
     public const string PropertyAssignmentRecordType = "property-assignment";
-    public const string ProfileUpdateOperationRecordType =
-        "profile-update-operation";
+    public const string MemberMutationOperationRecordType =
+        "member-mutation-operation";
     public const string DataRightsCorrectionReceiptRecordType =
         "data-rights-correction-receipt";
     public const string ProcessingRestrictionRecordType =
@@ -46,7 +46,7 @@ public static class StaffTenantTerminationMetadata
         [
             StaffMemberRecordType,
             PropertyAssignmentRecordType,
-            ProfileUpdateOperationRecordType,
+            MemberMutationOperationRecordType,
             DataRightsCorrectionReceiptRecordType,
             ProcessingRestrictionRecordType,
             ProcessingRestrictionReceiptRecordType,
@@ -71,7 +71,7 @@ public static class StaffTenantTerminationMetadata
             "staff.profile-state",
             "staff.staff-attribution",
             "staff.assignment-record",
-            "staff.profile-update-operation",
+            "staff.member-mutation-operation",
             "staff.data-rights-proof",
             "staff.processing-restriction",
             "staff.employment-governance",

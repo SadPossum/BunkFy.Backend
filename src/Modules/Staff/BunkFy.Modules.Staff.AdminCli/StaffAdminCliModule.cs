@@ -107,7 +107,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         ProfileOptions options = new();
         Command command = new("update", "Update a staff profile.") { operationId, member };
         options.AddTo(command, true);
-        command.SetAction((parse, token) => ExecuteProfileMutationAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteMemberMutationAsync(services, global, parse,
             StaffAdminOperationNames.Update, StaffAdminPermissions.Manage,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                 new UpdateStaffMemberCommand(parse.GetRequiredValue(operationId),
@@ -122,19 +122,25 @@ public sealed class StaffAdminCliModule : IAdminCliModule
 
     private static Command CreateAuthSubjectCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> member = MemberOption();
         Option<string?> subject = new("--auth-subject-id");
         Option<long> version = VersionOption();
         Option<bool> yes = new("--yes");
         Command command = new("set-auth-subject", "Link, replace, or clear an Auth user subject.")
-            { member, subject, version, yes };
-        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
+            { operationId, member, subject, version, yes };
+        command.SetAction((parse, token) => ExecuteMemberMutationAsync(services, global, parse,
             StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.Manage,
             (provider, ct) => parse.GetValue(yes)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                    new SetStaffAuthSubjectCommand(parse.GetRequiredValue(member), parse.GetValue(subject),
-                        parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(AdminErrors.ConfirmationRequired)), token));
+                    new SetStaffAuthSubjectCommand(
+                        parse.GetRequiredValue(operationId),
+                        parse.GetRequiredValue(member),
+                        parse.GetValue(subject),
+                        parse.GetRequiredValue(version),
+                        Actor(parse, global)), ct)
+                : Task.FromResult(Result.Failure<StaffMemberMutationReceiptDto>(
+                    AdminErrors.ConfirmationRequired)), token));
         return command;
     }
 
@@ -248,13 +254,13 @@ public sealed class StaffAdminCliModule : IAdminCliModule
             return result;
         }, token).ConfigureAwait(false);
 
-    private static async Task<int> ExecuteProfileMutationAsync(IServiceProvider services,
+    private static async Task<int> ExecuteMemberMutationAsync(IServiceProvider services,
         AdminCliGlobalOptions global, ParseResult parse, string operation, AdminPermission permission,
-        Func<IServiceProvider, CancellationToken, Task<Result<StaffProfileMutationReceiptDto>>> action,
+        Func<IServiceProvider, CancellationToken, Task<Result<StaffMemberMutationReceiptDto>>> action,
         CancellationToken token) => await ExecuteAsync(services, global, parse, operation, permission,
         async (provider, ct) =>
         {
-            Result<StaffProfileMutationReceiptDto> result = await action(provider, ct).ConfigureAwait(false);
+            Result<StaffMemberMutationReceiptDto> result = await action(provider, ct).ConfigureAwait(false);
             if (result.IsSuccess)
             {
                 Write([result.Value], Output(parse, global));
@@ -306,7 +312,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
             ("Version", profile => profile.Version.ToString(CultureInfo.InvariantCulture))
         ]);
 
-    private static void Write(IReadOnlyCollection<StaffProfileMutationReceiptDto> receipts, string output) =>
+    private static void Write(IReadOnlyCollection<StaffMemberMutationReceiptDto> receipts, string output) =>
         AdminCliOutput.WriteRows(receipts, output,
         [
             ("StaffMemberId", receipt => receipt.StaffMemberId.ToString()),

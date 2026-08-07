@@ -104,18 +104,18 @@ public sealed class StaffModelTests
     }
 
     [Fact]
-    public void Profile_update_operations_are_scoped_immutable_member_receipts()
+    public void Member_mutation_operations_are_scoped_immutable_member_receipts()
     {
         using StaffDbContext dbContext = CreateDbContext();
         IEntityType operation = dbContext.GetService<IDesignTimeModel>()
             .Model
-            .FindEntityType(typeof(StaffProfileUpdateOperation))!;
+            .FindEntityType(typeof(StaffMemberMutationOperation))!;
 
         Assert.Equal(
             [
-                nameof(StaffProfileUpdateOperation.ScopeId),
-                nameof(StaffProfileUpdateOperation.StaffMemberId),
-                nameof(StaffProfileUpdateOperation.Id)
+                nameof(StaffMemberMutationOperation.ScopeId),
+                nameof(StaffMemberMutationOperation.StaffMemberId),
+                nameof(StaffMemberMutationOperation.Id)
             ],
             operation.FindPrimaryKey()!.Properties.Select(
                 property => property.Name));
@@ -125,25 +125,29 @@ public sealed class StaffModelTests
                 foreignKey.DeleteBehavior == DeleteBehavior.Cascade &&
                 foreignKey.Properties.Select(property => property.Name)
                     .SequenceEqual([
-                        nameof(StaffProfileUpdateOperation.ScopeId),
-                        nameof(StaffProfileUpdateOperation.StaffMemberId)
+                        nameof(StaffMemberMutationOperation.ScopeId),
+                        nameof(StaffMemberMutationOperation.StaffMemberId)
                     ]));
         Assert.Contains(
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
-                "CK_staff_profile_update_operations_versions");
+                "CK_staff_member_mutation_operations_versions");
         Assert.Contains(
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
-                "CK_staff_profile_update_operations_fingerprint");
+                "CK_staff_member_mutation_operations_fingerprint");
         Assert.Contains(
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
-                "CK_staff_profile_update_operations_status");
+                "CK_staff_member_mutation_operations_status");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_staff_member_mutation_operations_kind");
     }
 
     [Fact]
-    public async Task Profile_update_operation_updates_are_rejected_by_the_context_guard()
+    public async Task Member_mutation_operation_updates_are_rejected_by_the_context_guard()
     {
         await using StaffDbContext dbContext = CreateDbContext();
         StaffMember member = StaffMember.Create(
@@ -160,18 +164,19 @@ public sealed class StaffModelTests
             "user:owner",
             Guid.NewGuid(),
             new DateTimeOffset(2026, 8, 7, 12, 0, 0, TimeSpan.Zero)).Value;
-        StaffProfileUpdateOperation operation = new(
-            new StaffProfileUpdateOperationRecord(
+        StaffMemberMutationOperation operation = new(
+            new StaffMemberMutationOperationRecord(
                 Guid.NewGuid(),
                 member.ScopeId,
                 member.Id,
+                StaffMemberMutationKind.ProfileUpdate,
                 member.Version,
                 new string('a', 64),
                 BunkFy.Modules.Staff.Contracts.StaffStatus.Active,
                 member.Version,
                 new DateTimeOffset(2026, 8, 7, 12, 1, 0, TimeSpan.Zero)));
         dbContext.StaffMembers.Add(member);
-        dbContext.ProfileUpdateOperations.Add(operation);
+        dbContext.MemberMutationOperations.Add(operation);
         await dbContext.SaveChangesAsync();
         dbContext.Entry(operation)
             .Property(item => item.ExpectedVersion)

@@ -73,18 +73,23 @@ public sealed class StaffAdminApiModule : IAdminApiModule
                     staffMemberId, request.DisplayName, request.LegalName, request.WorkEmail, request.WorkPhone,
                     request.EmployeeNumber, request.JobTitle, request.Department, request.ExpectedVersion,
                     Actor(context)), ct), token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
-        }).Produces<StaffProfileMutationReceiptDto>(StatusCodes.Status200OK);
+        }).Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPut("/{staffMemberId:guid}/auth-subject", async (Guid staffMemberId,
             StaffAuthSubjectRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
             return await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.Manage), true,
-                ct => request.Confirmed ? dispatcher.SendAsync(new SetStaffAuthSubjectCommand(staffMemberId,
-                    request.AuthSubjectId, request.ExpectedVersion, Actor(context)), ct)
-                    : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(AdminErrors.ConfirmationRequired)),
+                ct => request.Confirmed ? dispatcher.SendAsync(new SetStaffAuthSubjectCommand(
+                    request.OperationId,
+                    staffMemberId,
+                    request.AuthSubjectId,
+                    request.ExpectedVersion,
+                    Actor(context)), ct)
+                    : Task.FromResult(Result.Failure<StaffMemberMutationReceiptDto>(
+                        AdminErrors.ConfirmationRequired)),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
-        }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
+        }).Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/suspend", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
@@ -138,7 +143,8 @@ public sealed class StaffAdminApiModule : IAdminApiModule
     public sealed record StaffProfileUpdateRequest(Guid OperationId, string DisplayName, string? LegalName,
         string? WorkEmail, string? WorkPhone, string? EmployeeNumber, string? JobTitle,
         string? Department, long ExpectedVersion);
-    public sealed record StaffAuthSubjectRequest(string? AuthSubjectId, long ExpectedVersion, bool Confirmed);
+    public sealed record StaffAuthSubjectRequest(Guid OperationId, string? AuthSubjectId,
+        long ExpectedVersion, bool Confirmed);
     public sealed record StaffLifecycleRequest(string Reason, long ExpectedVersion);
     public sealed record StaffDepartureRequest(DateOnly EffectiveOn, string Reason,
         long ExpectedVersion, bool Confirmed);
@@ -169,9 +175,11 @@ public sealed class StaffAdminApiModule : IAdminApiModule
         new(StaffApplicationErrors.AuthSubjectConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.ProfileUpdateOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.AuthSubjectOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffSuspended.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffDeparted.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest),
-        new(StaffApplicationErrors.ProfileUpdateOperationInvalid.Code, StatusCodes.Status400BadRequest));
+        new(StaffApplicationErrors.ProfileUpdateOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.AuthSubjectOperationInvalid.Code, StatusCodes.Status400BadRequest));
 }

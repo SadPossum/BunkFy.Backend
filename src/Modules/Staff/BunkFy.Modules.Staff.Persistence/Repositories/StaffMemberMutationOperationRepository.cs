@@ -3,16 +3,16 @@ namespace BunkFy.Modules.Staff.Persistence.Repositories;
 using BunkFy.Modules.Staff.Application.Ports;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class StaffProfileUpdateOperationRepository(
-    StaffDbContext dbContext) : IStaffProfileUpdateOperationRepository
+internal sealed class StaffMemberMutationOperationRepository(
+    StaffDbContext dbContext) : IStaffMemberMutationOperationRepository
 {
-    public async Task<StaffProfileUpdateOperationRecord?> GetAsync(
+    public async Task<StaffMemberMutationOperationRecord?> GetAsync(
         Guid staffMemberId,
         Guid operationId,
         CancellationToken cancellationToken)
     {
-        StaffProfileUpdateOperation? operation = await dbContext
-            .ProfileUpdateOperations
+        StaffMemberMutationOperation? operation = await dbContext
+            .MemberMutationOperations
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 item => item.StaffMemberId == staffMemberId &&
@@ -22,18 +22,18 @@ internal sealed class StaffProfileUpdateOperationRepository(
     }
 
     public Task AddAsync(
-        StaffProfileUpdateOperationRecord operation,
+        StaffMemberMutationOperationRecord operation,
         CancellationToken cancellationToken)
     {
-        dbContext.ProfileUpdateOperations.Add(
-            new StaffProfileUpdateOperation(operation));
+        dbContext.MemberMutationOperations.Add(
+            new StaffMemberMutationOperation(operation));
         return Task.CompletedTask;
     }
 
     public async Task DeleteForStaffMemberAsync(
         Guid staffMemberId,
         CancellationToken cancellationToken) =>
-        _ = await dbContext.ProfileUpdateOperations
+        _ = await dbContext.MemberMutationOperations
             .Where(operation =>
                 operation.StaffMemberId == staffMemberId)
             .ExecuteDeleteAsync(cancellationToken)

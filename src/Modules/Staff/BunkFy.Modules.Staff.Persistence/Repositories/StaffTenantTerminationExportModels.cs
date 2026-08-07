@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Staff.Persistence.Repositories;
 
+using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Domain.Retention;
@@ -44,17 +45,18 @@ internal sealed record StaffChangeAttributionTenantExport(
     string CreatedBy,
     string LastChangedBy);
 
-internal sealed record StaffProfileUpdateOperationTenantExport(
+internal sealed record StaffMemberMutationOperationTenantExport(
     [property: StaffTenantExportField("staff.scope-id")]
     string ScopeId,
     [property: StaffTenantExportField("staff.staff-member-id")]
     Guid StaffMemberId,
     [property: StaffTenantExportField("staff.record-id")]
     Guid OperationId,
-    [property: StaffTenantExportField("staff.profile-update-operation")]
-    StaffProfileUpdateOperationStateTenantExport ProfileUpdateOperation);
+    [property: StaffTenantExportField("staff.member-mutation-operation")]
+    StaffMemberMutationOperationStateTenantExport MemberMutationOperation);
 
-internal sealed record StaffProfileUpdateOperationStateTenantExport(
+internal sealed record StaffMemberMutationOperationStateTenantExport(
+    StaffMemberMutationKind Kind,
     long ExpectedVersion,
     string RequestFingerprint,
     StaffContractStatus ResultStatus,

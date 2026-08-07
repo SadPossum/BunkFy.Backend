@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Staff.Persistence.Repositories;
 
+using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Contracts;
@@ -67,10 +68,11 @@ internal sealed record StaffDataHoldDataRightsExport(
     DateTimeOffset? ReleasedAtUtc,
     long Version);
 
-internal sealed record StaffProfileUpdateOperationDataRightsExport(
+internal sealed record StaffMemberMutationOperationDataRightsExport(
     Guid OperationId,
     string ScopeId,
     Guid StaffMemberId,
+    StaffMemberMutationKind Kind,
     long ExpectedVersion,
     string RequestFingerprint,
     StaffStatus ResultStatus,

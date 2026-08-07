@@ -15,5 +15,5 @@ public sealed record UpdateCurrentStaffMemberCommand(
     string? JobTitle,
     string? Department,
     long ExpectedVersion,
-    string ActorId) : ITransactionalCommand<StaffProfileMutationReceiptDto>,
+    string ActorId) : ITransactionalCommand<StaffMemberMutationReceiptDto>,
     IStaffPersistenceRetryableCommand;

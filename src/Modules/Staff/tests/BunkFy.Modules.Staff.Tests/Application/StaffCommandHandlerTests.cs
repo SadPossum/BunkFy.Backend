@@ -211,10 +211,10 @@ public sealed class StaffCommandHandlerTests
             new FakePropertyProjectionRepository(),
             operationLock: operationLock);
         var handler = provider.GetRequiredService<
-            ICommandHandler<UpdateStaffMemberCommand, StaffProfileMutationReceiptDto>>();
+            ICommandHandler<UpdateStaffMemberCommand, StaffMemberMutationReceiptDto>>();
         long selectedVersion = member.Version;
 
-        Result<StaffProfileMutationReceiptDto> result = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
             new UpdateStaffMemberCommand(
                 Guid.NewGuid(),
                 member.Id,
@@ -240,13 +240,13 @@ public sealed class StaffCommandHandlerTests
     public async Task Profile_update_replays_an_equivalent_request_without_a_second_mutation()
     {
         StaffMember member = CreateMember();
-        RecordingProfileUpdateOperations operations = new();
+        RecordingMemberMutationOperations operations = new();
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
             new FakePropertyProjectionRepository(),
-            profileUpdateOperations: operations);
+            memberMutationOperations: operations);
         var handler = provider.GetRequiredService<
-            ICommandHandler<UpdateStaffMemberCommand, StaffProfileMutationReceiptDto>>();
+            ICommandHandler<UpdateStaffMemberCommand, StaffMemberMutationReceiptDto>>();
         Guid operationId = Guid.NewGuid();
         long expectedVersion = member.Version;
         UpdateStaffMemberCommand command = UpdateCommand(
@@ -255,11 +255,11 @@ public sealed class StaffCommandHandlerTests
             expectedVersion,
             displayName: "  Grace Operator  ");
 
-        Result<StaffProfileMutationReceiptDto> first = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
             command,
             CancellationToken.None);
         int eventCount = member.DomainEvents.Count;
-        Result<StaffProfileMutationReceiptDto> replay = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
             command,
             CancellationToken.None);
 
@@ -276,23 +276,23 @@ public sealed class StaffCommandHandlerTests
     public async Task Profile_update_rejects_changed_reuse_and_a_distinct_stale_operation()
     {
         StaffMember member = CreateMember();
-        RecordingProfileUpdateOperations operations = new();
+        RecordingMemberMutationOperations operations = new();
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
             new FakePropertyProjectionRepository(),
-            profileUpdateOperations: operations);
+            memberMutationOperations: operations);
         var handler = provider.GetRequiredService<
-            ICommandHandler<UpdateStaffMemberCommand, StaffProfileMutationReceiptDto>>();
+            ICommandHandler<UpdateStaffMemberCommand, StaffMemberMutationReceiptDto>>();
         Guid operationId = Guid.NewGuid();
         long expectedVersion = member.Version;
 
-        Result<StaffProfileMutationReceiptDto> first = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
             UpdateCommand(member, operationId, expectedVersion, "Grace Operator"),
             CancellationToken.None);
-        Result<StaffProfileMutationReceiptDto> changedReuse = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> changedReuse = await handler.HandleAsync(
             UpdateCommand(member, operationId, expectedVersion, "Different Operator"),
             CancellationToken.None);
-        Result<StaffProfileMutationReceiptDto> stale = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> stale = await handler.HandleAsync(
             UpdateCommand(member, Guid.NewGuid(), expectedVersion, "Different Operator"),
             CancellationToken.None);
 
@@ -307,17 +307,17 @@ public sealed class StaffCommandHandlerTests
     public async Task Profile_update_records_an_exact_no_op_without_an_event_or_version_change()
     {
         StaffMember member = CreateMember();
-        RecordingProfileUpdateOperations operations = new();
+        RecordingMemberMutationOperations operations = new();
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
             new FakePropertyProjectionRepository(),
-            profileUpdateOperations: operations);
+            memberMutationOperations: operations);
         var handler = provider.GetRequiredService<
-            ICommandHandler<UpdateStaffMemberCommand, StaffProfileMutationReceiptDto>>();
+            ICommandHandler<UpdateStaffMemberCommand, StaffMemberMutationReceiptDto>>();
         int eventCount = member.DomainEvents.Count;
         long expectedVersion = member.Version;
 
-        Result<StaffProfileMutationReceiptDto> result = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
             UpdateCommand(member, Guid.NewGuid(), expectedVersion, member.DisplayName),
             CancellationToken.None);
 
@@ -333,16 +333,16 @@ public sealed class StaffCommandHandlerTests
     {
         StaffMember member = CreateMember();
         RecordingOperationLock operationLock = new();
-        RecordingProfileUpdateOperations operations = new();
+        RecordingMemberMutationOperations operations = new();
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
             new FakePropertyProjectionRepository(),
             operationLock: operationLock,
-            profileUpdateOperations: operations);
+            memberMutationOperations: operations);
         var handler = provider.GetRequiredService<
-            ICommandHandler<UpdateStaffMemberCommand, StaffProfileMutationReceiptDto>>();
+            ICommandHandler<UpdateStaffMemberCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffProfileMutationReceiptDto> result = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
             UpdateCommand(
                 member,
                 Guid.NewGuid(),
@@ -360,10 +360,224 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
+    public async Task Auth_subject_change_replays_normalized_input_without_a_second_event()
+    {
+        StaffMember member = CreateMember("user-100");
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SetStaffAuthSubjectCommand, StaffMemberMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = member.Version;
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                operationId,
+                member.Id,
+                " user-200 ",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+        int eventCount = member.DomainEvents.Count;
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                operationId,
+                member.Id,
+                "user-200",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal("user-200", member.AuthSubjectId);
+        Assert.Equal(expectedVersion + 1, member.Version);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        StaffMemberMutationOperationRecord operation =
+            Assert.Single(operations.Records);
+        Assert.Equal(
+            StaffMemberMutationKind.AuthSubjectChange,
+            operation.Kind);
+    }
+
+    [Fact]
+    public async Task Auth_subject_change_rejects_changed_or_cross_kind_operation_reuse()
+    {
+        StaffMember member = CreateMember("user-100");
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SetStaffAuthSubjectCommand, StaffMemberMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = member.Version;
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                operationId,
+                member.Id,
+                "user-200",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> changed = await handler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                operationId,
+                member.Id,
+                "user-300",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.Equal(
+            StaffApplicationErrors.AuthSubjectOperationConflict,
+            changed.Error);
+
+        Guid profileOperationId = Guid.NewGuid();
+        operations.Records.Add(new StaffMemberMutationOperationRecord(
+            profileOperationId,
+            member.ScopeId,
+            member.Id,
+            StaffMemberMutationKind.ProfileUpdate,
+            member.Version,
+            new string('a', 64),
+            StaffStatus.Active,
+            member.Version,
+            TestClock.Now));
+        Result<StaffMemberMutationReceiptDto> crossKind =
+            await handler.HandleAsync(
+                new SetStaffAuthSubjectCommand(
+                    profileOperationId,
+                    member.Id,
+                    "user-200",
+                    member.Version,
+                    "user:owner"),
+                CancellationToken.None);
+
+        Assert.Equal(
+            StaffApplicationErrors.AuthSubjectOperationConflict,
+            crossKind.Error);
+    }
+
+    [Fact]
+    public async Task Auth_subject_no_op_records_a_receipt_but_a_distinct_stale_no_op_fails()
+    {
+        StaffMember member = CreateMember("user-100");
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SetStaffAuthSubjectCommand, StaffMemberMutationReceiptDto>>();
+        long selectedVersion = member.Version;
+        int eventCount = member.DomainEvents.Count;
+
+        Result<StaffMemberMutationReceiptDto> noOp = await handler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                Guid.NewGuid(),
+                member.Id,
+                " user-100 ",
+                selectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(noOp.IsSuccess, noOp.Error.Code);
+        Assert.Equal(selectedVersion, noOp.Value.Version);
+        Assert.Equal(selectedVersion, member.Version);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+
+        Result changed = member.SetAuthSubject(
+            "user-200",
+            member.Version,
+            "system:identity-sync",
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(1));
+        Result<StaffMemberMutationReceiptDto> staleNoOp =
+            await handler.HandleAsync(
+                new SetStaffAuthSubjectCommand(
+                    Guid.NewGuid(),
+                    member.Id,
+                    "user-200",
+                    selectedVersion,
+                    "user:owner"),
+                CancellationToken.None);
+
+        Assert.True(changed.IsSuccess, changed.Error.Code);
+        Assert.Equal(StaffApplicationErrors.VersionConflict, staleNoOp.Error);
+        Assert.Single(operations.Records);
+    }
+
+    [Fact]
+    public async Task Auth_subject_change_validates_actor_and_visibility_before_receipt_lookup()
+    {
+        StaffMember member = CreateMember("user-100");
+        FakeStaffMemberRepository members = new(member)
+        {
+            OperationallyVisible = false
+        };
+        RecordingOperationLock operationLock = new();
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            operationLock: operationLock,
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SetStaffAuthSubjectCommand, StaffMemberMutationReceiptDto>>();
+
+        Result<StaffMemberMutationReceiptDto> invalidOperation =
+            await handler.HandleAsync(
+                new SetStaffAuthSubjectCommand(
+                    Guid.Empty,
+                    member.Id,
+                    "user-200",
+                    member.Version,
+                    "user:owner"),
+                CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> invalidActor =
+            await handler.HandleAsync(
+                new SetStaffAuthSubjectCommand(
+                    Guid.NewGuid(),
+                    member.Id,
+                    "user-200",
+                    member.Version,
+                    " "),
+                CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> hidden =
+            await handler.HandleAsync(
+                new SetStaffAuthSubjectCommand(
+                    Guid.NewGuid(),
+                    member.Id,
+                    "user-200",
+                    member.Version,
+                    "user:owner"),
+                CancellationToken.None);
+
+        Assert.Equal(
+            StaffApplicationErrors.AuthSubjectOperationInvalid,
+            invalidOperation.Error);
+        Assert.True(invalidActor.IsFailure);
+        Assert.Equal(
+            StaffApplicationErrors.StaffMemberNotFound,
+            hidden.Error);
+        Assert.Single(operationLock.Acquisitions);
+        Assert.Equal(0, operations.GetCount);
+        Assert.Empty(operations.Records);
+    }
+
+    [Fact]
     public async Task Self_service_profile_update_rechecks_auth_subject_after_locking()
     {
         StaffMember member = CreateMember("user-100");
-        RecordingProfileUpdateOperations operations = new();
+        RecordingMemberMutationOperations operations = new();
         RecordingOperationLock operationLock = new(() =>
         {
             Result changed = member.SetAuthSubject(
@@ -378,11 +592,11 @@ public sealed class StaffCommandHandlerTests
             new FakeStaffMemberRepository(member),
             new FakePropertyProjectionRepository(),
             operationLock: operationLock,
-            profileUpdateOperations: operations);
+            memberMutationOperations: operations);
         var handler = provider.GetRequiredService<
-            ICommandHandler<UpdateCurrentStaffMemberCommand, StaffProfileMutationReceiptDto>>();
+            ICommandHandler<UpdateCurrentStaffMemberCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffProfileMutationReceiptDto> result = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
             new UpdateCurrentStaffMemberCommand(
                 Guid.NewGuid(),
                 "user-100",
@@ -754,7 +968,7 @@ public sealed class StaffCommandHandlerTests
         IStaffLifecyclePolicy? lifecyclePolicy = null,
         IStaffOperationLock? operationLock = null,
         IStaffCreationOperationLock? creationLock = null,
-        IStaffProfileUpdateOperationRepository? profileUpdateOperations = null)
+        IStaffMemberMutationOperationRepository? memberMutationOperations = null)
     {
         ServiceCollection services = new();
         services.AddSingleton(members);
@@ -766,7 +980,7 @@ public sealed class StaffCommandHandlerTests
         services.AddSingleton(
             creationLock ?? new NoopStaffCreationOperationLock());
         services.AddSingleton(
-            profileUpdateOperations ?? new RecordingProfileUpdateOperations());
+            memberMutationOperations ?? new RecordingMemberMutationOperations());
         if (lifecyclePolicy is not null)
         {
             services.AddSingleton(lifecyclePolicy);
@@ -1021,13 +1235,13 @@ public sealed class StaffCommandHandlerTests
         }
     }
 
-    private sealed class RecordingProfileUpdateOperations
-        : IStaffProfileUpdateOperationRepository
+    private sealed class RecordingMemberMutationOperations
+        : IStaffMemberMutationOperationRepository
     {
-        public List<StaffProfileUpdateOperationRecord> Records { get; } = [];
+        public List<StaffMemberMutationOperationRecord> Records { get; } = [];
         public int GetCount { get; private set; }
 
-        public Task<StaffProfileUpdateOperationRecord?> GetAsync(
+        public Task<StaffMemberMutationOperationRecord?> GetAsync(
             Guid staffMemberId,
             Guid operationId,
             CancellationToken cancellationToken)
@@ -1039,7 +1253,7 @@ public sealed class StaffCommandHandlerTests
         }
 
         public Task AddAsync(
-            StaffProfileUpdateOperationRecord operation,
+            StaffMemberMutationOperationRecord operation,
             CancellationToken cancellationToken)
         {
             this.Records.Add(operation);

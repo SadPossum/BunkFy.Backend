@@ -68,12 +68,13 @@ public sealed class StaffDataRightsExportContributorTests
             Now.AddMinutes(6)).IsSuccess);
         dbContext.StaffMembers.Add(member);
         Guid operationId = Guid.NewGuid();
-        dbContext.ProfileUpdateOperations.Add(
-            new StaffProfileUpdateOperation(
-                new StaffProfileUpdateOperationRecord(
+        dbContext.MemberMutationOperations.Add(
+            new StaffMemberMutationOperation(
+                new StaffMemberMutationOperationRecord(
                     operationId,
                     member.ScopeId,
                     member.Id,
+                    StaffMemberMutationKind.ProfileUpdate,
                     member.Version,
                     new string('b', 64),
                     StaffStatus.Active,
@@ -94,7 +95,7 @@ public sealed class StaffDataRightsExportContributorTests
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
         Assert.Equal(6, result.RecordCount);
         Assert.Equal("staff.personal-data", contributor.Descriptor.CatalogId);
-        Assert.Equal(13, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(14, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             StaffDataRightsExportSchema.ExportSchemaId,
             contributor.Descriptor.ExportSchemaId);
@@ -169,17 +170,17 @@ public sealed class StaffDataRightsExportContributorTests
             sink.Records,
             record => record.RecordType ==
                 StaffDataRightsExportContributor
-                    .ProfileUpdateOperationRecordType);
+                    .MemberMutationOperationRecordType);
         Assert.Equal(
             operationId,
             Field(
                 updateOperationRecord,
-                "staff.profile-update-operation.id").GetGuid());
+                "staff.member-mutation-operation.id").GetGuid());
         Assert.Equal(
             new string('b', 64),
             Field(
                 updateOperationRecord,
-                "staff.profile-update-operation.request-fingerprint")
+                "staff.member-mutation-operation.request-fingerprint")
                 .GetString());
         Assert.Equal(
             member.Version,

@@ -39,12 +39,13 @@ Canonical profile/create/update/lifecycle routes require tenant scope. Property
 discovery and assignment routes require `tenant/property` scope. Property grants
 do not satisfy tenant operations.
 
-Ordinary profile updates use a caller-owned operation id and a Staff-owned,
-immutable minimal receipt. Equivalent retries return the original result
-without another Staff version or event; changed reuse conflicts. The receipt
-stores only a canonical request fingerprint and result facts, participates in
-Staff export and tenant lifecycle, and is removed when the profile is
-anonymised.
+Ordinary profile and account-link changes use a caller-owned operation id and a
+Staff-owned, immutable minimal receipt. Equivalent retries return the original
+result without another Staff version or event; changed or cross-kind reuse
+conflicts. The shared Staff member-mutation journal stores an explicit operation
+kind, canonical request fingerprint, and result facts without duplicating the
+profile or Auth subject. It participates in Staff export and tenant lifecycle,
+and is removed when the profile is anonymised.
 
 ## Processing restrictions
 

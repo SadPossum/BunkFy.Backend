@@ -58,7 +58,7 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
         Assert.Null(fixture.Member.AuthSubjectId);
         Assert.Equal(1, fixture.Execution.AffectedCount);
         Assert.Equal(1, fixture.Executions.AddProofCount);
-        Assert.Equal(1, fixture.ProfileUpdateOperations.DeleteCount);
+        Assert.Equal(1, fixture.MemberMutationOperations.DeleteCount);
         Assert.Equal(1, fixture.Candidates.LoadCount);
         Assert.Equal(1, fixture.Lock.AcquireCount);
         Assert.Equal(1, fixture.Prerequisite?.CallCount);
@@ -171,7 +171,7 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
                 staffMemberId: member.Id,
                 departedAtUtc: departedAtUtc));
         RecordingOperationLock operationLock = new(initialRevision: 8);
-        RecordingProfileUpdateOperations profileUpdateOperations = new();
+        RecordingMemberMutationOperations memberMutationOperations = new();
         StaffRetentionPrerequisiteEvaluator prerequisites = new(
             prerequisite is null
                 ? []
@@ -181,7 +181,7 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
             candidates,
             new StubStaffMemberRepository(member),
             operationLock,
-            profileUpdateOperations,
+            memberMutationOperations,
             new StaffRetentionEligibilityEvaluator(policy.Registry),
             prerequisites,
             new TestScopeContext(member.ScopeId),
@@ -194,7 +194,7 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
             executions,
             candidates,
             operationLock,
-            profileUpdateOperations,
+            memberMutationOperations,
             prerequisite,
             execution,
             member);
@@ -205,24 +205,24 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
         RecordingExecutionRepository Executions,
         RecordingCandidateRepository Candidates,
         RecordingOperationLock Lock,
-        RecordingProfileUpdateOperations ProfileUpdateOperations,
+        RecordingMemberMutationOperations MemberMutationOperations,
         RecordingPrerequisite? Prerequisite,
         StaffRetentionExecution Execution,
         StaffMember Member);
 
-    private sealed class RecordingProfileUpdateOperations
-        : IStaffProfileUpdateOperationRepository
+    private sealed class RecordingMemberMutationOperations
+        : IStaffMemberMutationOperationRepository
     {
         public int DeleteCount { get; private set; }
 
-        public Task<StaffProfileUpdateOperationRecord?> GetAsync(
+        public Task<StaffMemberMutationOperationRecord?> GetAsync(
             Guid staffMemberId,
             Guid operationId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task AddAsync(
-            StaffProfileUpdateOperationRecord operation,
+            StaffMemberMutationOperationRecord operation,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

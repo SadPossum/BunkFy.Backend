@@ -15,13 +15,15 @@ using Gma.Framework.Results;
 using Gma.Framework.Scoping;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
-public sealed class StaffProfileUpdateOperationIntegrationTests
+public sealed class StaffMemberMutationOperationIntegrationTests
 {
     private const string TenantId =
         "a9000000-0000-0000-0000-000000000001";
@@ -31,11 +33,11 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Profile_update_receipt_is_atomic_replayable_scoped_and_immutable()
+    public async Task Member_mutation_receipts_preserve_legacy_data_and_are_atomic_replayable_scoped_and_immutable()
     {
         await using PostgreSqlContainer postgreSql =
             new PostgreSqlBuilder("postgres:16-alpine")
-                .WithDatabase("bunkfy_staff_profile_update_operation_tests")
+                .WithDatabase("bunkfy_staff_member_mutation_operation_tests")
                 .Build();
         await postgreSql.StartAsync().ConfigureAwait(false);
 
@@ -43,7 +45,10 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
         await using ServiceProvider services = CreateProvider(
             postgreSql.GetConnectionString(),
             scopeContext);
-        await MigrateAsync(services).ConfigureAwait(false);
+        await MigrateAsync(
+            services,
+            "20260807141454_AddStaffProfileUpdateOperations")
+            .ConfigureAwait(false);
 
         Guid staffMemberId = Guid.NewGuid();
         Result<StaffDirectoryMemberDto> created = await SendAsync(
@@ -61,6 +66,40 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
                 "user:operator")).ConfigureAwait(false);
         Assert.True(created.IsSuccess, created.Error.Code);
 
+        Guid legacyOperationId = Guid.NewGuid();
+        await ExecuteSqlAsync(
+            postgreSql.GetConnectionString(),
+            $$"""
+            INSERT INTO "staff"."profile_update_operations"
+                ("Id", "ScopeId", "StaffMemberId", "ExpectedVersion",
+                 "RequestFingerprint", "ResultStatus", "ResultVersion",
+                 "CompletedAtUtc")
+            VALUES
+                ('{{legacyOperationId:D}}', '{{TenantId}}',
+                 '{{staffMemberId:D}}', {{created.Value.Version}},
+                 '{{new string('a', 64)}}', 1,
+                 {{created.Value.Version}},
+                 '2026-08-07T14:30:00Z');
+            """).ConfigureAwait(false);
+        await MigrateAsync(services).ConfigureAwait(false);
+
+        using (IServiceScope migrationScope = services.CreateScope())
+        {
+            StaffMemberMutationOperationRecord preserved = Assert.IsType<
+                StaffMemberMutationOperationRecord>(
+                await migrationScope.ServiceProvider.GetRequiredService<
+                        IStaffMemberMutationOperationRepository>()
+                    .GetAsync(
+                        staffMemberId,
+                        legacyOperationId,
+                        CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.Equal(
+                StaffMemberMutationKind.ProfileUpdate,
+                preserved.Kind);
+            Assert.Equal(created.Value.Version, preserved.ResultVersion);
+        }
+
         Guid operationId = Guid.NewGuid();
         UpdateStaffMemberCommand update = new(
             operationId,
@@ -74,7 +113,7 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             "Operations",
             created.Value.Version,
             "user:operator");
-        Result<StaffProfileMutationReceiptDto>[] concurrent =
+        Result<StaffMemberMutationReceiptDto>[] concurrent =
             await Task.WhenAll(
                 SendAsync(services, update),
                 SendAsync(services, update)).ConfigureAwait(false);
@@ -83,10 +122,10 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             concurrent,
             result => Assert.True(result.IsSuccess, result.Error.Code));
         Assert.Equal(concurrent[0].Value, concurrent[1].Value);
-        StaffProfileMutationReceiptDto receipt = concurrent[0].Value;
+        StaffMemberMutationReceiptDto receipt = concurrent[0].Value;
         Assert.Equal(created.Value.Version + 1, receipt.Version);
 
-        Result<StaffProfileMutationReceiptDto> conflictingReuse =
+        Result<StaffMemberMutationReceiptDto> conflictingReuse =
             await SendAsync(
                 services,
                 update with { DisplayName = "Different reuse" })
@@ -95,7 +134,7 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             StaffApplicationErrors.ProfileUpdateOperationConflict,
             conflictingReuse.Error);
 
-        Result<StaffProfileMutationReceiptDto> stale = await SendAsync(
+        Result<StaffMemberMutationReceiptDto> stale = await SendAsync(
             services,
             update with
             {
@@ -104,25 +143,68 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             }).ConfigureAwait(false);
         Assert.Equal(StaffApplicationErrors.VersionConflict, stale.Error);
 
+        Guid authOperationId = Guid.NewGuid();
+        SetStaffAuthSubjectCommand authChange = new(
+            authOperationId,
+            staffMemberId,
+            " account-maya-updated ",
+            receipt.Version,
+            "user:operator");
+        Result<StaffMemberMutationReceiptDto>[] concurrentAuthChanges =
+            await Task.WhenAll(
+                SendAsync(services, authChange),
+                SendAsync(services, authChange with
+                {
+                    AuthSubjectId = "account-maya-updated",
+                    ActorId = "user:retrying-operator"
+                })).ConfigureAwait(false);
+        Assert.All(
+            concurrentAuthChanges,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(
+            concurrentAuthChanges[0].Value,
+            concurrentAuthChanges[1].Value);
+        StaffMemberMutationReceiptDto authReceipt =
+            concurrentAuthChanges[0].Value;
+        Assert.Equal(receipt.Version + 1, authReceipt.Version);
+
+        Result<StaffMemberMutationReceiptDto> crossKindReuse =
+            await SendAsync(
+                services,
+                update with
+                {
+                    OperationId = authOperationId,
+                    ExpectedVersion = authReceipt.Version
+                }).ConfigureAwait(false);
+        Assert.Equal(
+            StaffApplicationErrors.ProfileUpdateOperationConflict,
+            crossKindReuse.Error);
+
         await VerifyOwnerStateAsync(
             services,
             staffMemberId,
             operationId,
-            receipt).ConfigureAwait(false);
+            receipt,
+            authOperationId,
+            authReceipt).ConfigureAwait(false);
 
         scopeContext.ScopeId = OtherTenantId;
         using (IServiceScope isolatedScope = services.CreateScope())
         {
             StaffDbContext isolated = isolatedScope.ServiceProvider
                 .GetRequiredService<StaffDbContext>();
-            IStaffProfileUpdateOperationRepository operations =
+            IStaffMemberMutationOperationRepository operations =
                 isolatedScope.ServiceProvider.GetRequiredService<
-                    IStaffProfileUpdateOperationRepository>();
+                    IStaffMemberMutationOperationRepository>();
             Assert.False(await isolated.StaffMembers.AnyAsync()
                 .ConfigureAwait(false));
             Assert.Null(await operations.GetAsync(
                 staffMemberId,
                 operationId,
+                CancellationToken.None).ConfigureAwait(false));
+            Assert.Null(await operations.GetAsync(
+                staffMemberId,
+                authOperationId,
                 CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -135,18 +217,27 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             services,
             postgreSql.GetConnectionString(),
             staffMemberId,
-            receipt.Version).ConfigureAwait(false);
+            authReceipt.Version).ConfigureAwait(false);
+        await AssertFailedAuthSubjectOutboxWriteRollsBackAsync(
+            services,
+            postgreSql.GetConnectionString(),
+            staffMemberId,
+            authReceipt.Version).ConfigureAwait(false);
         await DeleteAndVerifyAsync(
             services,
             staffMemberId,
-            operationId).ConfigureAwait(false);
+            legacyOperationId,
+            operationId,
+            authOperationId).ConfigureAwait(false);
     }
 
     private static async Task VerifyOwnerStateAsync(
         ServiceProvider services,
         Guid staffMemberId,
         Guid operationId,
-        StaffProfileMutationReceiptDto receipt)
+        StaffMemberMutationReceiptDto receipt,
+        Guid authOperationId,
+        StaffMemberMutationReceiptDto authReceipt)
     {
         using IServiceScope scope = services.CreateScope();
         StaffDbContext dbContext = scope.ServiceProvider
@@ -155,23 +246,45 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             .AsNoTracking()
             .SingleAsync(candidate => candidate.Id == staffMemberId)
             .ConfigureAwait(false);
-        StaffProfileUpdateOperationRecord operation = Assert.IsType<
-            StaffProfileUpdateOperationRecord>(
+        StaffMemberMutationOperationRecord operation = Assert.IsType<
+            StaffMemberMutationOperationRecord>(
             await scope.ServiceProvider.GetRequiredService<
-                    IStaffProfileUpdateOperationRepository>()
+                    IStaffMemberMutationOperationRepository>()
                 .GetAsync(
                     staffMemberId,
                     operationId,
                     CancellationToken.None)
                 .ConfigureAwait(false));
+        StaffMemberMutationOperationRecord authOperation = Assert.IsType<
+            StaffMemberMutationOperationRecord>(
+            await scope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>()
+                .GetAsync(
+                    staffMemberId,
+                    authOperationId,
+                    CancellationToken.None)
+                .ConfigureAwait(false));
 
         Assert.Equal("Maya Chen Updated", member.DisplayName);
-        Assert.Equal(receipt.Version, member.Version);
+        Assert.Equal("account-maya-updated", member.AuthSubjectId);
+        Assert.Equal(authReceipt.Version, member.Version);
         Assert.Equal(receipt, operation.ToReceipt());
+        Assert.Equal(
+            StaffMemberMutationKind.ProfileUpdate,
+            operation.Kind);
+        Assert.Equal(authReceipt, authOperation.ToReceipt());
+        Assert.Equal(
+            StaffMemberMutationKind.AuthSubjectChange,
+            authOperation.Kind);
         Assert.Single(
             dbContext.OutboxMessages,
             message => message.EventType.Contains(
                 nameof(StaffMemberUpdatedIntegrationEvent),
+                StringComparison.Ordinal));
+        Assert.Single(
+            dbContext.OutboxMessages,
+            message => message.EventType.Contains(
+                nameof(StaffAuthSubjectChangedIntegrationEvent),
                 StringComparison.Ordinal));
     }
 
@@ -184,7 +297,7 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
         await connection.OpenAsync().ConfigureAwait(false);
         await using NpgsqlCommand command = new(
             """
-            UPDATE "staff"."profile_update_operations"
+            UPDATE "staff"."member_mutation_operations"
             SET "ResultVersion" = "ResultVersion" + 1
             WHERE "ScopeId" = @scope
               AND "StaffMemberId" = @staffMemberId
@@ -266,9 +379,9 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             .StaffMembers.AsNoTracking()
             .SingleAsync(candidate => candidate.Id == staffMemberId)
             .ConfigureAwait(false);
-        StaffProfileUpdateOperationRecord? operation =
+        StaffMemberMutationOperationRecord? operation =
             await scope.ServiceProvider.GetRequiredService<
-                    IStaffProfileUpdateOperationRepository>()
+                    IStaffMemberMutationOperationRepository>()
                 .GetAsync(
                     staffMemberId,
                     failedOperationId,
@@ -276,6 +389,77 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
                 .ConfigureAwait(false);
 
         Assert.Equal("Maya Chen Updated", persisted.DisplayName);
+        Assert.Equal("account-maya-updated", persisted.AuthSubjectId);
+        Assert.Equal(expectedVersion, persisted.Version);
+        Assert.Null(operation);
+    }
+
+    private static async Task AssertFailedAuthSubjectOutboxWriteRollsBackAsync(
+        ServiceProvider services,
+        string connectionString,
+        Guid staffMemberId,
+        long expectedVersion)
+    {
+        const string functionName =
+            "staff.fail_auth_subject_outbox_insert";
+        await ExecuteSqlAsync(
+            connectionString,
+            $$"""
+            CREATE FUNCTION {{functionName}}()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $function$
+            BEGIN
+                RAISE EXCEPTION 'Auth-subject outbox failure';
+            END;
+            $function$;
+
+            CREATE TRIGGER "TR_staff_auth_subject_outbox_failure"
+            BEFORE INSERT ON "staff"."outbox_messages"
+            FOR EACH ROW
+            EXECUTE FUNCTION {{functionName}}();
+            """).ConfigureAwait(false);
+
+        Guid failedOperationId = Guid.NewGuid();
+        try
+        {
+            await Assert.ThrowsAsync<DbUpdateException>(() => SendAsync(
+                services,
+                new SetStaffAuthSubjectCommand(
+                    failedOperationId,
+                    staffMemberId,
+                    "account-must-roll-back",
+                    expectedVersion,
+                    "user:operator")));
+        }
+        finally
+        {
+            await ExecuteSqlAsync(
+                connectionString,
+                $$"""
+                DROP TRIGGER IF EXISTS
+                    "TR_staff_auth_subject_outbox_failure"
+                    ON "staff"."outbox_messages";
+                DROP FUNCTION IF EXISTS {{functionName}}();
+                """).ConfigureAwait(false);
+        }
+
+        using IServiceScope scope = services.CreateScope();
+        StaffMember persisted = await scope.ServiceProvider
+            .GetRequiredService<StaffDbContext>()
+            .StaffMembers.AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == staffMemberId)
+            .ConfigureAwait(false);
+        StaffMemberMutationOperationRecord? operation =
+            await scope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>()
+                .GetAsync(
+                    staffMemberId,
+                    failedOperationId,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+        Assert.Equal("account-maya-updated", persisted.AuthSubjectId);
         Assert.Equal(expectedVersion, persisted.Version);
         Assert.Null(operation);
     }
@@ -283,20 +467,23 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
     private static async Task DeleteAndVerifyAsync(
         ServiceProvider services,
         Guid staffMemberId,
-        Guid operationId)
+        params Guid[] operationIds)
     {
         using IServiceScope scope = services.CreateScope();
-        IStaffProfileUpdateOperationRepository operations =
+        IStaffMemberMutationOperationRepository operations =
             scope.ServiceProvider.GetRequiredService<
-                IStaffProfileUpdateOperationRepository>();
+                IStaffMemberMutationOperationRepository>();
         await operations.DeleteForStaffMemberAsync(
             staffMemberId,
             CancellationToken.None).ConfigureAwait(false);
 
-        Assert.Null(await operations.GetAsync(
-            staffMemberId,
-            operationId,
-            CancellationToken.None).ConfigureAwait(false));
+        foreach (Guid operationId in operationIds)
+        {
+            Assert.Null(await operations.GetAsync(
+                staffMemberId,
+                operationId,
+                CancellationToken.None).ConfigureAwait(false));
+        }
     }
 
     private static async Task<Result<TResponse>> SendAsync<TResponse>(
@@ -310,11 +497,15 @@ public sealed class StaffProfileUpdateOperationIntegrationTests
             .ConfigureAwait(false);
     }
 
-    private static async Task MigrateAsync(ServiceProvider services)
+    private static async Task MigrateAsync(
+        ServiceProvider services,
+        string? targetMigration = null)
     {
         using IServiceScope scope = services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<StaffDbContext>()
-            .Database.MigrateAsync()
+        StaffDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<StaffDbContext>();
+        await dbContext.Database.GetService<IMigrator>()
+            .MigrateAsync(targetMigration)
             .ConfigureAwait(false);
     }
 

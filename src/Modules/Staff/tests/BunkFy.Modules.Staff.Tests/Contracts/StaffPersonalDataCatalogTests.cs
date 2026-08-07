@@ -122,7 +122,7 @@ public sealed class StaffPersonalDataCatalogTests
                      typeof(StaffRetentionSweepCheckpoint),
                      typeof(StaffRetentionAnonymisationReceipt),
                      typeof(StaffOperationLock),
-                     typeof(StaffProfileUpdateOperation)
+                     typeof(StaffMemberMutationOperation)
                  })
         {
             IEntityType model = dbContext.Model.FindEntityType(entityType)!;
@@ -179,7 +179,7 @@ public sealed class StaffPersonalDataCatalogTests
             typeof(StaffDataHoldDataRightsExport),
             PersonalDataSurface.DataRightsExport);
         AssertType(
-            typeof(StaffProfileUpdateOperationDataRightsExport),
+            typeof(StaffMemberMutationOperationDataRightsExport),
             PersonalDataSurface.DataRightsExport);
     }
 

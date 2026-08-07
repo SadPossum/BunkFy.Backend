@@ -24,7 +24,7 @@ internal sealed partial class StaffTenantTerminationContributor
             sink,
             count,
             cancellationToken).ConfigureAwait(false);
-        count = await this.ExportProfileUpdateOperationsAsync(
+        count = await this.ExportMemberMutationOperationsAsync(
             tenantId,
             sink,
             count,

@@ -2,15 +2,15 @@ namespace BunkFy.Modules.Staff.Application.Ports;
 
 using BunkFy.Modules.Staff.Contracts;
 
-public interface IStaffProfileUpdateOperationRepository
+public interface IStaffMemberMutationOperationRepository
 {
-    Task<StaffProfileUpdateOperationRecord?> GetAsync(
+    Task<StaffMemberMutationOperationRecord?> GetAsync(
         Guid staffMemberId,
         Guid operationId,
         CancellationToken cancellationToken);
 
     Task AddAsync(
-        StaffProfileUpdateOperationRecord operation,
+        StaffMemberMutationOperationRecord operation,
         CancellationToken cancellationToken);
 
     Task DeleteForStaffMemberAsync(
@@ -18,10 +18,11 @@ public interface IStaffProfileUpdateOperationRepository
         CancellationToken cancellationToken);
 }
 
-public sealed record StaffProfileUpdateOperationRecord(
+public sealed record StaffMemberMutationOperationRecord(
     Guid OperationId,
     string ScopeId,
     Guid StaffMemberId,
+    StaffMemberMutationKind Kind,
     long ExpectedVersion,
     string RequestFingerprint,
     StaffStatus ResultStatus,
@@ -29,9 +30,11 @@ public sealed record StaffProfileUpdateOperationRecord(
     DateTimeOffset CompletedAtUtc)
 {
     public bool Matches(
+        StaffMemberMutationKind kind,
         Guid staffMemberId,
         long expectedVersion,
         string requestFingerprint) =>
+        this.Kind == kind &&
         this.StaffMemberId == staffMemberId &&
         this.ExpectedVersion == expectedVersion &&
         string.Equals(
@@ -39,9 +42,15 @@ public sealed record StaffProfileUpdateOperationRecord(
             requestFingerprint,
             StringComparison.Ordinal);
 
-    public StaffProfileMutationReceiptDto ToReceipt() => new(
+    public StaffMemberMutationReceiptDto ToReceipt() => new(
         this.StaffMemberId,
         this.ResultStatus,
         this.ResultVersion,
         this.CompletedAtUtc);
+}
+
+public enum StaffMemberMutationKind
+{
+    ProfileUpdate = 1,
+    AuthSubjectChange = 2
 }

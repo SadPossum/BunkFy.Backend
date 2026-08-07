@@ -13,15 +13,15 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
     StaffProfileUpdateCoordinator updates)
     : ICommandHandler<
         UpdateCurrentStaffMemberCommand,
-        StaffProfileMutationReceiptDto>
+        StaffMemberMutationReceiptDto>
 {
-    public async Task<Result<StaffProfileMutationReceiptDto>> HandleAsync(
+    public async Task<Result<StaffMemberMutationReceiptDto>> HandleAsync(
         UpdateCurrentStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
         if (command.OperationId == Guid.Empty)
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 StaffApplicationErrors.ProfileUpdateOperationInvalid);
         }
 
@@ -37,7 +37,7 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
                 command.ActorId);
         if (values.IsFailure)
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 values.Error);
         }
 
@@ -45,7 +45,7 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
         if (authSubjectId.Length is 0 or
             > StaffContractLimits.AuthSubjectIdMaxLength)
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 StaffApplicationErrors.StaffMemberNotFound);
         }
 
@@ -54,7 +54,7 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
             .ConfigureAwait(false);
         if (member is null)
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 StaffApplicationErrors.StaffMemberNotFound);
         }
 
@@ -68,7 +68,7 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
                 authSubjectId,
                 StringComparison.Ordinal))
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 StaffApplicationErrors.StaffMemberNotFound);
         }
 

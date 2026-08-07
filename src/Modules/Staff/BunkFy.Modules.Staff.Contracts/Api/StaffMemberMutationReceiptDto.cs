@@ -1,6 +1,6 @@
 namespace BunkFy.Modules.Staff.Contracts;
 
-public sealed record StaffProfileMutationReceiptDto(
+public sealed record StaffMemberMutationReceiptDto(
     Guid StaffMemberId,
     StaffStatus Status,
     long Version,

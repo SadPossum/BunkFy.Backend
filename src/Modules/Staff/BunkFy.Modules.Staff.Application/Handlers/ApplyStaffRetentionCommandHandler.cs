@@ -20,7 +20,7 @@ internal sealed class ApplyStaffRetentionCommandHandler(
     IStaffRetentionCandidateRepository candidates,
     IStaffMemberRepository members,
     IStaffOperationLock operationLock,
-    IStaffProfileUpdateOperationRepository profileUpdateOperations,
+    IStaffMemberMutationOperationRepository memberMutationOperations,
     StaffRetentionEligibilityEvaluator eligibility,
     StaffRetentionPrerequisiteEvaluator prerequisites,
     IScopeContext scopeContext,
@@ -257,7 +257,7 @@ internal sealed class ApplyStaffRetentionCommandHandler(
                 recorded.Error);
         }
 
-        await profileUpdateOperations.DeleteForStaffMemberAsync(
+        await memberMutationOperations.DeleteForStaffMemberAsync(
             command.StaffMemberId,
             cancellationToken).ConfigureAwait(false);
         await executions.AddAnonymisationProofAsync(

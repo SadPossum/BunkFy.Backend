@@ -11,15 +11,15 @@ internal sealed class UpdateStaffMemberCommandHandler(
     StaffProfileUpdateCoordinator updates)
     : ICommandHandler<
         UpdateStaffMemberCommand,
-        StaffProfileMutationReceiptDto>
+        StaffMemberMutationReceiptDto>
 {
-    public async Task<Result<StaffProfileMutationReceiptDto>> HandleAsync(
+    public async Task<Result<StaffMemberMutationReceiptDto>> HandleAsync(
         UpdateStaffMemberCommand command,
         CancellationToken cancellationToken)
     {
         if (command.OperationId == Guid.Empty)
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 StaffApplicationErrors.ProfileUpdateOperationInvalid);
         }
 
@@ -35,7 +35,7 @@ internal sealed class UpdateStaffMemberCommandHandler(
                 command.ActorId);
         if (values.IsFailure)
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 values.Error);
         }
 
@@ -45,7 +45,7 @@ internal sealed class UpdateStaffMemberCommandHandler(
             .ConfigureAwait(false);
         if (member is null)
         {
-            return Result.Failure<StaffProfileMutationReceiptDto>(
+            return Result.Failure<StaffMemberMutationReceiptDto>(
                 StaffApplicationErrors.StaffMemberNotFound);
         }
 

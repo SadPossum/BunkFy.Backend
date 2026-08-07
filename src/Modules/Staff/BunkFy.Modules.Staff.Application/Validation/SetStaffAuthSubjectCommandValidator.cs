@@ -8,6 +8,11 @@ internal sealed class SetStaffAuthSubjectCommandValidator : ICommandValidator<Se
 {
     public IEnumerable<string> Validate(SetStaffAuthSubjectCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.StaffMemberId == Guid.Empty)
         {
             yield return "StaffMemberId is required.";

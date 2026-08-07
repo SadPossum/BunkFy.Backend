@@ -72,7 +72,7 @@ public sealed class ApplyStaffAnonymisationCommandHandlerTests
             scenario.Anonymisation.Tombstone.Matches(
                 scenario.Anonymisation.Receipt));
         Assert.Equal(1, scenario.Anonymisation.AddCount);
-        Assert.Equal(1, scenario.ProfileUpdateOperations.DeleteCount);
+        Assert.Equal(1, scenario.MemberMutationOperations.DeleteCount);
         Assert.Equal(1, scenario.OperationLock.AcquireCount);
         Assert.Equal(1, scenario.ApprovalGate.CallCount);
     }
@@ -101,7 +101,7 @@ public sealed class ApplyStaffAnonymisationCommandHandlerTests
         Assert.Equal(first.Value, replay.Value);
         Assert.Equal(3, scenario.Member.Version);
         Assert.Equal(1, scenario.Anonymisation.AddCount);
-        Assert.Equal(1, scenario.ProfileUpdateOperations.DeleteCount);
+        Assert.Equal(1, scenario.MemberMutationOperations.DeleteCount);
         Assert.Equal(1, scenario.OperationLock.AcquireCount);
         Assert.Equal(1, scenario.ApprovalGate.CallCount);
     }
@@ -236,7 +236,7 @@ public sealed class ApplyStaffAnonymisationCommandHandlerTests
             evidence,
             "user:privacy-executor");
         RecordingAnonymisationRepository anonymisation = new();
-        RecordingProfileUpdateOperations profileUpdateOperations = new();
+        RecordingMemberMutationOperations memberMutationOperations = new();
         RecordingOperationLock operationLock = new();
         RecordingApprovalGate approvalGate = new(evidence);
         return new(
@@ -246,7 +246,7 @@ public sealed class ApplyStaffAnonymisationCommandHandlerTests
             holds,
             command,
             anonymisation,
-            profileUpdateOperations,
+            memberMutationOperations,
             operationLock,
             approvalGate);
     }
@@ -323,7 +323,7 @@ public sealed class ApplyStaffAnonymisationCommandHandlerTests
         IReadOnlyCollection<StaffDataHold> Holds,
         ApplyStaffAnonymisationCommand Command,
         RecordingAnonymisationRepository Anonymisation,
-        RecordingProfileUpdateOperations ProfileUpdateOperations,
+        RecordingMemberMutationOperations MemberMutationOperations,
         RecordingOperationLock OperationLock,
         RecordingApprovalGate ApprovalGate)
     {
@@ -336,7 +336,7 @@ public sealed class ApplyStaffAnonymisationCommandHandlerTests
                 new StubHoldRepository(this.Holds),
                 this.OperationLock,
                 this.Anonymisation,
-                this.ProfileUpdateOperations,
+                this.MemberMutationOperations,
                 this.ApprovalGate,
                 new TestScopeContext(),
                 new TestClock(),
@@ -493,19 +493,19 @@ public sealed class ApplyStaffAnonymisationCommandHandlerTests
         }
     }
 
-    private sealed class RecordingProfileUpdateOperations
-        : IStaffProfileUpdateOperationRepository
+    private sealed class RecordingMemberMutationOperations
+        : IStaffMemberMutationOperationRepository
     {
         public int DeleteCount { get; private set; }
 
-        public Task<StaffProfileUpdateOperationRecord?> GetAsync(
+        public Task<StaffMemberMutationOperationRecord?> GetAsync(
             Guid staffMemberId,
             Guid operationId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task AddAsync(
-            StaffProfileUpdateOperationRecord operation,
+            StaffMemberMutationOperationRecord operation,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

@@ -121,19 +121,20 @@ internal static class StaffDataRightsExportSchema
                 (nameof(hold.Version), hold.Version)
             ]);
 
-    public static DataRightsExportRecord CreateProfileUpdateOperationRecord(
-        StaffProfileUpdateOperationDataRightsExport operation) =>
+    public static DataRightsExportRecord CreateMemberMutationOperationRecord(
+        StaffMemberMutationOperationDataRightsExport operation) =>
         CreateRecord(
-            StaffDataRightsExportContributor.ProfileUpdateOperationRecordType,
+            StaffDataRightsExportContributor.MemberMutationOperationRecordType,
             DataRightsExportRecordIds.CreateDeterministicChild(
                 operation.StaffMemberId,
                 operation.OperationId.ToString("N")),
             operation.ResultVersion,
-            typeof(StaffProfileUpdateOperationDataRightsExport),
+            typeof(StaffMemberMutationOperationDataRightsExport),
             [
                 (nameof(operation.OperationId), operation.OperationId),
                 (nameof(operation.ScopeId), operation.ScopeId),
                 (nameof(operation.StaffMemberId), operation.StaffMemberId),
+                (nameof(operation.Kind), operation.Kind),
                 (nameof(operation.ExpectedVersion), operation.ExpectedVersion),
                 (nameof(operation.RequestFingerprint), operation.RequestFingerprint),
                 (nameof(operation.ResultStatus), operation.ResultStatus),
@@ -214,7 +215,7 @@ internal static class StaffDataRightsExportSchema
             typeof(StaffAssignmentDataRightsExport),
             typeof(StaffEmploymentGovernanceDataRightsExport),
             typeof(StaffDataHoldDataRightsExport),
-            typeof(StaffProfileUpdateOperationDataRightsExport)
+            typeof(StaffMemberMutationOperationDataRightsExport)
         ];
         HashSet<string> expectedMembers = sourceTypes
             .SelectMany(type => type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
