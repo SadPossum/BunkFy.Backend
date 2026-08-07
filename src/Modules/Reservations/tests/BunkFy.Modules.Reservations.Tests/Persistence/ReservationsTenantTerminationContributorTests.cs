@@ -110,7 +110,12 @@ public sealed class ReservationsTenantTerminationContributorTests
                 managementReservationId,
                 managementOperationId.ToString("N")),
             managementOperation.RecordId);
-        Assert.Equal(2, managementOperation.RecordVersion);
+        Assert.Equal(3, managementOperation.RecordVersion);
+        Assert.Equal(
+            Digest,
+            Field(managementOperation, "reservations.management-operation")
+                .GetProperty("requestFingerprint")
+                .GetString());
         Assert.Equal(
             ReservationsTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -494,11 +499,12 @@ public sealed class ReservationsTenantTerminationContributorTests
                 TenantId,
                 PropertyId,
                 reservation.Id,
-                ReservationManagementOperationKind.CheckIn,
-                reservation.Version,
-                ExpectedDetailsRevision: null,
-                reservation.Arrival,
-                Now.AddMinutes(5))));
+                ReservationManagementOperationKind.InventoryAmendment,
+                ExpectedVersion: null,
+                reservation.DetailsRevision,
+                BusinessDate: null,
+                Now.AddMinutes(5),
+                Digest)));
         context.ArrivalReminders.Add(ReservationArrivalReminder.Create(
             Guid.NewGuid(),
             TenantId,

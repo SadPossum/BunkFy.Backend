@@ -253,6 +253,7 @@ internal sealed record ReservationManagementOperationStateTenantExport(
     long? ExpectedVersion,
     long? ExpectedDetailsRevision,
     DateOnly? BusinessDate,
+    string? RequestFingerprint,
     DateTimeOffset CreatedAtUtc);
 
 internal sealed record ReservationArrivalReminderTenantExport(

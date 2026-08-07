@@ -240,11 +240,16 @@ public sealed class ReservationsModelTests
             nameof(ReservationManagementOperation.ExpectedVersion))!.IsNullable);
         Assert.True(operation.FindProperty(
             nameof(ReservationManagementOperation.ExpectedDetailsRevision))!.IsNullable);
+        IProperty requestFingerprint = operation.FindProperty(
+            nameof(ReservationManagementOperation.RequestFingerprint))!;
+        Assert.True(requestFingerprint.IsNullable);
+        Assert.Equal(Reservation.RequestFingerprintLength, requestFingerprint.GetMaxLength());
         string[] constraints =
         [
             "CK_management_operations_business_date",
             "CK_management_operations_expected_revision",
-            "CK_management_operations_kind"
+            "CK_management_operations_kind",
+            "CK_management_operations_request_fingerprint"
         ];
         Assert.All(
             constraints,

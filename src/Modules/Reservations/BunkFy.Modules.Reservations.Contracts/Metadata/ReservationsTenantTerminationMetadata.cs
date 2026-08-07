@@ -8,13 +8,13 @@ public static class ReservationsTenantTerminationMetadata
     public const string OwnerKey = ReservationsDataRightsCoordinates.Owner;
     public const string DependencyOwnerKey = "inventory";
     public const int CatalogVersion = 3;
-    public const int PersonalDataCatalogVersion = 13;
+    public const int PersonalDataCatalogVersion = 14;
     public const string ExportCatalogId =
         "reservations.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =
         "reservations.tenant-termination-export";
-    public const int ExportSchemaVersion = 3;
+    public const int ExportSchemaVersion = 4;
 
     public const string ReservationRecordType = "reservation";
     public const string RequestedInventoryUnitRecordType =

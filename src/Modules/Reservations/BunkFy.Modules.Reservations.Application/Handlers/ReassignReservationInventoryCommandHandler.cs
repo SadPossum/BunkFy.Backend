@@ -14,6 +14,7 @@ using Gma.Framework.Runtime.Time;
 internal sealed class ReassignReservationInventoryCommandHandler(
     ReservationMutationCoordinator mutations,
     IInventoryProjectionRepository inventoryProjection,
+    IReservationManagementOperationRepository operations,
     ISystemClock clock,
     IIdGenerator idGenerator)
     : ICommandHandler<ReassignReservationInventoryCommand, ReservationMutationReceiptDto>
@@ -22,6 +23,12 @@ internal sealed class ReassignReservationInventoryCommandHandler(
         ReassignReservationInventoryCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.AmendmentRequestId == Guid.Empty)
+        {
+            return Result.Failure<ReservationMutationReceiptDto>(
+                ReservationsApplicationErrors.ManagementOperationInvalid);
+        }
+
         Reservation? reservation = await mutations.AcquireOperationalAsync(
             command.PropertyId,
             command.ReservationId,
@@ -29,6 +36,46 @@ internal sealed class ReassignReservationInventoryCommandHandler(
         if (reservation is null)
         {
             return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ReservationNotFound);
+        }
+
+        string actorId = command.ActorId?.Trim() ?? string.Empty;
+        if (actorId.Length is 0 or > Reservation.ActorIdMaxLength)
+        {
+            return Result.Failure<ReservationMutationReceiptDto>(
+                ReservationsApplicationErrors.DetailsChangeProvenanceInvalid);
+        }
+
+        string fingerprint = Fingerprint(command);
+        ReservationManagementOperationRecord? existing = await operations
+            .GetAsync(command.ReservationId, command.AmendmentRequestId, cancellationToken)
+            .ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing.MatchesInventoryAmendment(
+                    command.ExpectedDetailsRevision,
+                    fingerprint)
+                ? Result.Success(reservation.ToMutationReceipt())
+                : Result.Failure<ReservationMutationReceiptDto>(
+                    ReservationsApplicationErrors.ManagementOperationConflict);
+        }
+
+        if (reservation.PendingAllocationAmendmentId == command.AmendmentRequestId &&
+            string.Equals(
+                reservation.PendingAllocationAmendmentRequestFingerprint,
+                fingerprint,
+                StringComparison.Ordinal))
+        {
+            if (reservation.PendingDetailsChangeOrigin !=
+                ReservationDetailsChangeOrigin.Staff)
+            {
+                return Result.Failure<ReservationMutationReceiptDto>(
+                    ReservationsApplicationErrors.AllocationAmendmentInProgress);
+            }
+
+            await operations.AddAsync(
+                CreateOperation(reservation, command, fingerprint, clock.UtcNow),
+                cancellationToken).ConfigureAwait(false);
+            return Result.Success(reservation.ToMutationReceipt());
         }
 
         InventoryUnitSelectionValidation selection = await inventoryProjection.ValidateSelectionAsync(
@@ -43,7 +90,7 @@ internal sealed class ReassignReservationInventoryCommandHandler(
                     : ReservationsApplicationErrors.InventoryUnitPropertyMismatch);
         }
 
-        string fingerprint = Fingerprint(command);
+        DateTimeOffset nowUtc = clock.UtcNow;
         Result<ReservationDetailsChangeOutcome> begun = reservation.BeginAllocationAmendment(
             command.AmendmentRequestId,
             fingerprint,
@@ -57,17 +104,27 @@ internal sealed class ReassignReservationInventoryCommandHandler(
             reservation.Notes,
             command.ExpectedDetailsRevision,
             ReservationDetailsChangeOrigin.Staff,
-            command.ActorId,
+            actorId,
             adapterConnectionId: null,
             externalOperationId: null,
             command.AmendmentRequestId,
             idGenerator.NewId(),
-            clock.UtcNow,
+            nowUtc,
             reservation.ExpectedArrivalTime,
             reservation.ExpectedDepartureTime);
-        return begun.IsFailure
-            ? Result.Failure<ReservationMutationReceiptDto>(begun.Error)
-            : Result.Success(reservation.ToMutationReceipt());
+        if (begun.IsFailure)
+        {
+            return Result.Failure<ReservationMutationReceiptDto>(begun.Error);
+        }
+
+        if (begun.Value == ReservationDetailsChangeOutcome.Changed)
+        {
+            await operations.AddAsync(
+                CreateOperation(reservation, command, fingerprint, nowUtc),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return Result.Success(reservation.ToMutationReceipt());
     }
 
     private static string Fingerprint(ReassignReservationInventoryCommand command)
@@ -80,4 +137,20 @@ internal sealed class ReassignReservationInventoryCommandHandler(
             string.Join(',', command.InventoryUnitIds.Order().Select(id => id.ToString("N"))));
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
+
+    private static ReservationManagementOperationRecord CreateOperation(
+        Reservation reservation,
+        ReassignReservationInventoryCommand command,
+        string fingerprint,
+        DateTimeOffset createdAtUtc) => new(
+            command.AmendmentRequestId,
+            reservation.ScopeId,
+            command.PropertyId,
+            command.ReservationId,
+            ReservationManagementOperationKind.InventoryAmendment,
+            ExpectedVersion: null,
+            command.ExpectedDetailsRevision,
+            BusinessDate: null,
+            createdAtUtc,
+            fingerprint);
 }

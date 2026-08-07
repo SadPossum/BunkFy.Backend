@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 13,
+  "catalogVersion": 14,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -16183,6 +16183,58 @@
           "assembly": "BunkFy.Modules.Reservations.Persistence",
           "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementOperationDataRightsExport",
           "member": "ExpectedVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.management-operation.request-fingerprint",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "idempotent-lifecycle-processing",
+        "inventory-allocation-consistency"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationManagementOperationRecord",
+          "member": "RequestFingerprint",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationManagementOperation",
+          "member": "RequestFingerprint",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementOperationDataRightsExport",
+          "member": "RequestFingerprint",
           "surface": "data-rights-export",
           "retentionPolicy": "reservation-data-rights-export-fragment"
         }

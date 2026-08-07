@@ -32,6 +32,8 @@ public sealed class ReservationsMigrationIntegrationTests
         "20260726002653_AddReservationAnonymisationOwnerProof";
     private const string PreviousManagementOperationsMigration =
         "20260806224147_AddReservationManagementOperations";
+    private const string PreviousInventoryAmendmentOperationMigration =
+        "20260806233308_ExtendReservationManagementOperationsForGuestDetails";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -486,6 +488,106 @@ public sealed class ReservationsMigrationIntegrationTests
                     {7L}, NULL, NULL, {createdAtUtc.AddMinutes(2)});
                 """));
         Assert.Equal(PostgresErrorCodes.CheckViolation, invalidShape.SqlState);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Inventory_amendment_operation_migration_preserves_existing_rows_and_enforces_fingerprint_shape()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_reservation_inventory_amendment_operation_migration_tests")
+                .Build();
+        await postgreSql.StartAsync();
+
+        Guid reservationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid guestDetailsOperationId = Guid.NewGuid();
+        DateTimeOffset createdAtUtc =
+            new(2026, 8, 7, 0, 15, 0, TimeSpan.Zero);
+        await using (ReservationsDbContext previous =
+            CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(PreviousInventoryAmendmentOperationMigration);
+            await SeedReservationAtPreviousSchemaAsync(
+                previous,
+                reservationId,
+                propertyId,
+                createdAtUtc);
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.management_operations (
+                    "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                    "ExpectedVersion", "ExpectedDetailsRevision", "BusinessDate", "CreatedAtUtc")
+                VALUES (
+                    {guestDetailsOperationId}, {"tenant-a"}, {reservationId}, {propertyId}, {5},
+                    NULL, {1L}, NULL, {createdAtUtc});
+                """);
+        }
+
+        await using ReservationsDbContext upgraded =
+            CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        int preservedRows = await upgraded.Database.SqlQuery<int>($"""
+                SELECT COUNT(*)::int AS "Value"
+                FROM reservations.management_operations
+                WHERE "Id" = {guestDetailsOperationId}
+                  AND "ExpectedDetailsRevision" = 1
+                  AND "RequestFingerprint" IS NULL
+                """)
+            .SingleAsync();
+        Assert.Equal(1, preservedRows);
+
+        string fingerprint = new('a', Reservation.RequestFingerprintLength);
+        int inserted = await upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO reservations.management_operations (
+                "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                "ExpectedVersion", "ExpectedDetailsRevision", "BusinessDate",
+                "CreatedAtUtc", "RequestFingerprint")
+            VALUES (
+                {Guid.NewGuid()}, {"tenant-a"}, {reservationId}, {propertyId}, {6},
+                NULL, {1L}, NULL, {createdAtUtc.AddMinutes(1)}, {fingerprint});
+            """);
+        Assert.Equal(1, inserted);
+
+        PostgresException missingFingerprint = await Assert.ThrowsAsync<PostgresException>(() =>
+            upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.management_operations (
+                    "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                    "ExpectedVersion", "ExpectedDetailsRevision", "BusinessDate",
+                    "CreatedAtUtc", "RequestFingerprint")
+                VALUES (
+                    {Guid.NewGuid()}, {"tenant-a"}, {reservationId}, {propertyId}, {6},
+                    NULL, {1L}, NULL, {createdAtUtc.AddMinutes(2)}, NULL);
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, missingFingerprint.SqlState);
+
+        PostgresException mixedGuestDetailsShape = await Assert.ThrowsAsync<PostgresException>(() =>
+            upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.management_operations (
+                    "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                    "ExpectedVersion", "ExpectedDetailsRevision", "BusinessDate",
+                    "CreatedAtUtc", "RequestFingerprint")
+                VALUES (
+                    {Guid.NewGuid()}, {"tenant-a"}, {reservationId}, {propertyId}, {5},
+                    NULL, {1L}, NULL, {createdAtUtc.AddMinutes(3)}, {fingerprint});
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, mixedGuestDetailsShape.SqlState);
+
+        string uppercaseFingerprint = fingerprint.ToUpperInvariant();
+        PostgresException nonCanonicalFingerprint = await Assert.ThrowsAsync<PostgresException>(() =>
+            upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO reservations.management_operations (
+                    "Id", "ScopeId", "ReservationId", "PropertyId", "Kind",
+                    "ExpectedVersion", "ExpectedDetailsRevision", "BusinessDate",
+                    "CreatedAtUtc", "RequestFingerprint")
+                VALUES (
+                    {Guid.NewGuid()}, {"tenant-a"}, {reservationId}, {propertyId}, {6},
+                    NULL, {1L}, NULL, {createdAtUtc.AddMinutes(4)}, {uppercaseFingerprint});
+                """));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, nonCanonicalFingerprint.SqlState);
     }
 
     private static Task<int> SeedReservationAtPreviousSchemaAsync(

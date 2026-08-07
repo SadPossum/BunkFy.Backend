@@ -154,6 +154,7 @@ internal sealed partial class ReservationsTenantTerminationContributor
                     operation.ExpectedVersion,
                     operation.ExpectedDetailsRevision,
                     operation.BusinessDate,
+                    operation.RequestFingerprint,
                     operation.CreatedAtUtc));
             await WriteAsync(
                 ReservationsTenantTerminationMetadata
@@ -161,7 +162,7 @@ internal sealed partial class ReservationsTenantTerminationContributor
                 DataRightsExportRecordIds.CreateDeterministicChild(
                     operation.ReservationId,
                     operation.Id.ToString("N")),
-                recordVersion: 2,
+                recordVersion: 3,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

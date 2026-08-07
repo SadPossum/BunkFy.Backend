@@ -17,6 +17,7 @@ internal sealed class ReservationManagementOperation
         this.ExpectedDetailsRevision = record.ExpectedDetailsRevision;
         this.BusinessDate = record.BusinessDate;
         this.CreatedAtUtc = record.CreatedAtUtc;
+        this.RequestFingerprint = record.RequestFingerprint;
     }
 
     public Guid Id { get; private set; }
@@ -28,6 +29,7 @@ internal sealed class ReservationManagementOperation
     public long? ExpectedDetailsRevision { get; private set; }
     public DateOnly? BusinessDate { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
+    public string? RequestFingerprint { get; private set; }
 
     internal ReservationManagementOperationRecord ToRecord() => new(
         this.Id,
@@ -38,5 +40,6 @@ internal sealed class ReservationManagementOperation
         this.ExpectedVersion,
         this.ExpectedDetailsRevision,
         this.BusinessDate,
-        this.CreatedAtUtc);
+        this.CreatedAtUtc,
+        this.RequestFingerprint);
 }

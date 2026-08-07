@@ -37,6 +37,8 @@ retention, and rights policies receive production approval.
 - idempotent external create, guest-change, allocation-amendment, and cancellation operations with a scoped request ledger and versioned outcomes;
 - adapter operations protected by source-identity and details-revision checks, including non-terminal cancellation acceptance.
 - pending allocation amendments that retain current booking truth until Inventory atomically confirms or rejects the candidate;
+- durable staff inventory-amendment replay across pending, confirmed, and
+  rejected outcomes through the Reservations management journal;
 - inbox-transaction domain-event dispatch so external operations persist allocation/cancellation requests and details history atomically.
 - DataRights discovery through exact reservation id or indexed normalized
   current/pending contact values, with bounded masked previews and exact-version

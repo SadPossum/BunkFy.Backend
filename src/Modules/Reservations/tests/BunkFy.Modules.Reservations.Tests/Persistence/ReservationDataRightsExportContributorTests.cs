@@ -217,17 +217,20 @@ public sealed class ReservationDataRightsExportContributorTests
                 ErrorCode: null,
                 Now)));
         Guid managementOperationId = Guid.NewGuid();
+        string managementRequestFingerprint =
+            new('d', Reservation.RequestFingerprintLength);
         dbContext.ManagementOperations.Add(new ReservationManagementOperation(
             new ReservationManagementOperationRecord(
                 managementOperationId,
                 "tenant-a",
                 propertyId,
                 reservation.Id,
-                ReservationManagementOperationKind.CheckIn,
-                reservation.Version,
-                ExpectedDetailsRevision: null,
-                reservation.Arrival,
-                Now.AddMinutes(5))));
+                ReservationManagementOperationKind.InventoryAmendment,
+                ExpectedVersion: null,
+                reservation.DetailsRevision,
+                BusinessDate: null,
+                Now.AddMinutes(5),
+                managementRequestFingerprint)));
 
         dbContext.ArrivalReminders.Add(ReservationArrivalReminder.Create(
             Guid.NewGuid(),
@@ -291,7 +294,14 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationDataRightsExportContributor
                     .ManagementOperationRecordType);
         Assert.Equal(managementOperationId, managementOperation.RecordId);
-        Assert.Equal(2, managementOperation.RecordVersion);
+        Assert.Equal(3, managementOperation.RecordVersion);
+        Assert.Equal(
+            managementRequestFingerprint,
+            Assert.Single(
+                managementOperation.Fields,
+                field => field.FieldId ==
+                    "reservation.management-operation.request-fingerprint")
+                .Value.GetString());
         Assert.DoesNotContain(
             managementOperation.Fields,
             field => field.FieldId is
@@ -498,9 +508,9 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(13, descriptor.CatalogVersion);
+        Assert.Equal(14, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
-        Assert.Equal(5, descriptor.ExportSchemaVersion);
+        Assert.Equal(6, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);
     }
 

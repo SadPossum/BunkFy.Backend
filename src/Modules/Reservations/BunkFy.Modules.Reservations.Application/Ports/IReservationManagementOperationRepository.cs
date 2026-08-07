@@ -21,7 +21,8 @@ public sealed record ReservationManagementOperationRecord(
     long? ExpectedVersion,
     long? ExpectedDetailsRevision,
     DateOnly? BusinessDate,
-    DateTimeOffset CreatedAtUtc)
+    DateTimeOffset CreatedAtUtc,
+    string? RequestFingerprint = null)
 {
     public bool MatchesLifecycle(
         ReservationManagementOperationKind kind,
@@ -30,13 +31,27 @@ public sealed record ReservationManagementOperationRecord(
         this.Kind == kind &&
         this.ExpectedVersion == expectedVersion &&
         this.ExpectedDetailsRevision is null &&
-        this.BusinessDate == businessDate;
+        this.BusinessDate == businessDate &&
+        this.RequestFingerprint is null;
 
     public bool MatchesGuestDetails(long expectedDetailsRevision) =>
         this.Kind == ReservationManagementOperationKind.GuestDetails &&
         this.ExpectedVersion is null &&
         this.ExpectedDetailsRevision == expectedDetailsRevision &&
-        this.BusinessDate is null;
+        this.BusinessDate is null &&
+        this.RequestFingerprint is null;
+
+    public bool MatchesInventoryAmendment(
+        long expectedDetailsRevision,
+        string requestFingerprint) =>
+        this.Kind == ReservationManagementOperationKind.InventoryAmendment &&
+        this.ExpectedVersion is null &&
+        this.ExpectedDetailsRevision == expectedDetailsRevision &&
+        this.BusinessDate is null &&
+        string.Equals(
+            this.RequestFingerprint,
+            requestFingerprint,
+            StringComparison.Ordinal);
 }
 
 public enum ReservationManagementOperationKind
@@ -46,5 +61,6 @@ public enum ReservationManagementOperationKind
     CheckIn = 2,
     NoShow = 3,
     CheckOut = 4,
-    GuestDetails = 5
+    GuestDetails = 5,
+    InventoryAmendment = 6
 }

@@ -128,6 +128,7 @@ internal sealed record ReservationManagementOperationDataRightsExport(
     long? ExpectedVersion,
     long? ExpectedDetailsRevision,
     DateOnly? BusinessDate,
+    string? RequestFingerprint,
     DateTimeOffset CreatedAtUtc);
 
 internal sealed record ReservationArrivalReminderDataRightsExport(
