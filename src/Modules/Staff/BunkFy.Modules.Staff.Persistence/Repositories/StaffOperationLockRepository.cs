@@ -43,6 +43,9 @@ internal sealed class StaffOperationLockRepository(
 
         if (dbContext.Database.IsRelational())
         {
+            await dbContext.AcquireOperationalMutationAdmissionAsync(
+                    cancellationToken)
+                .ConfigureAwait(false);
             int affected = await dbContext.Set<StaffOperationLock>()
                 .Where(resourceLock =>
                     resourceLock.ScopeId == scopeId &&

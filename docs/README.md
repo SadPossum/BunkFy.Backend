@@ -59,6 +59,7 @@ Useful entry points:
 - [Guests Read Surface Hardening Task](planning/guests-read-surface-hardening-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Staff Operational Surface Hardening Task](planning/staff-operational-surface-hardening-task.md)
+- [Staff Management Create Idempotency And Lock Ordering Task](planning/staff-management-create-idempotency-task.md)
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)
 - [Secure Staff Enrollment Task](planning/secure-staff-enrollment-task.md)
 - [Workspace Access Profiles Task](planning/workspace-access-profiles-task.md)

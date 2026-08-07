@@ -17,6 +17,12 @@ public static class StaffApplicationErrors
         "Confirmation is required.");
     public static readonly Error StaffMemberNotFound = new("Staff.StaffMemberNotFound", "The staff member was not found.");
     public static readonly Error TenantRequired = new("Staff.TenantRequired", "A tenant context is required.");
+    public static readonly Error CreationOperationInvalid = new(
+        "Staff.CreationOperationInvalid",
+        "A valid Staff creation operation id is required.");
+    public static readonly Error CreationOperationConflict = new(
+        "Staff.CreationOperationConflict",
+        "The Staff creation operation was already used for different profile data.");
     public static readonly Error PropertyUnavailable = new("Staff.PropertyUnavailable", "The property is unavailable for staff assignment.");
     public static readonly Error EmployeeNumberConflict = new("Staff.EmployeeNumberConflict", "The employee number is already in use.");
     public static readonly Error AuthSubjectConflict = new("Staff.AuthSubjectConflict", "The Auth subject is already linked to another staff member.");

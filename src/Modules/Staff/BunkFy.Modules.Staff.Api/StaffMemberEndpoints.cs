@@ -47,9 +47,10 @@ internal static class StaffMemberEndpoints
         members.MapPost("", async (StaffProfileWriteRequest request, HttpContext context,
             IAccessHttpSubjectResolver subjects, IRequestDispatcher dispatcher, CancellationToken token) =>
         {
-            return (await dispatcher.SendAsync(new CreateStaffMemberCommand(request.DisplayName, request.LegalName,
-                request.WorkEmail, request.WorkPhone, request.EmployeeNumber, request.JobTitle,
-                request.Department, request.AuthSubjectId, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
+            return (await dispatcher.SendAsync(new CreateStaffMemberCommand(request.OperationId,
+                request.DisplayName, request.LegalName, request.WorkEmail, request.WorkPhone,
+                request.EmployeeNumber, request.JobTitle, request.Department, request.AuthSubjectId,
+                StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
         }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.Create);

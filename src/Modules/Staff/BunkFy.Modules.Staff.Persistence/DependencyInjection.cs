@@ -57,6 +57,9 @@ public static class DependencyInjection
             IStaffOperationLock,
             StaffOperationLockRepository>();
         builder.Services.TryAddScoped<
+            IStaffCreationOperationLock,
+            StaffCreationOperationLock>();
+        builder.Services.TryAddScoped<
             IStaffRetentionCandidateRepository,
             StaffRetentionCandidateRepository>();
         builder.Services.TryAddScoped<

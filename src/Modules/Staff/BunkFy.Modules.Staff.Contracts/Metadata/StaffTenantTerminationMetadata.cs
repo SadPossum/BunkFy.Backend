@@ -8,7 +8,7 @@ public static class StaffTenantTerminationMetadata
     public const string OwnerKey = StaffModuleMetadata.Name;
     public const string DependencyOwnerKey = "guests";
     public const int CatalogVersion = 2;
-    public const int PersonalDataCatalogVersion = 11;
+    public const int PersonalDataCatalogVersion = 12;
     public const string ExportCatalogId = "staff.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId = "staff.tenant-termination-export";

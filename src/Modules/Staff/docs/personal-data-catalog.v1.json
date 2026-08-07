@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 11,
+  "catalogVersion": 12,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -11469,6 +11469,7 @@
       "retentionPolicy": "staff-profile-lifecycle",
       "rightsPolicy": "staff-profile-editable",
       "allowedSurfaces": [
+        "admin-input",
         "admin-output",
         "api-input",
         "api-response",
@@ -11488,9 +11489,23 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
+          "member": "OperationId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest",
           "member": "StaffMemberId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
+          "member": "OperationId",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
         },
@@ -11505,6 +11520,13 @@
           "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand",
           "member": "StaffMemberId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
+          "member": "OperationId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
         },

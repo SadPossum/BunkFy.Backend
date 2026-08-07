@@ -1,11 +1,16 @@
 namespace BunkFy.Modules.Staff.Tests.Api;
 
+using System.CommandLine;
 using System.Reflection;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.AdminApi;
+using BunkFy.Modules.Staff.AdminCli;
 using BunkFy.Modules.Staff.Api;
+using BunkFy.Modules.Staff.Api.Requests;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
+using Gma.Framework.Administration.Cli;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
@@ -18,6 +23,56 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class StaffApiSecurityTests
 {
+    [Theory]
+    [InlineData(typeof(StaffProfileWriteRequest))]
+    [InlineData(typeof(StaffAdminApiModule.StaffProfileWriteRequest))]
+    public void Create_requests_require_caller_owned_operation_identity(
+        Type requestType)
+    {
+        PropertyInfo operationId = requestType.GetProperty("OperationId")!;
+        ConstructorInfo constructor = Assert.Single(requestType.GetConstructors());
+        ParameterInfo parameter = Assert.Single(
+            constructor.GetParameters(),
+            candidate => string.Equals(
+                candidate.Name,
+                "operationId",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(Guid), operationId.PropertyType);
+        Assert.Equal(typeof(Guid), parameter.ParameterType);
+        Assert.False(parameter.HasDefaultValue);
+        Assert.Null(requestType.GetProperty("ActorId"));
+    }
+
+    [Fact]
+    public void Admin_cli_requires_operation_identity_for_create()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        AdminCliGlobalOptions options = provider
+            .GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new StaffAdminCliModule().MapCommands(registry);
+        string[] command =
+        [
+            "staff", "create", "--display-name", "Maya Chen"
+        ];
+
+        Assert.NotEmpty(root.Parse(command).Errors);
+        Assert.Empty(root.Parse([
+            .. command,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000001"
+        ]).Errors);
+    }
+
     [Fact]
     public async Task Directory_and_sensitive_profile_routes_have_distinct_permissions()
     {

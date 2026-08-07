@@ -216,7 +216,110 @@ public sealed class StaffDataRightsExportIntegrationTests
         }
 
         await AssertOperationLockSerializesAsync(provider, member.Id);
+        await AssertCreationOperationLockSerializesAsync(provider);
         await AssertEvidenceBlocksDowngradeAsync(provider);
+    }
+
+    private static async Task AssertCreationOperationLockSerializesAsync(
+        ServiceProvider provider)
+    {
+        Guid operationId = Guid.NewGuid();
+        using IServiceScope firstScope = provider.CreateScope();
+        using IServiceScope secondScope = provider.CreateScope();
+        StaffDbContext firstDb = firstScope.ServiceProvider
+            .GetRequiredService<StaffDbContext>();
+        StaffDbContext secondDb = secondScope.ServiceProvider
+            .GetRequiredService<StaffDbContext>();
+        IStaffCreationOperationLock firstLock = firstScope.ServiceProvider
+            .GetRequiredService<IStaffCreationOperationLock>();
+        IStaffCreationOperationLock secondLock = secondScope.ServiceProvider
+            .GetRequiredService<IStaffCreationOperationLock>();
+        IStaffMemberRepository firstMembers = firstScope.ServiceProvider
+            .GetRequiredService<IStaffMemberRepository>();
+        IStaffMemberRepository secondMembers = secondScope.ServiceProvider
+            .GetRequiredService<IStaffMemberRepository>();
+
+        await using var firstTransaction =
+            await firstDb.Database.BeginTransactionAsync();
+        await firstLock.AcquireAsync(
+            "tenant-a",
+            operationId,
+            CancellationToken.None);
+        Assert.Null(await firstMembers.GetForSafetyTransitionAsync(
+            operationId,
+            CancellationToken.None));
+        StaffMember created = StaffMember.Create(
+            operationId,
+            "tenant-a",
+            "Concurrent creation",
+            legalName: null,
+            "concurrent.creation@example.test",
+            workPhone: null,
+            "EMP-CREATE-RETRY",
+            "Manager",
+            "Operations",
+            authSubjectId: null,
+            "user:operator",
+            Guid.NewGuid(),
+            Now.AddMinutes(10)).Value;
+        await firstMembers.AddAsync(created, CancellationToken.None);
+        await firstDb.SaveChangesAsync();
+
+        TaskCompletionSource secondStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<StaffMember?> secondAttempt = AcquireCreationAndReadAsync(
+            secondDb,
+            secondLock,
+            secondMembers,
+            operationId,
+            secondStarted);
+        await secondStarted.Task;
+        Task winner = await Task.WhenAny(
+            secondAttempt,
+            Task.Delay(TimeSpan.FromMilliseconds(400)));
+        Assert.NotSame(secondAttempt, winner);
+
+        await firstTransaction.CommitAsync();
+        StaffMember? replay = await secondAttempt.WaitAsync(
+            TimeSpan.FromSeconds(10));
+        Assert.NotNull(replay);
+        Assert.Equal(operationId, replay.Id);
+
+        using IServiceScope verificationScope = provider.CreateScope();
+        StaffDbContext verification = verificationScope.ServiceProvider
+            .GetRequiredService<StaffDbContext>();
+        Assert.Equal(
+            1,
+            await verification.StaffMembers.CountAsync(
+                candidate => candidate.Id == operationId));
+        Assert.Equal(
+            1,
+            await verification.ProcessingRestrictionProjections.CountAsync(
+                projection => projection.StaffMemberId == operationId));
+        Assert.Equal(1, await GetOperationLockRevisionAsync(
+            verification,
+            operationId));
+    }
+
+    private static async Task<StaffMember?> AcquireCreationAndReadAsync(
+        StaffDbContext dbContext,
+        IStaffCreationOperationLock creationLock,
+        IStaffMemberRepository members,
+        Guid operationId,
+        TaskCompletionSource started)
+    {
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync();
+        started.SetResult();
+        await creationLock.AcquireAsync(
+            "tenant-a",
+            operationId,
+            CancellationToken.None);
+        StaffMember? member = await members.GetAsync(
+            operationId,
+            CancellationToken.None);
+        await transaction.CommitAsync();
+        return member;
     }
 
     private static async Task AssertEvidenceBlocksDowngradeAsync(

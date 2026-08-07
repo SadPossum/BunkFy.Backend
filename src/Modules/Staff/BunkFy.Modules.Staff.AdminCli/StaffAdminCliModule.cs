@@ -84,17 +84,19 @@ public sealed class StaffAdminCliModule : IAdminCliModule
 
     private static Command CreateCreateCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         ProfileOptions options = new();
-        Command command = new("create", "Create a staff profile.");
+        Command command = new("create", "Create a staff profile.") { operationId };
         options.AddTo(command, false);
         command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
             StaffAdminOperationNames.Create, StaffAdminPermissions.Create,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                new CreateStaffMemberCommand(parse.GetRequiredValue(options.DisplayName),
-                    parse.GetValue(options.LegalName), parse.GetValue(options.Email),
-                    parse.GetValue(options.Phone), parse.GetValue(options.EmployeeNumber),
-                    parse.GetValue(options.JobTitle), parse.GetValue(options.Department),
-                    parse.GetValue(options.AuthSubject), Actor(parse, global)), ct), token));
+                new CreateStaffMemberCommand(parse.GetRequiredValue(operationId),
+                    parse.GetRequiredValue(options.DisplayName), parse.GetValue(options.LegalName),
+                    parse.GetValue(options.Email), parse.GetValue(options.Phone),
+                    parse.GetValue(options.EmployeeNumber), parse.GetValue(options.JobTitle),
+                    parse.GetValue(options.Department), parse.GetValue(options.AuthSubject),
+                    Actor(parse, global)), ct), token));
         return command;
     }
 

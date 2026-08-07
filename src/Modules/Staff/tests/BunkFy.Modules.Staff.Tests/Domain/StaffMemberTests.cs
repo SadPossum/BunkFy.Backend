@@ -26,6 +26,33 @@ public sealed class StaffMemberTests
     }
 
     [Fact]
+    public void Creation_equivalence_uses_every_normalized_profile_value()
+    {
+        StaffMember member = Create(" ADA Operator ", " EMP-001 ", " user-42 ");
+        StaffProfile same = StaffProfile.Create(
+            "ADA Operator",
+            legalName: null,
+            " ADA@EXAMPLE.TEST ",
+            workPhone: null,
+            "EMP-001",
+            " Manager ",
+            " Operations ",
+            "user-42").Value;
+        StaffProfile different = StaffProfile.Create(
+            "ADA Operator",
+            legalName: null,
+            "ada@example.test",
+            workPhone: null,
+            "EMP-001",
+            "Supervisor",
+            "Operations",
+            "user-42").Value;
+
+        Assert.True(member.MatchesCreation(same));
+        Assert.False(member.MatchesCreation(different));
+    }
+
+    [Fact]
     public void Assignments_are_versioned_idempotent_and_retain_history()
     {
         StaffMember member = Create("Ada", "EMP-1", null);

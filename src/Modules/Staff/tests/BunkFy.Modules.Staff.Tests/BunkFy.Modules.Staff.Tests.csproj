@@ -15,6 +15,7 @@
     <ProjectReference Include="..\..\..\Workspaces\BunkFy.Modules.Workspaces.Contracts\BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Api\BunkFy.Modules.Staff.Api.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.AdminApi\BunkFy.Modules.Staff.AdminApi.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Modules.Staff.AdminCli\BunkFy.Modules.Staff.AdminCli.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Application\BunkFy.Modules.Staff.Application.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Contracts\BunkFy.Modules.Staff.Contracts.csproj" />
     <ProjectReference Include="..\..\BunkFy.Modules.Staff.Domain\BunkFy.Modules.Staff.Domain.csproj" />

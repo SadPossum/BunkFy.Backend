@@ -78,6 +78,7 @@ public sealed class StaffAuthorizationIntegrationTests
             using (HttpResponseMessage create = await SendAsync(client, HttpMethod.Post,
                        "/api/staff/members", managerTokens.AccessToken, new
                        {
+                           operationId = Guid.NewGuid(),
                            displayName = "Ada Operator",
                            legalName = "Ada Example",
                            workEmail = "ada.operator@example.test",

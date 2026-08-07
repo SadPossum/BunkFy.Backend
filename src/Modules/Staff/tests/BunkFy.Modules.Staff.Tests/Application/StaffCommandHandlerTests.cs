@@ -57,6 +57,108 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
+    public async Task Create_uses_the_operation_id_and_replays_an_equivalent_normalized_profile()
+    {
+        Guid operationId = Guid.NewGuid();
+        StaffMember existing = CreateMemberForCreation(operationId);
+        FakeStaffMemberRepository members = new(existing);
+        RecordingCreationOperationLock creationLock = new();
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            creationLock: creationLock);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>>();
+        CreateStaffMemberCommand command = CreateCommand(
+            operationId,
+            displayName: " Ada Operator ",
+            workEmail: " ADA@EXAMPLE.TEST ",
+            employeeNumber: " EMP-100 ",
+            authSubjectId: " user-100 ");
+        int eventCount = existing.DomainEvents.Count;
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(operationId, result.Value.StaffMemberId);
+        Assert.Equal([("tenant-a", operationId)], creationLock.Acquisitions);
+        Assert.Equal(0, members.AddCount);
+        Assert.Equal(eventCount, existing.DomainEvents.Count);
+    }
+
+    [Fact]
+    public async Task Create_rejects_reusing_an_operation_for_different_profile_data()
+    {
+        Guid operationId = Guid.NewGuid();
+        FakeStaffMemberRepository members = new(
+            CreateMemberForCreation(operationId));
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository());
+        var handler = provider.GetRequiredService<
+            ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>>();
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            CreateCommand(operationId, displayName: "Different operator"),
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.CreationOperationConflict, result.Error);
+        Assert.Equal(0, members.AddCount);
+    }
+
+    [Fact]
+    public async Task Create_does_not_disclose_or_reuse_a_hidden_operation_coordinate()
+    {
+        Guid operationId = Guid.NewGuid();
+        FakeStaffMemberRepository members = new(
+            CreateMemberForCreation(operationId))
+        {
+            OperationallyVisible = false
+        };
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository());
+        var handler = provider.GetRequiredService<
+            ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>>();
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            CreateCommand(operationId),
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.StaffMemberNotFound, result.Error);
+        Assert.Equal(1, members.OperationalGetCount);
+        Assert.Equal(1, members.SafetyGetCount);
+        Assert.Equal(0, members.AddCount);
+    }
+
+    [Fact]
+    public async Task Create_acquires_the_operation_coordinate_before_any_member_read()
+    {
+        List<string> calls = [];
+        FakeStaffMemberRepository members = new() { Calls = calls };
+        RecordingCreationOperationLock creationLock = new(calls);
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            creationLock: creationLock);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>>();
+        Guid operationId = Guid.NewGuid();
+
+        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+            CreateCommand(operationId),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal("creation-lock", calls[0]);
+        Assert.Equal("operational-read", calls[1]);
+        Assert.Equal("safety-read", calls[2]);
+        Assert.Equal(operationId, members.AddedMember?.Id);
+    }
+
+    [Fact]
     public async Task Assignment_rejects_a_property_that_is_not_active()
     {
         StaffMember member = CreateMember();
@@ -481,7 +583,8 @@ public sealed class StaffCommandHandlerTests
         IStaffPropertyProjectionRepository properties,
         IScopeContext? scope = null,
         IStaffLifecyclePolicy? lifecyclePolicy = null,
-        IStaffOperationLock? operationLock = null)
+        IStaffOperationLock? operationLock = null,
+        IStaffCreationOperationLock? creationLock = null)
     {
         ServiceCollection services = new();
         services.AddSingleton(members);
@@ -490,6 +593,8 @@ public sealed class StaffCommandHandlerTests
         services.AddSingleton<ISystemClock>(new TestClock());
         services.AddSingleton<IIdGenerator>(new TestIdGenerator());
         services.AddSingleton(operationLock ?? new NoopStaffOperationLock());
+        services.AddSingleton(
+            creationLock ?? new NoopStaffCreationOperationLock());
         if (lifecyclePolicy is not null)
         {
             services.AddSingleton(lifecyclePolicy);
@@ -499,14 +604,32 @@ public sealed class StaffCommandHandlerTests
     }
 
     private static CreateStaffMemberCommand CreateCommand(
+        Guid? operationId = null,
+        string displayName = "Ada Operator",
+        string workEmail = "ada@example.test",
         string? employeeNumber = "EMP-100",
         string? authSubjectId = "user-100") => new(
-        "Ada Operator", null, "ada@example.test", null, employeeNumber,
+        operationId ?? Guid.NewGuid(), displayName, null, workEmail, null, employeeNumber,
         "Manager", "Operations", authSubjectId, "user:owner");
 
     private static StaffMember CreateMember(string? authSubjectId = null) => StaffMember.Create(
         Guid.NewGuid(), "tenant-a", "Ada Operator", null, "ada@example.test", null,
         "EMP-100", "Manager", "Operations", authSubjectId, "user:owner", Guid.NewGuid(), TestClock.Now).Value;
+
+    private static StaffMember CreateMemberForCreation(Guid id) => StaffMember.Create(
+        id,
+        "tenant-a",
+        "Ada Operator",
+        legalName: null,
+        "ada@example.test",
+        workPhone: null,
+        "EMP-100",
+        "Manager",
+        "Operations",
+        "user-100",
+        "user:original-owner",
+        Guid.NewGuid(),
+        TestClock.Now).Value;
 
     private sealed class FakeStaffMemberRepository(StaffMember? member = null) : IStaffMemberRepository
     {
@@ -517,6 +640,7 @@ public sealed class StaffCommandHandlerTests
         public bool OperationallyVisible { get; set; } = true;
         public int OperationalGetCount { get; private set; }
         public int SafetyGetCount { get; private set; }
+        public List<string>? Calls { get; init; }
 
         public Task AddAsync(StaffMember value, CancellationToken cancellationToken)
         {
@@ -527,6 +651,7 @@ public sealed class StaffCommandHandlerTests
 
         public Task<StaffMember?> GetAsync(Guid staffMemberId, CancellationToken cancellationToken)
         {
+            this.Calls?.Add("operational-read");
             this.OperationalGetCount++;
             return Task.FromResult(
                 this.OperationallyVisible
@@ -544,6 +669,7 @@ public sealed class StaffCommandHandlerTests
             Guid staffMemberId,
             CancellationToken cancellationToken)
         {
+            this.Calls?.Add("safety-read");
             this.SafetyGetCount++;
             return Task.FromResult(this.Candidates().FirstOrDefault(
                 candidate => candidate.Id == staffMemberId));
@@ -687,6 +813,22 @@ public sealed class StaffCommandHandlerTests
             this.Acquisitions.Add((tenantId, staffMemberId));
             onAcquire?.Invoke();
             return Task.FromResult(true);
+        }
+    }
+
+    private sealed class RecordingCreationOperationLock(
+        ICollection<string>? calls = null) : IStaffCreationOperationLock
+    {
+        public List<(string TenantId, Guid OperationId)> Acquisitions { get; } = [];
+
+        public Task AcquireAsync(
+            string tenantId,
+            Guid operationId,
+            CancellationToken cancellationToken)
+        {
+            calls?.Add("creation-lock");
+            this.Acquisitions.Add((tenantId, operationId));
+            return Task.CompletedTask;
         }
     }
 }
