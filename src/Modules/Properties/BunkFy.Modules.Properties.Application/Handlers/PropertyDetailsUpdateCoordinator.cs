@@ -1,6 +1,5 @@
 namespace BunkFy.Modules.Properties.Application.Handlers;
 
-using BunkFy.Modules.Properties.Application.Mapping;
 using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
@@ -12,7 +11,7 @@ using Gma.Framework.Runtime.Time;
 
 internal sealed class PropertyDetailsUpdateCoordinator(
     IPropertyRepository properties,
-    IPropertyMutationOperationRepository operations,
+    PropertyMutationOperationJournal journal,
     PropertiesMutationCoordinator mutations,
     ISystemClock clock,
     IIdGenerator ids)
@@ -30,21 +29,16 @@ internal sealed class PropertyDetailsUpdateCoordinator(
             property.Id,
             expectedVersion,
             details);
-        PropertyMutationOperationRecord? existing =
-            await operations.GetAsync(
-                property.Id,
-                operationId,
-                cancellationToken).ConfigureAwait(false);
-        if (existing is not null)
+        PropertyMutationReplayDecision replay = await journal.InspectAsync(
+            property,
+            operationId,
+            PropertyMutationKind.DetailsUpdate,
+            expectedVersion,
+            fingerprint,
+            cancellationToken).ConfigureAwait(false);
+        if (replay.Exists)
         {
-            return existing.Matches(
-                PropertyMutationKind.DetailsUpdate,
-                property.Id,
-                expectedVersion,
-                fingerprint)
-                ? Result.Success(existing.ToReceipt())
-                : Result.Failure<PropertyMutationReceiptDto>(
-                    PropertiesApplicationErrors.ManagementOperationConflict);
+            return replay.ToResult();
         }
 
         Result<PropertyDetailsUpdateOutcome> evaluation =
@@ -87,20 +81,13 @@ internal sealed class PropertyDetailsUpdateCoordinator(
             }
         }
 
-        PropertyMutationReceiptDto receipt =
-            PropertiesMapper.ToReceipt(property);
-        await operations.AddAsync(
-            new(
-                operationId,
-                property.ScopeId,
-                property.Id,
-                PropertyMutationKind.DetailsUpdate,
-                expectedVersion,
-                fingerprint,
-                receipt.Status,
-                receipt.ProcessingStatus,
-                receipt.Version,
-                nowUtc),
+        PropertyMutationReceiptDto receipt = await journal.RecordAsync(
+            property,
+            operationId,
+            PropertyMutationKind.DetailsUpdate,
+            expectedVersion,
+            fingerprint,
+            nowUtc,
             cancellationToken).ConfigureAwait(false);
         return Result.Success(receipt);
     }

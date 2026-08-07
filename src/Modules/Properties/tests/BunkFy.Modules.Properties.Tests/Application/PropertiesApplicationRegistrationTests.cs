@@ -5,9 +5,9 @@ using BunkFy.Modules.Properties.Application.Commands;
 using BunkFy.Modules.Properties.Application.Handlers;
 using BunkFy.Modules.Properties.Application.Queries;
 using BunkFy.Modules.Properties.Contracts;
-using Microsoft.Extensions.DependencyInjection;
 using Gma.Framework.Application.Events;
 using Gma.Framework.Cqrs;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -23,7 +23,7 @@ public sealed class PropertiesApplicationRegistrationTests
 
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreatePropertyCommand, PropertyMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdatePropertyCommand, PropertyMutationReceiptDto>));
-        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetirePropertyCommand, Unit>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<CreateRoomCommand, RoomMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateRoomCommand, RoomMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetireRoomCommand, Unit>));
@@ -32,6 +32,7 @@ public sealed class PropertiesApplicationRegistrationTests
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateBedCommand, BedMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetireBedCommand, Unit>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(PropertyDetailsUpdateCoordinator));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(PropertyMutationOperationJournal));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<GetPropertyQuery, PropertyDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListPropertiesQuery, PropertyListResponse>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListVisiblePropertiesQuery, PropertyListResponse>));

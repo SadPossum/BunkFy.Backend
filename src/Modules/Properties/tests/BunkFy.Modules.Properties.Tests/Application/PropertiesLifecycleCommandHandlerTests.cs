@@ -23,11 +23,15 @@ public sealed class PropertiesLifecycleCommandHandlerTests
         Property property = CreateProperty();
         FakeRoomRepository rooms = new() { HasActiveRooms = true };
         ServiceProvider provider = CreateProvider(property, rooms);
-        ICommandHandler<RetirePropertyCommand, Unit> handler =
-            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, Unit>>();
+        ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto>>();
 
-        Result<Unit> result = await handler.HandleAsync(
-            new RetirePropertyCommand(property.Id, property.Version),
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
+            new RetirePropertyCommand(
+                property.Id,
+                Guid.NewGuid(),
+                true,
+                property.Version),
             CancellationToken.None);
 
         Assert.Equal(PropertiesDomainErrors.PropertyHasActiveRooms, result.Error);
@@ -40,16 +44,128 @@ public sealed class PropertiesLifecycleCommandHandlerTests
     {
         Property property = CreateProperty();
         ServiceProvider provider = CreateProvider(property, new FakeRoomRepository());
-        ICommandHandler<RetirePropertyCommand, Unit> handler =
-            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, Unit>>();
+        ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto>>();
 
-        Result<Unit> result = await handler.HandleAsync(
-            new RetirePropertyCommand(property.Id, property.Version),
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
+            new RetirePropertyCommand(
+                property.Id,
+                Guid.NewGuid(),
+                true,
+                property.Version),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(PropertyState.Retired, property.Status);
         Assert.Equal(2, property.Version);
+        Assert.Equal(property.Version, result.Value.Version);
+    }
+
+    [Fact]
+    public async Task Exact_retirement_replay_returns_the_original_receipt_without_rechecking_rooms()
+    {
+        Property property = CreateProperty();
+        FakeRoomRepository rooms = new();
+        RecordingPropertyMutationOperationRepository operations = new();
+        ServiceProvider provider = CreateProvider(property, rooms, operations);
+        ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto>>();
+        RetirePropertyCommand command = new(
+            property.Id,
+            Guid.NewGuid(),
+            true,
+            property.Version);
+
+        Result<PropertyMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        rooms.HasActiveRooms = true;
+        Result<PropertyMutationReceiptDto> replay = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(replay.IsSuccess);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(1, rooms.ActiveRoomCheckCount);
+        Assert.Single(operations.Added);
+    }
+
+    [Fact]
+    public async Task Changed_retirement_reuse_conflicts_without_rechecking_rooms()
+    {
+        Property property = CreateProperty();
+        FakeRoomRepository rooms = new();
+        RecordingPropertyMutationOperationRepository operations = new();
+        ServiceProvider provider = CreateProvider(property, rooms, operations);
+        ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+
+        Assert.True((await handler.HandleAsync(
+            new RetirePropertyCommand(property.Id, operationId, true, 1),
+            CancellationToken.None)).IsSuccess);
+        Result<PropertyMutationReceiptDto> reuse = await handler.HandleAsync(
+            new RetirePropertyCommand(property.Id, operationId, true, 2),
+            CancellationToken.None);
+
+        Assert.Equal(
+            PropertiesApplicationErrors.ManagementOperationConflict,
+            reuse.Error);
+        Assert.Equal(1, rooms.ActiveRoomCheckCount);
+        Assert.Single(operations.Added);
+    }
+
+    [Fact]
+    public async Task Failed_active_room_check_does_not_bind_the_operation()
+    {
+        Property property = CreateProperty();
+        FakeRoomRepository rooms = new() { HasActiveRooms = true };
+        RecordingPropertyMutationOperationRepository operations = new();
+        ServiceProvider provider = CreateProvider(property, rooms, operations);
+        ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto>>();
+        RetirePropertyCommand command = new(
+            property.Id,
+            Guid.NewGuid(),
+            true,
+            property.Version);
+
+        Result<PropertyMutationReceiptDto> blocked = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        rooms.HasActiveRooms = false;
+        Result<PropertyMutationReceiptDto> retry = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.Equal(PropertiesDomainErrors.PropertyHasActiveRooms, blocked.Error);
+        Assert.True(retry.IsSuccess);
+        Assert.Equal(2, rooms.ActiveRoomCheckCount);
+        Assert.Single(operations.Added);
+    }
+
+    [Fact]
+    public async Task Stale_retirement_is_rejected_before_active_rooms_are_queried()
+    {
+        Property property = CreateProperty();
+        FakeRoomRepository rooms = new();
+        RecordingPropertyMutationOperationRepository operations = new();
+        ServiceProvider provider = CreateProvider(property, rooms, operations);
+        ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto> handler =
+            provider.GetRequiredService<ICommandHandler<RetirePropertyCommand, PropertyMutationReceiptDto>>();
+
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
+            new RetirePropertyCommand(
+                property.Id,
+                Guid.NewGuid(),
+                true,
+                ExpectedVersion: 99),
+            CancellationToken.None);
+
+        Assert.Equal(PropertiesDomainErrors.VersionConflict, result.Error);
+        Assert.Equal(0, rooms.ActiveRoomCheckCount);
+        Assert.Empty(operations.Added);
     }
 
     [Fact]
@@ -70,10 +186,15 @@ public sealed class PropertiesLifecycleCommandHandlerTests
         Assert.Equal(1, property.Version);
     }
 
-    private static ServiceProvider CreateProvider(Property property, FakeRoomRepository rooms)
+    private static ServiceProvider CreateProvider(
+        Property property,
+        FakeRoomRepository rooms,
+        RecordingPropertyMutationOperationRepository? operations = null)
     {
         ServiceCollection services = new();
         services.AddSingleton<IPropertyRepository>(new FakePropertyRepository(property));
+        services.AddSingleton<IPropertyMutationOperationRepository>(
+            operations ?? new RecordingPropertyMutationOperationRepository());
         services.AddSingleton<IRoomRepository>(rooms);
         services.AddSingleton<IScopeContext>(new TestScopeContext());
         services.AddSingleton<ISystemClock>(new TestClock());
@@ -98,7 +219,7 @@ public sealed class PropertiesLifecycleCommandHandlerTests
         public Task AddAsync(Property value, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<Property?> GetAsync(Guid propertyId, CancellationToken cancellationToken) =>
-            Task.FromResult<Property?>(property.Id == propertyId ? property : null);
+            Task.FromResult(property.Id == propertyId ? property : null);
 
         public Task<bool> CodeExistsAsync(string code, Guid? excludingPropertyId, CancellationToken cancellationToken) =>
             Task.FromResult(false);
@@ -106,7 +227,8 @@ public sealed class PropertiesLifecycleCommandHandlerTests
 
     private sealed class FakeRoomRepository : IRoomRepository
     {
-        public bool HasActiveRooms { get; init; }
+        public bool HasActiveRooms { get; set; }
+        public int ActiveRoomCheckCount { get; private set; }
         public Room? AddedRoom { get; private set; }
 
         public Task AddAsync(Room room, CancellationToken cancellationToken)
@@ -118,8 +240,11 @@ public sealed class PropertiesLifecycleCommandHandlerTests
         public Task<Room?> GetAsync(Guid roomId, CancellationToken cancellationToken) =>
             Task.FromResult<Room?>(null);
 
-        public Task<bool> HasActiveRoomsAsync(Guid propertyId, CancellationToken cancellationToken) =>
-            Task.FromResult(this.HasActiveRooms);
+        public Task<bool> HasActiveRoomsAsync(Guid propertyId, CancellationToken cancellationToken)
+        {
+            this.ActiveRoomCheckCount++;
+            return Task.FromResult(this.HasActiveRooms);
+        }
 
         public Task<bool> RoomNameExistsAsync(
             Guid propertyId,

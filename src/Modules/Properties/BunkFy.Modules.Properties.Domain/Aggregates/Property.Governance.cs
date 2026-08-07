@@ -12,6 +12,14 @@ public sealed partial class Property
     public IReadOnlyCollection<PropertyGovernanceAcknowledgement> GovernanceAcknowledgements =>
         this.governanceAcknowledgements.AsReadOnly();
 
+    public Result EvaluateProcessingActivation(long expectedVersion)
+    {
+        Result statusResult = this.EnsureActive();
+        return statusResult.IsSuccess
+            ? this.EnsureExpectedVersion(expectedVersion)
+            : statusResult;
+    }
+
     public Result ActivateProcessing(
         PropertyGovernanceBinding binding,
         IReadOnlyCollection<PropertyGovernanceAcknowledgement> acknowledgements,
@@ -23,16 +31,11 @@ public sealed partial class Property
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(acknowledgements);
 
-        Result statusResult = this.EnsureActive();
-        if (statusResult.IsFailure)
+        Result precondition = this.EvaluateProcessingActivation(
+            expectedVersion);
+        if (precondition.IsFailure)
         {
-            return statusResult;
-        }
-
-        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
-        if (versionResult.IsFailure)
-        {
-            return versionResult;
+            return precondition;
         }
 
         if (eventId == Guid.Empty)

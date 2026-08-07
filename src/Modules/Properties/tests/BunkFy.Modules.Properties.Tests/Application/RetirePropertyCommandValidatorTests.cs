@@ -11,10 +11,24 @@ public sealed class RetirePropertyCommandValidatorTests
     private readonly RetirePropertyCommandValidator validator = new();
 
     [Fact]
+    public void Operation_id_is_required()
+    {
+        RetirePropertyCommand command = new(
+            Guid.NewGuid(),
+            Guid.Empty,
+            true,
+            1);
+
+        Assert.Contains("OperationId is required.", this.validator.Validate(command));
+    }
+
+    [Fact]
     public void Valid_actor_at_the_contract_limit_is_accepted()
     {
         RetirePropertyCommand command = new(
             Guid.NewGuid(),
+            Guid.NewGuid(),
+            true,
             1,
             new string('a', PropertiesContractLimits.ActorIdMaxLength));
 
@@ -25,7 +39,12 @@ public sealed class RetirePropertyCommandValidatorTests
     [InlineData("user:bad\0actor")]
     public void Invalid_actor_is_rejected_before_command_handling(string actorId)
     {
-        RetirePropertyCommand command = new(Guid.NewGuid(), 1, actorId);
+        RetirePropertyCommand command = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            true,
+            1,
+            actorId);
 
         Assert.Contains(this.validator.Validate(command), error => error.StartsWith("Actor id", StringComparison.Ordinal));
     }
@@ -35,6 +54,8 @@ public sealed class RetirePropertyCommandValidatorTests
     {
         RetirePropertyCommand command = new(
             Guid.NewGuid(),
+            Guid.NewGuid(),
+            true,
             1,
             new string('a', PropertiesContractLimits.ActorIdMaxLength + 1));
 

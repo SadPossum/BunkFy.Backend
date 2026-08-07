@@ -39,6 +39,7 @@ Useful entry points:
 - [Properties Mutation Serialization Task](planning/properties-mutation-serialization-task.md)
 - [Properties Management Create Idempotency Task](planning/properties-management-create-idempotency-task.md)
 - [Properties Details Update Idempotency Task](planning/properties-details-update-idempotency-task.md)
+- [Properties Lifecycle Idempotency Task](planning/properties-lifecycle-idempotency-task.md)
 - [Properties Personal-Data Catalogue Task](planning/properties-personal-data-catalogue-task.md)
 - [Properties Module](../src/Modules/Properties/docs/README.md)
 - [Inventory Module Task](planning/inventory-module-task.md)

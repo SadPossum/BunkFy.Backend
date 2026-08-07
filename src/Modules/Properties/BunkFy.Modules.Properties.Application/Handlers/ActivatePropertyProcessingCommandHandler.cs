@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Text;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.Properties.Application.Commands;
-using BunkFy.Modules.Properties.Application.Mapping;
 using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
@@ -18,6 +17,7 @@ using DomainAcknowledgement = BunkFy.Modules.Properties.Domain.ValueObjects.Prop
 
 internal sealed class ActivatePropertyProcessingCommandHandler(
     PropertiesMutationCoordinator mutations,
+    PropertyMutationOperationJournal journal,
     IPropertyGovernanceRevisionWriter revisions,
     CountryPolicyRegistry countryPolicies,
     ISystemClock clock,
@@ -34,11 +34,29 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
         ActivatePropertyProcessingCommand command,
         CancellationToken cancellationToken)
     {
-        if (!command.Confirmed)
+        if (command.OperationId == Guid.Empty)
         {
-            return Result.Failure<PropertyMutationReceiptDto>(PropertiesApplicationErrors.ConfirmationRequired);
+            return Result.Failure<PropertyMutationReceiptDto>(
+                PropertiesApplicationErrors.ManagementOperationInvalid);
         }
 
+        if (!command.Confirmed)
+        {
+            return Result.Failure<PropertyMutationReceiptDto>(
+                PropertiesApplicationErrors.ConfirmationRequired);
+        }
+
+        Result<PropertyMutationActor> actorResult =
+            PropertyMutationActor.Required(command.ActorId);
+        if (actorResult.IsFailure)
+        {
+            return Result.Failure<PropertyMutationReceiptDto>(
+                actorResult.Error);
+        }
+
+        PropertyMutationActor actor = actorResult.Value;
+        string fingerprint =
+            PropertyLifecycleMutationFingerprint.ComputeActivation(command);
         Property? property = await mutations
             .AcquirePropertyAsync(
                 command.PropertyId,
@@ -46,6 +64,26 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
         if (property is null)
         {
             return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);
+        }
+
+        PropertyMutationReplayDecision replay = await journal.InspectAsync(
+            property,
+            command.OperationId,
+            PropertyMutationKind.ProcessingActivation,
+            command.ExpectedVersion,
+            fingerprint,
+            cancellationToken).ConfigureAwait(false);
+        if (replay.Exists)
+        {
+            return replay.ToResult();
+        }
+
+        Result precondition = property.EvaluateProcessingActivation(
+            command.ExpectedVersion);
+        if (precondition.IsFailure)
+        {
+            return Result.Failure<PropertyMutationReceiptDto>(
+                precondition.Error);
         }
 
         Result lifecycleAdmission = await AuthorizeLifecycleAsync(
@@ -105,7 +143,7 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
             command.ExpectedVersion,
             idGenerator.NewId(),
             nowUtc,
-            command.ActorId);
+            actor.Value!);
         if (activation.IsFailure)
         {
             return Result.Failure<PropertyMutationReceiptDto>(activation.Error);
@@ -127,11 +165,19 @@ internal sealed class ActivatePropertyProcessingCommandHandler(
                 CountryPolicyDecisionReason.Allowed.ToString(),
                 previous,
                 ToCoordinates(property.GovernanceBinding, property.GovernanceAcknowledgements),
-                command.ActorId.Trim(),
+                actor.Value!,
                 nowUtc),
             cancellationToken).ConfigureAwait(false);
 
-        return Result.Success(PropertiesMapper.ToReceipt(property));
+        PropertyMutationReceiptDto receipt = await journal.RecordAsync(
+            property,
+            command.OperationId,
+            PropertyMutationKind.ProcessingActivation,
+            command.ExpectedVersion,
+            fingerprint,
+            nowUtc,
+            cancellationToken).ConfigureAwait(false);
+        return Result.Success(receipt);
     }
 
     private static async ValueTask<Result> AuthorizeLifecycleAsync(

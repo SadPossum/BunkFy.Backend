@@ -29,7 +29,7 @@ internal sealed class PropertyMutationOperationConfiguration
                 "\"ResultProcessingStatus\" IN (1, 2, 3)");
             table.HasCheckConstraint(
                 "CK_properties_property_mutation_operations_kind",
-                "\"Kind\" = 1");
+                "\"Kind\" IN (1, 2, 3, 4)");
         });
         builder.HasKey(operation => new
         {

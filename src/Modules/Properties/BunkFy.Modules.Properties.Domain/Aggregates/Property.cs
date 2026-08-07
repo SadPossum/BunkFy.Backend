@@ -167,18 +167,20 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
-    public Result Retire(long expectedVersion, Guid eventId, DateTimeOffset nowUtc, string? actorId = null)
+    public Result EvaluateRetirement(long expectedVersion)
     {
         Result statusResult = this.EnsureCanRetire();
-        if (statusResult.IsFailure)
-        {
-            return statusResult;
-        }
+        return statusResult.IsSuccess
+            ? this.EnsureExpectedVersion(expectedVersion)
+            : statusResult;
+    }
 
-        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
-        if (versionResult.IsFailure)
+    public Result Retire(long expectedVersion, Guid eventId, DateTimeOffset nowUtc, string? actorId = null)
+    {
+        Result precondition = this.EvaluateRetirement(expectedVersion);
+        if (precondition.IsFailure)
         {
-            return versionResult;
+            return precondition;
         }
 
         if (eventId == Guid.Empty)

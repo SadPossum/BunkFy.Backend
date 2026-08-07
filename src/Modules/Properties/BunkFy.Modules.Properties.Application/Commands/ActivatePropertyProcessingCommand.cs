@@ -5,6 +5,7 @@ using Gma.Framework.Cqrs;
 
 public sealed record ActivatePropertyProcessingCommand(
     Guid PropertyId,
+    Guid OperationId,
     string OperatingCountryCode,
     string PolicyId,
     int PolicyVersion,

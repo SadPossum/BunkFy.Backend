@@ -66,11 +66,10 @@ public sealed class PropertiesApiSecurityTests
             endpoints,
             HttpMethods.Post,
             "/api/properties/{propertyId:guid}/processing/activate");
-        AssertStatus(
+        AssertResponse<PropertyMutationReceiptDto>(
             endpoints,
             HttpMethods.Post,
-            "/api/properties/{propertyId:guid}/processing/suspend",
-            StatusCodes.Status204NoContent);
+            "/api/properties/{propertyId:guid}/processing/suspend");
     }
 
     private static void AssertTopologyResponses(IEnumerable<RouteEndpoint> endpoints, string routeBase)
@@ -79,11 +78,10 @@ public sealed class PropertiesApiSecurityTests
         AssertResponse<PropertyDto>(endpoints, HttpMethods.Get, $"{routeBase}/{{propertyId:guid}}");
         AssertResponse<PropertyMutationReceiptDto>(endpoints, HttpMethods.Post, routeBase);
         AssertResponse<PropertyMutationReceiptDto>(endpoints, HttpMethods.Put, $"{routeBase}/{{propertyId:guid}}");
-        AssertStatus(
+        AssertResponse<PropertyMutationReceiptDto>(
             endpoints,
             HttpMethods.Post,
-            $"{routeBase}/{{propertyId:guid}}/retire",
-            StatusCodes.Status204NoContent);
+            $"{routeBase}/{{propertyId:guid}}/retire");
 
         string rooms = $"{routeBase}/{{propertyId:guid}}/rooms";
         AssertResponse<RoomListResponse>(endpoints, HttpMethods.Get, rooms);

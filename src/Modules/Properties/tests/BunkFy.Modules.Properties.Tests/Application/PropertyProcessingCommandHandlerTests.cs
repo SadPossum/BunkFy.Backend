@@ -28,6 +28,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         ActivatePropertyProcessingCommandHandler handler = new(
             PropertiesMutationTestSupport.Create(
                 properties: new FakePropertyRepository(property)),
+            CreateJournal(),
             revisions,
             CreateRegistry(artifact),
             new TestClock(),
@@ -36,6 +37,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
+                Guid.NewGuid(),
                 "GB",
                 "gb-hostel",
                 1,
@@ -66,29 +68,24 @@ public sealed class PropertyProcessingCommandHandlerTests
     public async Task Activation_denial_does_not_mutate_or_write_a_revision()
     {
         Property property = CreateProperty();
+        FakePropertyRepository properties = new(property);
+        RecordingPropertyMutationOperationRepository operations = new();
+        PropertyMutationOperationJournal journal = CreateJournal(operations);
         RecordingRevisionWriter revisions = new();
         ActivatePropertyProcessingCommandHandler handler = new(
             PropertiesMutationTestSupport.Create(
-                properties: new FakePropertyRepository(property)),
+                properties: properties),
+            journal,
             revisions,
             CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),
             new TestClock(),
             new TestIdGenerator());
+        ActivatePropertyProcessingCommand command = CreateActivationCommand(
+            property,
+            Guid.NewGuid());
 
         Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
-            new ActivatePropertyProcessingCommand(
-                property.Id,
-                "GB",
-                "gb-hostel",
-                1,
-                "eu-west-2",
-                "uk-no-transfer",
-                "guest-operational",
-                1,
-                [],
-                true,
-                property.Version,
-                "user:owner"),
+            command,
             CancellationToken.None);
 
         Assert.Equal(
@@ -97,6 +94,102 @@ public sealed class PropertyProcessingCommandHandlerTests
         Assert.Equal(PropertyProcessingState.Unconfigured, property.ProcessingState);
         Assert.Null(property.GovernanceBinding);
         Assert.Empty(revisions.Items);
+        Assert.Empty(operations.Added);
+
+        ActivatePropertyProcessingCommandHandler correctedHandler = new(
+            PropertiesMutationTestSupport.Create(properties: properties),
+            journal,
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator());
+
+        Result<PropertyMutationReceiptDto> corrected =
+            await correctedHandler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(corrected.IsSuccess);
+        Assert.Single(operations.Added);
+    }
+
+    [Fact]
+    public async Task Exact_activation_replay_returns_the_original_receipt_after_the_property_advances()
+    {
+        Property property = CreateProperty();
+        FakePropertyRepository properties = new(property);
+        RecordingPropertyMutationOperationRepository operations = new();
+        PropertyMutationOperationJournal journal = CreateJournal(operations);
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommand command = CreateActivationCommand(
+            property,
+            Guid.NewGuid());
+        ActivatePropertyProcessingCommandHandler handler = new(
+            PropertiesMutationTestSupport.Create(properties: properties),
+            journal,
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator());
+
+        Result<PropertyMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        Assert.True(property.RegisterRoom(property.Version).IsSuccess);
+        property.ClearDomainEvents();
+        revisions.Items.Clear();
+        ActivatePropertyProcessingCommandHandler replayHandler = new(
+            PropertiesMutationTestSupport.Create(properties: properties),
+            journal,
+            revisions,
+            CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),
+            new TestClock(Now.AddDays(31)),
+            new TestIdGenerator(),
+            [new TestLifecyclePolicy(exception: new InvalidOperationException())]);
+
+        Result<PropertyMutationReceiptDto> replay = await replayHandler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(replay.IsSuccess);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(2, replay.Value.Version);
+        Assert.Equal(3, property.Version);
+        Assert.Empty(revisions.Items);
+        Assert.Empty(property.DomainEvents);
+        Assert.Single(operations.Added);
+    }
+
+    [Fact]
+    public async Task Changed_activation_reuse_conflicts_before_policy_evaluation()
+    {
+        Property property = CreateProperty();
+        RecordingPropertyMutationOperationRepository operations = new();
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommandHandler handler = new(
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
+            CreateJournal(operations),
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator());
+        ActivatePropertyProcessingCommand command = CreateActivationCommand(
+            property,
+            Guid.NewGuid());
+
+        Assert.True((await handler.HandleAsync(
+            command,
+            CancellationToken.None)).IsSuccess);
+        Result<PropertyMutationReceiptDto> reuse = await handler.HandleAsync(
+            command with { DataRegionId = "eu-west-1" },
+            CancellationToken.None);
+
+        Assert.Equal(
+            PropertiesApplicationErrors.ManagementOperationConflict,
+            reuse.Error);
+        Assert.Single(revisions.Items);
+        Assert.Single(operations.Added);
+        Assert.Equal(2, property.Version);
     }
 
     [Theory]
@@ -115,6 +208,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         ActivatePropertyProcessingCommandHandler handler = new(
             PropertiesMutationTestSupport.Create(
                 properties: new FakePropertyRepository(property)),
+            CreateJournal(),
             revisions,
             CreateRegistry(CreateArtifact()),
             new TestClock(),
@@ -125,6 +219,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
+                Guid.NewGuid(),
                 "GB",
                 "gb-hostel",
                 1,
@@ -154,6 +249,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         ActivatePropertyProcessingCommandHandler handler = new(
             PropertiesMutationTestSupport.Create(
                 properties: new FakePropertyRepository(property)),
+            CreateJournal(),
             revisions,
             CreateRegistry(CreateArtifact()),
             new TestClock(),
@@ -164,6 +260,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
+                Guid.NewGuid(),
                 "GB",
                 "gb-hostel",
                 1,
@@ -191,10 +288,12 @@ public sealed class PropertyProcessingCommandHandlerTests
     public async Task Activation_requires_server_side_confirmation_before_policy_evaluation()
     {
         Property property = CreateProperty();
+        RecordingPropertyMutationOperationRepository operations = new();
         RecordingRevisionWriter revisions = new();
         ActivatePropertyProcessingCommandHandler handler = new(
             PropertiesMutationTestSupport.Create(
                 properties: new FakePropertyRepository(property)),
+            CreateJournal(operations),
             revisions,
             CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),
             new TestClock(),
@@ -203,6 +302,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
+                Guid.NewGuid(),
                 "GB",
                 "gb-hostel",
                 1,
@@ -219,6 +319,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Assert.Equal(PropertiesApplicationErrors.ConfirmationRequired, result.Error);
         Assert.Equal(PropertyProcessingState.Unconfigured, property.ProcessingState);
         Assert.Empty(revisions.Items);
+        Assert.Equal(0, operations.ReadCount);
     }
 
     [Fact]
@@ -240,12 +341,14 @@ public sealed class PropertyProcessingCommandHandlerTests
 
         Assert.True((await new ActivatePropertyProcessingCommandHandler(
             PropertiesMutationTestSupport.Create(properties: repository),
+            CreateJournal(),
             new RecordingRevisionWriter(),
             registry,
             new TestClock(),
             new TestIdGenerator()).HandleAsync(
                 new ActivatePropertyProcessingCommand(
                     property.Id,
+                    Guid.NewGuid(),
                     "GB",
                     "gb-hostel",
                     1,
@@ -310,6 +413,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         ActivatePropertyProcessingCommandHandler activate = new(
             PropertiesMutationTestSupport.Create(
                 properties: new FakePropertyRepository(property)),
+            CreateJournal(),
             revisions,
             CreateRegistry(artifact),
             new TestClock(),
@@ -317,6 +421,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         Assert.True((await activate.HandleAsync(
             new ActivatePropertyProcessingCommand(
                 property.Id,
+                Guid.NewGuid(),
                 "GB",
                 "gb-hostel",
                 1,
@@ -333,12 +438,18 @@ public sealed class PropertyProcessingCommandHandlerTests
         SuspendPropertyProcessingCommandHandler suspend = new(
             PropertiesMutationTestSupport.Create(
                 properties: new FakePropertyRepository(property)),
+            CreateJournal(),
             revisions,
             new TestClock(),
             new TestIdGenerator());
 
-        Result<Unit> result = await suspend.HandleAsync(
-            new SuspendPropertyProcessingCommand(property.Id, property.Version, "user:owner"),
+        Result<PropertyMutationReceiptDto> result = await suspend.HandleAsync(
+            new SuspendPropertyProcessingCommand(
+                property.Id,
+                Guid.NewGuid(),
+                true,
+                property.Version,
+                "user:owner"),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -349,11 +460,127 @@ public sealed class PropertyProcessingCommandHandlerTests
         Assert.Equal(revision.Previous, revision.Current);
     }
 
+    [Fact]
+    public async Task Exact_suspension_replay_returns_the_original_receipt_after_the_property_advances()
+    {
+        Property property = CreateProperty();
+        FakePropertyRepository properties = new(property);
+        RecordingPropertyMutationOperationRepository operations = new();
+        PropertyMutationOperationJournal journal = CreateJournal(operations);
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommandHandler activate = new(
+            PropertiesMutationTestSupport.Create(properties: properties),
+            journal,
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator());
+        Assert.True((await activate.HandleAsync(
+            CreateActivationCommand(property, Guid.NewGuid()),
+            CancellationToken.None)).IsSuccess);
+        revisions.Items.Clear();
+        SuspendPropertyProcessingCommandHandler suspend = new(
+            PropertiesMutationTestSupport.Create(properties: properties),
+            journal,
+            revisions,
+            new TestClock(),
+            new TestIdGenerator());
+        SuspendPropertyProcessingCommand command = new(
+            property.Id,
+            Guid.NewGuid(),
+            true,
+            property.Version,
+            "user:owner");
+
+        Result<PropertyMutationReceiptDto> first = await suspend.HandleAsync(
+            command,
+            CancellationToken.None);
+        Assert.True(property.RegisterRoom(property.Version).IsSuccess);
+        property.ClearDomainEvents();
+        revisions.Items.Clear();
+        Result<PropertyMutationReceiptDto> replay = await suspend.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(replay.IsSuccess);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(3, replay.Value.Version);
+        Assert.Equal(4, property.Version);
+        Assert.Empty(revisions.Items);
+        Assert.Empty(property.DomainEvents);
+        Assert.Equal(2, operations.Added.Count);
+    }
+
+    [Fact]
+    public async Task Operation_id_cannot_be_reused_across_processing_actions()
+    {
+        Property property = CreateProperty();
+        FakePropertyRepository properties = new(property);
+        RecordingPropertyMutationOperationRepository operations = new();
+        PropertyMutationOperationJournal journal = CreateJournal(operations);
+        RecordingRevisionWriter revisions = new();
+        Guid operationId = Guid.NewGuid();
+        ActivatePropertyProcessingCommandHandler activate = new(
+            PropertiesMutationTestSupport.Create(properties: properties),
+            journal,
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator());
+        Assert.True((await activate.HandleAsync(
+            CreateActivationCommand(property, operationId),
+            CancellationToken.None)).IsSuccess);
+        SuspendPropertyProcessingCommandHandler suspend = new(
+            PropertiesMutationTestSupport.Create(properties: properties),
+            journal,
+            revisions,
+            new TestClock(),
+            new TestIdGenerator());
+
+        Result<PropertyMutationReceiptDto> result = await suspend.HandleAsync(
+            new SuspendPropertyProcessingCommand(
+                property.Id,
+                operationId,
+                true,
+                property.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            PropertiesApplicationErrors.ManagementOperationConflict,
+            result.Error);
+        Assert.Equal(PropertyProcessingState.Enabled, property.ProcessingState);
+        Assert.Single(operations.Added);
+        Assert.Single(revisions.Items);
+    }
+
     private static CountryPolicyRegistry CreateRegistry(CountryPolicyPackArtifact artifact) =>
         CountryPolicyRegistry.Create(
             [artifact],
             [new("GB", "gb-hostel", 1, artifact.ContentSha256, CountryLaunchStatus.Approved)],
             CountryPolicyRuntimeMode.Production);
+
+    private static PropertyMutationOperationJournal CreateJournal(
+        RecordingPropertyMutationOperationRepository? operations = null) =>
+        new(operations ?? new RecordingPropertyMutationOperationRepository());
+
+    private static ActivatePropertyProcessingCommand CreateActivationCommand(
+        Property property,
+        Guid operationId) => new(
+            property.Id,
+            operationId,
+            "GB",
+            "gb-hostel",
+            1,
+            "eu-west-2",
+            "uk-no-transfer",
+            "guest-operational",
+            1,
+            [],
+            true,
+            property.Version,
+            "user:owner");
 
     private static CountryPolicyPackArtifact CreateArtifact()
     {
@@ -444,7 +671,7 @@ public sealed class PropertyProcessingCommandHandlerTests
         public Task AddAsync(Property value, CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<Property?> GetAsync(Guid propertyId, CancellationToken cancellationToken) =>
-            Task.FromResult<Property?>(property.Id == propertyId ? property : null);
+            Task.FromResult(property.Id == propertyId ? property : null);
 
         public Task<bool> CodeExistsAsync(
             string code,

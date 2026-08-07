@@ -126,12 +126,16 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 httpContext,
                 AdminOperation.Create(PropertiesAdminOperationNames.PropertiesRetire, PropertiesAdminPermissions.PropertiesManage),
                 requireTenant: true,
-                token => request.Confirmed
-                    ? dispatcher.SendAsync(new RetirePropertyCommand(propertyId, request.ExpectedVersion), token)
-                    : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
+                token => dispatcher.SendAsync(
+                    new RetirePropertyCommand(
+                        propertyId,
+                        request.OperationId,
+                        request.Confirmed,
+                        request.ExpectedVersion),
+                    token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK);
 
         properties.MapGet("/{propertyId:guid}/rooms", async (
             Guid propertyId,
@@ -349,7 +353,10 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
         string Code,
         string TimeZoneId,
         long ExpectedVersion);
-    public sealed record RetirePropertyRequest(bool Confirmed, long ExpectedVersion);
+    public sealed record RetirePropertyRequest(
+        Guid OperationId,
+        bool Confirmed,
+        long ExpectedVersion);
     public sealed record RoomCreateRequest(
         string Name,
         long ExpectedPropertyVersion,

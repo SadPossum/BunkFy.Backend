@@ -48,5 +48,8 @@ public sealed record PropertyMutationOperationRecord(
 
 public enum PropertyMutationKind
 {
-    DetailsUpdate = 1
+    DetailsUpdate = 1,
+    ProcessingActivation = 2,
+    ProcessingSuspension = 3,
+    Retirement = 4
 }

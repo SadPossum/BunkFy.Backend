@@ -248,30 +248,56 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
     private static Command CreateRetirePropertyCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
+        Option<Guid> operationIdOption = new("--operation-id")
+        {
+            Required = true
+        };
         Option<long> expectedVersionOption = CreateRequiredVersionOption("--expected-version");
         Option<bool> yesOption = new("--yes");
         Command command = new("retire", "Retire a property after all rooms are retired.")
         {
             propertyIdOption,
+            operationIdOption,
             expectedVersionOption,
             yesOption
         };
         command.SetAction((parseResult, cancellationToken) =>
-            ExecuteUnitCommandAsync(
-                services,
-                globalOptions,
+        {
+            AdminCliExecutor executor = services.GetRequiredService<
+                AdminCliExecutor>();
+            return executor.ExecuteAsync(
                 parseResult,
-                PropertiesAdminOperationNames.PropertiesRetire,
-                PropertiesAdminPermissions.PropertiesManage,
-                provider => parseResult.GetValue(yesOption)
-                    ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
+                AdminOperation.Create(
+                    PropertiesAdminOperationNames.PropertiesRetire,
+                    PropertiesAdminPermissions.PropertiesManage),
+                parseResult.GetValue(globalOptions.TenantOption),
+                requireTenant: true,
+                async (provider, token) =>
+                {
+                    IRequestDispatcher dispatcher = provider
+                        .GetRequiredService<IRequestDispatcher>();
+                    Result<PropertyMutationReceiptDto> result =
+                        await dispatcher.SendAsync(
                         new RetirePropertyCommand(
                             parseResult.GetRequiredValue(propertyIdOption),
-                            parseResult.GetRequiredValue(expectedVersionOption)),
-                        cancellationToken)
-                    : Task.FromResult(Result.Failure<Unit>(AdminErrors.ConfirmationRequired)),
-                "Property retired.",
-                cancellationToken));
+                            parseResult.GetRequiredValue(operationIdOption),
+                            parseResult.GetValue(yesOption),
+                            parseResult.GetRequiredValue(
+                                expectedVersionOption)),
+                        token).ConfigureAwait(false);
+                    if (result.IsSuccess)
+                    {
+                        AdminCliOutput.WriteObject(
+                            result.Value,
+                            parseResult.GetValue(
+                                globalOptions.OutputOption) ??
+                            AdminCliOutput.Table);
+                    }
+
+                    return result;
+                },
+                cancellationToken);
+        });
         return command;
     }
 

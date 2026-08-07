@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Properties.Application.Validation;
 
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
 
 internal static class PropertiesValidation
@@ -9,6 +10,25 @@ internal static class PropertiesValidation
         if (expectedVersion < 1)
         {
             yield return $"Expected {description} version must be positive.";
+        }
+    }
+
+    public static IEnumerable<string> ValidateActor(
+        string? actorId,
+        bool required)
+    {
+        string normalized = actorId?.Trim() ?? string.Empty;
+        if (required && normalized.Length == 0)
+        {
+            yield return "Actor id is required.";
+            yield break;
+        }
+
+        if (normalized.Length > PropertiesContractLimits.ActorIdMaxLength ||
+            normalized.Any(char.IsControl))
+        {
+            yield return
+                $"Actor id must be {PropertiesContractLimits.ActorIdMaxLength} characters or fewer and cannot contain control characters.";
         }
     }
 

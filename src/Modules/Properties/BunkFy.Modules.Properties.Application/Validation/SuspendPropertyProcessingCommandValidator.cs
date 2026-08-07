@@ -3,9 +3,11 @@ namespace BunkFy.Modules.Properties.Application.Validation;
 using BunkFy.Modules.Properties.Application.Commands;
 using Gma.Framework.Cqrs;
 
-internal sealed class RetirePropertyCommandValidator : ICommandValidator<RetirePropertyCommand>
+internal sealed class SuspendPropertyProcessingCommandValidator
+    : ICommandValidator<SuspendPropertyProcessingCommand>
 {
-    public IEnumerable<string> Validate(RetirePropertyCommand command)
+    public IEnumerable<string> Validate(
+        SuspendPropertyProcessingCommand command)
     {
         if (command.PropertyId == Guid.Empty)
         {
@@ -17,14 +19,16 @@ internal sealed class RetirePropertyCommandValidator : ICommandValidator<RetireP
             yield return "OperationId is required.";
         }
 
-        foreach (string error in PropertiesValidation.ValidateExpectedVersion(command.ExpectedVersion, "property"))
+        foreach (string error in PropertiesValidation.ValidateExpectedVersion(
+                     command.ExpectedVersion,
+                     "property"))
         {
             yield return error;
         }
 
         foreach (string error in PropertiesValidation.ValidateActor(
                      command.ActorId,
-                     required: false))
+                     required: true))
         {
             yield return error;
         }

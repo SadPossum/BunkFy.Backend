@@ -126,6 +126,13 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
                     "properties.staff-actor-reference")
                 .GetString());
         Assert.Equal(
+            "processing-activation",
+            Field(
+                    first.Records[1],
+                    "properties.property-mutation-operation")
+                .GetProperty("kind")
+                .GetString());
+        Assert.Equal(
             PropertiesTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
         Assert.Equal(
@@ -367,12 +374,12 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
                 PropertyMutationOperationId,
                 TenantId,
                 PropertyId,
-                PropertyMutationKind.DetailsUpdate,
+                PropertyMutationKind.ProcessingActivation,
                 ExpectedVersion: 1,
                 Digest,
                 PropertyStatus.Active,
-                PropertyProcessingStatus.Unconfigured,
-                ResultVersion: 1,
+                PropertyProcessingStatus.Enabled,
+                ResultVersion: 2,
                 FrozenAtUtc.AddDays(-3))));
         context.Rooms.Add(room);
         context.PropertyOperationLocks.Add(

@@ -273,7 +273,7 @@ public sealed class UpdatePropertyCommandHandlerTests
                 scopeContext: scopeContext);
         PropertyDetailsUpdateCoordinator updates = new(
             properties,
-            operations,
+            new PropertyMutationOperationJournal(operations),
             mutations,
             new TestClock(),
             ids);

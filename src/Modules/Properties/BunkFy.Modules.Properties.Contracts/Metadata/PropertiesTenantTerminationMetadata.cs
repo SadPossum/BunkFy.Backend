@@ -11,14 +11,14 @@ public static class PropertiesTenantTerminationMetadata
     public const string OperationsNotificationsDestroyDependencyOwnerKey =
         "operations-notifications";
     public const string RetentionDestroyDependencyOwnerKey = "retention";
-    public const int CatalogVersion = 3;
+    public const int CatalogVersion = 4;
     public const int PersonalDataCatalogVersion = 3;
     public const string ExportCatalogId =
         "properties.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =
         "properties.tenant-termination-export";
-    public const int ExportSchemaVersion = 2;
+    public const int ExportSchemaVersion = 3;
 
     public const string PropertyRecordType = "property";
     public const string PropertyMutationOperationRecordType =

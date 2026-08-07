@@ -128,6 +128,7 @@
     <File Path="docs/planning/production-file-surface-lockdown-task.md" />
     <File Path="docs/planning/properties-details-update-idempotency-task.md" />
     <File Path="docs/planning/properties-follow-up-notes.md" />
+    <File Path="docs/planning/properties-lifecycle-idempotency-task.md" />
     <File Path="docs/planning/properties-management-create-idempotency-task.md" />
     <File Path="docs/planning/properties-module-task.md" />
     <File Path="docs/planning/properties-mutation-serialization-task.md" />

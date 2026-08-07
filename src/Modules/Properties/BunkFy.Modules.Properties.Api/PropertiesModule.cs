@@ -143,18 +143,24 @@ public sealed class PropertiesModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
         {
-            Result<Unit> result = request.Confirmed
-                ? await dispatcher.SendAsync(
+            string? actorId = ResolveActor(httpContext, subjectResolver);
+            if (actorId is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            Result<PropertyMutationReceiptDto> result =
+                await dispatcher.SendAsync(
                     new RetirePropertyCommand(
                         propertyId,
+                        request.OperationId,
+                        request.Confirmed,
                         request.ExpectedVersion,
-                        ResolveActor(httpContext, subjectResolver)),
-                    cancellationToken).ConfigureAwait(false)
-                : Result.Failure<Unit>(new("Properties.ConfirmationRequired", "Confirmation is required."));
-
-            return result.IsSuccess ? Results.NoContent() : result.ToHttpResult(PublicErrorStatusCodes);
+                        actorId),
+                    cancellationToken).ConfigureAwait(false);
+            return result.ToHttpResult(PublicErrorStatusCodes);
         })
-            .Produces(StatusCodes.Status204NoContent)
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -175,6 +181,7 @@ public sealed class PropertiesModule : IModule
             Result<PropertyMutationReceiptDto> result = await dispatcher.SendAsync(
                 new ActivatePropertyProcessingCommand(
                     propertyId,
+                    request.OperationId,
                     request.OperatingCountryCode,
                     request.PolicyId,
                     request.PolicyVersion,
@@ -207,14 +214,18 @@ public sealed class PropertiesModule : IModule
                 return Results.Unauthorized();
             }
 
-            Result<Unit> result = request.Confirmed
-                ? await dispatcher.SendAsync(
-                    new SuspendPropertyProcessingCommand(propertyId, request.ExpectedVersion, actorId),
-                    cancellationToken).ConfigureAwait(false)
-                : Result.Failure<Unit>(PropertiesApplicationErrors.ConfirmationRequired);
-            return result.IsSuccess ? Results.NoContent() : result.ToHttpResult(PublicErrorStatusCodes);
+            Result<PropertyMutationReceiptDto> result =
+                await dispatcher.SendAsync(
+                    new SuspendPropertyProcessingCommand(
+                        propertyId,
+                        request.OperationId,
+                        request.Confirmed,
+                        request.ExpectedVersion,
+                        actorId),
+                    cancellationToken).ConfigureAwait(false);
+            return result.ToHttpResult(PublicErrorStatusCodes);
         })
-            .Produces(StatusCodes.Status204NoContent)
+            .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
@@ -383,8 +394,12 @@ public sealed class PropertiesModule : IModule
         string Code,
         string TimeZoneId,
         long ExpectedVersion);
-    public sealed record RetirePropertyRequest(bool Confirmed, long ExpectedVersion);
+    public sealed record RetirePropertyRequest(
+        Guid OperationId,
+        bool Confirmed,
+        long ExpectedVersion);
     public sealed record ActivatePropertyProcessingRequest(
+        Guid OperationId,
         string OperatingCountryCode,
         string PolicyId,
         int PolicyVersion,
@@ -395,7 +410,10 @@ public sealed class PropertiesModule : IModule
         IReadOnlyCollection<PropertyGovernanceAcknowledgementDto> AcceptedAcknowledgements,
         bool Confirmed,
         long ExpectedVersion);
-    public sealed record SuspendPropertyProcessingRequest(bool Confirmed, long ExpectedVersion);
+    public sealed record SuspendPropertyProcessingRequest(
+        Guid OperationId,
+        bool Confirmed,
+        long ExpectedVersion);
     public sealed record RoomCreateRequest(
         string Name,
         long ExpectedPropertyVersion,

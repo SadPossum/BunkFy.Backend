@@ -97,7 +97,8 @@ public sealed class PropertiesModelTests
         Assert.Contains(
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
-                "CK_properties_property_mutation_operations_kind");
+                "CK_properties_property_mutation_operations_kind" &&
+                constraint.Sql == "\"Kind\" IN (1, 2, 3, 4)");
     }
 
     [Fact]
