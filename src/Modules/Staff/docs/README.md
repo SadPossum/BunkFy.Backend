@@ -33,19 +33,23 @@ return a current-property count; property pages return only the assignment for
 the requested active property. Both use deterministic offset paging with a
 one-row look-ahead for `HasMore`. Full profile reads require
 `staff.sensitive-profile.read`; the identity-bound self-service route remains
-available to the current Staff subject. Create, update, and account-link writes
-return directory-safe receipts rather than the sensitive profile they mutate.
-Canonical profile/create/update/lifecycle routes require tenant scope. Property
-discovery and assignment routes require `tenant/property` scope. Property grants
-do not satisfy tenant operations.
+available to the current Staff subject. Profile, account-link, lifecycle, and
+assignment writes return directory-safe results rather than the sensitive
+profile they mutate. Canonical profile/create/update/lifecycle routes require
+tenant scope. Property discovery and assignment routes require
+`tenant/property` scope. Property grants do not satisfy tenant operations.
 
-Ordinary profile and account-link changes use a caller-owned operation id and a
-Staff-owned, immutable minimal receipt. Equivalent retries return the original
-result without another Staff version or event; changed or cross-kind reuse
-conflicts. The shared Staff member-mutation journal stores an explicit operation
-kind, canonical request fingerprint, and result facts without duplicating the
-profile or Auth subject. It participates in Staff export and tenant lifecycle,
-and is removed when the profile is anonymised.
+Ordinary profile creation, profile updates, account-link changes, employment
+lifecycle transitions, and direct property-assignment changes use a
+caller-owned operation id. Creation returns its original directory-safe result;
+the other mutations return a Staff-owned, immutable minimal receipt. Equivalent
+retries return the original result without another Staff version or event;
+changed or cross-kind reuse conflicts. The shared Staff member-mutation journal
+stores an explicit operation kind, canonical request fingerprint, and result
+facts without duplicating profile, Auth-subject, assignment, or reason values.
+It participates in Staff export and tenant lifecycle, and is removed when the
+profile is anonymised. Workspace onboarding reconciliation remains a separate
+desired-state integration contract.
 
 ## Processing restrictions
 
