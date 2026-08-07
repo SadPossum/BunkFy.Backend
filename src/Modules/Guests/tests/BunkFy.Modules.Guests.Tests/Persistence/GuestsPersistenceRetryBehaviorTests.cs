@@ -27,6 +27,47 @@ public sealed class GuestsPersistenceRetryBehaviorTests
     }
 
     [Fact]
+    public async Task Guest_create_persistence_conflict_reexecutes_once()
+    {
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .Options;
+        await using GuestsDbContext dbContext = new(options, new TestScopeContext());
+        GuestsPersistenceRetryBehavior<
+            CreateGuestProfileCommand,
+            GuestMutationReceiptDto> behavior = new(dbContext, _ => true);
+        CreateGuestProfileCommand command = new(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Guest",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "user:operator");
+        int attempts = 0;
+
+        Task<Result<GuestMutationReceiptDto>> Next()
+        {
+            attempts++;
+            return attempts == 1
+                ? throw new DbUpdateException("simulated unique conflict")
+                : Task.FromResult(Result.Failure<GuestMutationReceiptDto>(
+                    GuestsApplicationErrors.CreationOperationConflict));
+        }
+
+        Result<GuestMutationReceiptDto> result =
+            await behavior.HandleAsync(command, Next, CancellationToken.None);
+
+        Assert.Equal(2, attempts);
+        Assert.Equal(GuestsApplicationErrors.CreationOperationConflict, result.Error);
+    }
+
+    [Fact]
     public async Task Correction_persistence_conflict_reexecutes_once()
     {
         DbContextOptions<GuestsDbContext> options =

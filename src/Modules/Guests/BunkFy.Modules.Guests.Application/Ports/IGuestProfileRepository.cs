@@ -6,7 +6,10 @@ using Gma.Framework.Pagination;
 
 public interface IGuestProfileRepository
 {
-    Task AddAsync(GuestProfile profile, CancellationToken cancellationToken);
+    Task AddUnderAcquiredOperationLockAsync(
+        GuestProfile profile,
+        CancellationToken cancellationToken);
+    Task<GuestProfile?> GetByIdAsync(Guid guestId, CancellationToken cancellationToken);
     Task<GuestProfile?> GetVisibleAsync(Guid propertyId, Guid guestId, CancellationToken cancellationToken);
     Task<GuestProfile?> GetForDataRightsAsync(
         Guid propertyId,

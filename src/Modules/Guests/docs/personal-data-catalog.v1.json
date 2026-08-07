@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "guests.personal-data",
-  "catalogVersion": 12,
+  "catalogVersion": 13,
   "module": "guests",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -2306,9 +2306,12 @@
       "allowedBoundaries": ["cross-module", "customer-api", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.AdminApi", "type": "BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest", "member": "OperationId", "surface": "api-input", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Api", "type": "BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest", "member": "GuestId", "surface": "api-input", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Api", "type": "BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest", "member": "OperationId", "surface": "api-input", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand", "member": "GuestId", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ArchiveGuestProfileCommand", "member": "GuestId", "surface": "application-command", "retentionPolicy": "transient-request" },
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand", "member": "OperationId", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand", "member": "GuestId", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Queries.GetGuestProfileQuery", "member": "GuestId", "surface": "application-query", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Queries.GetGuestStayHistoryQuery", "member": "GuestId", "surface": "application-query", "retentionPolicy": "transient-request" },

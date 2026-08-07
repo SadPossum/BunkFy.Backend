@@ -241,8 +241,15 @@ public sealed class GuestProcessingRestrictionCommandHandlerTests
     private sealed class RecordingGuestRepository(GuestProfile profile)
         : IGuestProfileRepository
     {
-        public Task AddAsync(GuestProfile added, CancellationToken cancellationToken) =>
+        public Task AddUnderAcquiredOperationLockAsync(
+            GuestProfile added,
+            CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<GuestProfile?> GetByIdAsync(
+            Guid guestId,
+            CancellationToken cancellationToken) => Task.FromResult(
+            profile.Id == guestId ? profile : null);
 
         public Task<GuestProfile?> GetVisibleAsync(
             Guid propertyId,

@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Persistence.Models;
 using Gma.Framework.Pagination;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,8 +12,20 @@ internal sealed class GuestProfileRepository(
     IGuestProcessingRestrictionProjectionRepository restrictionProjections)
     : IGuestProfileRepository
 {
-    public async Task AddAsync(GuestProfile profile, CancellationToken cancellationToken)
+    public async Task AddUnderAcquiredOperationLockAsync(
+        GuestProfile profile,
+        CancellationToken cancellationToken)
     {
+        bool lockTracked = dbContext.Set<GuestOperationLock>().Local.Any(resourceLock =>
+            resourceLock.ResourceKind == GuestOperationLockKind.Guest &&
+            resourceLock.ResourceId == profile.Id &&
+            string.Equals(resourceLock.ScopeId, profile.ScopeId, StringComparison.Ordinal));
+        if (!lockTracked)
+        {
+            throw new InvalidOperationException(
+                "The Guest creation operation lock is not acquired.");
+        }
+
         dbContext.GuestProfiles.Add(profile);
         await restrictionProjections.EnsureAsync(
             profile.ScopeId,
@@ -21,6 +34,11 @@ internal sealed class GuestProfileRepository(
             profile.CreatedAtUtc,
             cancellationToken).ConfigureAwait(false);
     }
+
+    public Task<GuestProfile?> GetByIdAsync(
+        Guid guestId,
+        CancellationToken cancellationToken) => dbContext.GuestProfiles
+        .FirstOrDefaultAsync(profile => profile.Id == guestId, cancellationToken);
 
     public Task<GuestProfile?> GetVisibleAsync(
         Guid propertyId,

@@ -44,7 +44,7 @@ public sealed class GuestProcessingRestrictionProjectionRepositoryTests
             Guid.NewGuid(),
             createdAtUtc).Value;
 
-        await profiles.AddAsync(profile, CancellationToken.None);
+        await AddUnderLockAsync(dbContext, profiles, profile);
         await stays.ApplyAsync(
             new GuestStayHistoryWriteModel(
                 scopeContext.ScopeId,
@@ -111,8 +111,8 @@ public sealed class GuestProcessingRestrictionProjectionRepositoryTests
             "Future projection",
             createdAtUtc);
 
-        await profiles.AddAsync(unrestricted, CancellationToken.None);
-        await profiles.AddAsync(restricted, CancellationToken.None);
+        await AddUnderLockAsync(dbContext, profiles, unrestricted);
+        await AddUnderLockAsync(dbContext, profiles, restricted);
         dbContext.GuestProfiles.AddRange(missingProjection, futureProjection);
         dbContext.ProcessingRestrictionProjections.Add(
             GuestProcessingRestrictionProjection.Create(
@@ -192,6 +192,20 @@ public sealed class GuestProcessingRestrictionProjectionRepositoryTests
         "staff:test",
         Guid.NewGuid(),
         createdAtUtc).Value;
+
+    private static async Task AddUnderLockAsync(
+        GuestsDbContext dbContext,
+        GuestProfileRepository repository,
+        GuestProfile profile)
+    {
+        await new GuestOperationLockRepository(dbContext).AcquireGuestAsync(
+            profile.ScopeId,
+            profile.Id,
+            CancellationToken.None);
+        await repository.AddUnderAcquiredOperationLockAsync(
+            profile,
+            CancellationToken.None);
+    }
 
     private static GuestsDbContext CreateDbContext()
     {

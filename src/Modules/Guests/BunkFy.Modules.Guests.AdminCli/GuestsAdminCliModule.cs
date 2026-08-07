@@ -103,9 +103,10 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
 
     private static Command CreateCreateCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> property = PropertyOption();
         ProfileOptions options = new();
-        Command command = new("create", "Create a guest record.") { property };
+        Command command = new("create", "Create a guest record.") { operationId, property };
         options.AddTo(command, includeVersion: false);
         command.SetAction((parse, cancellationToken) => ExecuteMutationAsync(
             services,
@@ -116,6 +117,7 @@ public sealed class GuestsAdminCliModule : IAdminCliModule
             (provider, token) => TryValues(parse, options, out GuestProfileValues values)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new CreateGuestProfileCommand(
+                        parse.GetRequiredValue(operationId),
                         parse.GetRequiredValue(property),
                         values.DisplayName,
                         values.LegalName,

@@ -115,9 +115,14 @@ public sealed class GuestProfileMutationSerializationTests
 
         public void RevokeVisibility() => this.visible = false;
 
-        public Task AddAsync(
+        public Task AddUnderAcquiredOperationLockAsync(
             GuestProfile added,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<GuestProfile?> GetByIdAsync(
+            Guid guestId,
+            CancellationToken cancellationToken) => Task.FromResult(
+            profile.Id == guestId ? profile : null);
 
         public Task<GuestProfile?> GetVisibleAsync(
             Guid propertyId,

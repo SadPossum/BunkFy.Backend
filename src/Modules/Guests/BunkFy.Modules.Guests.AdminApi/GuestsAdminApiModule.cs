@@ -109,6 +109,7 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
                 AdminOperation.Create(GuestsAdminOperationNames.Create, GuestsAdminPermissions.Create),
                 requireTenant: true,
                 token => dispatcher.SendAsync(new CreateGuestProfileCommand(
+                    request.OperationId,
                     propertyId,
                     request.DisplayName,
                     request.LegalName,
@@ -172,6 +173,7 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
     }
 
     public sealed record GuestProfileWriteRequest(
+        Guid OperationId,
         string DisplayName,
         string? LegalName,
         string? Email,
@@ -220,6 +222,7 @@ public sealed class GuestsAdminApiModule : IAdminApiModule
 
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(GuestsApplicationErrors.GuestNotFound.Code, StatusCodes.Status404NotFound),
+        new(GuestsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
         new(GuestsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(GuestsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(GuestsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),

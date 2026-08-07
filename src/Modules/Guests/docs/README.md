@@ -14,6 +14,9 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - property-scoped create, search, read, update, archive, and stay-history surfaces across public management API, Admin API, and Admin CLI;
 - PII-minimal create, update, and archive receipts shared by every management
   front door; sensitive profile data remains behind the explicit detail read;
+- retry-safe Guest creation across the public API, Admin API, Admin CLI, and
+  web workflows, using the caller operation id as the Guest id and the existing
+  tenant-scoped mutation coordinate without a retained request journal;
 - explicit success schemas and fail-safe `no-store` headers on every public and
   Admin Guest HTTP response;
 - minimized directory rows projected directly from persistence with one-row

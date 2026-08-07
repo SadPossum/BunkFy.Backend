@@ -1,9 +1,11 @@
 namespace BunkFy.Modules.Guests.Application.Commands;
 
+using BunkFy.Modules.Guests.Application.Ports;
 using Gma.Framework.Cqrs;
 using BunkFy.Modules.Guests.Contracts;
 
 public sealed record CreateGuestProfileCommand(
+    Guid OperationId,
     Guid PropertyId,
     string DisplayName,
     string? LegalName,
@@ -13,4 +15,6 @@ public sealed record CreateGuestProfileCommand(
     string? NationalityCountryCode,
     string? PreferredLanguageTag,
     string? Notes,
-    string ActorId) : ITransactionalCommand<GuestMutationReceiptDto>;
+    string ActorId) :
+    ITransactionalCommand<GuestMutationReceiptDto>,
+    IGuestsPersistenceRetryableCommand;

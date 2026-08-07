@@ -15,6 +15,40 @@ public sealed class GuestProfileRepositoryTests
     private static readonly string[] DirectoryNames = ["Charlie", "Alpha", "Bravo"];
 
     [Fact]
+    public async Task Creation_requires_the_guest_operation_lock_and_initializes_one_owner_graph()
+    {
+        TestScopeContext scopeContext = new();
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase($"guest-profile-create-{Guid.NewGuid():N}")
+                .Options;
+        await using GuestsDbContext dbContext = new(options, scopeContext);
+        GuestProcessingRestrictionProjectionRepository restrictions =
+            new(dbContext, scopeContext);
+        GuestProfileRepository repository = new(dbContext, restrictions);
+        GuestProfile profile = CreateProfile(
+            scopeContext.ScopeId,
+            Guid.NewGuid(),
+            "Locked Guest",
+            new DateTimeOffset(2026, 8, 7, 9, 0, 0, TimeSpan.Zero));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            repository.AddUnderAcquiredOperationLockAsync(
+                profile,
+                CancellationToken.None));
+
+        await AddUnderLockAsync(dbContext, repository, profile);
+        await dbContext.SaveChangesAsync();
+
+        Assert.Equal(1, await dbContext.GuestProfiles.CountAsync());
+        Assert.Equal(1, await dbContext.OperationLocks.CountAsync());
+        Assert.Equal(1, await dbContext.ProcessingRestrictionProjections.CountAsync());
+        Assert.Same(
+            profile,
+            await repository.GetByIdAsync(profile.Id, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Directory_projects_minimized_rows_and_reports_truthful_look_ahead()
     {
         TestScopeContext scopeContext = new();
@@ -30,9 +64,12 @@ public sealed class GuestProfileRepositoryTests
         DateTimeOffset nowUtc = new(2026, 8, 4, 20, 0, 0, TimeSpan.Zero);
         foreach (string name in DirectoryNames)
         {
-            await repository.AddAsync(
-                CreateProfile(scopeContext.ScopeId, propertyId, name, nowUtc),
-                CancellationToken.None);
+            GuestProfile profile = CreateProfile(
+                scopeContext.ScopeId,
+                propertyId,
+                name,
+                nowUtc);
+            await AddUnderLockAsync(dbContext, repository, profile);
         }
 
         await dbContext.SaveChangesAsync();
@@ -93,7 +130,7 @@ public sealed class GuestProfileRepositoryTests
             "user:creator",
             Guid.NewGuid(),
             new DateTimeOffset(2026, 7, 25, 10, 0, 0, TimeSpan.Zero)).Value;
-        await repository.AddAsync(profile, CancellationToken.None);
+        await AddUnderLockAsync(dbContext, repository, profile);
         await dbContext.SaveChangesAsync();
         Assert.True(profile.Anonymise(
             profile.Version,
@@ -117,11 +154,15 @@ public sealed class GuestProfileRepositoryTests
             propertyId,
             profile.Id,
             CancellationToken.None);
+        GuestProfile? operationProfile = await repository.GetByIdAsync(
+            profile.Id,
+            CancellationToken.None);
 
         Assert.Null(visible);
         Assert.Empty(listed.Guests);
         Assert.NotNull(internalProfile);
         Assert.Equal(GuestProfileState.Anonymised, internalProfile.Status);
+        Assert.Same(internalProfile, operationProfile);
     }
 
     private static GuestProfile CreateProfile(
@@ -143,6 +184,20 @@ public sealed class GuestProfileRepositoryTests
         "user:creator",
         Guid.NewGuid(),
         nowUtc).Value;
+
+    private static async Task AddUnderLockAsync(
+        GuestsDbContext dbContext,
+        GuestProfileRepository repository,
+        GuestProfile profile)
+    {
+        await new GuestOperationLockRepository(dbContext).AcquireGuestAsync(
+            profile.ScopeId,
+            profile.Id,
+            CancellationToken.None);
+        await repository.AddUnderAcquiredOperationLockAsync(
+            profile,
+            CancellationToken.None);
+    }
 
     private sealed class TestScopeContext : IScopeContext
     {

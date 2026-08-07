@@ -1,4 +1,4 @@
-# guests Personal-Data Inventory v12
+# guests Personal-Data Inventory v13
 
 Generated from `guests.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -468,9 +468,12 @@ Engineering metadata is not legal or country-launch approval.
 | guest.profile.email | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | EmailSearch | persistence | guest-profile-lifecycle |
 | guest.profile.email | BunkFy.Modules.Guests.Domain | BunkFy.Modules.Guests.Domain.Aggregates.GuestProfile | EmailSearch | search-index | guest-profile-lifecycle |
 | guest.profile.email | BunkFy.Modules.Guests.Persistence | BunkFy.Modules.Guests.Persistence.Repositories.GuestProfileDataRightsExport | Email | data-rights-export | guest-data-rights-export-fragment |
+| guest.profile.id | BunkFy.Modules.Guests.AdminApi | BunkFy.Modules.Guests.AdminApi.GuestsAdminApiModule+GuestProfileWriteRequest | OperationId | api-input | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestDataRightsCorrectionRequest | GuestId | api-input | transient-request |
+| guest.profile.id | BunkFy.Modules.Guests.Api | BunkFy.Modules.Guests.Api.GuestsModule+GuestProfileWriteRequest | OperationId | api-input | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ApplyGuestDataRightsCorrectionCommand | GuestId | application-command | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.ArchiveGuestProfileCommand | GuestId | application-command | transient-request |
+| guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.CreateGuestProfileCommand | OperationId | application-command | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Commands.UpdateGuestProfileCommand | GuestId | application-command | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Queries.GetGuestProfileQuery | GuestId | application-query | transient-request |
 | guest.profile.id | BunkFy.Modules.Guests.Application | BunkFy.Modules.Guests.Application.Queries.GetGuestStayHistoryQuery | GuestId | application-query | transient-request |

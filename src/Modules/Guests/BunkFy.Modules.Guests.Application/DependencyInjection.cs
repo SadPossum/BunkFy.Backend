@@ -39,6 +39,7 @@ public static class DependencyInjection
                 IValidateOptions<GuestRetentionOptions>,
                 GuestRetentionOptionsValidator>());
         services.TryAddScoped<IGuestCountryPolicyAdmission, GuestCountryPolicyAdmission>();
+        services.TryAddScoped<GuestMutationCoordinator>();
         services.TryAddScoped<
                 IGuestAnonymisationEligibilityEvaluator,
                 GuestAnonymisationEligibilityEvaluator>();

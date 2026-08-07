@@ -71,7 +71,7 @@ internal sealed class CreateGuestProfileCommandValidator : ICommandValidator<Cre
 {
     public IEnumerable<string> Validate(CreateGuestProfileCommand command) => GuestProfileValidation.Write(
         command.PropertyId,
-        guestId: null,
+        command.OperationId,
         command.DisplayName,
         command.LegalName,
         command.Email,

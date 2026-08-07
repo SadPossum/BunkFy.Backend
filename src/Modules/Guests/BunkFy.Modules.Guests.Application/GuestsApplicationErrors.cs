@@ -16,6 +16,9 @@ public static class GuestsApplicationErrors
             .Select(CountryPolicyDenied)
             .ToArray();
     public static readonly Error GuestNotFound = new("Guests.GuestNotFound", "The guest profile was not found.");
+    public static readonly Error CreationOperationConflict = new(
+        "Guests.CreationOperationConflict",
+        "The Guest creation operation id was already used for a different request.");
     public static readonly Error TenantRequired = new("Guests.TenantRequired", "A tenant context is required.");
     public static readonly Error WorkspaceProcessingRestricted = new(
         "Guests.WorkspaceProcessingRestricted",

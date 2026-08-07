@@ -15,6 +15,7 @@ using BunkFy.Modules.Guests.Domain.Aggregates;
 
 internal sealed class CreateGuestProfileCommandHandler(
     IGuestProfileRepository profiles,
+    GuestMutationCoordinator mutations,
     IGuestCountryPolicyAdmission countryPolicy,
     IScopeContext scopeContext,
     ISystemClock clock,
@@ -41,8 +42,37 @@ internal sealed class CreateGuestProfileCommandHandler(
                 GuestsApplicationErrors.CountryPolicyDenied(policyDecision.Reason));
         }
 
+        DateTimeOffset nowUtc = clock.UtcNow;
+        Result<GuestProfileCreationSnapshot> creation = GuestProfileCreationSnapshot.Capture(
+            command.PropertyId,
+            command.DisplayName,
+            command.LegalName,
+            command.Email,
+            command.Phone,
+            command.DateOfBirth,
+            command.NationalityCountryCode,
+            command.PreferredLanguageTag,
+            command.Notes,
+            command.ActorId,
+            nowUtc);
+        if (creation.IsFailure)
+        {
+            return Result.Failure<GuestMutationReceiptDto>(creation.Error);
+        }
+
+        GuestProfile? existing = await mutations.AcquireCreationAsync(
+            command.OperationId,
+            cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing.MatchesCreation(creation.Value)
+                ? Result.Success(existing.ToMutationReceipt())
+                : Result.Failure<GuestMutationReceiptDto>(
+                    GuestsApplicationErrors.CreationOperationConflict);
+        }
+
         Result<GuestProfile> created = GuestProfile.Create(
-            ids.NewId(),
+            command.OperationId,
             scopeContext.ScopeId,
             command.PropertyId,
             command.DisplayName,
@@ -55,13 +85,15 @@ internal sealed class CreateGuestProfileCommandHandler(
             command.Notes,
             command.ActorId,
             ids.NewId(),
-            clock.UtcNow);
+            nowUtc);
         if (created.IsFailure)
         {
             return Result.Failure<GuestMutationReceiptDto>(created.Error);
         }
 
-        await profiles.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
+        await profiles.AddUnderAcquiredOperationLockAsync(
+            created.Value,
+            cancellationToken).ConfigureAwait(false);
         return Result.Success(created.Value.ToMutationReceipt());
     }
 }

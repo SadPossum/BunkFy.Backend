@@ -23,6 +23,10 @@ public sealed class GuestProfileCountryPolicyTests
         RecordingGuestRepository profiles = new();
         CreateGuestProfileCommandHandler handler = new(
             profiles,
+            new GuestMutationCoordinator(
+                profiles,
+                new NoopGuestOperationLock(),
+                new TestScopeContext()),
             new DeniedCountryPolicyAdmission(),
             new TestScopeContext(),
             new TestClock(),
@@ -30,6 +34,7 @@ public sealed class GuestProfileCountryPolicyTests
 
         Result<GuestMutationReceiptDto> result = await handler.HandleAsync(
             new CreateGuestProfileCommand(
+                Guid.NewGuid(),
                 Guid.NewGuid(),
                 "Ada Guest",
                 null,
@@ -61,11 +66,17 @@ public sealed class GuestProfileCountryPolicyTests
     {
         public GuestProfile? Added { get; private set; }
 
-        public Task AddAsync(GuestProfile profile, CancellationToken cancellationToken)
+        public Task AddUnderAcquiredOperationLockAsync(
+            GuestProfile profile,
+            CancellationToken cancellationToken)
         {
             this.Added = profile;
             return Task.CompletedTask;
         }
+
+        public Task<GuestProfile?> GetByIdAsync(
+            Guid guestId,
+            CancellationToken cancellationToken) => Task.FromResult<GuestProfile?>(null);
 
         public Task<GuestProfile?> GetVisibleAsync(
             Guid propertyId,
