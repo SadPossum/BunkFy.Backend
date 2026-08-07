@@ -136,14 +136,16 @@ public sealed class StaffModelTests
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
                 "CK_staff_member_mutation_operations_fingerprint");
-        Assert.Contains(
+        ICheckConstraint statusConstraint = Assert.Single(
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
                 "CK_staff_member_mutation_operations_status");
-        Assert.Contains(
+        ICheckConstraint kindConstraint = Assert.Single(
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
                 "CK_staff_member_mutation_operations_kind");
+        Assert.Contains("1, 2, 3", statusConstraint.Sql);
+        Assert.Contains("1, 2, 3, 4, 5", kindConstraint.Sql);
     }
 
     [Fact]

@@ -634,10 +634,11 @@ public sealed class StaffCommandHandlerTests
                 StaffLifecyclePolicyDecision.Allowed),
             operationLock: operationLock);
         var handler = provider.GetRequiredService<
-            ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>>();
+            ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
             new SuspendStaffMemberCommand(
+                Guid.NewGuid(),
                 member.Id,
                 "Privacy-safe access reduction",
                 member.Version,
@@ -878,10 +879,11 @@ public sealed class StaffCommandHandlerTests
             new FakePropertyProjectionRepository(),
             lifecyclePolicy: policy);
         var handler = provider.GetRequiredService<
-            ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>>();
+            ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
-            new SuspendStaffMemberCommand(member.Id, "Leave", member.Version, "user:owner"),
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
+            new SuspendStaffMemberCommand(
+                Guid.NewGuid(), member.Id, "Leave", member.Version, "user:owner"),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -891,6 +893,148 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal(StaffStatus.Suspended, policy.Context.TargetStatus);
         Assert.Equal("member-100", policy.Context.AuthSubjectId);
         Assert.Equal(2, policy.Context.TargetVersion);
+    }
+
+    [Fact]
+    public async Task Suspend_replays_an_equivalent_operation_without_repeating_policy_or_event()
+    {
+        StaffMember member = CreateMember("member-100");
+        RecordingLifecyclePolicy policy = new(StaffLifecyclePolicyDecision.Allowed);
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: policy,
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = member.Version;
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            new SuspendStaffMemberCommand(
+                operationId,
+                member.Id,
+                "  Approved leave  ",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+        int eventCount = member.DomainEvents.Count;
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
+            new SuspendStaffMemberCommand(
+                operationId,
+                member.Id,
+                "Approved leave",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(StaffStatus.Suspended, replay.Value.Status);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        Assert.Single(policy.Contexts);
+        Assert.Equal(
+            StaffMemberMutationKind.Suspend,
+            Assert.Single(operations.Records).Kind);
+    }
+
+    [Fact]
+    public async Task Lifecycle_operation_rejects_changed_and_cross_kind_reuse()
+    {
+        StaffMember member = CreateMember("member-100");
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: new RecordingLifecyclePolicy(
+                StaffLifecyclePolicyDecision.Allowed),
+            memberMutationOperations: operations);
+        var suspend = provider.GetRequiredService<
+            ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        var resume = provider.GetRequiredService<
+            ICommandHandler<ResumeStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = member.Version;
+
+        Result<StaffMemberMutationReceiptDto> first = await suspend.HandleAsync(
+            new SuspendStaffMemberCommand(
+                operationId,
+                member.Id,
+                "Approved leave",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> changed = await suspend.HandleAsync(
+            new SuspendStaffMemberCommand(
+                operationId,
+                member.Id,
+                "Investigation",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> crossKind = await resume.HandleAsync(
+            new ResumeStaffMemberCommand(
+                operationId,
+                member.Id,
+                "Returned",
+                expectedVersion,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.Equal(StaffApplicationErrors.LifecycleOperationConflict, changed.Error);
+        Assert.Equal(StaffApplicationErrors.LifecycleOperationConflict, crossKind.Error);
+        Assert.Single(operations.Records);
+    }
+
+    [Fact]
+    public async Task Failed_lifecycle_coordination_does_not_bind_the_operation()
+    {
+        Guid staffMemberId = Guid.NewGuid();
+        Guid operationId = Guid.NewGuid();
+        RecordingMemberMutationOperations operations = new();
+        StaffMember rejectedMember = CreateMemberWithId(staffMemberId, "member-100");
+        SuspendStaffMemberCommand command = new(
+            operationId,
+            staffMemberId,
+            "Approved leave",
+            rejectedMember.Version,
+            "user:owner");
+        using (ServiceProvider rejectedProvider = CreateProvider(
+            new FakeStaffMemberRepository(rejectedMember),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: new RecordingLifecyclePolicy(
+                StaffLifecyclePolicyDecision.RetryRequired),
+            memberMutationOperations: operations))
+        {
+            var rejectedHandler = rejectedProvider.GetRequiredService<
+                ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+            Result<StaffMemberMutationReceiptDto> rejected =
+                await rejectedHandler.HandleAsync(command, CancellationToken.None);
+
+            Assert.Equal(
+                StaffApplicationErrors.LifecycleCoordinationPending,
+                rejected.Error);
+            Assert.Empty(operations.Records);
+        }
+
+        StaffMember retriedMember = CreateMemberWithId(staffMemberId, "member-100");
+        using ServiceProvider retriedProvider = CreateProvider(
+            new FakeStaffMemberRepository(retriedMember),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: new RecordingLifecyclePolicy(
+                StaffLifecyclePolicyDecision.Allowed),
+            memberMutationOperations: operations);
+        var retriedHandler = retriedProvider.GetRequiredService<
+            ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+
+        Result<StaffMemberMutationReceiptDto> retried =
+            await retriedHandler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(retried.IsSuccess, retried.Error.Code);
+        Assert.Single(operations.Records);
     }
 
     [Fact]
@@ -905,10 +1049,11 @@ public sealed class StaffCommandHandlerTests
             new FakePropertyProjectionRepository(),
             lifecyclePolicy: policy);
         var handler = provider.GetRequiredService<
-            ICommandHandler<ResumeStaffMemberCommand, StaffDirectoryMemberDto>>();
+            ICommandHandler<ResumeStaffMemberCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
-            new ResumeStaffMemberCommand(member.Id, "Returned", member.Version, "user:owner"),
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
+            new ResumeStaffMemberCommand(
+                Guid.NewGuid(), member.Id, "Returned", member.Version, "user:owner"),
             CancellationToken.None);
 
         Assert.Equal(StaffApplicationErrors.LifecycleCoordinationPending, result.Error);
@@ -916,6 +1061,52 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal(StaffLifecycleTransition.Resume, policy.Context.Transition);
         Assert.Equal(StaffStatus.Suspended, policy.Context.PreviousStatus);
         Assert.Equal(StaffStatus.Active, policy.Context.TargetStatus);
+    }
+
+    [Fact]
+    public async Task Resume_replays_without_repeating_workspace_preparation()
+    {
+        StaffMember member = CreateMember("member-100");
+        Assert.True(member.Suspend(
+            member.Version,
+            "user:owner",
+            "Leave",
+            Guid.NewGuid(),
+            TestClock.Now).IsSuccess);
+        RecordingLifecyclePolicy policy = new(StaffLifecyclePolicyDecision.Allowed);
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: policy,
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ResumeStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = member.Version;
+        ResumeStaffMemberCommand command = new(
+            operationId,
+            member.Id,
+            "Returned",
+            expectedVersion,
+            "user:owner");
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        int eventCount = member.DomainEvents.Count;
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        Assert.Single(policy.Contexts);
+        Assert.Equal(
+            StaffMemberMutationKind.Resume,
+            Assert.Single(operations.Records).Kind);
     }
 
     [Fact]
@@ -928,12 +1119,13 @@ public sealed class StaffCommandHandlerTests
             new FakePropertyProjectionRepository(),
             lifecyclePolicy: policy);
         var handler = provider.GetRequiredService<
-            ICommandHandler<DepartStaffMemberCommand, StaffDirectoryMemberDto>>();
+            ICommandHandler<DepartStaffMemberCommand, StaffMemberMutationReceiptDto>>();
         DateOnly effectiveOn = new(2026, 7, 21);
 
-        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
             new DepartStaffMemberCommand(
-                member.Id, effectiveOn, "Contract ended", member.Version, "user:owner"),
+                Guid.NewGuid(), member.Id, effectiveOn, "Contract ended",
+                member.Version, "user:owner"),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -941,6 +1133,58 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal(StaffLifecycleTransition.Depart, policy.Context.Transition);
         Assert.Equal(StaffStatus.Departed, policy.Context.TargetStatus);
         Assert.Equal(effectiveOn, policy.Context.EffectiveOn);
+    }
+
+    [Fact]
+    public async Task Depart_replays_without_closing_assignments_or_emitting_events_twice()
+    {
+        StaffMember member = CreateMember("member-100");
+        Guid propertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            null,
+            false,
+            new DateOnly(2026, 7, 1),
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            TestClock.Now).IsSuccess);
+        RecordingLifecyclePolicy policy = new(StaffLifecyclePolicyDecision.Allowed);
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(propertyId),
+            lifecyclePolicy: policy,
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<DepartStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        DepartStaffMemberCommand command = new(
+            Guid.NewGuid(),
+            member.Id,
+            new DateOnly(2026, 7, 21),
+            "Contract ended",
+            member.Version,
+            "user:owner");
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        int eventCount = member.DomainEvents.Count;
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(StaffStatus.Departed, replay.Value.Status);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        Assert.False(Assert.Single(member.Assignments).IsCurrent);
+        Assert.Single(policy.Contexts);
+        Assert.Equal(
+            StaffMemberMutationKind.Depart,
+            Assert.Single(operations.Records).Kind);
     }
 
     [Fact]
@@ -952,10 +1196,11 @@ public sealed class StaffCommandHandlerTests
             new FakePropertyProjectionRepository(),
             lifecyclePolicy: new RecordingLifecyclePolicy(StaffLifecyclePolicyDecision.OwnerProtected));
         var handler = provider.GetRequiredService<
-            ICommandHandler<SuspendStaffMemberCommand, StaffDirectoryMemberDto>>();
+            ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
 
-        Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
-            new SuspendStaffMemberCommand(member.Id, "Leave", member.Version, "user:owner"),
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
+            new SuspendStaffMemberCommand(
+                Guid.NewGuid(), member.Id, "Leave", member.Version, "user:owner"),
             CancellationToken.None);
 
         Assert.Equal(StaffApplicationErrors.WorkspaceOwnerProtected, result.Error);
@@ -1018,6 +1263,13 @@ public sealed class StaffCommandHandlerTests
     private static StaffMember CreateMember(string? authSubjectId = null) => StaffMember.Create(
         Guid.NewGuid(), "tenant-a", "Ada Operator", null, "ada@example.test", null,
         "EMP-100", "Manager", "Operations", authSubjectId, "user:owner", Guid.NewGuid(), TestClock.Now).Value;
+
+    private static StaffMember CreateMemberWithId(
+        Guid staffMemberId,
+        string? authSubjectId = null) => StaffMember.Create(
+        staffMemberId, "tenant-a", "Ada Operator", null, "ada@example.test", null,
+        "EMP-100", "Manager", "Operations", authSubjectId, "user:owner",
+        Guid.NewGuid(), TestClock.Now).Value;
 
     private static StaffMember CreateMemberForCreation(Guid id) => StaffMember.Create(
         id,
@@ -1187,13 +1439,14 @@ public sealed class StaffCommandHandlerTests
     private sealed class RecordingLifecyclePolicy(StaffLifecyclePolicyDecision decision)
         : IStaffLifecyclePolicy
     {
-        public StaffLifecyclePolicyContext? Context { get; private set; }
+        public List<StaffLifecyclePolicyContext> Contexts { get; } = [];
+        public StaffLifecyclePolicyContext? Context => this.Contexts.LastOrDefault();
 
         public ValueTask<StaffLifecyclePolicyDecision> PrepareAsync(
             StaffLifecyclePolicyContext context,
             CancellationToken cancellationToken = default)
         {
-            this.Context = context;
+            this.Contexts.Add(context);
             return ValueTask.FromResult(decision);
         }
     }

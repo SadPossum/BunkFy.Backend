@@ -52,5 +52,8 @@ public sealed record StaffMemberMutationOperationRecord(
 public enum StaffMemberMutationKind
 {
     ProfileUpdate = 1,
-    AuthSubjectChange = 2
+    AuthSubjectChange = 2,
+    Suspend = 3,
+    Resume = 4,
+    Depart = 5
 }

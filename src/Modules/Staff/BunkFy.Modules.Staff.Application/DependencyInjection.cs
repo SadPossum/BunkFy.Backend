@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.TryAddScoped<StaffMemberMutationCoordinator>();
         services.TryAddScoped<StaffProfileUpdateCoordinator>();
         services.TryAddScoped<StaffAuthSubjectChangeCoordinator>();
+        services.TryAddScoped<StaffLifecycleChangeCoordinator>();
         services.TryAddScoped<StaffLifecyclePolicyEvaluator>();
         services.TryAddScoped<StaffRetentionEligibilityEvaluator>();
         services.TryAddScoped<StaffRetentionPrerequisiteEvaluator>();

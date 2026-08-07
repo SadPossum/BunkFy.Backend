@@ -35,6 +35,12 @@ public static class StaffApplicationErrors
     public static readonly Error AuthSubjectOperationConflict = new(
         "Staff.AuthSubjectOperationConflict",
         "The Staff account-link operation was already used for different data.");
+    public static readonly Error LifecycleOperationInvalid = new(
+        "Staff.LifecycleOperationInvalid",
+        "A valid Staff lifecycle operation id is required.");
+    public static readonly Error LifecycleOperationConflict = new(
+        "Staff.LifecycleOperationConflict",
+        "The Staff lifecycle operation was already used for a different change.");
     public static readonly Error PropertyUnavailable = new("Staff.PropertyUnavailable", "The property is unavailable for staff assignment.");
     public static readonly Error EmployeeNumberConflict = new("Staff.EmployeeNumberConflict", "The employee number is already in use.");
     public static readonly Error AuthSubjectConflict = new("Staff.AuthSubjectConflict", "The Auth subject is already linked to another staff member.");

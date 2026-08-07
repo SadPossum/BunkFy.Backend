@@ -23,10 +23,10 @@ internal sealed class StaffMemberMutationOperationConfiguration
                 "\"RequestFingerprint\" ~ '^[0-9a-f]{64}$'");
             table.HasCheckConstraint(
                 "CK_staff_member_mutation_operations_status",
-                "\"ResultStatus\" IN (1, 2)");
+                "\"ResultStatus\" IN (1, 2, 3)");
             table.HasCheckConstraint(
                 "CK_staff_member_mutation_operations_kind",
-                "\"Kind\" IN (1, 2)");
+                "\"Kind\" IN (1, 2, 3, 4, 5)");
         });
         builder.HasKey(operation => new
         {

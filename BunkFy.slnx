@@ -158,6 +158,7 @@
     <File Path="docs/planning/staff-data-rights-correction-task.md" />
     <File Path="docs/planning/staff-data-rights-owner-capability-task.md" />
     <File Path="docs/planning/staff-data-rights-restriction-task.md" />
+    <File Path="docs/planning/staff-employment-lifecycle-idempotency-task.md" />
     <File Path="docs/planning/staff-management-create-idempotency-task.md" />
     <File Path="docs/planning/staff-operational-surface-hardening-task.md" />
     <File Path="docs/planning/staff-profile-update-idempotency-task.md" />

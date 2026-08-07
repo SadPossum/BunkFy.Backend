@@ -94,27 +94,31 @@ public sealed class StaffAdminApiModule : IAdminApiModule
             StaffLifecycleRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Suspend, StaffAdminPermissions.ManageLifecycle), true,
-                ct => dispatcher.SendAsync(new SuspendStaffMemberCommand(staffMemberId, request.Reason,
+                ct => dispatcher.SendAsync(new SuspendStaffMemberCommand(
+                    request.OperationId, staffMemberId, request.Reason,
                     request.ExpectedVersion, Actor(context)), ct), token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/resume", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Resume, StaffAdminPermissions.ManageLifecycle), true,
-                ct => dispatcher.SendAsync(new ResumeStaffMemberCommand(staffMemberId, request.Reason,
+                ct => dispatcher.SendAsync(new ResumeStaffMemberCommand(
+                    request.OperationId, staffMemberId, request.Reason,
                     request.ExpectedVersion, Actor(context)), ct), token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{staffMemberId:guid}/depart", async (Guid staffMemberId,
             StaffDepartureRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
                 AdminOperation.Create(StaffAdminOperationNames.Depart, StaffAdminPermissions.ManageLifecycle), true,
-                ct => request.Confirmed ? dispatcher.SendAsync(new DepartStaffMemberCommand(staffMemberId,
-                    request.EffectiveOn, request.Reason, request.ExpectedVersion, Actor(context)), ct)
-                    : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(AdminErrors.ConfirmationRequired)),
+                ct => request.Confirmed ? dispatcher.SendAsync(new DepartStaffMemberCommand(
+                    request.OperationId, staffMemberId, request.EffectiveOn, request.Reason,
+                    request.ExpectedVersion, Actor(context)), ct)
+                    : Task.FromResult(Result.Failure<StaffMemberMutationReceiptDto>(
+                        AdminErrors.ConfirmationRequired)),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPut("/{staffMemberId:guid}/properties/{propertyId:guid}", async (Guid staffMemberId,
             Guid propertyId, StaffAssignmentRequest request, HttpContext context, AdminApiExecutor executor,
             IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(context,
@@ -145,9 +149,10 @@ public sealed class StaffAdminApiModule : IAdminApiModule
         string? Department, long ExpectedVersion);
     public sealed record StaffAuthSubjectRequest(Guid OperationId, string? AuthSubjectId,
         long ExpectedVersion, bool Confirmed);
-    public sealed record StaffLifecycleRequest(string Reason, long ExpectedVersion);
-    public sealed record StaffDepartureRequest(DateOnly EffectiveOn, string Reason,
-        long ExpectedVersion, bool Confirmed);
+    public sealed record StaffLifecycleRequest(Guid OperationId, string Reason,
+        long ExpectedVersion);
+    public sealed record StaffDepartureRequest(Guid OperationId, DateOnly EffectiveOn,
+        string Reason, long ExpectedVersion, bool Confirmed);
     public sealed record StaffAssignmentRequest(string? PropertyJobTitle, bool IsPrimary,
         DateOnly EffectiveFrom, long ExpectedVersion);
     public sealed record StaffUnassignmentRequest(DateOnly EffectiveTo, string Reason, long ExpectedVersion);
@@ -176,10 +181,12 @@ public sealed class StaffAdminApiModule : IAdminApiModule
         new(StaffApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.ProfileUpdateOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.AuthSubjectOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(StaffApplicationErrors.LifecycleOperationConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffSuspended.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.StaffDeparted.Code, StatusCodes.Status409Conflict),
         new(StaffApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(StaffApplicationErrors.ProfileUpdateOperationInvalid.Code, StatusCodes.Status400BadRequest),
-        new(StaffApplicationErrors.AuthSubjectOperationInvalid.Code, StatusCodes.Status400BadRequest));
+        new(StaffApplicationErrors.AuthSubjectOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(StaffApplicationErrors.LifecycleOperationInvalid.Code, StatusCodes.Status400BadRequest));
 }

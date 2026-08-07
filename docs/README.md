@@ -62,6 +62,7 @@ Useful entry points:
 - [Staff Management Create Idempotency And Lock Ordering Task](planning/staff-management-create-idempotency-task.md)
 - [Staff Profile Update Idempotency Task](planning/staff-profile-update-idempotency-task.md)
 - [Staff Auth-Subject Idempotency Task](planning/staff-auth-subject-idempotency-task.md)
+- [Staff Employment Lifecycle Idempotency Task](planning/staff-employment-lifecycle-idempotency-task.md)
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)
 - [Secure Staff Enrollment Task](planning/secure-staff-enrollment-task.md)
 - [Workspace Access Profiles Task](planning/workspace-access-profiles-task.md)

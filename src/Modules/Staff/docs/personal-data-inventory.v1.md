@@ -930,10 +930,17 @@ Engineering metadata is not legal or country-launch approval.
 | staff.member-mutation-operation.expected-version | BunkFy.Modules.Staff.Persistence | BunkFy.Modules.Staff.Persistence.Repositories.StaffMemberMutationOperationDataRightsExport | ExpectedVersion | data-rights-export | staff-data-rights-export-fragment |
 | staff.member-mutation-operation.expected-version | BunkFy.Modules.Staff.Persistence | BunkFy.Modules.Staff.Persistence.StaffMemberMutationOperation | ExpectedVersion | persistence | staff-member-mutation-operation-journal |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAuthSubjectRequest | OperationId | admin-input | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffDepartureRequest | OperationId | admin-input | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffLifecycleRequest | OperationId | admin-input | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest | OperationId | admin-input | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffAuthSubjectRequest | OperationId | api-input | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest | OperationId | api-input | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest | OperationId | api-input | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | OperationId | api-input | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand | OperationId | application-command | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand | OperationId | application-command | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.SetStaffAuthSubjectCommand | OperationId | application-command | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand | OperationId | application-command | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand | OperationId | application-command | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand | OperationId | application-command | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Ports.StaffMemberMutationOperationRecord | OperationId | application-command | transient-request |

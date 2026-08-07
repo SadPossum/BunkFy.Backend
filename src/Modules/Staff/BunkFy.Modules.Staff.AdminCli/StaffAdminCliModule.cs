@@ -185,41 +185,46 @@ public sealed class StaffAdminCliModule : IAdminCliModule
 
     private static Command CreateLifecycleCommand(IServiceProvider services, AdminCliGlobalOptions global, string name)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> member = MemberOption();
         Option<string> reason = ReasonOption();
         Option<long> version = VersionOption();
         Command command = new(name, $"{char.ToUpperInvariant(name[0])}{name[1..]} a staff member.")
-            { member, reason, version };
+            { operationId, member, reason, version };
         bool suspend = name == "suspend";
-        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
+        command.SetAction((parse, token) => ExecuteMemberMutationAsync(services, global, parse,
             suspend ? StaffAdminOperationNames.Suspend : StaffAdminOperationNames.Resume,
             StaffAdminPermissions.ManageLifecycle,
             (provider, ct) => suspend
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new SuspendStaffMemberCommand(
-                    parse.GetRequiredValue(member), parse.GetRequiredValue(reason),
+                    parse.GetRequiredValue(operationId), parse.GetRequiredValue(member),
+                    parse.GetRequiredValue(reason),
                     parse.GetRequiredValue(version), Actor(parse, global)), ct)
                 : provider.GetRequiredService<IRequestDispatcher>().SendAsync(new ResumeStaffMemberCommand(
-                    parse.GetRequiredValue(member), parse.GetRequiredValue(reason),
+                    parse.GetRequiredValue(operationId), parse.GetRequiredValue(member),
+                    parse.GetRequiredValue(reason),
                     parse.GetRequiredValue(version), Actor(parse, global)), ct), token));
         return command;
     }
 
     private static Command CreateDepartureCommand(IServiceProvider services, AdminCliGlobalOptions global)
     {
+        Option<Guid> operationId = new("--operation-id") { Required = true };
         Option<Guid> member = MemberOption();
         Option<string> effective = DateOption("--effective-on");
         Option<string> reason = ReasonOption();
         Option<long> version = VersionOption();
         Option<bool> yes = new("--yes");
         Command command = new("depart", "Mark a staff member as departed.")
-            { member, effective, reason, version, yes };
-        command.SetAction((parse, token) => ExecuteDirectoryMemberAsync(services, global, parse,
+            { operationId, member, effective, reason, version, yes };
+        command.SetAction((parse, token) => ExecuteMemberMutationAsync(services, global, parse,
             StaffAdminOperationNames.Depart, StaffAdminPermissions.ManageLifecycle,
             (provider, ct) => parse.GetValue(yes) && TryDate(parse.GetRequiredValue(effective), out DateOnly date)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(new DepartStaffMemberCommand(
-                    parse.GetRequiredValue(member), date, parse.GetRequiredValue(reason),
+                    parse.GetRequiredValue(operationId), parse.GetRequiredValue(member), date,
+                    parse.GetRequiredValue(reason),
                     parse.GetRequiredValue(version), Actor(parse, global)), ct)
-                : Task.FromResult(Result.Failure<StaffDirectoryMemberDto>(parse.GetValue(yes)
+                : Task.FromResult(Result.Failure<StaffMemberMutationReceiptDto>(parse.GetValue(yes)
                     ? InvalidDateError : AdminErrors.ConfirmationRequired)), token));
         return command;
     }

@@ -54,9 +54,18 @@ internal static class StaffValidation
         }
     }
 
-    public static IEnumerable<string> Lifecycle(Guid staffMemberId, string reason,
-        long expectedVersion, string actorId)
+    public static IEnumerable<string> Lifecycle(
+        Guid operationId,
+        Guid staffMemberId,
+        string reason,
+        long expectedVersion,
+        string actorId)
     {
+        if (operationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (staffMemberId == Guid.Empty)
         {
             yield return "StaffMemberId is required.";

@@ -12,8 +12,12 @@ internal sealed class DepartStaffMemberCommandValidator : ICommandValidator<Depa
             yield return "EffectiveOn is required.";
         }
 
-        foreach (string error in StaffValidation.Lifecycle(command.StaffMemberId,
-            command.Reason, command.ExpectedVersion, command.ActorId))
+        foreach (string error in StaffValidation.Lifecycle(
+            command.OperationId,
+            command.StaffMemberId,
+            command.Reason,
+            command.ExpectedVersion,
+            command.ActorId))
         {
             yield return error;
         }

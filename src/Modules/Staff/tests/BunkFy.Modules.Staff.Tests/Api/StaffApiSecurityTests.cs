@@ -28,7 +28,11 @@ public sealed class StaffApiSecurityTests
     [InlineData(typeof(StaffAdminApiModule.StaffProfileWriteRequest))]
     [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest))]
     [InlineData(typeof(StaffAdminApiModule.StaffProfileUpdateRequest))]
-    public void Profile_mutation_requests_require_caller_owned_operation_identity(
+    [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest))]
+    [InlineData(typeof(StaffAdminApiModule.StaffLifecycleRequest))]
+    [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest))]
+    [InlineData(typeof(StaffAdminApiModule.StaffDepartureRequest))]
+    public void Member_mutation_requests_require_caller_owned_operation_identity(
         Type requestType)
     {
         PropertyInfo operationId = requestType.GetProperty("OperationId")!;
@@ -140,6 +144,53 @@ public sealed class StaffApiSecurityTests
         ]).Errors);
     }
 
+    [Theory]
+    [InlineData("suspend")]
+    [InlineData("resume")]
+    public void Admin_cli_requires_operation_identity_for_lifecycle_changes(
+        string action)
+    {
+        using ServiceProvider provider = CreateAdminCliServices();
+        RootCommand root = CreateAdminRoot(provider);
+        string[] command =
+        [
+            "staff", action,
+            "--staff-member-id", "73000000-0000-0000-0000-000000000006",
+            "--reason", "Approved change",
+            "--expected-version", "4"
+        ];
+
+        Assert.NotEmpty(root.Parse(command).Errors);
+        Assert.Empty(root.Parse([
+            .. command,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000007"
+        ]).Errors);
+    }
+
+    [Fact]
+    public void Admin_cli_requires_operation_identity_for_departure()
+    {
+        using ServiceProvider provider = CreateAdminCliServices();
+        RootCommand root = CreateAdminRoot(provider);
+        string[] command =
+        [
+            "staff", "depart",
+            "--staff-member-id", "73000000-0000-0000-0000-000000000008",
+            "--effective-on", "2026-08-07",
+            "--reason", "Contract ended",
+            "--expected-version", "4",
+            "--yes"
+        ];
+
+        Assert.NotEmpty(root.Parse(command).Errors);
+        Assert.Empty(root.Parse([
+            .. command,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000009"
+        ]).Errors);
+    }
+
     [Fact]
     public async Task Directory_and_sensitive_profile_routes_have_distinct_permissions()
     {
@@ -183,6 +234,19 @@ public sealed class StaffApiSecurityTests
             endpoints,
             HttpMethods.Put,
             $"{member}/auth-subject");
+        foreach (string action in new[] { "suspend", "resume", "depart" })
+        {
+            string lifecycle = $"{member}/{action}";
+            AssertPermissions(
+                endpoints,
+                HttpMethods.Post,
+                lifecycle,
+                StaffAdminPermissionCodes.ManageLifecycle);
+            AssertResponse<StaffMemberMutationReceiptDto>(
+                endpoints,
+                HttpMethods.Post,
+                lifecycle);
+        }
         AssertResponse<StaffPropertyDirectoryListResponse>(
             endpoints,
             HttpMethods.Get,
@@ -197,6 +261,28 @@ public sealed class StaffApiSecurityTests
             endpoints,
             HttpMethods.Post,
             correction);
+    }
+
+    private static ServiceProvider CreateAdminCliServices()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        return services.BuildServiceProvider();
+    }
+
+    private static RootCommand CreateAdminRoot(ServiceProvider provider)
+    {
+        AdminCliGlobalOptions options = provider
+            .GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new StaffAdminCliModule().MapCommands(registry);
+        return root;
     }
 
     [Fact]

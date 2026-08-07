@@ -18,6 +18,9 @@ public sealed class StaffPersistenceRetryBehaviorTests
     [InlineData(typeof(UpdateStaffMemberCommand))]
     [InlineData(typeof(UpdateCurrentStaffMemberCommand))]
     [InlineData(typeof(SetStaffAuthSubjectCommand))]
+    [InlineData(typeof(SuspendStaffMemberCommand))]
+    [InlineData(typeof(ResumeStaffMemberCommand))]
+    [InlineData(typeof(DepartStaffMemberCommand))]
     [InlineData(typeof(ProvisionStaffOnboardingCommand))]
     [InlineData(typeof(ReconcileStaffIdentityCommand))]
     public void Profile_identity_commands_are_explicitly_retryable(

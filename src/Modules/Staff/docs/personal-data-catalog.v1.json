@@ -12787,6 +12787,20 @@
       "bindings": [
         {
           "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
           "member": "OperationId",
           "surface": "api-input",
@@ -12801,6 +12815,20 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffDepartureRequest",
+          "member": "OperationId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
+          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffLifecycleRequest",
+          "member": "OperationId",
+          "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
           "member": "OperationId",
           "surface": "admin-input",
@@ -12811,6 +12839,27 @@
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAuthSubjectRequest",
           "member": "OperationId",
           "surface": "admin-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand",
+          "member": "OperationId",
+          "surface": "application-command",
           "retentionPolicy": "transient-request"
         },
         {

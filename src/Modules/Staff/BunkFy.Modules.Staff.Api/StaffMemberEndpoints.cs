@@ -86,26 +86,30 @@ internal static class StaffMemberEndpoints
         members.MapPost("/{staffMemberId:guid}/suspend", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new SuspendStaffMemberCommand(staffMemberId, request.Reason,
-                request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
+            (await dispatcher.SendAsync(new SuspendStaffMemberCommand(
+                request.OperationId, staffMemberId, request.Reason, request.ExpectedVersion,
+                StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.ManageLifecycle);
         members.MapPost("/{staffMemberId:guid}/resume", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new ResumeStaffMemberCommand(staffMemberId, request.Reason,
-                request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
+            (await dispatcher.SendAsync(new ResumeStaffMemberCommand(
+                request.OperationId, staffMemberId, request.Reason, request.ExpectedVersion,
+                StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.ManageLifecycle);
         members.MapPost("/{staffMemberId:guid}/depart", async (Guid staffMemberId,
             StaffDepartureRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
-            (await dispatcher.SendAsync(new DepartStaffMemberCommand(staffMemberId, request.EffectiveOn,
-                request.Reason, request.ExpectedVersion, StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
+            (await dispatcher.SendAsync(new DepartStaffMemberCommand(
+                request.OperationId, staffMemberId, request.EffectiveOn, request.Reason,
+                request.ExpectedVersion,
+                StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes))
-            .Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)
+            .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.ManageLifecycle);
     }
 }
