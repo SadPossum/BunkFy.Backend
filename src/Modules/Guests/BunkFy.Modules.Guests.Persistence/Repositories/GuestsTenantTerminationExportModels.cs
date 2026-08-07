@@ -32,6 +32,7 @@ internal sealed record GuestProfileStateTenantExport(
     string? NationalityCountryCode,
     string? PreferredLanguageTag,
     string? Notes,
+    Guid? CreationConfirmationId,
     GuestProfileState Status,
     long Version,
     DateTimeOffset CreatedAtUtc,

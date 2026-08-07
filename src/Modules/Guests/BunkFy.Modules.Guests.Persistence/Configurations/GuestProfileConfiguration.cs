@@ -25,6 +25,12 @@ internal sealed class GuestProfileConfiguration : IEntityTypeConfiguration<Guest
         builder.HasKey(profile => profile.Id);
         builder.HasAlternateKey(profile => new { profile.ScopeId, profile.Id });
         builder.Property(profile => profile.ScopeId).HasMaxLength(128).IsRequired();
+        builder.Property(profile => profile.CreationConfirmationId);
+        builder.HasIndex(profile => new
+        {
+            profile.ScopeId,
+            profile.CreationConfirmationId
+        }).IsUnique();
         builder.Property(profile => profile.DisplayName).HasMaxLength(GuestProfile.DisplayNameMaxLength).IsRequired();
         builder.Property(profile => profile.DisplayNameSearch).HasMaxLength(GuestProfile.DisplayNameMaxLength).IsRequired();
         builder.Property(profile => profile.LegalName).HasMaxLength(GuestProfile.LegalNameMaxLength);

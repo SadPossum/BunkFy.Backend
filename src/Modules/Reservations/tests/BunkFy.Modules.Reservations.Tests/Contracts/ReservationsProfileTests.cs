@@ -42,8 +42,8 @@ public sealed class ReservationsProfileTests
         Assert.Equal(8, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
-        Assert.Equal(17, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
-        Assert.Equal(23, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(18, ReservationsModuleMetadata.Descriptor.GetPublishedEvents().Count);
+        Assert.Equal(24, ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>
@@ -89,11 +89,22 @@ public sealed class ReservationsProfileTests
             ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
             published =>
                 published.EventType == DataRightsCorrectionAppliedIntegrationEvent.EventType);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    ReservationGuestRecordLinkReadyIntegrationEvent.EventType &&
+                subscription.ProducerModule == ReservationsModuleMetadata.Name);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetPublishedEvents(),
+            published =>
+                published.EventType ==
+                    ReservationGuestRecordLinkReadyIntegrationEvent.EventType);
         Assert.Equal(
             4,
             ReservationsModuleMetadata.Descriptor.GetSubscriptions().Count(subscription =>
                 subscription.ProducerModule == ReservationsModuleMetadata.ExternalOperationSourceModuleName));
-        Assert.Equal(6, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
+        Assert.Equal(7, ReservationsModuleMetadata.Descriptor.GetTasks().Count);
         Assert.Contains(
             ReservationsModuleMetadata.Descriptor.GetTasks(),
             task => task.Name == RebuildReservationGuestRestrictionsPayload.TaskName);
@@ -102,6 +113,11 @@ public sealed class ReservationsProfileTests
             task =>
                 task.Name ==
                     RebuildReservationProcessingRestrictionsPayload.TaskName);
+        Assert.Contains(
+            ReservationsModuleMetadata.Descriptor.GetTasks(),
+            task =>
+                task.Name ==
+                    ExecuteReservationGuestRecordLinkPayload.TaskName);
         Assert.Single(ReservationsModuleMetadata.Descriptor.GetCompositionProfiles());
         Assert.Equal(6, (int)ReservationStatus.CheckedIn);
         Assert.Equal(7, (int)ReservationStatus.NoShowPending);

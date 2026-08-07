@@ -83,17 +83,23 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
             scope.ServiceProvider.GetRequiredService(subscriptions.Subscriptions.Single(subscription =>
                 subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
                 subscription.HandlerName == WorkspacesModuleMetadata.EnrollmentLinkExpiredHandlerName).HandlerType);
-        await linkHandler.HandleAsync(
-            new OrganizationEnrollmentLinkExpiredIntegrationEvent(
-                Guid.NewGuid(),
-                nowUtc.AddMinutes(2),
-                scopeId,
-                organizationId,
-                linkId,
-                nowUtc.AddMinutes(2),
-                2),
-            CancellationToken.None).ConfigureAwait(false);
-        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await using (var transaction = await dbContext.Database
+            .BeginTransactionAsync().ConfigureAwait(false))
+        {
+            await linkHandler.HandleAsync(
+                new OrganizationEnrollmentLinkExpiredIntegrationEvent(
+                    Guid.NewGuid(),
+                    nowUtc.AddMinutes(2),
+                    scopeId,
+                    organizationId,
+                    linkId,
+                    nowUtc.AddMinutes(2),
+                    2),
+                CancellationToken.None).ConfigureAwait(false);
+            await dbContext.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
+
         dbContext.ChangeTracker.Clear();
 
         WorkspaceStaffAccessPlan sourceExpiredPlan =
@@ -106,18 +112,24 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
             scope.ServiceProvider.GetRequiredService(subscriptions.Subscriptions.Single(subscription =>
                 subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
                 subscription.HandlerName == WorkspacesModuleMetadata.EnrollmentClaimExpiredHandlerName).HandlerType);
-        await claimHandler.HandleAsync(
-            new OrganizationEnrollmentClaimExpiredIntegrationEvent(
-                Guid.NewGuid(),
-                nowUtc.AddMinutes(3),
-                scopeId,
-                organizationId,
-                linkId,
-                claimId,
-                nowUtc.AddMinutes(3),
-                2),
-            CancellationToken.None).ConfigureAwait(false);
-        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await using (var transaction = await dbContext.Database
+            .BeginTransactionAsync().ConfigureAwait(false))
+        {
+            await claimHandler.HandleAsync(
+                new OrganizationEnrollmentClaimExpiredIntegrationEvent(
+                    Guid.NewGuid(),
+                    nowUtc.AddMinutes(3),
+                    scopeId,
+                    organizationId,
+                    linkId,
+                    claimId,
+                    nowUtc.AddMinutes(3),
+                    2),
+                CancellationToken.None).ConfigureAwait(false);
+            await dbContext.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
+
         dbContext.ChangeTracker.Clear();
 
         WorkspaceStaffOnboarding persisted = await dbContext.StaffOnboardingApplications

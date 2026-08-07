@@ -6,6 +6,7 @@ public sealed partial class GuestProfile
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         return this.OriginPropertyId == snapshot.OriginPropertyId &&
+            this.CreationConfirmationId == snapshot.CreationConfirmationId &&
             this.HasValues(snapshot.Values);
     }
 }

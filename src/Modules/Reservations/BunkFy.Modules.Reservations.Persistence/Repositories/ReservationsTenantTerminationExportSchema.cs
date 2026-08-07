@@ -22,6 +22,7 @@ internal static class ReservationsTenantTerminationExportSchema
         typeof(ReservationRequestedInventoryUnitTenantExport),
         typeof(ReservationPendingAmendmentTenantExport),
         typeof(ReservationGuestLinkTenantExport),
+        typeof(ReservationGuestRecordLinkProcessTenantExport),
         typeof(ReservationDetailsHistoryTenantExport),
         typeof(ReservationExternalOperationTenantExport),
         typeof(ReservationManagementOperationTenantExport),
@@ -68,6 +69,13 @@ internal static class ReservationsTenantTerminationExportSchema
             "include-in-authorized-guest-or-tenant-export"),
         Staff<ReservationGuestLinkTenantExport>(
             nameof(ReservationGuestLinkTenantExport.StaffAttribution)),
+        Binding<ReservationGuestRecordLinkProcessTenantExport>(
+            nameof(ReservationGuestRecordLinkProcessTenantExport.Process),
+            "reservations.guest-record-link-process",
+            "include-in-authorized-guest-or-tenant-export"),
+        Staff<ReservationGuestRecordLinkProcessTenantExport>(
+            nameof(ReservationGuestRecordLinkProcessTenantExport
+                .StaffAttribution)),
         GuestData<ReservationDetailsHistoryTenantExport>(
             nameof(ReservationDetailsHistoryTenantExport.DetailsHistory),
             "reservations.details-history"),

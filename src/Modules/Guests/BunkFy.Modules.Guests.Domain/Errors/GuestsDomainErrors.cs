@@ -17,6 +17,9 @@ public static class GuestsDomainErrors
     public static readonly Error NotesInvalid = new("Guests.NotesInvalid", "The notes are invalid.");
     public static readonly Error ActorInvalid = new("Guests.ActorInvalid", "The actor id is invalid.");
     public static readonly Error EventIdRequired = new("Guests.EventIdRequired", "A domain event id is required.");
+    public static readonly Error CreationConfirmationInvalid = new(
+        "Guests.CreationConfirmationInvalid",
+        "The Guest creation confirmation coordinate is invalid.");
     public static readonly Error VersionConflict = new("Guests.VersionConflict", "The guest profile version has changed.");
     public static readonly Error GuestArchived = new("Guests.GuestArchived", "The guest profile is archived.");
     public static readonly Error GuestAlreadyArchived = new("Guests.GuestAlreadyArchived", "The guest profile is already archived.");

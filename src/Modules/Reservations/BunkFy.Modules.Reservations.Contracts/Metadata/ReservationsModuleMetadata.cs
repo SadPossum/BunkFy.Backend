@@ -27,6 +27,7 @@ public static class ReservationsModuleMetadata
     public const int PropertyProjectionVersion = 2;
     public const string ProjectionWorkerGroup = "projection-workers";
     public const string ReminderWorkerGroup = "reminder-workers";
+    public const string GuestRecordLinkWorkerGroup = "guest-record-link-workers";
     public const int ArrivalReminderLeadTimeMinutes = 120;
     public const string AllocationConfirmedHandlerName = "allocation-confirmed";
     public const string AllocationRejectedHandlerName = "allocation-rejected";
@@ -47,6 +48,7 @@ public static class ReservationsModuleMetadata
     public const string GuestArchivedHandlerName = "guest-archived";
     public const string GuestAnonymisedHandlerName = "guest-anonymised";
     public const string GuestRestrictionChangedHandlerName = "guest-processing-restriction-changed";
+    public const string GuestRecordLinkReadyHandlerName = "guest-record-link-ready";
     public const string PropertyCreatedHandlerName = "property-created";
     public const string PropertyUpdatedHandlerName = "property-updated";
     public const string PropertyRetiredHandlerName = "property-retired";
@@ -88,6 +90,9 @@ public static class ReservationsModuleMetadata
         .WithSubscription<GuestProcessingRestrictionChangedIntegrationEvent>(
             GuestsModuleMetadata.Name,
             GuestRestrictionChangedHandlerName)
+        .WithSubscription<ReservationGuestRecordLinkReadyIntegrationEvent>(
+            Name,
+            GuestRecordLinkReadyHandlerName)
         .WithSubscription<PropertyCreatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyCreatedHandlerName)
         .WithSubscription<PropertyUpdatedIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyUpdatedHandlerName)
         .WithSubscription<PropertyRetiredIntegrationEvent>(PropertiesModuleMetadata.Name, PropertyRetiredHandlerName)
@@ -113,6 +118,7 @@ public static class ReservationsModuleMetadata
         .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEvent>()
         .WithPublishedEvent<ReservationArrivalReminderDueIntegrationEventV2>()
         .WithPublishedEvent<ReservationProcessingRestrictionChangedIntegrationEvent>()
+        .WithPublishedEvent<ReservationGuestRecordLinkReadyIntegrationEvent>()
         .WithPublishedEvent<DataRightsCorrectionAppliedIntegrationEvent>()
         .WithTask<RebuildReservationInventoryProjectionPayload>()
         .WithTask<RebuildReservationGuestProfilesPayload>()
@@ -120,6 +126,7 @@ public static class ReservationsModuleMetadata
         .WithTask<RebuildReservationProcessingRestrictionsPayload>()
         .WithTask<RebuildReservationPropertiesPayload>()
         .WithTask<DispatchReservationArrivalRemindersPayload>()
+        .WithTask<ExecuteReservationGuestRecordLinkPayload>()
         .WithProfile(ReservationsProfiles.Default)
         .Build();
 }

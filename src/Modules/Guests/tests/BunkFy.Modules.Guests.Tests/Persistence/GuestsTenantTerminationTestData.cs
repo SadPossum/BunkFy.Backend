@@ -13,7 +13,8 @@ internal static class GuestsTenantTerminationTestData
     public static GuestProfile CreateProfile(
         Guid? propertyId = null,
         string displayName = "Maya Chen",
-        Guid? guestId = null) =>
+        Guid? guestId = null,
+        Guid? creationConfirmationId = null) =>
         GuestProfile.Create(
             guestId ?? Guid.NewGuid(),
             TenantId,
@@ -28,5 +29,6 @@ internal static class GuestsTenantTerminationTestData
             "Prefers a lower bunk.",
             "user:owner",
             Guid.NewGuid(),
-            Now.AddDays(-1)).Value;
+            Now.AddDays(-1),
+            creationConfirmationId).Value;
 }

@@ -19,17 +19,27 @@ public sealed record GuestProfileCreatedIntegrationEvent : TenantIntegrationEven
         Guid guestId,
         Guid originPropertyId,
         GuestStatus status,
-        long guestVersion)
+        long guestVersion,
+        Guid? creationConfirmationId = null)
         : base(eventId, tenantId, occurredAtUtc, EventType, EventVersion)
     {
         this.GuestId = IntegrationEventContractGuards.RequireId(guestId, nameof(guestId));
         this.OriginPropertyId = IntegrationEventContractGuards.RequireId(originPropertyId, nameof(originPropertyId));
         this.Status = status is GuestStatus.Active ? status : throw new ArgumentOutOfRangeException(nameof(status));
         this.GuestVersion = guestVersion > 0 ? guestVersion : throw new ArgumentOutOfRangeException(nameof(guestVersion));
+        this.CreationConfirmationId = creationConfirmationId switch
+        {
+            Guid value when value != Guid.Empty => value,
+            null => null,
+            _ => throw new ArgumentException(
+                "Creation confirmation id must not be empty when provided.",
+                nameof(creationConfirmationId))
+        };
     }
 
     public Guid GuestId { get; }
     public Guid OriginPropertyId { get; }
     public GuestStatus Status { get; }
     public long GuestVersion { get; }
+    public Guid? CreationConfirmationId { get; }
 }

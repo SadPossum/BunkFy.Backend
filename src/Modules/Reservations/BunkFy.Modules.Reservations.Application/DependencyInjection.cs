@@ -5,8 +5,9 @@ using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Reservations.Application.External;
+using BunkFy.Modules.Reservations.Application.Capabilities;
 using BunkFy.Modules.Reservations.Application.Contributors;
+using BunkFy.Modules.Reservations.Application.External;
 using BunkFy.Modules.Reservations.Application.Handlers;
 using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
@@ -21,6 +22,7 @@ using Gma.Framework.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+
 public static class DependencyInjection
 {
     public static IServiceCollection AddReservationsApplication(this IServiceCollection services)
@@ -144,6 +146,9 @@ public static class DependencyInjection
         services.TryAddScoped<ReservationInboxDomainEventDispatcher>();
         services.TryAddScoped<ReservationMutationCoordinator>();
         services.TryAddScoped<ReservationManagementLifecycleCoordinator>();
+        services.TryAddScoped<
+            IReservationGuestRecordLinkCapability,
+            ReservationGuestRecordLinkCapability>();
 
         return services;
     }
@@ -169,6 +174,15 @@ public static class DependencyInjection
             ReservationsModuleMetadata.Name);
         services.AddTaskHandler<DispatchReservationArrivalRemindersPayload, DispatchReservationArrivalRemindersTaskHandler>(
             ReservationsModuleMetadata.Name);
+        services.AddTaskHandler<
+            ExecuteReservationGuestRecordLinkPayload,
+            ExecuteReservationGuestRecordLinkTaskHandler>(
+                ReservationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            ReservationGuestRecordLinkReadyIntegrationEvent,
+            ReservationGuestRecordLinkReadyHandler>(
+                ReservationsModuleMetadata.Name,
+                ReservationsModuleMetadata.Name);
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<ITaskScheduleProvider, ReservationReminderScheduleProvider>());
 

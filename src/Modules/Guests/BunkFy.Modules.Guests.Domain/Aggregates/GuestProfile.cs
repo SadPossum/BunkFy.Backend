@@ -24,6 +24,7 @@ public sealed partial class GuestProfile : ScopedAggregateRoot<Guid>
     private GuestProfile(Guid id, string scopeId) : base(id, scopeId) { }
 
     public Guid OriginPropertyId { get; private set; }
+    public Guid? CreationConfirmationId { get; private set; }
     public string DisplayName { get; private set; } = string.Empty;
     public string DisplayNameSearch { get; private set; } = string.Empty;
     public string? LegalName { get; private set; }
@@ -60,7 +61,8 @@ public sealed partial class GuestProfile : ScopedAggregateRoot<Guid>
         string? notes,
         string actorId,
         Guid eventId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        Guid? creationConfirmationId = null)
     {
         if (id == Guid.Empty)
         {
@@ -98,9 +100,16 @@ public sealed partial class GuestProfile : ScopedAggregateRoot<Guid>
             return Result.Failure<GuestProfile>(GuestsDomainErrors.EventIdRequired);
         }
 
+        if (creationConfirmationId == Guid.Empty)
+        {
+            return Result.Failure<GuestProfile>(
+                GuestsDomainErrors.CreationConfirmationInvalid);
+        }
+
         GuestProfile profile = new(id, scopeId)
         {
             OriginPropertyId = originPropertyId,
+            CreationConfirmationId = creationConfirmationId,
             DisplayName = values.Value.DisplayName,
             DisplayNameSearch = NormalizeRequiredSearch(values.Value.DisplayName),
             LegalName = values.Value.LegalName,
@@ -125,7 +134,8 @@ public sealed partial class GuestProfile : ScopedAggregateRoot<Guid>
             profile.Id,
             profile.OriginPropertyId,
             profile.Status,
-            profile.Version));
+            profile.Version,
+            profile.CreationConfirmationId));
         return Result.Success(profile);
     }
 

@@ -28,6 +28,7 @@ using Microsoft.Extensions.DependencyInjection;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Application;
 using BunkFy.Modules.Properties.Application.Commands;
+using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Entities;
 using BunkFy.Modules.Properties.Persistence;
@@ -427,8 +428,10 @@ public sealed class InventoryAuthorizationIntegrationTests
         property.ClearDomainEvents();
         room.ClearDomainEvents();
         PropertiesDbContext propertiesDb = scope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
-        propertiesDb.Properties.Add(property);
-        propertiesDb.Rooms.Add(room);
+        await scope.ServiceProvider.GetRequiredService<IPropertyRepository>()
+            .AddAsync(property, CancellationToken.None).ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<IRoomRepository>()
+            .AddAsync(room, CancellationToken.None).ConfigureAwait(false);
         await propertiesDb.SaveChangesAsync().ConfigureAwait(false);
     }
 
@@ -615,6 +618,10 @@ public sealed class InventoryAuthorizationIntegrationTests
         using (IServiceScope propertiesScope = api.Services.CreateScope())
         {
             propertiesScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            PropertiesDbContext propertiesDb = propertiesScope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
+            await using var transaction = await propertiesDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             IIntegrationEventHandler<BedRetirementFinalizationRequestedIntegrationEvent> finalize =
                 ResolveHandler<BedRetirementFinalizationRequestedIntegrationEvent>(
                     propertiesScope.ServiceProvider,
@@ -630,8 +637,8 @@ public sealed class InventoryAuthorizationIntegrationTests
                     BedB),
                 CancellationToken.None).ConfigureAwait(false);
 
-            PropertiesDbContext propertiesDb = propertiesScope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
             await propertiesDb.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
             Room room = await propertiesDb.Rooms
                 .AsNoTracking()
                 .Include(item => item.Beds)
@@ -748,6 +755,10 @@ public sealed class InventoryAuthorizationIntegrationTests
         using (IServiceScope propertiesScope = api.Services.CreateScope())
         {
             propertiesScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            PropertiesDbContext propertiesDb = propertiesScope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
+            await using var transaction = await propertiesDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             IIntegrationEventHandler<RoomRetirementFinalizationRequestedIntegrationEvent> finalize =
                 ResolveHandler<RoomRetirementFinalizationRequestedIntegrationEvent>(
                     propertiesScope.ServiceProvider,
@@ -762,8 +773,8 @@ public sealed class InventoryAuthorizationIntegrationTests
                     RoomB),
                 CancellationToken.None).ConfigureAwait(false);
 
-            PropertiesDbContext propertiesDb = propertiesScope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
             await propertiesDb.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
             Room room = await propertiesDb.Rooms
                 .AsNoTracking()
                 .Include(item => item.Beds)

@@ -32,6 +32,58 @@ public sealed class GuestProfileTests
     }
 
     [Fact]
+    public void Creation_confirmation_is_part_of_exact_replay_identity()
+    {
+        Guid confirmationId = Guid.NewGuid();
+        GuestProfile profile = GuestProfile.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            Guid.NewGuid(),
+            "Ada Guest",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "user:operator-a",
+            Guid.NewGuid(),
+            Now,
+            confirmationId).Value;
+        GuestProfileCreationSnapshot same = GuestProfileCreationSnapshot.Capture(
+            profile.OriginPropertyId,
+            profile.DisplayName,
+            profile.LegalName,
+            profile.Email,
+            profile.Phone,
+            profile.DateOfBirth,
+            profile.NationalityCountryCode,
+            profile.PreferredLanguageTag,
+            profile.Notes,
+            profile.CreatedBy,
+            profile.CreatedAtUtc,
+            confirmationId).Value;
+        GuestProfileCreationSnapshot different = GuestProfileCreationSnapshot.Capture(
+            profile.OriginPropertyId,
+            profile.DisplayName,
+            profile.LegalName,
+            profile.Email,
+            profile.Phone,
+            profile.DateOfBirth,
+            profile.NationalityCountryCode,
+            profile.PreferredLanguageTag,
+            profile.Notes,
+            profile.CreatedBy,
+            profile.CreatedAtUtc,
+            Guid.NewGuid()).Value;
+
+        Assert.Equal(confirmationId, profile.CreationConfirmationId);
+        Assert.True(profile.MatchesCreation(same));
+        Assert.False(profile.MatchesCreation(different));
+    }
+
+    [Fact]
     public void Update_and_archive_are_versioned_and_archived_profiles_are_immutable()
     {
         GuestProfile profile = Create("Ada Guest", null, null);

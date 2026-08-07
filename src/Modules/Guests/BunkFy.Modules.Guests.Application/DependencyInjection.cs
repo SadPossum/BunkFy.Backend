@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Guests.Application;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Application.Contributors;
+using BunkFy.Modules.Guests.Application.Capabilities;
 using BunkFy.Modules.Guests.Application.Handlers;
 using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Application.Ports;
@@ -39,6 +40,7 @@ public static class DependencyInjection
                 IValidateOptions<GuestRetentionOptions>,
                 GuestRetentionOptionsValidator>());
         services.TryAddScoped<IGuestCountryPolicyAdmission, GuestCountryPolicyAdmission>();
+        services.TryAddScoped<IGuestProfileCreationCapability, GuestProfileCreationCapability>();
         services.TryAddScoped<GuestMutationCoordinator>();
         services.TryAddScoped<
                 IGuestAnonymisationEligibilityEvaluator,

@@ -7,20 +7,22 @@ public static class ReservationsTenantTerminationMetadata
 {
     public const string OwnerKey = ReservationsDataRightsCoordinates.Owner;
     public const string DependencyOwnerKey = "inventory";
-    public const int CatalogVersion = 3;
-    public const int PersonalDataCatalogVersion = 14;
+    public const int CatalogVersion = 4;
+    public const int PersonalDataCatalogVersion = 16;
     public const string ExportCatalogId =
         "reservations.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =
         "reservations.tenant-termination-export";
-    public const int ExportSchemaVersion = 4;
+    public const int ExportSchemaVersion = 5;
 
     public const string ReservationRecordType = "reservation";
     public const string RequestedInventoryUnitRecordType =
         "requested-inventory-unit";
     public const string PendingAmendmentRecordType = "pending-amendment";
     public const string GuestLinkRecordType = "guest-link";
+    public const string GuestRecordLinkProcessRecordType =
+        "guest-record-link-process";
     public const string DetailsHistoryRecordType = "details-history";
     public const string ExternalOperationRecordType = "external-operation";
     public const string ManagementOperationRecordType =
@@ -52,6 +54,7 @@ public static class ReservationsTenantTerminationMetadata
             RequestedInventoryUnitRecordType,
             PendingAmendmentRecordType,
             GuestLinkRecordType,
+            GuestRecordLinkProcessRecordType,
             DetailsHistoryRecordType,
             ExternalOperationRecordType,
             ManagementOperationRecordType,
@@ -82,6 +85,7 @@ public static class ReservationsTenantTerminationMetadata
             "reservations.provider-provenance",
             "reservations.staff-attribution",
             "reservations.guest-link",
+            "reservations.guest-record-link-process",
             "reservations.details-history",
             "reservations.management-operation",
             "reservations.reminder-state",

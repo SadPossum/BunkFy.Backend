@@ -861,7 +861,9 @@ public sealed class ReservationDataRightsIntegrationTests
             .ConfigureAwait(false);
 
         Reservation reservation = CreateReservation(propertyId, TenantId);
-        reservations.Reservations.Add(reservation);
+        await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
+            .AddAsync(reservation, CancellationToken.None)
+            .ConfigureAwait(false);
         await reservations.SaveChangesAsync().ConfigureAwait(false);
 
         DataRightsCaseRequest caseRequest = DataRightsCaseRequest.Create(

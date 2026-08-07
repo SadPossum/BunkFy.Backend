@@ -648,6 +648,7 @@ public sealed class ReservationsSagaIntegrationTests
             accessToken,
             new
             {
+                operationId = Guid.NewGuid(),
                 displayName,
                 legalName = (string?)null,
                 email = "shared@example.test",

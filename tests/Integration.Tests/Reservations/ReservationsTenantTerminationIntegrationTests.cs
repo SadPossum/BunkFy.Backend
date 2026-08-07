@@ -6,6 +6,7 @@ using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Events;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Domain.Retention;
 using BunkFy.Modules.Reservations.Persistence;
@@ -455,6 +456,8 @@ public sealed class ReservationsTenantTerminationIntegrationTests
             .GetRequiredService<IReservationDetailsHistoryWriter>();
         IReservationExternalOperationRepository externalOperations = services
             .GetRequiredService<IReservationExternalOperationRepository>();
+        IReservationManagementOperationRepository managementOperations = services
+            .GetRequiredService<IReservationManagementOperationRepository>();
         IReservationArrivalReminderRepository reminders = services
             .GetRequiredService<IReservationArrivalReminderRepository>();
         Reservation reservation = CreateReservation(
@@ -503,6 +506,17 @@ public sealed class ReservationsTenantTerminationIntegrationTests
             .OfType<ReservationDetailsChangedDomainEvent>()
             .First();
         context.Reservations.Add(reservation);
+        ReservationGuestRecordLinkProcess guestRecordLinkProcess =
+            ReservationGuestRecordLinkProcess.Prepare(
+                Guid.NewGuid(),
+                tenantId,
+                propertyId,
+                reservation.Id,
+                Guid.NewGuid(),
+                reservation.Version,
+                "user:owner",
+                ExportNowUtc.AddMinutes(-7)).Value;
+        context.GuestRecordLinkProcesses.Add(guestRecordLinkProcess);
         ReservationProcessingRestrictionProjection restrictionProjection =
             ReservationProcessingRestrictionProjection.Create(
                 tenantId,
@@ -541,6 +555,18 @@ public sealed class ReservationsTenantTerminationIntegrationTests
                 reservation.Version,
                 ErrorCode: null,
                 ExportNowUtc.AddMinutes(-7)),
+            CancellationToken.None);
+        await managementOperations.AddAsync(
+            new ReservationManagementOperationRecord(
+                Guid.NewGuid(),
+                tenantId,
+                propertyId,
+                reservation.Id,
+                ReservationManagementOperationKind.GuestDetails,
+                ExpectedVersion: null,
+                ExpectedDetailsRevision: reservation.DetailsRevision,
+                BusinessDate: null,
+                CreatedAtUtc: ExportNowUtc.AddMinutes(-7)),
             CancellationToken.None);
         await reminders.RefreshReservationAsync(
             new(

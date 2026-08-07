@@ -321,16 +321,24 @@ public sealed class RetentionControlPlaneIntegrationTests
             (IIntegrationEventHandler<OrganizationChangedIntegrationEvent>)
             scope.ServiceProvider.GetRequiredService(
                 organizationSubscription.HandlerType);
-        await organizationHandler.HandleAsync(
-            new OrganizationChangedIntegrationEvent(
-                Guid.NewGuid(),
-                DateTimeOffset.UtcNow,
-                tenantId,
-                Guid.NewGuid(),
-                OrganizationChange.Created,
-                OrganizationStatus.Active,
-                organizationVersion: 1),
-            CancellationToken.None).ConfigureAwait(false);
+        RetentionDbContext retention =
+            scope.ServiceProvider.GetRequiredService<RetentionDbContext>();
+        await using (var transaction = await retention.Database
+            .BeginTransactionAsync().ConfigureAwait(false))
+        {
+            await organizationHandler.HandleAsync(
+                new OrganizationChangedIntegrationEvent(
+                    Guid.NewGuid(),
+                    DateTimeOffset.UtcNow,
+                    tenantId,
+                    Guid.NewGuid(),
+                    OrganizationChange.Created,
+                    OrganizationStatus.Active,
+                    organizationVersion: 1),
+                CancellationToken.None).ConfigureAwait(false);
+            await retention.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
 
         var propertyCreated = new PropertyCreatedIntegrationEvent(
             Guid.NewGuid(),

@@ -97,6 +97,7 @@ Useful entry points:
 - [Reservations Management Lifecycle Idempotency Task](planning/reservations-management-lifecycle-idempotency-task.md)
 - [Reservations Management Guest Details Idempotency Task](planning/reservations-management-guest-details-idempotency-task.md)
 - [Reservations Management Guest Link Retry Task](planning/reservations-management-guest-link-retry-task.md)
+- [Reservation Guest Record Convergence Task](planning/reservation-guest-record-convergence-task.md)
 - [Reservations Management Inventory Amendment Replay Task](planning/reservations-management-inventory-amendment-replay-task.md)
 - [Reservations Data Rights Workflow Task](planning/reservations-data-rights-workflow-task.md)
 - [Reservation Record Retention Task](planning/reservation-record-retention-task.md)

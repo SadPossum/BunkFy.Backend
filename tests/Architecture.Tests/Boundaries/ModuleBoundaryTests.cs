@@ -135,6 +135,58 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Reservation_guest_record_extension_uses_only_module_contracts()
+    {
+        ProjectFile extension = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Extensions.ReservationGuestRecords",
+                StringComparison.Ordinal));
+        string[] moduleReferences = extension.ProjectReferences
+            .Where(reference => reference.Contains(
+                "BunkFy.Modules.",
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.Equal(2, moduleReferences.Length);
+        Assert.All(moduleReferences, reference => Assert.Contains(
+            ".Contracts\\",
+            reference,
+            StringComparison.OrdinalIgnoreCase));
+
+        string[] forbiddenSourceReferences = RepositoryPaths.EnumerateFiles(
+                "src/Extensions/BunkFy.Extensions.ReservationGuestRecords",
+                "*.cs")
+            .Where(path =>
+            {
+                string source = File.ReadAllText(path);
+                return source.Contains(
+                        "BunkFy.Modules.Guests.Application",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Guests.Domain",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Guests.Persistence",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Reservations.Application",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Reservations.Domain",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
+                        "BunkFy.Modules.Reservations.Persistence",
+                        StringComparison.Ordinal);
+            })
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+
+        Assert.Empty(forbiddenSourceReferences);
+    }
+
+    [Fact]
     public void Operations_notifications_data_rights_adapter_uses_the_generic_notifications_application_boundary()
     {
         ProjectFile extension = Assert.Single(

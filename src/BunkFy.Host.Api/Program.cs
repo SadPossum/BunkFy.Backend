@@ -5,6 +5,7 @@ using BunkFy.Extensions.DataRights.AccessControl;
 using BunkFy.Extensions.DataRights.Organizations;
 using BunkFy.Extensions.DataRights.TenantTermination;
 using BunkFy.Extensions.Operations.Notifications;
+using BunkFy.Extensions.ReservationGuestRecords;
 using BunkFy.Extensions.Workspaces;
 using BunkFy.Host.Api;
 using BunkFy.Host.ServiceDefaults;
@@ -166,6 +167,7 @@ builder.Services.AddBunkFyAccessControlDataRights();
 builder.Services.AddBunkFyOrganizationsDataRights();
 builder.Services.AddBunkFyTenantTerminationOperatorCatalog();
 builder.Services.AddBunkFyOperationsNotifications();
+builder.Services.AddBunkFyReservationGuestRecords();
 builder.Services.AddBunkFyWorkspaceOwnerNotificationAudience();
 builder.Services.AddNotificationEmailAdapter(builder.Configuration);
 builder.AddModule<PropertiesModule>();
@@ -218,6 +220,7 @@ app.MapGet("/api/smoke", (IOptions<BunkFyDeploymentOptions> deployment) => Resul
 }));
 app.MapModules();
 app.MapBunkFyAccessPermissionEndpoints();
+app.MapBunkFyReservationGuestRecordEndpoints();
 app.MapUserNotificationServerSentEvents();
 app.MapUserNotificationSignalR();
 

@@ -49,6 +49,24 @@ public static class ReservationsApplicationErrors
     public static Error StayProvenanceInvalid => ReservationsDomainErrors.StayProvenanceInvalid;
     public static readonly Error GuestNotLinkable = new("Reservations.GuestNotLinkable", "The guest is not active and visible at this property.");
     public static readonly Error ReminderTaskOptionsInvalid = new("Reservations.ReminderTaskOptionsInvalid", "Reservation reminder task options are invalid.");
+    public static readonly Error GuestRecordLinkProcessNotFound = new(
+        "Reservations.GuestRecordLinkProcessNotFound",
+        "The Reservation Guest Record link process was not found.");
+    public static readonly Error GuestRecordLinkProcessConflict = new(
+        "Reservations.GuestRecordLinkProcessConflict",
+        "The operation or Reservation is already bound to a different Guest Record link process.");
+    public static readonly Error GuestRecordLinkProcessReservationOccupied = new(
+        "Reservations.GuestRecordLinkProcessReservationOccupied",
+        "The Reservation already has a current primary Guest Record.");
+    public static readonly Error GuestRecordLinkProcessPending = new(
+        "Reservations.GuestRecordLinkProcessPending",
+        "The Guest Record link is waiting for current projection or restriction state.");
+    public static readonly Error GuestRecordLinkProcessRetryInvalid = new(
+        "Reservations.GuestRecordLinkProcessRetryInvalid",
+        "Only a Reservation Guest Record link that needs review can be retried.");
+    public static readonly Error GuestRecordLinkTaskInvalid = new(
+        "Reservations.GuestRecordLinkTaskInvalid",
+        "The Reservation Guest Record link task is invalid.");
     public static readonly Error CorrectionRequestInvalid = new(
         "Reservations.CorrectionRequestInvalid",
         "The reservation correction request is invalid.");

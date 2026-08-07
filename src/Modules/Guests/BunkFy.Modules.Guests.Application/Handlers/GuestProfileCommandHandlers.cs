@@ -54,7 +54,8 @@ internal sealed class CreateGuestProfileCommandHandler(
             command.PreferredLanguageTag,
             command.Notes,
             command.ActorId,
-            nowUtc);
+            nowUtc,
+            command.CreationConfirmationId);
         if (creation.IsFailure)
         {
             return Result.Failure<GuestMutationReceiptDto>(creation.Error);
@@ -85,7 +86,8 @@ internal sealed class CreateGuestProfileCommandHandler(
             command.Notes,
             command.ActorId,
             ids.NewId(),
-            nowUtc);
+            nowUtc,
+            command.CreationConfirmationId);
         if (created.IsFailure)
         {
             return Result.Failure<GuestMutationReceiptDto>(created.Error);

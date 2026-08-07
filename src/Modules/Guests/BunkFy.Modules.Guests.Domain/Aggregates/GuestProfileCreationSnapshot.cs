@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Guests.Domain.Aggregates;
 
+using BunkFy.Modules.Guests.Domain.Errors;
 using BunkFy.Modules.Guests.Domain.ValueObjects;
 using Gma.Framework.Results;
 
@@ -7,13 +8,16 @@ public sealed class GuestProfileCreationSnapshot
 {
     private GuestProfileCreationSnapshot(
         Guid originPropertyId,
+        Guid? creationConfirmationId,
         GuestProfileChange values)
     {
         this.OriginPropertyId = originPropertyId;
+        this.CreationConfirmationId = creationConfirmationId;
         this.Values = values;
     }
 
     public Guid OriginPropertyId { get; }
+    public Guid? CreationConfirmationId { get; }
 
     internal GuestProfileChange Values { get; }
 
@@ -28,8 +32,15 @@ public sealed class GuestProfileCreationSnapshot
         string? preferredLanguageTag,
         string? notes,
         string? actorId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        Guid? creationConfirmationId = null)
     {
+        if (creationConfirmationId == Guid.Empty)
+        {
+            return Result.Failure<GuestProfileCreationSnapshot>(
+                GuestsDomainErrors.CreationConfirmationInvalid);
+        }
+
         Result<GuestProfileChange> values = GuestProfileChange.Create(
             displayName,
             legalName,
@@ -42,7 +53,10 @@ public sealed class GuestProfileCreationSnapshot
             actorId,
             nowUtc);
         return values.IsSuccess
-            ? Result.Success(new GuestProfileCreationSnapshot(originPropertyId, values.Value))
+            ? Result.Success(new GuestProfileCreationSnapshot(
+                originPropertyId,
+                creationConfirmationId,
+                values.Value))
             : Result.Failure<GuestProfileCreationSnapshot>(values.Error);
     }
 }

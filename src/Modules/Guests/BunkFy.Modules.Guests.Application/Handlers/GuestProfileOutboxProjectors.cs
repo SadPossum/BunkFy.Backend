@@ -18,7 +18,8 @@ internal sealed class GuestProfileCreatedOutboxProjector(IOutboxWriterRegistry o
                 domainEvent.GuestId,
                 domainEvent.OriginPropertyId,
                 GuestProfileMappings.MapStatus(domainEvent.Status),
-                domainEvent.GuestVersion),
+                domainEvent.GuestVersion,
+                domainEvent.CreationConfirmationId),
             cancellationToken);
 }
 

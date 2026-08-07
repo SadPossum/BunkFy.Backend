@@ -69,18 +69,29 @@ internal static class GuestProfileValidation
 
 internal sealed class CreateGuestProfileCommandValidator : ICommandValidator<CreateGuestProfileCommand>
 {
-    public IEnumerable<string> Validate(CreateGuestProfileCommand command) => GuestProfileValidation.Write(
-        command.PropertyId,
-        command.OperationId,
-        command.DisplayName,
-        command.LegalName,
-        command.Email,
-        command.Phone,
-        command.NationalityCountryCode,
-        command.PreferredLanguageTag,
-        command.Notes,
-        expectedVersion: null,
-        command.ActorId);
+    public IEnumerable<string> Validate(CreateGuestProfileCommand command)
+    {
+        if (command.CreationConfirmationId == Guid.Empty)
+        {
+            yield return "CreationConfirmationId must not be empty when provided.";
+        }
+
+        foreach (string failure in GuestProfileValidation.Write(
+                     command.PropertyId,
+                     command.OperationId,
+                     command.DisplayName,
+                     command.LegalName,
+                     command.Email,
+                     command.Phone,
+                     command.NationalityCountryCode,
+                     command.PreferredLanguageTag,
+                     command.Notes,
+                     expectedVersion: null,
+                     command.ActorId))
+        {
+            yield return failure;
+        }
+    }
 }
 
 internal sealed class UpdateGuestProfileCommandValidator : ICommandValidator<UpdateGuestProfileCommand>

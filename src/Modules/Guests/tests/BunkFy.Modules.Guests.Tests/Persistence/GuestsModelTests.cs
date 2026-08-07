@@ -114,6 +114,11 @@ public sealed class GuestsModelTests
         Assert.Equal(ValueGenerated.OnAdd, profile.FindProperty(nameof(GuestProfile.ProjectionOrdinal))!.ValueGenerated);
         Assert.Equal(GuestProfile.ActorIdMaxLength, profile.FindProperty(nameof(GuestProfile.CreatedBy))!.GetMaxLength());
         Assert.NotNull(profile.FindProperty(nameof(GuestProfile.AnonymisedAtUtc)));
+        Assert.Contains(profile.GetIndexes(), index => index.IsUnique &&
+            index.Properties.Select(item => item.Name).SequenceEqual([
+                nameof(GuestProfile.ScopeId),
+                nameof(GuestProfile.CreationConfirmationId)
+            ]));
         Assert.Contains(profile.GetIndexes(), index => !index.IsUnique && index.Properties.Select(item => item.Name)
             .SequenceEqual([nameof(GuestProfile.ScopeId), nameof(GuestProfile.EmailSearch)]));
         Assert.Contains(profile.GetIndexes(), index => !index.IsUnique && index.Properties.Select(item => item.Name)

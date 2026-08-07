@@ -4,6 +4,7 @@ using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Domain.Retention;
 using DomainAnonymisationDisposition =
@@ -14,6 +15,9 @@ using DomainAnonymisationReason =
         .ReservationAnonymisationReason;
 using DomainDataHoldAction =
     BunkFy.Modules.Reservations.Domain.Models.ReservationDataHoldAction;
+using DomainGuestRecordLinkReviewReason =
+    BunkFy.Modules.Reservations.Domain.GuestRecords
+        .ReservationGuestRecordLinkReviewReason;
 
 [AttributeUsage(AttributeTargets.Property)]
 internal sealed class ReservationsTenantExportFieldAttribute(string fieldId)
@@ -173,6 +177,37 @@ internal sealed record ReservationGuestLinkStateTenantExport(
 internal sealed record ReservationGuestLinkStaffTenantExport(
     string LinkedBy,
     string? UnlinkedBy);
+
+internal sealed record ReservationGuestRecordLinkProcessTenantExport(
+    [property: ReservationsTenantExportField("reservations.scope-id")]
+    string ScopeId,
+    [property: ReservationsTenantExportField("reservations.property-id")]
+    Guid PropertyId,
+    [property: ReservationsTenantExportField("reservations.reservation-id")]
+    Guid ReservationId,
+    [property: ReservationsTenantExportField("reservations.guest-id")]
+    Guid GuestId,
+    [property: ReservationsTenantExportField("reservations.record-id")]
+    Guid OperationId,
+    [property: ReservationsTenantExportField(
+        "reservations.guest-record-link-process")]
+    ReservationGuestRecordLinkProcessStateTenantExport Process,
+    [property: ReservationsTenantExportField(
+        "reservations.staff-attribution")]
+    ReservationGuestRecordLinkProcessStaffTenantExport StaffAttribution);
+
+internal sealed record ReservationGuestRecordLinkProcessStateTenantExport(
+    Guid CreationConfirmationId,
+    long ExpectedReservationVersion,
+    ReservationGuestRecordLinkProcessState State,
+    DomainGuestRecordLinkReviewReason ReviewReason,
+    long Revision,
+    int DispatchRevision,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset UpdatedAtUtc);
+
+internal sealed record ReservationGuestRecordLinkProcessStaffTenantExport(
+    string? RequestedBy);
 
 internal sealed record ReservationDetailsHistoryTenantExport(
     [property: ReservationsTenantExportField("reservations.scope-id")]

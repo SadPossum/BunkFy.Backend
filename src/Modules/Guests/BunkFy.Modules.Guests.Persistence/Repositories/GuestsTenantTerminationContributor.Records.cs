@@ -57,6 +57,7 @@ internal sealed partial class GuestsTenantTerminationContributor
                     profile.NationalityCountryCode,
                     profile.PreferredLanguageTag,
                     profile.Notes,
+                    profile.CreationConfirmationId,
                     profile.Status,
                     profile.Version,
                     profile.CreatedAtUtc,

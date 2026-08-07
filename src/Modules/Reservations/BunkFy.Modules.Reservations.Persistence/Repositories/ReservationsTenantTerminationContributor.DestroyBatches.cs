@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using System.Globalization;
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Retention;
 using BunkFy.Modules.Reservations.Persistence.TenantTermination;
 using Gma.Framework.Messaging.Infrastructure;
@@ -120,12 +121,8 @@ internal sealed partial class ReservationsTenantTerminationContributor
                     execution => execution.Id,
                     cancellationToken),
             ReservationsTenantDestroyStage.ReservationGuests =>
-                this.RemoveBatchAsync(
+                this.RemoveReservationGuestRecordsBatchAsync(
                     operation,
-                    dbContext.ReservationGuests
-                        .OrderBy(guest => guest.ReservationId)
-                        .ThenBy(guest => guest.Id),
-                    guest => $"{guest.ReservationId:N}|{guest.Id:N}",
                     cancellationToken),
             ReservationsTenantDestroyStage.RequestedInventoryUnits =>
                 this.RemoveBatchAsync(
@@ -240,6 +237,39 @@ internal sealed partial class ReservationsTenantTerminationContributor
             cancellationToken);
     }
 
+    private async Task<bool> RemoveReservationGuestRecordsBatchAsync(
+        ReservationsTenantDestroyOperation operation,
+        CancellationToken cancellationToken)
+    {
+        ReservationGuestRecordLinkProcess[] processes = await dbContext
+            .GuestRecordLinkProcesses
+            .OrderBy(process => process.Id)
+            .Take(operation.BatchSize + 1)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (processes.Length > 0)
+        {
+            ReservationGuestRecordLinkProcess[] selected = processes
+                .Take(operation.BatchSize)
+                .ToArray();
+            dbContext.GuestRecordLinkProcesses.RemoveRange(selected);
+            EnsureBatchRecorded(
+                operation,
+                selected.Select(process => $"process:{process.Id:N}").ToArray(),
+                stageCompleted: false,
+                clock.UtcNow);
+            return true;
+        }
+
+        return await this.RemoveBatchAsync(
+            operation,
+            dbContext.ReservationGuests
+                .OrderBy(guest => guest.ReservationId)
+                .ThenBy(guest => guest.Id),
+            guest => $"{guest.ReservationId:N}|{guest.Id:N}",
+            cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task<bool> RemoveBatchAsync<TEntity>(
         ReservationsTenantDestroyOperation operation,
         IQueryable<TEntity> source,
@@ -304,6 +334,8 @@ internal sealed partial class ReservationsTenantTerminationContributor
         await dbContext.ProcessingRestrictions.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.RetentionExecutions.AnyAsync(cancellationToken)
+            .ConfigureAwait(false) ||
+        await dbContext.GuestRecordLinkProcesses.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.ReservationGuests.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||

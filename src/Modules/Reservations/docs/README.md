@@ -31,6 +31,10 @@ retention, and rights policies receive production approval.
 - revision-checked expected-time, guest/contact, and notes updates through the management API;
 - durable expected-arrival reminders dispatched two hours before the property-local arrival time, with revision/status checks that suppress stale, cancelled, checked-in, or already-arrived stays;
 - canonical primary-guest links with explicit replacement, inactive-link audit retention, and a dedicated scoped permission;
+- a Reservations-owned, PII-minimal create-and-link process that survives HTTP
+  interruption, resumes by Reservation, dispatches bounded TaskRuntime work,
+  safely rebases only while the primary role remains empty, and exposes stable
+  review outcomes without deleting the Guest Record;
 - PII-free, rebuildable local Guest profile and processing-restriction
   projections used only to validate new links, plus an authoritative Guests
   gate recheck that closes event-lag windows;
@@ -71,7 +75,7 @@ section is omitted.
 ## Tenant Termination
 
 Reservations is the versioned `reservations` mandatory export owner and runs
-after Inventory. It streams 17 deterministic, flat record types directly from
+after Inventory. It streams 19 deterministic, flat record types directly from
 Reservations-owned booking, requested-unit, amendment, Guest-link, history,
 adapter-operation, reminder, data-rights, anonymisation, and retention tables.
 Consumer projections, inbox/outbox state, rebuild checkpoints, and the internal

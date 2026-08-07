@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed partial class ReservationsTenantTerminationContributor
@@ -29,6 +30,11 @@ internal sealed partial class ReservationsTenantTerminationContributor
             count,
             cancellationToken).ConfigureAwait(false);
         count = await this.ExportGuestLinksAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
+        count = await this.ExportGuestRecordLinkProcessesAsync(
             tenantId,
             sink,
             count,
@@ -302,6 +308,51 @@ internal sealed partial class ReservationsTenantTerminationContributor
                     row.ReservationId,
                     row.GuestId.ToString("N")),
                 row.LinkVersion,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private async Task<long> ExportGuestRecordLinkProcessesAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (ReservationGuestRecordLinkProcess process in dbContext
+            .GuestRecordLinkProcesses
+            .AsNoTracking()
+            .Where(item => item.ScopeId == tenantId)
+            .OrderBy(item => item.Id)
+            .AsAsyncEnumerable()
+            .WithCancellation(cancellationToken)
+            .ConfigureAwait(false))
+        {
+            ReservationGuestRecordLinkProcessTenantExport record = new(
+                process.ScopeId,
+                process.PropertyId,
+                process.ReservationId,
+                process.Id,
+                process.Id,
+                new(
+                    process.CreationConfirmationId,
+                    process.ExpectedReservationVersion,
+                    process.State,
+                    process.ReviewReason,
+                    process.Revision,
+                    process.DispatchRevision,
+                    process.CreatedAtUtc,
+                    process.UpdatedAtUtc),
+                new(process.RequestedBy));
+            await WriteAsync(
+                ReservationsTenantTerminationMetadata
+                    .GuestRecordLinkProcessRecordType,
+                process.Id,
+                process.Revision,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

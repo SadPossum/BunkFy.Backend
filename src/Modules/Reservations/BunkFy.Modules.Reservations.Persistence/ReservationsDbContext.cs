@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Retention;
 using BunkFy.Modules.Reservations.Persistence.TenantTermination;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -55,6 +56,8 @@ public sealed class ReservationsDbContext(
         this.Set<ReservationRetentionAnonymisationReceipt>();
     public DbSet<RequestedInventoryUnit> RequestedInventoryUnits => this.Set<RequestedInventoryUnit>();
     public DbSet<ReservationGuest> ReservationGuests => this.Set<ReservationGuest>();
+    public DbSet<ReservationGuestRecordLinkProcess> GuestRecordLinkProcesses =>
+        this.Set<ReservationGuestRecordLinkProcess>();
     public DbSet<ReservationGuestProfileProjection> GuestProfileProjections => this.Set<ReservationGuestProfileProjection>();
     public DbSet<ReservationGuestProcessingRestrictionProjection> GuestProcessingRestrictionProjections =>
         this.Set<ReservationGuestProcessingRestrictionProjection>();

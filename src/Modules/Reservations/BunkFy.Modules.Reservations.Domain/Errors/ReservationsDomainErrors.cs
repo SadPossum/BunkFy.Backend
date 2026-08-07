@@ -67,4 +67,22 @@ public static class ReservationsDomainErrors
     public static readonly Error StayProvenanceInvalid = new("Reservations.StayProvenanceInvalid", "Stay lifecycle actor provenance is invalid.");
     public static readonly Error ReservationGuestLinkInvalid = new("Reservations.ReservationGuestLinkInvalid", "The reservation guest link is invalid.");
     public static readonly Error ReservationGuestRoleOccupied = new("Reservations.ReservationGuestRoleOccupied", "The reservation guest role is already occupied and replacement was not requested.");
+    public static readonly Error GuestRecordLinkProcessIdentityInvalid = new(
+        "Reservations.GuestRecordLinkProcessIdentityInvalid",
+        "The Reservation Guest Record link process identity is invalid.");
+    public static readonly Error GuestRecordLinkProcessActorInvalid = new(
+        "Reservations.GuestRecordLinkProcessActorInvalid",
+        "The Reservation Guest Record link process actor is invalid.");
+    public static readonly Error GuestRecordLinkProcessLifecycleInvalid = new(
+        "Reservations.GuestRecordLinkProcessLifecycleInvalid",
+        "The Reservation Guest Record link process lifecycle is invalid.");
+    public static readonly Error GuestRecordLinkProcessCorrelationMismatch = new(
+        "Reservations.GuestRecordLinkProcessCorrelationMismatch",
+        "The Guest creation confirmation does not match the Reservation link process.");
+    public static readonly Error GuestRecordLinkProcessTransitionInvalid = new(
+        "Reservations.GuestRecordLinkProcessTransitionInvalid",
+        "The Reservation Guest Record link process cannot perform this transition.");
+    public static readonly Error GuestRecordLinkProcessReviewReasonInvalid = new(
+        "Reservations.GuestRecordLinkProcessReviewReasonInvalid",
+        "The Reservation Guest Record link review reason is invalid.");
 }

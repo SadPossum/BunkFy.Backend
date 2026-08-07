@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Guests.Tests;
 
 using System.Reflection;
 using BunkFy.DataGovernance;
+using BunkFy.Extensions.ReservationGuestRecords;
 using BunkFy.Modules.Guests.AdminApi;
 using BunkFy.Modules.Guests.Api;
 using BunkFy.Modules.Guests.Application.Commands;
@@ -83,6 +84,9 @@ public sealed class GuestsPersonalDataCatalogTests
     public void Every_selected_command_query_response_export_and_event_member_is_classified()
     {
         AssertType(typeof(CreateGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
+        AssertType(
+            typeof(GuestProfileCreationRequest),
+            PersonalDataSurface.IntegrationCommand);
         AssertType(typeof(UpdateGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ArchiveGuestProfileCommand), PersonalDataSurface.ApplicationCommand);
         AssertType(typeof(ApplyGuestDataRightsCorrectionCommand), PersonalDataSurface.ApplicationCommand);
@@ -166,6 +170,10 @@ public sealed class GuestsPersonalDataCatalogTests
             typeof(GuestsAdminApiModule.ArchiveGuestProfileRequest),
             PersonalDataSurface.ApiInput,
             nameof(GuestsAdminApiModule.ArchiveGuestProfileRequest.Confirmed));
+        AssertType(
+            typeof(ReservationGuestRecordWriteRequest),
+            PersonalDataSurface.ApiInput,
+            nameof(ReservationGuestRecordWriteRequest.ExpectedReservationVersion));
 
         AssertType(typeof(GuestProfileDto), PersonalDataSurface.ApiResponse);
         AssertType(typeof(GuestListItemDto), PersonalDataSurface.ApiResponse);
@@ -314,7 +322,8 @@ public sealed class GuestsPersonalDataCatalogTests
             typeof(CreateGuestProfileCommand).Assembly,
             typeof(GuestsModuleMetadata).Assembly,
             typeof(GuestProfile).Assembly,
-            typeof(GuestsDbContext).Assembly
+            typeof(GuestsDbContext).Assembly,
+            typeof(ReservationGuestRecordWriteRequest).Assembly
         }.ToDictionary(assembly => assembly.GetName().Name!, StringComparer.Ordinal);
 
     private static PersonalDataCatalogDocument LoadCatalogue() => PersonalDataCatalogJson.Parse(

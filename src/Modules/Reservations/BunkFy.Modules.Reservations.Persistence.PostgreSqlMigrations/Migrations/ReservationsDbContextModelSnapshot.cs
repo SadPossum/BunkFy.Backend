@@ -1103,6 +1103,77 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.GuestRecords.ReservationGuestRecordLinkProcess", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreationConfirmationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DispatchRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ExpectedReservationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ReviewReason")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("ScopeId", "Id");
+
+                    b.HasIndex("ScopeId", "CreationConfirmationId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "ReservationId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "ReservationId", "State");
+
+                    b.HasIndex("ScopeId", "PropertyId", "State", "UpdatedAtUtc", "Id")
+                        .HasDatabaseName("IX_reservation_guest_record_link_processes_ScopeId_PropertyId~1");
+
+                    b.ToTable("reservation_guest_record_link_processes", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_reservation_guest_record_link_processes_lifecycle", "(\"State\" = 1 AND \"ReviewReason\" = 1 AND \"DispatchRevision\" = 0 AND \"RequestedBy\" IS NOT NULL) OR (\"State\" = 2 AND \"ReviewReason\" = 1 AND \"DispatchRevision\" >= 1 AND \"RequestedBy\" IS NOT NULL) OR (\"State\" = 3 AND \"ReviewReason\" = 1 AND \"DispatchRevision\" >= 1 AND \"RequestedBy\" IS NULL) OR (\"State\" = 4 AND \"ReviewReason\" >= 2 AND \"DispatchRevision\" >= 0 AND \"RequestedBy\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_reservation_guest_record_link_processes_timestamps", "\"UpdatedAtUtc\" >= \"CreatedAtUtc\"");
+
+                            t.HasCheckConstraint("CK_reservation_guest_record_link_processes_versions", "\"ExpectedReservationVersion\" >= 1 AND \"Revision\" >= 1 AND \"DispatchRevision\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt", b =>
                 {
                     b.Property<Guid>("Id")

@@ -7,6 +7,7 @@ using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -42,6 +43,16 @@ public sealed class ReservationAnonymisationRepositoryTests
             Now.AddHours(-2)).IsSuccess);
         reservation.ClearDomainEvents();
         dbContext.Reservations.Add(reservation);
+        dbContext.GuestRecordLinkProcesses.Add(
+            ReservationGuestRecordLinkProcess.Prepare(
+                guestId,
+                reservation.ScopeId,
+                reservation.PropertyId,
+                reservation.Id,
+                Guid.NewGuid(),
+                reservation.Version,
+                "staff:front-desk",
+                Now.AddHours(-2)).Value);
 
         string originalSnapshot = SerializeSnapshot(reservation);
         dbContext.ReservationDetailsHistory.Add(
@@ -134,6 +145,7 @@ public sealed class ReservationAnonymisationRepositoryTests
         dbContext.ChangeTracker.Clear();
 
         Assert.Empty(await dbContext.ReservationGuests.ToArrayAsync());
+        Assert.Empty(await dbContext.GuestRecordLinkProcesses.ToArrayAsync());
         ReservationDetailsHistoryEntry[] history = await dbContext
             .ReservationDetailsHistory
             .OrderBy(entry => entry.ToRevision)

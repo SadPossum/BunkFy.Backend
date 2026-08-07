@@ -37,6 +37,8 @@ public sealed class GuestsTenantTerminationContributorTests
         Guid.Parse("50000000-0000-0000-0000-000000000001");
     private static readonly Guid OtherPropertyId =
         Guid.Parse("50000000-0000-0000-0000-000000000002");
+    private static readonly Guid CreationConfirmationId =
+        Guid.Parse("60000000-0000-0000-0000-000000000001");
     private static readonly DateTimeOffset Now =
         GuestsTenantTerminationTestData.Now;
     private static readonly DateTimeOffset FrozenAtUtc =
@@ -89,6 +91,19 @@ public sealed class GuestsTenantTerminationContributorTests
             record => Field(record, "guests.staff-attribution")
                 .GetProperty("createdBy")
                 .GetString() == "user:owner");
+        Assert.Contains(
+            first.Records.Where(record =>
+                record.RecordType ==
+                    GuestsTenantTerminationMetadata.GuestProfileRecordType),
+            record =>
+            {
+                JsonElement confirmation = Field(
+                        record,
+                        "guests.profile-state")
+                    .GetProperty("creationConfirmationId");
+                return confirmation.ValueKind == JsonValueKind.String &&
+                    confirmation.GetGuid() == CreationConfirmationId;
+            });
         Assert.Equal(
             GuestsTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -463,7 +478,9 @@ public sealed class GuestsTenantTerminationContributorTests
     private static void SeedGraph(GuestsDbContext context)
     {
         GuestProfile profile =
-            GuestsTenantTerminationTestData.CreateProfile(PropertyId);
+            GuestsTenantTerminationTestData.CreateProfile(
+                PropertyId,
+                creationConfirmationId: CreationConfirmationId);
         context.GuestProfiles.Add(profile);
         context.DataRightsCorrectionReceipts.Add(
             GuestDataRightsCorrectionReceipt.Create(

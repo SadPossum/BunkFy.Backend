@@ -6,6 +6,7 @@ using System.Text.Json;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed class ReservationAnonymisationRepository(
@@ -148,6 +149,16 @@ internal sealed class ReservationAnonymisationRepository(
             reminder.Supersede();
         }
 
+        ReservationGuestRecordLinkProcess[] guestRecordLinkProcesses =
+            await dbContext.GuestRecordLinkProcesses
+                .Where(process =>
+                    process.PropertyId == reservation.PropertyId &&
+                    process.ReservationId == reservation.Id)
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+        dbContext.GuestRecordLinkProcesses.RemoveRange(
+            guestRecordLinkProcesses);
+
         return new(
             history.Length + (historyAppend is null ? 0 : 1),
             externalOperations.Length,
@@ -208,6 +219,12 @@ internal sealed class ReservationAnonymisationRepository(
                 guest => guest.ReservationId == receipt.ReservationId,
                 cancellationToken)
             .ConfigureAwait(false);
+        bool hasGuestRecordLinkProcess = await dbContext
+            .GuestRecordLinkProcesses.AsNoTracking()
+            .AnyAsync(
+                process => process.ReservationId == receipt.ReservationId,
+                cancellationToken)
+            .ConfigureAwait(false);
         bool hasPendingReminder = await dbContext.ArrivalReminders.AsNoTracking()
             .AnyAsync(
                 reminder =>
@@ -238,6 +255,7 @@ internal sealed class ReservationAnonymisationRepository(
         return tombstone is not null &&
             tombstone.Matches(receipt) &&
             !hasGuestLinks &&
+            !hasGuestRecordLinkProcess &&
             !hasPendingReminder &&
             !hasUnreducedOperation &&
             history.Length == receipt.RedactedHistoryCount &&
@@ -263,6 +281,12 @@ internal sealed class ReservationAnonymisationRepository(
             .AsNoTracking()
             .AnyAsync(
                 guest => guest.ReservationId == reservationId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        bool hasGuestRecordLinkProcess = await dbContext
+            .GuestRecordLinkProcesses.AsNoTracking()
+            .AnyAsync(
+                process => process.ReservationId == reservationId,
                 cancellationToken)
             .ConfigureAwait(false);
         bool hasPendingReminder = await dbContext.ArrivalReminders
@@ -296,6 +320,7 @@ internal sealed class ReservationAnonymisationRepository(
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
         return !hasGuestLinks &&
+            !hasGuestRecordLinkProcess &&
             !hasPendingReminder &&
             !hasUnreducedOperation &&
             history.All(IsRedacted);

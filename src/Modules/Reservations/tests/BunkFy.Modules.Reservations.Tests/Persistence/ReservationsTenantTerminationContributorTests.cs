@@ -6,6 +6,7 @@ using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Domain.Retention;
 using BunkFy.Modules.Reservations.Persistence;
@@ -115,6 +116,20 @@ public sealed class ReservationsTenantTerminationContributorTests
             Digest,
             Field(managementOperation, "reservations.management-operation")
                 .GetProperty("requestFingerprint")
+                .GetString());
+        DataRightsExportRecord guestRecordLinkProcess = Assert.Single(
+            first.Records,
+            record => record.RecordType ==
+                ReservationsTenantTerminationMetadata
+                    .GuestRecordLinkProcessRecordType);
+        JsonElement processState = Field(
+            guestRecordLinkProcess,
+            "reservations.guest-record-link-process");
+        Assert.Equal(1, processState.GetProperty("revision").GetInt64());
+        Assert.Equal(
+            "user:owner",
+            Field(guestRecordLinkProcess, "reservations.staff-attribution")
+                .GetProperty("requestedBy")
                 .GetString());
         Assert.Equal(
             ReservationsTenantTerminationMetadata.ExportSchemaId,
@@ -460,6 +475,16 @@ public sealed class ReservationsTenantTerminationContributorTests
             Guid.NewGuid(),
             Now.AddMinutes(3)).IsSuccess);
         context.Reservations.Add(reservation);
+        context.GuestRecordLinkProcesses.Add(
+            ReservationGuestRecordLinkProcess.Prepare(
+                Guid.Parse("80000000-0000-0000-0000-000000000001"),
+                TenantId,
+                PropertyId,
+                reservation.Id,
+                Guid.Parse("80000000-0000-0000-0000-000000000002"),
+                reservation.Version,
+                "user:owner",
+                Now.AddMinutes(6)).Value);
         context.ReservationDetailsHistory.Add(new(
             Guid.NewGuid(),
             TenantId,
@@ -773,6 +798,7 @@ public sealed class ReservationsTenantTerminationContributorTests
         await context.AnonymisationRestoreReceipts.AnyAsync() ||
         await context.RetentionExecutions.AnyAsync() ||
         await context.RetentionAnonymisationReceipts.AnyAsync() ||
+        await context.GuestRecordLinkProcesses.AnyAsync() ||
         await context.ReservationGuests.AnyAsync() ||
         await context.RequestedInventoryUnits.AnyAsync() ||
         await context.ReservationDetailsHistory.AnyAsync() ||

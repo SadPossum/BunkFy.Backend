@@ -142,6 +142,33 @@ public sealed class GuestProfileCreateIdempotencyTests
         Assert.Equal(1, profiles.ByIdReads);
     }
 
+    [Fact]
+    public async Task Reusing_an_operation_for_a_different_confirmation_conflicts()
+    {
+        Guid operationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        Guid originalConfirmationId = Guid.NewGuid();
+        RecordingGuestRepository profiles = new(CreateProfile(
+            operationId,
+            propertyId,
+            originalConfirmationId));
+        CreateGuestProfileCommand changed = CreateCommand(operationId, propertyId) with
+        {
+            CreationConfirmationId = Guid.NewGuid()
+        };
+
+        Result<GuestMutationReceiptDto> result = await CreateHandler(
+            profiles,
+            new RecordingGuestOperationLock(),
+            new ThrowingIdGenerator()).HandleAsync(
+                changed,
+                CancellationToken.None);
+
+        Assert.Equal(GuestsApplicationErrors.CreationOperationConflict, result.Error);
+        Assert.Equal(originalConfirmationId, profiles.Existing?.CreationConfirmationId);
+        Assert.Null(profiles.Added);
+    }
+
     private static CreateGuestProfileCommandHandler CreateHandler(
         RecordingGuestRepository profiles,
         IGuestOperationLock operationLock,
@@ -173,7 +200,10 @@ public sealed class GuestProfileCreateIdempotencyTests
         "Prefers a lower bunk.",
         "user:creator");
 
-    private static GuestProfile CreateProfile(Guid guestId, Guid propertyId) =>
+    private static GuestProfile CreateProfile(
+        Guid guestId,
+        Guid propertyId,
+        Guid? creationConfirmationId = null) =>
         GuestProfile.Create(
             guestId,
             TestScopeContext.TenantId,
@@ -188,12 +218,14 @@ public sealed class GuestProfileCreateIdempotencyTests
             "Prefers a lower bunk.",
             "user:creator",
             Guid.NewGuid(),
-            Now).Value;
+            Now,
+            creationConfirmationId).Value;
 
     private sealed class RecordingGuestRepository(
         GuestProfile? existing = null,
         List<string>? sequence = null) : IGuestProfileRepository
     {
+        public GuestProfile? Existing => existing;
         public GuestProfile? Added { get; private set; }
         public int ByIdReads { get; private set; }
 

@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Reservations.Tests;
 using System.Reflection;
 using System.Text.Json;
 using BunkFy.DataGovernance;
+using BunkFy.Extensions.ReservationGuestRecords;
 using BunkFy.Modules.Reservations.Api;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Policies;
@@ -12,6 +13,7 @@ using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
+using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Retention;
 using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging;
@@ -70,6 +72,18 @@ public sealed class ReservationsPersonalDataCatalogTests
             [
                 nameof(ReservationDataHoldListResponse.Page),
                 nameof(ReservationDataHoldListResponse.PageSize)
+            ],
+            StringComparer.Ordinal),
+        [typeof(ReservationGuestRecordWriteRequest)] = new(
+            [
+                nameof(ReservationGuestRecordWriteRequest.DisplayName),
+                nameof(ReservationGuestRecordWriteRequest.LegalName),
+                nameof(ReservationGuestRecordWriteRequest.Email),
+                nameof(ReservationGuestRecordWriteRequest.Phone),
+                nameof(ReservationGuestRecordWriteRequest.DateOfBirth),
+                nameof(ReservationGuestRecordWriteRequest.NationalityCountryCode),
+                nameof(ReservationGuestRecordWriteRequest.PreferredLanguageTag),
+                nameof(ReservationGuestRecordWriteRequest.Notes)
             ],
             StringComparer.Ordinal)
     };
@@ -301,6 +315,9 @@ public sealed class ReservationsPersonalDataCatalogTests
         foreach ((PersonalDataSurface surface, Type type) in new[]
                  {
                      (
+                         PersonalDataSurface.ApiInput,
+                         typeof(ReservationGuestRecordWriteRequest)),
+                     (
                          PersonalDataSurface.ApiResponse,
                          typeof(ReservationDataHoldListResponse)),
                      (
@@ -378,6 +395,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationProcessingRestrictionReceipt),
         typeof(RequestedInventoryUnit),
         typeof(ReservationGuest),
+        typeof(ReservationGuestRecordLinkProcess),
         typeof(ReservationDetailsHistoryEntry),
         typeof(ReservationExternalOperation),
         typeof(ReservationManagementOperation),
@@ -395,7 +413,8 @@ public sealed class ReservationsPersonalDataCatalogTests
             typeof(CreateReservationCommand).Assembly,
             typeof(ReservationsModuleMetadata).Assembly,
             typeof(Reservation).Assembly,
-            typeof(ReservationsDbContext).Assembly
+            typeof(ReservationsDbContext).Assembly,
+            typeof(ReservationGuestRecordWriteRequest).Assembly
         }.ToDictionary(assembly => assembly.GetName().Name!, StringComparer.Ordinal);
 
     private static PersonalDataCatalogDocument LoadCatalogue() => PersonalDataCatalogJson.Parse(

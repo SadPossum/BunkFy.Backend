@@ -224,6 +224,7 @@ public sealed partial class GuestProfile
         this.NationalityCountryCode = null;
         this.PreferredLanguageTag = null;
         this.Notes = null;
+        this.CreationConfirmationId = null;
         this.Status = GuestProfileState.Anonymised;
         this.ArchivedAtUtc = null;
         this.AnonymisedAtUtc = completedAtUtc;
@@ -259,5 +260,6 @@ public sealed partial class GuestProfile
         this.NationalityCountryCode is null &&
         this.PreferredLanguageTag is null &&
         this.Notes is null &&
+        this.CreationConfirmationId is null &&
         this.ArchivedAtUtc is null;
 }

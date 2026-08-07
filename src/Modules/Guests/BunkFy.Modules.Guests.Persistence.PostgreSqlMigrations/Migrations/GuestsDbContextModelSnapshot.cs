@@ -43,6 +43,9 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<Guid?>("CreationConfirmationId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
 
@@ -125,6 +128,9 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ProjectionOrdinal")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "CreationConfirmationId")
                         .IsUnique();
 
                     b.HasIndex("ScopeId", "EmailSearch");

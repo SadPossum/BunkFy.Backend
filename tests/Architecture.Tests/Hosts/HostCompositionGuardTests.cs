@@ -113,6 +113,7 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddBunkFyTenantTerminationOperatorCatalog();",
             "builder.Services.AddBunkFyOperationsNotifications();",
             "builder.Services.AddBunkFyOperationsIngestionNotifications();",
+            "builder.Services.AddBunkFyReservationGuestRecords();",
             "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",
             "builder.AddModule<PropertiesModule>();",
             "builder.AddModule<InventoryModule>();",
@@ -125,7 +126,8 @@ public sealed class HostCompositionGuardTests
             "builder.AddGmaProductionHttp();",
             "app.UseGmaProductionHttp();",
             "builder.ValidateModuleComposition();",
-            "app.MapModules();"
+            "app.MapModules();",
+            "app.MapBunkFyReservationGuestRecordEndpoints();"
         ];
 
         string[] missing = expectedTokens
@@ -174,6 +176,25 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("builder.Services.AddRetentionApplication();", worker, StringComparison.Ordinal);
         Assert.Contains("builder.Services.AddRetentionTaskHandlers();", worker, StringComparison.Ordinal);
         Assert.Contains("builder.AddRetentionPersistence();", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Reservation_guest_record_task_pipeline_is_composed_only_in_worker()
+    {
+        string api = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Api",
+            "Program.cs");
+        string worker = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Worker",
+            "WorkerHostBuilderExtensions.cs");
+
+        Assert.DoesNotContain("AddReservationsTaskHandlers", api, StringComparison.Ordinal);
+        Assert.Contains(
+            "builder.Services.AddReservationsTaskHandlers();",
+            worker,
+            StringComparison.Ordinal);
     }
 
     [Fact]
