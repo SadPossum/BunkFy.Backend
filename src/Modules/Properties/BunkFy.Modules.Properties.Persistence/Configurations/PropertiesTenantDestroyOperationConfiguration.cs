@@ -23,7 +23,7 @@ internal sealed class PropertiesTenantDestroyOperationConfiguration
             table.HasCheckConstraint(
                 "CK_properties_tenant_destroy_operation_progress",
                 $"\"Stage\" BETWEEN 1 AND " +
-                $"{(int)PropertiesTenantDestroyStage.Completed} AND " +
+                $"{(int)PropertiesTenantDestroyStage.PropertyMutationOperations} AND " +
                 "\"RemovedRecordCount\" >= 0 AND " +
                 "\"CompletedBatchCount\" >= 0 AND " +
                 "\"ProofVersion\" = 1 AND \"ConcurrencyVersion\" >= 1");

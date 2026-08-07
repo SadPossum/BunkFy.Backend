@@ -141,13 +141,21 @@ internal sealed class PropertiesTenantDestroyOperation : IScopedEntity
         PropertiesTenantDestroyStage stage)
     {
         if (stage is < PropertiesTenantDestroyStage.OutboxMessages or
-            >= PropertiesTenantDestroyStage.Completed)
+            > PropertiesTenantDestroyStage.PropertyMutationOperations or
+            PropertiesTenantDestroyStage.Completed)
         {
             throw new InvalidOperationException(
                 "The Properties tenant destruction stage is invalid.");
         }
 
-        return (PropertiesTenantDestroyStage)((int)stage + 1);
+        return stage switch
+        {
+            PropertiesTenantDestroyStage.Rooms =>
+                PropertiesTenantDestroyStage.PropertyMutationOperations,
+            PropertiesTenantDestroyStage.PropertyMutationOperations =>
+                PropertiesTenantDestroyStage.Properties,
+            _ => (PropertiesTenantDestroyStage)((int)stage + 1)
+        };
     }
 }
 
@@ -163,5 +171,6 @@ internal enum PropertiesTenantDestroyStage
     Properties = 7,
     PropertyOperationLocks = 8,
     RoomOperationLocks = 9,
-    Completed = 10
+    Completed = 10,
+    PropertyMutationOperations = 11
 }

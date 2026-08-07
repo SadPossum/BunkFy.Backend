@@ -195,6 +195,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
     private static Command CreateUpdatePropertyCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<string> nameOption = new("--name") { Required = true };
         Option<string> codeOption = new("--code") { Required = true };
         Option<string> timeZoneOption = new("--time-zone") { DefaultValueFactory = _ => "UTC" };
@@ -202,6 +203,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         Command command = new("update", "Update a property.")
         {
             propertyIdOption,
+            operationIdOption,
             nameOption,
             codeOption,
             timeZoneOption,
@@ -221,6 +223,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                     Result<PropertyMutationReceiptDto> result = await dispatcher.SendAsync(
                         new UpdatePropertyCommand(
                             parseResult.GetRequiredValue(propertyIdOption),
+                            parseResult.GetRequiredValue(operationIdOption),
                             parseResult.GetRequiredValue(nameOption),
                             parseResult.GetRequiredValue(codeOption),
                             parseResult.GetValue(timeZoneOption) ?? "UTC",

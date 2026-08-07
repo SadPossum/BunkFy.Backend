@@ -62,6 +62,15 @@ reusing the id for different property details is a conflict. Property-code
 uniqueness remains independently serialized, and no request payload is retained
 for replay.
 
+Property details updates use a separate caller-supplied operation id scoped to
+the property. Exact retries return the immutable receipt recorded by the first
+successful attempt even when the property has since advanced; changed reuse is
+a conflict. A normalized no-op records a successful receipt without advancing
+the property version or publishing an event. Failed validation, stale-version,
+and duplicate-code attempts do not reserve the operation id. The append-only
+operation journal stores only coordinates, a canonical digest, and the minimal
+result; it is included in tenant export and bounded destruction.
+
 Multi-bed creation is one atomic room command. The complete label set is
 validated before mutation, is limited to 100 beds, and publishes the existing
 bed-added fact once per created bed. The single-bed command remains available

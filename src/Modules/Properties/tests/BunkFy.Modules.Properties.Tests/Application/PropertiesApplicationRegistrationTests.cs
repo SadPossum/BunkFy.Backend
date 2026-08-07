@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Properties.Tests;
 
 using BunkFy.Modules.Properties.Application;
 using BunkFy.Modules.Properties.Application.Commands;
+using BunkFy.Modules.Properties.Application.Handlers;
 using BunkFy.Modules.Properties.Application.Queries;
 using BunkFy.Modules.Properties.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,7 @@ public sealed class PropertiesApplicationRegistrationTests
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<AddBedsCommand, BedBatchMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<UpdateBedCommand, BedMutationReceiptDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(ICommandHandler<RetireBedCommand, Unit>));
+        Assert.Single(services, descriptor => descriptor.ServiceType == typeof(PropertyDetailsUpdateCoordinator));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<GetPropertyQuery, PropertyDto>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListPropertiesQuery, PropertyListResponse>));
         Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IQueryHandler<ListVisiblePropertiesQuery, PropertyListResponse>));

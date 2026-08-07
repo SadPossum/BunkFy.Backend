@@ -103,7 +103,13 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 AdminOperation.Create(PropertiesAdminOperationNames.PropertiesUpdate, PropertiesAdminPermissions.PropertiesManage),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
-                    new UpdatePropertyCommand(propertyId, request.Name, request.Code, request.TimeZoneId, request.ExpectedVersion),
+                    new UpdatePropertyCommand(
+                        propertyId,
+                        request.OperationId,
+                        request.Name,
+                        request.Code,
+                        request.TimeZoneId,
+                        request.ExpectedVersion),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -337,7 +343,12 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
         string Name,
         string Code,
         string TimeZoneId);
-    public sealed record PropertyUpdateRequest(string Name, string Code, string TimeZoneId, long ExpectedVersion);
+    public sealed record PropertyUpdateRequest(
+        Guid OperationId,
+        string Name,
+        string Code,
+        string TimeZoneId,
+        long ExpectedVersion);
     public sealed record RetirePropertyRequest(bool Confirmed, long ExpectedVersion);
     public sealed record RoomCreateRequest(
         string Name,
@@ -371,6 +382,7 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
 
     private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(PropertiesApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(PropertiesApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.BedBatchRequired.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.BedBatchTooLarge.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
@@ -378,6 +390,7 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
         new(PropertiesApplicationErrors.BedNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.PropertyCodeAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.BedAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyStatusUnknown.Code, StatusCodes.Status409Conflict),

@@ -66,6 +66,41 @@ public sealed class PropertiesModelTests
     }
 
     [Fact]
+    public void Property_mutation_operations_are_scoped_constrained_and_cascade()
+    {
+        using PropertiesDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(PropertyMutationOperation))!;
+        IEntityType property = designModel.FindEntityType(typeof(Property))!;
+
+        Assert.Equal(
+            ["ScopeId", "PropertyId", "Id"],
+            operation.FindPrimaryKey()!.Properties.Select(
+                item => item.Name));
+        Assert.NotEmpty(operation.GetDeclaredQueryFilters());
+        IForeignKey foreignKey = Assert.Single(
+            operation.GetForeignKeys(),
+            candidate => candidate.PrincipalEntityType == property);
+        Assert.Equal(DeleteBehavior.Cascade, foreignKey.DeleteBehavior);
+        Assert.Equal(
+            ["ScopeId", "PropertyId"],
+            foreignKey.Properties.Select(item => item.Name));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_property_mutation_operations_fingerprint");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_property_mutation_operations_versions");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_property_mutation_operations_kind");
+    }
+
+    [Fact]
     public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
     {
         using PropertiesDbContext dbContext = CreateDbContext();

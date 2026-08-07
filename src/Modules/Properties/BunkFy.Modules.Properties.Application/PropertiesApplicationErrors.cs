@@ -17,6 +17,12 @@ public static class PropertiesApplicationErrors
     public static readonly Error CreationOperationConflict = new(
         "Properties.CreationOperationConflict",
         "The property creation operation was already used for different details.");
+    public static readonly Error ManagementOperationInvalid = new(
+        "Properties.ManagementOperationInvalid",
+        "A valid property management operation id is required.");
+    public static readonly Error ManagementOperationConflict = new(
+        "Properties.ManagementOperationConflict",
+        "The property management operation was already used for a different request.");
     public static readonly Error TenantRequired = PropertiesDomainErrors.TenantRequired;
     public static readonly Error PropertyNotFound = PropertiesDomainErrors.PropertyNotFound;
     public static readonly Error PropertyCodeAlreadyExists = PropertiesDomainErrors.PropertyCodeAlreadyExists;

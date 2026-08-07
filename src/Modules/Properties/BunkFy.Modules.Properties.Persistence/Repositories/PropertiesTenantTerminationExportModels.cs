@@ -52,6 +52,27 @@ internal sealed record PropertiesGovernancePolicyTenantExport(
     DateTimeOffset PolicyExpiresAtUtc,
     DateTimeOffset ActivatedAtUtc);
 
+internal sealed record PropertiesPropertyMutationOperationTenantExport(
+    [property: PropertiesTenantExportField("properties.scope-id")]
+    string ScopeId,
+    [property: PropertiesTenantExportField("properties.property-id")]
+    Guid PropertyId,
+    [property: PropertiesTenantExportField("properties.record-id")]
+    Guid OperationId,
+    [property: PropertiesTenantExportField(
+        "properties.property-mutation-operation")]
+    PropertiesPropertyMutationOperationStateTenantExport State);
+
+internal sealed record PropertiesPropertyMutationOperationStateTenantExport(
+    PropertyMutationKind Kind,
+    long ExpectedVersion,
+    string RequestFingerprint,
+    BunkFy.Modules.Properties.Contracts.PropertyStatus ResultStatus,
+    BunkFy.Modules.Properties.Contracts.PropertyProcessingStatus
+        ResultProcessingStatus,
+    long ResultVersion,
+    DateTimeOffset CompletedAtUtc);
+
 internal sealed record PropertiesGovernanceAcknowledgementTenantExport(
     [property: PropertiesTenantExportField("properties.scope-id")]
     string ScopeId,

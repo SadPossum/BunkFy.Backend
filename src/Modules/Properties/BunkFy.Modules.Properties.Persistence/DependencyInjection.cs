@@ -31,6 +31,9 @@ public static class DependencyInjection
                 PropertiesMigrations.HistoryTable));
 
         builder.Services.TryAddScoped<IPropertyRepository, PropertyRepository>();
+        builder.Services.TryAddScoped<
+            IPropertyMutationOperationRepository,
+            PropertyMutationOperationRepository>();
         builder.Services.TryAddScoped<IRoomRepository, RoomRepository>();
         builder.Services.TryAddScoped<
             IPropertiesCreationOperationLock,

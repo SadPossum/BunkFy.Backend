@@ -21,6 +21,11 @@ internal sealed partial class PropertiesTenantTerminationContributor
             sink,
             count,
             cancellationToken).ConfigureAwait(false);
+        count = await this.ExportPropertyMutationOperationsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
         count = await this.ExportAcknowledgementsAsync(
             tenantId,
             sink,
@@ -104,6 +109,50 @@ internal sealed partial class PropertiesTenantTerminationContributor
                 PropertiesTenantTerminationMetadata.PropertyRecordType,
                 row.PropertyId,
                 row.Version,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private async Task<long> ExportPropertyMutationOperationsAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (PropertyMutationOperation operation in
+            dbContext.PropertyMutationOperations
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.PropertyId)
+                .ThenBy(item => item.Id)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            PropertiesPropertyMutationOperationTenantExport record = new(
+                operation.ScopeId,
+                operation.PropertyId,
+                operation.Id,
+                new PropertiesPropertyMutationOperationStateTenantExport(
+                    operation.Kind,
+                    operation.ExpectedVersion,
+                    operation.RequestFingerprint,
+                    operation.ResultStatus,
+                    operation.ResultProcessingStatus,
+                    operation.ResultVersion,
+                    operation.CompletedAtUtc));
+            await WriteAsync(
+                PropertiesTenantTerminationMetadata
+                    .PropertyMutationOperationRecordType,
+                DataRightsExportRecordIds.CreateDeterministicChild(
+                    operation.PropertyId,
+                    operation.Id.ToString("N")),
+                operation.ResultVersion,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

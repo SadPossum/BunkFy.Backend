@@ -32,6 +32,8 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
         Guid.Parse("40000000-0000-0000-0000-000000000001");
     private static readonly Guid PropertyId =
         Guid.Parse("50000000-0000-0000-0000-000000000001");
+    private static readonly Guid PropertyMutationOperationId =
+        Guid.Parse("51000000-0000-0000-0000-000000000001");
     private static readonly Guid RoomId =
         Guid.Parse("60000000-0000-0000-0000-000000000001");
     private static readonly Guid BedId =
@@ -101,12 +103,14 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("properties.termination.exported", result.ResultCode);
-        Assert.Equal(5, result.AffectedCount);
+        Assert.Equal(6, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(1, result.ResultingProofRevision);
         Assert.Equal(
             [
                 PropertiesTenantTerminationMetadata.PropertyRecordType,
+                PropertiesTenantTerminationMetadata
+                    .PropertyMutationOperationRecordType,
                 PropertiesTenantTerminationMetadata
                     .GovernanceAcknowledgementRecordType,
                 PropertiesTenantTerminationMetadata.RoomRecordType,
@@ -268,6 +272,29 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             failure.Message);
     }
 
+    [Theory]
+    [InlineData(EntityState.Modified)]
+    [InlineData(EntityState.Deleted)]
+    public async Task Property_mutation_operations_are_append_only(
+        EntityState attemptedState)
+    {
+        MutableFenceReader fences = new();
+        await using PropertiesDbContext context = CreateContext(fences);
+        SeedGraph(context);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        PropertyMutationOperation operation =
+            await context.PropertyMutationOperations.SingleAsync();
+        context.Entry(operation).State = attemptedState;
+
+        InvalidOperationException failure = await Assert.ThrowsAsync<
+            InvalidOperationException>(() => context.SaveChangesAsync());
+
+        Assert.Equal(
+            "Property mutation operations are append-only.",
+            failure.Message);
+    }
+
     private static void SeedGraph(PropertiesDbContext context)
     {
         Property property = CreateProperty(PropertyId);
@@ -335,6 +362,18 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             FrozenAtUtc.AddDays(-2)));
 
         context.Properties.Add(property);
+        context.PropertyMutationOperations.Add(
+            new PropertyMutationOperation(new(
+                PropertyMutationOperationId,
+                TenantId,
+                PropertyId,
+                PropertyMutationKind.DetailsUpdate,
+                ExpectedVersion: 1,
+                Digest,
+                PropertyStatus.Active,
+                PropertyProcessingStatus.Unconfigured,
+                ResultVersion: 1,
+                FrozenAtUtc.AddDays(-3))));
         context.Rooms.Add(room);
         context.PropertyOperationLocks.Add(
             new PropertyOperationLock(property.Id, property.ScopeId));

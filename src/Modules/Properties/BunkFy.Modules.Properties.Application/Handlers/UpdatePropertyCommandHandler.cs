@@ -1,27 +1,38 @@
 namespace BunkFy.Modules.Properties.Application.Handlers;
 
 using BunkFy.Modules.Properties.Application.Commands;
-using BunkFy.Modules.Properties.Application.Mapping;
-using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
 using BunkFy.Modules.Properties.Domain.Errors;
+using BunkFy.Modules.Properties.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
-using Gma.Framework.Runtime.Identity;
-using Gma.Framework.Runtime.Time;
 
 internal sealed class UpdatePropertyCommandHandler(
-    IPropertyRepository repository,
     PropertiesMutationCoordinator mutations,
-    ISystemClock clock,
-    IIdGenerator idGenerator)
+    PropertyDetailsUpdateCoordinator updates)
     : ICommandHandler<UpdatePropertyCommand, PropertyMutationReceiptDto>
 {
     public async Task<Result<PropertyMutationReceiptDto>> HandleAsync(
         UpdatePropertyCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<PropertyMutationReceiptDto>(
+                PropertiesApplicationErrors.ManagementOperationInvalid);
+        }
+
+        Result<PropertyDetails> details = PropertyDetails.Create(
+            command.Name,
+            command.Code,
+            command.TimeZoneId);
+        if (details.IsFailure)
+        {
+            return Result.Failure<PropertyMutationReceiptDto>(
+                details.Error);
+        }
+
         Property? property = await mutations
             .AcquirePropertyAsync(
                 command.PropertyId,
@@ -31,26 +42,11 @@ internal sealed class UpdatePropertyCommandHandler(
             return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyNotFound);
         }
 
-        Result result = property.Update(
-            command.Name,
-            command.Code,
-            command.TimeZoneId,
+        return await updates.ExecuteAsync(
+            property,
+            command.OperationId,
             command.ExpectedVersion,
-            idGenerator.NewId(),
-            clock.UtcNow);
-        if (result.IsFailure)
-        {
-            return Result.Failure<PropertyMutationReceiptDto>(result.Error);
-        }
-
-        await mutations.AcquirePropertyCodeAsync(
-            property.Code,
+            details.Value,
             cancellationToken).ConfigureAwait(false);
-        if (await repository.CodeExistsAsync(property.Code.Value, property.Id, cancellationToken).ConfigureAwait(false))
-        {
-            return Result.Failure<PropertyMutationReceiptDto>(PropertiesDomainErrors.PropertyCodeAlreadyExists);
-        }
-
-        return Result.Success(PropertiesMapper.ToReceipt(property));
     }
 }

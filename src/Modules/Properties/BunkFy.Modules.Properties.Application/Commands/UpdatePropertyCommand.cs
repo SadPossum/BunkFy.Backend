@@ -5,6 +5,7 @@ using Gma.Framework.Cqrs;
 
 public sealed record UpdatePropertyCommand(
     Guid PropertyId,
+    Guid OperationId,
     string Name,
     string Code,
     string TimeZoneId,

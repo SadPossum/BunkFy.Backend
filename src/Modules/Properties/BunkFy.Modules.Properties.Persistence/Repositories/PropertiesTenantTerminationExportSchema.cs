@@ -23,6 +23,7 @@ internal static class PropertiesTenantTerminationExportSchema
     private static readonly Type[] SourceTypes =
     [
         typeof(PropertiesPropertyTenantExport),
+        typeof(PropertiesPropertyMutationOperationTenantExport),
         typeof(PropertiesGovernanceAcknowledgementTenantExport),
         typeof(PropertiesRoomTenantExport),
         typeof(PropertiesBedTenantExport),

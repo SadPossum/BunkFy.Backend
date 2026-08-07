@@ -53,6 +53,14 @@ internal sealed partial class PropertiesTenantTerminationContributor
                         room => room.ScopeId == tenantId),
                     room => room.Id,
                     cancellationToken),
+            PropertiesTenantDestroyStage.PropertyMutationOperations =>
+                this.RemoveBatchAsync(
+                    operation,
+                    dbContext.PropertyMutationOperations
+                        .OrderBy(item => item.PropertyId)
+                        .ThenBy(item => item.Id),
+                    item => $"{item.PropertyId:N}|{item.Id:N}",
+                    cancellationToken),
             PropertiesTenantDestroyStage.Properties =>
                 this.RemoveGuidBatchAsync(
                     operation,
@@ -263,6 +271,9 @@ internal sealed partial class PropertiesTenantTerminationContributor
             room => room.ScopeId == tenantId,
             cancellationToken)
             .ConfigureAwait(false) ||
+        await dbContext.PropertyMutationOperations.AnyAsync(
+            operation => operation.ScopeId == tenantId,
+            cancellationToken).ConfigureAwait(false) ||
         await dbContext.Properties.AnyAsync(
             property => property.ScopeId == tenantId,
             cancellationToken)

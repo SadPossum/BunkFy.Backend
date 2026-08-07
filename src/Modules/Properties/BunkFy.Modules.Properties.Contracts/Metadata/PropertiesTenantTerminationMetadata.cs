@@ -11,16 +11,18 @@ public static class PropertiesTenantTerminationMetadata
     public const string OperationsNotificationsDestroyDependencyOwnerKey =
         "operations-notifications";
     public const string RetentionDestroyDependencyOwnerKey = "retention";
-    public const int CatalogVersion = 2;
+    public const int CatalogVersion = 3;
     public const int PersonalDataCatalogVersion = 3;
     public const string ExportCatalogId =
         "properties.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =
         "properties.tenant-termination-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 2;
 
     public const string PropertyRecordType = "property";
+    public const string PropertyMutationOperationRecordType =
+        "property-mutation-operation";
     public const string GovernanceAcknowledgementRecordType =
         "property-governance-acknowledgement";
     public const string RoomRecordType = "room";
@@ -32,6 +34,7 @@ public static class PropertiesTenantTerminationMetadata
         Array.AsReadOnly(
         [
             PropertyRecordType,
+            PropertyMutationOperationRecordType,
             GovernanceAcknowledgementRecordType,
             RoomRecordType,
             BedRecordType,
@@ -62,6 +65,8 @@ public static class PropertiesTenantTerminationMetadata
             "properties.property-created-at",
             "properties.property-updated-at",
             "properties.property-retired-at",
+            "properties.record-id",
+            "properties.property-mutation-operation",
             "properties.governance-acknowledgement-id",
             "properties.governance-acknowledgement-version",
             "properties.room-id",

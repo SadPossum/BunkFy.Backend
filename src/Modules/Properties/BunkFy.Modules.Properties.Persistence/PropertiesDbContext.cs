@@ -24,6 +24,8 @@ public sealed class PropertiesDbContext(
         this.Set<PropertyOperationLock>();
     internal DbSet<RoomOperationLock> RoomOperationLocks =>
         this.Set<RoomOperationLock>();
+    internal DbSet<PropertyMutationOperation> PropertyMutationOperations =>
+        this.Set<PropertyMutationOperation>();
     public DbSet<PropertyGovernanceRevision> GovernanceRevisions =>
         this.Set<PropertyGovernanceRevision>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
@@ -284,6 +286,15 @@ public sealed class PropertiesDbContext(
         {
             throw new InvalidOperationException(
                 "Property governance revisions are append-only.");
+        }
+
+        if (this.ChangeTracker
+            .Entries<PropertyMutationOperation>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException(
+                "Property mutation operations are append-only.");
         }
 
         if (this.ChangeTracker

@@ -13,6 +13,8 @@ internal static class PropertiesMutationTestSupport
     {
         services.TryAddSingleton<IPropertyRepository>(
             new EmptyPropertyRepository());
+        services.TryAddSingleton<IPropertyMutationOperationRepository>(
+            new EmptyPropertyMutationOperationRepository());
         services.TryAddSingleton<IRoomRepository>(new EmptyRoomRepository());
         services.TryAddSingleton<IPropertiesCreationOperationLock>(
             new PassingCreationOperationLock());
@@ -77,6 +79,21 @@ internal static class PropertiesMutationTestSupport
             Guid? excludingRoomId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class EmptyPropertyMutationOperationRepository
+        : IPropertyMutationOperationRepository
+    {
+        public Task<PropertyMutationOperationRecord?> GetAsync(
+            Guid propertyId,
+            Guid operationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<PropertyMutationOperationRecord?>(null);
+
+        public Task AddAsync(
+            PropertyMutationOperationRecord operation,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class PassingOperationLock : IPropertiesOperationLock

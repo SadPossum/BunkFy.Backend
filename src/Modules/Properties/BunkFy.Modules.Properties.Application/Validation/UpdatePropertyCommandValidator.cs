@@ -12,6 +12,11 @@ internal sealed class UpdatePropertyCommandValidator : ICommandValidator<UpdateP
             yield return "Property id is required.";
         }
 
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         foreach (string error in PropertiesValidation.ValidateExpectedVersion(command.ExpectedVersion, "property"))
         {
             yield return error;

@@ -71,6 +71,30 @@ public sealed class PropertyAggregateTests
     }
 
     [Fact]
+    public void Normalized_no_change_update_keeps_version_and_emits_no_event()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+        property.ClearDomainEvents();
+        PropertyDetails details = PropertyDetails.Create(
+            "  Hostel One  ",
+            " HOSTEL-ONE ",
+            " UTC ").Value;
+
+        Result<PropertyDetailsUpdateOutcome> result =
+            property.UpdateDetails(
+                details,
+                property.Version,
+                Guid.Empty,
+                DateTimeOffset.UtcNow);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PropertyDetailsUpdateOutcome.Unchanged, result.Value);
+        Assert.Equal(1, property.Version);
+        Assert.Null(property.UpdatedAtUtc);
+        Assert.Empty(property.DomainEvents);
+    }
+
+    [Fact]
     public void Stale_version_is_rejected_without_mutation()
     {
         Property property = CreateProperty("tenant-a").Value;

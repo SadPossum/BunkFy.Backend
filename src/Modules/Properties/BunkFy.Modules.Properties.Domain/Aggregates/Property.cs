@@ -55,11 +55,6 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
             return versionResult;
         }
 
-        if (eventId == Guid.Empty)
-        {
-            return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
-        }
-
         Result<PropertyDetails> details = PropertyDetails.Create(
             name,
             code,
@@ -69,9 +64,74 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
             return Result.Failure(details.Error);
         }
 
-        this.Name = details.Value.Name;
-        this.Code = details.Value.Code;
-        this.TimeZoneId = details.Value.TimeZoneId;
+        Result<PropertyDetailsUpdateOutcome> outcome =
+            this.ApplyDetails(details.Value, eventId, nowUtc);
+        return outcome.IsSuccess
+            ? Result.Success()
+            : Result.Failure(outcome.Error);
+    }
+
+    public Result<PropertyDetailsUpdateOutcome> UpdateDetails(
+        PropertyDetails details,
+        long expectedVersion,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        Result<PropertyDetailsUpdateOutcome> evaluation =
+            this.EvaluateDetailsUpdate(details, expectedVersion);
+        if (evaluation.IsFailure ||
+            evaluation.Value == PropertyDetailsUpdateOutcome.Unchanged)
+        {
+            return evaluation;
+        }
+
+        return this.ApplyDetails(details, eventId, nowUtc);
+    }
+
+    public Result<PropertyDetailsUpdateOutcome> EvaluateDetailsUpdate(
+        PropertyDetails details,
+        long expectedVersion)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+        Result statusResult = this.EnsureActive();
+        if (statusResult.IsFailure)
+        {
+            return Result.Failure<PropertyDetailsUpdateOutcome>(
+                statusResult.Error);
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return Result.Failure<PropertyDetailsUpdateOutcome>(
+                versionResult.Error);
+        }
+
+        return Result.Success(this.MatchesCreation(details)
+            ? PropertyDetailsUpdateOutcome.Unchanged
+            : PropertyDetailsUpdateOutcome.Changed);
+    }
+
+    private Result<PropertyDetailsUpdateOutcome> ApplyDetails(
+        PropertyDetails details,
+        Guid eventId,
+        DateTimeOffset nowUtc)
+    {
+        if (this.MatchesCreation(details))
+        {
+            return Result.Success(
+                PropertyDetailsUpdateOutcome.Unchanged);
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure<PropertyDetailsUpdateOutcome>(
+                PropertiesDomainErrors.DomainEventIdRequired);
+        }
+
+        this.Name = details.Name;
+        this.Code = details.Code;
+        this.TimeZoneId = details.TimeZoneId;
         this.UpdatedAtUtc = nowUtc;
         this.Version++;
 
@@ -86,7 +146,7 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
             this.Status,
             this.Version));
 
-        return Result.Success();
+        return Result.Success(PropertyDetailsUpdateOutcome.Changed);
     }
 
     public Result RegisterRoom(long expectedVersion)

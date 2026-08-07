@@ -25,6 +25,9 @@ internal sealed class PropertiesOperationLockRepository(
         this.EnsureTransaction();
         if (dbContext.Database.IsRelational())
         {
+            await dbContext.AcquireOperationalMutationAdmissionAsync(
+                    cancellationToken)
+                .ConfigureAwait(false);
             int affected = await dbContext.PropertyOperationLocks
                 .Where(resourceLock =>
                     resourceLock.ScopeId == scopeId &&
@@ -68,6 +71,9 @@ internal sealed class PropertiesOperationLockRepository(
         this.EnsureTransaction();
         if (dbContext.Database.IsRelational())
         {
+            await dbContext.AcquireOperationalMutationAdmissionAsync(
+                    cancellationToken)
+                .ConfigureAwait(false);
             int affected = await dbContext.RoomOperationLocks
                 .Where(resourceLock =>
                     resourceLock.ScopeId == scopeId &&

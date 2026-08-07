@@ -123,7 +123,13 @@ public sealed class PropertiesModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new UpdatePropertyCommand(propertyId, request.Name, request.Code, request.TimeZoneId, request.ExpectedVersion),
+                new UpdatePropertyCommand(
+                    propertyId,
+                    request.OperationId,
+                    request.Name,
+                    request.Code,
+                    request.TimeZoneId,
+                    request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -371,7 +377,12 @@ public sealed class PropertiesModule : IModule
         string Name,
         string Code,
         string TimeZoneId);
-    public sealed record PropertyUpdateRequest(string Name, string Code, string TimeZoneId, long ExpectedVersion);
+    public sealed record PropertyUpdateRequest(
+        Guid OperationId,
+        string Name,
+        string Code,
+        string TimeZoneId,
+        long ExpectedVersion);
     public sealed record RetirePropertyRequest(bool Confirmed, long ExpectedVersion);
     public sealed record ActivatePropertyProcessingRequest(
         string OperatingCountryCode,
@@ -427,6 +438,7 @@ public sealed class PropertiesModule : IModule
         new(PropertiesApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
         new(PropertiesApplicationErrors.ConfirmationRequired.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(PropertiesApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.BedBatchRequired.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.BedBatchTooLarge.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
@@ -434,6 +446,7 @@ public sealed class PropertiesModule : IModule
         new(PropertiesApplicationErrors.BedNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.PropertyCodeAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.BedAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyStatusUnknown.Code, StatusCodes.Status409Conflict),
